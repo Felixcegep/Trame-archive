@@ -6,6 +6,7 @@
 //
 
 enum Muscle: String, Codable, CaseIterable {
+    
 
     // MARK: - Upper Body
 

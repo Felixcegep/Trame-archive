@@ -19,5 +19,10 @@ class ExerciceEntry{
         self.exercice = exercice
         self.sets = sets
     }
+    init (from: ExerciceTemplate){
+        
+        self.exercice = from
+        self.sets = []
+    }
     
 }

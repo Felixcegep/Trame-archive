@@ -1,14 +1,18 @@
 import SwiftUI
 
 struct WorkoutView: View {
-    var viewModel: WorkoutViewModel
+    @State var viewModel: WorkoutViewModel
     
     var body: some View {
         VStack {
             Text("Hello World")
             
-            Button("Add") {
-                viewModel.addExercice()
+            NavigationLink("changer fenetre") {
+                ExerciceLibrairyView(
+                    SelectExercice: true,
+                    ExercicesAvailable: $viewModel.exercicesTemplate,
+                    onSelect: viewModel.addExercice
+                )
             }
             
             List(viewModel.exercices) { exercice in

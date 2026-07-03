@@ -15,10 +15,10 @@ import SwiftUI
 class WorkoutViewModel {
     var exercices : [ExerciceEntry] = []
     var exercicesTemplate : [ExerciceTemplate] = []
-    func addExercice() {
-        let exerciceTemplate = ExerciceTemplate(name: "test", PrimaryMuscle: [Muscle.erectorSpinae])
-        
-        exercices.append(ExerciceEntry(Comment : "jello", exercice: exerciceTemplate))
+    
+    func addExercice(exerciceTmp: ExerciceTemplate){
+        let newExercice = ExerciceEntry(from : exerciceTmp)
+        exercices.append(newExercice)
     }
     func removeSet(_ exercice: ExerciceEntry, _ set: ExerciseSet) {
         exercice.sets.removeAll { $0 === set }

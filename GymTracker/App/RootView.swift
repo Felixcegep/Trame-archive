@@ -11,13 +11,14 @@ struct RootView: View {
     @State private var workoutViewModel = WorkoutViewModel()
 
     var body: some View {
+        
         TabView {
-            
-            WorkoutView(viewModel: workoutViewModel)
-                .tabItem {
-                    Label("Workout", systemImage: "stopwatch")
-                }
-            
+            NavigationStack {
+                WorkoutView(viewModel: workoutViewModel)
+                    .tabItem {
+                        Label("Workout", systemImage: "stopwatch")
+                    }
+            }
         }
         
     }
