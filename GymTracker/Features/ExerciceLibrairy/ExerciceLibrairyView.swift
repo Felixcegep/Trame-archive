@@ -21,19 +21,30 @@ struct ExerciceLibrairyView : View {
         var search = ""
         
         List(ExercicesAvailable, id: \.self){ exercice in
-            NavigationLink(destination: ExerciceView(exercice: exercice)) {
-                HStack {
-                    Text(exercice.name)
-                    Button(action: {
-                        onSelect(exercice)
-                        // add exercice and go back to the menu
-                        dismiss()
-                    }) {
-                        Image(systemName: "chevron.right")
+            
+            HStack {
+                Button {
+                    onSelect(exercice)
+                    dismiss()
+                } label: {
+                    VStack(alignment: .leading) {
+                        Text(exercice.name)
+                        Text("Chest • Barbell")
+                            .font(.caption)
                     }
-                                        
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    ExerciceView(exercice: exercice)
+                } label: {
+                    Image(systemName: "info.circle")
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
             }
+            
         }
         
         
