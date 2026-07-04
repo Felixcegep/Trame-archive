@@ -43,7 +43,7 @@ struct WorkoutView: View {
             // devrais retourner au home
             
         }.navigationDestination(isPresented: $workoutSaved) {
-            HomeView(workoutVM: viewModel)
+            HomeView()
         }
     }
 }

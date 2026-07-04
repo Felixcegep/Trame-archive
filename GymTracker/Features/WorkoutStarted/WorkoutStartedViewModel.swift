@@ -25,7 +25,7 @@ class WorkoutViewModel {
     }
     
     func saveWorkout(workoutSaved : Workout){
-        if let workout = self.workout{
+        if self.workout != nil{
             workoutSaved.endTime = Date.now
             workoutList.append(workoutSaved)
             
@@ -78,9 +78,6 @@ class WorkoutViewModel {
         }
     }
     
-    init(){
-        self.initialData()
-    }
     func startWorkout(){
         self.workout = Workout(nom : nil)
     }
@@ -121,6 +118,7 @@ class WorkoutViewModel {
                     SecondaryMuscle: [.tricepLongHead, .trapezius]
                 )
             ]
+            
         }
     
 }
