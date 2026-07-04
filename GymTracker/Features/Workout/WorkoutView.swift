@@ -7,6 +7,7 @@ struct WorkoutView: View {
     
     @State var difference : TimeInterval = 0
    
+    @State var workoutSaved : Bool = false
     let startDate = Date.now
     
     var body: some View {
@@ -29,7 +30,20 @@ struct WorkoutView: View {
                     )
                 }
             }
+            Button("save the workout", action: {
+                guard let WorkoutToSave = viewModel.workout else {
+                    return
+                }
+                
+                viewModel.saveWorkout(workoutSaved: WorkoutToSave)
+                workoutSaved = true
+            }
+                
+            )
+            // devrais retourner au home
             
+        }.navigationDestination(isPresented: $workoutSaved) {
+            HomeView(workoutVM: viewModel)
         }
     }
 }

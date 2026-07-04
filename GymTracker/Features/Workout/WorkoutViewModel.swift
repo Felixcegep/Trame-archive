@@ -14,15 +14,25 @@ import SwiftUI
 @Observable
 class WorkoutViewModel {
     
+    var workoutList : [Workout] = []
     
-    
-    //var exercices : [ExerciceEntry] = []
     var exercicesTemplate : [ExerciceTemplate] = []
     
     var workout : Workout? = nil
     
     func StartNewWorkout(){
         self.workout = Workout(nom: nil)
+    }
+    
+    func saveWorkout(workoutSaved : Workout){
+        if let workout = self.workout{
+            workoutSaved.endTime = Date.now
+            workoutList.append(workoutSaved)
+            
+            // enleve le workout encours de l'application
+            
+            self.workout = nil
+        }
     }
     
     func addExercice(exerciceTmp: ExerciceTemplate){
@@ -33,7 +43,7 @@ class WorkoutViewModel {
     }
     func removeSet(_ exercice: ExerciceEntry, _ set: ExerciseSet) {
         if let workout = self.workout{
-            workout.exercises.removeAll { $0 === exercice }
+            workout.exercises.first(where: { $0.id == exercice.id }).map({$0.sets.removeAll(where: { $0.id == set.id }) })
             
         }
     }

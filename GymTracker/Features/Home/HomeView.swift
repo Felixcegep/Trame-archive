@@ -1,12 +1,5 @@
-//
-//  HomeView.swift
-//  GymTracker
-//
-//  Created by Felix Lachapelle on 2026-07-04.
-//
-
-import Foundation
 import SwiftUI
+
 struct HomeView: View {
     let workoutVM: WorkoutViewModel
     @State private var goToWorkout = false
@@ -14,15 +7,15 @@ struct HomeView: View {
     var body: some View {
         VStack {
             Text("Home")
-            if workoutVM.workout != nil {
-                        Text("Ajouter exercice")
-                    } else {
-                        Text("Lancer Workout")
-                    }
-            
-            Button("Lancer Workout") {
-                workoutVM.startWorkout()
+
+            Button {
+                if workoutVM.workout == nil {
+                    workoutVM.startWorkout()
+                }
+
                 goToWorkout = true
+            } label: {
+                Text(workoutVM.workout == nil ? "Lancer Workout" : "Ajouter exercice")
             }
         }
         .navigationDestination(isPresented: $goToWorkout) {

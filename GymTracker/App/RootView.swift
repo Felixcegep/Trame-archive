@@ -15,6 +15,9 @@ struct RootView: View {
             NavigationStack {
                 HomeView(workoutVM: workoutViewModel)
             }
+            NavigationStack {
+                HistoryView(viewModel :  workoutViewModel)
+            }
             }
         }
     
