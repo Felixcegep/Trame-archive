@@ -13,23 +13,46 @@ import SwiftUI
 
 @Observable
 class WorkoutViewModel {
-    var exercices : [ExerciceEntry] = []
+    
+    
+    
+    //var exercices : [ExerciceEntry] = []
     var exercicesTemplate : [ExerciceTemplate] = []
     
+    var workout : Workout? = nil
+    
+    func StartNewWorkout(){
+        self.workout = Workout(nom: nil)
+    }
+    
     func addExercice(exerciceTmp: ExerciceTemplate){
-        let newExercice = ExerciceEntry(from : exerciceTmp)
-        exercices.append(newExercice)
+        if let workout = self.workout{
+            let newExercice = ExerciceEntry(from : exerciceTmp)
+            workout.exercises.append(newExercice)
+        }
     }
     func removeSet(_ exercice: ExerciceEntry, _ set: ExerciseSet) {
-        exercice.sets.removeAll { $0 === set }
+        if let workout = self.workout{
+            workout.exercises.removeAll { $0 === exercice }
+            
+        }
     }
+    
     func addSet(_ exercice: ExerciceEntry) {
-        exercice.sets.append(ExerciseSet())
+        if let workout = self.workout{
+            workout.exercises.first(where: { $0.id == exercice.id })?.sets.append(ExerciseSet())
+            
+        }
+        
     }
+    
     func SwitchStateDoneSet(_ exercice: ExerciceEntry, _ set: ExerciseSet)
     {
-        exercice.sets.map {
-            if ($0 == set){
+        
+        if let workout = self.workout{
+            // trouve l'exercice rechercher
+            // trouve le set rechercher et modifie la valeur
+            workout.exercises.first(where: { $0.id == exercice.id })?.sets.first(where: { $0.id == set.id }).map {
                 if ($0.done){
                     $0.done = false
                 }else{
@@ -40,17 +63,22 @@ class WorkoutViewModel {
     }
     
     func removeExercice(_ exercice: ExerciceEntry) {
-        exercices.removeAll { $0 === exercice }
+        if let workout = self.workout{
+            workout.exercises.removeAll { $0 === exercice }
+        }
     }
     
     init(){
         self.initialData()
     }
+    func startWorkout(){
+        self.workout = Workout(nom : nil)
+    }
     
         func initialData() {
             let exerciceTemplate = ExerciceTemplate(name: "test", PrimaryMuscle: [Muscle.erectorSpinae])
             
-            exercices.append(ExerciceEntry(Comment : "jello", exercice: exerciceTemplate))
+            //exercices.append(ExerciceEntry(Comment : "jello", exercice: exerciceTemplate))
             
             exercicesTemplate = [
                 ExerciceTemplate(

@@ -6,9 +6,17 @@
 //
 
 import Foundation
+import SwiftData
 
-struct Workout: Codable {
-    var nom: String
+@Model
+class Workout {
+    var nom: String?
     var startTime: Date
     var endTime: Date?
+    var exercises: [ExerciceEntry] = []
+    
+    init(nom: String?,endTime: Date? = nil) {
+        self.startTime = Date.now
+    }
+    
 }
