@@ -8,20 +8,20 @@
 
 import SwiftUI
 import Foundation
-
+import SwiftData
 struct HistoryView: View {
+    @Query var workouts: [Workout]
     let viewModel: WorkoutViewModel
+
     var body: some View {
         Text("History")
         
-        if (viewModel.workoutList.isEmpty){
+        if (workouts.isEmpty){
             Text("aucun entrainement disponible")
         }
         else {
-            List(viewModel.workoutList){ workout in
-                Text(workout.exercises[0].exercice.name)
-                    .font(.title)
-                
+            List(workouts , id: \.self){ workout in
+                Text(workout.exercises.count.description + " exercices")
                 
             }
         }

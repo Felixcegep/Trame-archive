@@ -5,7 +5,7 @@ import SwiftData
 struct ExerciceEntryCard: View {
     
     @Bindable var exerciceActuel: ExerciceEntry
-    let workoutVM: WorkoutViewModel
+    let viewModel: WorkoutStartedViewModel
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -53,14 +53,14 @@ struct ExerciceEntryCard: View {
                 index: index,
                 set: set,
                 exerciceActuel: exerciceActuel,
-                workoutVM: workoutVM
+                viewModel: viewModel
             )
         }
     }
     
     private var addSetButton: some View {
         Button {
-            workoutVM.addSet(exerciceActuel)
+            viewModel.addSet(exerciceActuel)
         } label: {
             Label("Add set", systemImage: "plus.circle")
         }
@@ -70,7 +70,7 @@ struct ExerciceEntryCard: View {
     
     private var removeExerciseButton: some View {
         Button {
-            workoutVM.removeExercice(exerciceActuel)
+            viewModel.removeExercice(exerciceActuel)
         } label: {
             Label("Remove exercise", systemImage: "trash")
         }
@@ -85,7 +85,7 @@ struct SetRowView: View {
     let index: Int
     @Bindable var set: ExerciseSet
     let exerciceActuel: ExerciceEntry
-    let workoutVM: WorkoutViewModel
+    let viewModel: WorkoutStartedViewModel
     
     var body: some View {
         HStack {
@@ -144,7 +144,7 @@ struct SetRowView: View {
     
     private var doneButton: some View {
         Button {
-            workoutVM.SwitchStateDoneSet(exerciceActuel, set)
+            viewModel.SwitchStateDoneSet(exerciceActuel, set)
         } label: {
             Image(systemName: set.done ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
@@ -155,7 +155,7 @@ struct SetRowView: View {
     
     private var removeButton: some View {
         Button {
-            workoutVM.removeSet(exerciceActuel, set)
+            viewModel.removeSet(exerciceActuel, set)
         } label: {
             Image(systemName: "trash")
                 .foregroundStyle(.red)
@@ -190,6 +190,6 @@ struct SetRowView: View {
                 ExerciseSet(repetition: 2, weight: 3)
             ]
         ),
-        workoutVM: WorkoutViewModel()
+        viewModel: WorkoutStartedViewModel(workoutVM: WorkoutViewModel())
     )
 }

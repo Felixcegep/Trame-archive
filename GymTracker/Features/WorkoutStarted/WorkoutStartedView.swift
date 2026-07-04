@@ -1,7 +1,11 @@
 import SwiftUI
-
-struct WorkoutView: View {
-    @State var viewModel : WorkoutViewModel 
+import SwiftData
+struct WorkoutStartedView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query var exerciceTemplates: [ExerciceTemplate]
+    
+    let workoutVM: WorkoutViewModel
+    @State private var viewModel: WorkoutStartedViewModel
     
     @State var seconds = 0
     
@@ -9,6 +13,11 @@ struct WorkoutView: View {
    
     @State var workoutSaved : Bool = false
     let startDate = Date.now
+
+    init(workoutVM: WorkoutViewModel) {
+        self.workoutVM = workoutVM
+        _viewModel = State(initialValue: WorkoutStartedViewModel(workoutVM: workoutVM))
+    }
     
     var body: some View {
         VStack {
@@ -18,24 +27,26 @@ struct WorkoutView: View {
             NavigationLink("changer fenetre") {
                 ExerciceLibrairyView(
                     SelectExercice: true,
-                    ExercicesAvailable: $viewModel.exercicesTemplate,
-                    onSelect: viewModel.addExercice
+                    ExercicesAvailable: exerciceTemplates,
+                    onSelect: viewModel.addExercise
                 )
             }
-            if let workout = viewModel.workout {
-                List(viewModel.workout?.exercises ?? []) { exercice in
+            if let workout = viewModel.activeWorkout {
+                List(workout.exercises) { exercice in
                     ExerciceEntryCard(
                         exerciceActuel: exercice,
-                        workoutVM: viewModel
+                        viewModel: viewModel
                     )
                 }
+            } else {
+                Text("Aucun workout en cours")
             }
             Button("save the workout", action: {
-                guard let WorkoutToSave = viewModel.workout else {
+                guard let WorkoutToSave = viewModel.activeWorkout else {
                     return
                 }
                 
-                viewModel.saveWorkout(workoutSaved: WorkoutToSave)
+                workoutVM.saveWorkout(using : modelContext)
                 workoutSaved = true
             }
                 
@@ -43,8 +54,7 @@ struct WorkoutView: View {
             // devrais retourner au home
             
         }.navigationDestination(isPresented: $workoutSaved) {
-            HomeView()
+            HomeView(workoutVM: workoutVM)
         }
     }
 }
-

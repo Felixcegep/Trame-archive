@@ -15,5 +15,11 @@ struct GymTrackerApp: App {
         WindowGroup {
                 RootView()
         }
+        .modelContainer(
+            for : [
+                Workout.self,
+                ExerciceTemplate.self
+            ]
+        )
     }
 }

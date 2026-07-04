@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     let workoutVM: WorkoutViewModel
+    
     @State private var goToWorkout = false
 
     var body: some View {
@@ -9,17 +10,17 @@ struct HomeView: View {
             Text("Home")
 
             Button {
-                if workoutVM.workout == nil {
+                if !workoutVM.hasActiveWorkout {
                     workoutVM.startWorkout()
                 }
 
                 goToWorkout = true
             } label: {
-                Text(workoutVM.workout == nil ? "Lancer Workout" : "Ajouter exercice")
+                Text(workoutVM.hasActiveWorkout ? "Continuer Workout" : "Lancer Workout")
             }
         }
         .navigationDestination(isPresented: $goToWorkout) {
-            WorkoutView(viewModel: workoutVM)
+            WorkoutStartedView(workoutVM: workoutVM)
         }
     }
 }

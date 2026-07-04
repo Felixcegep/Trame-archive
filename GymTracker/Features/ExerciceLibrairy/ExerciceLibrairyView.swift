@@ -10,15 +10,15 @@ import SwiftUI
 struct ExerciceLibrairyView : View {
     @Environment(\.dismiss) private var dismiss
     
-    @State  var SelectExercice : Bool
-     var SelectedExercice: ExerciceTemplate?
-    @Binding  var ExercicesAvailable: [ExerciceTemplate]
+    @State var SelectExercice : Bool
+    var SelectedExercice: ExerciceTemplate?
+    var ExercicesAvailable: [ExerciceTemplate]
     let onSelect: (ExerciceTemplate) -> Void
     
     
     
     var body: some View {
-        var search = ""
+        // TODO implémenter la recherche qui doit pas etre compliqué
         
         List(ExercicesAvailable, id: \.self){ exercice in
             
