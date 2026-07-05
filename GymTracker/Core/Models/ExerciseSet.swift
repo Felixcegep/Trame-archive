@@ -29,6 +29,9 @@ class ExerciseSet {
         weightType = .kg
         done = false
     }
+    func copy() -> ExerciseSet {
+        return ExerciseSet(repetition: repetition, weight: weight)
+    }
     
 }
 

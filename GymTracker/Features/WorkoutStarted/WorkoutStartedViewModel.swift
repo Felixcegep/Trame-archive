@@ -38,6 +38,18 @@ class WorkoutStartedViewModel {
         }
         
     }
+    func addSetCopyLastSet(exercice: ExerciceEntry) {
+        guard
+            let workout = workoutVM.activeWorkout,
+            let exercise = workout.exercises.first(where: { $0.id == exercice.id }),
+            let lastSet = exercise.sets.last
+        else {
+            return
+        }
+
+        let newSet = lastSet.copy()
+        exercise.sets.append(newSet)
+    }
     
     func SwitchStateDoneSet(_ exercice: ExerciceEntry, _ set: ExerciseSet)
     {

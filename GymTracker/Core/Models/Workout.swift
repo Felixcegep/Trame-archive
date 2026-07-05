@@ -18,5 +18,7 @@ class Workout {
     init(nom: String?,endTime: Date? = nil) {
         self.startTime = Date.now
     }
-    
 }
+
+
+

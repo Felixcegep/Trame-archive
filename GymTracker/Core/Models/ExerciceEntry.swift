@@ -24,5 +24,6 @@ class ExerciceEntry{
         self.exercice = from
         self.sets = []
     }
+
     
 }

@@ -59,14 +59,26 @@ struct ExerciceEntryCard: View {
     }
     
     private var addSetButton: some View {
-        Button {
-            viewModel.addSet(exerciceActuel)
-        } label: {
-            Label("Add set", systemImage: "plus.circle")
+        HStack{
+            Button {
+                viewModel.addSet(exerciceActuel)
+            } label: {
+                Label("Add set", systemImage: "plus.circle")
+            }
+            .buttonStyle(.borderless)
+            .padding(.top, 5)
+            Button {
+                viewModel.addSetCopyLastSet(exercice: exerciceActuel)
+            } label: {
+                Label("copyLast set", systemImage: "plus.circle")
+            }
+            .buttonStyle(.borderless)
+            .padding(.top, 5)
+                
         }
-        .buttonStyle(.borderless)
-        .padding(.top, 5)
+        
     }
+    
     
     private var removeExerciseButton: some View {
         Button {
