@@ -16,7 +16,7 @@ class WorkoutViewModel {
     
     
     var activeWorkout : Workout? = nil
-
+    let startTime: Date = Date.now
     var hasActiveWorkout: Bool {
         activeWorkout != nil
     }
@@ -48,6 +48,7 @@ class WorkoutViewModel {
     func startWorkout(){
         // creation d'un workout
         self.activeWorkout = Workout(nom : nil)
+        LiveActivityManager.shared.startWorkout(startTime: startTime)
     }
     
 
