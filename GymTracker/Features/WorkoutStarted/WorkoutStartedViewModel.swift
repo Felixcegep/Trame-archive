@@ -51,20 +51,47 @@ class WorkoutStartedViewModel {
         exercise.sets.append(newSet)
     }
     
-    func SwitchStateDoneSet(_ exercice: ExerciceEntry, _ set: ExerciseSet)
-    {
+    func switchStateDoneSet(
+        _ selectedExercise: ExerciceEntry,
+        _ selectedSet: ExerciseSet
+    ) {
+        guard
+            let workout = workoutVM.activeWorkout,
+            let exercise = workout.exercises.first(
+                where: { $0.id == selectedExercise.id }
+            ),
+            let set = exercise.sets.first(
+                where: { $0.id == selectedSet.id }
+            )
+        else {
+            return
+        }
+
+        set.done.toggle()
+
+        let exerciseName = exercise.exercice.name
+        let repetitions = set.repetition.description
+        let setNumber = exercise.sets.count.description
+        Task {
+            await LiveActivityManager.shared.updateExerciceAfterSet(
+                exercice: exerciseName,
+                rep: repetitions,
+                numberSet: setNumber
+            )
+        }
+    }
+   
+    
+    func getNextSetTodo() -> ExerciseSet?{
         
-        if let workout = workoutVM.activeWorkout{
-            // trouve l'exercice rechercher
-            // trouve le set rechercher et modifie la valeur
-            workout.exercises.first(where: { $0.id == exercice.id })?.sets.first(where: { $0.id == set.id }).map {
-                if ($0.done){
-                    $0.done = false
-                }else{
-                    $0.done = true
+        for exercice in workoutVM.activeWorkout!.exercises{
+            for set in exercice.sets{
+                if !set.done{
+                    return set
                 }
             }
         }
+        return nil
     }
     
     func removeExercice(_ exercice: ExerciceEntry) {

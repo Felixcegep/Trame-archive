@@ -41,6 +41,26 @@ final class LiveActivityManager {
     func update(){
         // idk
     }
+    func updateExerciceAfterSet(
+        exercice : String,
+        rep: String,
+        numberSet : String
+    ) async  {
+        let newState = GymTrackerAttributes.ContentState(
+                    currentExerciseName: exercice
+                )
+
+                let newContent = ActivityContent(
+                    state: newState,
+                    staleDate: nil
+                )
+
+        await activity?.update(newContent)
+
+                print("Live Activity updated")
+        
+        
+    }
     func startPause(){
         // show the time left of the pause
     }

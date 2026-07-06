@@ -6,7 +6,7 @@ struct ExerciceEntryCard: View {
     
     @Bindable var exerciceActuel: ExerciceEntry
     let viewModel: WorkoutStartedViewModel
-    
+    let onButtonPress : () -> Void
     var body: some View {
         VStack(alignment: .leading) {
             DisclosureGroup(titleText) {
@@ -53,7 +53,8 @@ struct ExerciceEntryCard: View {
                 index: index,
                 set: set,
                 exerciceActuel: exerciceActuel,
-                viewModel: viewModel
+                viewModel: viewModel,
+                onButtonPress: onButtonPress
             )
         }
     }
@@ -98,6 +99,7 @@ struct SetRowView: View {
     @Bindable var set: ExerciseSet
     let exerciceActuel: ExerciceEntry
     let viewModel: WorkoutStartedViewModel
+    let onButtonPress: () -> Void
     
     var body: some View {
         HStack {
@@ -156,7 +158,9 @@ struct SetRowView: View {
     
     private var doneButton: some View {
         Button {
-            viewModel.SwitchStateDoneSet(exerciceActuel, set)
+            viewModel.switchStateDoneSet(exerciceActuel, set)
+            onButtonPress()
+            
         } label: {
             Image(systemName: set.done ? "checkmark.circle.fill" : "circle")
                 .font(.title3)
@@ -202,6 +206,7 @@ struct SetRowView: View {
                 ExerciseSet(repetition: 2, weight: 3)
             ]
         ),
-        viewModel: WorkoutStartedViewModel(workoutVM: WorkoutViewModel())
+        viewModel: WorkoutStartedViewModel(workoutVM: WorkoutViewModel()),
+        onButtonPress: {}
     )
 }

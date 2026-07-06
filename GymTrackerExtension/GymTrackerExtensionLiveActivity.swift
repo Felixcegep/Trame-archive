@@ -27,7 +27,7 @@ struct GymTrackerExtensionLiveActivity: Widget {
         ActivityConfiguration(for: GymTrackerAttributes.self) { context in
             // Lock screen/banner UI goes here
             VStack {
-                Text("TEST")
+                Text(context.state.currentExerciseName ?? "")
             }
             .activityBackgroundTint(Color.cyan)
             .activitySystemActionForegroundColor(Color.black)
@@ -38,7 +38,7 @@ struct GymTrackerExtensionLiveActivity: Widget {
                     Text("TEST")
                 }
             } compactLeading: {
-                Text("T")
+                Text(context.state.currentExerciseName ?? "doit etre le premier Exercice")
             } compactTrailing: {
                 Text("E")
             } minimal: {
@@ -61,7 +61,8 @@ extension GymTrackerAttributes.ContentState {
             currentSerie: nil,
             totalSeries: nil,
             restTimeActive: nil,
-            RestTime: nil
+            RestTime: nil,
+
         )
      }
 }
