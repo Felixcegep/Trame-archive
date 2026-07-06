@@ -24,7 +24,7 @@ final class LiveActivityManager {
 
         let attributes = GymTrackerAttributes(startTime: startTime)
 
-            let state = GymTrackerAttributes.ContentState()
+        let state = GymTrackerAttributes.ContentState(restTimeActive: false)
 
             do {
                 activity = try Activity.request(
@@ -47,7 +47,9 @@ final class LiveActivityManager {
         numberSet : String
     ) async  {
         let newState = GymTrackerAttributes.ContentState(
-                    currentExerciseName: exercice
+                    currentExerciseName: exercice,
+                    restTimeActive: false,
+                    RestTime : nil,
                 )
 
                 let newContent = ActivityContent(
@@ -61,12 +63,25 @@ final class LiveActivityManager {
         
         
     }
-    func startPause(){
+    func startPause(timerEndDate : Date) async {
         // show the time left of the pause
+        let newState = GymTrackerAttributes.ContentState(
+                    restTimeActive: true ,
+                    RestTime : timerEndDate
+                )
+
+                let newContent = ActivityContent(
+                    state: newState,
+                    staleDate: nil
+                )
+
+        await activity?.update(newContent)
+
+                print("Live Activity updated")
+        
+        
     }
-    func endPause(){
-        // show the info of the exercice with number of rep
-    }
+    
     func end(){
         
     }

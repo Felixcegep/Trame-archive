@@ -17,8 +17,8 @@ struct GymTrackerAttributes: ActivityAttributes {
         var currentExerciseName: String?
         var currentSerie: Int?
         var totalSeries: Int?
-        var restTimeActive: Bool?
-        var RestTime : Int?
+        var restTimeActive: Bool
+        var RestTime : Date?
     }
 }
 
@@ -30,6 +30,6 @@ struct WorkoutEntryUser: Codable, Hashable, Sendable {
     var exercicesSerie: Int? = nil
     var currentSerie: Int? = nil
     var restTimeActive: Bool?
-    var RestTime : Int?
+    var RestTime : Date?
 }
 

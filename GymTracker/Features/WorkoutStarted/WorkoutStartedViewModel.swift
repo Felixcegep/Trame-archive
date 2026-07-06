@@ -4,7 +4,13 @@ import SwiftUI
 @Observable
 class WorkoutStartedViewModel {
     var workoutVM: WorkoutViewModel
+    
+    let duration: TimeInterval = 20
+    var timerEndDate: Date?
+    var isTimerVisible : Bool = false
+    var timerTask: Task<Void, Never>?
 
+    
     init(workoutVM: WorkoutViewModel) {
         self.workoutVM = workoutVM
     }
@@ -13,7 +19,22 @@ class WorkoutStartedViewModel {
         workoutVM.activeWorkout
     }
 
+    func getNextExerciseToDo() -> (exercise: ExerciceEntry, set: ExerciseSet)? {
+        guard let workout = workoutVM.workout else {
+            return nil
+        }
 
+        for exercise in workout.exercises {
+            for set in exercise.sets {
+                if !set.done {
+                    return (exercise, set)
+                }
+            }
+        }
+
+        return nil
+    }
+    
     func addExercise(_ template: ExerciceTemplate) {
         guard let activeWorkout = workoutVM.activeWorkout else { return }
 
@@ -68,19 +89,54 @@ class WorkoutStartedViewModel {
         }
 
         set.done.toggle()
-
-        let exerciseName = exercise.exercice.name
-        let repetitions = set.repetition.description
-        let setNumber = exercise.sets.count.description
-        Task {
-            await LiveActivityManager.shared.updateExerciceAfterSet(
-                exercice: exerciseName,
-                rep: repetitions,
-                numberSet: setNumber
-            )
-        }
+        
     }
    
+    
+    func startTime() {
+        timerTask?.cancel()
+
+        isTimerVisible = true
+        timerEndDate = Date.now.addingTimeInterval(duration)
+        
+        
+
+        
+        
+        timerTask = Task {
+            do {
+                if let timerguard = timerEndDate {
+                    
+                        print("lancement de la pause")
+                        await LiveActivityManager.shared.startPause(timerEndDate: timerguard)
+                }
+        
+                try await Task.sleep(for: .seconds(duration))
+                
+                guard !Task.isCancelled else { return }
+                
+                await MainActor.run {
+                    isTimerVisible = false
+                    timerEndDate = nil
+                }
+                if let nextExercice = getNextExerciseToDo() {
+                    print("Live ACtive Exercice Changement")
+                    await LiveActivityManager.shared.updateExerciceAfterSet(
+                        exercice: nextExercice.exercise.exercice.name,
+                        rep: nextExercice.set.repetition.description,
+                        numberSet: nextExercice.exercise.sets.count.description
+                    )
+                }
+                
+                
+                
+                    return
+            } catch {
+                return
+            }
+        }
+    }
+
     
     func getNextSetTodo() -> ExerciseSet?{
         

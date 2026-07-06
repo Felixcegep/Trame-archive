@@ -158,6 +158,7 @@ struct SetRowView: View {
     
     private var doneButton: some View {
         Button {
+            
             viewModel.switchStateDoneSet(exerciceActuel, set)
             onButtonPress()
             

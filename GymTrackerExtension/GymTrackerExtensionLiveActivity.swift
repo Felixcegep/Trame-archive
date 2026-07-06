@@ -17,8 +17,8 @@ struct GymTrackerAttributes: ActivityAttributes {
         var currentExerciseName: String?
         var currentSerie: Int?
         var totalSeries: Int?
-        var restTimeActive: Bool?
-        var RestTime: Int?
+        var restTimeActive: Bool
+        var RestTime: Date?
     }
 }
 
@@ -38,7 +38,15 @@ struct GymTrackerExtensionLiveActivity: Widget {
                     Text("TEST")
                 }
             } compactLeading: {
-                Text(context.state.currentExerciseName ?? "doit etre le premier Exercice")
+                
+                if let pauseRestTime = context.state.RestTime{
+                    Text(
+                        timerInterval: Date.now...pauseRestTime,
+                        countsDown: true
+                    )
+                }else{
+                    Text(context.state.currentExerciseName ?? "doit etre le premier Exercice")
+                }
             } compactTrailing: {
                 Text("E")
             } minimal: {
@@ -60,7 +68,7 @@ extension GymTrackerAttributes.ContentState {
             currentExerciseName: "TEST",
             currentSerie: nil,
             totalSeries: nil,
-            restTimeActive: nil,
+            restTimeActive: false,
             RestTime: nil,
 
         )

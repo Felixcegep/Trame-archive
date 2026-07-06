@@ -11,31 +11,43 @@ import Foundation
 import SwiftData
 
 @Model
-class ExerciseSet {
-    var weightType : WeightType
-    var repetition : Float
-    var weight : Float
-    var done : Bool = false
+final class ExerciseSet {
+    var weightType: WeightType = WeightType.kg
+    var distanceType: DistanceType = DistanceType.kilometers
+    var repetition: Float
+    var weight: Float
+    var duration: TimeInterval?
+    var distance: Float?
+    var done: Bool = false
     
-    init(repetition: Float, weight: Float) {
+    init(
+        repetition: Float = 0,
+        weight: Float = 0,
+        duration: TimeInterval? = nil,
+        distance: Float? = nil,
+        weightType: WeightType = .kg,
+        distanceType: DistanceType = .kilometers,
+        done: Bool = false
+    ) {
         self.repetition = repetition
         self.weight = weight
-        self.weightType = .kg
-        done = false
+        self.duration = duration
+        self.distance = distance
+        self.weightType = weightType
+        self.distanceType = distanceType
+        self.done = done
     }
-    init () {
-        repetition = 0
-        weight = 0
-        weightType = .kg
-        done = false
-    }
+
     func copy() -> ExerciseSet {
-        return ExerciseSet(repetition: repetition, weight: weight)
+        return ExerciseSet(
+            repetition: repetition,
+            weight: weight,
+            duration: duration,
+            distance: distance,
+            weightType: weightType,
+            distanceType: distanceType,
+            done: false
+        )
     }
     
-}
-
-enum WeightType : String, Codable {
-    case kg
-    case lbs
 }

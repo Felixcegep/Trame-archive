@@ -13,8 +13,6 @@ struct WorkoutStartedView: View {
     @State var isTimerVisible: Bool = false
     @State var workoutSaved: Bool = false
 
-    @State private var timerEndDate: Date?
-    @State private var timerTask: Task<Void, Never>?
 
     let startDate = Date.now
 
@@ -23,31 +21,6 @@ struct WorkoutStartedView: View {
         _viewModel = State(initialValue: WorkoutStartedViewModel(workoutVM: workoutVM))
     }
 
-    func startTime() {
-        let duration: TimeInterval = 90
-
-        timerTask?.cancel()
-
-        timerEndDate = Date.now.addingTimeInterval(duration)
-        isTimerVisible = true
-
-        timerTask = Task {
-            do {
-                try await Task.sleep(for: .seconds(duration))
-
-                guard !Task.isCancelled else {
-                    return
-                }
-
-                await MainActor.run {
-                    isTimerVisible = false
-                    timerEndDate = nil
-                }
-            } catch {
-                return
-            }
-        }
-    }
     
     var body: some View {
         VStack {
@@ -61,8 +34,7 @@ struct WorkoutStartedView: View {
                     onSelect: viewModel.addExercise
                 )
             }
-            if isTimerVisible,
-               let timerEndDate {
+            if let timerEndDate = viewModel.timerEndDate{
                 Text(
                     timerInterval: Date.now...timerEndDate,
                     countsDown: true
@@ -76,7 +48,7 @@ struct WorkoutStartedView: View {
                     ExerciceEntryCard(
                         exerciceActuel: exercice,
                         viewModel: viewModel,
-                        onButtonPress: startTime
+                        onButtonPress: viewModel.startTime
                         
                     )
                 }
@@ -88,9 +60,9 @@ struct WorkoutStartedView: View {
                     return
                 }
 
-                timerTask?.cancel()
-                isTimerVisible = false
-                timerEndDate = nil
+                viewModel.timerTask?.cancel()
+                viewModel.isTimerVisible = false
+                viewModel.timerEndDate = nil
 
                 workoutVM.saveWorkout(using: modelContext)
                 workoutSaved = true
