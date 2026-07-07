@@ -21,27 +21,27 @@ final class ExerciseSet {
     var done: Bool = false
     var rpe: Int?
     var setType: SetType = SetType.normal
-    
+    var usedMetric : UnitSystem
     init(
         repetition: Float = 0,
         weight: Float = 0,
         duration: TimeInterval? = nil,
         distance: Float? = nil,
-        weightType: WeightType = .kg,
-        distanceType: DistanceType = .kilometers,
+        
+        
         done: Bool = false,
         rpe: Int? = nil,
-        setType: SetType = .normal
+        setType: SetType = .normal,
+        usedMetric : UnitSystem
     ) {
         self.repetition = repetition
         self.weight = weight
         self.duration = duration
         self.distance = distance
-        self.weightType = weightType
-        self.distanceType = distanceType
         self.done = done
         self.rpe = rpe
         self.setType = setType
+        self.usedMetric = usedMetric
     }
 
     func copy() -> ExerciseSet {
@@ -50,11 +50,12 @@ final class ExerciseSet {
             weight: weight,
             duration: duration,
             distance: distance,
-            weightType: weightType,
-            distanceType: distanceType,
+            
+            
             done: false,
             rpe: rpe,
-            setType: setType
+            setType: setType,
+            usedMetric: usedMetric
         )
     }
     

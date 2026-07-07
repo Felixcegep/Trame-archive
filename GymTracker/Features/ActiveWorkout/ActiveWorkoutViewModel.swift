@@ -3,6 +3,11 @@ import SwiftUI
 
 @Observable
 class ActiveWorkoutViewModel {
+    let rawValue = UserDefaults.standard.string(forKey: "useMetric")
+    var unitSystem: UnitSystem {
+        UnitSystem(rawValue: rawValue ?? UnitSystem.metric.rawValue) ?? .metric
+    }
+    
     var workoutVM: WorkoutViewModel
     
     let duration: TimeInterval = 20
@@ -39,7 +44,7 @@ class ActiveWorkoutViewModel {
     func addExercise(_ template: ExerciceTemplate) {
         guard let activeWorkout = workoutVM.activeWorkout else { return }
 
-        let newExercise = ExerciceEntry(from : template)
+        let newExercise = ExerciceEntry(from : template, usedMetric: unitSystem)
         activeWorkout.exercises.append(newExercise)
     }
 
@@ -52,7 +57,8 @@ class ActiveWorkoutViewModel {
     
     func addSet(_ exerciseEntry: ExerciceEntry) {
         if let workout = workoutVM.activeWorkout{
-            workout.exercises.first(where: { $0.id == exerciseEntry.id })?.sets.append(ExerciseSet())
+            workout.exercises.first(where: { $0.id == exerciseEntry.id })?.sets.append(ExerciseSet(usedMetric: unitSystem))
+            
             
         }
         

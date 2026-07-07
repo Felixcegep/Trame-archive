@@ -7,6 +7,7 @@ struct ExerciceEntryCard: View {
     @Bindable var exerciseEntry: ExerciceEntry
     let viewModel: ActiveWorkoutViewModel
     let onButtonPress : () -> Void
+    var unitSystem: UnitSystem
     var body: some View {
         VStack(alignment: .leading) {
             DisclosureGroup(titleText) {
@@ -194,20 +195,3 @@ struct SetRowView: View {
     }
 }
 
-#Preview {
-    ExerciceEntryCard(
-        exerciseEntry: ExerciceEntry(
-            Comment: "Great set",
-            exercice: ExerciceTemplate(
-                name: "Bench Press",
-                PrimaryMuscle: [.middleChest]
-            ),
-            sets: [
-                ExerciseSet(repetition: 1, weight: 1),
-                ExerciseSet(repetition: 2, weight: 3)
-            ]
-        ),
-        viewModel: ActiveWorkoutViewModel(workoutVM: WorkoutViewModel()),
-        onButtonPress: {}
-    )
-}

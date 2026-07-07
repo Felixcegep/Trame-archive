@@ -12,7 +12,10 @@ import SwiftUI
 import SwiftData
 @Observable
 class WorkoutViewModel {
-    
+    let rawValue = UserDefaults.standard.string(forKey: "useMetric")
+    var unitSystem: UnitSystem {
+        UnitSystem(rawValue: rawValue ?? UnitSystem.metric.rawValue) ?? .metric
+    }
     
     
     var activeWorkout : Workout? = nil
@@ -48,7 +51,7 @@ class WorkoutViewModel {
     }
     func startWorkoutWithTemplate(Template : WorkoutTemplate)
     {
-        let newWorkout = Workout(template: Template)
+        let newWorkout = Workout(template: Template,unitSystem: unitSystem )
         self.activeWorkout = newWorkout
         LiveActivityManager.shared.startWorkout(startTime: newWorkout.startTime)
     }

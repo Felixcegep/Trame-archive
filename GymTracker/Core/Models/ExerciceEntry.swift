@@ -13,18 +13,20 @@ import SwiftData
 final class ExerciceEntry{
     var Comment: String?
     var exercice: ExerciceTemplate
-
+    var usedMetric : UnitSystem
     @Relationship(deleteRule: .cascade)
     var sets: [ExerciseSet]
 
-    init(Comment: String? = nil, exercice: ExerciceTemplate, sets: [ExerciseSet] = []) {
+    init(Comment: String? = nil, exercice: ExerciceTemplate, sets: [ExerciseSet] = [], usedMetric: UnitSystem) {
         self.Comment = Comment
         self.exercice = exercice
         self.sets = sets
+        self.usedMetric = usedMetric
     }
 
-    convenience init(from: ExerciceTemplate) {
-        self.init(exercice: from)
+    convenience init(from: ExerciceTemplate,usedMetric: UnitSystem) {
+        self.init(exercice: from,usedMetric: usedMetric)
+        
     }
 
     func addEmptySet() {
@@ -43,16 +45,16 @@ final class ExerciceEntry{
     private func createEmptySet() -> ExerciseSet {
         switch exercice.trackingType {
         case .weightAndReps, .weightedBodyweight, .assistedBodyweight:
-            return ExerciseSet(repetition: 0, weight: 0)
+            return ExerciseSet(repetition: 0, weight: 0,usedMetric: usedMetric)
 
         case .repsOnly:
-            return ExerciseSet(repetition: 0)
+            return ExerciseSet(repetition: 0,usedMetric: usedMetric)
 
         case .duration:
-            return ExerciseSet(duration: 0)
+            return ExerciseSet(duration: 0,usedMetric: usedMetric)
 
         case .durationAndDistance:
-            return ExerciseSet(duration: 0, distance: 0)
+            return ExerciseSet(duration: 0, distance: 0,usedMetric: usedMetric)
         }
     }
 

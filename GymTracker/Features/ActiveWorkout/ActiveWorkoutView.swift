@@ -2,7 +2,10 @@ import SwiftUI
 import SwiftData
 struct ActiveWorkoutView: View {
     @Query var exerciceTemplates: [ExerciceTemplate]
-    
+    let rawValue = UserDefaults.standard.string(forKey: "useMetric")
+    var unitSystem: UnitSystem {
+        UnitSystem(rawValue: rawValue ?? UnitSystem.metric.rawValue) ?? .metric
+    }
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
     @State private var viewModel: ActiveWorkoutViewModel
@@ -25,6 +28,13 @@ struct ActiveWorkoutView: View {
                     .monospacedDigit()
             }
             
+            if viewModel.isTimerVisible, let timerPause = viewModel.timerPause {
+                Text(timerInterval: Date.now...timerPause, countsDown: true)
+                    .font(.title2)
+                    .monospacedDigit()
+                    .foregroundColor(.blue)
+            }
+            
             NavigationLink("Add Exercise") {
                 ExerciceLibrairyView(
                     isSelectingExercise: true,
@@ -38,8 +48,8 @@ struct ActiveWorkoutView: View {
                     ExerciceEntryCard(
                         exerciseEntry: exercise,
                         viewModel: viewModel,
-                        onButtonPress: viewModel.startTime
-                        
+                        onButtonPress: viewModel.startTime,
+                        unitSystem: unitSystem
                     )
                 }
             } else {
