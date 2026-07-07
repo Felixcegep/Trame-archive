@@ -15,10 +15,13 @@ class Workout {
     var endTime: Date?
     var exercises: [ExerciceEntry] = []
     
-    init(nom: String?,endTime: Date? = nil) {
+    init(nom: String?, endTime: Date? = nil) {
+        self.nom = nom
         self.startTime = Date.now
+        self.endTime = endTime
     }
     init(template : WorkoutTemplate, unitSystem : UnitSystem){
+        self.nom = template.name
         self.startTime = Date.now
         self.exercises = []
         for exerciceTemplate in template.exercises{

@@ -10,9 +10,11 @@ import SwiftUI
 import Foundation
 import SwiftData
 struct HistoryView: View {
+    @Environment(\.modelContext) private var modelContext
+
     @Query var workouts: [Workout]
     let viewModel: WorkoutViewModel
-
+    
     var body: some View {
         VStack {
             if workouts.isEmpty {
@@ -41,6 +43,12 @@ struct HistoryView: View {
                                 .foregroundColor(.secondary)
                         }
                         .padding(.vertical, 4)
+                    }.swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            viewModel.removeWorkout(using: modelContext, workout: workout)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
                 }
             }

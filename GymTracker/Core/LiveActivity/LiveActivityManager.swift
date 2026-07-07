@@ -82,7 +82,10 @@ final class LiveActivityManager {
         
     }
     
-    func end(){
-        
+    func end() async {
+        guard let activity = activity else { return }
+        await activity.end(nil, dismissalPolicy: .immediate)
+        self.activity = nil
+        print("Live Activity ended")
     }
 }

@@ -22,25 +22,30 @@ class WorkoutViewModel {
     var hasActiveWorkout: Bool {
         activeWorkout != nil
     }
+    func removeWorkout(using modelContext: ModelContext, workout: Workout){
+       do {
+            modelContext.delete(workout)
+           try modelContext.save()
+       }catch{
+           return
+       }
+        
+    }
 
     func saveWorkout(using modelContext: ModelContext){
-        
         if let activeWorkout = activeWorkout {
-            
             activeWorkout.endTime = Date.now
-            
             do {
                 modelContext.insert(activeWorkout)
                 try modelContext.save()
-            }catch {
-                return
+            } catch {
+                print("Failed to save workout: \(error)")
             }
-            
-            
         }
         activeWorkout = nil
-        
-        
+        Task {
+            await LiveActivityManager.shared.end()
+        }
     }
 
     func startWorkout(){
@@ -59,6 +64,13 @@ class WorkoutViewModel {
 
     var workout: Workout? {
         get { activeWorkout }
-        set { activeWorkout = newValue }
+        set { 
+            activeWorkout = newValue 
+            if newValue == nil {
+                Task {
+                    await LiveActivityManager.shared.end()
+                }
+            }
+        }
     }
 }
