@@ -26,11 +26,18 @@ final class ExerciceEntry{
 
     convenience init(from: ExerciceTemplate,usedMetric: UnitSystem) {
         self.init(exercice: from,usedMetric: usedMetric)
+        addDefaultSets()
         
     }
 
     func addEmptySet() {
         sets.append(createEmptySet())
+    }
+
+    func addDefaultSets(count: Int = 3) {
+        for _ in 0..<count {
+            addEmptySet()
+        }
     }
 
     func copyLastSet() {

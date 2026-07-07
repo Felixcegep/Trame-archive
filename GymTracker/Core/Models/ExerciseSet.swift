@@ -58,5 +58,19 @@ final class ExerciseSet {
             usedMetric: usedMetric
         )
     }
-    
+
+    func displayText() -> String {
+        if let duration = duration, duration > 0 {
+            if let distance = distance, distance > 0 {
+                return String(format: "%ds @ %.2f %@", Int(duration), distance, distanceType.rawValue)
+            }
+            return "\(Int(duration))s"
+        }
+
+        if weight > 0 {
+            return "\(Int(repetition)) x \(String(format: "%.1f", weight)) \(weightType.rawValue)"
+        }
+
+        return "\(Int(repetition)) reps"
+    }
 }

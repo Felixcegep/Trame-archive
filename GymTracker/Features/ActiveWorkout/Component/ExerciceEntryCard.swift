@@ -28,19 +28,42 @@ struct ExerciceEntryCard: View {
     private var titleText: String {
         "\(exerciseEntry.exercice.name) set: \(exerciseEntry.sets.count)"
     }
+
+    private var inputTitles: [String] {
+        var titles: [String] = []
+        let trackingType = exerciseEntry.exercice.trackingType
+
+        if trackingType.usesReps {
+            titles.append("Reps")
+        }
+
+        if trackingType.usesWeight {
+            titles.append("Weight")
+        }
+
+        if trackingType.usesDuration {
+            titles.append("Duration")
+        }
+
+        if trackingType.usesDistance {
+            titles.append("Distance")
+        }
+
+        return titles
+    }
     
     private var headerRow: some View {
-        HStack {
+        HStack(spacing: 10) {
             Text("Set")
                 .frame(width: 70, alignment: .leading)
-            
-            Text("Reps")
-                .frame(width: 80, alignment: .center)
-            
-            Text("Weight")
-                .frame(width: 80, alignment: .center)
+
+            ForEach(inputTitles, id: \.self) { title in
+                Text(title)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
             
             Spacer()
+                .frame(width: 76)
         }
         .padding(.bottom, 5)
     }
@@ -101,15 +124,31 @@ struct SetRowView: View {
     let exerciseEntry: ExerciceEntry
     let viewModel: ActiveWorkoutViewModel
     let onButtonPress: () -> Void
+
+    private var trackingType: TrackingType {
+        exerciseEntry.exercice.trackingType
+    }
     
     var body: some View {
-        HStack {
+        HStack(spacing: 10) {
             Text("Set \(index + 1)")
                 .frame(width: 70, alignment: .leading)
-            
-            repsField
-            
-            weightField
+
+            if trackingType.usesReps {
+                repsField
+            }
+
+            if trackingType.usesWeight {
+                weightField
+            }
+
+            if trackingType.usesDuration {
+                durationField
+            }
+
+            if trackingType.usesDistance {
+                distanceField
+            }
             
             Spacer()
             
@@ -124,7 +163,7 @@ struct SetRowView: View {
     }
     
     private var repsField: some View {
-        TextField(
+        inputField(
             "Reps",
             text: Binding(
                 get: { String(set.repetition) },
@@ -135,13 +174,10 @@ struct SetRowView: View {
                 }
             )
         )
-        .keyboardType(.decimalPad)
-        .multilineTextAlignment(.center)
-        .frame(width: 80)
     }
     
     private var weightField: some View {
-        TextField(
+        inputField(
             "Weight",
             text: Binding(
                 get: { String(set.weight) },
@@ -152,9 +188,52 @@ struct SetRowView: View {
                 }
             )
         )
-        .keyboardType(.decimalPad)
-        .multilineTextAlignment(.center)
-        .frame(width: 80)
+    }
+
+    private var durationField: some View {
+        inputField(
+            "Seconds",
+            text: Binding(
+                get: {
+                    guard let duration = set.duration else { return "" }
+                    return String(Int(duration))
+                },
+                set: { newValue in
+                    if newValue.isEmpty {
+                        set.duration = nil
+                    } else if let value = TimeInterval(newValue) {
+                        set.duration = value
+                    }
+                }
+            )
+        )
+    }
+
+    private var distanceField: some View {
+        inputField(
+            "Distance",
+            text: Binding(
+                get: {
+                    guard let distance = set.distance else { return "" }
+                    return String(distance)
+                },
+                set: { newValue in
+                    if newValue.isEmpty {
+                        set.distance = nil
+                    } else if let value = Float(newValue) {
+                        set.distance = value
+                    }
+                }
+            )
+        )
+    }
+
+    private func inputField(_ title: String, text: Binding<String>) -> some View {
+        TextField(title, text: text)
+            .keyboardType(.decimalPad)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .textFieldStyle(.roundedBorder)
     }
     
     private var doneButton: some View {
@@ -194,4 +273,3 @@ struct SetRowView: View {
             )
     }
 }
-

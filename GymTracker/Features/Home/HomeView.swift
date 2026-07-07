@@ -23,13 +23,7 @@ struct HomeView: View {
             }
             if (!workoutVM.hasActiveWorkout) {
                 Button {
-                    // Utiliser des exercices existants de la base de données s'il y en a, sinon en instancier des nouveaux temporaires
-                    let testExercises: [ExerciceTemplate] = exerciceTemplates.isEmpty ? [
-                        ExerciceTemplate(name: "Bench Press", PrimaryMuscle: [.middleChest]),
-                        ExerciceTemplate(name: "Back Squat", PrimaryMuscle: [.quadriceps])
-                    ] : Array(exerciceTemplates.prefix(3))
-                    
-                    let template = WorkoutTemplate(name: "Test Workout", exercises: testExercises)
+                    let template = WorkoutTemplate(name: "Test Workout", exercises: defaultTemplateExercises)
                     workoutVM.startWorkoutWithTemplate(Template: template)
                     navigationPath.append(.activeWorkout)
                 } label: {
@@ -50,5 +44,75 @@ struct HomeView: View {
                     SettingView()
                 }
             }
+    }
+
+    private var defaultTemplateExercises: [ExerciceTemplate] {
+        TrackingType.allCases.map { trackingType in
+            exerciceTemplates.first { $0.trackingType == trackingType } ?? sampleExercise(for: trackingType)
+        }
+    }
+
+    private func sampleExercise(for trackingType: TrackingType) -> ExerciceTemplate {
+        switch trackingType {
+        case .weightAndReps:
+            return ExerciceTemplate(
+                name: "Bench Press",
+                PrimaryMuscle: [.middleChest],
+                trackingType: .weightAndReps,
+                equipmentType: .barbell,
+                resistanceType: .externalWeight,
+                movementPattern: .horizontalPush,
+                difficulty: .intermediate
+            )
+        case .repsOnly:
+            return ExerciceTemplate(
+                name: "Crunch",
+                PrimaryMuscle: [.rectusAbdominis],
+                trackingType: .repsOnly,
+                equipmentType: .bodyweight,
+                resistanceType: .bodyweight,
+                movementPattern: .isolation,
+                difficulty: .beginner
+            )
+        case .weightedBodyweight:
+            return ExerciceTemplate(
+                name: "Pull Up",
+                PrimaryMuscle: [.latissimusDorsi],
+                trackingType: .weightedBodyweight,
+                equipmentType: .bodyweight,
+                resistanceType: .weightedBodyweight,
+                movementPattern: .verticalPull,
+                difficulty: .intermediate
+            )
+        case .assistedBodyweight:
+            return ExerciceTemplate(
+                name: "Assisted Pull Up",
+                PrimaryMuscle: [.latissimusDorsi],
+                trackingType: .assistedBodyweight,
+                equipmentType: .machine,
+                resistanceType: .assistedBodyweight,
+                movementPattern: .verticalPull,
+                difficulty: .beginner
+            )
+        case .duration:
+            return ExerciceTemplate(
+                name: "Plank",
+                PrimaryMuscle: [.transverseAbdominis],
+                trackingType: .duration,
+                equipmentType: .bodyweight,
+                resistanceType: .bodyweight,
+                movementPattern: .antiRotation,
+                difficulty: .beginner
+            )
+        case .durationAndDistance:
+            return ExerciceTemplate(
+                name: "Treadmill Run",
+                PrimaryMuscle: [.quadriceps, .hamstrings, .calves],
+                category: .cardio,
+                trackingType: .durationAndDistance,
+                equipmentType: .cardioMachine,
+                difficulty: .beginner
+            )
+        }
     }
 }

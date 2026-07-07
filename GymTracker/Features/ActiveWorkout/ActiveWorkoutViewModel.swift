@@ -57,7 +57,7 @@ class ActiveWorkoutViewModel {
     
     func addSet(_ exerciseEntry: ExerciceEntry) {
         if let workout = workoutVM.activeWorkout{
-            workout.exercises.first(where: { $0.id == exerciseEntry.id })?.sets.append(ExerciseSet(usedMetric: unitSystem))
+            workout.exercises.first(where: { $0.id == exerciseEntry.id })?.addEmptySet()
             
             
         }
