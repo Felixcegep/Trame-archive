@@ -4,8 +4,8 @@ import SwiftData
 
 struct ExerciceEntryCard: View {
     
-    @Bindable var exerciceActuel: ExerciceEntry
-    let viewModel: WorkoutStartedViewModel
+    @Bindable var exerciseEntry: ExerciceEntry
+    let viewModel: ActiveWorkoutViewModel
     let onButtonPress : () -> Void
     var body: some View {
         VStack(alignment: .leading) {
@@ -25,7 +25,7 @@ struct ExerciceEntryCard: View {
     }
     
     private var titleText: String {
-        "\(exerciceActuel.exercice.name) set: \(exerciceActuel.sets.count)"
+        "\(exerciseEntry.exercice.name) set: \(exerciseEntry.sets.count)"
     }
     
     private var headerRow: some View {
@@ -46,13 +46,13 @@ struct ExerciceEntryCard: View {
     
     private var setRows: some View {
         ForEach(
-            Array(exerciceActuel.sets.enumerated()),
+            Array(exerciseEntry.sets.enumerated()),
             id: \.element.persistentModelID
         ) { index, set in
             SetRowView(
                 index: index,
                 set: set,
-                exerciceActuel: exerciceActuel,
+                exerciseEntry: exerciseEntry,
                 viewModel: viewModel,
                 onButtonPress: onButtonPress
             )
@@ -62,14 +62,14 @@ struct ExerciceEntryCard: View {
     private var addSetButton: some View {
         HStack{
             Button {
-                viewModel.addSet(exerciceActuel)
+                viewModel.addSet(exerciseEntry)
             } label: {
                 Label("Add set", systemImage: "plus.circle")
             }
             .buttonStyle(.borderless)
             .padding(.top, 5)
             Button {
-                viewModel.addSetCopyLastSet(exercice: exerciceActuel)
+                viewModel.addSetCopyLastSet(exerciseEntry: exerciseEntry)
             } label: {
                 Label("copyLast set", systemImage: "plus.circle")
             }
@@ -83,7 +83,7 @@ struct ExerciceEntryCard: View {
     
     private var removeExerciseButton: some View {
         Button {
-            viewModel.removeExercice(exerciceActuel)
+            viewModel.removeExercise(exerciseEntry)
         } label: {
             Label("Remove exercise", systemImage: "trash")
         }
@@ -97,8 +97,8 @@ struct SetRowView: View {
     
     let index: Int
     @Bindable var set: ExerciseSet
-    let exerciceActuel: ExerciceEntry
-    let viewModel: WorkoutStartedViewModel
+    let exerciseEntry: ExerciceEntry
+    let viewModel: ActiveWorkoutViewModel
     let onButtonPress: () -> Void
     
     var body: some View {
@@ -159,7 +159,7 @@ struct SetRowView: View {
     private var doneButton: some View {
         Button {
             
-            viewModel.switchStateDoneSet(exerciceActuel, set)
+            viewModel.switchStateDoneSet(exerciseEntry, set)
             onButtonPress()
             
         } label: {
@@ -172,7 +172,7 @@ struct SetRowView: View {
     
     private var removeButton: some View {
         Button {
-            viewModel.removeSet(exerciceActuel, set)
+            viewModel.removeSet(exerciseEntry, set)
         } label: {
             Image(systemName: "trash")
                 .foregroundStyle(.red)
@@ -196,7 +196,7 @@ struct SetRowView: View {
 
 #Preview {
     ExerciceEntryCard(
-        exerciceActuel: ExerciceEntry(
+        exerciseEntry: ExerciceEntry(
             Comment: "Great set",
             exercice: ExerciceTemplate(
                 name: "Bench Press",
@@ -207,7 +207,7 @@ struct SetRowView: View {
                 ExerciseSet(repetition: 2, weight: 3)
             ]
         ),
-        viewModel: WorkoutStartedViewModel(workoutVM: WorkoutViewModel()),
+        viewModel: ActiveWorkoutViewModel(workoutVM: WorkoutViewModel()),
         onButtonPress: {}
     )
 }

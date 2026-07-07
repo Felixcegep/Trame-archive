@@ -2,14 +2,15 @@ import Foundation
 import SwiftUI
 
 @Observable
-class WorkoutStartedViewModel {
+class ActiveWorkoutViewModel {
     var workoutVM: WorkoutViewModel
     
     let duration: TimeInterval = 20
-    var timerEndDate: Date?
     var isTimerVisible : Bool = false
     var timerTask: Task<Void, Never>?
-
+    
+    // timer
+    var timerPause : Date?
     
     init(workoutVM: WorkoutViewModel) {
         self.workoutVM = workoutVM
@@ -38,31 +39,28 @@ class WorkoutStartedViewModel {
     func addExercise(_ template: ExerciceTemplate) {
         guard let activeWorkout = workoutVM.activeWorkout else { return }
 
-        let newExercice = ExerciceEntry(from : template)
-        activeWorkout.exercises.append(newExercice)
+        let newExercise = ExerciceEntry(from : template)
+        activeWorkout.exercises.append(newExercise)
     }
 
-    func addExercice(exerciceTmp: ExerciceTemplate){
-        addExercise(exerciceTmp)
-    }
-    func removeSet(_ exercice: ExerciceEntry, _ set: ExerciseSet) {
+    func removeSet(_ exerciseEntry: ExerciceEntry, _ set: ExerciseSet) {
         if let workout = workoutVM.activeWorkout{
-            workout.exercises.first(where: { $0.id == exercice.id }).map({$0.sets.removeAll(where: { $0.id == set.id }) })
+            workout.exercises.first(where: { $0.id == exerciseEntry.id }).map({$0.sets.removeAll(where: { $0.id == set.id }) })
             
         }
     }
     
-    func addSet(_ exercice: ExerciceEntry) {
+    func addSet(_ exerciseEntry: ExerciceEntry) {
         if let workout = workoutVM.activeWorkout{
-            workout.exercises.first(where: { $0.id == exercice.id })?.sets.append(ExerciseSet())
+            workout.exercises.first(where: { $0.id == exerciseEntry.id })?.sets.append(ExerciseSet())
             
         }
         
     }
-    func addSetCopyLastSet(exercice: ExerciceEntry) {
+    func addSetCopyLastSet(exerciseEntry: ExerciceEntry) {
         guard
             let workout = workoutVM.activeWorkout,
-            let exercise = workout.exercises.first(where: { $0.id == exercice.id }),
+            let exercise = workout.exercises.first(where: { $0.id == exerciseEntry.id }),
             let lastSet = exercise.sets.last
         else {
             return
@@ -97,7 +95,7 @@ class WorkoutStartedViewModel {
         timerTask?.cancel()
 
         isTimerVisible = true
-        timerEndDate = Date.now.addingTimeInterval(duration)
+        timerPause = Date.now.addingTimeInterval(duration)
         
         
 
@@ -105,7 +103,7 @@ class WorkoutStartedViewModel {
         
         timerTask = Task {
             do {
-                if let timerguard = timerEndDate {
+                if let timerguard = timerPause {
                     
                         print("lancement de la pause")
                         await LiveActivityManager.shared.startPause(timerEndDate: timerguard)
@@ -117,7 +115,7 @@ class WorkoutStartedViewModel {
                 
                 await MainActor.run {
                     isTimerVisible = false
-                    timerEndDate = nil
+                    timerPause = nil
                 }
                 if let nextExercice = getNextExerciseToDo() {
                     print("Live ACtive Exercice Changement")
@@ -137,11 +135,21 @@ class WorkoutStartedViewModel {
         }
     }
 
+    func cancelTimer() {
+        timerTask?.cancel()
+        timerTask = nil
+        isTimerVisible = false
+        timerPause = nil
+    }
+
     
-    func getNextSetTodo() -> ExerciseSet?{
-        
-        for exercice in workoutVM.activeWorkout!.exercises{
-            for set in exercice.sets{
+    func getNextSetTodo() -> ExerciseSet? {
+        guard let activeWorkout = workoutVM.activeWorkout else {
+            return nil
+        }
+
+        for exercise in activeWorkout.exercises {
+            for set in exercise.sets{
                 if !set.done{
                     return set
                 }
@@ -150,9 +158,9 @@ class WorkoutStartedViewModel {
         return nil
     }
     
-    func removeExercice(_ exercice: ExerciceEntry) {
+    func removeExercise(_ exerciseEntry: ExerciceEntry) {
         if let workout = workoutVM.activeWorkout{
-            workout.exercises.removeAll { $0 === exercice }
+            workout.exercises.removeAll { $0 === exerciseEntry }
         }
     }
 

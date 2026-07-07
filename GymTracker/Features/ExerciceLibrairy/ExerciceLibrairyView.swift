@@ -10,9 +10,9 @@ import SwiftUI
 struct ExerciceLibrairyView : View {
     @Environment(\.dismiss) private var dismiss
     
-    @State var SelectExercice : Bool
-    var SelectedExercice: ExerciceTemplate?
-    var ExercicesAvailable: [ExerciceTemplate]
+    @State var isSelectingExercise : Bool
+    var selectedExercise: ExerciceTemplate?
+    var availableExercises: [ExerciceTemplate]
     let onSelect: (ExerciceTemplate) -> Void
     
     
@@ -20,15 +20,15 @@ struct ExerciceLibrairyView : View {
     var body: some View {
         // TODO implémenter la recherche qui doit pas etre compliqué
         
-        List(ExercicesAvailable, id: \.self){ exercice in
+        List(availableExercises, id: \.self){ exercise in
             
             HStack {
                 Button {
-                    onSelect(exercice)
+                    onSelect(exercise)
                     dismiss()
                 } label: {
                     VStack(alignment: .leading) {
-                        Text(exercice.name)
+                        Text(exercise.name)
                         Text("Chest • Barbell")
                             .font(.caption)
                     }
@@ -37,7 +37,7 @@ struct ExerciceLibrairyView : View {
                 .buttonStyle(.plain)
 
                 NavigationLink {
-                    ExerciceView(exercice: exercice)
+                    ExerciceView(exercice: exercise)
                 } label: {
                     Image(systemName: "info.circle")
                         .frame(width: 44, height: 44)

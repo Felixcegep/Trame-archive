@@ -14,11 +14,26 @@ struct RootView: View {
     @Query private var exerciceTemplates: [ExerciceTemplate]
 
     @State private var workoutVM = WorkoutViewModel()
+    @State private var homePath: [HomeRoute] = []
 
     var body: some View {
         TabView {
-            NavigationStack {
-                HomeView(workoutVM: workoutVM)
+            NavigationStack(path: $homePath) {
+                HomeView(workoutVM: workoutVM, navigationPath: $homePath)
+                    .navigationDestination(for: HomeRoute.self) { route in
+                        switch route {
+                        case .activeWorkout:
+                            ActiveWorkoutView(
+                                workoutVM: workoutVM,
+                                navigationPath: $homePath
+                            )
+                        case .saveWorkout:
+                            WorkoutSaveView(
+                                workoutVM: workoutVM,
+                                navigationPath: $homePath
+                            )
+                        }
+                    }
             }
             .tabItem {
                 Label("Home", systemImage: "house")
