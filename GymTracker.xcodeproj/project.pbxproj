@@ -44,6 +44,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		4496BE252FFCA57D00D919E7 /* Exceptions for "GymTracker" folder in "GymTrackerExtensionExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Localizable.xcstrings,
+			);
+			target = 44E0076B2FFAEB0600BF7D2B /* GymTrackerExtensionExtension */;
+		};
 		44E007832FFAEB0700BF7D2B /* Exceptions for "GymTrackerExtension" folder in "GymTrackerExtensionExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -56,6 +63,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		44E0063C2FF6E3C000BF7D2B /* GymTracker */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4496BE252FFCA57D00D919E7 /* Exceptions for "GymTracker" folder in "GymTrackerExtensionExtension" target */,
+			);
 			path = GymTracker;
 			sourceTree = "<group>";
 		};
@@ -190,6 +200,7 @@
 			knownRegions = (
 				en,
 				Base,
+				fr,
 			);
 			mainGroup = 44E006312FF6E3C000BF7D2B;
 			minimizedProjectReferenceProxies = 1;
@@ -307,6 +318,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -364,6 +376,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;

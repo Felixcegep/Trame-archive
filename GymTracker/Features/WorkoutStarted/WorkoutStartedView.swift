@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 struct WorkoutStartedView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @Query var exerciceTemplates: [ExerciceTemplate]
     
     let workoutVM: WorkoutViewModel
@@ -11,7 +12,7 @@ struct WorkoutStartedView: View {
     
     @State var difference: TimeInterval = 0
     @State var isTimerVisible: Bool = false
-    @State var workoutSaved: Bool = false
+    @State var workoutFinished: Bool = false
 
 
     let startDate = Date.now
@@ -59,20 +60,40 @@ struct WorkoutStartedView: View {
                 guard viewModel.activeWorkout != nil else {
                     return
                 }
+                
+                
+                viewModel.timerTask?.cancel()
+                viewModel.isTimerVisible = false
+                viewModel.timerEndDate = nil
+                
+                workoutVM.saveWorkout(using: modelContext)
+                workoutFinished = true
+                viewModel.workoutVM.workout = nil
+                // retour en arriere 
+                dismiss()
+            }
+                
+            )
+            Button("discard the workout", action: {
+                guard viewModel.activeWorkout != nil else {
+                    return
+                }
+                viewModel.workoutVM.workout = nil
+                
+                
 
                 viewModel.timerTask?.cancel()
                 viewModel.isTimerVisible = false
                 viewModel.timerEndDate = nil
 
-                workoutVM.saveWorkout(using: modelContext)
-                workoutSaved = true
+                
+                workoutFinished = true
+                dismiss()
             }
                 
             )
             // devrais retourner au home
             
-        }.navigationDestination(isPresented: $workoutSaved) {
-            HomeView(workoutVM: workoutVM)
         }
     }
 }
