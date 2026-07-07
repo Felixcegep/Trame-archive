@@ -14,20 +14,37 @@ struct HistoryView: View {
     let viewModel: WorkoutViewModel
 
     var body: some View {
-        Text("History")
-        
-        if (workouts.isEmpty){
-            Text("aucun entrainement disponible")
-        }
-        else {
-            List(workouts , id: \.self){ workout in
-                Text(workout.exercises.count.description + " exercices")
-                
+        VStack {
+            if workouts.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.largeTitle)
+                        .foregroundColor(.secondary)
+                    Text("aucun entrainement disponible")
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+            } else {
+                List(workouts, id: \.self) { workout in
+                    NavigationLink(destination: HistoryWorkoutView(workout: workout)) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(workout.nom ?? "Workout")
+                                    .font(.headline)
+                                Text(workout.startTime, style: .date)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Text("\(workout.exercises.count) exercices")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
             }
         }
-    
+        .navigationTitle("History")
     }
-    
-    
-    
 }

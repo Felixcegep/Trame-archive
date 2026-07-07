@@ -19,6 +19,8 @@ final class ExerciseSet {
     var duration: TimeInterval?
     var distance: Float?
     var done: Bool = false
+    var rpe: Int?
+    var setType: SetType = SetType.normal
     
     init(
         repetition: Float = 0,
@@ -27,7 +29,9 @@ final class ExerciseSet {
         distance: Float? = nil,
         weightType: WeightType = .kg,
         distanceType: DistanceType = .kilometers,
-        done: Bool = false
+        done: Bool = false,
+        rpe: Int? = nil,
+        setType: SetType = .normal
     ) {
         self.repetition = repetition
         self.weight = weight
@@ -36,6 +40,8 @@ final class ExerciseSet {
         self.weightType = weightType
         self.distanceType = distanceType
         self.done = done
+        self.rpe = rpe
+        self.setType = setType
     }
 
     func copy() -> ExerciseSet {
@@ -46,7 +52,9 @@ final class ExerciseSet {
             distance: distance,
             weightType: weightType,
             distanceType: distanceType,
-            done: false
+            done: false,
+            rpe: rpe,
+            setType: setType
         )
     }
     
