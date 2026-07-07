@@ -46,6 +46,12 @@ class WorkoutViewModel {
         self.activeWorkout = newWorkout
         LiveActivityManager.shared.startWorkout(startTime: newWorkout.startTime)
     }
+    func startWorkoutWithTemplate(Template : WorkoutTemplate)
+    {
+        let newWorkout = Workout(template: Template)
+        self.activeWorkout = newWorkout
+        LiveActivityManager.shared.startWorkout(startTime: newWorkout.startTime)
+    }
     
 
     var workout: Workout? {

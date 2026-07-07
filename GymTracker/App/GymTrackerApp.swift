@@ -18,7 +18,8 @@ struct GymTrackerApp: App {
         .modelContainer(
             for : [
                 Workout.self,
-                ExerciceTemplate.self
+                ExerciceTemplate.self,
+                WorkoutTemplate.self
             ]
         )
     }

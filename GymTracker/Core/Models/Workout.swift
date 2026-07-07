@@ -18,6 +18,15 @@ class Workout {
     init(nom: String?,endTime: Date? = nil) {
         self.startTime = Date.now
     }
+    init(template : WorkoutTemplate){
+        self.startTime = Date.now
+        self.exercises = []
+        for exerciceTemplate in template.exercises{
+            let exercises = ExerciceEntry(from : exerciceTemplate)
+            self.exercises.append(exercises)
+        }
+        
+    }
 }
 
 
