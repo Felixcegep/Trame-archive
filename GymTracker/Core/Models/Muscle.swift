@@ -5,6 +5,8 @@
 //  Created by Felix Lachapelle on 2026-07-02.
 //
 
+import Foundation
+
 enum Muscle: String, Codable, CaseIterable {
     
 
@@ -68,5 +70,15 @@ enum Muscle: String, Codable, CaseIterable {
     case neck
 }
 
-
+extension Muscle {
+    var displayName: String {
+        rawValue.reduce("") { result, character in
+            if character.isUppercase {
+                return result + " " + String(character)
+            }
+            return result + String(character)
+        }
+        .capitalized
+    }
+}
 

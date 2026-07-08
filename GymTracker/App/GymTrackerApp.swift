@@ -19,7 +19,8 @@ struct GymTrackerApp: App {
             for : [
                 Workout.self,
                 ExerciceTemplate.self,
-                WorkoutTemplate.self
+                WorkoutTemplate.self,
+                WorkoutPlan.self
             ]
         )
     }

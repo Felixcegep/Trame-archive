@@ -35,8 +35,14 @@ struct RootView: View {
                         }
                     }
             }
+            
             .tabItem {
                 Label("Home", systemImage: "house")
+            }
+            NavigationStack {
+               FolderView()
+            }.tabItem{
+                Label("Folders", systemImage: "folder.fill")
             }
 
             NavigationStack {

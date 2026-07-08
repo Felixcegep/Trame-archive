@@ -12,13 +12,14 @@ final class ExerciceTemplate {
     var name: String
     var PrimaryMuscle: [Muscle]
     var SecondaryMuscle: [Muscle]?
-    var category: ExerciseCategory = ExerciseCategory.strength
+    var category: ExerciseCategory?
     var trackingType: TrackingType = TrackingType.weightAndReps
     var equipmentType: EquipmentType? = EquipmentType.other
     var resistanceType: ResistanceType?
     var movementPattern: MovementPattern?
-    var difficulty: Difficulty = Difficulty.beginner
+    var difficulty: Difficulty?
     var tags: [String] = []
+    var workoutTemplates: [WorkoutTemplate] = []
 
     init(
         name: String,
@@ -42,5 +43,13 @@ final class ExerciceTemplate {
         self.movementPattern = movementPattern
         self.difficulty = difficulty
         self.tags = tags
+    }
+
+    var displayCategory: ExerciseCategory {
+        category ?? .strength
+    }
+
+    var displayDifficulty: Difficulty {
+        difficulty ?? .beginner
     }
 }

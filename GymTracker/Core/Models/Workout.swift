@@ -13,16 +13,19 @@ class Workout {
     var nom: String?
     var startTime: Date
     var endTime: Date?
+    var sourceTemplate: WorkoutTemplate?
     var exercises: [ExerciceEntry] = []
     
     init(nom: String?, endTime: Date? = nil) {
         self.nom = nom
         self.startTime = Date.now
         self.endTime = endTime
+        self.sourceTemplate = nil
     }
     init(template : WorkoutTemplate, unitSystem : UnitSystem){
         self.nom = template.name
         self.startTime = Date.now
+        self.sourceTemplate = template
         self.exercises = []
         for exerciceTemplate in template.exercises{
             let exercises = ExerciceEntry(from : exerciceTemplate, usedMetric : unitSystem)
@@ -31,6 +34,5 @@ class Workout {
         
     }
 }
-
 
 
