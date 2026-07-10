@@ -10,7 +10,6 @@ class ActiveWorkoutViewModel {
     
     var workoutVM: WorkoutViewModel
     
-    let duration: TimeInterval = 20
     var isTimerVisible : Bool = false
     var timerTask: Task<Void, Never>?
     
@@ -23,6 +22,17 @@ class ActiveWorkoutViewModel {
 
     var activeWorkout: Workout? {
         workoutVM.activeWorkout
+    }
+
+    private var restDuration: TimeInterval {
+        let defaults = UserDefaults.standard
+        let savedDuration = defaults.integer(forKey: "restTimer")
+
+        guard defaults.object(forKey: "restTimer") != nil, savedDuration > 0 else {
+            return 20
+        }
+
+        return TimeInterval(savedDuration)
     }
 
     func getNextExerciseToDo() -> (exercise: ExerciceEntry, set: ExerciseSet)? {
@@ -46,6 +56,17 @@ class ActiveWorkoutViewModel {
 
         let newExercise = ExerciceEntry(from : template, usedMetric: unitSystem)
         activeWorkout.exercises.append(newExercise)
+
+        if let nextExercise = getNextExerciseToDo(),
+           let nextSetIndex = nextExercise.exercise.sets.firstIndex(where: { !$0.done }) {
+            Task {
+                await LiveActivityManager.shared.updateExercise(
+                    name: nextExercise.exercise.exercice.name,
+                    currentSet: nextSetIndex + 1,
+                    totalSets: nextExercise.exercise.sets.count
+                )
+            }
+        }
     }
 
     func removeSet(_ exerciseEntry: ExerciceEntry, _ set: ExerciseSet) {
@@ -63,6 +84,19 @@ class ActiveWorkoutViewModel {
         }
         
     }
+    
+    func copyPreviousSetValue(exerciseEntry: ExerciceEntry, currentSetIndex: Int) {
+        if (currentSetIndex > 0){
+            exerciseEntry.sets[currentSetIndex].repetition = exerciseEntry.sets[currentSetIndex-1].repetition
+            exerciseEntry.sets[currentSetIndex].weight = exerciseEntry.sets[currentSetIndex-1].weight
+
+            
+        }else{
+            // y'a rien avant donc regarder last fois que exercice a été fait
+            
+        }
+    }
+    
     func addSetCopyLastSet(exerciseEntry: ExerciceEntry) {
         guard
             let workout = workoutVM.activeWorkout,
@@ -75,7 +109,9 @@ class ActiveWorkoutViewModel {
         let newSet = lastSet.copy()
         exercise.sets.append(newSet)
     }
-    
+    func AnimationOfNextSet(){
+        
+    }
     func switchStateDoneSet(
         _ selectedExercise: ExerciceEntry,
         _ selectedSet: ExerciseSet
@@ -95,13 +131,41 @@ class ActiveWorkoutViewModel {
         set.done.toggle()
         
     }
+    func getNextSet(in selectedExercise: ExerciceEntry) -> ExerciseSet?{
+        guard let nextSet = selectedExercise.sets.first(where: { !$0.done }) else {
+            return nil
+        }
+        return nextSet
+    }
+    
+    func markNextSetDone(in selectedExercise: ExerciceEntry) {
+        guard let nextSet = selectedExercise.sets.first(where: { !$0.done }) else {
+            return
+        }
+
+        nextSet.done = true
+    }
+    
+    func AnimationExerciceDone( selectedExercice : ExerciceEntry) -> Bool {
+        for exerciceSet in selectedExercice.sets {
+            if !exerciceSet.done {
+                return false
+            }
+        }
+        return true
+            
+        
+    }
    
     
     func startTime() {
         timerTask?.cancel()
 
+        let duration = restDuration
+        let timerEndDate = Date.now.addingTimeInterval(duration)
+
         isTimerVisible = true
-        timerPause = Date.now.addingTimeInterval(duration)
+        timerPause = timerEndDate
         
         
 
@@ -109,11 +173,18 @@ class ActiveWorkoutViewModel {
         
         timerTask = Task {
             do {
-                if let timerguard = timerPause {
-                    
-                        print("lancement de la pause")
-                        await LiveActivityManager.shared.startPause(timerEndDate: timerguard)
+                print("lancement de la pause")
+
+                if let nextExercise = getNextExerciseToDo(),
+                   let nextSetIndex = nextExercise.exercise.sets.firstIndex(where: { !$0.done }) {
+                    await LiveActivityManager.shared.updateExercise(
+                        name: nextExercise.exercise.exercice.name,
+                        currentSet: nextSetIndex + 1,
+                        totalSets: nextExercise.exercise.sets.count
+                    )
                 }
+
+                await LiveActivityManager.shared.startPause(timerEndDate: timerEndDate)
         
                 try await Task.sleep(for: .seconds(duration))
                 
@@ -123,12 +194,13 @@ class ActiveWorkoutViewModel {
                     isTimerVisible = false
                     timerPause = nil
                 }
-                if let nextExercice = getNextExerciseToDo() {
+                if let nextExercice = getNextExerciseToDo(),
+                   let nextSetIndex = nextExercice.exercise.sets.firstIndex(where: { !$0.done }) {
                     print("Live ACtive Exercice Changement")
-                    await LiveActivityManager.shared.updateExerciceAfterSet(
-                        exercice: nextExercice.exercise.exercice.name,
-                        rep: nextExercice.set.repetition.description,
-                        numberSet: nextExercice.exercise.sets.count.description
+                    await LiveActivityManager.shared.updateExercise(
+                        name: nextExercice.exercise.exercice.name,
+                        currentSet: nextSetIndex + 1,
+                        totalSets: nextExercice.exercise.sets.count
                     )
                 }
                 

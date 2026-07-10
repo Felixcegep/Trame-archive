@@ -1,10 +1,3 @@
-//
-//  FolderView.swift
-//  GymTracker
-//
-//  Created by Felix Lachapelle on 2026-07-07.
-//
-
 import SwiftData
 import SwiftUI
 
@@ -15,84 +8,48 @@ struct FolderView: View {
     @Query private var exerciceTemplates: [ExerciceTemplate]
 
     @State private var activeSheet: FolderSheet?
+    @State private var searchText = ""
 
     var body: some View {
-        List {
-            Section("Workout Plans") {
-                if workoutPlans.isEmpty {
-                    Text("No workout plans")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(workoutPlans) { plan in
-                        NavigationLink {
-                            WorkoutPlanDetailView(plan: plan)
-                        } label: {
-                            FolderRow(
-                                title: plan.name,
-                                subtitle: "\(plan.workoutTemplates.count) templates",
-                                systemImage: "calendar"
-                            )
-                        }
-                    }
-                }
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("Library")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(FolderPalette.text)
 
-            Section("Workout Templates") {
-                if workoutTemplates.isEmpty {
-                    Text("No workout templates")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(workoutTemplates, id: \.self) { template in
-                        NavigationLink {
-                            WorkoutTemplateDetailView(template: template)
-                        } label: {
-                            FolderRow(
-                                title: template.name,
-                                subtitle: "\(template.exercises.count) exercises",
-                                systemImage: "list.bullet.rectangle"
-                            )
-                        }
-                    }
-                }
-            }
+                searchField
 
-            Section("Exercises") {
-                if exerciceTemplates.isEmpty {
-                    Text("No exercises")
-                        .foregroundStyle(.secondary)
+                if searchText.isEmpty {
+                    browseSection
+                    quickAccessSection
                 } else {
-                    ForEach(exerciceTemplates, id: \.self) { exercice in
-                        NavigationLink {
-                            ExerciceView(exercice: exercice)
-                        } label: {
-                            FolderRow(
-                                title: exercice.name,
-                                subtitle: exercice.trackingType.rawValue,
-                                systemImage: "figure.strengthtraining.traditional"
-                            )
-                        }
-                    }
+                    globalResults
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 104)
         }
-        .navigationTitle("Folders")
+        .folderScreenStyle()
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button("Workout Plan", systemImage: "calendar.badge.plus") {
+                    Button("New Workout Plan", systemImage: "calendar.badge.plus") {
                         activeSheet = .workoutPlan
                     }
-
-                    Button("Workout Template", systemImage: "list.bullet.rectangle.portrait") {
+                    Button("New Workout Template", systemImage: "square.stack.3d.up.fill") {
                         activeSheet = .workoutTemplate
                     }
-
-                    Button("Exercise", systemImage: "figure.strengthtraining.traditional") {
+                    Button("New Exercise", systemImage: "dumbbell.fill") {
                         activeSheet = .exercise
                     }
                 } label: {
                     Image(systemName: "plus")
+                        .fontWeight(.semibold)
                 }
+                .accessibilityLabel("Create library item")
             }
         }
         .sheet(item: $activeSheet) { sheet in
@@ -116,6 +73,461 @@ struct FolderView: View {
                 }
             }
         }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 9) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(FolderPalette.mutedText)
+            TextField("Search plans, templates, and exercises", text: $searchText)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(FolderPalette.subtleText)
+                }
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 13)
+        .frame(height: 46)
+        .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 14))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(FolderPalette.divider, lineWidth: 1)
+        }
+    }
+
+    private var browseSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LibrarySectionTitle("Browse")
+
+            NavigationLink {
+                WorkoutPlansBrowserView()
+            } label: {
+                LibraryCategoryRow(
+                    title: "Workout Plans",
+                    subtitle: "Multi-week training programs",
+                    count: workoutPlans.count,
+                    icon: "calendar",
+                    color: FolderPalette.accent,
+                    surface: FolderPalette.accentSurface
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                WorkoutTemplatesBrowserView()
+            } label: {
+                LibraryCategoryRow(
+                    title: "Workout Templates",
+                    subtitle: "Reusable individual workouts",
+                    count: workoutTemplates.count,
+                    icon: "list.bullet.rectangle",
+                    color: FolderPalette.primary,
+                    surface: FolderPalette.primarySurface
+                )
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                ExerciseBrowserView()
+            } label: {
+                LibraryCategoryRow(
+                    title: "Exercises",
+                    subtitle: "Your complete exercise catalogue",
+                    count: exerciceTemplates.count,
+                    icon: "dumbbell.fill",
+                    color: FolderPalette.secondary,
+                    surface: FolderPalette.secondarySurface
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private var quickAccessSection: some View {
+        let plan = workoutPlans.first
+        let template = workoutTemplates.first
+        let exercise = exerciceTemplates.first
+
+        if plan != nil || template != nil || exercise != nil {
+            VStack(alignment: .leading, spacing: 10) {
+                LibrarySectionTitle("Quick access")
+
+                VStack(spacing: 0) {
+                    if let plan {
+                        NavigationLink {
+                            WorkoutPlanDetailView(plan: plan)
+                        } label: {
+                            RecentLibraryRow(title: plan.name, type: "PLAN", color: FolderPalette.accent)
+                        }
+                    }
+                    if let template {
+                        NavigationLink {
+                            WorkoutTemplateDetailView(template: template)
+                        } label: {
+                            RecentLibraryRow(title: template.name, type: "TEMPLATE", color: FolderPalette.primary)
+                        }
+                    }
+                    if let exercise {
+                        NavigationLink {
+                            ExerciceView(exercice: exercise)
+                        } label: {
+                            RecentLibraryRow(title: exercise.name, type: "EXERCISE", color: FolderPalette.secondary)
+                        }
+                    }
+                }
+                .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 16))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(FolderPalette.divider, lineWidth: 1)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var globalResults: some View {
+        if matchingPlans.isEmpty && matchingTemplates.isEmpty && matchingExercises.isEmpty {
+            ContentUnavailableView.search(text: searchText)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 56)
+        } else {
+            VStack(alignment: .leading, spacing: 18) {
+            if !matchingPlans.isEmpty {
+                searchResultsCard(title: "Plans") {
+                    ForEach(matchingPlans) { plan in
+                        NavigationLink {
+                            WorkoutPlanDetailView(plan: plan)
+                        } label: {
+                            SearchResultRow(title: plan.name, type: "PLAN", color: FolderPalette.accent)
+                        }
+                    }
+                }
+            }
+            if !matchingTemplates.isEmpty {
+                searchResultsCard(title: "Templates") {
+                    ForEach(matchingTemplates, id: \.self) { template in
+                        NavigationLink {
+                            WorkoutTemplateDetailView(template: template)
+                        } label: {
+                            SearchResultRow(title: template.name, type: "TEMPLATE", color: FolderPalette.primary)
+                        }
+                    }
+                }
+            }
+            if !matchingExercises.isEmpty {
+                searchResultsCard(title: "Exercises") {
+                    ForEach(matchingExercises, id: \.self) { exercise in
+                        NavigationLink {
+                            ExerciceView(exercice: exercise)
+                        } label: {
+                            SearchResultRow(title: exercise.name, type: "EXERCISE", color: FolderPalette.secondary)
+                        }
+                    }
+                }
+            }
+            }
+        }
+    }
+
+    private func searchResultsCard<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            LibrarySectionTitle(title)
+            VStack(spacing: 0) {
+                content()
+            }
+            .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 16))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(FolderPalette.divider, lineWidth: 1)
+            }
+        }
+    }
+
+    private var matchingPlans: [WorkoutPlan] {
+        workoutPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    private var matchingTemplates: [WorkoutTemplate] {
+        workoutTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    private var matchingExercises: [ExerciceTemplate] {
+        exerciceTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+}
+
+private struct WorkoutPlansBrowserView: View {
+    @Query private var plans: [WorkoutPlan]
+    @State private var searchText = ""
+
+    var body: some View {
+        LibraryBrowserList(title: "Workout Plans", searchText: $searchText) {
+            ForEach(filteredPlans) { plan in
+                NavigationLink {
+                    WorkoutPlanDetailView(plan: plan)
+                } label: {
+                    LibraryItemRow(
+                        title: plan.name,
+                        subtitle: "\(plan.workoutTemplates.count) workouts",
+                        icon: "calendar",
+                        color: FolderPalette.accent,
+                        surface: FolderPalette.accentSurface
+                    )
+                }
+            }
+        }
+    }
+
+    private var filteredPlans: [WorkoutPlan] {
+        plans.filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+}
+
+private struct WorkoutTemplatesBrowserView: View {
+    @Query private var templates: [WorkoutTemplate]
+    @State private var searchText = ""
+
+    var body: some View {
+        LibraryBrowserList(title: "Workout Templates", searchText: $searchText) {
+            ForEach(filteredTemplates, id: \.self) { template in
+                NavigationLink {
+                    WorkoutTemplateDetailView(template: template)
+                } label: {
+                    LibraryItemRow(
+                        title: template.name,
+                        subtitle: "\(template.exercises.count) exercises",
+                        icon: "list.bullet.rectangle",
+                        color: FolderPalette.primary,
+                        surface: FolderPalette.primarySurface
+                    )
+                }
+            }
+        }
+    }
+
+    private var filteredTemplates: [WorkoutTemplate] {
+        templates.filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+}
+
+private struct ExerciseBrowserView: View {
+    @Query private var exercises: [ExerciceTemplate]
+    @State private var searchText = ""
+    @State private var selectedEquipment: EquipmentType?
+    @State private var selectedTracking: TrackingType?
+
+    var body: some View {
+        LibraryBrowserList(title: "Exercises", searchText: $searchText) {
+            Menu {
+                Picker("Equipment", selection: $selectedEquipment) {
+                    Text("All equipment").tag(EquipmentType?.none)
+                    ForEach(EquipmentType.allCases, id: \.self) { equipment in
+                        Text(equipment.rawValue).tag(Optional(equipment))
+                    }
+                }
+                Picker("Tracking", selection: $selectedTracking) {
+                    Text("All tracking").tag(TrackingType?.none)
+                    ForEach(TrackingType.allCases, id: \.self) { tracking in
+                        Text(tracking.rawValue).tag(Optional(tracking))
+                    }
+                }
+            } label: {
+                Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(FolderPalette.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(FolderPalette.primarySurface, in: Capsule())
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            ForEach(filteredExercises, id: \.self) { exercise in
+                NavigationLink {
+                    ExerciceView(exercice: exercise)
+                } label: {
+                    LibraryItemRow(
+                        title: exercise.name,
+                        subtitle: exerciseSubtitle(exercise),
+                        icon: "dumbbell.fill",
+                        color: FolderPalette.secondary,
+                        surface: FolderPalette.secondarySurface
+                    )
+                }
+            }
+        }
+    }
+
+    private var filteredExercises: [ExerciceTemplate] {
+        exercises.filter { exercise in
+            let matchesSearch = searchText.isEmpty || exercise.name.localizedCaseInsensitiveContains(searchText)
+            let matchesEquipment = selectedEquipment == nil || exercise.equipmentType == selectedEquipment
+            let matchesTracking = selectedTracking == nil || exercise.trackingType == selectedTracking
+            return matchesSearch && matchesEquipment && matchesTracking
+        }
+    }
+
+    private func exerciseSubtitle(_ exercise: ExerciceTemplate) -> String {
+        let muscle = exercise.PrimaryMuscle.first?.displayName ?? "General"
+        return "\(muscle) · \(exercise.equipmentType?.rawValue ?? "Other") · \(exercise.trackingType.rawValue)"
+    }
+}
+
+private struct LibraryBrowserList<Content: View>: View {
+    let title: String
+    @Binding var searchText: String
+    @ViewBuilder let content: Content
+
+    init(title: String, searchText: Binding<String>, @ViewBuilder content: () -> Content) {
+        self.title = title
+        _searchText = searchText
+        self.content = content()
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 9) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(FolderPalette.mutedText)
+                    TextField("Search \(title.lowercased())", text: $searchText)
+                }
+                .padding(.horizontal, 13)
+                .frame(height: 44)
+                .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 14))
+
+                VStack(spacing: 0) {
+                    content
+                }
+                .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 16))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(FolderPalette.divider, lineWidth: 1)
+                }
+            }
+            .padding(16)
+            .padding(.bottom, 92)
+        }
+        .folderScreenStyle()
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct LibraryCategoryRow: View {
+    let title: String
+    let subtitle: String
+    let count: Int
+    let icon: String
+    let color: Color
+    let surface: Color
+
+    var body: some View {
+        HStack(spacing: 13) {
+            Image(systemName: icon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 42, height: 42)
+                .background(surface, in: RoundedRectangle(cornerRadius: 13))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.body.weight(.semibold))
+                Text(subtitle).font(.caption).foregroundStyle(FolderPalette.mutedText)
+            }
+            Spacer()
+            Text("\(count)")
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(FolderPalette.mutedText)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(FolderPalette.subtleText)
+        }
+        .padding(14)
+        .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 16))
+        .overlay { RoundedRectangle(cornerRadius: 16).stroke(FolderPalette.divider, lineWidth: 1) }
+    }
+}
+
+private struct LibraryItemRow: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    let surface: Color
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 34, height: 34)
+                .background(surface, in: RoundedRectangle(cornerRadius: 10))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.body.weight(.medium)).foregroundStyle(FolderPalette.text)
+                Text(subtitle).font(.caption).foregroundStyle(FolderPalette.mutedText).lineLimit(1)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(FolderPalette.subtleText)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .contentShape(Rectangle())
+    }
+}
+
+private struct RecentLibraryRow: View {
+    let title: String
+    let type: String
+    let color: Color
+
+    var body: some View {
+        HStack {
+            Text(title).font(.body.weight(.medium)).foregroundStyle(FolderPalette.text)
+            Spacer()
+            Text(type).font(.caption2.weight(.bold)).tracking(0.5).foregroundStyle(color)
+            Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(FolderPalette.subtleText)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+        .contentShape(Rectangle())
+    }
+}
+
+private struct SearchResultRow: View {
+    let title: String
+    let type: String
+    let color: Color
+
+    var body: some View {
+        HStack {
+            Text(title).font(.body.weight(.medium)).foregroundStyle(FolderPalette.text)
+            Spacer()
+            Text(type).font(.caption2.weight(.bold)).tracking(0.5).foregroundStyle(color)
+            Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(FolderPalette.subtleText)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+        .contentShape(Rectangle())
+    }
+}
+
+private struct LibrarySectionTitle: View {
+    let title: String
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        Text(title.uppercased())
+            .font(.caption.weight(.bold))
+            .tracking(0.8)
+            .foregroundStyle(FolderPalette.mutedText)
     }
 }
 

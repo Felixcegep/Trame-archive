@@ -13,6 +13,9 @@ final class LiveActivityManager {
 
     
     private var activity: Activity<GymTrackerAttributes>?
+    private var currentExerciseName: String?
+    private var currentSerie: Int?
+    private var totalSeries: Int?
 
     private init() {}
 
@@ -24,7 +27,13 @@ final class LiveActivityManager {
 
         let attributes = GymTrackerAttributes(startTime: startTime)
 
-        let state = GymTrackerAttributes.ContentState(restTimeActive: false)
+        let state = GymTrackerAttributes.ContentState(
+            currentExerciseName: currentExerciseName,
+            currentSerie: currentSerie,
+            totalSeries: totalSeries,
+            restTimeActive: false,
+            RestTime: nil
+        )
 
             do {
                 activity = try Activity.request(
@@ -41,16 +50,22 @@ final class LiveActivityManager {
     func update(){
         // idk
     }
-    func updateExerciceAfterSet(
-        exercice : String,
-        rep: String,
-        numberSet : String
-    ) async  {
+    func updateExercise(
+        name: String,
+        currentSet: Int,
+        totalSets: Int
+    ) async {
+        currentExerciseName = name
+        currentSerie = currentSet
+        totalSeries = totalSets
+
         let newState = GymTrackerAttributes.ContentState(
-                    currentExerciseName: exercice,
-                    restTimeActive: false,
-                    RestTime : nil,
-                )
+            currentExerciseName: name,
+            currentSerie: currentSet,
+            totalSeries: totalSets,
+            restTimeActive: false,
+            RestTime: nil
+        )
 
                 let newContent = ActivityContent(
                     state: newState,
@@ -66,9 +81,12 @@ final class LiveActivityManager {
     func startPause(timerEndDate : Date) async {
         // show the time left of the pause
         let newState = GymTrackerAttributes.ContentState(
-                    restTimeActive: true ,
-                    RestTime : timerEndDate
-                )
+            currentExerciseName: currentExerciseName,
+            currentSerie: currentSerie,
+            totalSeries: totalSeries,
+            restTimeActive: true,
+            RestTime: timerEndDate
+        )
 
                 let newContent = ActivityContent(
                     state: newState,
@@ -86,6 +104,9 @@ final class LiveActivityManager {
         guard let activity = activity else { return }
         await activity.end(nil, dismissalPolicy: .immediate)
         self.activity = nil
+        currentExerciseName = nil
+        currentSerie = nil
+        totalSeries = nil
         print("Live Activity ended")
     }
 }

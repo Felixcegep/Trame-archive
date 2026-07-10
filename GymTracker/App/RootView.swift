@@ -42,7 +42,7 @@ struct RootView: View {
                 FolderView()
             }
             .tabItem {
-                Label("Folders", systemImage: "folder.fill")
+                Label("Library", systemImage: "folder.fill")
             }
 
             NavigationStack {
