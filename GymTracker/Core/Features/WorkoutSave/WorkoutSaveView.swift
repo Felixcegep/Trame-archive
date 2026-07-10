@@ -6,6 +6,10 @@ struct WorkoutSaveView: View {
 
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
+    @Binding var isPresented: Bool
+
+    @State private var isShowingDiscardConfirmation = false
+    @State private var isShowingPartialSaveConfirmation = false
 
     var body: some View {
         Group {
@@ -27,6 +31,13 @@ struct WorkoutSaveView: View {
         .toolbarBackground(WorkoutPalette.background, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    navigationPath.removeLast()
+                }
+            }
+        }
     }
 
     private func saveReview(for workout: Workout) -> some View {
@@ -63,6 +74,26 @@ struct WorkoutSaveView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("NOTES")
+                        .font(.caption.weight(.bold))
+                        .tracking(0.8)
+                        .foregroundStyle(WorkoutPalette.subduedText)
+
+                    TextEditor(text: Binding(
+                        get: { workout.notes ?? "" },
+                        set: { workout.notes = $0.isEmpty ? nil : $0 }
+                    ))
+                    .frame(minHeight: 90)
+                    .padding(10)
+                    .background(WorkoutPalette.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(WorkoutPalette.border, lineWidth: 1)
+                    }
+                }
+
                 summaryCard(for: workout)
                 exerciseReview(for: workout)
             }
@@ -72,19 +103,57 @@ struct WorkoutSaveView: View {
         .scrollIndicators(.hidden)
         .background(WorkoutPalette.background)
         .safeAreaInset(edge: .bottom) {
-            Button(action: saveWorkout) {
-                Label("Save workout", systemImage: "arrow.down.circle.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 17)
-                    .foregroundStyle(.white)
-                    .background(WorkoutPalette.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            VStack(spacing: 10) {
+                if incompleteSetCount(in: workout) > 0 {
+                    Label(
+                        "\(incompleteSetCount(in: workout)) sets are still incomplete",
+                        systemImage: "exclamationmark.circle"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(WorkoutPalette.accent)
+                    .accessibilityLabel("\(incompleteSetCount(in: workout)) sets are still incomplete. You can save a partial workout or return to finish them.")
+                }
+
+                Button(action: requestSave) {
+                    Label("Save workout", systemImage: "arrow.down.circle.fill")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 17)
+                        .foregroundStyle(.white)
+                        .background(WorkoutPalette.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(completedSetCount(in: workout) == 0)
+                .opacity(completedSetCount(in: workout) == 0 ? 0.45 : 1)
+
+                Button("Discard workout", role: .destructive) {
+                    isShowingDiscardConfirmation = true
+                }
+                .font(.subheadline.weight(.semibold))
             }
-            .buttonStyle(.plain)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
             .background(.ultraThinMaterial)
+        }
+        .confirmationDialog(
+            "Save partial workout?",
+            isPresented: $isShowingPartialSaveConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Save completed sets", action: saveWorkout)
+            Button("Keep editing", role: .cancel) {}
+        } message: {
+            Text("Incomplete sets will remain in the session, but only completed sets count toward your progress.")
+        }
+        .confirmationDialog(
+            "Discard this workout?",
+            isPresented: $isShowingDiscardConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Discard workout", role: .destructive, action: discardWorkout)
+        } message: {
+            Text("Your logged sets and notes will not be saved.")
         }
     }
 
@@ -144,8 +213,29 @@ struct WorkoutSaveView: View {
         workout.exercises.reduce(0) { $0 + $1.sets.filter(\.done).count }
     }
 
+    private func incompleteSetCount(in workout: Workout) -> Int {
+        workout.exercises.reduce(0) { $0 + $1.sets.filter { !$0.done }.count }
+    }
+
+    private func requestSave() {
+        guard let workout = workoutVM.activeWorkout else { return }
+
+        if incompleteSetCount(in: workout) > 0 {
+            isShowingPartialSaveConfirmation = true
+        } else {
+            saveWorkout()
+        }
+    }
+
     private func saveWorkout() {
-        workoutVM.saveWorkout(using: modelContext)
+        guard workoutVM.saveWorkout(using: modelContext) else { return }
         navigationPath.removeAll()
+        isPresented = false
+    }
+
+    private func discardWorkout() {
+        workoutVM.discardActiveWorkout()
+        navigationPath.removeAll()
+        isPresented = false
     }
 }

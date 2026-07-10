@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import SwiftData
 
 struct ExerciceDetailSnapshot {
     let name: String
@@ -33,14 +34,27 @@ struct ExerciceDetailSnapshot {
 }
 
 struct ExerciceView : View {
-    private let exercice: ExerciceDetailSnapshot
+    @Environment(\.modelContext) private var modelContext
+
+    private let editableExercise: ExerciceTemplate?
+    private let snapshot: ExerciceDetailSnapshot?
+    @State private var isShowingEditor = false
 
     init(exercice: ExerciceTemplate) {
-        self.exercice = ExerciceDetailSnapshot(exercice: exercice)
+        editableExercise = exercice
+        snapshot = nil
     }
 
     init(exercice: ExerciceDetailSnapshot) {
-        self.exercice = exercice
+        editableExercise = nil
+        snapshot = exercice
+    }
+
+    private var exercice: ExerciceDetailSnapshot {
+        if let editableExercise {
+            return ExerciceDetailSnapshot(exercice: editableExercise)
+        }
+        return snapshot!
     }
 
     var body: some View {
@@ -90,6 +104,24 @@ struct ExerciceView : View {
             }
         }
         .navigationTitle(exercice.name)
+        .toolbar {
+            if editableExercise != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Edit") {
+                        isShowingEditor = true
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $isShowingEditor) {
+            if let editableExercise {
+                NavigationStack {
+                    ExerciseFormView(exercise: editableExercise) { _ in
+                        saveModelContext(modelContext)
+                    }
+                }
+            }
+        }
     }
 
     private func showExerciseHistory() {

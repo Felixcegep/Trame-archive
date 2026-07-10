@@ -13,6 +13,7 @@ struct WorkoutTemplateDetailView: View {
     @Query private var availableExercises: [ExerciceTemplate]
 
     let template: WorkoutTemplate
+    let onStartWorkout: (WorkoutTemplate) -> Void
 
     @State private var isShowingExercisePicker = false
 
@@ -40,6 +41,12 @@ struct WorkoutTemplateDetailView: View {
         }
         .navigationTitle(template.name)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Start", systemImage: "play.fill") {
+                    onStartWorkout(template)
+                }
+                .disabled(template.exercises.isEmpty)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     isShowingExercisePicker = true

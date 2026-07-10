@@ -4,9 +4,12 @@ import SwiftData
 struct HomeView: View {
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
+    @Binding var isShowingActiveWorkout: Bool
 
-    @Query private var exerciceTemplates: [ExerciceTemplate]
+    @Query private var workoutTemplates: [WorkoutTemplate]
+    @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     @State private var showSetting = false
+    @State private var isShowingTemplatePicker = false
 
     var body: some View {
         ScrollView {
@@ -14,7 +17,7 @@ struct HomeView: View {
                 welcomeHeader
                 primaryWorkoutCard
                 quickActions
-                recentActivityPlaceholder
+                recentActivity
             }
             .padding(.horizontal, 20)
             .padding(.top, 4)
@@ -47,6 +50,16 @@ struct HomeView: View {
                 SettingView()
             }
         }
+        .sheet(isPresented: $isShowingTemplatePicker) {
+            NavigationStack {
+                SavedWorkoutTemplatePicker(templates: workoutTemplates) { template in
+                    isShowingTemplatePicker = false
+                    DispatchQueue.main.async {
+                        startWorkout(from: template)
+                    }
+                }
+            }
+        }
     }
 
     private var welcomeHeader: some View {
@@ -60,7 +73,7 @@ struct HomeView: View {
 
             Text(workoutVM.hasActiveWorkout
                  ? "Continue where you left off."
-                 : "Start with a workout or continue a plan.")
+                 : "Track your training session today.")
                 .font(.subheadline)
                 .foregroundStyle(WorkoutPalette.subduedText)
         }
@@ -71,7 +84,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Label(
-                        workoutVM.hasActiveWorkout ? "RESUME" : "START WORKOUT",
+                        workoutVM.hasActiveWorkout ? "RESUME" : "QUICK START",
                         systemImage: workoutVM.hasActiveWorkout ? "figure.strengthtraining.traditional" : "bolt.fill"
                     )
                     .font(.caption.weight(.bold))
@@ -109,40 +122,26 @@ struct HomeView: View {
     }
 
     private var quickActions: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("QUICK ACTIONS")
-                .font(.caption.weight(.bold))
-                .tracking(0.8)
-                .foregroundStyle(WorkoutPalette.subduedText)
+        Group {
+            if !workoutVM.hasActiveWorkout {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("QUICK ACTIONS")
+                        .font(.caption.weight(.bold))
+                        .tracking(0.8)
+                        .foregroundStyle(WorkoutPalette.subduedText)
 
-            if workoutVM.hasActiveWorkout {
-                Button(action: openPrimaryWorkout) {
-                    quickActionRow(
-                        icon: "list.bullet",
-                        iconColor: WorkoutPalette.primary,
-                        title: "View current workout",
-                        detail: "Log your next set or add an exercise"
-                    )
+                    Button {
+                        isShowingTemplatePicker = true
+                    } label: {
+                        quickActionRow(
+                            icon: "rectangle.stack",
+                            iconColor: WorkoutPalette.secondary,
+                            title: "Start from a template",
+                            detail: "Choose one of your saved workouts"
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-            } else {
-                Button(action: startSampleWorkout) {
-                    quickActionRow(
-                        icon: "sparkles",
-                        iconColor: WorkoutPalette.accent,
-                        title: "Try a sample session",
-                        detail: "Explore every set tracking style"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                quickActionRow(
-                    icon: "rectangle.stack",
-                    iconColor: WorkoutPalette.secondary,
-                    title: "Templates and plans",
-                    detail: "Create and manage them in Library",
-                    isInformational: true
-                )
             }
         }
     }
@@ -185,48 +184,93 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private var recentActivityPlaceholder: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    private var recentActivity: some View {
+        let completedWorkouts = workouts.filter { $0.endTime != nil }
+
+        return VStack(alignment: .leading, spacing: 10) {
             Text("RECENT ACTIVITY")
                 .font(.caption.weight(.bold))
                 .tracking(0.8)
                 .foregroundStyle(WorkoutPalette.subduedText)
 
-            HStack(spacing: 13) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.headline)
-                    .frame(width: 38, height: 38)
-                    .foregroundStyle(WorkoutPalette.accent)
-                    .background(WorkoutPalette.accentSurface)
-                    .clipShape(Circle())
+            if completedWorkouts.isEmpty {
+                HStack(spacing: 13) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.headline)
+                        .frame(width: 38, height: 38)
+                        .foregroundStyle(WorkoutPalette.accent)
+                        .background(WorkoutPalette.accentSurface)
+                        .clipShape(Circle())
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Your recent workouts")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Completed sessions will appear here.")
-                        .font(.caption)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Your recent workouts")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Completed sessions will appear here.")
+                            .font(.caption)
+                            .foregroundStyle(WorkoutPalette.subduedText)
+                    }
+                }
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(WorkoutPalette.surface)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(WorkoutPalette.border, lineWidth: 1)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(completedWorkouts.prefix(3), id: \.self) { workout in
+                        NavigationLink(destination: HistoryWorkoutView(workout: workout)) {
+                            HStack(spacing: 13) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.headline)
+                                    .frame(width: 38, height: 38)
+                                    .foregroundStyle(WorkoutPalette.secondary)
+                                    .background(WorkoutPalette.secondary.opacity(0.12))
+                                    .clipShape(Circle())
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(workout.nom ?? "Workout")
+                                        .font(.subheadline.weight(.semibold))
+                                    Text(workout.startTime, style: .date)
+                                        .font(.caption)
+                                        .foregroundStyle(WorkoutPalette.subduedText)
+                                }
+
+                                Spacer()
+
+                                Text("\(workout.exercises.count) ex")
+                                    .font(.caption)
+                                    .foregroundStyle(WorkoutPalette.subduedText)
+
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(WorkoutPalette.subduedText)
+                            }
+                            .padding(13)
+                            .background(WorkoutPalette.surface)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(WorkoutPalette.border, lineWidth: 1)
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
-            .padding(13)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(WorkoutPalette.surface)
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(WorkoutPalette.border, lineWidth: 1)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
     }
 
     private var primaryCardTitle: String {
-        guard let workout = workoutVM.activeWorkout else { return "Start a workout" }
+        guard let workout = workoutVM.activeWorkout else { return "Blank Workout" }
         return "Resume \(workout.nom ?? "workout")"
     }
 
     private var primaryCardSubtitle: String {
         guard let workout = workoutVM.activeWorkout else {
-            return "Create a workout as you train."
+            return "Log exercises and sets as you train."
         }
 
         let completedSets = completedSetCount(in: workout)
@@ -256,37 +300,63 @@ struct HomeView: View {
         if !workoutVM.hasActiveWorkout {
             workoutVM.startWorkout()
         }
-
-        guard navigationPath.last != .activeWorkout else { return }
-        navigationPath.append(.activeWorkout)
+        isShowingActiveWorkout = true
     }
 
-    private func startSampleWorkout() {
-        let template = WorkoutTemplate(name: "Sample Workout", exercises: defaultTemplateExercises)
-        workoutVM.startWorkoutWithTemplate(Template: template)
-        navigationPath.append(.activeWorkout)
+    private func startWorkout(from template: WorkoutTemplate) {
+        workoutVM.startWorkout(with: template)
+        isShowingActiveWorkout = true
     }
+}
 
-    private var defaultTemplateExercises: [ExerciceTemplate] {
-        TrackingType.allCases.map { trackingType in
-            exerciceTemplates.first { $0.trackingType == trackingType } ?? sampleExercise(for: trackingType)
+private struct SavedWorkoutTemplatePicker: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let templates: [WorkoutTemplate]
+    let onStartWorkout: (WorkoutTemplate) -> Void
+
+    var body: some View {
+        List {
+            if templates.isEmpty {
+                ContentUnavailableView(
+                    "No saved templates",
+                    systemImage: "rectangle.stack.badge.plus",
+                    description: Text("Create a workout template in Library, then start it from here.")
+                )
+                .listRowBackground(Color.clear)
+            } else {
+                ForEach(templates, id: \.self) { template in
+                    Button {
+                        dismiss()
+                        onStartWorkout(template)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(template.name)
+                                    .font(.body.weight(.semibold))
+                                Text("\(template.exercises.count) exercises")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "play.circle.fill")
+                                .font(.title3)
+                        }
+                    }
+                    .disabled(template.exercises.isEmpty)
+                    .accessibilityHint(template.exercises.isEmpty ? "Add an exercise before starting this template." : "Starts a new workout using this template.")
+                }
+            }
         }
-    }
-
-    private func sampleExercise(for trackingType: TrackingType) -> ExerciceTemplate {
-        switch trackingType {
-        case .weightAndReps:
-            return ExerciceTemplate(name: "Bench Press", PrimaryMuscle: [.middleChest], trackingType: .weightAndReps, equipmentType: .barbell, resistanceType: .externalWeight, movementPattern: .horizontalPush, difficulty: .intermediate)
-        case .repsOnly:
-            return ExerciceTemplate(name: "Crunch", PrimaryMuscle: [.rectusAbdominis], trackingType: .repsOnly, equipmentType: .bodyweight, resistanceType: .bodyweight, movementPattern: .isolation, difficulty: .beginner)
-        case .weightedBodyweight:
-            return ExerciceTemplate(name: "Pull Up", PrimaryMuscle: [.latissimusDorsi], trackingType: .weightedBodyweight, equipmentType: .bodyweight, resistanceType: .weightedBodyweight, movementPattern: .verticalPull, difficulty: .intermediate)
-        case .assistedBodyweight:
-            return ExerciceTemplate(name: "Assisted Pull Up", PrimaryMuscle: [.latissimusDorsi], trackingType: .assistedBodyweight, equipmentType: .machine, resistanceType: .assistedBodyweight, movementPattern: .verticalPull, difficulty: .beginner)
-        case .duration:
-            return ExerciceTemplate(name: "Plank", PrimaryMuscle: [.transverseAbdominis], trackingType: .duration, equipmentType: .bodyweight, resistanceType: .bodyweight, movementPattern: .antiRotation, difficulty: .beginner)
-        case .durationAndDistance:
-            return ExerciceTemplate(name: "Treadmill Run", PrimaryMuscle: [.quadriceps, .hamstrings, .calves], category: .cardio, trackingType: .durationAndDistance, equipmentType: .cardioMachine, difficulty: .beginner)
+        .navigationTitle("Start from template")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
         }
     }
 }

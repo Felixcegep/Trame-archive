@@ -13,6 +13,7 @@ struct WorkoutPlanDetailView: View {
     @Query private var availableTemplates: [WorkoutTemplate]
 
     let plan: WorkoutPlan
+    let onStartWorkout: (WorkoutTemplate) -> Void
 
     @State private var isShowingTemplatePicker = false
 
@@ -25,7 +26,7 @@ struct WorkoutPlanDetailView: View {
                 } else {
                     ForEach(plan.workoutTemplates, id: \.self) { template in
                         NavigationLink {
-                            WorkoutTemplateDetailView(template: template)
+                            WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                         } label: {
                             FolderRow(
                                 title: template.name,

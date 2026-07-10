@@ -10,6 +10,8 @@ struct SetRowView: View {
     let onSetCompleted: () -> Void
     let onRemove: () -> Void
 
+    @State private var isShowingPlateCalculator = false
+
     private var trackingType: TrackingType {
         exerciseEntry.exercice.trackingType
     }
@@ -43,10 +45,36 @@ struct SetRowView: View {
     }
 
     private var weightField: some View {
-        numberField("Weight", text: Binding(
-            get: { cleanNumber(exerciseSet.weight) },
-            set: { if let value = Float($0) { exerciseSet.weight = value } }
-        ))
+        HStack(spacing: 0) {
+            TextField("Weight", text: Binding(
+                get: { cleanNumber(exerciseSet.weight) },
+                set: { if let value = Float($0) { exerciseSet.weight = max(value, 0) } }
+            ))
+            .keyboardType(.decimalPad)
+            .multilineTextAlignment(.center)
+            .font(.subheadline.monospacedDigit().weight(.medium))
+
+            Button {
+                isShowingPlateCalculator = true
+            } label: {
+                Image(systemName: "circle.grid.3x3.fill")
+                    .font(.caption.weight(.bold))
+                    .frame(width: 30, height: 30)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(WorkoutPalette.primary)
+            .accessibilityLabel("Open plate calculator")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.leading, 4)
+        .padding(.vertical, 3)
+        .background(Color.white.opacity(0.7))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .sheet(isPresented: $isShowingPlateCalculator) {
+            PlateCalculatorView(exerciseSet: exerciseSet)
+                .presentationDetents([.height(560), .large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private var durationField: some View {

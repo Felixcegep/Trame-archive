@@ -10,6 +10,8 @@ struct FolderView: View {
     @State private var activeSheet: FolderSheet?
     @State private var searchText = ""
 
+    let onStartWorkout: (WorkoutTemplate) -> Void
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -106,7 +108,7 @@ struct FolderView: View {
             LibrarySectionTitle("Browse")
 
             NavigationLink {
-                WorkoutPlansBrowserView()
+                WorkoutPlansBrowserView(onStartWorkout: onStartWorkout)
             } label: {
                 LibraryCategoryRow(
                     title: "Workout Plans",
@@ -120,7 +122,7 @@ struct FolderView: View {
             .buttonStyle(.plain)
 
             NavigationLink {
-                WorkoutTemplatesBrowserView()
+                WorkoutTemplatesBrowserView(onStartWorkout: onStartWorkout)
             } label: {
                 LibraryCategoryRow(
                     title: "Workout Templates",
@@ -162,14 +164,14 @@ struct FolderView: View {
                 VStack(spacing: 0) {
                     if let plan {
                         NavigationLink {
-                            WorkoutPlanDetailView(plan: plan)
+                            WorkoutPlanDetailView(plan: plan, onStartWorkout: onStartWorkout)
                         } label: {
                             RecentLibraryRow(title: plan.name, type: "PLAN", color: FolderPalette.accent)
                         }
                     }
                     if let template {
                         NavigationLink {
-                            WorkoutTemplateDetailView(template: template)
+                            WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                         } label: {
                             RecentLibraryRow(title: template.name, type: "TEMPLATE", color: FolderPalette.primary)
                         }
@@ -203,7 +205,7 @@ struct FolderView: View {
                 searchResultsCard(title: "Plans") {
                     ForEach(matchingPlans) { plan in
                         NavigationLink {
-                            WorkoutPlanDetailView(plan: plan)
+                            WorkoutPlanDetailView(plan: plan, onStartWorkout: onStartWorkout)
                         } label: {
                             SearchResultRow(title: plan.name, type: "PLAN", color: FolderPalette.accent)
                         }
@@ -214,7 +216,7 @@ struct FolderView: View {
                 searchResultsCard(title: "Templates") {
                     ForEach(matchingTemplates, id: \.self) { template in
                         NavigationLink {
-                            WorkoutTemplateDetailView(template: template)
+                            WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                         } label: {
                             SearchResultRow(title: template.name, type: "TEMPLATE", color: FolderPalette.primary)
                         }
@@ -270,11 +272,13 @@ private struct WorkoutPlansBrowserView: View {
     @Query private var plans: [WorkoutPlan]
     @State private var searchText = ""
 
+    let onStartWorkout: (WorkoutTemplate) -> Void
+
     var body: some View {
         LibraryBrowserList(title: "Workout Plans", searchText: $searchText) {
             ForEach(filteredPlans) { plan in
                 NavigationLink {
-                    WorkoutPlanDetailView(plan: plan)
+                    WorkoutPlanDetailView(plan: plan, onStartWorkout: onStartWorkout)
                 } label: {
                     LibraryItemRow(
                         title: plan.name,
@@ -297,11 +301,13 @@ private struct WorkoutTemplatesBrowserView: View {
     @Query private var templates: [WorkoutTemplate]
     @State private var searchText = ""
 
+    let onStartWorkout: (WorkoutTemplate) -> Void
+
     var body: some View {
         LibraryBrowserList(title: "Workout Templates", searchText: $searchText) {
             ForEach(filteredTemplates, id: \.self) { template in
                 NavigationLink {
-                    WorkoutTemplateDetailView(template: template)
+                    WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                 } label: {
                     LibraryItemRow(
                         title: template.name,

@@ -11,6 +11,7 @@ import SwiftData
 @Model
 class Workout {
     var nom: String?
+    var notes: String?
     var startTime: Date
     var endTime: Date?
     var sourceTemplate: WorkoutTemplate?
@@ -18,12 +19,14 @@ class Workout {
     
     init(nom: String?, endTime: Date? = nil) {
         self.nom = nom
+        self.notes = nil
         self.startTime = Date.now
         self.endTime = endTime
         self.sourceTemplate = nil
     }
     init(template : WorkoutTemplate, unitSystem : UnitSystem){
         self.nom = template.name
+        self.notes = nil
         self.startTime = Date.now
         self.sourceTemplate = template
         self.exercises = []
@@ -34,5 +37,4 @@ class Workout {
         
     }
 }
-
 

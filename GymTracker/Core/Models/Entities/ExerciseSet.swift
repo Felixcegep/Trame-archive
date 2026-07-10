@@ -34,6 +34,7 @@ final class ExerciseSet {
         setType: SetType = .normal,
         usedMetric : UnitSystem
     ) {
+        self.weightType = usedMetric == .metric ? .kg : .lbs
         self.repetition = repetition
         self.weight = weight
         self.duration = duration

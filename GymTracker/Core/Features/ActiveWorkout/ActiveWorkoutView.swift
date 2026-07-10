@@ -6,6 +6,7 @@ struct ActiveWorkoutView: View {
 
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
+    @Binding var isPresented: Bool
 
     @State private var viewModel: ActiveWorkoutViewModel
     @State private var expandedExerciseID: PersistentIdentifier?
@@ -16,9 +17,14 @@ struct ActiveWorkoutView: View {
         return UnitSystem(rawValue: rawValue ?? UnitSystem.metric.rawValue) ?? .metric
     }
 
-    init(workoutVM: WorkoutViewModel, navigationPath: Binding<[HomeRoute]>) {
+    init(
+        workoutVM: WorkoutViewModel,
+        navigationPath: Binding<[HomeRoute]>,
+        isPresented: Binding<Bool>
+    ) {
         self.workoutVM = workoutVM
         _navigationPath = navigationPath
+        _isPresented = isPresented
         _viewModel = State(initialValue: ActiveWorkoutViewModel(workoutVM: workoutVM))
     }
 
@@ -231,9 +237,9 @@ struct ActiveWorkoutView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
             .buttonStyle(.plain)
-            .disabled(workout.exercises.isEmpty)
-            .opacity(workout.exercises.isEmpty ? 0.45 : 1)
-            .accessibilityHint(workout.exercises.isEmpty ? "Add an exercise before finishing." : "Review and save your workout.")
+            .disabled(completedSetCount(in: workout) == 0)
+            .opacity(completedSetCount(in: workout) == 0 ? 0.45 : 1)
+            .accessibilityHint(completedSetCount(in: workout) == 0 ? "Complete at least one set before finishing." : "Review and save your workout.")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -278,7 +284,8 @@ struct ActiveWorkoutView: View {
 
     private func discardWorkout() {
         viewModel.cancelTimer()
-        viewModel.workoutVM.workout = nil
+        viewModel.workoutVM.discardActiveWorkout()
         navigationPath.removeAll()
+        isPresented = false
     }
 }

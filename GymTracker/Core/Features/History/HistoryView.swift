@@ -12,22 +12,19 @@ import SwiftData
 struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
 
-    @Query var workouts: [Workout]
+    @Query(sort: \Workout.startTime, order: .reverse) var workouts: [Workout]
     let viewModel: WorkoutViewModel
     
     var body: some View {
         VStack {
-            if workouts.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.largeTitle)
-                        .foregroundColor(.secondary)
-                    Text("aucun entrainement disponible")
-                        .foregroundColor(.secondary)
-                }
-                .padding()
+            if completedWorkouts.isEmpty {
+                ContentUnavailableView(
+                    "No Workout History",
+                    systemImage: "clock.arrow.circlepath",
+                    description: Text("Completed workouts will appear here.")
+                )
             } else {
-                List(workouts, id: \.self) { workout in
+                List(completedWorkouts, id: \.self) { workout in
                     NavigationLink(destination: HistoryWorkoutView(workout: workout)) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
@@ -54,5 +51,13 @@ struct HistoryView: View {
             }
         }
         .navigationTitle("History")
+    }
+
+    private var completedWorkouts: [Workout] {
+        workouts.filter { workout in
+            workout.endTime != nil && workout.exercises.contains { exercise in
+                exercise.sets.contains(where: \.done)
+            }
+        }
     }
 }
