@@ -1,0 +1,30 @@
+{
+  "configurations" : [
+    {
+      "id" : "D3810B5F-7A4E-41D0-A591-4D7C69379622",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:GymTracker.xcodeproj",
+      "identifier" : "44E006392FF6E3C000BF7D2B",
+      "name" : "GymTracker"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:GymTracker.xcodeproj",
+        "identifier" : "44063699300194FD0084434D",
+        "name" : "GymTrackerTests"
+      }
+    }
+  ],
+  "version" : 1
+}
