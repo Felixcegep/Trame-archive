@@ -3,7 +3,7 @@ import SwiftUI
 
 struct FolderView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var workoutPlans: [WorkoutPlan]
+    @Query private var workoutCollections: [WorkoutCollection]
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query private var exerciceTemplates: [ExerciceTemplate]
 
@@ -39,7 +39,7 @@ struct FolderView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("New Collection", systemImage: "folder.badge.plus") {
-                        activeSheet = .workoutPlan
+                        activeSheet = .workoutCollection
                     }
                     Button("New Workout Template", systemImage: "square.stack.3d.up.fill") {
                         activeSheet = .workoutTemplate
@@ -57,9 +57,9 @@ struct FolderView: View {
         .sheet(item: $activeSheet) { sheet in
             NavigationStack {
                 switch sheet {
-                case .workoutPlan:
-                    WorkoutPlanFormView(availableTemplates: workoutTemplates) { name, templates in
-                        modelContext.insert(WorkoutPlan(name: name, workoutTemplates: templates))
+                case .workoutCollection:
+                    WorkoutCollectionFormView(availableTemplates: workoutTemplates) { name, templates in
+                        modelContext.insert(WorkoutCollection(name: name, workoutTemplates: templates))
                         saveModelContext(modelContext)
                     }
                 case .workoutTemplate:
@@ -108,12 +108,12 @@ struct FolderView: View {
             LibrarySectionTitle("Browse")
 
             NavigationLink {
-                WorkoutPlansBrowserView(onStartWorkout: onStartWorkout)
+                WorkoutCollectionsBrowserView(onStartWorkout: onStartWorkout)
             } label: {
                 LibraryCategoryRow(
                     title: "Collections",
-                    subtitle: "Workout plans with multiple workouts",
-                    count: workoutPlans.count,
+                    subtitle: "Organize reusable workout templates",
+                    count: workoutCollections.count,
                     icon: "rectangle.stack",
                     color: FolderPalette.accent,
                     surface: FolderPalette.accentSurface
@@ -153,20 +153,20 @@ struct FolderView: View {
 
     @ViewBuilder
     private var quickAccessSection: some View {
-        let plan = workoutPlans.first
+        let collection = workoutCollections.first
         let template = workoutTemplates.first
         let exercise = exerciceTemplates.first
 
-        if plan != nil || template != nil || exercise != nil {
+        if collection != nil || template != nil || exercise != nil {
             VStack(alignment: .leading, spacing: 10) {
                 LibrarySectionTitle("Quick access")
 
                 VStack(spacing: 0) {
-                    if let plan {
+                    if let collection {
                         NavigationLink {
-                            WorkoutPlanDetailView(plan: plan, onStartWorkout: onStartWorkout)
+                            WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
                         } label: {
-                            RecentLibraryRow(title: plan.name, type: "COLLECTION", color: FolderPalette.accent)
+                            RecentLibraryRow(title: collection.name, type: "COLLECTION", color: FolderPalette.accent)
                         }
                     }
                     if let template {
@@ -195,19 +195,19 @@ struct FolderView: View {
 
     @ViewBuilder
     private var globalResults: some View {
-        if matchingPlans.isEmpty && matchingTemplates.isEmpty && matchingExercises.isEmpty {
+        if matchingCollections.isEmpty && matchingTemplates.isEmpty && matchingExercises.isEmpty {
             ContentUnavailableView.search(text: searchText)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 56)
         } else {
             VStack(alignment: .leading, spacing: 18) {
-            if !matchingPlans.isEmpty {
+            if !matchingCollections.isEmpty {
                 searchResultsCard(title: "Collections") {
-                    ForEach(matchingPlans) { plan in
+                    ForEach(matchingCollections) { collection in
                         NavigationLink {
-                            WorkoutPlanDetailView(plan: plan, onStartWorkout: onStartWorkout)
+                            WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
                         } label: {
-                            RecentLibraryRow(title: plan.name, type: "COLLECTION", color: FolderPalette.accent)
+                            RecentLibraryRow(title: collection.name, type: "COLLECTION", color: FolderPalette.accent)
                         }
                     }
                 }
@@ -255,8 +255,8 @@ struct FolderView: View {
         }
     }
 
-    private var matchingPlans: [WorkoutPlan] {
-        workoutPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    private var matchingCollections: [WorkoutCollection] {
+        workoutCollections.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
     private var matchingTemplates: [WorkoutTemplate] {
@@ -268,21 +268,21 @@ struct FolderView: View {
     }
 }
 
-private struct WorkoutPlansBrowserView: View {
-    @Query private var plans: [WorkoutPlan]
+private struct WorkoutCollectionsBrowserView: View {
+    @Query private var collections: [WorkoutCollection]
     @State private var searchText = ""
 
     let onStartWorkout: (WorkoutTemplate) -> Void
 
     var body: some View {
         LibraryBrowserList(title: "Collections", searchText: $searchText) {
-            ForEach(filteredPlans) { plan in
+            ForEach(filteredCollections) { collection in
                 NavigationLink {
-                    WorkoutPlanDetailView(plan: plan, onStartWorkout: onStartWorkout)
+                    WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
                 } label: {
                     LibraryItemRow(
-                        title: plan.name,
-                        subtitle: "\(plan.workoutTemplates.count) workouts",
+                        title: collection.name,
+                        subtitle: "\(collection.workoutTemplates.count) templates",
                         icon: "rectangle.stack",
                         color: FolderPalette.accent,
                         surface: FolderPalette.accentSurface
@@ -292,8 +292,8 @@ private struct WorkoutPlansBrowserView: View {
         }
     }
 
-    private var filteredPlans: [WorkoutPlan] {
-        plans.filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
+    private var filteredCollections: [WorkoutCollection] {
+        collections.filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 }
 
@@ -530,7 +530,7 @@ private struct LibrarySectionTitle: View {
 }
 
 private enum FolderSheet: String, Identifiable {
-    case workoutPlan
+    case workoutCollection
     case workoutTemplate
     case exercise
 

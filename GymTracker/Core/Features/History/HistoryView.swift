@@ -60,8 +60,8 @@ struct HistoryView: View {
 
     private var completedWorkouts: [Workout] {
         workouts.filter { workout in
-            workout.endTime != nil && workout.exercises.contains { exercise in
-                exercise.sets.contains(where: \.done)
+            workout.status == .completed && workout.orderedExercises.contains { exercise in
+                exercise.orderedSets.contains(where: \.done)
             }
         }
     }

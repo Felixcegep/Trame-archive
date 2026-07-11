@@ -22,7 +22,6 @@ final class ExerciceTemplate {
     var tags: [String] = []
     var isFavorite: Bool = false
     var isPlateLoaded: Bool = false
-    var workoutTemplates: [WorkoutTemplate] = []
 
     init(
         name: String,

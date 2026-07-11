@@ -1,5 +1,5 @@
 //
-//  WorkoutPlanDetailView.swift
+//  WorkoutCollectionDetailView.swift
 //  GymTracker
 //
 //  Created by Felix Lachapelle on 2026-07-07.
@@ -8,11 +8,11 @@
 import SwiftData
 import SwiftUI
 
-struct WorkoutPlanDetailView: View {
+struct WorkoutCollectionDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var availableTemplates: [WorkoutTemplate]
 
-    let plan: WorkoutPlan
+    let collection: WorkoutCollection
     let onStartWorkout: (WorkoutTemplate) -> Void
 
     @State private var isShowingTemplatePicker = false
@@ -20,11 +20,11 @@ struct WorkoutPlanDetailView: View {
     var body: some View {
         List {
             Section("Templates") {
-                if plan.workoutTemplates.isEmpty {
-                    Text("No templates in this plan")
+                if collection.workoutTemplates.isEmpty {
+                    Text("No templates in this collection")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(plan.workoutTemplates, id: \.self) { template in
+                    ForEach(collection.workoutTemplates, id: \.self) { template in
                         NavigationLink {
                             WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                         } label: {
@@ -39,7 +39,7 @@ struct WorkoutPlanDetailView: View {
                 }
             }
         }
-        .navigationTitle(plan.name)
+        .navigationTitle(collection.name)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -61,25 +61,25 @@ struct WorkoutPlanDetailView: View {
 
     private var templatesToAdd: [WorkoutTemplate] {
         availableTemplates.filter { template in
-            !plan.workoutTemplates.contains {
+            !collection.workoutTemplates.contains {
                 $0.persistentModelID == template.persistentModelID
             }
         }
     }
 
     private func addTemplate(_ template: WorkoutTemplate) {
-        guard !plan.workoutTemplates.contains(where: {
+        guard !collection.workoutTemplates.contains(where: {
             $0.persistentModelID == template.persistentModelID
         }) else {
             return
         }
 
-        plan.workoutTemplates.append(template)
+        collection.workoutTemplates.append(template)
         saveModelContext(modelContext)
     }
 
     private func removeTemplates(at offsets: IndexSet) {
-        plan.workoutTemplates.remove(atOffsets: offsets)
+        collection.workoutTemplates.remove(atOffsets: offsets)
         saveModelContext(modelContext)
     }
 }

@@ -1,5 +1,5 @@
 //
-//  WorkoutPlanFormView.swift
+//  WorkoutCollectionFormView.swift
 //  GymTracker
 //
 //  Created by Felix Lachapelle on 2026-07-07.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct WorkoutPlanFormView: View {
+struct WorkoutCollectionFormView: View {
     @Environment(\.dismiss) private var dismiss
 
     let availableTemplates: [WorkoutTemplate]
@@ -18,7 +18,7 @@ struct WorkoutPlanFormView: View {
 
     var body: some View {
         Form {
-            Section("Plan") {
+            Section("Collection") {
                 TextField("Name", text: $name)
             }
 
@@ -38,7 +38,7 @@ struct WorkoutPlanFormView: View {
                 }
             }
         }
-        .navigationTitle("New Plan")
+        .navigationTitle("New Collection")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {

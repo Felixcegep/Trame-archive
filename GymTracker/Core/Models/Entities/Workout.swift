@@ -10,6 +10,7 @@ import SwiftData
 
 @Model
 class Workout {
+    var status: WorkoutStatus = WorkoutStatus.active
     var nom: String?
     var notes: String?
     var startTime: Date
@@ -18,6 +19,7 @@ class Workout {
     var exercises: [ExerciceEntry] = []
     
     init(nom: String?, endTime: Date? = nil) {
+        self.status = endTime == nil ? .active : .completed
         self.nom = nom
         self.notes = nil
         self.startTime = Date.now
@@ -25,23 +27,30 @@ class Workout {
         self.sourceTemplate = nil
     }
     init(template : WorkoutTemplate, unitSystem : UnitSystem){
+        self.status = .active
         self.nom = template.name
         self.notes = nil
         self.startTime = Date.now
         self.sourceTemplate = template
         self.exercises = []
-        let prescribedExercises = template.templateExercises.sorted { $0.order < $1.order }
-
-        if prescribedExercises.isEmpty {
-            for exerciceTemplate in template.exercises {
-                exercises.append(ExerciceEntry(from: exerciceTemplate, usedMetric: unitSystem))
-            }
-        } else {
-            for templateExercise in prescribedExercises {
-                exercises.append(ExerciceEntry(from: templateExercise, usedMetric: unitSystem))
-            }
+        for (index, templateExercise) in template.orderedTemplateExercises.enumerated() {
+            exercises.append(ExerciceEntry(from: templateExercise, orderIndex: index, usedMetric: unitSystem))
         }
-        
+    }
+
+    var orderedExercises: [ExerciceEntry] {
+        exercises.sorted { lhs, rhs in
+            lhs.orderIndex == rhs.orderIndex
+                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
+                : lhs.orderIndex < rhs.orderIndex
+        }
+    }
+
+    func normalizeExerciseOrder() {
+        for (index, exercise) in orderedExercises.enumerated() {
+            exercise.orderIndex = index
+            exercise.normalizeSetOrder()
+        }
     }
 
     var completedSetCount: Int {

@@ -6,6 +6,7 @@ struct ActiveWorkoutView: View {
 
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
+    let modelContext: ModelContext
     let onDiscardRequested: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -21,12 +22,14 @@ struct ActiveWorkoutView: View {
     init(
         workoutVM: WorkoutViewModel,
         navigationPath: Binding<[HomeRoute]>,
+        modelContext: ModelContext,
         onDiscardRequested: @escaping () -> Void
     ) {
         self.workoutVM = workoutVM
         _navigationPath = navigationPath
+        self.modelContext = modelContext
         self.onDiscardRequested = onDiscardRequested
-        _viewModel = State(initialValue: ActiveWorkoutViewModel(workoutVM: workoutVM))
+        _viewModel = State(initialValue: ActiveWorkoutViewModel(workoutVM: workoutVM, modelContext: modelContext))
     }
 
     var body: some View {
@@ -90,6 +93,9 @@ struct ActiveWorkoutView: View {
                     onSelect: addExerciseFromPicker
                 )
             }
+        }
+        .onDisappear {
+            viewModel.persistChanges()
         }
     }
 
@@ -206,7 +212,7 @@ struct ActiveWorkoutView: View {
             if workout.exercises.isEmpty {
                 emptyExerciseState
             } else {
-                ForEach(Array(workout.exercises.enumerated()), id: \.element.persistentModelID) { _, exercise in
+                ForEach(workout.orderedExercises, id: \.persistentModelID) { exercise in
                     ExerciceEntryCard(
                         exerciseEntry: exercise,
                         viewModel: viewModel,
@@ -274,18 +280,19 @@ struct ActiveWorkoutView: View {
 
     private func selectInitialDisclosure(in workout: Workout) {
         guard expandedExerciseID == nil else { return }
-        expandedExerciseID = workout.exercises.first(where: { $0.sets.contains(where: { !$0.done }) })?.persistentModelID
+        expandedExerciseID = workout.orderedExercises.first(where: { $0.orderedSets.contains(where: { !$0.done }) })?.persistentModelID
     }
 
     private func advanceDisclosure(after completedExercise: ExerciceEntry, in workout: Workout) {
-        guard let completedIndex = workout.exercises.firstIndex(where: {
+        let orderedExercises = workout.orderedExercises
+        guard let completedIndex = orderedExercises.firstIndex(where: {
             $0.persistentModelID == completedExercise.persistentModelID
         }) else {
             return
         }
 
-        let nextExercise = workout.exercises.dropFirst(completedIndex + 1).first(where: {
-            $0.sets.contains(where: { !$0.done })
+        let nextExercise = orderedExercises.dropFirst(completedIndex + 1).first(where: {
+            $0.orderedSets.contains(where: { !$0.done })
         })
 
         withAnimation(.snappy) {
@@ -295,7 +302,7 @@ struct ActiveWorkoutView: View {
 
     private func addExerciseFromPicker(_ exercise: ExerciceTemplate) {
         viewModel.addExercise(exercise)
-        expandedExerciseID = viewModel.activeWorkout?.exercises.last?.persistentModelID
+        expandedExerciseID = viewModel.activeWorkout?.orderedExercises.last?.persistentModelID
         isShowingExercisePicker = false
     }
 

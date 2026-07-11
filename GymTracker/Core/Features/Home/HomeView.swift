@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct HomeView: View {
+    @Environment(\.modelContext) private var modelContext
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
     @Binding var isShowingActiveWorkout: Bool
@@ -214,7 +215,7 @@ struct HomeView: View {
     }
 
     private var recentActivity: some View {
-        let completedWorkouts = workouts.filter { $0.endTime != nil }
+        let completedWorkouts = workouts.filter { $0.status == .completed }
 
         return VStack(alignment: .leading, spacing: Spacing.s) {
             Text("HISTORY")
@@ -314,8 +315,8 @@ struct HomeView: View {
     }
 
     private func nextExerciseDescription(in workout: Workout) -> String {
-        guard let exercise = workout.exercises.first(where: { $0.sets.contains(where: { !$0.done }) }),
-              let setIndex = exercise.sets.firstIndex(where: { !$0.done })
+        guard let exercise = workout.orderedExercises.first(where: { $0.orderedSets.contains(where: { !$0.done }) }),
+              let setIndex = exercise.orderedSets.firstIndex(where: { !$0.done })
         else {
             return String(localized: "Workout complete")
         }
@@ -326,13 +327,13 @@ struct HomeView: View {
 
     private func openPrimaryWorkout() {
         if !workoutVM.hasActiveWorkout {
-            workoutVM.startWorkout()
+            workoutVM.startWorkout(using: modelContext)
         }
         isShowingActiveWorkout = true
     }
 
     private func startWorkout(from template: WorkoutTemplate) {
-        workoutVM.startWorkout(with: template)
+        workoutVM.startWorkout(with: template, using: modelContext)
         isShowingActiveWorkout = true
     }
 }

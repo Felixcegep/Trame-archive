@@ -12,6 +12,7 @@ import SwiftData
 
 @Model
 final class ExerciseSet {
+    var orderIndex: Int = 0
     var weightType: WeightType = WeightType.kg
     var distanceType: DistanceType = DistanceType.kilometers
     var repetition: Float
@@ -32,8 +33,10 @@ final class ExerciseSet {
         done: Bool = false,
         rpe: Int? = nil,
         setType: SetType = .normal,
+        orderIndex: Int = 0,
         usedMetric : UnitSystem
     ) {
+        self.orderIndex = orderIndex
         self.weightType = usedMetric == .metric ? .kg : .lbs
         self.repetition = repetition
         self.weight = weight
@@ -56,6 +59,7 @@ final class ExerciseSet {
             done: false,
             rpe: rpe,
             setType: setType,
+            orderIndex: 0,
             usedMetric: usedMetric
         )
     }

@@ -259,7 +259,7 @@ struct WorkoutSaveView: View {
                 .tracking(0.8)
                 .foregroundStyle(WorkoutPalette.subduedText)
 
-            ForEach(Array(workout.exercises.enumerated()), id: \.element.persistentModelID) { _, exercise in
+            ForEach(workout.orderedExercises, id: \.persistentModelID) { exercise in
                 let completedCount = exercise.sets.filter(\.done).count
                 let totalCount = exercise.sets.count
                 let statusIcon = completedCount == totalCount ? AppIcon.checkmarkCircle : (completedCount > 0 ? "minus.circle.fill" : "circle")

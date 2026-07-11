@@ -31,7 +31,6 @@ class WorkoutViewModel {
         
     }
 
-    @discardableResult
     func saveWorkout(using modelContext: ModelContext) -> Bool {
         guard let activeWorkout else {
             return false
@@ -47,9 +46,10 @@ class WorkoutViewModel {
         activeWorkout.nom = normalized(activeWorkout.nom)
         activeWorkout.notes = normalized(activeWorkout.notes)
 
+        activeWorkout.normalizeExerciseOrder()
+        activeWorkout.status = .completed
         activeWorkout.endTime = Date.now
         do {
-            modelContext.insert(activeWorkout)
             try modelContext.save()
         } catch {
             print("Failed to save workout: \(error)")
@@ -63,22 +63,68 @@ class WorkoutViewModel {
         return true
     }
 
-    func discardActiveWorkout() {
-        workout = nil
+    func discardActiveWorkout(using modelContext: ModelContext) {
+        guard let activeWorkout else { return }
+
+        modelContext.delete(activeWorkout)
+        do {
+            try modelContext.save()
+            workout = nil
+        } catch {
+            print("Failed to discard active workout: \(error)")
+        }
     }
 
-    func startWorkout(){
-        // creation d'un workout
+    @discardableResult
+    func startWorkout(using modelContext: ModelContext) -> Bool {
+        guard !restoreActiveWorkout(using: modelContext) else { return false }
+
         let newWorkout = Workout(nom : nil)
-        self.activeWorkout = newWorkout
-        LiveActivityManager.shared.startWorkout(startTime: newWorkout.startTime)
-    }
-    func startWorkout(with template: WorkoutTemplate) {
-        let newWorkout = Workout(template: template, unitSystem: unitSystem)
-        self.activeWorkout = newWorkout
-        LiveActivityManager.shared.startWorkout(startTime: newWorkout.startTime)
+        return persistAndActivate(newWorkout, using: modelContext)
     }
 
+    @discardableResult
+    func startWorkout(with template: WorkoutTemplate, using modelContext: ModelContext) -> Bool {
+        guard !restoreActiveWorkout(using: modelContext) else { return false }
+
+        let newWorkout = Workout(template: template, unitSystem: unitSystem)
+        return persistAndActivate(newWorkout, using: modelContext)
+    }
+
+    @discardableResult
+    func restoreActiveWorkout(using modelContext: ModelContext) -> Bool {
+        do {
+            let workouts = try modelContext.fetch(FetchDescriptor<Workout>())
+            let activeWorkouts = workouts
+                .filter { $0.status == .active }
+                .sorted { $0.startTime > $1.startTime }
+
+            guard let activeWorkout = activeWorkouts.first else {
+                self.activeWorkout = nil
+                return false
+            }
+
+            self.activeWorkout = activeWorkout
+            LiveActivityManager.shared.startWorkout(startTime: activeWorkout.startTime)
+            return true
+        } catch {
+            print("Failed to restore active workout: \(error)")
+            return false
+        }
+    }
+
+    private func persistAndActivate(_ workout: Workout, using modelContext: ModelContext) -> Bool {
+        modelContext.insert(workout)
+        do {
+            try modelContext.save()
+            activeWorkout = workout
+            LiveActivityManager.shared.startWorkout(startTime: workout.startTime)
+            return true
+        } catch {
+            print("Failed to start workout: \(error)")
+            return false
+        }
+    }
 
 
     private func normalized(_ value: String?) -> String? {

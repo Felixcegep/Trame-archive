@@ -175,7 +175,7 @@ struct ExerciceEntryCard: View {
 
     private var setRows: some View {
         VStack(spacing: 6) {
-            ForEach(Array(exerciseEntry.sets.enumerated()), id: \.element.persistentModelID) { index, exerciseSet in
+            ForEach(Array(exerciseEntry.orderedSets.enumerated()), id: \.element.persistentModelID) { index, exerciseSet in
                 SetRowView(
                     index: index,
                     exerciseSet: exerciseSet,
@@ -265,7 +265,7 @@ struct ExerciceEntryCard: View {
     }
 
     private var exerciseSummaryText: String {
-        exerciseEntry.sets.first?.displayText() ?? "No sets"
+        exerciseEntry.orderedSets.first?.displayText() ?? "No sets"
     }
 
     private var prescriptionSummary: String? {

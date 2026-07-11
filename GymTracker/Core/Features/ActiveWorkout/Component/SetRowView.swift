@@ -115,7 +115,7 @@ struct SetRowView: View {
     }
 
     private var isCurrentSet: Bool {
-        exerciseEntry.sets.first(where: { !$0.done })?.persistentModelID == exerciseSet.persistentModelID
+        exerciseEntry.orderedSets.first(where: { !$0.done })?.persistentModelID == exerciseSet.persistentModelID
     }
 
     private var rowSurface: Color {

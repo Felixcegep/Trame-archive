@@ -4,6 +4,7 @@ import SwiftData
 @Model
 final class TemplateExercise {
     var order: Int
+    var orderIndex: Int = 0
     var targetSets: Int
     var repRangeMinimum: Int
     var repRangeMaximum: Int
@@ -26,6 +27,7 @@ final class TemplateExercise {
     ) {
         self.exercise = exercise
         self.order = order
+        self.orderIndex = order
         self.targetSets = targetSets
         self.repRangeMinimum = repRangeMinimum
         self.repRangeMaximum = repRangeMaximum

@@ -80,30 +80,28 @@ struct WorkoutTemplateDetailView: View {
             return
         }
 
-        template.exercises.append(exercise)
         template.templateExercises.append(
             TemplateExercise(exercise: exercise, order: template.templateExercises.count)
         )
+        template.normalizeTemplateExerciseOrder()
         saveModelContext(modelContext)
     }
 
     private func removeExercises(at offsets: IndexSet) {
         let prescriptionsToRemove = offsets.map { orderedTemplateExercises[$0] }
-        let exercisesToRemove = Set(prescriptionsToRemove.map(\.exercise.persistentModelID))
-
         template.templateExercises.removeAll { prescription in
             prescriptionsToRemove.contains { $0.persistentModelID == prescription.persistentModelID }
         }
-        template.exercises.removeAll { exercisesToRemove.contains($0.persistentModelID) }
 
         for prescription in prescriptionsToRemove {
             modelContext.delete(prescription)
         }
+        template.normalizeTemplateExerciseOrder()
         saveModelContext(modelContext)
     }
 
     private var orderedTemplateExercises: [TemplateExercise] {
-        template.templateExercises.sorted { $0.order < $1.order }
+        template.orderedTemplateExercises
     }
 
     private func prescriptionSummary(_ templateExercise: TemplateExercise) -> String {

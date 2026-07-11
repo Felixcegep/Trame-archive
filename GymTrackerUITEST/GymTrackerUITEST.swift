@@ -19,6 +19,29 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
     }
 
+    func testResumesPersistedActiveWorkoutAfterRelaunch() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data"]
+        app.launch()
+
+        let startButton = app.buttons["start-free-workout"]
+        XCTAssertTrue(startButton.waitForExistence(timeout: 5))
+        startButton.tap()
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
+
+        app.buttons["minimize-workout"].tap()
+        app.terminate()
+
+        app.launchArguments = ["-ui-testing"]
+        app.launch()
+
+        let resumeButton = app.buttons["start-free-workout"]
+        XCTAssertTrue(resumeButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(resumeButton.label.contains("Resume"))
+        resumeButton.tap()
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
+    }
+
     func testStartSeededTemplateIncludesPrescription() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]

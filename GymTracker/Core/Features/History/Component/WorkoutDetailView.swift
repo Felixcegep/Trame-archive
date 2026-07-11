@@ -24,7 +24,7 @@ struct HistoryWorkoutView: View {
             }
             
             Section {
-                ForEach(workout.exercises) { exercise in
+                ForEach(workout.orderedExercises) { exercise in
                     WorkoutDetailView(exercice: exercise)
                 }
             }
@@ -73,7 +73,7 @@ struct WorkoutDetailView: View {
             .font(.caption)
             .foregroundColor(.secondary)
             
-            ForEach(Array(exercice.sets.enumerated()), id: \.element.persistentModelID) { index, set in
+            ForEach(Array(exercice.orderedSets.enumerated()), id: \.element.persistentModelID) { index, set in
                 HStack {
                     Text("Set \(index + 1)\(set.setType != .normal ? " (\(NSLocalizedString(set.setType.rawValue, comment: "")))" : "")\(set.rpe != nil ? " @ RPE \(set.rpe!)" : "")\(set.done ? " (\(NSLocalizedString("Done", comment: "")))" : "")")
                         .foregroundColor(.secondary)
