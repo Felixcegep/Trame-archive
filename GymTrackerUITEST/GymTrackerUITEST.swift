@@ -128,12 +128,21 @@ final class GymTrackerUITEST: XCTestCase {
         app.tabBars.buttons.element(boundBy: 2).tap()
         saveScreenshot(name: "03_History_Empty")
         
-        // 4. Settings Tab
+        // 4. Analytics Tab (Placeholder)
         app.tabBars.buttons.element(boundBy: 3).tap()
+        saveScreenshot(name: "04_Analytics")
+        
+        // Go back to Home and open Settings
+        app.tabBars.buttons.element(boundBy: 0).tap()
+        let settingsButton = app.buttons["settings-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5))
+        settingsButton.tap()
         saveScreenshot(name: "04_Settings")
         
-        // Go back to Home
-        app.tabBars.buttons.element(boundBy: 0).tap()
+        // Dismiss Settings sheet
+        let closeButton = app.buttons["Close"]
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 5))
+        closeButton.tap()
         
         // 5. Active Workout Screen (Empty)
         let startButton = app.buttons["start-free-workout"]

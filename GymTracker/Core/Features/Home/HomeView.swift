@@ -9,6 +9,7 @@ struct HomeView: View {
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     @State private var isShowingTemplatePicker = false
+    @State private var isShowingSettings = false
 
     var body: some View {
         ScrollView {
@@ -30,6 +31,19 @@ struct HomeView: View {
         .toolbarBackground(WorkoutPalette.background, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isShowingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(AppFont.subheadlineBold)
+                        .foregroundStyle(WorkoutPalette.primary)
+                }
+                .accessibilityLabel("Settings")
+                .accessibilityIdentifier("settings-button")
+            }
+        }
         .sheet(isPresented: $isShowingTemplatePicker) {
             NavigationStack {
                 SavedWorkoutTemplatePicker(templates: workoutTemplates) { template in
@@ -38,6 +52,18 @@ struct HomeView: View {
                         startWorkout(from: template)
                     }
                 }
+            }
+        }
+        .sheet(isPresented: $isShowingSettings) {
+            NavigationStack {
+                SettingView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") {
+                                isShowingSettings = false
+                            }
+                        }
+                    }
             }
         }
     }

@@ -46,10 +46,10 @@ struct RootView: View {
             }
 
             NavigationStack {
-                SettingView()
+                AnalyticsView()
             }
             .tabItem {
-                Label("Settings", systemImage: "gearshape")
+                Label("Analytics", systemImage: "chart.line.uptrend.xyaxis")
             }
         }
         .fullScreenCover(isPresented: $isShowingActiveWorkout, onDismiss: {
