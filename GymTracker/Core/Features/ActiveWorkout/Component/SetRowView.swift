@@ -17,9 +17,9 @@ struct SetRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.s) {
             Text("\(index + 1)")
-                .font(.subheadline.monospacedDigit().weight(.semibold))
+                .font(AppFont.subheadlineSemiboldMonospaced)
                 .foregroundStyle(exerciseSet.done ? WorkoutPalette.secondary : WorkoutPalette.text)
                 .frame(width: 45, alignment: .leading)
 
@@ -31,15 +31,15 @@ struct SetRowView: View {
             doneButton
             rowMenu
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, Spacing.s)
         .padding(.vertical, 7)
         .background(rowSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
     }
 
     private var repsField: some View {
         numberField("Reps", text: Binding(
-            get: { cleanNumber(exerciseSet.repetition) },
+            get: { Formatters.formatFloat(exerciseSet.repetition) },
             set: { if let value = Float($0) { exerciseSet.repetition = value } }
         ))
     }
@@ -47,18 +47,18 @@ struct SetRowView: View {
     private var weightField: some View {
         HStack(spacing: 0) {
             TextField("Weight", text: Binding(
-                get: { cleanNumber(exerciseSet.weight) },
+                get: { Formatters.formatFloat(exerciseSet.weight) },
                 set: { if let value = Float($0) { exerciseSet.weight = max(value, 0) } }
             ))
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
-            .font(.subheadline.monospacedDigit().weight(.medium))
+            .font(AppFont.subheadlineMediumMonospaced)
 
             Button {
                 isShowingPlateCalculator = true
             } label: {
-                Image(systemName: "circle.grid.3x3.fill")
-                    .font(.caption.weight(.bold))
+                Image(systemName: AppIcon.plateCalculator)
+                    .font(AppFont.captionBold)
                     .frame(width: 30, height: 30)
             }
             .buttonStyle(.borderless)
@@ -66,10 +66,10 @@ struct SetRowView: View {
             .accessibilityLabel("Open plate calculator")
         }
         .frame(maxWidth: .infinity)
-        .padding(.leading, 4)
+        .padding(.leading, Spacing.xs)
         .padding(.vertical, 3)
         .background(Color.white.opacity(0.7))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
         .sheet(isPresented: $isShowingPlateCalculator) {
             PlateCalculatorView(exerciseSet: exerciseSet)
                 .presentationDetents([.height(560), .large])
@@ -86,15 +86,15 @@ struct SetRowView: View {
 
     private var distanceField: some View {
         numberField("Distance", text: Binding(
-            get: { exerciseSet.distance.map(cleanNumber) ?? "" },
+            get: { exerciseSet.distance.map(Formatters.formatFloat) ?? "" },
             set: { exerciseSet.distance = $0.isEmpty ? nil : Float($0) }
         ))
     }
 
     private var doneButton: some View {
         Button(action: toggleDone) {
-            Image(systemName: exerciseSet.done ? "checkmark" : "circle")
-                .font(.subheadline.weight(.bold))
+            Image(systemName: exerciseSet.done ? AppIcon.checkmark : AppIcon.circle)
+                .font(AppFont.subheadlineBold)
                 .foregroundStyle(exerciseSet.done ? .white : WorkoutPalette.primary)
                 .frame(width: 28, height: 28)
                 .background(exerciseSet.done ? WorkoutPalette.secondary : WorkoutPalette.primary.opacity(0.14))
@@ -119,35 +119,47 @@ struct SetRowView: View {
     private var rowMenu: some View {
         Menu {
             Button(action: copyPreviousSetValue) {
-                Label("Copy previous values", systemImage: "doc.on.doc")
+                Label("Copy previous values", systemImage: AppIcon.copy)
             }
             .disabled(index == 0)
 
             Button(action: toggleWarmup) {
-                Label(exerciseSet.setType == .warmup ? "Mark normal" : "Mark warmup", systemImage: "flame")
+                Label(exerciseSet.setType == .warmup ? "Mark normal" : "Mark warmup", systemImage: AppIcon.warmup)
+            }
+
+            Menu(exerciseSet.rpe.map { "RPE \($0)" } ?? "RPE") {
+                Button("No RPE") {
+                    exerciseSet.rpe = nil
+                }
+
+                ForEach(1...10, id: \.self) { rpe in
+                    Button("RPE \(rpe)") {
+                        exerciseSet.rpe = rpe
+                    }
+                }
             }
 
             Button(role: .destructive, action: onRemove) {
-                Label("Delete set", systemImage: "trash")
+                Label("Delete set", systemImage: AppIcon.trash)
             }
         } label: {
-            Image(systemName: "ellipsis")
-                .font(.caption.weight(.bold))
+            Image(systemName: AppIcon.ellipsis)
+                .font(AppFont.captionBold)
                 .foregroundStyle(WorkoutPalette.subduedText)
                 .frame(width: 20, height: 28)
         }
         .buttonStyle(.borderless)
     }
 
-    private func numberField(_ title: String, text: Binding<String>) -> some View {
+    private func numberField(_ title: LocalizedStringKey, text: Binding<String>) -> some View {
         TextField(title, text: text)
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
-            .font(.subheadline.monospacedDigit().weight(.medium))
+            .font(AppFont.subheadlineMediumMonospaced)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 5)
             .background(Color.white.opacity(0.7))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
     }
 
     private func toggleDone() {
@@ -166,9 +178,5 @@ struct SetRowView: View {
 
     private func toggleWarmup() {
         exerciseSet.setType = exerciseSet.setType == .warmup ? .normal : .warmup
-    }
-
-    private func cleanNumber(_ value: Float) -> String {
-        value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(value)
     }
 }

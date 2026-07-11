@@ -5,6 +5,7 @@
 //  Created by Felix Lachapelle on 2026-07-02.
 //
 
+import Foundation
 import SwiftData
 
 @Model
@@ -19,6 +20,7 @@ final class ExerciceTemplate {
     var movementPattern: MovementPattern?
     var difficulty: Difficulty?
     var tags: [String] = []
+    var isFavorite: Bool = false
     var workoutTemplates: [WorkoutTemplate] = []
 
     init(
@@ -31,7 +33,8 @@ final class ExerciceTemplate {
         resistanceType: ResistanceType? = nil,
         movementPattern: MovementPattern? = nil,
         difficulty: Difficulty = .beginner,
-        tags: [String] = []
+        tags: [String] = [],
+        isFavorite: Bool = false
     ) {
         self.name = name
         self.PrimaryMuscle = PrimaryMuscle
@@ -43,6 +46,7 @@ final class ExerciceTemplate {
         self.movementPattern = movementPattern
         self.difficulty = difficulty
         self.tags = tags
+        self.isFavorite = isFavorite
     }
 
     var displayCategory: ExerciseCategory {
@@ -51,5 +55,12 @@ final class ExerciceTemplate {
 
     var displayDifficulty: Difficulty {
         difficulty ?? .beginner
+    }
+
+    var subtitle: String {
+        let muscle = PrimaryMuscle.first?.displayName ?? NSLocalizedString("General", comment: "")
+        let equipment = NSLocalizedString(equipmentType?.rawValue ?? "Other", comment: "")
+        let tracking = NSLocalizedString(trackingType.rawValue, comment: "")
+        return "\(muscle) · \(equipment) · \(tracking)"
     }
 }

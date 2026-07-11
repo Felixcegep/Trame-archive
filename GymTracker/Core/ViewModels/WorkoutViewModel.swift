@@ -12,9 +12,8 @@ import SwiftUI
 import SwiftData
 @Observable
 class WorkoutViewModel {
-    let rawValue = UserDefaults.standard.string(forKey: "useMetric")
     var unitSystem: UnitSystem {
-        UnitSystem(rawValue: rawValue ?? UnitSystem.metric.rawValue) ?? .metric
+        UserDefaults.standard.unitSystem
     }
     
     
@@ -43,7 +42,7 @@ class WorkoutViewModel {
             !exercise.sets.contains(where: \.done)
         }
 
-        guard completedSetCount(in: activeWorkout) > 0 else { return false }
+        guard activeWorkout.completedSetCount > 0 else { return false }
 
         activeWorkout.nom = normalized(activeWorkout.nom)
         activeWorkout.notes = normalized(activeWorkout.notes)
@@ -80,9 +79,7 @@ class WorkoutViewModel {
         LiveActivityManager.shared.startWorkout(startTime: newWorkout.startTime)
     }
 
-    private func completedSetCount(in workout: Workout) -> Int {
-        workout.exercises.reduce(0) { $0 + $1.sets.filter(\.done).count }
-    }
+
 
     private func normalized(_ value: String?) -> String? {
         guard let value else { return nil }

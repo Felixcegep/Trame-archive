@@ -105,8 +105,8 @@ struct HomeView: View {
 
                 if let workout = workoutVM.activeWorkout {
                     ProgressView(
-                        value: Double(completedSetCount(in: workout)),
-                        total: Double(max(totalSetCount(in: workout), 1))
+                        value: Double(workout.completedSetCount),
+                        total: Double(max(workout.totalSetCount, 1))
                     )
                     .tint(.white.opacity(0.9))
                 }
@@ -119,6 +119,7 @@ struct HomeView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint(workoutVM.hasActiveWorkout ? "Returns to your active workout." : "Starts a blank workout.")
+        .accessibilityIdentifier("start-free-workout")
     }
 
     private var quickActions: some View {
@@ -141,6 +142,7 @@ struct HomeView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("start-from-template")
                 }
             }
         }
@@ -263,38 +265,37 @@ struct HomeView: View {
         }
     }
 
-    private var primaryCardTitle: String {
+    private var primaryCardTitle: LocalizedStringKey {
         guard let workout = workoutVM.activeWorkout else { return "Blank Workout" }
-        return "Resume \(workout.nom ?? "workout")"
+        if let nom = workout.nom, !nom.isEmpty {
+            return "Resume \(nom)"
+        }
+        return "Resume workout"
     }
 
-    private var primaryCardSubtitle: String {
+    private var primaryCardSubtitle: LocalizedStringKey {
         guard let workout = workoutVM.activeWorkout else {
             return "Log exercises and sets as you train."
         }
 
-        let completedSets = completedSetCount(in: workout)
-        let totalSets = totalSetCount(in: workout)
-        return "\(completedSets) / \(totalSets) sets · \(nextExerciseDescription(in: workout))"
+        let completedSets = workout.completedSetCount
+        let totalSets = workout.totalSetCount
+        let nextDesc = nextExerciseDescription(in: workout)
+        return "\(completedSets) / \(totalSets) sets · \(nextDesc)"
     }
 
     private func nextExerciseDescription(in workout: Workout) -> String {
         guard let exercise = workout.exercises.first(where: { $0.sets.contains(where: { !$0.done }) }),
               let setIndex = exercise.sets.firstIndex(where: { !$0.done })
         else {
-            return "Workout complete"
+            return String(localized: "Workout complete")
         }
 
-        return "Next: \(exercise.exercice.name) · Set \(setIndex + 1)"
+        let format = String(localized: "Next: %@ · Set %lld")
+        return String(format: format, exercise.exercice.name, Int64(setIndex + 1))
     }
 
-    private func completedSetCount(in workout: Workout) -> Int {
-        workout.exercises.reduce(0) { $0 + $1.sets.filter(\.done).count }
-    }
 
-    private func totalSetCount(in workout: Workout) -> Int {
-        workout.exercises.reduce(0) { $0 + $1.sets.count }
-    }
 
     private func openPrimaryWorkout() {
         if !workoutVM.hasActiveWorkout {
@@ -346,6 +347,7 @@ private struct SavedWorkoutTemplatePicker: View {
                         }
                     }
                     .disabled(template.exercises.isEmpty)
+                    .accessibilityIdentifier("workout-template-\(template.name)")
                     .accessibilityHint(template.exercises.isEmpty ? "Add an exercise before starting this template." : "Starts a new workout using this template.")
                 }
             }

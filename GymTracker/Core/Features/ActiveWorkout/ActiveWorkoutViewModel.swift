@@ -3,9 +3,8 @@ import SwiftUI
 
 @Observable
 class ActiveWorkoutViewModel {
-    let rawValue = UserDefaults.standard.string(forKey: "useMetric")
     var unitSystem: UnitSystem {
-        UnitSystem(rawValue: rawValue ?? UnitSystem.metric.rawValue) ?? .metric
+        UserDefaults.standard.unitSystem
     }
     
     var workoutVM: WorkoutViewModel
@@ -26,9 +25,9 @@ class ActiveWorkoutViewModel {
 
     private var restDuration: TimeInterval {
         let defaults = UserDefaults.standard
-        let savedDuration = defaults.integer(forKey: "restTimer")
+        let savedDuration = defaults.integer(forKey: DefaultsKey.restTimer)
 
-        guard defaults.object(forKey: "restTimer") != nil, savedDuration > 0 else {
+        guard defaults.object(forKey: DefaultsKey.restTimer) != nil, savedDuration > 0 else {
             return 20
         }
 
@@ -109,9 +108,7 @@ class ActiveWorkoutViewModel {
         let newSet = lastSet.copy()
         exercise.sets.append(newSet)
     }
-    func AnimationOfNextSet(){
-        
-    }
+
     func switchStateDoneSet(
         _ selectedExercise: ExerciceEntry,
         _ selectedSet: ExerciseSet
@@ -146,22 +143,13 @@ class ActiveWorkoutViewModel {
         nextSet.done = true
     }
     
-    func AnimationExerciceDone( selectedExercice : ExerciceEntry) -> Bool {
-        for exerciceSet in selectedExercice.sets {
-            if !exerciceSet.done {
-                return false
-            }
-        }
-        return true
-            
-        
-    }
+
    
     
-    func startTime() {
+    func startTime(after exercise: ExerciceEntry? = nil) {
         timerTask?.cancel()
 
-        let duration = restDuration
+        let duration = TimeInterval(exercise?.prescribedRestSeconds ?? Int(restDuration))
         let timerEndDate = Date.now.addingTimeInterval(duration)
 
         isTimerVisible = true
@@ -220,21 +208,7 @@ class ActiveWorkoutViewModel {
         timerPause = nil
     }
 
-    
-    func getNextSetTodo() -> ExerciseSet? {
-        guard let activeWorkout = workoutVM.activeWorkout else {
-            return nil
-        }
 
-        for exercise in activeWorkout.exercises {
-            for set in exercise.sets{
-                if !set.done{
-                    return set
-                }
-            }
-        }
-        return nil
-    }
     
     func removeExercise(_ exerciseEntry: ExerciceEntry) {
         if let workout = workoutVM.activeWorkout{

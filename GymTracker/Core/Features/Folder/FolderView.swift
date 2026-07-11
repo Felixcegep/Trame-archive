@@ -207,7 +207,7 @@ struct FolderView: View {
                         NavigationLink {
                             WorkoutPlanDetailView(plan: plan, onStartWorkout: onStartWorkout)
                         } label: {
-                            SearchResultRow(title: plan.name, type: "PLAN", color: FolderPalette.accent)
+                            RecentLibraryRow(title: plan.name, type: "PLAN", color: FolderPalette.accent)
                         }
                     }
                 }
@@ -218,7 +218,7 @@ struct FolderView: View {
                         NavigationLink {
                             WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                         } label: {
-                            SearchResultRow(title: template.name, type: "TEMPLATE", color: FolderPalette.primary)
+                            RecentLibraryRow(title: template.name, type: "TEMPLATE", color: FolderPalette.primary)
                         }
                     }
                 }
@@ -229,7 +229,7 @@ struct FolderView: View {
                         NavigationLink {
                             ExerciceView(exercice: exercise)
                         } label: {
-                            SearchResultRow(title: exercise.name, type: "EXERCISE", color: FolderPalette.secondary)
+                            RecentLibraryRow(title: exercise.name, type: "EXERCISE", color: FolderPalette.secondary)
                         }
                     }
                 }
@@ -329,31 +329,23 @@ private struct WorkoutTemplatesBrowserView: View {
 private struct ExerciseBrowserView: View {
     @Query private var exercises: [ExerciceTemplate]
     @State private var searchText = ""
-    @State private var selectedEquipment: EquipmentType?
-    @State private var selectedTracking: TrackingType?
+    @State private var filter = ExerciseFilterState()
+    @State private var sortOrder: ExerciseSortOrder = .nameAscending
 
     var body: some View {
         LibraryBrowserList(title: "Exercises", searchText: $searchText) {
+            ExerciseFilterControls(filter: $filter, resultCount: filteredExercises.count)
+
             Menu {
-                Picker("Equipment", selection: $selectedEquipment) {
-                    Text("All equipment").tag(EquipmentType?.none)
-                    ForEach(EquipmentType.allCases, id: \.self) { equipment in
-                        Text(equipment.rawValue).tag(Optional(equipment))
-                    }
-                }
-                Picker("Tracking", selection: $selectedTracking) {
-                    Text("All tracking").tag(TrackingType?.none)
-                    ForEach(TrackingType.allCases, id: \.self) { tracking in
-                        Text(tracking.rawValue).tag(Optional(tracking))
+                Picker("Sort", selection: $sortOrder) {
+                    ForEach(ExerciseSortOrder.allCases) { order in
+                        Text(LocalizedStringKey(order.title)).tag(order)
                     }
                 }
             } label: {
-                Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
-                    .font(.subheadline.weight(.medium))
+                Label("Sort", systemImage: "arrow.up.arrow.down")
+                    .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(FolderPalette.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(FolderPalette.primarySurface, in: Capsule())
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -363,7 +355,7 @@ private struct ExerciseBrowserView: View {
                 } label: {
                     LibraryItemRow(
                         title: exercise.name,
-                        subtitle: exerciseSubtitle(exercise),
+                        subtitle: exercise.subtitle,
                         icon: "dumbbell.fill",
                         color: FolderPalette.secondary,
                         surface: FolderPalette.secondarySurface
@@ -375,16 +367,33 @@ private struct ExerciseBrowserView: View {
 
     private var filteredExercises: [ExerciceTemplate] {
         exercises.filter { exercise in
-            let matchesSearch = searchText.isEmpty || exercise.name.localizedCaseInsensitiveContains(searchText)
-            let matchesEquipment = selectedEquipment == nil || exercise.equipmentType == selectedEquipment
-            let matchesTracking = selectedTracking == nil || exercise.trackingType == selectedTracking
-            return matchesSearch && matchesEquipment && matchesTracking
+            filter.matches(exercise, searchText: searchText)
+        }
+        .sorted { first, second in
+            switch sortOrder {
+            case .nameAscending:
+                first.name.localizedCaseInsensitiveCompare(second.name) == .orderedAscending
+            case .nameDescending:
+                first.name.localizedCaseInsensitiveCompare(second.name) == .orderedDescending
+            }
         }
     }
 
-    private func exerciseSubtitle(_ exercise: ExerciceTemplate) -> String {
-        let muscle = exercise.PrimaryMuscle.first?.displayName ?? "General"
-        return "\(muscle) · \(exercise.equipmentType?.rawValue ?? "Other") · \(exercise.trackingType.rawValue)"
+}
+
+private enum ExerciseSortOrder: String, CaseIterable, Identifiable {
+    case nameAscending
+    case nameDescending
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .nameAscending:
+            "Name (A-Z)"
+        case .nameDescending:
+            "Name (Z-A)"
+        }
     }
 }
 
@@ -405,7 +414,7 @@ private struct LibraryBrowserList<Content: View>: View {
                 HStack(spacing: 9) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(FolderPalette.mutedText)
-                    TextField("Search \(title.lowercased())", text: $searchText)
+                    TextField(String(localized: "Search \(NSLocalizedString(title.lowercased(), comment: ""))"), text: $searchText)
                 }
                 .padding(.horizontal, 13)
                 .frame(height: 44)
@@ -507,23 +516,6 @@ private struct RecentLibraryRow: View {
     }
 }
 
-private struct SearchResultRow: View {
-    let title: String
-    let type: String
-    let color: Color
-
-    var body: some View {
-        HStack {
-            Text(title).font(.body.weight(.medium)).foregroundStyle(FolderPalette.text)
-            Spacer()
-            Text(type).font(.caption2.weight(.bold)).tracking(0.5).foregroundStyle(color)
-            Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(FolderPalette.subtleText)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 13)
-        .contentShape(Rectangle())
-    }
-}
 
 private struct LibrarySectionTitle: View {
     let title: String

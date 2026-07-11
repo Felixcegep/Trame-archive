@@ -6,25 +6,24 @@ struct ActiveWorkoutView: View {
 
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
-    @Binding var isPresented: Bool
+    let onDiscardRequested: () -> Void
 
     @State private var viewModel: ActiveWorkoutViewModel
     @State private var expandedExerciseID: PersistentIdentifier?
     @State private var isShowingDiscardConfirmation = false
 
     private var unitSystem: UnitSystem {
-        let rawValue = UserDefaults.standard.string(forKey: "useMetric")
-        return UnitSystem(rawValue: rawValue ?? UnitSystem.metric.rawValue) ?? .metric
+        UserDefaults.standard.unitSystem
     }
 
     init(
         workoutVM: WorkoutViewModel,
         navigationPath: Binding<[HomeRoute]>,
-        isPresented: Binding<Bool>
+        onDiscardRequested: @escaping () -> Void
     ) {
         self.workoutVM = workoutVM
         _navigationPath = navigationPath
-        _isPresented = isPresented
+        self.onDiscardRequested = onDiscardRequested
         _viewModel = State(initialValue: ActiveWorkoutViewModel(workoutVM: workoutVM))
     }
 
@@ -54,10 +53,10 @@ struct ActiveWorkoutView: View {
                     Button(role: .destructive) {
                         isShowingDiscardConfirmation = true
                     } label: {
-                        Label("Discard workout", systemImage: "trash")
+                        Label("Discard workout", systemImage: AppIcon.trash)
                     }
                 } label: {
-                    Image(systemName: "ellipsis")
+                    Image(systemName: AppIcon.ellipsis)
                         .fontWeight(.semibold)
                 }
             }
@@ -75,7 +74,7 @@ struct ActiveWorkoutView: View {
 
     private func workoutContent(for workout: Workout) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Spacing.l) {
                 sessionHeader(for: workout)
 
                 if viewModel.isTimerVisible, let timerPause = viewModel.timerPause {
@@ -84,8 +83,8 @@ struct ActiveWorkoutView: View {
 
                 exerciseList(for: workout)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.top, Spacing.l)
             .padding(.bottom, 110)
         }
         .scrollIndicators(.hidden)
@@ -103,6 +102,7 @@ struct ActiveWorkoutView: View {
             HStack {
                 Text(workout.nom?.isEmpty == false ? workout.nom! : "Today’s workout")
                     .font(.title2.weight(.bold))
+                    .accessibilityIdentifier("active-workout-title")
 
                 Spacer()
 
@@ -124,19 +124,19 @@ struct ActiveWorkoutView: View {
             ProgressView(value: Double(completedSetCount(in: workout)), total: Double(max(totalSetCount(in: workout), 1)))
                 .tint(WorkoutPalette.secondary)
         }
-        .padding(14)
+        .padding(Spacing.m + 2)
         .background(WorkoutPalette.accentSurface)
         .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.section, style: .continuous)
                 .stroke(WorkoutPalette.border, lineWidth: 1)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
     }
 
     private func restTimer(endDate: Date) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: "timer")
-                .font(.title3.weight(.semibold))
+        HStack(spacing: Spacing.s) {
+            Image(systemName: AppIcon.timer)
+                .font(.headline.weight(.semibold))
                 .frame(width: 42, height: 42)
                 .foregroundStyle(WorkoutPalette.accent)
                 .background(WorkoutPalette.accentSurface)
@@ -156,13 +156,13 @@ struct ActiveWorkoutView: View {
                 .font(.headline.monospacedDigit())
                 .foregroundStyle(WorkoutPalette.accent)
         }
-        .padding(14)
+        .padding(Spacing.m + 2)
         .background(WorkoutPalette.accentSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
     }
 
     private func exerciseList(for workout: Workout) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.m) {
             HStack {
                 Text("EXERCISES")
                     .font(.caption.weight(.bold))
@@ -178,7 +178,7 @@ struct ActiveWorkoutView: View {
                         onSelect: viewModel.addExercise
                     )
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label("Add", systemImage: AppIcon.plus)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(WorkoutPalette.primary)
                 }
@@ -192,7 +192,7 @@ struct ActiveWorkoutView: View {
                     ExerciceEntryCard(
                         exerciseEntry: exercise,
                         viewModel: viewModel,
-                        onButtonPress: viewModel.startTime,
+                        onButtonPress: { viewModel.startTime(after: exercise) },
                         unitSystem: unitSystem,
                         expandedExerciseID: $expandedExerciseID,
                         onExerciseCompleted: {
@@ -205,44 +205,45 @@ struct ActiveWorkoutView: View {
     }
 
     private var emptyExerciseState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "dumbbell.fill")
-                .font(.title2)
+        VStack(spacing: Spacing.m) {
+            Image(systemName: AppIcon.workout)
+                .font(.largeTitle)
                 .foregroundStyle(WorkoutPalette.secondary)
             Text("Build your session")
                 .font(.headline)
-            Text("Add an exercise to begin logging your training.")
+                .foregroundStyle(WorkoutPalette.text)
+            Text("Find or create exercises in the library.")
                 .font(.subheadline)
                 .foregroundStyle(WorkoutPalette.subduedText)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 34)
+        .padding(.vertical, Spacing.xxxl + 2)
         .background(WorkoutPalette.mutedSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
     private func finishButton(for workout: Workout) -> some View {
-        VStack(spacing: 0) {
+        VStack {
             Button {
                 viewModel.cancelTimer()
                 navigationPath.append(.saveWorkout)
             } label: {
-                Label("Finish workout", systemImage: "checkmark")
+                Label("Finish workout", systemImage: AppIcon.checkmark)
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
                     .foregroundStyle(.white)
                     .background(WorkoutPalette.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
             }
             .buttonStyle(.plain)
             .disabled(completedSetCount(in: workout) == 0)
             .opacity(completedSetCount(in: workout) == 0 ? 0.45 : 1)
             .accessibilityHint(completedSetCount(in: workout) == 0 ? "Complete at least one set before finishing." : "Review and save your workout.")
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, Spacing.xl)
+        .padding(.vertical, Spacing.m)
         .background(WorkoutPalette.background)
         .overlay(alignment: .top) {
             Rectangle()
@@ -284,8 +285,7 @@ struct ActiveWorkoutView: View {
 
     private func discardWorkout() {
         viewModel.cancelTimer()
-        viewModel.workoutVM.discardActiveWorkout()
         navigationPath.removeAll()
-        isPresented = false
+        onDiscardRequested()
     }
 }

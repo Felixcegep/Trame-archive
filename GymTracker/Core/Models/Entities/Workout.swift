@@ -30,11 +30,25 @@ class Workout {
         self.startTime = Date.now
         self.sourceTemplate = template
         self.exercises = []
-        for exerciceTemplate in template.exercises{
-            let exercises = ExerciceEntry(from : exerciceTemplate, usedMetric : unitSystem)
-            self.exercises.append(exercises)
+        let prescribedExercises = template.templateExercises.sorted { $0.order < $1.order }
+
+        if prescribedExercises.isEmpty {
+            for exerciceTemplate in template.exercises {
+                exercises.append(ExerciceEntry(from: exerciceTemplate, usedMetric: unitSystem))
+            }
+        } else {
+            for templateExercise in prescribedExercises {
+                exercises.append(ExerciceEntry(from: templateExercise, usedMetric: unitSystem))
+            }
         }
         
     }
-}
 
+    var completedSetCount: Int {
+        exercises.reduce(0) { $0 + $1.sets.filter(\.done).count }
+    }
+
+    var totalSetCount: Int {
+        exercises.reduce(0) { $0 + $1.sets.count }
+    }
+}
