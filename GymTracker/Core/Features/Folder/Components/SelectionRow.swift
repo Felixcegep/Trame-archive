@@ -17,7 +17,7 @@ struct SelectionRow: View {
             onTap()
         } label: {
             HStack {
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .foregroundStyle(.primary)
                 Spacer()
                 if isSelected {

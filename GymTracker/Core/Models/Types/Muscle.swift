@@ -72,13 +72,14 @@ enum Muscle: String, Codable, CaseIterable {
 
 extension Muscle {
     var displayName: String {
-        rawValue.reduce("") { result, character in
+        let name = rawValue.reduce("") { result, character in
             if character.isUppercase {
                 return result + " " + String(character)
             }
             return result + String(character)
         }
         .capitalized
+        return NSLocalizedString(name, comment: "")
     }
 }
 

@@ -20,17 +20,17 @@ struct WorkoutTemplateDetailView: View {
     var body: some View {
         List {
             Section("Exercises") {
-                if template.exercises.isEmpty {
+                if orderedTemplateExercises.isEmpty {
                     Text("No exercises in this template")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(template.exercises, id: \.self) { exercice in
+                    ForEach(orderedTemplateExercises, id: \.persistentModelID) { templateExercise in
                         NavigationLink {
-                            ExerciceView(exercice: exercice)
+                            TemplateExerciseEditorView(templateExercise: templateExercise)
                         } label: {
                             FolderRow(
-                                title: exercice.name,
-                                subtitle: exercice.trackingType.rawValue,
+                                title: templateExercise.exercise.name,
+                                subtitle: prescriptionSummary(templateExercise),
                                 systemImage: "figure.strengthtraining.traditional"
                             )
                         }
@@ -45,7 +45,7 @@ struct WorkoutTemplateDetailView: View {
                 Button("Start", systemImage: "play.fill") {
                     onStartWorkout(template)
                 }
-                .disabled(template.exercises.isEmpty)
+                .disabled(orderedTemplateExercises.isEmpty)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -81,11 +81,44 @@ struct WorkoutTemplateDetailView: View {
         }
 
         template.exercises.append(exercise)
+        template.templateExercises.append(
+            TemplateExercise(exercise: exercise, order: template.templateExercises.count)
+        )
         saveModelContext(modelContext)
     }
 
     private func removeExercises(at offsets: IndexSet) {
-        template.exercises.remove(atOffsets: offsets)
+        let prescriptionsToRemove = offsets.map { orderedTemplateExercises[$0] }
+        let exercisesToRemove = Set(prescriptionsToRemove.map(\.exercise.persistentModelID))
+
+        template.templateExercises.removeAll { prescription in
+            prescriptionsToRemove.contains { $0.persistentModelID == prescription.persistentModelID }
+        }
+        template.exercises.removeAll { exercisesToRemove.contains($0.persistentModelID) }
+
+        for prescription in prescriptionsToRemove {
+            modelContext.delete(prescription)
+        }
         saveModelContext(modelContext)
+    }
+
+    private var orderedTemplateExercises: [TemplateExercise] {
+        template.templateExercises.sorted { $0.order < $1.order }
+    }
+
+    private func prescriptionSummary(_ templateExercise: TemplateExercise) -> String {
+        var components = [
+            "\(templateExercise.targetSets) sets",
+            "\(templateExercise.repRangeMinimum)-\(templateExercise.repRangeMaximum) reps",
+            "\(templateExercise.restSeconds) sec rest"
+        ]
+
+        if let rpe = templateExercise.targetRPE {
+            components.append("RPE \(Formatters.formatFloat(Float(rpe)))")
+        }
+        if let rir = templateExercise.targetRIR {
+            components.append("RIR \(rir)")
+        }
+        return components.joined(separator: " · ")
     }
 }

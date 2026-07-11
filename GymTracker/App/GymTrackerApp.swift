@@ -20,6 +20,7 @@ struct GymTrackerApp: App {
                 Workout.self,
                 ExerciceTemplate.self,
                 WorkoutTemplate.self,
+                TemplateExercise.self,
                 WorkoutPlan.self
             ]
         )

@@ -34,10 +34,7 @@ struct HistoryWorkoutView: View {
     }
     
     private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        Formatters.workoutDateFormatter.string(from: date)
     }
     
     private func formattedDuration(start: Date, end: Date) -> String {
@@ -61,10 +58,10 @@ struct WorkoutDetailView: View {
                 .foregroundColor(.primary)
             
             VStack(alignment: .leading, spacing: 2) {
-                Text("Equipment: \(exercice.exercice.equipmentType?.rawValue ?? EquipmentType.other.rawValue)")
-                Text("Primary Muscles: \(exercice.exercice.PrimaryMuscle.map { $0.rawValue }.joined(separator: ", "))")
+                Text("Equipment: \(NSLocalizedString(exercice.exercice.equipmentType?.rawValue ?? EquipmentType.other.rawValue, comment: ""))")
+                Text("Primary Muscles: \(exercice.exercice.PrimaryMuscle.map { $0.displayName }.joined(separator: ", "))")
                 if let secondary = exercice.exercice.SecondaryMuscle, !secondary.isEmpty {
-                    Text("Secondary Muscles: \(secondary.map { $0.rawValue }.joined(separator: ", "))")
+                    Text("Secondary Muscles: \(secondary.map { $0.displayName }.joined(separator: ", "))")
                 }
                 if !exercice.exercice.tags.isEmpty {
                     Text("Tags: \(exercice.exercice.tags.joined(separator: ", "))")
@@ -78,7 +75,7 @@ struct WorkoutDetailView: View {
             
             ForEach(Array(exercice.sets.enumerated()), id: \.element.persistentModelID) { index, set in
                 HStack {
-                    Text("Set \(index + 1)\(set.setType != .normal ? " (\(set.setType.rawValue))" : "")\(set.rpe != nil ? " @ RPE \(set.rpe!)" : "")\(set.done ? " (Done)" : "")")
+                    Text("Set \(index + 1)\(set.setType != .normal ? " (\(NSLocalizedString(set.setType.rawValue, comment: "")))" : "")\(set.rpe != nil ? " @ RPE \(set.rpe!)" : "")\(set.done ? " (\(NSLocalizedString("Done", comment: "")))" : "")")
                         .foregroundColor(.secondary)
                     Spacer()
                     Text(set.displayText())

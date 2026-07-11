@@ -11,6 +11,7 @@ struct ActiveWorkoutView: View {
     @State private var viewModel: ActiveWorkoutViewModel
     @State private var expandedExerciseID: PersistentIdentifier?
     @State private var isShowingDiscardConfirmation = false
+    @State private var isShowingExercisePicker = false
 
     private var unitSystem: UnitSystem {
         UserDefaults.standard.unitSystem
@@ -70,6 +71,15 @@ struct ActiveWorkoutView: View {
         } message: {
             Text("Your logged sets will not be saved.")
         }
+        .sheet(isPresented: $isShowingExercisePicker) {
+            NavigationStack {
+                ExerciceLibrairyView(
+                    isSelectingExercise: true,
+                    availableExercises: exerciceTemplates,
+                    onSelect: addExerciseFromPicker
+                )
+            }
+        }
     }
 
     private func workoutContent(for workout: Workout) -> some View {
@@ -112,7 +122,7 @@ struct ActiveWorkoutView: View {
             }
 
             HStack {
-                Text("\(completedSetCount(in: workout)) / \(totalSetCount(in: workout)) sets")
+                Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(WorkoutPalette.subduedText)
                 Spacer()
@@ -121,7 +131,7 @@ struct ActiveWorkoutView: View {
                     .foregroundStyle(WorkoutPalette.subduedText)
             }
 
-            ProgressView(value: Double(completedSetCount(in: workout)), total: Double(max(totalSetCount(in: workout), 1)))
+            ProgressView(value: Double(workout.completedSetCount), total: Double(max(workout.totalSetCount, 1)))
                 .tint(WorkoutPalette.secondary)
         }
         .padding(Spacing.m + 2)
@@ -171,18 +181,15 @@ struct ActiveWorkoutView: View {
 
                 Spacer()
 
-                NavigationLink {
-                    ExerciceLibrairyView(
-                        isSelectingExercise: true,
-                        availableExercises: exerciceTemplates,
-                        onSelect: viewModel.addExercise
-                    )
+                Button {
+                    isShowingExercisePicker = true
                 } label: {
                     Label("Add", systemImage: AppIcon.plus)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(WorkoutPalette.primary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("add-active-exercise")
             }
 
             if workout.exercises.isEmpty {
@@ -238,9 +245,9 @@ struct ActiveWorkoutView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
             }
             .buttonStyle(.plain)
-            .disabled(completedSetCount(in: workout) == 0)
-            .opacity(completedSetCount(in: workout) == 0 ? 0.45 : 1)
-            .accessibilityHint(completedSetCount(in: workout) == 0 ? "Complete at least one set before finishing." : "Review and save your workout.")
+            .disabled(workout.completedSetCount == 0)
+            .opacity(workout.completedSetCount == 0 ? 0.45 : 1)
+            .accessibilityHint(workout.completedSetCount == 0 ? "Complete at least one set before finishing." : "Review and save your workout.")
         }
         .padding(.horizontal, Spacing.xl)
         .padding(.vertical, Spacing.m)
@@ -252,15 +259,7 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    private func completedSetCount(in workout: Workout) -> Int {
-        workout.exercises.reduce(0) { partialResult, exercise in
-            partialResult + exercise.sets.filter(\.done).count
-        }
-    }
 
-    private func totalSetCount(in workout: Workout) -> Int {
-        workout.exercises.reduce(0) { $0 + $1.sets.count }
-    }
 
     private func selectInitialDisclosure(in workout: Workout) {
         guard expandedExerciseID == nil else { return }
@@ -281,6 +280,12 @@ struct ActiveWorkoutView: View {
         withAnimation(.snappy) {
             expandedExerciseID = nextExercise?.persistentModelID
         }
+    }
+
+    private func addExerciseFromPicker(_ exercise: ExerciceTemplate) {
+        viewModel.addExercise(exercise)
+        expandedExerciseID = viewModel.activeWorkout?.exercises.last?.persistentModelID
+        isShowingExercisePicker = false
     }
 
     private func discardWorkout() {

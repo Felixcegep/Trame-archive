@@ -31,7 +31,7 @@ struct TemplatePickerView: View {
                         HStack {
                             FolderRow(
                                 title: template.name,
-                                subtitle: "\(template.exercises.count) exercises",
+                                subtitle: String(localized: "\(template.exercises.count) exercises"),
                                 systemImage: "list.bullet.rectangle"
                             )
 

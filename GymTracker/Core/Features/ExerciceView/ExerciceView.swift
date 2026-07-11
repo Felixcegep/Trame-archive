@@ -19,6 +19,7 @@ struct ExerciceDetailSnapshot {
     let resistanceType: ResistanceType?
     let movementPattern: MovementPattern?
     let difficulty: Difficulty
+    let usesWeightPlates: Bool
 
     init(exercice: ExerciceTemplate) {
         name = exercice.name
@@ -30,6 +31,7 @@ struct ExerciceDetailSnapshot {
         resistanceType = exercice.resistanceType
         movementPattern = exercice.movementPattern
         difficulty = exercice.displayDifficulty
+        usesWeightPlates = exercice.supportsPlateCalculator
     }
 }
 
@@ -61,12 +63,17 @@ struct ExerciceView : View {
         List {
             Section("Exercise") {
                 LabeledContent("Name", value: exercice.name)
-                LabeledContent("Category", value: exercice.category.rawValue)
-                LabeledContent("Tracking", value: exercice.trackingType.rawValue)
-                LabeledContent("Equipment", value: exercice.equipmentType.rawValue)
-                LabeledContent("Resistance", value: exercice.resistanceType?.rawValue ?? "None")
-                LabeledContent("Movement", value: exercice.movementPattern?.rawValue ?? "None")
-                LabeledContent("Difficulty", value: exercice.difficulty.rawValue)
+                LabeledContent("Category") { Text(LocalizedStringKey(exercice.category.rawValue)) }
+                LabeledContent("Tracking") { Text(LocalizedStringKey(exercice.trackingType.rawValue)) }
+                LabeledContent("Equipment") { Text(LocalizedStringKey(exercice.equipmentType.rawValue)) }
+                LabeledContent("Resistance") { Text(LocalizedStringKey(exercice.resistanceType?.rawValue ?? "None")) }
+                LabeledContent("Movement") { Text(LocalizedStringKey(exercice.movementPattern?.rawValue ?? "None")) }
+                LabeledContent("Difficulty") { Text(LocalizedStringKey(exercice.difficulty.rawValue)) }
+                if exercice.trackingType.usesWeight {
+                    LabeledContent("Weight entry") {
+                        Text(LocalizedStringKey(exercice.usesWeightPlates ? "Plate calculator" : "Direct weight entry"))
+                    }
+                }
             }
 
             Section("Actions") {
@@ -107,6 +114,15 @@ struct ExerciceView : View {
         .toolbar {
             if editableExercise != nil {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        toggleFavorite()
+                    } label: {
+                        Image(systemName: editableExercise?.isFavorite == true ? AppIcon.favoriteFilled : AppIcon.favorite)
+                    }
+                    .accessibilityLabel(editableExercise?.isFavorite == true ? "Remove from favorites" : "Add to favorites")
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("Edit") {
                         isShowingEditor = true
                     }
@@ -126,6 +142,12 @@ struct ExerciceView : View {
 
     private func showExerciseHistory() {
         // Placeholder for the future exercise-specific history screen.
+    }
+
+    private func toggleFavorite() {
+        guard let editableExercise else { return }
+        editableExercise.isFavorite.toggle()
+        saveModelContext(modelContext)
     }
 
     private func showOneRepMax() {

@@ -3,6 +3,12 @@ import SwiftData
 
 extension ModelContext {
     func clearAllGymData() throws {
+        let workouts = try fetch(FetchDescriptor<Workout>())
+        for workout in workouts {
+            workout.sourceTemplate = nil
+        }
+        try save()
+
         try delete(model: ExerciseSet.self)
         try delete(model: ExerciceEntry.self)
         try delete(model: Workout.self)

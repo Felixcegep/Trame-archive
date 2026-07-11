@@ -30,7 +30,7 @@ struct ExerciceEntryCard: View {
             }
         }
         .animation(.snappy, value: exerciseIsDone)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .background {
             GeometryReader { proxy in
                 Color.clear
@@ -53,10 +53,10 @@ struct ExerciceEntryCard: View {
                 exerciseHeader
             }
         }
-        .padding(isCurrentExercise ? 16 : 14)
+        .padding(isCurrentExercise ? Spacing.l : Spacing.m)
         .background(isCurrentExercise ? WorkoutPalette.primarySurface : WorkoutPalette.surface)
         .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(
                     expandedExerciseID == exerciseEntry.persistentModelID
                         ? WorkoutPalette.primary.opacity(0.42)
@@ -64,24 +64,24 @@ struct ExerciceEntryCard: View {
                     lineWidth: 1
                 )
         }
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
     private var completedExerciseSummary: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark")
-                .font(.subheadline.weight(.bold))
+        HStack(spacing: Spacing.m) {
+            Image(systemName: AppIcon.checkmark)
+                .font(AppFont.subheadlineBold)
                 .foregroundStyle(.white)
                 .frame(width: 30, height: 30)
                 .background(WorkoutPalette.secondary)
                 .clipShape(Circle())
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(exerciseEntry.exercice.name)
-                    .font(.subheadline.weight(.semibold))
+                    .font(AppFont.subheadlineSemibold)
                     .lineLimit(1)
                 Text("All \(completedSetCount) sets completed")
-                    .font(.caption)
+                    .font(AppFont.caption)
                     .foregroundStyle(WorkoutPalette.subduedText)
             }
 
@@ -89,7 +89,7 @@ struct ExerciceEntryCard: View {
         }
         .padding(13)
         .background(WorkoutPalette.completedSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
     }
 
     private var disclosureBinding: Binding<Bool> {
@@ -105,22 +105,31 @@ struct ExerciceEntryCard: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
                 if isCurrentExercise {
-                    Label("CURRENT EXERCISE", systemImage: "circle.fill")
-                        .font(.caption2.weight(.bold))
+                    Label("CURRENT EXERCISE", systemImage: AppIcon.circleFill)
+                        .font(AppFont.caption2Bold)
                         .tracking(0.55)
                         .foregroundStyle(WorkoutPalette.primary)
                 }
 
                 Text(exerciseEntry.exercice.name)
-                    .font(isCurrentExercise ? .title3.weight(.bold) : .headline.weight(.semibold))
+                    .font(isCurrentExercise ? AppFont.titleSmall : AppFont.headlineSemibold)
                     .foregroundStyle(WorkoutPalette.text)
+                    .accessibilityIdentifier("active-exercise-\(exerciseEntry.exercice.name)")
+
+                if let prescription = prescriptionSummary {
+                    Text(prescription)
+                        .font(AppFont.captionSemiboldMonospaced)
+                        .foregroundStyle(WorkoutPalette.primary)
+                        .lineLimit(1)
+                        .accessibilityIdentifier("prescription-summary-\(exerciseEntry.exercice.name)")
+                }
 
                 HStack(spacing: 7) {
                     Text("\(completedSetCount)/\(exerciseEntry.sets.count) sets")
                     Text("•")
                     Text(exerciseSummaryText)
                 }
-                .font(.caption)
+                .font(AppFont.caption)
                 .foregroundStyle(WorkoutPalette.subduedText)
                 .lineLimit(1)
             }
@@ -131,11 +140,11 @@ struct ExerciceEntryCard: View {
                 Button(role: .destructive) {
                     viewModel.removeExercise(exerciseEntry)
                 } label: {
-                    Label("Remove exercise", systemImage: "trash")
+                    Label("Remove exercise", systemImage: AppIcon.trash)
                 }
             } label: {
-                Image(systemName: "ellipsis")
-                    .font(.subheadline.weight(.bold))
+                Image(systemName: AppIcon.ellipsis)
+                    .font(AppFont.subheadlineBold)
                     .foregroundStyle(WorkoutPalette.subduedText)
                     .frame(width: 30, height: 30)
                     .background(WorkoutPalette.text.opacity(0.06))
@@ -147,7 +156,7 @@ struct ExerciceEntryCard: View {
     }
 
     private var setHeader: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.s) {
             Text("SET")
                 .frame(width: 45, alignment: .leading)
 
@@ -158,7 +167,7 @@ struct ExerciceEntryCard: View {
 
             Spacer().frame(width: 58)
         }
-        .font(.caption2.weight(.bold))
+        .font(AppFont.caption2Bold)
         .tracking(0.55)
         .foregroundStyle(WorkoutPalette.subduedText)
         .padding(.horizontal, 4)
@@ -181,20 +190,20 @@ struct ExerciceEntryCard: View {
     }
 
     private var setActions: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.md) {
             Button {
                 viewModel.addSet(exerciseEntry)
             } label: {
-                Label("Add set", systemImage: "plus")
+                Label("Add set", systemImage: AppIcon.plus)
             }
 
             Button {
                 viewModel.addSetCopyLastSet(exerciseEntry: exerciseEntry)
             } label: {
-                Label("Copy last", systemImage: "doc.on.doc")
+                Label("Copy last", systemImage: AppIcon.copy)
             }
         }
-        .font(.subheadline.weight(.semibold))
+        .font(AppFont.subheadlineSemibold)
         .foregroundStyle(WorkoutPalette.primary)
         .buttonStyle(.borderless)
     }
@@ -202,8 +211,8 @@ struct ExerciceEntryCard: View {
     private var exerciseDoneBackground: some View {
         HStack {
             Spacer()
-            Label("Complete", systemImage: "checkmark.circle.fill")
-                .font(.subheadline.weight(.bold))
+            Label("Complete", systemImage: AppIcon.checkmarkCircle)
+                .font(AppFont.subheadlineBold)
                 .foregroundStyle(.white)
                 .padding(.trailing, 24)
         }
@@ -257,6 +266,24 @@ struct ExerciceEntryCard: View {
 
     private var exerciseSummaryText: String {
         exerciseEntry.sets.first?.displayText() ?? "No sets"
+    }
+
+    private var prescriptionSummary: String? {
+        guard let setCount = exerciseEntry.prescribedSets,
+              let minimum = exerciseEntry.prescribedRepRangeMinimum,
+              let maximum = exerciseEntry.prescribedRepRangeMaximum
+        else {
+            return nil
+        }
+
+        var components = ["\(setCount) × \(minimum)-\(maximum)"]
+        if let rpe = exerciseEntry.prescribedRPE {
+            components.append("RPE \(Formatters.formatFloat(Float(rpe)))")
+        }
+        if let rir = exerciseEntry.prescribedRIR {
+            components.append("RIR \(rir)")
+        }
+        return components.joined(separator: "  ·  ")
     }
 
     private var trackingType: TrackingType {

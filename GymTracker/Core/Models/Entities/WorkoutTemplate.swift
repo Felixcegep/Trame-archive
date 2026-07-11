@@ -11,13 +11,22 @@ class WorkoutTemplate {
     var name: String
     @Relationship(deleteRule: .nullify, inverse: \ExerciceTemplate.workoutTemplates)
     var exercises: [ExerciceTemplate]
+    @Relationship(deleteRule: .cascade)
+    var templateExercises: [TemplateExercise] = []
     @Relationship(deleteRule: .nullify, inverse: \WorkoutPlan.workoutTemplates)
     var workoutPlans: [WorkoutPlan] = []
     @Relationship(deleteRule: .nullify, inverse: \Workout.sourceTemplate)
     var sourceWorkouts: [Workout] = []
 
-    init(name: String, exercises: [ExerciceTemplate]) {
+    init(
+        name: String,
+        exercises: [ExerciceTemplate],
+        templateExercises: [TemplateExercise]? = nil
+    ) {
         self.name = name
         self.exercises = exercises
+        self.templateExercises = templateExercises ?? exercises.enumerated().map { index, exercise in
+            TemplateExercise(exercise: exercise, order: index)
+        }
     }
 }

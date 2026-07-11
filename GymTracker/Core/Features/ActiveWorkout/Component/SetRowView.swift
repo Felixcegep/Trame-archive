@@ -54,16 +54,19 @@ struct SetRowView: View {
             .multilineTextAlignment(.center)
             .font(AppFont.subheadlineMediumMonospaced)
 
-            Button {
-                isShowingPlateCalculator = true
-            } label: {
-                Image(systemName: AppIcon.plateCalculator)
-                    .font(AppFont.captionBold)
-                    .frame(width: 30, height: 30)
+            if exerciseEntry.exercice.supportsPlateCalculator {
+                Button {
+                    isShowingPlateCalculator = true
+                } label: {
+                    Image(systemName: AppIcon.plateCalculator)
+                        .font(AppFont.captionBold)
+                        .frame(width: 30, height: 30)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(WorkoutPalette.primary)
+                .accessibilityLabel("Open plate calculator")
+                .accessibilityIdentifier("plate-calculator-\(exerciseEntry.exercice.name)")
             }
-            .buttonStyle(.borderless)
-            .foregroundStyle(WorkoutPalette.primary)
-            .accessibilityLabel("Open plate calculator")
         }
         .frame(maxWidth: .infinity)
         .padding(.leading, Spacing.xs)
@@ -71,7 +74,10 @@ struct SetRowView: View {
         .background(Color.white.opacity(0.7))
         .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
         .sheet(isPresented: $isShowingPlateCalculator) {
-            PlateCalculatorView(exerciseSet: exerciseSet)
+            PlateCalculatorView(
+                exerciseSet: exerciseSet,
+                usesBarbell: exerciseEntry.exercice.equipmentType == .barbell
+            )
                 .presentationDetents([.height(560), .large])
                 .presentationDragIndicator(.visible)
         }
@@ -86,7 +92,10 @@ struct SetRowView: View {
 
     private var distanceField: some View {
         numberField("Distance", text: Binding(
-            get: { exerciseSet.distance.map(Formatters.formatFloat) ?? "" },
+            get: {
+                guard let distance = exerciseSet.distance else { return "" }
+                return Formatters.formatFloat(distance)
+            },
             set: { exerciseSet.distance = $0.isEmpty ? nil : Float($0) }
         ))
     }
@@ -102,6 +111,7 @@ struct SetRowView: View {
         }
         .buttonStyle(.borderless)
         .accessibilityLabel(exerciseSet.done ? "Mark set incomplete" : "Complete set")
+        .accessibilityIdentifier("complete-set-\(exerciseEntry.exercice.name)-\(index)")
     }
 
     private var isCurrentSet: Bool {

@@ -3,10 +3,15 @@ import SwiftUI
 struct PlateCalculatorView: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var exerciseSet: ExerciseSet
+    let usesBarbell: Bool
     @State private var selectedBarID = BarKind.mensOlympic.id
 
     private var equipment: PlateEquipment {
-        PlateEquipment(unitSystem: exerciseSet.usedMetric, selectedBarID: selectedBarID)
+        PlateEquipment(
+            unitSystem: exerciseSet.usedMetric,
+            selectedBarID: selectedBarID,
+            usesBarbell: usesBarbell
+        )
     }
 
     private var calculation: PlateCalculation {
@@ -19,8 +24,13 @@ struct PlateCalculatorView: View {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     header
                     Divider()
+                    if !usesBarbell {
+                        plateLoadedEquipmentNote
+                    }
                     result
-                    barSelector
+                    if usesBarbell {
+                        barSelector
+                    }
                     plateKeyboard
                 }
                 .padding(Spacing.xl)
@@ -85,11 +95,18 @@ struct PlateCalculatorView: View {
         }
     }
 
+    private var plateLoadedEquipmentNote: some View {
+        calculatorMessage(
+            "Plate-loaded mode splits the entered weight equally between both sides.",
+            icon: AppIcon.info
+        )
+    }
+
     @ViewBuilder
     private var result: some View {
         if exerciseSet.weight <= 0 {
             calculatorMessage("Use the plate keyboard or enter a target weight.", icon: AppIcon.number)
-        } else if exerciseSet.weight < equipment.barWeight {
+        } else if usesBarbell && exerciseSet.weight < equipment.barWeight {
             calculatorMessage("This is lighter than the \(formatted(equipment.barWeight)) \(equipment.unitLabel) bar.", icon: AppIcon.warning)
         } else if calculation.remainingWeight > 0.01 {
             calculatorMessage("This cannot be loaded exactly with the standard plates.", icon: AppIcon.warning)
@@ -100,9 +117,15 @@ struct PlateCalculatorView: View {
                 Text(calculation.plates.isEmpty ? "No plates" : calculation.plates.map(formatted).joined(separator: " + "))
                     .font(AppFont.titleSmallSemiboldMonospaced)
                     .foregroundStyle(WorkoutPalette.primary)
-                Text("Bar: \(formatted(equipment.barWeight)) \(equipment.unitLabel)  ·  Same plates on both sides")
-                    .font(AppFont.footnote)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                if usesBarbell {
+                    Text("Bar: \(formatted(equipment.barWeight)) \(equipment.unitLabel)  ·  Same plates on both sides")
+                        .font(AppFont.footnote)
+                        .foregroundStyle(WorkoutPalette.subduedText)
+                } else {
+                    Text("Same plates on both sides")
+                        .font(AppFont.footnote)
+                        .foregroundStyle(WorkoutPalette.subduedText)
+                }
             }
             .padding(Spacing.l)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -119,8 +142,10 @@ struct PlateCalculatorView: View {
                 .foregroundStyle(WorkoutPalette.subduedText)
 
             HStack(spacing: Spacing.md) {
-                Button("Bar \(formatted(equipment.barWeight))") {
-                    exerciseSet.weight = equipment.barWeight
+                if usesBarbell {
+                    Button("Bar \(formatted(equipment.barWeight))") {
+                        exerciseSet.weight = equipment.barWeight
+                    }
                 }
                 Button("Clear", role: .destructive) {
                     exerciseSet.weight = 0
@@ -153,7 +178,7 @@ struct PlateCalculatorView: View {
     }
 
     private func addPlatePair(_ plate: Float) {
-        if exerciseSet.weight < equipment.barWeight {
+        if usesBarbell && exerciseSet.weight < equipment.barWeight {
             exerciseSet.weight = equipment.barWeight
         }
         exerciseSet.weight += plate * 2
@@ -183,16 +208,16 @@ private struct PlateEquipment {
     let plates: [Float]
     let unitLabel: String
 
-    init(unitSystem: UnitSystem, selectedBarID: String) {
+    init(unitSystem: UnitSystem, selectedBarID: String, usesBarbell: Bool) {
         let selectedBar = BarKind.allCases.first { $0.id == selectedBarID } ?? .mensOlympic
 
         switch unitSystem {
         case .metric:
-            barWeight = selectedBar.metricWeight
+            barWeight = usesBarbell ? selectedBar.metricWeight : 0
             plates = Constants.Barbell.metricPlates
             unitLabel = "kg"
         case .imperial:
-            barWeight = selectedBar.imperialWeight
+            barWeight = usesBarbell ? selectedBar.imperialWeight : 0
             plates = Constants.Barbell.imperialPlates
             unitLabel = "lb"
         }

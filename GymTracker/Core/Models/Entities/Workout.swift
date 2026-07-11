@@ -48,6 +48,10 @@ class Workout {
         exercises.reduce(0) { $0 + $1.sets.filter(\.done).count }
     }
 
+    var incompleteSetCount: Int {
+        exercises.reduce(0) { $0 + $1.sets.filter { !$0.done }.count }
+    }
+
     var totalSetCount: Int {
         exercises.reduce(0) { $0 + $1.sets.count }
     }

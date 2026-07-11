@@ -21,6 +21,7 @@ final class ExerciceTemplate {
     var difficulty: Difficulty?
     var tags: [String] = []
     var isFavorite: Bool = false
+    var isPlateLoaded: Bool = false
     var workoutTemplates: [WorkoutTemplate] = []
 
     init(
@@ -34,7 +35,8 @@ final class ExerciceTemplate {
         movementPattern: MovementPattern? = nil,
         difficulty: Difficulty = .beginner,
         tags: [String] = [],
-        isFavorite: Bool = false
+        isFavorite: Bool = false,
+        isPlateLoaded: Bool? = nil
     ) {
         self.name = name
         self.PrimaryMuscle = PrimaryMuscle
@@ -47,6 +49,7 @@ final class ExerciceTemplate {
         self.difficulty = difficulty
         self.tags = tags
         self.isFavorite = isFavorite
+        self.isPlateLoaded = isPlateLoaded ?? (equipmentType == .barbell)
     }
 
     var displayCategory: ExerciseCategory {
@@ -62,5 +65,9 @@ final class ExerciceTemplate {
         let equipment = NSLocalizedString(equipmentType?.rawValue ?? "Other", comment: "")
         let tracking = NSLocalizedString(trackingType.rawValue, comment: "")
         return "\(muscle) · \(equipment) · \(tracking)"
+    }
+
+    var supportsPlateCalculator: Bool {
+        trackingType.usesWeight && (equipmentType == .barbell || isPlateLoaded)
     }
 }

@@ -23,15 +23,39 @@ enum ExerciseSeedData {
                 name: "Incline Bench Press",
                 PrimaryMuscle: [.upperChest],
                 SecondaryMuscle: [.frontDeltoid, .tricepLateralHead],
+                equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .horizontalPush,
                 difficulty: .intermediate
             ),
 
             ExerciceTemplate(
+                name: "Goblet Stiletto Squat",
+                PrimaryMuscle: [.quadriceps],
+                SecondaryMuscle: [.gluteMaximus],
+                equipmentType: .dumbbell,
+                resistanceType: .externalWeight,
+                movementPattern: .squat,
+                difficulty: .beginner,
+                tags: ["front-loaded", "heels-elevated"]
+            ),
+
+            ExerciceTemplate(
+                name: "Bulgarian Split Squat",
+                PrimaryMuscle: [.quadriceps, .gluteMaximus],
+                SecondaryMuscle: [.hamstrings],
+                equipmentType: .dumbbell,
+                resistanceType: .externalWeight,
+                movementPattern: .squat,
+                difficulty: .intermediate,
+                tags: ["unilateral"]
+            ),
+
+            ExerciceTemplate(
                 name: "Deadlift",
                 PrimaryMuscle: [.erectorSpinae, .gluteMaximus, .hamstrings],
                 SecondaryMuscle: [.trapezius, .forearms],
+                equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .hinge,
                 difficulty: .advanced
@@ -41,6 +65,7 @@ enum ExerciseSeedData {
                 name: "Back Squat",
                 PrimaryMuscle: [.quadriceps, .gluteMaximus],
                 SecondaryMuscle: [.hamstrings, .erectorSpinae],
+                equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .squat,
                 difficulty: .intermediate
@@ -50,6 +75,7 @@ enum ExerciseSeedData {
                 name: "Overhead Press",
                 PrimaryMuscle: [.frontDeltoid, .lateralDeltoid],
                 SecondaryMuscle: [.tricepLongHead],
+                equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .verticalPush,
                 difficulty: .intermediate
@@ -59,9 +85,31 @@ enum ExerciseSeedData {
                 name: "Barbell Row",
                 PrimaryMuscle: [.latissimusDorsi, .rhomboids],
                 SecondaryMuscle: [.rearDeltoid, .bicep, .forearms],
+                equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .horizontalPull,
                 difficulty: .intermediate
+            ),
+
+            ExerciceTemplate(
+                name: "Dumbbell Incline Press",
+                PrimaryMuscle: [.upperChest],
+                SecondaryMuscle: [.frontDeltoid, .tricepLateralHead],
+                equipmentType: .dumbbell,
+                resistanceType: .externalWeight,
+                movementPattern: .horizontalPush,
+                difficulty: .intermediate
+            ),
+
+            ExerciceTemplate(
+                name: "Face Pull",
+                PrimaryMuscle: [.rearDeltoid],
+                SecondaryMuscle: [.trapezius, .rhomboids],
+                equipmentType: .cable,
+                resistanceType: .machine,
+                movementPattern: .horizontalPull,
+                difficulty: .beginner,
+                tags: ["shoulder-health"]
             ),
 
             ExerciceTemplate(
@@ -90,6 +138,7 @@ enum ExerciseSeedData {
                 name: "Lat Pulldown",
                 PrimaryMuscle: [.latissimusDorsi],
                 SecondaryMuscle: [.bicep, .teresMajor],
+                equipmentType: .machine,
                 resistanceType: .machine,
                 movementPattern: .verticalPull,
                 difficulty: .beginner
@@ -99,6 +148,7 @@ enum ExerciseSeedData {
                 name: "Seated Cable Row",
                 PrimaryMuscle: [.rhomboids, .latissimusDorsi],
                 SecondaryMuscle: [.bicep, .rearDeltoid],
+                equipmentType: .cable,
                 resistanceType: .machine,
                 movementPattern: .horizontalPull,
                 difficulty: .beginner
@@ -108,6 +158,7 @@ enum ExerciseSeedData {
                 name: "Barbell Curl",
                 PrimaryMuscle: [.bicep],
                 SecondaryMuscle: [.brachialis, .brachioradialis],
+                equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .isolation,
                 difficulty: .beginner
@@ -117,6 +168,7 @@ enum ExerciseSeedData {
                 name: "Hammer Curl",
                 PrimaryMuscle: [.brachialis],
                 SecondaryMuscle: [.bicep, .brachioradialis],
+                equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
                 movementPattern: .isolation,
                 difficulty: .beginner
@@ -126,6 +178,7 @@ enum ExerciseSeedData {
                 name: "Triceps Pushdown",
                 PrimaryMuscle: [.tricepLateralHead, .tricepMedialHead],
                 SecondaryMuscle: [.tricepLongHead],
+                equipmentType: .cable,
                 resistanceType: .machine,
                 movementPattern: .isolation,
                 difficulty: .beginner
@@ -134,6 +187,7 @@ enum ExerciseSeedData {
             ExerciceTemplate(
                 name: "Lateral Raise",
                 PrimaryMuscle: [.lateralDeltoid],
+                equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
                 movementPattern: .isolation,
                 difficulty: .beginner
@@ -143,6 +197,7 @@ enum ExerciseSeedData {
                 name: "Rear Delt Fly",
                 PrimaryMuscle: [.rearDeltoid],
                 SecondaryMuscle: [.rhomboids],
+                equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
                 movementPattern: .isolation,
                 difficulty: .beginner
@@ -152,23 +207,49 @@ enum ExerciseSeedData {
                 name: "Leg Press",
                 PrimaryMuscle: [.quadriceps],
                 SecondaryMuscle: [.gluteMaximus, .hamstrings],
+                equipmentType: .machine,
                 resistanceType: .machine,
                 movementPattern: .squat,
-                difficulty: .beginner
+                difficulty: .beginner,
+                isPlateLoaded: true
             ),
 
             ExerciceTemplate(
                 name: "Romanian Deadlift",
                 PrimaryMuscle: [.hamstrings, .gluteMaximus],
                 SecondaryMuscle: [.erectorSpinae],
+                equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .hinge,
                 difficulty: .intermediate
             ),
 
             ExerciceTemplate(
+                name: "B-Stance RDL",
+                PrimaryMuscle: [.hamstrings, .gluteMaximus],
+                SecondaryMuscle: [.erectorSpinae],
+                equipmentType: .dumbbell,
+                resistanceType: .externalWeight,
+                movementPattern: .hinge,
+                difficulty: .intermediate,
+                tags: ["unilateral", "kickstand"]
+            ),
+
+            ExerciceTemplate(
+                name: "45-Degree Back Extension",
+                PrimaryMuscle: [.erectorSpinae, .gluteMaximus],
+                SecondaryMuscle: [.hamstrings],
+                equipmentType: .other,
+                resistanceType: .bodyweight,
+                movementPattern: .hinge,
+                difficulty: .beginner,
+                tags: ["rehabilitation", "high-rep"]
+            ),
+
+            ExerciceTemplate(
                 name: "Leg Extension",
                 PrimaryMuscle: [.quadriceps],
+                equipmentType: .machine,
                 resistanceType: .machine,
                 movementPattern: .isolation,
                 difficulty: .beginner
@@ -177,14 +258,28 @@ enum ExerciseSeedData {
             ExerciceTemplate(
                 name: "Leg Curl",
                 PrimaryMuscle: [.hamstrings],
+                equipmentType: .machine,
                 resistanceType: .machine,
                 movementPattern: .isolation,
                 difficulty: .beginner
             ),
 
             ExerciceTemplate(
+                name: "Copenhagen Plank",
+                PrimaryMuscle: [.adductors],
+                SecondaryMuscle: [.obliques, .gluteMedius],
+                trackingType: .duration,
+                equipmentType: .bodyweight,
+                resistanceType: .bodyweight,
+                movementPattern: .antiRotation,
+                difficulty: .intermediate,
+                tags: ["hip-health"]
+            ),
+
+            ExerciceTemplate(
                 name: "Standing Calf Raise",
                 PrimaryMuscle: [.calves],
+                equipmentType: .machine,
                 resistanceType: .externalWeight,
                 movementPattern: .isolation,
                 difficulty: .beginner
@@ -197,6 +292,36 @@ enum ExerciseSeedData {
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
                 movementPattern: .isolation,
+                difficulty: .beginner
+            ),
+
+            ExerciceTemplate(
+                name: "Dumbbell Bench Press",
+                PrimaryMuscle: [.middleChest],
+                SecondaryMuscle: [.frontDeltoid, .tricepLateralHead],
+                equipmentType: .dumbbell,
+                resistanceType: .externalWeight,
+                movementPattern: .horizontalPush,
+                difficulty: .beginner
+            ),
+
+            ExerciceTemplate(
+                name: "Military Press",
+                PrimaryMuscle: [.frontDeltoid, .lateralDeltoid],
+                SecondaryMuscle: [.tricepLongHead],
+                equipmentType: .barbell,
+                resistanceType: .externalWeight,
+                movementPattern: .verticalPush,
+                difficulty: .intermediate
+            ),
+
+            ExerciceTemplate(
+                name: "Chest-Supported Row",
+                PrimaryMuscle: [.rhomboids, .latissimusDorsi],
+                SecondaryMuscle: [.rearDeltoid, .bicep],
+                equipmentType: .dumbbell,
+                resistanceType: .externalWeight,
+                movementPattern: .horizontalPull,
                 difficulty: .beginner
             ),
 

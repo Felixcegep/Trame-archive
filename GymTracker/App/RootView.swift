@@ -90,19 +90,30 @@ struct RootView: View {
     }
 
     private func seedExerciseTemplatesIfNeeded() {
-        let existingNames = Set(exerciceTemplates.map(\.name))
-
-        var didInsertTemplate = false
-        for template in ExerciseSeedData.templates() {
-            guard !existingNames.contains(template.name) else { continue }
-            modelContext.insert(template)
-            didInsertTemplate = true
-        }
-
-        guard didInsertTemplate else { return }
-
         do {
-            try modelContext.save()
+            let existingExercises = try modelContext.fetch(FetchDescriptor<ExerciceTemplate>())
+            let existingByName = Dictionary(uniqueKeysWithValues: existingExercises.map { ($0.name, $0) })
+            var didChangeTemplates = false
+
+            for template in ExerciseSeedData.templates() {
+                if let existingTemplate = existingByName[template.name] {
+                    if existingTemplate.equipmentType != template.equipmentType {
+                        existingTemplate.equipmentType = template.equipmentType
+                        didChangeTemplates = true
+                    }
+                    if existingTemplate.isPlateLoaded != template.isPlateLoaded {
+                        existingTemplate.isPlateLoaded = template.isPlateLoaded
+                        didChangeTemplates = true
+                    }
+                } else {
+                    modelContext.insert(template)
+                    didChangeTemplates = true
+                }
+            }
+
+            if didChangeTemplates {
+                try modelContext.save()
+            }
         } catch {
             print("Failed to seed exercise templates: \(error)")
         }

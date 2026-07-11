@@ -20,7 +20,7 @@ struct SettingView: View {
             Section("Units") {
                 Picker("Units", selection: $unitSystem) {
                     ForEach(UnitSystem.allCases, id: \.self) { system in
-                        Text(LocalizedStringKey(system.rawValue))
+                        Text(system == .metric ? String(localized: "Metric") : String(localized: "Imperial"))
                             .tag(system)
                     }
                 }
@@ -33,6 +33,7 @@ struct SettingView: View {
                 }
             }
 
+            #if DEBUG
             Section {
                 Button(role: .destructive) {
                     isShowingResetConfirmation = true
@@ -44,7 +45,10 @@ struct SettingView: View {
             } footer: {
                 Text("Removes all local workouts, templates, plans, and custom exercises, then restores the built-in exercise catalogue.")
             }
+            #endif
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle("Settings")
         .confirmationDialog("Reset development data?", isPresented: $isShowingResetConfirmation, titleVisibility: .visible) {
             Button("Reset data", role: .destructive) {

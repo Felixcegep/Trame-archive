@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct MuscleSelectionSection: View {
-    let title: String
+    let title: LocalizedStringKey
     let selectedMuscles: Set<Muscle>
     let onSelect: (Muscle) -> Void
 

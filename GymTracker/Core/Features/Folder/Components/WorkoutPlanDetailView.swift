@@ -30,7 +30,7 @@ struct WorkoutPlanDetailView: View {
                         } label: {
                             FolderRow(
                                 title: template.name,
-                                subtitle: "\(template.exercises.count) exercises",
+                                subtitle: String(localized: "\(template.exercises.count) exercises"),
                                 systemImage: "list.bullet.rectangle"
                             )
                         }

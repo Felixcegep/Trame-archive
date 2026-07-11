@@ -14,6 +14,13 @@ final class ExerciceEntry{
     var Comment: String?
     var exercice: ExerciceTemplate
     var usedMetric : UnitSystem
+    var prescribedSets: Int?
+    var prescribedRepRangeMinimum: Int?
+    var prescribedRepRangeMaximum: Int?
+    var prescribedRestSeconds: Int?
+    var prescribedRPE: Double?
+    var prescribedRIR: Int?
+    var prescriptionNotes: String?
     @Relationship(deleteRule: .cascade)
     var sets: [ExerciseSet]
 
@@ -22,12 +29,31 @@ final class ExerciceEntry{
         self.exercice = exercice
         self.sets = sets
         self.usedMetric = usedMetric
+        self.prescribedSets = nil
+        self.prescribedRepRangeMinimum = nil
+        self.prescribedRepRangeMaximum = nil
+        self.prescribedRestSeconds = nil
+        self.prescribedRPE = nil
+        self.prescribedRIR = nil
+        self.prescriptionNotes = nil
     }
 
     convenience init(from: ExerciceTemplate,usedMetric: UnitSystem) {
         self.init(exercice: from,usedMetric: usedMetric)
         addDefaultSets()
         
+    }
+
+    convenience init(from templateExercise: TemplateExercise, usedMetric: UnitSystem) {
+        self.init(exercice: templateExercise.exercise, usedMetric: usedMetric)
+        prescribedSets = templateExercise.targetSets
+        prescribedRepRangeMinimum = templateExercise.repRangeMinimum
+        prescribedRepRangeMaximum = templateExercise.repRangeMaximum
+        prescribedRestSeconds = templateExercise.restSeconds
+        prescribedRPE = templateExercise.targetRPE
+        prescribedRIR = templateExercise.targetRIR
+        prescriptionNotes = templateExercise.notes
+        addDefaultSets(count: templateExercise.targetSets)
     }
 
     func addEmptySet() {

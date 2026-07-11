@@ -42,7 +42,7 @@ struct WorkoutSaveView: View {
     }
 
     private func saveReview(for workout: Workout) -> some View {
-        if completedSetCount(in: workout) == 0 {
+        if workout.completedSetCount == 0 {
             return AnyView(emptySaveReview(for: workout))
         } else {
             return AnyView(standardSaveReview(for: workout))
@@ -106,7 +106,7 @@ struct WorkoutSaveView: View {
 
     private func standardSaveReview(for workout: Workout) -> some View {
         @Bindable var workout = workout
-        let hasIncomplete = incompleteSetCount(in: workout) > 0
+        let hasIncomplete = workout.incompleteSetCount > 0
 
         return ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xxl - 2) {
@@ -171,14 +171,14 @@ struct WorkoutSaveView: View {
         .background(WorkoutPalette.background)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: Spacing.md) {
-                if incompleteSetCount(in: workout) > 0 {
+                if workout.incompleteSetCount > 0 {
                     Label(
-                        "\(incompleteSetCount(in: workout)) sets are still incomplete",
+                        "\(workout.incompleteSetCount) sets are still incomplete",
                         systemImage: AppIcon.warningCircle
                     )
                     .font(AppFont.footnote)
                     .foregroundStyle(WorkoutPalette.accent)
-                    .accessibilityLabel("\(incompleteSetCount(in: workout)) sets are still incomplete. You can save a partial workout or return to finish them.")
+                    .accessibilityLabel("\(workout.incompleteSetCount) sets are still incomplete. You can save a partial workout or return to finish them.")
                 }
 
                 Button(action: requestSave) {
@@ -234,7 +234,7 @@ struct WorkoutSaveView: View {
             Divider().frame(height: 38)
             summaryMetric(value: "\(workout.exercises.count)", label: "Exercises")
             Divider().frame(height: 38)
-            summaryMetric(value: "\(completedSetCount(in: workout))", label: "Sets done")
+            summaryMetric(value: "\(workout.completedSetCount)", label: "Sets done")
         }
         .padding(.vertical, Spacing.xl - 2)
         .background(WorkoutPalette.mutedSurface)
@@ -285,18 +285,10 @@ struct WorkoutSaveView: View {
         }
     }
 
-    private func completedSetCount(in workout: Workout) -> Int {
-        workout.exercises.reduce(0) { $0 + $1.sets.filter(\.done).count }
-    }
-
-    private func incompleteSetCount(in workout: Workout) -> Int {
-        workout.exercises.reduce(0) { $0 + $1.sets.filter { !$0.done }.count }
-    }
-
     private func requestSave() {
         guard let workout = workoutVM.activeWorkout else { return }
 
-        if incompleteSetCount(in: workout) > 0 {
+        if workout.incompleteSetCount > 0 {
             isShowingPartialSaveConfirmation = true
         } else {
             saveWorkout()

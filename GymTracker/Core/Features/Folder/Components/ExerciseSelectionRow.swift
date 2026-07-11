@@ -29,7 +29,7 @@ struct ExerciseSelectionRow: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(exercise.name)
                             .foregroundStyle(.primary)
-                        Text(exercise.trackingType.rawValue)
+                        Text(LocalizedStringKey(exercise.trackingType.rawValue))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

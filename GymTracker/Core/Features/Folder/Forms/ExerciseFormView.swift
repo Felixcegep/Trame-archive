@@ -23,6 +23,7 @@ struct ExerciseFormView: View {
     @State private var secondaryMuscles: Set<Muscle>
     @State private var difficulty: Difficulty
     @State private var tagsText: String
+    @State private var isPlateLoaded: Bool
 
     init(exercise: ExerciceTemplate? = nil, onSave: @escaping (ExerciceTemplate) -> Void) {
         self.exercise = exercise
@@ -37,6 +38,7 @@ struct ExerciseFormView: View {
         _secondaryMuscles = State(initialValue: Set(exercise?.SecondaryMuscle ?? []))
         _difficulty = State(initialValue: exercise?.displayDifficulty ?? .beginner)
         _tagsText = State(initialValue: exercise?.tags.joined(separator: ", ") ?? "")
+        _isPlateLoaded = State(initialValue: exercise?.isPlateLoaded ?? false)
     }
 
     var body: some View {
@@ -46,25 +48,25 @@ struct ExerciseFormView: View {
 
                 Picker("Category", selection: $category) {
                     ForEach(ExerciseCategory.allCases, id: \.self) { category in
-                        Text(category.rawValue).tag(category)
+                        Text(LocalizedStringKey(category.rawValue)).tag(category)
                     }
                 }
 
                 Picker("Equipment", selection: $equipmentType) {
                     ForEach(EquipmentType.allCases, id: \.self) { equipment in
-                        Text(equipment.rawValue).tag(equipment)
+                        Text(LocalizedStringKey(equipment.rawValue)).tag(equipment)
                     }
                 }
 
                 Picker("Tracking", selection: $trackingType) {
                     ForEach(TrackingType.allCases, id: \.self) { trackingType in
-                        Text(trackingType.rawValue).tag(trackingType)
+                        Text(LocalizedStringKey(trackingType.rawValue)).tag(trackingType)
                     }
                 }
 
                 Picker("Difficulty", selection: $difficulty) {
                     ForEach(Difficulty.allCases, id: \.self) { difficulty in
-                        Text(difficulty.rawValue).tag(difficulty)
+                        Text(LocalizedStringKey(difficulty.rawValue)).tag(difficulty)
                     }
                 }
             }
@@ -73,15 +75,33 @@ struct ExerciseFormView: View {
                 Picker("Resistance", selection: $resistanceType) {
                     Text("None").tag(ResistanceType?.none)
                     ForEach(ResistanceType.allCases, id: \.self) { resistance in
-                        Text(resistance.rawValue).tag(Optional(resistance))
+                        Text(LocalizedStringKey(resistance.rawValue)).tag(Optional(resistance))
                     }
                 }
 
                 Picker("Movement Pattern", selection: $movementPattern) {
                     Text("None").tag(MovementPattern?.none)
                     ForEach(MovementPattern.allCases, id: \.self) { movement in
-                        Text(movement.rawValue).tag(Optional(movement))
+                        Text(LocalizedStringKey(movement.rawValue)).tag(Optional(movement))
                     }
+                }
+            }
+
+            if trackingType.usesWeight && equipmentType == .barbell {
+                Section {
+                    Label("Plate calculator enabled", systemImage: AppIcon.plateCalculator)
+                } header: {
+                    Text("Weight entry")
+                } footer: {
+                    Text("Barbell exercises use the plate calculator automatically.")
+                }
+            } else if canConfigurePlateLoading {
+                Section {
+                    Toggle("Uses weight plates", isOn: $isPlateLoaded)
+                } header: {
+                    Text("Weight entry")
+                } footer: {
+                    Text("Enable this for plate-loaded machines or equipment loaded equally on both sides.")
                 }
             }
 
@@ -104,6 +124,18 @@ struct ExerciseFormView: View {
             }
         }
         .navigationTitle(exercise == nil ? "New Exercise" : "Edit Exercise")
+        .onChange(of: equipmentType) { previousEquipment, equipment in
+            if previousEquipment == .barbell && equipment != .barbell {
+                isPlateLoaded = false
+            } else if equipment != .machine && equipment != .other && equipment != .barbell {
+                isPlateLoaded = false
+            }
+        }
+        .onChange(of: trackingType) { _, tracking in
+            if !tracking.usesWeight {
+                isPlateLoaded = false
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
@@ -140,6 +172,7 @@ struct ExerciseFormView: View {
             exercise.movementPattern = movementPattern
             exercise.difficulty = difficulty
             exercise.tags = tags
+            exercise.isPlateLoaded = equipmentType == .barbell || isPlateLoaded
             return exercise
         }
 
@@ -153,8 +186,13 @@ struct ExerciseFormView: View {
             resistanceType: resistanceType,
             movementPattern: movementPattern,
             difficulty: difficulty,
-            tags: tags
+            tags: tags,
+            isPlateLoaded: equipmentType == .barbell || isPlateLoaded
         )
+    }
+
+    private var canConfigurePlateLoading: Bool {
+        trackingType.usesWeight && (equipmentType == .machine || equipmentType == .other)
     }
 
     private var tags: [String] {

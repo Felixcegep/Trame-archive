@@ -35,12 +35,14 @@ struct HistoryView: View {
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
-                            Text("\(workout.exercises.count) exercices")
+                            Text("\(workout.exercises.count) exercises")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
                         .padding(.vertical, 4)
-                    }.swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    }
+                    .listRowBackground(Color.gymCard)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
                             viewModel.removeWorkout(using: modelContext, workout: workout)
                         } label: {
@@ -48,8 +50,11 @@ struct HistoryView: View {
                         }
                     }
                 }
+                .scrollContentBackground(.hidden)
+                .background(Color.gymBackground)
             }
         }
+        .background(Color.gymBackground)
         .navigationTitle("History")
     }
 

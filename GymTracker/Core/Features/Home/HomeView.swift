@@ -64,7 +64,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 HStack {
                     Label(
-                        workoutVM.hasActiveWorkout ? "ACTIVE WORKOUT" : "QUICK START",
+                        workoutVM.hasActiveWorkout ? "ACTIVE WORKOUT" : "START WORKOUT",
                         systemImage: workoutVM.hasActiveWorkout ? "figure.strengthtraining.traditional" : "bolt.fill"
                     )
                     .font(AppFont.captionBold)
@@ -73,8 +73,8 @@ struct HomeView: View {
 
                     Spacer()
 
-                    Image(systemName: workoutVM.hasActiveWorkout ? "arrow.right.circle.fill" : "plus.circle.fill")
-                        .font(AppFont.titleSmall)
+                    Image(systemName: "chevron.right")
+                        .font(AppFont.subheadlineBold)
                         .foregroundStyle(workoutVM.hasActiveWorkout ? .white : Color.gymPrimary)
                 }
 
@@ -269,7 +269,7 @@ struct HomeView: View {
     }
 
     private var primaryCardTitle: LocalizedStringKey {
-        guard let workout = workoutVM.activeWorkout else { return "Quick Log" }
+        guard let workout = workoutVM.activeWorkout else { return "Start Workout" }
         if let nom = workout.nom, !nom.isEmpty {
             return "Resume \(nom)"
         }
@@ -278,7 +278,7 @@ struct HomeView: View {
 
     private var primaryCardSubtitle: LocalizedStringKey {
         guard let workout = workoutVM.activeWorkout else {
-            return "Log a free-form training session."
+            return "Start a blank workout."
         }
 
         let completedSets = workout.completedSetCount

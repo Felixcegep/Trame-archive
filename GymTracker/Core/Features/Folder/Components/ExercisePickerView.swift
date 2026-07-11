@@ -31,7 +31,7 @@ struct ExercisePickerView: View {
                         HStack {
                             FolderRow(
                                 title: exercise.name,
-                                subtitle: exercise.trackingType.rawValue,
+                                subtitle: NSLocalizedString(exercise.trackingType.rawValue, comment: ""),
                                 systemImage: "figure.strengthtraining.traditional"
                             )
 

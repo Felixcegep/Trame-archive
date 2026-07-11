@@ -44,6 +44,7 @@ struct ExerciceLibrairyView : View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("add-exercise-\(exercise.name)")
 
                         NavigationLink {
                             ExerciceView(exercice: exercise)

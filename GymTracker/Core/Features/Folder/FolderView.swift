@@ -38,7 +38,7 @@ struct FolderView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button("New Workout Plan", systemImage: "calendar.badge.plus") {
+                    Button("New Collection", systemImage: "folder.badge.plus") {
                         activeSheet = .workoutPlan
                     }
                     Button("New Workout Template", systemImage: "square.stack.3d.up.fill") {
@@ -81,7 +81,7 @@ struct FolderView: View {
         HStack(spacing: 9) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(FolderPalette.mutedText)
-            TextField("Search plans, templates, and exercises", text: $searchText)
+            TextField("Search collections, templates, and exercises", text: $searchText)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             if !searchText.isEmpty {
@@ -111,10 +111,10 @@ struct FolderView: View {
                 WorkoutPlansBrowserView(onStartWorkout: onStartWorkout)
             } label: {
                 LibraryCategoryRow(
-                    title: "Workout Plans",
-                    subtitle: "Multi-week training programs",
+                    title: "Collections",
+                    subtitle: "Folders of workout templates",
                     count: workoutPlans.count,
-                    icon: "calendar",
+                    icon: "folder",
                     color: FolderPalette.accent,
                     surface: FolderPalette.accentSurface
                 )
@@ -166,7 +166,7 @@ struct FolderView: View {
                         NavigationLink {
                             WorkoutPlanDetailView(plan: plan, onStartWorkout: onStartWorkout)
                         } label: {
-                            RecentLibraryRow(title: plan.name, type: "PLAN", color: FolderPalette.accent)
+                            RecentLibraryRow(title: plan.name, type: "COLLECTION", color: FolderPalette.accent)
                         }
                     }
                     if let template {
@@ -202,12 +202,12 @@ struct FolderView: View {
         } else {
             VStack(alignment: .leading, spacing: 18) {
             if !matchingPlans.isEmpty {
-                searchResultsCard(title: "Plans") {
+                searchResultsCard(title: "Collections") {
                     ForEach(matchingPlans) { plan in
                         NavigationLink {
                             WorkoutPlanDetailView(plan: plan, onStartWorkout: onStartWorkout)
                         } label: {
-                            RecentLibraryRow(title: plan.name, type: "PLAN", color: FolderPalette.accent)
+                            RecentLibraryRow(title: plan.name, type: "COLLECTION", color: FolderPalette.accent)
                         }
                     }
                 }
@@ -275,7 +275,7 @@ private struct WorkoutPlansBrowserView: View {
     let onStartWorkout: (WorkoutTemplate) -> Void
 
     var body: some View {
-        LibraryBrowserList(title: "Workout Plans", searchText: $searchText) {
+        LibraryBrowserList(title: "Collections", searchText: $searchText) {
             ForEach(filteredPlans) { plan in
                 NavigationLink {
                     WorkoutPlanDetailView(plan: plan, onStartWorkout: onStartWorkout)
@@ -283,7 +283,7 @@ private struct WorkoutPlansBrowserView: View {
                     LibraryItemRow(
                         title: plan.name,
                         subtitle: "\(plan.workoutTemplates.count) workouts",
-                        icon: "calendar",
+                        icon: "folder",
                         color: FolderPalette.accent,
                         surface: FolderPalette.accentSurface
                     )
