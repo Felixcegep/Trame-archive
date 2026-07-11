@@ -8,6 +8,7 @@ struct ActiveWorkoutView: View {
     @Binding var navigationPath: [HomeRoute]
     let onDiscardRequested: () -> Void
 
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: ActiveWorkoutViewModel
     @State private var expandedExerciseID: PersistentIdentifier?
     @State private var isShowingDiscardConfirmation = false
@@ -49,6 +50,16 @@ struct ActiveWorkoutView: View {
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: AppIcon.minimize)
+                        .fontWeight(.semibold)
+                }
+                .accessibilityIdentifier("minimize-workout")
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button(role: .destructive) {

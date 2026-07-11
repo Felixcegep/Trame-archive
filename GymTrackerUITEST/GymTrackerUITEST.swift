@@ -150,6 +150,15 @@ final class GymTrackerUITEST: XCTestCase {
         startButton.tap()
         saveScreenshot(name: "05_Active_Workout_Empty")
         
+        // Minimize active workout to capture Home With Active Workout
+        let minimizeButton = app.buttons["minimize-workout"]
+        XCTAssertTrue(minimizeButton.waitForExistence(timeout: 5))
+        minimizeButton.tap()
+        saveScreenshot(name: "05_Home_With_Active_Workout")
+        
+        // Resume active workout
+        startButton.tap()
+        
         // 6. Add Exercise Picker Sheet
         let addExerciseButton = app.buttons["add-active-exercise"]
         XCTAssertTrue(addExerciseButton.waitForExistence(timeout: 5))

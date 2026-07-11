@@ -6,6 +6,7 @@ struct AppIcon {
     static let folders = "folder.fill"
     static let history = "clock.arrow.circlepath"
     static let settings = "gearshape"
+    static let minimize = "chevron.down"
     
     // Action Icons
     static let plus = "plus"
