@@ -9,8 +9,9 @@ echo "=== Cleaning previous screenshots ==="
 rm -rf "$SCREENSHOT_DIR"
 mkdir -p "$SCREENSHOT_DIR"
 
-echo "=== Booting simulator ==="
+# Boot simulator and wait for it to finish booting
 xcrun simctl boot 11536E2C-BBE1-411D-AF6C-DF4ADCD332D1 || true
+xcrun simctl bootstatus 11536E2C-BBE1-411D-AF6C-DF4ADCD332D1
 
 echo "=== Running screenshot capture test suite ==="
 xcodebuild \
