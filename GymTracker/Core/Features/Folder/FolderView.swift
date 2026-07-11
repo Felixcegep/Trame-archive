@@ -112,9 +112,9 @@ struct FolderView: View {
             } label: {
                 LibraryCategoryRow(
                     title: "Collections",
-                    subtitle: "Folders of workout templates",
+                    subtitle: "Workout plans with multiple workouts",
                     count: workoutPlans.count,
-                    icon: "folder",
+                    icon: "rectangle.stack",
                     color: FolderPalette.accent,
                     surface: FolderPalette.accentSurface
                 )
@@ -283,7 +283,7 @@ private struct WorkoutPlansBrowserView: View {
                     LibraryItemRow(
                         title: plan.name,
                         subtitle: "\(plan.workoutTemplates.count) workouts",
-                        icon: "folder",
+                        icon: "rectangle.stack",
                         color: FolderPalette.accent,
                         surface: FolderPalette.accentSurface
                     )
