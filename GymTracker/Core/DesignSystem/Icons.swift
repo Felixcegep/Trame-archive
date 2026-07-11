@@ -1,0 +1,37 @@
+import Foundation
+
+struct AppIcon {
+    // Navigation & Global Action Icons
+    static let home = "house.fill"
+    static let folders = "folder.fill"
+    static let history = "clock.arrow.circlepath"
+    static let settings = "gearshape"
+    
+    // Action Icons
+    static let plus = "plus"
+    static let minus = "minus"
+    static let trash = "trash"
+    static let copy = "doc.on.doc"
+    static let ellipsis = "ellipsis"
+    static let save = "arrow.down.circle.fill"
+    static let filters = "line.3.horizontal.decrease.circle"
+    
+    // Status & Feedback Icons
+    static let checkmark = "checkmark"
+    static let checkmarkCircle = "checkmark.circle.fill"
+    static let circle = "circle"
+    static let circleFill = "circle.fill"
+    static let circleDashed = "circle.dashed"
+    static let info = "info.circle"
+    static let warning = "exclamationmark.triangle"
+    static let warningCircle = "exclamationmark.circle"
+    static let number = "number"
+    static let favorite = "star"
+    static let favoriteFilled = "star.fill"
+    
+    // Specific Features
+    static let workout = "dumbbell.fill"
+    static let timer = "timer"
+    static let plateCalculator = "circle.grid.3x3.fill"
+    static let warmup = "flame"
+}

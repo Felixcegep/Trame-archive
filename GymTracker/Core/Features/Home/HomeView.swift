@@ -8,48 +8,28 @@ struct HomeView: View {
 
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
-    @State private var showSetting = false
     @State private var isShowingTemplatePicker = false
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
                 welcomeHeader
                 primaryWorkoutCard
                 quickActions
                 recentActivity
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 4)
-            .padding(.bottom, 28)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.top, Spacing.s)
+            .padding(.bottom, Spacing.xxxl)
         }
         .scrollIndicators(.hidden)
         .foregroundStyle(WorkoutPalette.text)
         .background(WorkoutPalette.background)
         .tint(WorkoutPalette.primary)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showSetting = true
-                } label: {
-                    Image(systemName: "gearshape")
-                        .fontWeight(.semibold)
-                        .frame(width: 36, height: 36)
-                        .background(WorkoutPalette.surface)
-                        .clipShape(Circle())
-                }
-                .accessibilityLabel("Settings")
-            }
-        }
         .toolbarBackground(WorkoutPalette.background, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
-        .sheet(isPresented: $showSetting) {
-            NavigationStack {
-                SettingView()
-            }
-        }
         .sheet(isPresented: $isShowingTemplatePicker) {
             NavigationStack {
                 SavedWorkoutTemplatePicker(templates: workoutTemplates) { template in
@@ -63,59 +43,79 @@ struct HomeView: View {
     }
 
     private var welcomeHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Spacing.xs + 2) {
             Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                .font(.subheadline.weight(.medium))
+                .font(AppFont.subheadlineMediumMonospaced)
                 .foregroundStyle(WorkoutPalette.subduedText)
 
             Text(workoutVM.hasActiveWorkout ? "Your workout is ready." : "Ready when you are.")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .font(AppFont.displayMedium)
 
             Text(workoutVM.hasActiveWorkout
                  ? "Continue where you left off."
-                 : "Track your training session today.")
-                .font(.subheadline)
+                 : "Track your training today.")
+                .font(AppFont.subheadline)
                 .foregroundStyle(WorkoutPalette.subduedText)
         }
     }
 
     private var primaryWorkoutCard: some View {
         Button(action: openPrimaryWorkout) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
                 HStack {
                     Label(
-                        workoutVM.hasActiveWorkout ? "RESUME" : "QUICK START",
+                        workoutVM.hasActiveWorkout ? "ACTIVE WORKOUT" : "QUICK START",
                         systemImage: workoutVM.hasActiveWorkout ? "figure.strengthtraining.traditional" : "bolt.fill"
                     )
-                    .font(.caption.weight(.bold))
-                    .tracking(0.7)
+                    .font(AppFont.captionBold)
+                    .tracking(0.8)
+                    .foregroundStyle(workoutVM.hasActiveWorkout ? .white : Color.gymPrimary)
 
                     Spacer()
 
-                    Image(systemName: "arrow.up.right")
-                        .font(.headline.weight(.bold))
+                    Image(systemName: workoutVM.hasActiveWorkout ? "arrow.right.circle.fill" : "plus.circle.fill")
+                        .font(AppFont.titleSmall)
+                        .foregroundStyle(workoutVM.hasActiveWorkout ? .white : Color.gymPrimary)
                 }
 
                 Text(primaryCardTitle)
-                    .font(.title3.weight(.bold))
+                    .font(AppFont.titleMedium)
+                    .foregroundStyle(workoutVM.hasActiveWorkout ? .white : WorkoutPalette.text)
 
                 Text(primaryCardSubtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.86))
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(workoutVM.hasActiveWorkout ? .white.opacity(0.86) : WorkoutPalette.subduedText)
 
                 if let workout = workoutVM.activeWorkout {
                     ProgressView(
                         value: Double(workout.completedSetCount),
                         total: Double(max(workout.totalSetCount, 1))
                     )
-                    .tint(.white.opacity(0.9))
+                    .tint(.white.opacity(0.95))
+                    .padding(.top, Spacing.xxs)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(18)
-            .foregroundStyle(.white)
-            .background(workoutVM.hasActiveWorkout ? WorkoutPalette.secondary : WorkoutPalette.primary)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .padding(Spacing.l)
+            .background {
+                if workoutVM.hasActiveWorkout {
+                    LinearGradient(
+                        colors: [Color.gymPrimary, Color.gymPrimary.opacity(0.85)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                } else {
+                    WorkoutPalette.surface
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .shadow(color: Color.gymText.opacity(0.03), radius: 6, x: 0, y: 3)
+            .overlay {
+                if !workoutVM.hasActiveWorkout {
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                        .stroke(Color.gymPrimary.opacity(0.16), lineWidth: 1.5)
+                }
+            }
         }
         .buttonStyle(.plain)
         .accessibilityHint(workoutVM.hasActiveWorkout ? "Returns to your active workout." : "Starts a blank workout.")
@@ -125,9 +125,9 @@ struct HomeView: View {
     private var quickActions: some View {
         Group {
             if !workoutVM.hasActiveWorkout {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
                     Text("QUICK ACTIONS")
-                        .font(.caption.weight(.bold))
+                        .font(AppFont.captionBold)
                         .tracking(0.8)
                         .foregroundStyle(WorkoutPalette.subduedText)
 
@@ -136,9 +136,9 @@ struct HomeView: View {
                     } label: {
                         quickActionRow(
                             icon: "rectangle.stack",
-                            iconColor: WorkoutPalette.secondary,
-                            title: "Start from a template",
-                            detail: "Choose one of your saved workouts"
+                            iconColor: WorkoutPalette.primary,
+                            title: "Use a Template",
+                            detail: "Follow a saved structure"
                         )
                     }
                     .buttonStyle(.plain)
@@ -155,108 +155,111 @@ struct HomeView: View {
         detail: String,
         isInformational: Bool = false
     ) -> some View {
-        HStack(spacing: 13) {
+        HStack(spacing: Spacing.m) {
             Image(systemName: icon)
-                .font(.headline)
+                .font(AppFont.headline)
                 .frame(width: 38, height: 38)
                 .foregroundStyle(iconColor)
                 .background(iconColor.opacity(0.12))
                 .clipShape(Circle())
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(AppFont.subheadlineSemibold)
                 Text(detail)
-                    .font(.caption)
+                    .font(AppFont.caption)
                     .foregroundStyle(WorkoutPalette.subduedText)
             }
 
             Spacer()
 
             Image(systemName: isInformational ? "info.circle" : "chevron.right")
-                .font(.caption.weight(.bold))
+                .font(AppFont.captionBold)
                 .foregroundStyle(WorkoutPalette.subduedText)
         }
-        .padding(13)
+        .padding(Spacing.m)
         .background(WorkoutPalette.surface)
         .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
                 .stroke(WorkoutPalette.border, lineWidth: 1)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+        .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)
     }
 
     private var recentActivity: some View {
         let completedWorkouts = workouts.filter { $0.endTime != nil }
 
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("RECENT ACTIVITY")
-                .font(.caption.weight(.bold))
+        return VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("HISTORY")
+                .font(AppFont.captionBold)
                 .tracking(0.8)
                 .foregroundStyle(WorkoutPalette.subduedText)
 
             if completedWorkouts.isEmpty {
-                HStack(spacing: 13) {
+                HStack(spacing: Spacing.m) {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.headline)
+                        .font(AppFont.headline)
                         .frame(width: 38, height: 38)
                         .foregroundStyle(WorkoutPalette.accent)
                         .background(WorkoutPalette.accentSurface)
                         .clipShape(Circle())
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Your recent workouts")
-                            .font(.subheadline.weight(.semibold))
-                        Text("Completed sessions will appear here.")
-                            .font(.caption)
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("Activity History")
+                            .font(AppFont.subheadlineSemibold)
+                        Text("Your completed sessions will appear here.")
+                            .font(AppFont.caption)
                             .foregroundStyle(WorkoutPalette.subduedText)
                     }
                 }
-                .padding(13)
+                .padding(Spacing.m)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(WorkoutPalette.surface)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
                         .stroke(WorkoutPalette.border, lineWidth: 1)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+                .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)
             } else {
-                VStack(spacing: 10) {
+                VStack(spacing: Spacing.s) {
                     ForEach(completedWorkouts.prefix(3), id: \.self) { workout in
                         NavigationLink(destination: HistoryWorkoutView(workout: workout)) {
-                            HStack(spacing: 13) {
+                            HStack(spacing: Spacing.m) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .font(.headline)
+                                    .font(AppFont.headline)
                                     .frame(width: 38, height: 38)
                                     .foregroundStyle(WorkoutPalette.secondary)
                                     .background(WorkoutPalette.secondary.opacity(0.12))
                                     .clipShape(Circle())
 
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(workout.nom ?? "Workout")
-                                        .font(.subheadline.weight(.semibold))
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text(workout.nom ?? "Session")
+                                        .font(AppFont.subheadlineSemibold)
                                     Text(workout.startTime, style: .date)
-                                        .font(.caption)
+                                        .font(AppFont.caption)
                                         .foregroundStyle(WorkoutPalette.subduedText)
                                 }
 
                                 Spacer()
 
                                 Text("\(workout.exercises.count) ex")
-                                    .font(.caption)
+                                    .font(AppFont.caption)
                                     .foregroundStyle(WorkoutPalette.subduedText)
 
                                 Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.bold))
+                                    .font(AppFont.captionBold)
                                     .foregroundStyle(WorkoutPalette.subduedText)
                             }
-                            .padding(13)
+                            .padding(Spacing.m)
                             .background(WorkoutPalette.surface)
                             .overlay {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
                                     .stroke(WorkoutPalette.border, lineWidth: 1)
                             }
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+                            .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)
                         }
                         .buttonStyle(.plain)
                     }
@@ -266,7 +269,7 @@ struct HomeView: View {
     }
 
     private var primaryCardTitle: LocalizedStringKey {
-        guard let workout = workoutVM.activeWorkout else { return "Blank Workout" }
+        guard let workout = workoutVM.activeWorkout else { return "Quick Log" }
         if let nom = workout.nom, !nom.isEmpty {
             return "Resume \(nom)"
         }
@@ -275,7 +278,7 @@ struct HomeView: View {
 
     private var primaryCardSubtitle: LocalizedStringKey {
         guard let workout = workoutVM.activeWorkout else {
-            return "Log exercises and sets as you train."
+            return "Log a free-form training session."
         }
 
         let completedSets = workout.completedSetCount
@@ -294,8 +297,6 @@ struct HomeView: View {
         let format = String(localized: "Next: %@ · Set %lld")
         return String(format: format, exercise.exercice.name, Int64(setIndex + 1))
     }
-
-
 
     private func openPrimaryWorkout() {
         if !workoutVM.hasActiveWorkout {
@@ -332,18 +333,19 @@ private struct SavedWorkoutTemplatePicker: View {
                         onStartWorkout(template)
                     } label: {
                         HStack {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
                                 Text(template.name)
-                                    .font(.body.weight(.semibold))
+                                    .font(AppFont.subheadlineBold)
                                 Text("\(template.exercises.count) exercises")
-                                    .font(.caption)
+                                    .font(AppFont.caption)
                                     .foregroundStyle(.secondary)
                             }
 
                             Spacer()
 
                             Image(systemName: "play.circle.fill")
-                                .font(.title3)
+                                .font(AppFont.titleSmall)
+                                .foregroundStyle(Color.gymPrimary)
                         }
                     }
                     .disabled(template.exercises.isEmpty)

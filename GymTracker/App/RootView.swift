@@ -44,6 +44,13 @@ struct RootView: View {
             .tabItem {
                 Label("History", systemImage: "clock")
             }
+
+            NavigationStack {
+                SettingView()
+            }
+            .tabItem {
+                Label("Settings", systemImage: "gearshape")
+            }
         }
         .fullScreenCover(isPresented: $isShowingActiveWorkout, onDismiss: {
             activeWorkoutPath.removeAll()

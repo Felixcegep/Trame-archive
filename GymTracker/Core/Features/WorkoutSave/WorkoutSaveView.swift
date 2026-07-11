@@ -7,6 +7,7 @@ struct WorkoutSaveView: View {
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
     @Binding var isPresented: Bool
+    let onDiscardRequested: () -> Void
 
     @State private var isShowingDiscardConfirmation = false
     @State private var isShowingPartialSaveConfirmation = false
@@ -41,24 +42,90 @@ struct WorkoutSaveView: View {
     }
 
     private func saveReview(for workout: Workout) -> some View {
+        if completedSetCount(in: workout) == 0 {
+            return AnyView(emptySaveReview(for: workout))
+        } else {
+            return AnyView(standardSaveReview(for: workout))
+        }
+    }
+
+    private func emptySaveReview(for workout: Workout) -> some View {
+        VStack(spacing: Spacing.xl) {
+            Spacer()
+            
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 64))
+                .foregroundStyle(WorkoutPalette.accent)
+                
+            VStack(spacing: Spacing.s) {
+                Text("Empty Session")
+                    .font(AppFont.displayMedium)
+                    .multilineTextAlignment(.center)
+                Text("No sets have been completed. Add exercises and complete sets to log your training.")
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Spacing.l)
+            }
+            
+            Spacer()
+            
+            VStack(spacing: Spacing.m) {
+                Button {
+                    navigationPath.removeLast()
+                } label: {
+                    Text("Return to Workout")
+                        .font(AppFont.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 17)
+                        .foregroundStyle(.white)
+                        .background(WorkoutPalette.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                
+                Button("Discard Workout", role: .destructive) {
+                    isShowingDiscardConfirmation = true
+                }
+                .font(AppFont.subheadlineSemibold)
+                .padding(.vertical, Spacing.s)
+            }
+            .padding(.horizontal, Spacing.xl)
+        }
+        .padding(.bottom, Spacing.xl)
+        .confirmationDialog(
+            "Discard this workout?",
+            isPresented: $isShowingDiscardConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Discard workout", role: .destructive, action: discardWorkout)
+        } message: {
+            Text("Your logged sets and notes will not be saved.")
+        }
+    }
+
+    private func standardSaveReview(for workout: Workout) -> some View {
         @Bindable var workout = workout
+        let hasIncomplete = incompleteSetCount(in: workout) > 0
 
         return ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.title)
-                        .foregroundStyle(WorkoutPalette.secondary)
-                    Text("Nice work.")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                    Text("Give this session a name, then save it to your history.")
-                        .font(.subheadline)
+            VStack(alignment: .leading, spacing: Spacing.xxl - 2) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    Image(systemName: hasIncomplete ? "square.and.pencil" : AppIcon.checkmarkCircle)
+                        .font(AppFont.title)
+                        .foregroundStyle(hasIncomplete ? WorkoutPalette.primary : WorkoutPalette.secondary)
+                    Text(hasIncomplete ? "Review your workout." : "Nice work.")
+                        .font(AppFont.displayMedium)
+                    Text(hasIncomplete 
+                         ? "You have some incomplete sets. You can save the completed ones."
+                         : "Give this session a name, then save it to your history.")
+                        .font(AppFont.subheadline)
                         .foregroundStyle(WorkoutPalette.subduedText)
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
                     Text("WORKOUT NAME")
-                        .font(.caption.weight(.bold))
+                        .font(AppFont.captionBold)
                         .tracking(0.8)
                         .foregroundStyle(WorkoutPalette.subduedText)
                     TextField(
@@ -68,15 +135,15 @@ struct WorkoutSaveView: View {
                             set: { workout.nom = $0.isEmpty ? nil : $0 }
                         )
                     )
-                    .font(.title3.weight(.semibold))
-                    .padding(16)
+                    .font(AppFont.titleSmallSemibold)
+                    .padding(Spacing.l)
                     .background(WorkoutPalette.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Spacing.s) {
                     Text("NOTES")
-                        .font(.caption.weight(.bold))
+                        .font(AppFont.captionBold)
                         .tracking(0.8)
                         .foregroundStyle(WorkoutPalette.subduedText)
 
@@ -85,11 +152,11 @@ struct WorkoutSaveView: View {
                         set: { workout.notes = $0.isEmpty ? nil : $0 }
                     ))
                     .frame(minHeight: 90)
-                    .padding(10)
+                    .padding(Spacing.md)
                     .background(WorkoutPalette.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
                             .stroke(WorkoutPalette.border, lineWidth: 1)
                     }
                 }
@@ -97,43 +164,41 @@ struct WorkoutSaveView: View {
                 summaryCard(for: workout)
                 exerciseReview(for: workout)
             }
-            .padding(20)
+            .padding(Spacing.xl)
             .padding(.bottom, 98)
         }
         .scrollIndicators(.hidden)
         .background(WorkoutPalette.background)
         .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 10) {
+            VStack(spacing: Spacing.md) {
                 if incompleteSetCount(in: workout) > 0 {
                     Label(
                         "\(incompleteSetCount(in: workout)) sets are still incomplete",
-                        systemImage: "exclamationmark.circle"
+                        systemImage: AppIcon.warningCircle
                     )
-                    .font(.footnote)
+                    .font(AppFont.footnote)
                     .foregroundStyle(WorkoutPalette.accent)
                     .accessibilityLabel("\(incompleteSetCount(in: workout)) sets are still incomplete. You can save a partial workout or return to finish them.")
                 }
 
                 Button(action: requestSave) {
-                    Label("Save workout", systemImage: "arrow.down.circle.fill")
-                        .font(.headline)
+                    Label("Save workout", systemImage: AppIcon.save)
+                        .font(AppFont.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 17)
                         .foregroundStyle(.white)
                         .background(WorkoutPalette.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
                 .buttonStyle(.plain)
-                .disabled(completedSetCount(in: workout) == 0)
-                .opacity(completedSetCount(in: workout) == 0 ? 0.45 : 1)
 
                 Button("Discard workout", role: .destructive) {
                     isShowingDiscardConfirmation = true
                 }
-                .font(.subheadline.weight(.semibold))
+                .font(AppFont.subheadlineSemibold)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.vertical, Spacing.m)
             .background(.ultraThinMaterial)
         }
         .confirmationDialog(
@@ -157,54 +222,65 @@ struct WorkoutSaveView: View {
         }
     }
 
+    private func workoutDuration(for workout: Workout) -> String {
+        let duration = Date.now.timeIntervalSince(workout.startTime)
+        let minutes = max(1, Int(duration) / 60)
+        return String(localized: "\(minutes) min")
+    }
+
     private func summaryCard(for workout: Workout) -> some View {
         HStack(spacing: 0) {
+            summaryMetric(value: workoutDuration(for: workout), label: "Duration")
+            Divider().frame(height: 38)
             summaryMetric(value: "\(workout.exercises.count)", label: "Exercises")
             Divider().frame(height: 38)
             summaryMetric(value: "\(completedSetCount(in: workout))", label: "Sets done")
-            Divider().frame(height: 38)
-            summaryMetric(value: workout.startTime.formatted(.dateTime.hour().minute()), label: "Started")
         }
-        .padding(.vertical, 18)
+        .padding(.vertical, Spacing.xl - 2)
         .background(WorkoutPalette.mutedSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
     }
 
     private func summaryMetric(value: String, label: String) -> some View {
-        VStack(spacing: 4) {
+        VStack(spacing: Spacing.xs) {
             Text(value)
-                .font(.headline.monospacedDigit())
+                .font(AppFont.headlineMonospaced)
             Text(label)
-                .font(.caption)
+                .font(AppFont.caption)
                 .foregroundStyle(WorkoutPalette.subduedText)
         }
         .frame(maxWidth: .infinity)
     }
 
     private func exerciseReview(for workout: Workout) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             Text("SESSION SUMMARY")
-                .font(.caption.weight(.bold))
+                .font(AppFont.captionBold)
                 .tracking(0.8)
                 .foregroundStyle(WorkoutPalette.subduedText)
 
             ForEach(Array(workout.exercises.enumerated()), id: \.element.persistentModelID) { _, exercise in
-                HStack(spacing: 12) {
-                    Image(systemName: exercise.sets.allSatisfy(\.done) ? "checkmark.circle.fill" : "circle.dashed")
-                        .foregroundStyle(exercise.sets.allSatisfy(\.done) ? WorkoutPalette.secondary : WorkoutPalette.accent)
+                let completedCount = exercise.sets.filter(\.done).count
+                let totalCount = exercise.sets.count
+                let statusIcon = completedCount == totalCount ? AppIcon.checkmarkCircle : (completedCount > 0 ? "minus.circle.fill" : "circle")
+                let statusColor = completedCount == totalCount ? WorkoutPalette.secondary : (completedCount > 0 ? WorkoutPalette.primary : WorkoutPalette.subduedText.opacity(0.6))
+
+                HStack(spacing: Spacing.m) {
+                    Image(systemName: statusIcon)
+                        .foregroundStyle(statusColor)
 
                     Text(exercise.exercice.name)
-                        .font(.subheadline.weight(.semibold))
+                        .font(AppFont.subheadlineSemibold)
 
                     Spacer()
 
-                    Text("\(exercise.sets.filter(\.done).count)/\(exercise.sets.count)")
-                        .font(.subheadline.monospacedDigit())
+                    Text("\(completedCount)/\(totalCount)")
+                        .font(AppFont.subheadlineMonospaced)
                         .foregroundStyle(WorkoutPalette.subduedText)
                 }
-                .padding(15)
+                .padding(Spacing.m - 1)
                 .background(WorkoutPalette.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.large - 1, style: .continuous))
             }
         }
     }
@@ -234,8 +310,7 @@ struct WorkoutSaveView: View {
     }
 
     private func discardWorkout() {
-        workoutVM.discardActiveWorkout()
         navigationPath.removeAll()
-        isPresented = false
+        onDiscardRequested()
     }
 }
