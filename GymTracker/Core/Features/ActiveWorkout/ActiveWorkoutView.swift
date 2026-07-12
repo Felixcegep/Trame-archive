@@ -3,7 +3,7 @@ import SwiftData
 import UniformTypeIdentifiers
 
 struct ActiveWorkoutView: View {
-    @Query private var exerciceTemplates: [ExerciceTemplate]
+    @Query(filter: #Predicate<ExerciceTemplate> { !$0.isArchived }) private var exerciceTemplates: [ExerciceTemplate]
 
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
@@ -223,25 +223,16 @@ struct ActiveWorkoutView: View {
                 }
             }
 
-            LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible())],
-                spacing: Spacing.s
-            ) {
-                Button {
+            HStack(spacing: Spacing.s) {
+                Button("+15s") {
                     viewModel.addRestTime(15)
-                } label: {
-                    Label("+15s", systemImage: "plus")
                 }
-                .buttonStyle(.bordered)
-                .tint(WorkoutPalette.accent)
 
-                Button {
+                Button("+30s") {
                     viewModel.addRestTime(30)
-                } label: {
-                    Label("+30s", systemImage: "plus")
                 }
-                .buttonStyle(.bordered)
-                .tint(WorkoutPalette.accent)
+
+                Spacer(minLength: 0)
 
                 Button {
                     if viewModel.isTimerPaused {
@@ -250,20 +241,19 @@ struct ActiveWorkoutView: View {
                         viewModel.pauseTimer()
                     }
                 } label: {
-                    Label(viewModel.isTimerPaused ? "Resume" : "Pause", systemImage: viewModel.isTimerPaused ? "play.fill" : "pause.fill")
+                    Image(systemName: viewModel.isTimerPaused ? "play.fill" : "pause.fill")
                 }
-                .buttonStyle(.bordered)
-                .tint(WorkoutPalette.accent)
+                .accessibilityLabel(viewModel.isTimerPaused ? "Resume rest" : "Pause rest")
 
                 Button {
                     viewModel.cancelTimer()
                 } label: {
-                    Label("Skip", systemImage: "forward.fill")
+                    Image(systemName: "forward.fill")
                 }
-                .buttonStyle(.bordered)
-                .tint(WorkoutPalette.accent)
-                .lineLimit(1)
+                .accessibilityLabel("Skip rest")
             }
+            .buttonStyle(.bordered)
+            .tint(WorkoutPalette.accent)
         }
         .padding(Spacing.m + 2)
         .background(WorkoutPalette.accentSurface)

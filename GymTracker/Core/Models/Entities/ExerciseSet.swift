@@ -38,6 +38,7 @@ final class ExerciseSet {
     ) {
         self.orderIndex = orderIndex
         self.weightType = usedMetric == .metric ? .kg : .lbs
+        self.distanceType = usedMetric == .metric ? .kilometers : .miles
         self.repetition = repetition
         self.weight = weight
         self.duration = duration

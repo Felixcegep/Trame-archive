@@ -108,7 +108,7 @@ struct WorkoutSaveView: View {
                     Image(systemName: hasIncomplete ? "square.and.pencil" : AppIcon.checkmarkCircle)
                         .font(AppFont.title)
                         .foregroundStyle(hasIncomplete ? WorkoutPalette.primary : WorkoutPalette.secondary)
-                    Text(hasIncomplete ? "Ready to save part of this workout?" : "Nice work.")
+                    Text(hasIncomplete ? "Ready to save?" : "Nice work.")
                         .font(AppFont.displayMedium)
                     Text(hasIncomplete 
                          ? "Only completed sets will be saved to History. Incomplete sets will be excluded."
@@ -123,7 +123,7 @@ struct WorkoutSaveView: View {
                         .tracking(0.8)
                         .foregroundStyle(WorkoutPalette.subduedText)
                     TextField(
-                        "Today’s workout",
+                        workout.displayTitle,
                         text: Binding(
                             get: { workout.nom ?? "" },
                             set: { workout.nom = $0.isEmpty ? nil : $0 }
@@ -179,12 +179,12 @@ struct WorkoutSaveView: View {
             VStack(spacing: Spacing.md) {
                 if workout.incompleteSetCount > 0 {
                     Label(
-                        "\(saveableSetCount(for: workout)) completed sets will be saved; \(workout.incompleteSetCount) incomplete sets will be excluded",
+                        "^[\(saveableSetCount(for: workout)) completed set](inflect: true) will be saved; ^[\(workout.incompleteSetCount) incomplete set](inflect: true) will be excluded",
                         systemImage: AppIcon.warningCircle
                     )
                     .font(AppFont.footnote)
                     .foregroundStyle(WorkoutPalette.accent)
-                    .accessibilityLabel("\(saveableSetCount(for: workout)) completed sets will be saved. \(workout.incompleteSetCount) incomplete sets will be excluded from History.")
+                    .accessibilityLabel("^[\(saveableSetCount(for: workout)) completed set](inflect: true) will be saved. ^[\(workout.incompleteSetCount) incomplete set](inflect: true) will be excluded from History.")
                 }
 
                 Button(action: requestSave) {
@@ -216,7 +216,7 @@ struct WorkoutSaveView: View {
             Button("Save completed sets", action: saveWorkout)
             Button("Keep editing", role: .cancel) {}
         } message: {
-            Text("\(saveableSetCount(for: workout)) completed sets will be saved to History. \(workout.incompleteSetCount) incomplete sets will be excluded. Your workout name and notes will be saved.")
+            Text("^[\(saveableSetCount(for: workout)) completed set](inflect: true) will be saved to History. ^[\(workout.incompleteSetCount) incomplete set](inflect: true) will be excluded. Your workout name and notes will be saved.")
         }
         .confirmationDialog(
             "Discard this workout?",

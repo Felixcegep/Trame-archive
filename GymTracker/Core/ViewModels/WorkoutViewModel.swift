@@ -56,6 +56,7 @@ class WorkoutViewModel {
         activeWorkout.status = .completed
         activeWorkout.endTime = Date.now
         activeWorkout.restEndDate = nil
+        completePlannedWorkoutIfNeeded(activeWorkout, using: modelContext)
         do {
             try modelContext.save()
         } catch {
@@ -73,6 +74,7 @@ class WorkoutViewModel {
     func discardActiveWorkout(using modelContext: ModelContext) {
         guard let activeWorkout else { return }
 
+        restorePlannedWorkoutAvailabilityIfNeeded(activeWorkout, using: modelContext)
         modelContext.delete(activeWorkout)
         do {
             try modelContext.save()
@@ -96,6 +98,28 @@ class WorkoutViewModel {
 
         let newWorkout = Workout(template: template, unitSystem: unitSystem)
         return persistAndActivate(newWorkout, using: modelContext)
+    }
+
+    @discardableResult
+    func startWorkout(
+        from plannedWorkout: PlannedWorkout,
+        progress: PlanWorkoutProgress,
+        in planRun: PlanRun,
+        using modelContext: ModelContext
+    ) -> Bool {
+        guard !restoreActiveWorkout(using: modelContext) else { return false }
+        guard progress.status == .available || progress.status == .upcoming else { return false }
+
+        let newWorkout = Workout(plannedWorkout: plannedWorkout, planRun: planRun, unitSystem: unitSystem)
+        progress.status = .inProgress
+        progress.startedAt = .now
+        planRun.updatedAt = .now
+
+        guard persistAndActivate(newWorkout, using: modelContext) else {
+            PlanCoordinator.restoreAvailability(progress, in: planRun)
+            return false
+        }
+        return true
     }
 
     @discardableResult
@@ -130,6 +154,41 @@ class WorkoutViewModel {
         } catch {
             print("Failed to start workout: \(error)")
             return false
+        }
+    }
+
+    private func completePlannedWorkoutIfNeeded(_ workout: Workout, using modelContext: ModelContext) {
+        guard
+            let runID = workout.sourcePlanRunID,
+            let plannedWorkoutID = workout.sourcePlannedWorkoutID,
+            let run = planRun(id: runID, using: modelContext),
+            let progress = run.workoutProgress.first(where: { $0.plannedWorkoutID == plannedWorkoutID })
+        else {
+            return
+        }
+
+        PlanCoordinator.markCompleted(progress, with: workout, in: run)
+    }
+
+    private func restorePlannedWorkoutAvailabilityIfNeeded(_ workout: Workout, using modelContext: ModelContext) {
+        guard
+            let runID = workout.sourcePlanRunID,
+            let plannedWorkoutID = workout.sourcePlannedWorkoutID,
+            let run = planRun(id: runID, using: modelContext),
+            let progress = run.workoutProgress.first(where: { $0.plannedWorkoutID == plannedWorkoutID })
+        else {
+            return
+        }
+
+        PlanCoordinator.restoreAvailability(progress, in: run)
+    }
+
+    private func planRun(id: UUID, using modelContext: ModelContext) -> PlanRun? {
+        do {
+            return try modelContext.fetch(FetchDescriptor<PlanRun>()).first { $0.id == id }
+        } catch {
+            print("Failed to find plan run: \(error)")
+            return nil
         }
     }
 

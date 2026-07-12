@@ -5,18 +5,20 @@ struct FolderView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var workoutCollections: [WorkoutCollection]
     @Query private var workoutTemplates: [WorkoutTemplate]
-    @Query private var exerciceTemplates: [ExerciceTemplate]
+    @Query(filter: #Predicate<ExerciceTemplate> { !$0.isArchived }) private var exerciceTemplates: [ExerciceTemplate]
+    @Query private var workoutPlans: [WorkoutPlan]
 
     @State private var activeSheet: FolderSheet?
     @State private var searchText = ""
 
     let onStartWorkout: (WorkoutTemplate) -> Void
+    let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Library")
-                    .font(.largeTitle.bold())
+                    .font(AppFont.displayMedium)
                     .foregroundStyle(FolderPalette.text)
 
                 searchField
@@ -45,6 +47,10 @@ struct FolderView: View {
                         activeSheet = .workoutTemplate
                     }
                     .accessibilityIdentifier("new-workout-template")
+                    Button("New Plan", systemImage: AppIcon.planAdd) {
+                        activeSheet = .plan
+                    }
+                    .accessibilityIdentifier("new-plan")
                     Button("New Exercise", systemImage: "dumbbell.fill") {
                         activeSheet = .exercise
                     }
@@ -69,8 +75,14 @@ struct FolderView: View {
                         modelContext.insert(WorkoutTemplate(name: name, exercises: exercises))
                         saveModelContext(modelContext)
                     }
+                case .plan:
+                    PlanFormView(templates: workoutTemplates) { plan in
+                        modelContext.insert(plan)
+                        saveModelContext(modelContext)
+                    }
                 case .exercise:
                     ExerciseFormView { exercise in
+                        exercise.isCustom = true
                         modelContext.insert(exercise)
                         saveModelContext(modelContext)
                     }
@@ -83,7 +95,7 @@ struct FolderView: View {
         HStack(spacing: 9) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(FolderPalette.mutedText)
-            TextField("Search collections, templates, and exercises", text: $searchText)
+            TextField("Search your library", text: $searchText)
                 .textInputAutocapitalization(.never)
                 .accessibilityIdentifier("library-search")
                 .autocorrectionDisabled()
@@ -139,6 +151,21 @@ struct FolderView: View {
             .buttonStyle(.plain)
 
             NavigationLink {
+                PlansBrowserView(onStartPlannedWorkout: onStartPlannedWorkout)
+            } label: {
+                LibraryCategoryRow(
+                    title: "Plans",
+                    subtitle: "Multi-week training schedules",
+                    count: workoutPlans.filter { !$0.isArchived }.count,
+                    icon: AppIcon.plan,
+                    color: FolderPalette.accent,
+                    surface: FolderPalette.accentSurface
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("plans-browser")
+
+            NavigationLink {
                 ExerciseBrowserView()
             } label: {
                 LibraryCategoryRow(
@@ -169,21 +196,41 @@ struct FolderView: View {
                         NavigationLink {
                             WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
                         } label: {
-                            RecentLibraryRow(title: collection.name, type: "COLLECTION", color: FolderPalette.accent)
+                            RecentLibraryRow(
+                                title: collection.name,
+                                type: "COLLECTION",
+                                icon: "rectangle.stack",
+                                color: FolderPalette.accent,
+                                surface: FolderPalette.accentSurface
+                            )
                         }
                     }
                     if let template {
+                        if collection != nil { quickAccessDivider }
                         NavigationLink {
                             WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                         } label: {
-                            RecentLibraryRow(title: template.name, type: "TEMPLATE", color: FolderPalette.primary)
+                            RecentLibraryRow(
+                                title: template.name,
+                                type: "TEMPLATE",
+                                icon: "list.bullet.rectangle",
+                                color: FolderPalette.primary,
+                                surface: FolderPalette.primarySurface
+                            )
                         }
                     }
                     if let exercise {
+                        if collection != nil || template != nil { quickAccessDivider }
                         NavigationLink {
                             ExerciceView(exercice: exercise)
                         } label: {
-                            RecentLibraryRow(title: exercise.name, type: "EXERCISE", color: FolderPalette.secondary)
+                            RecentLibraryRow(
+                                title: exercise.name,
+                                type: "EXERCISE",
+                                icon: "dumbbell.fill",
+                                color: FolderPalette.secondary,
+                                surface: FolderPalette.secondarySurface
+                            )
                         }
                     }
                 }
@@ -196,9 +243,15 @@ struct FolderView: View {
         }
     }
 
+    private var quickAccessDivider: some View {
+        Divider()
+            .overlay(FolderPalette.divider)
+            .padding(.leading, 60)
+    }
+
     @ViewBuilder
     private var globalResults: some View {
-        if matchingCollections.isEmpty && matchingTemplates.isEmpty && matchingExercises.isEmpty {
+        if matchingCollections.isEmpty && matchingTemplates.isEmpty && matchingPlans.isEmpty && matchingExercises.isEmpty {
             ContentUnavailableView.search(text: searchText)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 56)
@@ -210,7 +263,13 @@ struct FolderView: View {
                         NavigationLink {
                             WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
                         } label: {
-                            RecentLibraryRow(title: collection.name, type: "COLLECTION", color: FolderPalette.accent)
+                            RecentLibraryRow(
+                                title: collection.name,
+                                type: "COLLECTION",
+                                icon: "rectangle.stack",
+                                color: FolderPalette.accent,
+                                surface: FolderPalette.accentSurface
+                            )
                         }
                     }
                 }
@@ -221,7 +280,30 @@ struct FolderView: View {
                         NavigationLink {
                             WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                         } label: {
-                            RecentLibraryRow(title: template.name, type: "TEMPLATE", color: FolderPalette.primary)
+                            RecentLibraryRow(
+                                title: template.name,
+                                type: "TEMPLATE",
+                                icon: "list.bullet.rectangle",
+                                color: FolderPalette.primary,
+                                surface: FolderPalette.primarySurface
+                            )
+                        }
+                    }
+                }
+            }
+            if !matchingPlans.isEmpty {
+                searchResultsCard(title: "Plans") {
+                    ForEach(matchingPlans) { plan in
+                        NavigationLink {
+                            PlanDetailView(plan: plan, onStartPlannedWorkout: onStartPlannedWorkout)
+                        } label: {
+                            RecentLibraryRow(
+                                title: plan.name,
+                                type: "PLAN",
+                                icon: AppIcon.plan,
+                                color: FolderPalette.accent,
+                                surface: FolderPalette.accentSurface
+                            )
                         }
                     }
                 }
@@ -232,7 +314,13 @@ struct FolderView: View {
                         NavigationLink {
                             ExerciceView(exercice: exercise)
                         } label: {
-                            RecentLibraryRow(title: exercise.name, type: "EXERCISE", color: FolderPalette.secondary)
+                            RecentLibraryRow(
+                                title: exercise.name,
+                                type: "EXERCISE",
+                                icon: "dumbbell.fill",
+                                color: FolderPalette.secondary,
+                                surface: FolderPalette.secondarySurface
+                            )
                         }
                     }
                 }
@@ -268,6 +356,10 @@ struct FolderView: View {
 
     private var matchingExercises: [ExerciceTemplate] {
         exerciceTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    private var matchingPlans: [WorkoutPlan] {
+        workoutPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 }
 
@@ -330,7 +422,8 @@ private struct WorkoutTemplatesBrowserView: View {
 }
 
 private struct ExerciseBrowserView: View {
-    @Query private var exercises: [ExerciceTemplate]
+    @Environment(\.modelContext) private var modelContext
+    @Query(filter: #Predicate<ExerciceTemplate> { !$0.isArchived }) private var exercises: [ExerciceTemplate]
     @State private var searchText = ""
     @State private var filter = ExerciseFilterState()
     @State private var sortOrder: ExerciseSortOrder = .nameAscending
@@ -364,6 +457,15 @@ private struct ExerciseBrowserView: View {
                         surface: FolderPalette.secondarySurface
                     )
                 }
+                .swipeActions(allowsFullSwipe: true) {
+                    if exercise.isCustom {
+                        Button(role: .destructive) {
+                            deleteOrArchiveExercise(exercise)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                }
             }
         }
     }
@@ -379,6 +481,28 @@ private struct ExerciseBrowserView: View {
             case .nameDescending:
                 first.name.localizedCaseInsensitiveCompare(second.name) == .orderedDescending
             }
+        }
+    }
+
+    private func deleteOrArchiveExercise(_ exercise: ExerciceTemplate) {
+        do {
+            let entries = try modelContext.fetch(FetchDescriptor<ExerciceEntry>())
+            let hasEntryReference = entries.contains { $0.exercice.id == exercise.id }
+
+            let templateExercises = try modelContext.fetch(FetchDescriptor<TemplateExercise>())
+            let hasTemplateReference = templateExercises.contains { $0.exercise.id == exercise.id }
+
+            let plannedExercises = try modelContext.fetch(FetchDescriptor<PlannedExercise>())
+            let hasPlanReference = plannedExercises.contains { $0.exercise.id == exercise.id }
+
+            if hasEntryReference || hasTemplateReference || hasPlanReference {
+                exercise.isArchived = true
+            } else {
+                modelContext.delete(exercise)
+            }
+            try modelContext.save()
+        } catch {
+            print("Failed to delete/archive exercise: \(error)")
         }
     }
 
@@ -503,18 +627,39 @@ private struct LibraryItemRow: View {
 
 private struct RecentLibraryRow: View {
     let title: String
-    let type: String
+    let type: LocalizedStringKey
+    let icon: String
     let color: Color
+    let surface: Color
 
     var body: some View {
-        HStack {
-            Text(title).font(.body.weight(.medium)).foregroundStyle(FolderPalette.text)
+        HStack(spacing: Spacing.m) {
+            Image(systemName: icon)
+                .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(color)
+                .frame(width: 34, height: 34)
+                .background(surface, in: RoundedRectangle(cornerRadius: Radius.medium))
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(title)
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(FolderPalette.text)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(2)
+                Text(type)
+                    .font(AppFont.caption2Bold)
+                    .tracking(0.5)
+                    .foregroundStyle(color)
+            }
+
             Spacer()
-            Text(type).font(.caption2.weight(.bold)).tracking(0.5).foregroundStyle(color)
-            Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(FolderPalette.subtleText)
+
+            Image(systemName: "chevron.right")
+                .font(AppFont.captionBold)
+                .foregroundStyle(FolderPalette.subtleText)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 13)
+        .padding(.horizontal, Spacing.l - 2)
+        .padding(.vertical, Spacing.m)
         .contentShape(Rectangle())
     }
 }
@@ -526,7 +671,7 @@ private struct LibrarySectionTitle: View {
 
     var body: some View {
         Text(title.uppercased())
-            .font(.caption.weight(.bold))
+            .font(AppFont.captionBold)
             .tracking(0.8)
             .foregroundStyle(FolderPalette.mutedText)
     }
@@ -535,6 +680,7 @@ private struct LibrarySectionTitle: View {
 private enum FolderSheet: String, Identifiable {
     case workoutCollection
     case workoutTemplate
+    case plan
     case exercise
 
     var id: String { rawValue }

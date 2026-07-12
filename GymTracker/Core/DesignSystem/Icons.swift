@@ -6,6 +6,8 @@ struct AppIcon {
     static let folders = "folder.fill"
     static let history = "clock.arrow.circlepath"
     static let settings = "gearshape"
+    static let plan = "calendar"
+    static let planAdd = "calendar.badge.plus"
     static let minimize = "chevron.down"
     static let chevronRight = "chevron.right"
     
@@ -17,6 +19,11 @@ struct AppIcon {
     static let ellipsis = "ellipsis"
     static let save = "arrow.down.circle.fill"
     static let filters = "line.3.horizontal.decrease.circle"
+    static let play = "play.fill"
+    static let pause = "pause.fill"
+    static let archive = "archivebox"
+    static let export = "square.and.arrow.up"
+    static let `import` = "square.and.arrow.down"
     
     // Status & Feedback Icons
     static let checkmark = "checkmark"

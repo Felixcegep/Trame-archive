@@ -76,6 +76,39 @@ final class ExerciceEntry{
         addDefaultSets(count: templateExercise.targetSets)
     }
 
+    convenience init(from plannedExercise: PlannedExercise, orderIndex: Int, usedMetric: UnitSystem) {
+        self.init(exercice: plannedExercise.exercise, orderIndex: orderIndex, usedMetric: usedMetric)
+        prescribedSets = plannedExercise.targetSets
+        prescribedRepRangeMinimum = plannedExercise.repRangeMinimum
+        prescribedRepRangeMaximum = plannedExercise.repRangeMaximum
+        prescribedRestSeconds = plannedExercise.restSeconds
+        prescribedRPE = plannedExercise.targetRPE
+        prescribedRIR = plannedExercise.targetRIR
+        prescriptionNotes = plannedExercise.notes
+        sourcePlannedExerciseID = plannedExercise.id
+        prescribedRole = plannedExercise.role
+        isPrescribedOptional = plannedExercise.isOptional
+        prescribedSuggestedLoad = plannedExercise.suggestedLoad
+        prescribedSuggestedLoadType = plannedExercise.suggestedLoadType
+        prescribedProgressionRule = plannedExercise.progressionRule
+
+        let reps = Float(plannedExercise.repRangeMaximum)
+        let weight = Float(plannedExercise.suggestedLoad ?? 0)
+        let count = plannedExercise.targetSets
+        for i in 0..<count {
+            let setObj = createEmptySet(orderIndex: i)
+            if exercice.trackingType.usesReps {
+                setObj.repetition = reps
+            }
+            if exercice.trackingType.usesWeight {
+                setObj.weight = weight
+                setObj.weightType = plannedExercise.suggestedLoadType
+                    ?? (usedMetric == .metric ? .kg : .lbs)
+            }
+            sets.append(setObj)
+        }
+    }
+
     func addEmptySet() {
         sets.append(createEmptySet(orderIndex: nextSetOrderIndex))
     }

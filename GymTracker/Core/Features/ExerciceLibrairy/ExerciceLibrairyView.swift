@@ -52,10 +52,11 @@ struct ExerciceLibrairyView : View {
         .searchable(text: $searchText, prompt: "Search exercises")
         .navigationTitle("Add Exercise")
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
+            ToolbarItem(placement: .confirmationAction) {
                 Button("Done") {
                     dismiss()
                 }
+                .accessibilityIdentifier("close-exercise-picker")
             }
         }
     }
@@ -78,47 +79,13 @@ struct ExerciceLibrairyView : View {
     private func exerciseRow(for exercise: ExerciceTemplate) -> some View {
         let isSelected = selectedExerciseNames.contains(exercise.name)
 
-        return HStack(spacing: Spacing.s) {
-            Button {
+        return ExerciseLibrarySelectionRow(exercise: exercise, isSelected: isSelected) {
                 if isSelected {
                     selectedExerciseNames.remove(exercise.name)
                 } else {
                     selectedExerciseNames.insert(exercise.name)
                 }
                 onSelect(exercise)
-            } label: {
-                HStack(spacing: Spacing.m) {
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text(exercise.name)
-                            .font(AppFont.bodyMedium)
-                            .foregroundStyle(Color.gymText)
-                        Text(exercise.subtitle)
-                            .font(AppFont.caption)
-                            .foregroundStyle(WorkoutPalette.subduedText)
-                    }
-
-                    Spacer(minLength: Spacing.s)
-
-                    Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.plus)
-                        .font(AppFont.headlineSemibold)
-                        .foregroundStyle(isSelected ? Color.gymSecondary : Color.gymPrimary)
-                        .frame(width: 44, height: 44)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("add-exercise-\(exercise.name)")
-            .accessibilityLabel("\(isSelected ? "Remove" : "Add") \(exercise.name)")
-            .accessibilityValue(isSelected ? "Selected" : "Not selected")
-
-            NavigationLink {
-                ExerciceView(exercice: exercise)
-            } label: {
-                Image(systemName: AppIcon.info)
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Details for \(exercise.name)")
         }
     }
 
@@ -135,4 +102,52 @@ struct ExerciceLibrairyView : View {
         return ranks
     }
 
+}
+
+private struct ExerciseLibrarySelectionRow: View {
+    let exercise: ExerciceTemplate
+    let isSelected: Bool
+    let onToggle: () -> Void
+    @State private var isShowingDetails = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.s) {
+            Button {
+                isShowingDetails = true
+            } label: {
+                HStack(alignment: .top, spacing: Spacing.m) {
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text(exercise.name)
+                            .font(AppFont.bodyMedium)
+                            .foregroundStyle(Color.gymText)
+                            .multilineTextAlignment(.leading)
+                        Text(exercise.subtitle)
+                            .font(AppFont.caption)
+                            .foregroundStyle(WorkoutPalette.subduedText)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .layoutPriority(1)
+                    Spacer(minLength: Spacing.s)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("exercise-link-\(exercise.name)")
+
+            Button(action: onToggle) {
+                Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.plus)
+                    .font(AppFont.headlineSemibold)
+                    .foregroundStyle(isSelected ? Color.gymSecondary : Color.gymPrimary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .accessibilityIdentifier("add-exercise-\(exercise.name)")
+            .accessibilityLabel("\(isSelected ? "Remove" : "Add") \(exercise.name)")
+            .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        }
+        .navigationDestination(isPresented: $isShowingDetails) {
+            ExerciceView(exercice: exercise)
+        }
+    }
 }

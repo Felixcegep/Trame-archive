@@ -37,6 +37,7 @@ struct ExerciceDetailSnapshot {
 
 struct ExerciceView : View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
 
     private let editableExercise: ExerciceTemplate?
     private let snapshot: ExerciceDetailSnapshot?
@@ -127,6 +128,18 @@ struct ExerciceView : View {
                         isShowingEditor = true
                     }
                 }
+
+                if editableExercise?.isCustom == true {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(role: .destructive) {
+                            deleteExercise()
+                        } label: {
+                            Image(systemName: AppIcon.trash)
+                                .foregroundStyle(Color.gymDestructive)
+                        }
+                        .accessibilityLabel("Delete exercise")
+                    }
+                }
             }
         }
         .sheet(isPresented: $isShowingEditor) {
@@ -156,5 +169,29 @@ struct ExerciceView : View {
 
     private func showExerciseStats() {
         // Placeholder for future exercise stats.
+    }
+
+    private func deleteExercise() {
+        guard let editableExercise else { return }
+        do {
+            let entries = try modelContext.fetch(FetchDescriptor<ExerciceEntry>())
+            let hasEntryReference = entries.contains { $0.exercice.id == editableExercise.id }
+
+            let templateExercises = try modelContext.fetch(FetchDescriptor<TemplateExercise>())
+            let hasTemplateReference = templateExercises.contains { $0.exercise.id == editableExercise.id }
+
+            let plannedExercises = try modelContext.fetch(FetchDescriptor<PlannedExercise>())
+            let hasPlanReference = plannedExercises.contains { $0.exercise.id == editableExercise.id }
+
+            if hasEntryReference || hasTemplateReference || hasPlanReference {
+                editableExercise.isArchived = true
+            } else {
+                modelContext.delete(editableExercise)
+            }
+            try modelContext.save()
+            dismiss()
+        } catch {
+            print("Failed to delete/archive exercise: \(error)")
+        }
     }
 }

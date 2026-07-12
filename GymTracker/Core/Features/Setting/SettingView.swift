@@ -7,6 +7,7 @@
 
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingView: View {
     @Environment(\.modelContext) private var modelContext
@@ -14,6 +15,10 @@ struct SettingView: View {
     @AppStorage(DefaultsKey.restTimer) private var restTimer: Int = 20
     @AppStorage(DefaultsKey.useMetric) private var unitSystem: UnitSystem = .metric
     @State private var isShowingResetConfirmation = false
+    @State private var isShowingFileImporter = false
+    @State private var importBackup: BackupDTO? = nil
+    @State private var importErrorMessage: String? = nil
+    @State private var isShowingImportError = false
 
     var body: some View {
         Form {
@@ -33,12 +38,27 @@ struct SettingView: View {
                 }
             }
 
+            Section("Backup & Restore") {
+                if let url = exportURL() {
+                    ShareLink(item: url) {
+                        Label("Export Data", systemImage: AppIcon.export)
+                    }
+                }
+
+                Button {
+                    isShowingFileImporter = true
+                } label: {
+                    Label("Import Data", systemImage: AppIcon.import)
+                }
+            }
+
             #if DEBUG
             Section {
                 Button(role: .destructive) {
                     isShowingResetConfirmation = true
                 } label: {
                     Label("Reset development data", systemImage: AppIcon.trash)
+                        .foregroundStyle(.red)
                 }
             } header: {
                 Text("Development")
@@ -56,6 +76,31 @@ struct SettingView: View {
             }
         } message: {
             Text("This cannot be undone.")
+        }
+        .fileImporter(
+            isPresented: $isShowingFileImporter,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                loadImportBackup(from: url)
+            case .failure(let error):
+                showImportError(error.localizedDescription)
+            }
+        }
+        .sheet(item: $importBackup) { backup in
+            ImportPreviewView(backup: backup) {
+                restoreBackup(backup)
+            }
+        }
+        .alert("Import Error", isPresented: $isShowingImportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let importErrorMessage {
+                Text(importErrorMessage)
+            }
         }
     }
 
@@ -88,8 +133,128 @@ struct SettingView: View {
                 modelContext.insert(template)
             }
             try modelContext.save()
+
+            let templates = try modelContext.fetch(FetchDescriptor<WorkoutTemplate>())
+            let programTemplates = templates.filter { $0.name.starts(with: "Jour ") }
+            if !programTemplates.isEmpty {
+                let sortedTemplates = programTemplates.sorted { $0.name < $1.name }
+                let collection = WorkoutCollection(name: "Programme Haut/Bas - 4 Jours", workoutTemplates: sortedTemplates)
+                modelContext.insert(collection)
+                try modelContext.save()
+            }
         } catch {
             print("Failed to reset development data: \(error)")
+        }
+    }
+
+    private func exportURL() -> URL? {
+        do {
+            let backup = try BackupDTO.create(from: modelContext, restTimer: restTimer, darkMode: darkMode, unitSystem: unitSystem)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .prettyPrinted
+            encoder.dateEncodingStrategy = .iso8601
+            let data = try encoder.encode(backup)
+
+            let tempDir = FileManager.default.temporaryDirectory
+            let fileURL = tempDir.appendingPathComponent("GymTrackerBackup.json")
+            try data.write(to: fileURL)
+            return fileURL
+        } catch {
+            print("Failed to export data: \(error)")
+            return nil
+        }
+    }
+
+    private func loadImportBackup(from url: URL) {
+        guard url.startAccessingSecurityScopedResource() else {
+            showImportError("Cannot access the selected file.")
+            return
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let backup = try decoder.decode(BackupDTO.self, from: data)
+            try backup.validate()
+            self.importBackup = backup
+        } catch {
+            showImportError("Invalid backup file: \(error.localizedDescription)")
+        }
+    }
+
+    private func showImportError(_ message: String) {
+        importErrorMessage = message
+        isShowingImportError = true
+    }
+
+    private func restoreBackup(_ backup: BackupDTO) {
+        do {
+            try backup.restore(to: modelContext)
+            self.darkMode = backup.preferences.darkMode
+            self.restTimer = backup.preferences.restTimer
+            self.unitSystem = UnitSystem(rawValue: backup.preferences.unitSystem) ?? .metric
+            NotificationCenter.default.post(name: .gymDataRestored, object: nil)
+        } catch {
+            showImportError("Failed to restore backup: \(error.localizedDescription)")
+        }
+    }
+}
+
+extension Notification.Name {
+    static let gymDataRestored = Notification.Name("gymDataRestored")
+}
+
+struct ImportPreviewView: View {
+    @Environment(\.dismiss) private var dismiss
+    let backup: BackupDTO
+    let onConfirm: () -> Void
+    @State private var isShowingConfirmation = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Backup Details") {
+                    LabeledContent("Version", value: "\(backup.version)")
+                    LabeledContent("Units", value: backup.preferences.unitSystem.capitalized)
+                    LabeledContent("Default Rest", value: "\(backup.preferences.restTimer)s")
+                }
+
+                Section("Contents to Restore") {
+                    LabeledContent("Custom Exercises", value: "\(backup.exercises.filter(\.isCustom).count)")
+                    LabeledContent("Workout Templates", value: "\(backup.templates.count)")
+                    LabeledContent("Collections", value: "\(backup.collections.count)")
+                    LabeledContent("Workout History", value: "\(backup.workouts.count)")
+                }
+            }
+            .navigationTitle("Import Preview")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Restore") {
+                        isShowingConfirmation = true
+                    }
+                    .font(AppFont.headline)
+                }
+            }
+            .confirmationDialog(
+                "Restore Backup?",
+                isPresented: $isShowingConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Restore & Replace All Data", role: .destructive) {
+                    onConfirm()
+                    dismiss()
+                }
+            } message: {
+                Text("This will delete all your current workouts, templates, collections, and custom exercises. This cannot be undone.")
+            }
         }
     }
 }

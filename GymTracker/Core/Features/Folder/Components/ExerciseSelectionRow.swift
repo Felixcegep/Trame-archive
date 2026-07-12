@@ -21,40 +21,41 @@ struct ExerciseSelectionRow: View {
     }
 
     var body: some View {
-        HStack(spacing: Spacing.s) {
-            Button {
-                onSelect()
+        HStack(alignment: .top, spacing: Spacing.s) {
+            NavigationLink {
+                ExerciceView(exercice: exerciseDetail)
             } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .top, spacing: Spacing.m) {
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(exercise.name)
                             .font(AppFont.bodyMedium)
                             .foregroundStyle(Color.gymText)
-                        Text(LocalizedStringKey(exercise.trackingType.rawValue))
+                            .multilineTextAlignment(.leading)
+                        Text(exercise.subtitle)
                             .font(AppFont.caption)
                             .foregroundStyle(WorkoutPalette.subduedText)
+                            .multilineTextAlignment(.leading)
                     }
-
-                    Spacer()
-
-                    Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.plus)
-                        .foregroundStyle(isSelected ? Color.gymSecondary : Color.gymPrimary)
-                        .frame(width: 44, height: 44)
+                    .layoutPriority(1)
+                    Spacer(minLength: Spacing.s)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("template-exercise-link-\(exercise.name)")
+
+            Button {
+                onSelect()
+            } label: {
+                Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.plus)
+                    .foregroundStyle(isSelected ? Color.gymSecondary : Color.gymPrimary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
             .accessibilityIdentifier("template-exercise-\(exercise.name)")
             .accessibilityLabel("\(isSelected ? "Remove" : "Add") \(exercise.name)")
             .accessibilityValue(isSelected ? "Selected" : "Not selected")
-
-            NavigationLink {
-                ExerciceView(exercice: exerciseDetail)
-            } label: {
-                Image(systemName: AppIcon.info)
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
         }
     }
 }

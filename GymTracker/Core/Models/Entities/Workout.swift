@@ -62,6 +62,42 @@ class Workout {
         }
     }
 
+    convenience init(plannedWorkout: PlannedWorkout, planRun: PlanRun, unitSystem: UnitSystem) {
+        self.init(nom: plannedWorkout.name)
+        self.sourceTemplate = plannedWorkout.sourceTemplate
+        self.sourcePlanID = planRun.sourcePlanID
+        self.sourcePlanRunID = planRun.id
+        self.sourcePlanBlockID = plannedWorkout.week?.block?.id
+        self.sourcePlanWeekID = plannedWorkout.week?.id
+        self.sourcePlannedWorkoutID = plannedWorkout.id
+        self.sourcePlanName = planRun.sourcePlanName
+
+        self.exercises = []
+        for (index, plannedExercise) in plannedWorkout.orderedPlannedExercises.enumerated() {
+            exercises.append(ExerciceEntry(from: plannedExercise, orderIndex: index, usedMetric: unitSystem))
+        }
+    }
+
+    /// Single source of truth for what a workout is called across the save
+    /// flow, History list, and History detail: the explicit name when set,
+    /// otherwise a title derived from its exercises.
+    var displayTitle: String {
+        let explicitName = nom?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard explicitName.isEmpty else { return explicitName }
+
+        let exerciseNames = orderedExercises.map(\.exercice.name)
+        switch exerciseNames.count {
+        case 0:
+            return String(localized: "Workout")
+        case 1:
+            return exerciseNames[0]
+        case 2:
+            return "\(exerciseNames[0]) + \(exerciseNames[1])"
+        default:
+            return "\(exerciseNames[0]) + \(exerciseNames.count - 1) more"
+        }
+    }
+
     var orderedExercises: [ExerciceEntry] {
         exercises.sorted { lhs, rhs in
             lhs.orderIndex == rhs.orderIndex

@@ -13,16 +13,24 @@ struct HistoryView: View {
 
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     let viewModel: WorkoutViewModel
+    var onStartFreeWorkout: (() -> Void)? = nil
     @State private var selectedTab: HistoryTab = .workouts
 
     var body: some View {
         Group {
             if completedWorkouts.isEmpty {
-                ContentUnavailableView(
-                    "No Workout History",
-                    systemImage: AppIcon.history,
-                    description: Text("Completed workouts will appear here.")
-                )
+                ContentUnavailableView {
+                    Label("No Workout History", systemImage: AppIcon.history)
+                } description: {
+                    Text("Completed workouts will appear here.")
+                } actions: {
+                    if let onStartFreeWorkout {
+                        Button("Start a workout", action: onStartFreeWorkout)
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color.gymPrimary)
+                            .accessibilityIdentifier("history-start-workout")
+                    }
+                }
             } else {
                 VStack(spacing: 0) {
                     Picker("History view", selection: $selectedTab) {
@@ -58,7 +66,7 @@ struct HistoryView: View {
                                 }
                             }
                         }
-                        .listStyle(.plain)
+                        .listStyle(.insetGrouped)
                         .scrollContentBackground(.hidden)
                     case .progress:
                         HistoryProgressView(workouts: completedWorkouts)
@@ -184,20 +192,7 @@ private struct HistoryWorkoutRow: View {
     }
 
     private var workoutTitle: String {
-        let explicitName = workout.nom?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard explicitName.isEmpty else { return explicitName }
-
-        let exerciseNames = workout.orderedExercises.map(\.exercice.name)
-        switch exerciseNames.count {
-        case 0:
-            return "Workout"
-        case 1:
-            return exerciseNames[0]
-        case 2:
-            return "\(exerciseNames[0]) + \(exerciseNames[1])"
-        default:
-            return "\(exerciseNames[0]) + \(exerciseNames.count - 1) more"
-        }
+        workout.displayTitle
     }
 
     private var workoutDate: String {
@@ -594,7 +589,7 @@ private struct HistoryRecordsView: View {
                     subtotal + (exercise.exercice.trackingType.usesWeight && exercise.exercice.trackingType.usesReps ? set.weight * set.repetition : 0)
                 }
             }
-            return HistorySessionRecord(title: workout.nom ?? "Workout", volume: volume, date: workout.startTime)
+            return HistorySessionRecord(title: workout.displayTitle, volume: volume, date: workout.startTime)
         }
         .filter { $0.volume > 0 }
         .sorted { $0.volume > $1.volume }

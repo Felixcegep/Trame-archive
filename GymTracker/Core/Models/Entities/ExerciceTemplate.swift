@@ -22,6 +22,8 @@ final class ExerciceTemplate {
     var tags: [String] = []
     var isFavorite: Bool = false
     var isPlateLoaded: Bool = false
+    var isCustom: Bool = false
+    var isArchived: Bool = false
 
     init(
         name: String,
@@ -35,7 +37,9 @@ final class ExerciceTemplate {
         difficulty: Difficulty = .beginner,
         tags: [String] = [],
         isFavorite: Bool = false,
-        isPlateLoaded: Bool? = nil
+        isPlateLoaded: Bool? = nil,
+        isCustom: Bool = false,
+        isArchived: Bool = false
     ) {
         self.name = name
         self.PrimaryMuscle = PrimaryMuscle
@@ -49,6 +53,8 @@ final class ExerciceTemplate {
         self.tags = tags
         self.isFavorite = isFavorite
         self.isPlateLoaded = isPlateLoaded ?? (equipmentType == .barbell)
+        self.isCustom = isCustom
+        self.isArchived = isArchived
     }
 
     var displayCategory: ExerciseCategory {

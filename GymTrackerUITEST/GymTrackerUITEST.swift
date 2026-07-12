@@ -35,7 +35,7 @@ final class GymTrackerUITEST: XCTestCase {
         app.launchArguments = ["-ui-testing"]
         app.launch()
 
-        let resumeButton = app.buttons["start-free-workout"]
+        let resumeButton = app.buttons["resume-active-workout"]
         XCTAssertTrue(resumeButton.waitForExistence(timeout: 5))
         XCTAssertTrue(resumeButton.label.contains("Resume"))
         resumeButton.tap()
@@ -56,8 +56,8 @@ final class GymTrackerUITEST: XCTestCase {
 
         app.launchArguments = ["-ui-testing"]
         app.launch()
-        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
-        app.buttons["start-free-workout"].tap()
+        XCTAssertTrue(app.buttons["resume-active-workout"].waitForExistence(timeout: 5))
+        app.buttons["resume-active-workout"].tap()
 
         XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
     }
@@ -255,6 +255,44 @@ final class GymTrackerUITEST: XCTestCase {
         assertLibrarySearchResult("Push Integration Template", in: app)
     }
 
+    func testCreatesPlanStartsRunAndLaunchesPlannedWorkout() {
+        let app = launchFreshApp()
+        app.tabBars.buttons.element(boundBy: 1).tap()
+
+        app.buttons["Create library item"].tap()
+        XCTAssertTrue(app.buttons["New Plan"].waitForExistence(timeout: 5))
+        app.buttons["New Plan"].tap()
+
+        let nameField = app.textFields["plan-name-field"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.tap()
+        nameField.typeText("Four Week Integration Plan")
+
+        let template = app.buttons["plan-template-Jour 1 - Bas du Corps (Squat/Genoux)"]
+        XCTAssertTrue(template.waitForExistence(timeout: 5))
+        template.tap()
+        app.buttons["save-plan"].tap()
+
+        let plansBrowser = app.buttons["plans-browser"]
+        XCTAssertTrue(plansBrowser.waitForExistence(timeout: 5))
+        plansBrowser.tap()
+
+        let plan = app.buttons["plan-row-Four Week Integration Plan"]
+        XCTAssertTrue(plan.waitForExistence(timeout: 5))
+        plan.tap()
+
+        app.buttons["start-plan"].tap()
+        XCTAssertTrue(app.buttons["confirm-start-plan"].waitForExistence(timeout: 5))
+        app.buttons["confirm-start-plan"].tap()
+
+        let startWorkout = app.buttons["start-planned-workout"]
+        XCTAssertTrue(startWorkout.waitForExistence(timeout: 5))
+        startWorkout.tap()
+
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Goblet Stiletto Squat"].exists)
+    }
+
     private func assertLibrarySearchResult(_ name: String, in app: XCUIApplication) {
         let search = app.textFields["library-search"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
@@ -304,6 +342,9 @@ final class GymTrackerUITEST: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
         app.launch()
+        let preparedStartButton = app.buttons["start-free-workout"]
+        XCTAssertTrue(preparedStartButton.waitForExistence(timeout: 10))
+        XCTAssertTrue(preparedStartButton.label.localizedCaseInsensitiveContains("start"))
         
         // Output directory
         let screenshotDir = "/Users/felixlachapelle/Desktop/GymTracker/Screenshots"
@@ -355,7 +396,9 @@ final class GymTrackerUITEST: XCTestCase {
         saveScreenshot(name: "05_Home_With_Active_Workout")
         
         // Resume active workout
-        startButton.tap()
+        let resumeButton = app.buttons["resume-active-workout"]
+        XCTAssertTrue(resumeButton.waitForExistence(timeout: 5))
+        resumeButton.tap()
         
         // 6. Add Exercise Picker Sheet
         let addExerciseButton = app.buttons["add-active-exercise"]
@@ -363,24 +406,24 @@ final class GymTrackerUITEST: XCTestCase {
         addExerciseButton.tap()
         saveScreenshot(name: "06_Add_Exercise_Sheet")
         
-        // Swipe up to bring Bench Press into view
-        app.swipeUp()
+        let exerciseSearch = app.searchFields["Search exercises"]
+        XCTAssertTrue(exerciseSearch.waitForExistence(timeout: 5))
+        exerciseSearch.tap()
+        exerciseSearch.typeText("Bench Press")
         
         // Add Bench Press
         let benchPressButton = app.buttons["add-exercise-Bench Press"]
         XCTAssertTrue(benchPressButton.waitForExistence(timeout: 5))
         benchPressButton.tap()
-        
-        // 7. Plate Calculator
-        let plateCalcButton = app.buttons["plate-calculator-Bench Press"].firstMatch
-        XCTAssertTrue(plateCalcButton.waitForExistence(timeout: 5))
-        plateCalcButton.tap()
-        saveScreenshot(name: "07_Plate_Calculator")
-        
-        // Dismiss Plate Calculator
-        let doneButton = app.buttons["Done"].exists ? app.buttons["Done"] : app.buttons["Terminé"]
-        XCTAssertTrue(doneButton.waitForExistence(timeout: 5))
-        doneButton.tap()
+
+        let keyboardClose = app.buttons["close"]
+        if keyboardClose.waitForExistence(timeout: 2) {
+            keyboardClose.tap()
+        }
+
+        let closeExercisePicker = app.buttons["close-exercise-picker"]
+        XCTAssertTrue(closeExercisePicker.waitForExistence(timeout: 5))
+        closeExercisePicker.tap()
         
         // 8. Complete set (marks it completed)
         let completeSetButton = app.buttons["complete-set-Bench Press-0"]
@@ -389,6 +432,18 @@ final class GymTrackerUITEST: XCTestCase {
         }
         XCTAssertTrue(completeSetButton.waitForExistence(timeout: 5))
         enterValidValues(for: "Bench Press", set: 0, in: app)
+
+        // 7. Plate Calculator (after entering weight so the bar-load diagram is populated)
+        let plateCalcButton = app.buttons["plate-calculator-Bench Press"].firstMatch
+        XCTAssertTrue(plateCalcButton.waitForExistence(timeout: 5))
+        plateCalcButton.tap()
+        saveScreenshot(name: "07_Plate_Calculator")
+
+        // Dismiss Plate Calculator
+        let doneButton = app.buttons["Done"].exists ? app.buttons["Done"] : app.buttons["Terminé"]
+        XCTAssertTrue(doneButton.waitForExistence(timeout: 5))
+        doneButton.tap()
+
         completeSetButton.tap()
         saveScreenshot(name: "08_Active_Workout_With_Set")
 
@@ -421,10 +476,46 @@ final class GymTrackerUITEST: XCTestCase {
         saveScreenshot(name: "10_History_With_Workout")
         
         // 11. Workout Detail Screen
-        let workoutRow = app.staticTexts["Workout"].firstMatch
+        let workoutRow = app.buttons["history-workout-row"].firstMatch
         XCTAssertTrue(workoutRow.waitForExistence(timeout: 5))
         workoutRow.tap()
         saveScreenshot(name: "11_History_Detail")
+
+        // 12. Plan Review
+        app.tabBars.buttons.element(boundBy: 1).tap()
+        app.buttons["Create library item"].tap()
+        XCTAssertTrue(app.buttons["New Plan"].waitForExistence(timeout: 5))
+        app.buttons["New Plan"].tap()
+
+        let planName = app.textFields["plan-name-field"]
+        XCTAssertTrue(planName.waitForExistence(timeout: 5))
+        planName.tap()
+        planName.typeText("Screenshot Plan")
+        app.buttons["save-plan"].tap()
+
+        app.buttons["plans-browser"].tap()
+        let screenshotPlan = app.buttons["plan-row-Screenshot Plan"]
+        XCTAssertTrue(screenshotPlan.waitForExistence(timeout: 5))
+        screenshotPlan.tap()
+        app.buttons["edit-plan"].tap()
+        app.buttons["save-plan-edits"].tap()
+        XCTAssertTrue(app.buttons["confirm-plan-changes"].waitForExistence(timeout: 5))
+        saveScreenshot(name: "12_Plan_Review")
+    }
+
+    func testDefaultCollectionSeededOnLaunch() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data"]
+        app.launch()
+
+        app.tabBars.buttons.element(boundBy: 1).tap()
+
+        let collectionsRow = app.staticTexts["Collections"]
+        XCTAssertTrue(collectionsRow.waitForExistence(timeout: 5))
+        collectionsRow.tap()
+
+        let seededCollection = app.staticTexts["Programme Haut/Bas - 4 Jours"]
+        XCTAssertTrue(seededCollection.waitForExistence(timeout: 5))
     }
 
 }

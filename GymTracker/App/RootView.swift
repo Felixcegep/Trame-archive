@@ -5,8 +5,9 @@
 //  Created by Felix Lachapelle on 2026-07-02.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
+import Combine
 
 struct RootView: View {
     private enum AppTab: Hashable {
@@ -27,7 +28,9 @@ struct RootView: View {
     @State private var shouldDiscardActiveWorkout = false
     @State private var selectedTab: AppTab = .home
     @State private var templateToStart: WorkoutTemplate? = nil
+    @State private var plannedWorkoutToStart: PendingPlannedWorkout? = nil
     @State private var isShowingActiveWorkoutConflictAlert = false
+    @State private var isPreparingApp = true
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -35,7 +38,8 @@ struct RootView: View {
                 HomeView(
                     workoutVM: workoutVM,
                     navigationPath: $homePath,
-                    isShowingActiveWorkout: $isShowingActiveWorkout
+                    isShowingActiveWorkout: $isShowingActiveWorkout,
+                    onStartPlannedWorkout: startPlannedWorkout
                 )
             }
             .tabItem {
@@ -45,7 +49,10 @@ struct RootView: View {
             .tag(AppTab.home)
 
             NavigationStack {
-                FolderView(onStartWorkout: startWorkout)
+                FolderView(
+                    onStartWorkout: startWorkout,
+                    onStartPlannedWorkout: startPlannedWorkout
+                )
             }
             .tabItem {
                 Label("Library", systemImage: "folder.fill")
@@ -54,7 +61,7 @@ struct RootView: View {
             .tag(AppTab.library)
 
             NavigationStack {
-                HistoryView(viewModel: workoutVM)
+                HistoryView(viewModel: workoutVM, onStartFreeWorkout: startFreeWorkout)
             }
             .tabItem {
                 Label("History", systemImage: "clock")
@@ -70,6 +77,17 @@ struct RootView: View {
                     .accessibilityIdentifier("tab-settings")
             }
             .tag(AppTab.settings)
+        }
+        .accessibilityHidden(isPreparingApp)
+        .overlay {
+            if isPreparingApp {
+                ZStack {
+                    Color.gymBackground.ignoresSafeArea()
+                    ProgressView("Preparing GymTracker…")
+                        .tint(Color.gymPrimary)
+                }
+                .accessibilityIdentifier("app-preparing")
+            }
         }
         .fullScreenCover(isPresented: $isShowingActiveWorkout, onDismiss: {
             activeWorkoutPath.removeAll()
@@ -108,17 +126,28 @@ struct RootView: View {
             Button("Resume Active Workout") {
                 isShowingActiveWorkout = true
                 templateToStart = nil
+                plannedWorkoutToStart = nil
             }
             Button("Discard & Start New", role: .destructive) {
                 workoutVM.discardActiveWorkout(using: modelContext)
-                if let template = templateToStart {
+                if let pendingWorkout = plannedWorkoutToStart {
+                    _ = workoutVM.startWorkout(
+                        from: pendingWorkout.plannedWorkout,
+                        progress: pendingWorkout.progress,
+                        in: pendingWorkout.planRun,
+                        using: modelContext
+                    )
+                    isShowingActiveWorkout = workoutVM.hasActiveWorkout
+                } else if let template = templateToStart {
                     workoutVM.startWorkout(with: template, using: modelContext)
                     isShowingActiveWorkout = true
                 }
                 templateToStart = nil
+                plannedWorkoutToStart = nil
             }
             Button("Cancel", role: .cancel) {
                 templateToStart = nil
+                plannedWorkoutToStart = nil
             }
         } message: {
             Text("Do you want to continue your active workout, or discard it and start a new one?")
@@ -128,12 +157,25 @@ struct RootView: View {
                 selectedTab = .history
             }
 
+            if CommandLine.arguments.contains("-ui-testing-open-library") {
+                selectedTab = .library
+            }
+
             if CommandLine.arguments.contains("-reset-data") {
                 resetDataForUITesting()
             }
             seedExerciseTemplatesIfNeeded()
             seedWorkoutTemplatesIfNeeded()
+            seedWorkoutCollectionsIfNeeded()
             normalizePersistedWorkoutData()
+            workoutVM.restoreActiveWorkout(using: modelContext)
+            isPreparingApp = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .gymDataRestored)) { _ in
+            homePath = []
+            templateToStart = nil
+            plannedWorkoutToStart = nil
+            isShowingActiveWorkout = false
             workoutVM.restoreActiveWorkout(using: modelContext)
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
@@ -192,6 +234,31 @@ struct RootView: View {
         }
     }
 
+    private func seedWorkoutCollectionsIfNeeded() {
+        do {
+            let existingCollections = try modelContext.fetch(FetchDescriptor<WorkoutCollection>())
+            guard existingCollections.isEmpty else { return }
+
+            let templates = try modelContext.fetch(FetchDescriptor<WorkoutTemplate>())
+            let programTemplates = templates.filter { $0.name.starts(with: "Jour ") }
+            guard !programTemplates.isEmpty else { return }
+
+            let sortedTemplates = programTemplates.sorted { $0.name < $1.name }
+            let collection = WorkoutCollection(name: "Programme Haut/Bas - 4 Jours", workoutTemplates: sortedTemplates)
+            modelContext.insert(collection)
+            try modelContext.save()
+        } catch {
+            print("Failed to seed workout collections: \(error)")
+        }
+    }
+
+    private func startFreeWorkout() {
+        if !workoutVM.hasActiveWorkout {
+            workoutVM.startWorkout(using: modelContext)
+        }
+        isShowingActiveWorkout = workoutVM.hasActiveWorkout
+    }
+
     private func startWorkout(from template: WorkoutTemplate) {
         if workoutVM.hasActiveWorkout {
             templateToStart = template
@@ -202,7 +269,35 @@ struct RootView: View {
         }
     }
 
+    private func startPlannedWorkout(_ planRun: PlanRun, _ progress: PlanWorkoutProgress) {
+        guard let plannedWorkout = PlanCoordinator.plannedWorkout(for: progress, in: planRun) else { return }
+
+        if workoutVM.hasActiveWorkout {
+            plannedWorkoutToStart = PendingPlannedWorkout(
+                planRun: planRun,
+                progress: progress,
+                plannedWorkout: plannedWorkout
+            )
+            isShowingActiveWorkoutConflictAlert = true
+        } else if workoutVM.startWorkout(
+            from: plannedWorkout,
+            progress: progress,
+            in: planRun,
+            using: modelContext
+        ) {
+            isShowingActiveWorkout = true
+        }
+    }
+
     private func resetDataForUITesting() {
+        isShowingActiveWorkout = false
+        shouldDiscardActiveWorkout = false
+        homePath.removeAll()
+        activeWorkoutPath.removeAll()
+        templateToStart = nil
+        plannedWorkoutToStart = nil
+        workoutVM.workout = nil
+
         do {
             try modelContext.clearAllGymData()
         } catch {
@@ -269,4 +364,10 @@ struct RootView: View {
             print("Failed to normalize persisted workout data: \(error)")
         }
     }
+}
+
+private struct PendingPlannedWorkout {
+    let planRun: PlanRun
+    let progress: PlanWorkoutProgress
+    let plannedWorkout: PlannedWorkout
 }

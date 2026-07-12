@@ -36,13 +36,13 @@ struct HistoryWorkoutView: View {
             .padding(.vertical, Spacing.xl)
         }
         .background(Color.gymBackground)
-        .navigationTitle(workout.nom ?? "Workout")
+        .navigationTitle(workout.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private var workoutHeader: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            Text(workout.nom ?? "Workout")
+            Text(workout.displayTitle)
                 .font(AppFont.displayMedium)
                 .foregroundStyle(Color.gymText)
 
@@ -60,7 +60,7 @@ struct HistoryWorkoutView: View {
         .padding(Spacing.l)
         .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(workout.nom ?? "Workout"), \(workoutDuration), \(exerciseSummary), \(setSummary)")
+        .accessibilityLabel("\(workout.displayTitle), \(workoutDuration), \(exerciseSummary), \(setSummary)")
     }
 
     private func summaryItem(_ title: String, icon: String) -> some View {
@@ -173,12 +173,18 @@ struct WorkoutDetailView: View {
                     if exercise.exercice.trackingType.usesDistance {
                         tableValue(distanceText(for: set))
                     }
-                    tableValue(set.rpe.map { "\($0)" } ?? "—")
+                    if showsRPE {
+                        tableValue(set.rpe.map { "\($0)" } ?? "—")
+                    }
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(accessibilityDescription(for: set, index: index))
             }
         }
+    }
+
+    private var showsRPE: Bool {
+        exercise.orderedSets.contains { $0.rpe != nil }
     }
 
     private var tableColumns: [String] {
@@ -187,7 +193,7 @@ struct WorkoutDetailView: View {
         if exercise.exercice.trackingType.usesReps { columns.append("Reps") }
         if exercise.exercice.trackingType.usesDuration { columns.append("Time") }
         if exercise.exercice.trackingType.usesDistance { columns.append("Distance") }
-        columns.append("RPE")
+        if showsRPE { columns.append("RPE") }
         return columns
     }
 

@@ -6,9 +6,11 @@ struct HomeView: View {
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
     @Binding var isShowingActiveWorkout: Bool
+    let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
 
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
+    @Query private var planRuns: [PlanRun]
     @State private var isShowingTemplatePicker = false
     @State private var templateToStart: WorkoutTemplate? = nil
     @State private var isShowingActiveWorkoutConflictAlert = false
@@ -78,7 +80,7 @@ struct HomeView: View {
                 .font(AppFont.displayMedium)
 
             Text(workoutVM.hasActiveWorkout
-                 ? "Continue where you left off."
+                 ? "Your session is still running."
                  : "Track your training today.")
                 .font(AppFont.subheadline)
                 .foregroundStyle(WorkoutPalette.subduedText)
@@ -90,8 +92,8 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 HStack {
                     Label(
-                        workoutVM.hasActiveWorkout ? "ACTIVE WORKOUT" : "START WORKOUT",
-                        systemImage: workoutVM.hasActiveWorkout ? "figure.strengthtraining.traditional" : "bolt.fill"
+                        primaryCardLabel,
+                        systemImage: primaryCardIcon
                     )
                     .font(AppFont.captionBold)
                     .tracking(0.8)
@@ -112,10 +114,10 @@ struct HomeView: View {
                     .font(AppFont.subheadline)
                     .foregroundStyle(workoutVM.hasActiveWorkout ? .white.opacity(0.86) : WorkoutPalette.subduedText)
 
-                if let workout = workoutVM.activeWorkout {
+                if let workout = workoutVM.activeWorkout, workout.totalSetCount > 0 {
                     ProgressView(
                         value: Double(workout.completedSetCount),
-                        total: Double(max(workout.totalSetCount, 1))
+                        total: Double(workout.totalSetCount)
                     )
                     .tint(.white.opacity(0.95))
                     .padding(.top, Spacing.xxs)
@@ -144,8 +146,8 @@ struct HomeView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityHint(workoutVM.hasActiveWorkout ? "Returns to your active workout." : "Starts a blank workout.")
-        .accessibilityIdentifier("start-free-workout")
+        .accessibilityHint(primaryCardHint)
+        .accessibilityIdentifier(primaryCardAccessibilityIdentifier)
     }
 
     private var quickActions: some View {
@@ -232,9 +234,9 @@ struct HomeView: View {
                         .clipShape(Circle())
 
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Text("Activity History")
+                        Text("No workouts yet")
                             .font(AppFont.subheadlineSemibold)
-                        Text("Your completed sessions will appear here.")
+                        Text("Finish your first workout and it will show up here.")
                             .font(AppFont.caption)
                             .foregroundStyle(WorkoutPalette.subduedText)
                     }
@@ -261,7 +263,7 @@ struct HomeView: View {
                                     .clipShape(Circle())
 
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                    Text(workout.nom ?? "Session")
+                                    Text(workout.displayTitle)
                                         .font(AppFont.subheadlineSemibold)
                                     Text(workout.startTime, style: .date)
                                         .font(AppFont.caption)
@@ -270,7 +272,7 @@ struct HomeView: View {
 
                                 Spacer()
 
-                                Text("\(workout.exercises.count) ex")
+                                Text("^[\(workout.exercises.count) exercise](inflect: true)")
                                     .font(AppFont.caption)
                                     .foregroundStyle(WorkoutPalette.subduedText)
 
@@ -295,22 +297,36 @@ struct HomeView: View {
     }
 
     private var primaryCardTitle: LocalizedStringKey {
-        guard let workout = workoutVM.activeWorkout else { return "Start Workout" }
-        if let nom = workout.nom, !nom.isEmpty {
-            return "Resume \(nom)"
+        if let workout = workoutVM.activeWorkout {
+            if let nom = workout.nom, !nom.isEmpty {
+                return "Resume \(nom)"
+            }
+            return "Resume workout"
         }
-        return "Resume workout"
+        if let progress = activePlanProgress {
+            return LocalizedStringKey(progress.plannedWorkoutName)
+        }
+        return "Start Workout"
     }
 
     private var primaryCardSubtitle: LocalizedStringKey {
-        guard let workout = workoutVM.activeWorkout else {
-            return "Start a blank workout."
+        if let workout = workoutVM.activeWorkout {
+            guard workout.totalSetCount > 0 else {
+                return "No exercises yet · Pick your first exercise"
+            }
+            let completedSets = workout.completedSetCount
+            let totalSets = workout.totalSetCount
+            let nextDesc = nextExerciseDescription(in: workout)
+            return "\(completedSets) / \(totalSets) sets · \(nextDesc)"
         }
-
-        let completedSets = workout.completedSetCount
-        let totalSets = workout.totalSetCount
-        let nextDesc = nextExerciseDescription(in: workout)
-        return "\(completedSets) / \(totalSets) sets · \(nextDesc)"
+        if let progress = activePlanProgress {
+            let week = progress.weekIndex + 1
+            if let scheduledDate = progress.scheduledDate, Calendar.current.isDateInToday(scheduledDate) {
+                return "Week \(week) · Today"
+            }
+            return "Week \(week) · Start early when you are ready"
+        }
+        return "Jump in and add exercises as you go."
     }
 
     private func nextExerciseDescription(in workout: Workout) -> String {
@@ -325,10 +341,14 @@ struct HomeView: View {
     }
 
     private func openPrimaryWorkout() {
-        if !workoutVM.hasActiveWorkout {
+        if workoutVM.hasActiveWorkout {
+            isShowingActiveWorkout = true
+        } else if let run = activePlanRun, let progress = activePlanProgress {
+            onStartPlannedWorkout(run, progress)
+        } else {
             workoutVM.startWorkout(using: modelContext)
+            isShowingActiveWorkout = true
         }
-        isShowingActiveWorkout = true
     }
 
     private func startWorkout(from template: WorkoutTemplate) {
@@ -339,6 +359,44 @@ struct HomeView: View {
             workoutVM.startWorkout(with: template, using: modelContext)
             isShowingActiveWorkout = true
         }
+    }
+
+    private var activePlanRun: PlanRun? {
+        planRuns
+            .filter { $0.status == .active }
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .first
+    }
+
+    private var activePlanProgress: PlanWorkoutProgress? {
+        guard let activePlanRun else { return nil }
+        return activePlanRun.orderedWorkoutProgress.first {
+            $0.status == .available || $0.status == .inProgress
+        }
+    }
+
+    private var primaryCardLabel: LocalizedStringKey {
+        if workoutVM.hasActiveWorkout { return "ACTIVE WORKOUT" }
+        if activePlanProgress != nil { return "PLANNED WORKOUT" }
+        return "FREE WORKOUT"
+    }
+
+    private var primaryCardIcon: String {
+        workoutVM.hasActiveWorkout || activePlanProgress != nil
+            ? "figure.strengthtraining.traditional"
+            : "bolt.fill"
+    }
+
+    private var primaryCardHint: String {
+        if workoutVM.hasActiveWorkout { return "Returns to your active workout." }
+        if activePlanProgress != nil { return "Starts the next workout in your active plan." }
+        return "Starts a blank workout."
+    }
+
+    private var primaryCardAccessibilityIdentifier: String {
+        if workoutVM.hasActiveWorkout { return "resume-active-workout" }
+        if activePlanProgress != nil { return "start-planned-workout" }
+        return "start-free-workout"
     }
 }
 
