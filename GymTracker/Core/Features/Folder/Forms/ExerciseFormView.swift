@@ -45,6 +45,7 @@ struct ExerciseFormView: View {
         Form {
             Section("Exercise") {
                 TextField("Name", text: $name)
+                    .accessibilityIdentifier("exercise-name-field")
 
                 Picker("Category", selection: $category) {
                     ForEach(ExerciseCategory.allCases, id: \.self) { category in
@@ -148,6 +149,7 @@ struct ExerciseFormView: View {
                     onSave(savedExercise)
                     dismiss()
                 }
+                .accessibilityIdentifier("save-exercise")
                 .disabled(trimmedName.isEmpty || primaryMuscles.isEmpty)
             }
         }

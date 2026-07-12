@@ -10,7 +10,8 @@ struct HomeView: View {
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     @State private var isShowingTemplatePicker = false
-    @State private var isShowingSettings = false
+    @State private var templateToStart: WorkoutTemplate? = nil
+    @State private var isShowingActiveWorkoutConflictAlert = false
 
     var body: some View {
         ScrollView {
@@ -32,19 +33,6 @@ struct HomeView: View {
         .toolbarBackground(WorkoutPalette.background, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isShowingSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(WorkoutPalette.primary)
-                }
-                .accessibilityLabel("Settings")
-                .accessibilityIdentifier("settings-button")
-            }
-        }
         .sheet(isPresented: $isShowingTemplatePicker) {
             NavigationStack {
                 SavedWorkoutTemplatePicker(templates: workoutTemplates) { template in
@@ -55,17 +43,28 @@ struct HomeView: View {
                 }
             }
         }
-        .sheet(isPresented: $isShowingSettings) {
-            NavigationStack {
-                SettingView()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close") {
-                                isShowingSettings = false
-                            }
-                        }
-                    }
+        .confirmationDialog(
+            "An active workout is already in progress",
+            isPresented: $isShowingActiveWorkoutConflictAlert,
+            titleVisibility: .visible
+        ) {
+            Button("Resume Active Workout") {
+                isShowingActiveWorkout = true
+                templateToStart = nil
             }
+            Button("Discard & Start New", role: .destructive) {
+                workoutVM.discardActiveWorkout(using: modelContext)
+                if let template = templateToStart {
+                    workoutVM.startWorkout(with: template, using: modelContext)
+                    isShowingActiveWorkout = true
+                }
+                templateToStart = nil
+            }
+            Button("Cancel", role: .cancel) {
+                templateToStart = nil
+            }
+        } message: {
+            Text("Do you want to continue your active workout, or discard it and start a new one?")
         }
     }
 
@@ -333,8 +332,13 @@ struct HomeView: View {
     }
 
     private func startWorkout(from template: WorkoutTemplate) {
-        workoutVM.startWorkout(with: template, using: modelContext)
-        isShowingActiveWorkout = true
+        if workoutVM.hasActiveWorkout {
+            templateToStart = template
+            isShowingActiveWorkoutConflictAlert = true
+        } else {
+            workoutVM.startWorkout(with: template, using: modelContext)
+            isShowingActiveWorkout = true
+        }
     }
 }
 

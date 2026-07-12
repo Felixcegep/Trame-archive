@@ -90,6 +90,16 @@
 			path = GymTrackerExtension;
 			sourceTree = "<group>";
 		};
+		44E008002FFAEB0700BF7D2B /* GymTracker/Core/Models */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = GymTracker/Core/Models;
+			sourceTree = "<group>";
+		};
+		44E008012FFAEB0700BF7D2B /* GymTracker/Core/Foundation */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = GymTracker/Core/Foundation;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -119,6 +129,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4446FF1A3002CEB5002547B3 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				44E008002FFAEB0700BF7D2B /* GymTracker/Core/Models */,
+				44E008012FFAEB0700BF7D2B /* GymTracker/Core/Foundation */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
 		44E006312FF6E3C000BF7D2B = {
 			isa = PBXGroup;
 			children = (
@@ -127,6 +146,7 @@
 				4406369B300194FD0084434D /* GymTrackerUITEST */,
 				44E0076D2FFAEB0600BF7D2B /* Frameworks */,
 				44E0063B2FF6E3C000BF7D2B /* Products */,
+				4446FF1A3002CEB5002547B3 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -213,6 +233,8 @@
 			);
 			fileSystemSynchronizedGroups = (
 				44E007722FFAEB0600BF7D2B /* GymTrackerExtension */,
+				44E008002FFAEB0700BF7D2B /* GymTracker/Core/Models */,
+				44E008012FFAEB0700BF7D2B /* GymTracker/Core/Foundation */,
 			);
 			name = GymTrackerExtensionExtension;
 			packageProductDependencies = (

@@ -20,6 +20,7 @@ struct WorkoutTemplateFormView: View {
         Form {
             Section("Template") {
                 TextField("Name", text: $name)
+                    .accessibilityIdentifier("template-name-field")
             }
 
             Section("Exercises") {
@@ -51,6 +52,7 @@ struct WorkoutTemplateFormView: View {
                     onSave(trimmedName, selectedExercises)
                     dismiss()
                 }
+                .accessibilityIdentifier("save-template")
                 .disabled(trimmedName.isEmpty)
             }
         }

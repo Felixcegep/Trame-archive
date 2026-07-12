@@ -18,7 +18,8 @@ xcodebuild \
   -project "$WORKSPACE_DIR/GymTracker.xcodeproj" \
   -scheme GymTracker \
   -destination 'platform=iOS Simulator,id=11536E2C-BBE1-411D-AF6C-DF4ADCD332D1' \
-  -disable-concurrent-testing \
+  -parallel-testing-enabled NO \
+  -maximum-concurrent-test-simulator-destinations 1 \
   -only-testing:GymTrackerUITEST/GymTrackerUITEST/testCaptureScreenshots \
   test
 

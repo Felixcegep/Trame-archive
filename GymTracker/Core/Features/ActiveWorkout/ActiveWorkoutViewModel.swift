@@ -121,10 +121,11 @@ class ActiveWorkoutViewModel {
         persistChanges()
     }
 
+    @discardableResult
     func switchStateDoneSet(
         _ selectedExercise: ExerciceEntry,
         _ selectedSet: ExerciseSet
-    ) {
+    ) -> Bool {
         guard
             let workout = workoutVM.activeWorkout,
             let exercise = workout.exercises.first(
@@ -134,11 +135,34 @@ class ActiveWorkoutViewModel {
                 where: { $0.id == selectedSet.id }
             )
         else {
-            return
+            return false
+        }
+
+        guard set.done || canComplete(set, for: exercise) else {
+            return false
         }
 
         set.done.toggle()
         persistChanges()
+        return true
+    }
+
+    func canComplete(_ set: ExerciseSet, for exercise: ExerciceEntry) -> Bool {
+        let trackingType = exercise.exercice.trackingType
+
+        if trackingType.usesReps, set.repetition <= 0 {
+            return false
+        }
+
+        if trackingType.usesDuration, (set.duration ?? 0) <= 0 {
+            return false
+        }
+
+        if trackingType.usesDistance, (set.distance ?? 0) <= 0 {
+            return false
+        }
+
+        return true
     }
     func getNextSet(in selectedExercise: ExerciceEntry) -> ExerciseSet?{
         guard let nextSet = selectedExercise.orderedSets.first(where: { !$0.done }) else {
@@ -164,6 +188,9 @@ class ActiveWorkoutViewModel {
 
         let duration = TimeInterval(exercise?.prescribedRestSeconds ?? Int(restDuration))
         let timerEndDate = Date.now.addingTimeInterval(duration)
+
+        workoutVM.activeWorkout?.restEndDate = timerEndDate
+        persistChanges()
 
         isTimerVisible = true
         timerPause = timerEndDate
@@ -194,6 +221,8 @@ class ActiveWorkoutViewModel {
                 await MainActor.run {
                     isTimerVisible = false
                     timerPause = nil
+                    workoutVM.activeWorkout?.restEndDate = nil
+                    persistChanges()
                 }
                 if let nextExercice = getNextExerciseToDo(),
                    let nextSetIndex = nextExercice.exercise.orderedSets.firstIndex(where: { !$0.done }) {
@@ -214,11 +243,148 @@ class ActiveWorkoutViewModel {
         }
     }
 
+    var isTimerPaused: Bool {
+        activeWorkout?.pausedRemainingTime != nil
+    }
+
+    var pausedTimeRemaining: TimeInterval {
+        activeWorkout?.pausedRemainingTime ?? 0
+    }
+
+    func restorePersistedRestTimer() {
+        if let timerEndDate = workoutVM.activeWorkout?.restEndDate {
+            guard timerEndDate > .now else {
+                workoutVM.activeWorkout?.restEndDate = nil
+                persistChanges()
+                return
+            }
+
+            timerTask?.cancel()
+            isTimerVisible = true
+            timerPause = timerEndDate
+
+            timerTask = Task {
+                await LiveActivityManager.shared.startPause(timerEndDate: timerEndDate)
+
+                do {
+                    try await Task.sleep(for: .seconds(timerEndDate.timeIntervalSinceNow))
+                    guard !Task.isCancelled else { return }
+
+                    await MainActor.run {
+                        isTimerVisible = false
+                        timerPause = nil
+                        workoutVM.activeWorkout?.restEndDate = nil
+                        persistChanges()
+                    }
+                } catch {
+                    return
+                }
+            }
+        } else if let pausedRemaining = workoutVM.activeWorkout?.pausedRemainingTime {
+            timerTask?.cancel()
+            timerTask = nil
+            isTimerVisible = true
+            timerPause = nil
+            Task {
+                await LiveActivityManager.shared.pausePause()
+            }
+        }
+    }
+
+    func pauseTimer() {
+        guard let timerEndDate = workoutVM.activeWorkout?.restEndDate else { return }
+
+        timerTask?.cancel()
+        timerTask = nil
+
+        let remaining = max(0, timerEndDate.timeIntervalSinceNow)
+        workoutVM.activeWorkout?.pausedRemainingTime = remaining
+        workoutVM.activeWorkout?.restEndDate = nil
+        timerPause = nil
+        persistChanges()
+
+        Task {
+            await LiveActivityManager.shared.pausePause()
+        }
+    }
+
+    func resumeTimer() {
+        guard let pausedRemaining = workoutVM.activeWorkout?.pausedRemainingTime else { return }
+
+        let timerEndDate = Date.now.addingTimeInterval(pausedRemaining)
+        workoutVM.activeWorkout?.restEndDate = timerEndDate
+        workoutVM.activeWorkout?.pausedRemainingTime = nil
+        persistChanges()
+
+        timerPause = timerEndDate
+        isTimerVisible = true
+
+        timerTask?.cancel()
+        timerTask = Task {
+            await LiveActivityManager.shared.startPause(timerEndDate: timerEndDate)
+
+            do {
+                try await Task.sleep(for: .seconds(pausedRemaining))
+                guard !Task.isCancelled else { return }
+
+                await MainActor.run {
+                    isTimerVisible = false
+                    timerPause = nil
+                    workoutVM.activeWorkout?.restEndDate = nil
+                    persistChanges()
+                }
+            } catch {
+                return
+            }
+        }
+    }
+
+    func addRestTime(_ seconds: TimeInterval) {
+        if isTimerPaused {
+            if let currentPaused = workoutVM.activeWorkout?.pausedRemainingTime {
+                workoutVM.activeWorkout?.pausedRemainingTime = currentPaused + seconds
+                persistChanges()
+            }
+        } else if let timerEndDate = workoutVM.activeWorkout?.restEndDate {
+            let newEndDate = timerEndDate.addingTimeInterval(seconds)
+            workoutVM.activeWorkout?.restEndDate = newEndDate
+            persistChanges()
+
+            timerPause = newEndDate
+
+            let remaining = newEndDate.timeIntervalSinceNow
+
+            timerTask?.cancel()
+            timerTask = Task {
+                await LiveActivityManager.shared.startPause(timerEndDate: newEndDate)
+
+                do {
+                    try await Task.sleep(for: .seconds(remaining))
+                    guard !Task.isCancelled else { return }
+
+                    await MainActor.run {
+                        isTimerVisible = false
+                        timerPause = nil
+                        workoutVM.activeWorkout?.restEndDate = nil
+                        persistChanges()
+                    }
+                } catch {
+                    return
+                }
+            }
+        }
+    }
+
     func cancelTimer() {
         timerTask?.cancel()
         timerTask = nil
         isTimerVisible = false
         timerPause = nil
+        if workoutVM.activeWorkout?.restEndDate != nil || workoutVM.activeWorkout?.pausedRemainingTime != nil {
+            workoutVM.activeWorkout?.restEndDate = nil
+            workoutVM.activeWorkout?.pausedRemainingTime = nil
+            persistChanges()
+        }
     }
 
 
@@ -237,6 +403,30 @@ class ActiveWorkoutViewModel {
         } catch {
             print("Failed to persist active workout changes: \(error)")
         }
+    }
+
+    func copyValuesForFocusedSet(_ focus: SetInputFocus?) {
+        guard
+            let focus,
+            let exercise = workoutVM.activeWorkout?.orderedExercises.first(where: { $0.persistentModelID == focus.exerciseID }),
+            let setIndex = exercise.orderedSets.firstIndex(where: { $0.persistentModelID == focus.setID })
+        else {
+            return
+        }
+
+        copyPreviousSetValue(exerciseEntry: exercise, currentSetIndex: setIndex)
+    }
+
+    func canCopyValuesForFocusedSet(_ focus: SetInputFocus?) -> Bool {
+        guard
+            let focus,
+            let exercise = workoutVM.activeWorkout?.orderedExercises.first(where: { $0.persistentModelID == focus.exerciseID }),
+            let setIndex = exercise.orderedSets.firstIndex(where: { $0.persistentModelID == focus.setID })
+        else {
+            return false
+        }
+
+        return setIndex > 0
     }
 
 }

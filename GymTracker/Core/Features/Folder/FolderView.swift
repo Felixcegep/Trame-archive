@@ -44,9 +44,11 @@ struct FolderView: View {
                     Button("New Workout Template", systemImage: "square.stack.3d.up.fill") {
                         activeSheet = .workoutTemplate
                     }
+                    .accessibilityIdentifier("new-workout-template")
                     Button("New Exercise", systemImage: "dumbbell.fill") {
                         activeSheet = .exercise
                     }
+                    .accessibilityIdentifier("new-exercise")
                 } label: {
                     Image(systemName: "plus")
                         .fontWeight(.semibold)
@@ -83,6 +85,7 @@ struct FolderView: View {
                 .foregroundStyle(FolderPalette.mutedText)
             TextField("Search collections, templates, and exercises", text: $searchText)
                 .textInputAutocapitalization(.never)
+                .accessibilityIdentifier("library-search")
                 .autocorrectionDisabled()
             if !searchText.isEmpty {
                 Button {

@@ -7,6 +7,7 @@ struct ExerciceEntryCard: View {
     let viewModel: ActiveWorkoutViewModel
     let onButtonPress: () -> Void
     let unitSystem: UnitSystem
+    let focusedInput: FocusState<SetInputFocus?>.Binding
     @Binding var expandedExerciseID: PersistentIdentifier?
     let onExerciseCompleted: () -> Void
 
@@ -16,18 +17,12 @@ struct ExerciceEntryCard: View {
     private let swipeTriggerDistance: CGFloat = 70
 
     var body: some View {
-        Group {
-            if exerciseIsDone {
-                completedExerciseSummary
-            } else {
-                ZStack(alignment: .trailing) {
-                    exerciseDoneBackground
+        ZStack(alignment: .trailing) {
+            exerciseDoneBackground
 
-                    activeExerciseCard
-                        .offset(x: horizontalOffset)
-                        .gesture(swipeGesture)
-                }
-            }
+            activeExerciseCard
+                .offset(x: horizontalOffset)
+                .gesture(swipeGesture)
         }
         .animation(.snappy, value: exerciseIsDone)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -54,7 +49,11 @@ struct ExerciceEntryCard: View {
             }
         }
         .padding(isCurrentExercise ? Spacing.l : Spacing.m)
-        .background(isCurrentExercise ? WorkoutPalette.primarySurface : WorkoutPalette.surface)
+        .background(
+            exerciseIsDone && !isCurrentExercise
+                ? WorkoutPalette.completedSurface
+                : (isCurrentExercise ? WorkoutPalette.primarySurface : WorkoutPalette.surface)
+        )
         .overlay {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(
@@ -65,31 +64,6 @@ struct ExerciceEntryCard: View {
                 )
         }
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-    }
-
-    private var completedExerciseSummary: some View {
-        HStack(spacing: Spacing.m) {
-            Image(systemName: AppIcon.checkmark)
-                .font(AppFont.subheadlineBold)
-                .foregroundStyle(.white)
-                .frame(width: 30, height: 30)
-                .background(WorkoutPalette.secondary)
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(exerciseEntry.exercice.name)
-                    .font(AppFont.subheadlineSemibold)
-                    .lineLimit(1)
-                Text("All \(completedSetCount) sets completed")
-                    .font(AppFont.caption)
-                    .foregroundStyle(WorkoutPalette.subduedText)
-            }
-
-            Spacer()
-        }
-        .padding(13)
-        .background(WorkoutPalette.completedSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
     }
 
     private var disclosureBinding: Binding<Bool> {
@@ -103,8 +77,14 @@ struct ExerciceEntryCard: View {
 
     private var exerciseHeader: some View {
         HStack(spacing: 12) {
+            if exerciseIsDone {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(WorkoutPalette.secondary)
+                    .font(.title3)
+            }
+
             VStack(alignment: .leading, spacing: 5) {
-                if isCurrentExercise {
+                if isCurrentExercise && !exerciseIsDone {
                     Label("CURRENT EXERCISE", systemImage: AppIcon.circleFill)
                         .font(AppFont.caption2Bold)
                         .tracking(0.55)
@@ -142,6 +122,7 @@ struct ExerciceEntryCard: View {
                 } label: {
                     Label("Remove exercise", systemImage: AppIcon.trash)
                 }
+                .accessibilityIdentifier("remove-exercise-\(exerciseEntry.exercice.name)")
             } label: {
                 Image(systemName: AppIcon.ellipsis)
                     .font(AppFont.subheadlineBold)
@@ -151,6 +132,7 @@ struct ExerciceEntryCard: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("exercise-menu-\(exerciseEntry.exercice.name)")
         }
         .contentShape(Rectangle())
     }
@@ -181,6 +163,7 @@ struct ExerciceEntryCard: View {
                     exerciseSet: exerciseSet,
                     exerciseEntry: exerciseEntry,
                     viewModel: viewModel,
+                    focusedInput: focusedInput,
                     onButtonPress: onButtonPress,
                     onSetCompleted: handleSetCompletion,
                     onRemove: { viewModel.removeSet(exerciseEntry, exerciseSet) }
@@ -196,12 +179,14 @@ struct ExerciceEntryCard: View {
             } label: {
                 Label("Add set", systemImage: AppIcon.plus)
             }
+            .accessibilityIdentifier("add-set-\(exerciseEntry.exercice.name)")
 
             Button {
                 viewModel.addSetCopyLastSet(exerciseEntry: exerciseEntry)
             } label: {
                 Label("Copy last", systemImage: AppIcon.copy)
             }
+            .accessibilityIdentifier("copy-last-set-\(exerciseEntry.exercice.name)")
         }
         .font(AppFont.subheadlineSemibold)
         .foregroundStyle(WorkoutPalette.primary)
@@ -228,7 +213,8 @@ struct ExerciceEntryCard: View {
             }
             .onEnded { value in
                 guard value.translation.width <= -swipeTriggerDistance,
-                      let exerciseSet = viewModel.getNextSet(in: exerciseEntry)
+                      let exerciseSet = viewModel.getNextSet(in: exerciseEntry),
+                      viewModel.canComplete(exerciseSet, for: exerciseEntry)
                 else {
                     withAnimation(.snappy(duration: 0.2)) { horizontalOffset = 0 }
                     return

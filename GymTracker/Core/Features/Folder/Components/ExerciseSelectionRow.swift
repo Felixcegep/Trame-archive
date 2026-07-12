@@ -21,34 +21,37 @@ struct ExerciseSelectionRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.s) {
             Button {
                 onSelect()
             } label: {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(exercise.name)
-                            .foregroundStyle(.primary)
+                            .font(AppFont.bodyMedium)
+                            .foregroundStyle(Color.gymText)
                         Text(LocalizedStringKey(exercise.trackingType.rawValue))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(AppFont.caption)
+                            .foregroundStyle(WorkoutPalette.subduedText)
                     }
 
                     Spacer()
 
-                    if isSelected {
-                        Image(systemName: "checkmark")
-                            .foregroundStyle(Color.accentColor)
-                    }
+                    Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.plus)
+                        .foregroundStyle(isSelected ? Color.gymSecondary : Color.gymPrimary)
+                        .frame(width: 44, height: 44)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("template-exercise-\(exercise.name)")
+            .accessibilityLabel("\(isSelected ? "Remove" : "Add") \(exercise.name)")
+            .accessibilityValue(isSelected ? "Selected" : "Not selected")
 
             NavigationLink {
                 ExerciceView(exercice: exerciseDetail)
             } label: {
-                Image(systemName: "info.circle")
+                Image(systemName: AppIcon.info)
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)

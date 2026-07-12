@@ -36,9 +36,15 @@ class WorkoutViewModel {
             return false
         }
 
+        // Remove incomplete sets from all remaining exercises
+        for exercise in activeWorkout.exercises {
+            exercise.sets.removeAll { !$0.done }
+            exercise.normalizeSetOrder()
+        }
+
         // Do not carry added-but-never-started exercises into workout history.
         activeWorkout.exercises.removeAll { exercise in
-            !exercise.sets.contains(where: \.done)
+            exercise.sets.isEmpty
         }
 
         guard activeWorkout.completedSetCount > 0 else { return false }
@@ -49,6 +55,7 @@ class WorkoutViewModel {
         activeWorkout.normalizeExerciseOrder()
         activeWorkout.status = .completed
         activeWorkout.endTime = Date.now
+        activeWorkout.restEndDate = nil
         do {
             try modelContext.save()
         } catch {

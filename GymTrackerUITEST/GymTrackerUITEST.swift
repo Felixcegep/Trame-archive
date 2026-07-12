@@ -42,6 +42,26 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
     }
 
+    func testResumesPersistedRestTimerAfterRelaunch() {
+        let app = launchFreshApp()
+
+        app.buttons["start-free-workout"].tap()
+        addExercise("Bench Press", in: app)
+        enterValidValues(for: "Bench Press", set: 0, in: app)
+        app.buttons["complete-set-Bench Press-0"].tap()
+        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+
+        app.buttons["minimize-workout"].tap()
+        app.terminate()
+
+        app.launchArguments = ["-ui-testing"]
+        app.launch()
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
+        app.buttons["start-free-workout"].tap()
+
+        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+    }
+
     func testStartSeededTemplateIncludesPrescription() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
@@ -101,6 +121,156 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(app.buttons["Open plate calculator"].waitForExistence(timeout: 5))
     }
 
+    func testKeyboardOffersCopyLastSetValuesForFocusedSet() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data"]
+        app.launch()
+
+        app.buttons["start-free-workout"].tap()
+        addExercise("Bench Press", in: app)
+
+        let secondWeightField = app.textFields["weight-field-Bench Press-1"]
+        XCTAssertTrue(secondWeightField.waitForExistence(timeout: 5))
+        secondWeightField.tap()
+
+        let copyButton = app.buttons["Copy last set values"]
+        XCTAssertTrue(copyButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(copyButton.isEnabled)
+        copyButton.tap()
+    }
+
+    func testActiveWorkoutSetMutationsAndRestTimer() {
+        let app = launchFreshApp()
+        app.buttons["start-free-workout"].tap()
+        addExercise("Bench Press", in: app)
+
+        let addSet = app.buttons["add-set-Bench Press"]
+        XCTAssertTrue(addSet.waitForExistence(timeout: 5))
+        addSet.tap()
+        XCTAssertTrue(app.buttons["complete-set-Bench Press-1"].waitForExistence(timeout: 5))
+
+        app.buttons["copy-last-set-Bench Press"].tap()
+        XCTAssertTrue(app.buttons["complete-set-Bench Press-4"].waitForExistence(timeout: 5))
+        enterValidValues(for: "Bench Press", set: 0, in: app)
+        app.buttons["complete-set-Bench Press-0"].tap()
+        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+
+        let setMenu = app.buttons["set-menu-Bench Press-1"]
+        XCTAssertTrue(setMenu.waitForExistence(timeout: 5))
+        setMenu.tap()
+        XCTAssertTrue(app.buttons["delete-set-Bench Press-1"].waitForExistence(timeout: 5))
+        app.buttons["delete-set-Bench Press-1"].tap()
+        XCTAssertTrue(app.buttons["complete-set-Bench Press-3"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["complete-set-Bench Press-4"].exists)
+
+        let exerciseMenu = app.buttons["exercise-menu-Bench Press"]
+        XCTAssertTrue(exerciseMenu.waitForExistence(timeout: 5))
+        exerciseMenu.tap()
+        XCTAssertTrue(app.buttons["remove-exercise-Bench Press"].waitForExistence(timeout: 5))
+        app.buttons["remove-exercise-Bench Press"].tap()
+        XCTAssertFalse(app.staticTexts["Bench Press"].exists)
+    }
+
+    func testRejectsEmptyWorkoutSave() {
+        let app = launchFreshApp()
+        app.buttons["start-free-workout"].tap()
+
+        let finishButton = app.buttons["Review Workout"]
+        XCTAssertFalse(finishButton.exists)
+    }
+
+    func testSavesCompletedWorkoutToHistory() {
+        let app = launchFreshApp()
+        app.buttons["start-free-workout"].tap()
+        addExercise("Bench Press", in: app)
+        enterValidValues(for: "Bench Press", set: 0, in: app)
+        app.buttons["complete-set-Bench Press-0"].tap()
+
+        app.buttons["Done"].tap()
+
+        let finishButton = app.buttons["Review Workout"]
+        XCTAssertTrue(finishButton.waitForExistence(timeout: 5))
+        finishButton.tap()
+        XCTAssertTrue(app.buttons["save-workout"].waitForExistence(timeout: 5))
+        app.buttons["save-workout"].tap()
+
+        let partialSave = app.buttons["Save completed sets"]
+        if partialSave.waitForExistence(timeout: 2) {
+            partialSave.tap()
+        }
+
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
+        app.terminate()
+        app.launchArguments = ["-ui-testing", "-ui-testing-open-history"]
+        app.launch()
+
+        XCTAssertTrue(app.otherElements["history-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["history-workout-row"].waitForExistence(timeout: 5))
+    }
+
+    func testDiscardsActiveWorkout() {
+        let app = launchFreshApp()
+        app.buttons["start-free-workout"].tap()
+        addExercise("Bench Press", in: app)
+
+        app.buttons["active-workout-menu"].tap()
+        XCTAssertTrue(app.buttons["Discard workout"].waitForExistence(timeout: 5))
+        app.buttons["Discard workout"].tap()
+        XCTAssertTrue(app.buttons["Discard workout"].waitForExistence(timeout: 5))
+        app.buttons["Discard workout"].tap()
+
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["start-free-workout"].label.contains("Resume"))
+    }
+
+    func testCreatesCustomExercise() {
+        let app = launchFreshApp()
+        app.tabBars.buttons.element(boundBy: 1).tap()
+        app.buttons["Create library item"].tap()
+        XCTAssertTrue(app.buttons["New Exercise"].waitForExistence(timeout: 5))
+        app.buttons["New Exercise"].tap()
+
+        let nameField = app.textFields["exercise-name-field"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.tap()
+        nameField.typeText("Cable Chest Press")
+        app.buttons["save-exercise"].tap()
+
+        assertLibrarySearchResult("Cable Chest Press", in: app)
+    }
+
+    func testCreatesWorkoutTemplate() {
+        let app = launchFreshApp()
+        app.tabBars.buttons.element(boundBy: 1).tap()
+        app.buttons["Create library item"].tap()
+        XCTAssertTrue(app.buttons["New Workout Template"].waitForExistence(timeout: 5))
+        app.buttons["New Workout Template"].tap()
+
+        let nameField = app.textFields["template-name-field"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.tap()
+        nameField.typeText("Push Integration Template")
+        app.buttons["save-template"].tap()
+
+        assertLibrarySearchResult("Push Integration Template", in: app)
+    }
+
+    private func assertLibrarySearchResult(_ name: String, in app: XCUIApplication) {
+        let search = app.textFields["library-search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText(name)
+        XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 5))
+    }
+
+    private func launchFreshApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data"]
+        app.launch()
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
+        return app
+    }
+
     private func addExercise(_ name: String, in app: XCUIApplication) {
         let addExercise = app.buttons["add-active-exercise"]
         XCTAssertTrue(addExercise.waitForExistence(timeout: 5))
@@ -114,6 +284,20 @@ final class GymTrackerUITEST: XCTestCase {
         let exercise = app.buttons["add-exercise-\(name)"]
         XCTAssertTrue(exercise.waitForExistence(timeout: 5))
         exercise.tap()
+    }
+
+    private func enterValidValues(for exercise: String, set: Int, in app: XCUIApplication) {
+        let reps = app.textFields["reps-field-\(exercise)-\(set)"]
+        XCTAssertTrue(reps.waitForExistence(timeout: 5))
+        reps.tap()
+        reps.typeText("8")
+
+        let weight = app.textFields["weight-field-\(exercise)-\(set)"]
+        XCTAssertTrue(weight.waitForExistence(timeout: 5))
+        weight.tap()
+        weight.typeText("50")
+
+        app.buttons["Done"].tap()
     }
 
     func testCaptureScreenshots() {
@@ -151,21 +335,12 @@ final class GymTrackerUITEST: XCTestCase {
         app.tabBars.buttons.element(boundBy: 2).tap()
         saveScreenshot(name: "03_History_Empty")
         
-        // 4. Analytics Tab (Placeholder)
+        // 4. Settings Tab
         app.tabBars.buttons.element(boundBy: 3).tap()
-        saveScreenshot(name: "04_Analytics")
-        
-        // Go back to Home and open Settings
-        app.tabBars.buttons.element(boundBy: 0).tap()
-        let settingsButton = app.buttons["settings-button"]
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5))
-        settingsButton.tap()
         saveScreenshot(name: "04_Settings")
-        
-        // Dismiss Settings sheet
-        let closeButton = app.buttons["Close"]
-        XCTAssertTrue(closeButton.waitForExistence(timeout: 5))
-        closeButton.tap()
+
+        // Go back to Home
+        app.tabBars.buttons.element(boundBy: 0).tap()
         
         // 5. Active Workout Screen (Empty)
         let startButton = app.buttons["start-free-workout"]
@@ -213,11 +388,16 @@ final class GymTrackerUITEST: XCTestCase {
             app.buttons["active-exercise-Bench Press"].tap()
         }
         XCTAssertTrue(completeSetButton.waitForExistence(timeout: 5))
+        enterValidValues(for: "Bench Press", set: 0, in: app)
         completeSetButton.tap()
         saveScreenshot(name: "08_Active_Workout_With_Set")
-        
+
+        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+        saveScreenshot(name: "08_Rest_Countdown")
+
         // 9. Save Workout Screen (Tap finish button)
-        let finishButton = app.buttons["Finish workout"].exists ? app.buttons["Finish workout"] : app.buttons["Terminer l'entraînement"]
+        app.buttons["Done"].tap()
+        let finishButton = app.buttons["Review Workout"].exists ? app.buttons["Review Workout"] : app.buttons["Terminer l'entraînement"]
         XCTAssertTrue(finishButton.waitForExistence(timeout: 5))
         finishButton.tap()
         saveScreenshot(name: "09_Save_Workout")

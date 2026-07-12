@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct ActiveWorkoutView: View {
     @Query private var exerciceTemplates: [ExerciceTemplate]
@@ -14,6 +15,8 @@ struct ActiveWorkoutView: View {
     @State private var expandedExerciseID: PersistentIdentifier?
     @State private var isShowingDiscardConfirmation = false
     @State private var isShowingExercisePicker = false
+    @FocusState private var focusedInput: SetInputFocus?
+    @State private var draggedExercise: ExerciceEntry? = nil
 
     private var unitSystem: UnitSystem {
         UserDefaults.standard.unitSystem
@@ -74,6 +77,7 @@ struct ActiveWorkoutView: View {
                     Image(systemName: AppIcon.ellipsis)
                         .fontWeight(.semibold)
                 }
+                .accessibilityIdentifier("active-workout-menu")
             }
         }
         .confirmationDialog(
@@ -90,12 +94,29 @@ struct ActiveWorkoutView: View {
                 ExerciceLibrairyView(
                     isSelectingExercise: true,
                     availableExercises: exerciceTemplates,
-                    onSelect: addExerciseFromPicker
+                    selectedExerciseNames: Set(viewModel.activeWorkout?.orderedExercises.map(\.exercice.name) ?? []),
+                    onSelect: toggleExerciseFromPicker
                 )
             }
         }
         .onDisappear {
             viewModel.persistChanges()
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Button {
+                    viewModel.copyValuesForFocusedSet(focusedInput)
+                } label: {
+                    Label("Copy last set values", systemImage: AppIcon.copy)
+                }
+                .disabled(!viewModel.canCopyValuesForFocusedSet(focusedInput))
+
+                Spacer()
+
+                Button("Done") {
+                    focusedInput = nil
+                }
+            }
         }
     }
 
@@ -117,10 +138,13 @@ struct ActiveWorkoutView: View {
         .scrollIndicators(.hidden)
         .background(WorkoutPalette.background)
         .safeAreaInset(edge: .bottom) {
-            finishButton(for: workout)
+            if focusedInput == nil {
+                finishButton(for: workout)
+            }
         }
         .onAppear {
             selectInitialDisclosure(in: workout)
+            viewModel.restorePersistedRestTimer()
         }
     }
 
@@ -139,13 +163,21 @@ struct ActiveWorkoutView: View {
             }
 
             HStack {
-                Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                if workout.totalSetCount == 0 {
+                    Text("No exercises yet.")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(WorkoutPalette.subduedText)
+                } else {
+                    Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(WorkoutPalette.subduedText)
+                }
                 Spacer()
-                Text("\(workout.exercises.count) exercises")
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                if !workout.exercises.isEmpty {
+                    Text("\(workout.exercises.count) exercises")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(WorkoutPalette.subduedText)
+                }
             }
 
             ProgressView(value: Double(workout.completedSetCount), total: Double(max(workout.totalSetCount, 1)))
@@ -161,31 +193,87 @@ struct ActiveWorkoutView: View {
     }
 
     private func restTimer(endDate: Date) -> some View {
-        HStack(spacing: Spacing.s) {
-            Image(systemName: AppIcon.timer)
-                .font(.headline.weight(.semibold))
-                .frame(width: 42, height: 42)
-                .foregroundStyle(WorkoutPalette.accent)
-                .background(WorkoutPalette.accentSurface)
-                .clipShape(Circle())
+        VStack(spacing: Spacing.m) {
+            HStack(spacing: Spacing.s) {
+                Image(systemName: AppIcon.timer)
+                    .font(.headline.weight(.semibold))
+                    .frame(width: 42, height: 42)
+                    .foregroundStyle(WorkoutPalette.accent)
+                    .background(WorkoutPalette.accentSurface)
+                    .clipShape(Circle())
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Rest between sets")
-                    .font(.subheadline.weight(.semibold))
-                Text("Take a breath. Your next set is ready when you are.")
-                    .font(.caption)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Rest between sets")
+                        .font(.subheadline.weight(.semibold))
+                    Text(viewModel.isTimerPaused ? "Rest paused." : "Take a breath. Your next set is ready when you are.")
+                        .font(.caption)
+                        .foregroundStyle(WorkoutPalette.subduedText)
+                }
+
+                Spacer(minLength: 0)
+
+                if viewModel.isTimerPaused {
+                    Text(formatRemainingTime(viewModel.pausedTimeRemaining))
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(WorkoutPalette.accent)
+                } else {
+                    Text(timerInterval: Date.now...endDate, countsDown: true)
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(WorkoutPalette.accent)
+                }
             }
 
-            Spacer(minLength: 0)
+            LazyVGrid(
+                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                spacing: Spacing.s
+            ) {
+                Button {
+                    viewModel.addRestTime(15)
+                } label: {
+                    Label("+15s", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+                .tint(WorkoutPalette.accent)
 
-            Text(timerInterval: Date.now...endDate, countsDown: true)
-                .font(.headline.monospacedDigit())
-                .foregroundStyle(WorkoutPalette.accent)
+                Button {
+                    viewModel.addRestTime(30)
+                } label: {
+                    Label("+30s", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+                .tint(WorkoutPalette.accent)
+
+                Button {
+                    if viewModel.isTimerPaused {
+                        viewModel.resumeTimer()
+                    } else {
+                        viewModel.pauseTimer()
+                    }
+                } label: {
+                    Label(viewModel.isTimerPaused ? "Resume" : "Pause", systemImage: viewModel.isTimerPaused ? "play.fill" : "pause.fill")
+                }
+                .buttonStyle(.bordered)
+                .tint(WorkoutPalette.accent)
+
+                Button {
+                    viewModel.cancelTimer()
+                } label: {
+                    Label("Skip", systemImage: "forward.fill")
+                }
+                .buttonStyle(.bordered)
+                .tint(WorkoutPalette.accent)
+                .lineLimit(1)
+            }
         }
         .padding(Spacing.m + 2)
         .background(WorkoutPalette.accentSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
+    }
+
+    private func formatRemainingTime(_ seconds: TimeInterval) -> String {
+        let minutes = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%d:%02d", minutes, secs)
     }
 
     private func exerciseList(for workout: Workout) -> some View {
@@ -198,15 +286,17 @@ struct ActiveWorkoutView: View {
 
                 Spacer()
 
-                Button {
-                    isShowingExercisePicker = true
-                } label: {
-                    Label("Add", systemImage: AppIcon.plus)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(WorkoutPalette.primary)
+                if !workout.exercises.isEmpty {
+                    Button {
+                        isShowingExercisePicker = true
+                    } label: {
+                        Label("Add", systemImage: AppIcon.plus)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(WorkoutPalette.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("add-active-exercise")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("add-active-exercise")
             }
 
             if workout.exercises.isEmpty {
@@ -218,11 +308,22 @@ struct ActiveWorkoutView: View {
                         viewModel: viewModel,
                         onButtonPress: { viewModel.startTime(after: exercise) },
                         unitSystem: unitSystem,
+                        focusedInput: $focusedInput,
                         expandedExerciseID: $expandedExerciseID,
                         onExerciseCompleted: {
                             advanceDisclosure(after: exercise, in: workout)
                         }
                     )
+                    .onDrag {
+                        self.draggedExercise = exercise
+                        return NSItemProvider(object: String(describing: exercise.persistentModelID) as NSString)
+                    }
+                    .onDrop(of: [.text], delegate: ExerciseDragDelegate(
+                        item: exercise,
+                        workout: workout,
+                        viewModel: viewModel,
+                        draggedItem: $draggedExercise
+                    ))
                 }
             }
         }
@@ -233,13 +334,22 @@ struct ActiveWorkoutView: View {
             Image(systemName: AppIcon.workout)
                 .font(.largeTitle)
                 .foregroundStyle(WorkoutPalette.secondary)
-            Text("Build your session")
+            Text("Add your first exercise.")
                 .font(.headline)
                 .foregroundStyle(WorkoutPalette.text)
-            Text("Find or create exercises in the library.")
-                .font(.subheadline)
-                .foregroundStyle(WorkoutPalette.subduedText)
-                .multilineTextAlignment(.center)
+            Button {
+                isShowingExercisePicker = true
+            } label: {
+                Text("Browse exercise library")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, Spacing.m)
+                    .padding(.vertical, Spacing.s)
+                    .background(WorkoutPalette.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("add-active-exercise")
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.xxxl + 2)
@@ -247,32 +357,37 @@ struct ActiveWorkoutView: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
+    @ViewBuilder
     private func finishButton(for workout: Workout) -> some View {
-        VStack {
-            Button {
-                viewModel.cancelTimer()
-                navigationPath.append(.saveWorkout)
-            } label: {
-                Label("Finish workout", systemImage: AppIcon.checkmark)
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 17)
-                    .foregroundStyle(.white)
-                    .background(WorkoutPalette.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+        if workout.exercises.isEmpty {
+            EmptyView()
+        } else {
+            VStack {
+                Button {
+                    viewModel.cancelTimer()
+                    navigationPath.append(.saveWorkout)
+                } label: {
+                    Label("Review Workout", systemImage: AppIcon.checkmark)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 17)
+                        .foregroundStyle(.white)
+                        .background(WorkoutPalette.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(workout.completedSetCount == 0)
+                .opacity(workout.completedSetCount == 0 ? 0.45 : 1)
+                .accessibilityHint(workout.completedSetCount == 0 ? "Complete at least one set before finishing." : "Review and save your workout.")
             }
-            .buttonStyle(.plain)
-            .disabled(workout.completedSetCount == 0)
-            .opacity(workout.completedSetCount == 0 ? 0.45 : 1)
-            .accessibilityHint(workout.completedSetCount == 0 ? "Complete at least one set before finishing." : "Review and save your workout.")
-        }
-        .padding(.horizontal, Spacing.xl)
-        .padding(.vertical, Spacing.m)
-        .background(WorkoutPalette.background)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(WorkoutPalette.border)
-                .frame(height: 1)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.vertical, Spacing.m)
+            .background(WorkoutPalette.background)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(WorkoutPalette.border)
+                    .frame(height: 1)
+            }
         }
     }
 
@@ -300,15 +415,49 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    private func addExerciseFromPicker(_ exercise: ExerciceTemplate) {
-        viewModel.addExercise(exercise)
-        expandedExerciseID = viewModel.activeWorkout?.orderedExercises.last?.persistentModelID
-        isShowingExercisePicker = false
+    private func toggleExerciseFromPicker(_ exercise: ExerciceTemplate) {
+        if let existingExercise = viewModel.activeWorkout?.orderedExercises.first(where: { $0.exercice.name == exercise.name }) {
+            viewModel.removeExercise(existingExercise)
+        } else {
+            viewModel.addExercise(exercise)
+            expandedExerciseID = viewModel.activeWorkout?.orderedExercises.last?.persistentModelID
+        }
     }
 
     private func discardWorkout() {
         viewModel.cancelTimer()
         navigationPath.removeAll()
         onDiscardRequested()
+    }
+}
+
+struct ExerciseDragDelegate: DropDelegate {
+    let item: ExerciceEntry
+    let workout: Workout
+    let viewModel: ActiveWorkoutViewModel
+    @Binding var draggedItem: ExerciceEntry?
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggedItem = nil
+        return true
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard let draggedItem = draggedItem, draggedItem.persistentModelID != item.persistentModelID else { return }
+        let exercises = workout.orderedExercises
+        guard let from = exercises.firstIndex(where: { $0.persistentModelID == draggedItem.persistentModelID }),
+              let to = exercises.firstIndex(where: { $0.persistentModelID == item.persistentModelID })
+        else {
+            return
+        }
+
+        withAnimation(.snappy) {
+            var ordered = exercises
+            ordered.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+            for (index, ex) in ordered.enumerated() {
+                ex.orderIndex = index
+            }
+            viewModel.persistChanges()
+        }
     }
 }

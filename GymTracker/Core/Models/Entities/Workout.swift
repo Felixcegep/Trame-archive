@@ -15,7 +15,15 @@ class Workout {
     var notes: String?
     var startTime: Date
     var endTime: Date?
+    var restEndDate: Date?
+    var pausedRemainingTime: Double?
     var sourceTemplate: WorkoutTemplate?
+    var sourcePlanID: UUID?
+    var sourcePlanRunID: UUID?
+    var sourcePlanBlockID: UUID?
+    var sourcePlanWeekID: UUID?
+    var sourcePlannedWorkoutID: UUID?
+    var sourcePlanName: String?
     var exercises: [ExerciceEntry] = []
     
     init(nom: String?, endTime: Date? = nil) {
@@ -24,14 +32,30 @@ class Workout {
         self.notes = nil
         self.startTime = Date.now
         self.endTime = endTime
+        self.restEndDate = nil
+        self.pausedRemainingTime = nil
         self.sourceTemplate = nil
+        self.sourcePlanID = nil
+        self.sourcePlanRunID = nil
+        self.sourcePlanBlockID = nil
+        self.sourcePlanWeekID = nil
+        self.sourcePlannedWorkoutID = nil
+        self.sourcePlanName = nil
     }
     init(template : WorkoutTemplate, unitSystem : UnitSystem){
         self.status = .active
         self.nom = template.name
         self.notes = nil
         self.startTime = Date.now
+        self.restEndDate = nil
+        self.pausedRemainingTime = nil
         self.sourceTemplate = template
+        self.sourcePlanID = nil
+        self.sourcePlanRunID = nil
+        self.sourcePlanBlockID = nil
+        self.sourcePlanWeekID = nil
+        self.sourcePlannedWorkoutID = nil
+        self.sourcePlanName = nil
         self.exercises = []
         for (index, templateExercise) in template.orderedTemplateExercises.enumerated() {
             exercises.append(ExerciceEntry(from: templateExercise, orderIndex: index, usedMetric: unitSystem))

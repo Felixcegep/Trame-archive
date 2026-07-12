@@ -168,6 +168,11 @@ struct ExerciseFilterControls: View {
             }
             .scrollIndicators(.hidden)
 
+            Image(systemName: AppIcon.chevronRight)
+                .font(AppFont.captionBold)
+                .foregroundStyle(Color.gymPrimary)
+                .accessibilityHidden(true)
+
             Button {
                 isShowingFilters = true
             } label: {
@@ -189,7 +194,7 @@ struct ExerciseFilterControls: View {
                     }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Filters")
+            .accessibilityLabel("Filters, \(filter.activeFilterCount) active")
         }
         .sheet(isPresented: $isShowingFilters) {
             NavigationStack {

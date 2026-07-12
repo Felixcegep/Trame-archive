@@ -78,6 +78,7 @@ final class LiveActivityManager {
         
         
     }
+
     func startPause(timerEndDate : Date) async {
         // show the time left of the pause
         let newState = GymTrackerAttributes.ContentState(
@@ -96,8 +97,24 @@ final class LiveActivityManager {
         await activity?.update(newContent)
 
                 print("Live Activity updated")
-        
-        
+    }
+
+    func pausePause() async {
+        let newState = GymTrackerAttributes.ContentState(
+            currentExerciseName: currentExerciseName,
+            currentSerie: currentSerie,
+            totalSeries: totalSeries,
+            restTimeActive: false,
+            RestTime: nil
+        )
+
+        let newContent = ActivityContent(
+            state: newState,
+            staleDate: nil
+        )
+
+        await activity?.update(newContent)
+        print("Live Activity paused")
     }
     
     func end() async {

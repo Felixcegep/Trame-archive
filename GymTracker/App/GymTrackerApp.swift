@@ -21,7 +21,14 @@ struct GymTrackerApp: App {
                 ExerciceTemplate.self,
                 WorkoutTemplate.self,
                 TemplateExercise.self,
-                WorkoutCollection.self
+                WorkoutCollection.self,
+                WorkoutPlan.self,
+                PlanBlock.self,
+                PlanWeek.self,
+                PlannedWorkout.self,
+                PlannedExercise.self,
+                PlanRun.self,
+                PlanWorkoutProgress.self
             ]
         )
     }

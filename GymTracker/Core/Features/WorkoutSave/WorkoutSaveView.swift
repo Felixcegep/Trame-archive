@@ -11,6 +11,7 @@ struct WorkoutSaveView: View {
 
     @State private var isShowingDiscardConfirmation = false
     @State private var isShowingPartialSaveConfirmation = false
+    @FocusState private var isNotesFocused: Bool
 
     var body: some View {
         Group {
@@ -27,18 +28,11 @@ struct WorkoutSaveView: View {
         .foregroundStyle(WorkoutPalette.text)
         .background(WorkoutPalette.background.ignoresSafeArea())
         .tint(WorkoutPalette.primary)
-        .navigationTitle("Finish workout")
+        .navigationTitle("Review workout")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(WorkoutPalette.background, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") {
-                    navigationPath.removeLast()
-                }
-            }
-        }
     }
 
     private func saveReview(for workout: Workout) -> some View {
@@ -114,10 +108,10 @@ struct WorkoutSaveView: View {
                     Image(systemName: hasIncomplete ? "square.and.pencil" : AppIcon.checkmarkCircle)
                         .font(AppFont.title)
                         .foregroundStyle(hasIncomplete ? WorkoutPalette.primary : WorkoutPalette.secondary)
-                    Text(hasIncomplete ? "Review your workout." : "Nice work.")
+                    Text(hasIncomplete ? "Ready to save part of this workout?" : "Nice work.")
                         .font(AppFont.displayMedium)
                     Text(hasIncomplete 
-                         ? "You have some incomplete sets. You can save the completed ones."
+                         ? "Only completed sets will be saved to History. Incomplete sets will be excluded."
                          : "Give this session a name, then save it to your history.")
                         .font(AppFont.subheadline)
                         .foregroundStyle(WorkoutPalette.subduedText)
@@ -147,12 +141,24 @@ struct WorkoutSaveView: View {
                         .tracking(0.8)
                         .foregroundStyle(WorkoutPalette.subduedText)
 
-                    TextEditor(text: Binding(
-                        get: { workout.notes ?? "" },
-                        set: { workout.notes = $0.isEmpty ? nil : $0 }
-                    ))
-                    .frame(minHeight: 90)
-                    .padding(Spacing.md)
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: Binding(
+                            get: { workout.notes ?? "" },
+                            set: { workout.notes = $0.isEmpty ? nil : $0 }
+                        ))
+                        .focused($isNotesFocused)
+                        .frame(minHeight: notesEditorHeight(for: workout))
+                        .padding(Spacing.md)
+
+                        if !hasNotes(for: workout) {
+                            Text("Add a note…")
+                                .font(AppFont.body)
+                                .foregroundStyle(WorkoutPalette.subduedText)
+                                .padding(.horizontal, Spacing.l + Spacing.md)
+                                .padding(.vertical, Spacing.l)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .background(WorkoutPalette.surface)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                     .overlay {
@@ -173,12 +179,12 @@ struct WorkoutSaveView: View {
             VStack(spacing: Spacing.md) {
                 if workout.incompleteSetCount > 0 {
                     Label(
-                        "\(workout.incompleteSetCount) sets are still incomplete",
+                        "\(saveableSetCount(for: workout)) completed sets will be saved; \(workout.incompleteSetCount) incomplete sets will be excluded",
                         systemImage: AppIcon.warningCircle
                     )
                     .font(AppFont.footnote)
                     .foregroundStyle(WorkoutPalette.accent)
-                    .accessibilityLabel("\(workout.incompleteSetCount) sets are still incomplete. You can save a partial workout or return to finish them.")
+                    .accessibilityLabel("\(saveableSetCount(for: workout)) completed sets will be saved. \(workout.incompleteSetCount) incomplete sets will be excluded from History.")
                 }
 
                 Button(action: requestSave) {
@@ -191,6 +197,7 @@ struct WorkoutSaveView: View {
                         .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("save-workout")
 
                 Button("Discard workout", role: .destructive) {
                     isShowingDiscardConfirmation = true
@@ -202,14 +209,14 @@ struct WorkoutSaveView: View {
             .background(.ultraThinMaterial)
         }
         .confirmationDialog(
-            "Save partial workout?",
+            "Save only completed sets?",
             isPresented: $isShowingPartialSaveConfirmation,
             titleVisibility: .visible
         ) {
             Button("Save completed sets", action: saveWorkout)
             Button("Keep editing", role: .cancel) {}
         } message: {
-            Text("Incomplete sets will remain in the session, but only completed sets count toward your progress.")
+            Text("\(saveableSetCount(for: workout)) completed sets will be saved to History. \(workout.incompleteSetCount) incomplete sets will be excluded. Your workout name and notes will be saved.")
         }
         .confirmationDialog(
             "Discard this workout?",
@@ -232,9 +239,9 @@ struct WorkoutSaveView: View {
         HStack(spacing: 0) {
             summaryMetric(value: workoutDuration(for: workout), label: "Duration")
             Divider().frame(height: 38)
-            summaryMetric(value: "\(workout.exercises.count)", label: "Exercises")
+            summaryMetric(value: "\(saveableExercises(for: workout).count)", label: "Exercises")
             Divider().frame(height: 38)
-            summaryMetric(value: "\(workout.completedSetCount)", label: "Sets done")
+            summaryMetric(value: "\(saveableSetCount(for: workout))", label: "Sets saved")
         }
         .padding(.vertical, Spacing.xl - 2)
         .background(WorkoutPalette.mutedSurface)
@@ -259,28 +266,65 @@ struct WorkoutSaveView: View {
                 .tracking(0.8)
                 .foregroundStyle(WorkoutPalette.subduedText)
 
-            ForEach(workout.orderedExercises, id: \.persistentModelID) { exercise in
-                let completedCount = exercise.sets.filter(\.done).count
-                let totalCount = exercise.sets.count
-                let statusIcon = completedCount == totalCount ? AppIcon.checkmarkCircle : (completedCount > 0 ? "minus.circle.fill" : "circle")
-                let statusColor = completedCount == totalCount ? WorkoutPalette.secondary : (completedCount > 0 ? WorkoutPalette.primary : WorkoutPalette.subduedText.opacity(0.6))
+            ForEach(workout.orderedExercises.filter { $0.orderedSets.contains(where: \.done) }, id: \.persistentModelID) { exercise in
+                let savedSets = exercise.orderedSets.filter(\.done)
+                let incompleteCount = exercise.orderedSets.filter { !$0.done }.count
 
-                HStack(spacing: Spacing.m) {
-                    Image(systemName: statusIcon)
-                        .foregroundStyle(statusColor)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: Spacing.m) {
+                        Image(systemName: AppIcon.checkmarkCircle)
+                            .foregroundStyle(WorkoutPalette.secondary)
 
-                    Text(exercise.exercice.name)
-                        .font(AppFont.subheadlineSemibold)
+                        Text(exercise.exercice.name)
+                            .font(AppFont.subheadlineSemibold)
 
-                    Spacer()
+                        Spacer()
 
-                    Text("\(completedCount)/\(totalCount)")
-                        .font(AppFont.subheadlineMonospaced)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        Text("\(savedSets.count) saved")
+                            .font(AppFont.subheadlineMonospaced)
+                            .foregroundStyle(WorkoutPalette.subduedText)
+                    }
+                    .padding(Spacing.m)
+
+                    Divider()
+                        .padding(.horizontal, Spacing.m)
+
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        ForEach(Array(savedSets.enumerated()), id: \.element.persistentModelID) { index, set in
+                            HStack(spacing: Spacing.s) {
+                                Text("Set \(index + 1)")
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(WorkoutPalette.subduedText)
+
+                                Spacer()
+
+                                Text(set.displayText())
+                                    .font(AppFont.captionSemiboldMonospaced)
+
+                                Image(systemName: AppIcon.checkmark)
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(WorkoutPalette.secondary)
+                            }
+                            .padding(.horizontal, Spacing.m + 2)
+                            .padding(.vertical, Spacing.xxs)
+                        }
+                    }
+                    .padding(.vertical, Spacing.s)
+
+                    if incompleteCount > 0 {
+                        Label("\(incompleteCount) incomplete • excluded from History", systemImage: AppIcon.warningCircle)
+                            .font(AppFont.caption)
+                            .foregroundStyle(WorkoutPalette.accent)
+                            .padding(.horizontal, Spacing.m + 2)
+                            .padding(.bottom, Spacing.m)
+                    }
                 }
-                .padding(Spacing.m - 1)
                 .background(WorkoutPalette.surface)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.large - 1, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                        .stroke(WorkoutPalette.border, lineWidth: 1)
+                }
             }
         }
     }
@@ -292,6 +336,26 @@ struct WorkoutSaveView: View {
             isShowingPartialSaveConfirmation = true
         } else {
             saveWorkout()
+        }
+    }
+
+    private func hasNotes(for workout: Workout) -> Bool {
+        !(workout.notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+    }
+
+    private func notesEditorHeight(for workout: Workout) -> CGFloat {
+        hasNotes(for: workout) || isNotesFocused ? 104 : 44
+    }
+
+    private func saveableExercises(for workout: Workout) -> [ExerciceEntry] {
+        workout.orderedExercises.filter { exercise in
+            exercise.orderedSets.contains(where: \.done)
+        }
+    }
+
+    private func saveableSetCount(for workout: Workout) -> Int {
+        saveableExercises(for: workout).reduce(0) { total, exercise in
+            total + exercise.orderedSets.filter(\.done).count
         }
     }
 

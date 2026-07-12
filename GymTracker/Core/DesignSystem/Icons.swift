@@ -7,6 +7,7 @@ struct AppIcon {
     static let history = "clock.arrow.circlepath"
     static let settings = "gearshape"
     static let minimize = "chevron.down"
+    static let chevronRight = "chevron.right"
     
     // Action Icons
     static let plus = "plus"
@@ -33,6 +34,8 @@ struct AppIcon {
     // Specific Features
     static let workout = "dumbbell.fill"
     static let timer = "timer"
+    static let chart = "chart.xyaxis.line"
+    static let trophy = "trophy.fill"
     static let plateCalculator = "circle.grid.3x3.fill"
     static let warmup = "flame"
 }

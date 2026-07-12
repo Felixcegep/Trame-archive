@@ -22,6 +22,12 @@ final class ExerciceEntry{
     var prescribedRPE: Double?
     var prescribedRIR: Int?
     var prescriptionNotes: String?
+    var sourcePlannedExerciseID: UUID?
+    var prescribedRole: ExerciseRole?
+    var isPrescribedOptional: Bool?
+    var prescribedSuggestedLoad: Double?
+    var prescribedSuggestedLoadType: WeightType?
+    var prescribedProgressionRule: ProgressionRule?
     @Relationship(deleteRule: .cascade)
     var sets: [ExerciseSet]
 
@@ -44,6 +50,12 @@ final class ExerciceEntry{
         self.prescribedRPE = nil
         self.prescribedRIR = nil
         self.prescriptionNotes = nil
+        self.sourcePlannedExerciseID = nil
+        self.prescribedRole = nil
+        self.isPrescribedOptional = nil
+        self.prescribedSuggestedLoad = nil
+        self.prescribedSuggestedLoadType = nil
+        self.prescribedProgressionRule = nil
         normalizeSetOrder()
     }
 

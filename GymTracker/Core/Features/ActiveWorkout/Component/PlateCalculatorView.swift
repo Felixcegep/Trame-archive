@@ -97,7 +97,7 @@ struct PlateCalculatorView: View {
 
     private var plateLoadedEquipmentNote: some View {
         calculatorMessage(
-            "Plate-loaded mode splits the entered weight equally between both sides.",
+            "Plate-loaded mode treats the entered weight as the total and splits it equally between both sides.",
             icon: AppIcon.info
         )
     }
@@ -107,25 +107,20 @@ struct PlateCalculatorView: View {
         if exerciseSet.weight <= 0 {
             calculatorMessage("Use the plate keyboard or enter a target weight.", icon: AppIcon.number)
         } else if usesBarbell && exerciseSet.weight < equipment.barWeight {
-            calculatorMessage("This is lighter than the \(formatted(equipment.barWeight)) \(equipment.unitLabel) bar.", icon: AppIcon.warning)
+            calculatorMessage("The target is below the \(formatted(equipment.barWeight)) \(equipment.unitLabel) bar. The minimum loaded weight is \(formatted(equipment.barWeight)) \(equipment.unitLabel).", icon: AppIcon.warning)
         } else if calculation.remainingWeight > 0.01 {
-            calculatorMessage("This cannot be loaded exactly with the standard plates.", icon: AppIcon.warning)
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                calculatorMessage("This cannot be loaded exactly with the standard plates.", icon: AppIcon.warning)
+                loadingSummary(label: "Closest load")
+            }
         } else {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 Label("Load each side", systemImage: AppIcon.workout)
                     .font(AppFont.headline)
-                Text(calculation.plates.isEmpty ? "No plates" : calculation.plates.map(formatted).joined(separator: " + "))
+                Text(calculation.plates.isEmpty ? "No plates" : calculation.plates.map { "\(formatted($0)) \(equipment.unitLabel) each side" }.joined(separator: " + "))
                     .font(AppFont.titleSmallSemiboldMonospaced)
                     .foregroundStyle(WorkoutPalette.primary)
-                if usesBarbell {
-                    Text("Bar: \(formatted(equipment.barWeight)) \(equipment.unitLabel)  ·  Same plates on both sides")
-                        .font(AppFont.footnote)
-                        .foregroundStyle(WorkoutPalette.subduedText)
-                } else {
-                    Text("Same plates on both sides")
-                        .font(AppFont.footnote)
-                        .foregroundStyle(WorkoutPalette.subduedText)
-                }
+                loadingSummary(label: "Total load")
             }
             .padding(Spacing.l)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -156,13 +151,25 @@ struct PlateCalculatorView: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: Spacing.md)], spacing: Spacing.md) {
                 ForEach(equipment.plates, id: \.self) { plate in
                     HStack(spacing: Spacing.xs) {
-                        Button("−") { removePlatePair(plate) }
-                            .accessibilityLabel("Remove a pair of \(formatted(plate)) \(equipment.unitLabel) plates")
-                        Text("\(formatted(plate)) ×2")
+                        Button {
+                            removePlatePair(plate)
+                        } label: {
+                            Image(systemName: AppIcon.minus)
+                        }
+                        .frame(width: 48, height: 48)
+                        .contentShape(Rectangle())
+                        .accessibilityLabel("Remove \(formatted(plate)) \(equipment.unitLabel) each side")
+                        Text("\(formatted(plate)) \(equipment.unitLabel) each side")
                             .font(AppFont.captionSemiboldMonospaced)
                             .frame(maxWidth: .infinity)
-                        Button("+") { addPlatePair(plate) }
-                            .accessibilityLabel("Add a pair of \(formatted(plate)) \(equipment.unitLabel) plates")
+                        Button {
+                            addPlatePair(plate)
+                        } label: {
+                            Image(systemName: AppIcon.plus)
+                        }
+                        .frame(width: 48, height: 48)
+                        .contentShape(Rectangle())
+                        .accessibilityLabel("Add \(formatted(plate)) \(equipment.unitLabel) each side")
                     }
                     .buttonStyle(.borderless)
                     .foregroundStyle(WorkoutPalette.primary)
@@ -171,7 +178,7 @@ struct PlateCalculatorView: View {
                     .background(WorkoutPalette.surface)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
                     .accessibilityElement(children: .contain)
-                    .accessibilityLabel("\(formatted(plate)) \(equipment.unitLabel) plate pair")
+                    .accessibilityLabel("\(formatted(plate)) \(equipment.unitLabel) each side")
                 }
             }
         }
@@ -196,6 +203,31 @@ struct PlateCalculatorView: View {
             .padding(Spacing.l)
             .background(WorkoutPalette.accentSurface)
             .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+    }
+
+    private func loadingSummary(label: String) -> some View {
+        HStack(spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(label)
+                    .font(AppFont.caption)
+                    .foregroundStyle(WorkoutPalette.subduedText)
+                Text("\(formatted(calculation.totalWeight)) \(equipment.unitLabel)")
+                    .font(AppFont.headlineMonospaced)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: Spacing.xs) {
+                Text("Per side")
+                    .font(AppFont.caption)
+                    .foregroundStyle(WorkoutPalette.subduedText)
+                Text("\(formatted(calculation.perSideWeight)) \(equipment.unitLabel)")
+                    .font(AppFont.headlineMonospaced)
+            }
+        }
+        .padding(Spacing.m)
+        .background(WorkoutPalette.mutedSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
     }
 
     private func formatted(_ value: Float) -> String {
@@ -275,11 +307,15 @@ private enum BarKind: String, CaseIterable, Identifiable {
 private struct PlateCalculation {
     let plates: [Float]
     let remainingWeight: Float
+    let totalWeight: Float
+    let perSideWeight: Float
 
     init(target: Float, barWeight: Float, plates availablePlates: [Float]) {
         guard target >= barWeight else {
             plates = []
             remainingWeight = 0
+            totalWeight = 0
+            perSideWeight = 0
             return
         }
 
@@ -295,5 +331,7 @@ private struct PlateCalculation {
 
         plates = selectedPlates
         remainingWeight = remainingPerSide * 2
+        perSideWeight = barWeight / 2 + selectedPlates.reduce(0, +)
+        totalWeight = barWeight + selectedPlates.reduce(0, +) * 2
     }
 }

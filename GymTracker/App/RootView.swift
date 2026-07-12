@@ -9,7 +9,15 @@ import SwiftUI
 import SwiftData
 
 struct RootView: View {
+    private enum AppTab: Hashable {
+        case home
+        case library
+        case history
+        case settings
+    }
+
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var exerciceTemplates: [ExerciceTemplate]
 
     @State private var workoutVM = WorkoutViewModel()
@@ -17,9 +25,12 @@ struct RootView: View {
     @State private var activeWorkoutPath: [HomeRoute] = []
     @State private var isShowingActiveWorkout = false
     @State private var shouldDiscardActiveWorkout = false
+    @State private var selectedTab: AppTab = .home
+    @State private var templateToStart: WorkoutTemplate? = nil
+    @State private var isShowingActiveWorkoutConflictAlert = false
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack(path: $homePath) {
                 HomeView(
                     workoutVM: workoutVM,
@@ -29,28 +40,36 @@ struct RootView: View {
             }
             .tabItem {
                 Label("Home", systemImage: "house")
+                    .accessibilityIdentifier("tab-home")
             }
+            .tag(AppTab.home)
 
             NavigationStack {
                 FolderView(onStartWorkout: startWorkout)
             }
             .tabItem {
                 Label("Library", systemImage: "folder.fill")
+                    .accessibilityIdentifier("tab-library")
             }
+            .tag(AppTab.library)
 
             NavigationStack {
                 HistoryView(viewModel: workoutVM)
             }
             .tabItem {
                 Label("History", systemImage: "clock")
+                    .accessibilityIdentifier("tab-history")
             }
+            .tag(AppTab.history)
 
             NavigationStack {
-                AnalyticsView()
+                SettingView()
             }
             .tabItem {
-                Label("Analytics", systemImage: "chart.line.uptrend.xyaxis")
+                Label("Settings", systemImage: AppIcon.settings)
+                    .accessibilityIdentifier("tab-settings")
             }
+            .tag(AppTab.settings)
         }
         .fullScreenCover(isPresented: $isShowingActiveWorkout, onDismiss: {
             activeWorkoutPath.removeAll()
@@ -81,7 +100,34 @@ struct RootView: View {
                 }
             }
         }
+        .confirmationDialog(
+            "An active workout is already in progress",
+            isPresented: $isShowingActiveWorkoutConflictAlert,
+            titleVisibility: .visible
+        ) {
+            Button("Resume Active Workout") {
+                isShowingActiveWorkout = true
+                templateToStart = nil
+            }
+            Button("Discard & Start New", role: .destructive) {
+                workoutVM.discardActiveWorkout(using: modelContext)
+                if let template = templateToStart {
+                    workoutVM.startWorkout(with: template, using: modelContext)
+                    isShowingActiveWorkout = true
+                }
+                templateToStart = nil
+            }
+            Button("Cancel", role: .cancel) {
+                templateToStart = nil
+            }
+        } message: {
+            Text("Do you want to continue your active workout, or discard it and start a new one?")
+        }
         .task {
+            if CommandLine.arguments.contains("-ui-testing-open-history") {
+                selectedTab = .history
+            }
+
             if CommandLine.arguments.contains("-reset-data") {
                 resetDataForUITesting()
             }
@@ -89,6 +135,15 @@ struct RootView: View {
             seedWorkoutTemplatesIfNeeded()
             normalizePersistedWorkoutData()
             workoutVM.restoreActiveWorkout(using: modelContext)
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .background {
+                do {
+                    try modelContext.save()
+                } catch {
+                    print("Failed to save modelContext on backgrounding: \(error)")
+                }
+            }
         }
     }
 
@@ -138,7 +193,11 @@ struct RootView: View {
     }
 
     private func startWorkout(from template: WorkoutTemplate) {
-        if workoutVM.startWorkout(with: template, using: modelContext) || workoutVM.hasActiveWorkout {
+        if workoutVM.hasActiveWorkout {
+            templateToStart = template
+            isShowingActiveWorkoutConflictAlert = true
+        } else {
+            workoutVM.startWorkout(with: template, using: modelContext)
             isShowingActiveWorkout = true
         }
     }
