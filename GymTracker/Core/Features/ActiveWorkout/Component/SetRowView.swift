@@ -21,9 +21,7 @@ struct SetRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.s) {
-                Text("\(index + 1)")
-                    .font(AppFont.subheadlineSemiboldMonospaced)
-                    .foregroundStyle(exerciseSet.done ? WorkoutPalette.secondary : WorkoutPalette.text)
+                setTypeChip
                     .frame(width: 45, alignment: .leading)
 
                 if trackingType.usesReps { repsField }
@@ -163,16 +161,69 @@ struct SetRowView: View {
         return isCurrentSet ? WorkoutPalette.currentSetSurface : WorkoutPalette.rowSurface
     }
 
+    private var setTypeChip: some View {
+        Menu {
+            Picker("Set type", selection: Binding(
+                get: { exerciseSet.setType },
+                set: {
+                    exerciseSet.setType = $0
+                    viewModel.persistChanges()
+                }
+            )) {
+                ForEach(SetType.allCases, id: \.self) { type in
+                    Label(type.title, systemImage: icon(for: type)).tag(type)
+                }
+            }
+        } label: {
+            Text(exerciseSet.setType.shortLabel ?? "\(index + 1)")
+                .font(AppFont.subheadlineSemiboldMonospaced)
+                .foregroundStyle(chipForeground)
+                .frame(width: 32, height: 28)
+                .background(chipBackground)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("Set \(index + 1), \(exerciseSet.setType.title)")
+        .accessibilityHint("Change set type")
+        .accessibilityIdentifier("set-type-\(exerciseEntry.exercice.name)-\(index)")
+    }
+
+    private var setTypeColor: Color? {
+        switch exerciseSet.setType {
+        case .normal: nil
+        case .warmup: WorkoutPalette.accent
+        case .dropSet: WorkoutPalette.primary
+        case .failure: Color.gymDestructive
+        case .backoff: WorkoutPalette.secondary
+        }
+    }
+
+    private var chipForeground: Color {
+        if let setTypeColor { return setTypeColor }
+        return exerciseSet.done ? WorkoutPalette.secondary : WorkoutPalette.text
+    }
+
+    private var chipBackground: Color {
+        setTypeColor?.opacity(0.14) ?? .clear
+    }
+
+    private func icon(for type: SetType) -> String {
+        switch type {
+        case .normal: AppIcon.circle
+        case .warmup: AppIcon.warmup
+        case .dropSet: "arrow.down.right"
+        case .failure: "bolt.fill"
+        case .backoff: "arrow.uturn.down"
+        }
+    }
+
     private var rowMenu: some View {
         Menu {
             Button(action: copyPreviousSetValue) {
                 Label("Copy previous values", systemImage: AppIcon.copy)
             }
             .disabled(index == 0)
-
-            Button(action: toggleWarmup) {
-                Label(exerciseSet.setType == .warmup ? "Mark normal" : "Mark warmup", systemImage: AppIcon.warmup)
-            }
 
             Menu(exerciseSet.rpe.map { "RPE \($0)" } ?? "RPE") {
                 Button("No RPE") {
@@ -264,9 +315,5 @@ struct SetRowView: View {
 
     private func copyPreviousSetValue() {
         viewModel.copyPreviousSetValue(exerciseEntry: exerciseEntry, currentSetIndex: index)
-    }
-
-    private func toggleWarmup() {
-        exerciseSet.setType = exerciseSet.setType == .warmup ? .normal : .warmup
     }
 }

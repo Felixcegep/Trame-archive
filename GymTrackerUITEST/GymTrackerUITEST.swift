@@ -214,10 +214,11 @@ final class GymTrackerUITEST: XCTestCase {
         addExercise("Bench Press", in: app)
 
         app.buttons["active-workout-menu"].tap()
-        XCTAssertTrue(app.buttons["Discard workout"].waitForExistence(timeout: 5))
-        app.buttons["Discard workout"].tap()
-        XCTAssertTrue(app.buttons["Discard workout"].waitForExistence(timeout: 5))
-        app.buttons["Discard workout"].tap()
+        // The toolbar trash button and the dialog action share the
+        // "Discard workout" label; the dialog action appears second.
+        let confirmDiscard = app.buttons.matching(identifier: "Discard workout").element(boundBy: 1)
+        XCTAssertTrue(confirmDiscard.waitForExistence(timeout: 5))
+        confirmDiscard.tap()
 
         XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["start-free-workout"].label.contains("Resume"))
@@ -305,7 +306,9 @@ final class GymTrackerUITEST: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
         app.launch()
-        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
+        // First launch after a fresh install reseeds the catalogue and can
+        // exceed 5 seconds on a cold simulator.
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 15))
         return app
     }
 
@@ -322,6 +325,15 @@ final class GymTrackerUITEST: XCTestCase {
         let exercise = app.buttons["add-exercise-\(name)"]
         XCTAssertTrue(exercise.waitForExistence(timeout: 5))
         exercise.tap()
+
+        let keyboardClose = app.buttons["close"]
+        if keyboardClose.waitForExistence(timeout: 2) {
+            keyboardClose.tap()
+        }
+
+        let closeExercisePicker = app.buttons["close-exercise-picker"]
+        XCTAssertTrue(closeExercisePicker.waitForExistence(timeout: 5))
+        closeExercisePicker.tap()
     }
 
     private func enterValidValues(for exercise: String, set: Int, in app: XCUIApplication) {

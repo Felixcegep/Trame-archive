@@ -67,16 +67,13 @@ struct ActiveWorkoutView: View {
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button(role: .destructive) {
-                        isShowingDiscardConfirmation = true
-                    } label: {
-                        Label("Discard workout", systemImage: AppIcon.trash)
-                    }
+                Button(role: .destructive) {
+                    isShowingDiscardConfirmation = true
                 } label: {
-                    Image(systemName: AppIcon.ellipsis)
+                    Image(systemName: AppIcon.trash)
                         .fontWeight(.semibold)
                 }
+                .accessibilityLabel("Discard workout")
                 .accessibilityIdentifier("active-workout-menu")
             }
         }

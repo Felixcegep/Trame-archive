@@ -207,17 +207,7 @@ struct WorkoutDetailView: View {
 
     private func setLabel(for set: ExerciseSet, index: Int) -> String {
         guard set.setType != .normal else { return "\(index + 1)" }
-        return "\(index + 1) · \(setTypeName(set.setType))"
-    }
-
-    private func setTypeName(_ type: SetType) -> String {
-        switch type {
-        case .warmup: return "Warm-up"
-        case .normal: return ""
-        case .dropSet: return "Drop"
-        case .failure: return "Failure"
-        case .backoff: return "Back-off"
-        }
+        return "\(index + 1) · \(set.setType.title)"
     }
 
     private func weightText(for set: ExerciseSet) -> String {
