@@ -47,3 +47,8 @@ enum ProgressionRule: String, Codable, CaseIterable {
     case none
     case doubleProgression
 }
+
+enum DoubleProgressionDecision: String, Codable, Equatable, Sendable {
+    case hold
+    case increase
+}

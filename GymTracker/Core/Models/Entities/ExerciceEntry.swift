@@ -28,6 +28,16 @@ final class ExerciceEntry{
     var prescribedSuggestedLoad: Double?
     var prescribedSuggestedLoadType: WeightType?
     var prescribedProgressionRule: ProgressionRule?
+    // Evidence captured at workout start so recommendations remain explainable
+    // even when their source template or prior workout later changes.
+    var recommendedDecision: DoubleProgressionDecision?
+    var recommendedLoad: Float?
+    var recommendedUnit: WeightType?
+    var recommendationPriorLoad: Float?
+    var recommendationRequiredSets: Int?
+    var recommendationRepCeiling: Int?
+    var recommendationCompletedSets: Int?
+    var recommendationPriorWorkoutDate: Date?
     var workout: Workout?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseSet.exerciseEntry)
     var sets: [ExerciseSet]
@@ -57,6 +67,14 @@ final class ExerciceEntry{
         self.prescribedSuggestedLoad = nil
         self.prescribedSuggestedLoadType = nil
         self.prescribedProgressionRule = nil
+        self.recommendedDecision = nil
+        self.recommendedLoad = nil
+        self.recommendedUnit = nil
+        self.recommendationPriorLoad = nil
+        self.recommendationRequiredSets = nil
+        self.recommendationRepCeiling = nil
+        self.recommendationCompletedSets = nil
+        self.recommendationPriorWorkoutDate = nil
         normalizeSetOrder()
     }
 
@@ -74,6 +92,7 @@ final class ExerciceEntry{
         prescribedRPE = templateExercise.targetRPE
         prescribedRIR = templateExercise.targetRIR
         prescriptionNotes = templateExercise.notes
+        prescribedProgressionRule = templateExercise.progressionRule
         addDefaultSets(count: templateExercise.targetSets)
     }
 

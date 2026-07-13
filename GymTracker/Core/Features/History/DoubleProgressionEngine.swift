@@ -9,11 +9,6 @@ struct ProgressionEvidence: Equatable, Sendable {
     let workoutDate: Date
 }
 
-enum DoubleProgressionDecision: Equatable, Sendable {
-    case hold
-    case increase
-}
-
 struct DoubleProgressionRecommendation: Equatable, Sendable {
     let decision: DoubleProgressionDecision
     let recommendedLoad: Float

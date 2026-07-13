@@ -11,6 +11,7 @@ final class TemplateExercise {
     var targetRPE: Double?
     var targetRIR: Int?
     var notes: String?
+    var progressionRule: ProgressionRule = ProgressionRule.doubleProgression
     var exercise: ExerciceTemplate
     var workoutTemplate: WorkoutTemplate?
 
@@ -23,7 +24,8 @@ final class TemplateExercise {
         restSeconds: Int = 90,
         targetRPE: Double? = nil,
         targetRIR: Int? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        progressionRule: ProgressionRule = .doubleProgression
     ) {
         self.exercise = exercise
         self.orderIndex = order
@@ -34,5 +36,6 @@ final class TemplateExercise {
         self.targetRPE = targetRPE
         self.targetRIR = targetRIR
         self.notes = notes
+        self.progressionRule = progressionRule
     }
 }
