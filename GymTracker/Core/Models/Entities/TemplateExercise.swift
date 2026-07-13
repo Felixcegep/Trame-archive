@@ -13,6 +13,7 @@ final class TemplateExercise {
     var targetRIR: Int?
     var notes: String?
     var exercise: ExerciceTemplate
+    var workoutTemplate: WorkoutTemplate?
 
     init(
         exercise: ExerciceTemplate,

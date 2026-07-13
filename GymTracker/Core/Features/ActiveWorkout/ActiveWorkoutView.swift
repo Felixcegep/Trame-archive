@@ -99,6 +99,9 @@ struct ActiveWorkoutView: View {
         .onDisappear {
             viewModel.persistChanges()
         }
+        .onAppear {
+            viewModel.loadPreviousPerformances()
+        }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Button {
@@ -297,6 +300,7 @@ struct ActiveWorkoutView: View {
                         unitSystem: unitSystem,
                         focusedInput: $focusedInput,
                         expandedExerciseID: $expandedExerciseID,
+                        previousPerformance: viewModel.previousPerformance(for: exercise),
                         onExerciseCompleted: {
                             advanceDisclosure(after: exercise, in: workout)
                         }

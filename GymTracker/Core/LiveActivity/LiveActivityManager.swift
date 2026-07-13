@@ -20,10 +20,17 @@ final class LiveActivityManager {
     private init() {}
 
     func startWorkout(startTime : Date) {
-            guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-                print("Live Activities disabled")
-                return
-            }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            print("Live Activities disabled")
+            return
+        }
+
+        // A Live Activity survives process relaunch. Reuse it instead of
+        // requesting another activity for the same resumed workout.
+        if let existingActivity = Activity<GymTrackerAttributes>.activities.first {
+            activity = existingActivity
+            return
+        }
 
         let attributes = GymTrackerAttributes(startTime: startTime)
 
@@ -35,20 +42,16 @@ final class LiveActivityManager {
             RestTime: nil
         )
 
-            do {
-                activity = try Activity.request(
-                    attributes: attributes,
-                    content: ActivityContent(state: state, staleDate: nil)
-                )
+        do {
+            activity = try Activity.request(
+                attributes: attributes,
+                content: ActivityContent(state: state, staleDate: nil)
+            )
 
-                print("Live Activity started")
-            } catch {
-                print("Failed to start Live Activity:", error)
-            }
+            print("Live Activity started")
+        } catch {
+            print("Failed to start Live Activity:", error)
         }
-    
-    func update(){
-        // idk
     }
     func updateExercise(
         name: String,

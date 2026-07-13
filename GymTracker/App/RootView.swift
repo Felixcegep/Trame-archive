@@ -164,6 +164,7 @@ struct RootView: View {
             if CommandLine.arguments.contains("-reset-data") {
                 resetDataForUITesting()
             }
+            runDataMaintenance()
             seedExerciseTemplatesIfNeeded()
             seedWorkoutTemplatesIfNeeded()
             seedWorkoutCollectionsIfNeeded()
@@ -216,6 +217,14 @@ struct RootView: View {
             }
         } catch {
             print("Failed to seed exercise templates: \(error)")
+        }
+    }
+
+    private func runDataMaintenance() {
+        do {
+            _ = try DataMaintenanceService.runOrphanCleanupIfNeeded(using: modelContext)
+        } catch {
+            print("Failed to clean orphaned workout data: \(error)")
         }
     }
 

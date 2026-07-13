@@ -36,15 +36,25 @@ class WorkoutViewModel {
             return false
         }
 
-        // Remove incomplete sets from all remaining exercises
+        // Incomplete work is intentionally excluded from historical truth. Removing
+        // a SwiftData relationship alone does not delete its model, so explicitly
+        // delete each child as well.
         for exercise in activeWorkout.exercises {
+            let incompleteSets = exercise.sets.filter { !$0.done }
             exercise.sets.removeAll { !$0.done }
+            for set in incompleteSets {
+                modelContext.delete(set)
+            }
             exercise.normalizeSetOrder()
         }
 
         // Do not carry added-but-never-started exercises into workout history.
+        let emptyExercises = activeWorkout.exercises.filter { $0.sets.isEmpty }
         activeWorkout.exercises.removeAll { exercise in
-            exercise.sets.isEmpty
+            emptyExercises.contains { $0.persistentModelID == exercise.persistentModelID }
+        }
+        for exercise in emptyExercises {
+            modelContext.delete(exercise)
         }
 
         guard activeWorkout.completedSetCount > 0 else { return false }

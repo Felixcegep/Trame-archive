@@ -10,6 +10,9 @@ import SwiftData
 
 @Model
 class Workout {
+    /// Stable cross-process identity for the workout represented by a Live Activity
+    /// and for durable prescription evidence.
+    var id = UUID()
     var status: WorkoutStatus = WorkoutStatus.active
     var nom: String?
     var notes: String?
@@ -24,6 +27,7 @@ class Workout {
     var sourcePlanWeekID: UUID?
     var sourcePlannedWorkoutID: UUID?
     var sourcePlanName: String?
+    @Relationship(deleteRule: .cascade, inverse: \ExerciceEntry.workout)
     var exercises: [ExerciceEntry] = []
     
     init(nom: String?, endTime: Date? = nil) {

@@ -9,6 +9,7 @@ struct ExerciceEntryCard: View {
     let unitSystem: UnitSystem
     let focusedInput: FocusState<SetInputFocus?>.Binding
     @Binding var expandedExerciseID: PersistentIdentifier?
+    let previousPerformance: PreviousExercisePerformance?
     let onExerciseCompleted: () -> Void
 
     @State private var horizontalOffset: CGFloat = 0
@@ -104,6 +105,14 @@ struct ExerciceEntryCard: View {
                         .accessibilityIdentifier("prescription-summary-\(exerciseEntry.exercice.name)")
                 }
 
+                if let previousPerformance {
+                    Text(previousPerformanceSummary(previousPerformance))
+                        .font(AppFont.caption)
+                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .lineLimit(1)
+                        .accessibilityIdentifier("previous-performance-\(exerciseEntry.exercice.name)")
+                }
+
                 HStack(spacing: 7) {
                     Text("\(completedSetCount)/\(exerciseEntry.sets.count) sets")
                     Text("•")
@@ -166,6 +175,7 @@ struct ExerciceEntryCard: View {
                     focusedInput: focusedInput,
                     onButtonPress: onButtonPress,
                     onSetCompleted: handleSetCompletion,
+                    previousSet: previousPerformance?.set(at: exerciseSet.orderIndex),
                     onRemove: { viewModel.removeSet(exerciseEntry, exerciseSet) }
                 )
             }
@@ -274,6 +284,31 @@ struct ExerciceEntryCard: View {
         if trackingType.usesDuration { titles.append("Time") }
         if trackingType.usesDistance { titles.append("Distance") }
         return titles
+    }
+
+    private func previousPerformanceSummary(_ performance: PreviousExercisePerformance) -> String {
+        let date = performance.workoutDate.formatted(.dateTime.month(.abbreviated).day())
+        let sets = performance.sets
+        guard let first = sets.first else { return "Last time: \(date)" }
+
+        if trackingType.usesWeight {
+            let matchingReps = sets.allSatisfy { $0.repetitions == first.repetitions }
+            let matchingWeight = sets.allSatisfy { $0.weight == first.weight && $0.weightType == first.weightType }
+            if matchingReps && matchingWeight {
+                return "Last time: \(sets.count) × \(Formatters.formatFloat(first.repetitions)) @ \(Formatters.formatFloat(first.weight)) \(first.weightType.rawValue) · \(date)"
+            }
+            return "Last time: \(sets.count) sets · up to \(Formatters.formatFloat(sets.map(\.weight).max() ?? 0)) \(first.weightType.rawValue) · \(date)"
+        }
+
+        if trackingType.usesReps {
+            let matchingReps = sets.allSatisfy { $0.repetitions == first.repetitions }
+            let reps = matchingReps
+                ? Formatters.formatFloat(first.repetitions)
+                : "\(Formatters.formatFloat(sets.map(\.repetitions).min() ?? 0))–\(Formatters.formatFloat(sets.map(\.repetitions).max() ?? 0))"
+            return "Last time: \(sets.count) × \(reps) reps · \(date)"
+        }
+
+        return "Last time: \(sets.count) sets · \(date)"
     }
 
     private func handleSetCompletion() {

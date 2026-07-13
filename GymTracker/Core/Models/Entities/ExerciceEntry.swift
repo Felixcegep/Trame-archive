@@ -28,7 +28,8 @@ final class ExerciceEntry{
     var prescribedSuggestedLoad: Double?
     var prescribedSuggestedLoadType: WeightType?
     var prescribedProgressionRule: ProgressionRule?
-    @Relationship(deleteRule: .cascade)
+    var workout: Workout?
+    @Relationship(deleteRule: .cascade, inverse: \ExerciseSet.exerciseEntry)
     var sets: [ExerciseSet]
 
     init(

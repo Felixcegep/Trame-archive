@@ -10,6 +10,7 @@ struct AppIcon {
     static let planAdd = "calendar.badge.plus"
     static let minimize = "chevron.down"
     static let chevronRight = "chevron.right"
+    static let picker = "chevron.up.chevron.down"
     
     // Action Icons
     static let plus = "plus"

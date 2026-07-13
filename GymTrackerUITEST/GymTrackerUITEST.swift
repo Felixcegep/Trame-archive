@@ -208,6 +208,32 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(app.buttons["history-workout-row"].waitForExistence(timeout: 5))
     }
 
+    func testShowsAndAppliesPreviousSessionPerformance() {
+        let app = launchFreshApp()
+        app.buttons["start-free-workout"].tap()
+        addExercise("Bench Press", in: app)
+        enterValidValues(for: "Bench Press", set: 0, in: app)
+        app.buttons["complete-set-Bench Press-0"].tap()
+        app.buttons["Done"].tap()
+        app.buttons["Review Workout"].tap()
+        app.buttons["save-workout"].tap()
+        if app.buttons["Save completed sets"].waitForExistence(timeout: 2) {
+            app.buttons["Save completed sets"].tap()
+        }
+
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
+        app.buttons["start-free-workout"].tap()
+        addExercise("Bench Press", in: app)
+
+        XCTAssertTrue(app.staticTexts["previous-performance-Bench Press"].waitForExistence(timeout: 5))
+        let usePrevious = app.buttons["use-previous-set-Bench Press-0"]
+        XCTAssertTrue(usePrevious.waitForExistence(timeout: 5))
+        usePrevious.tap()
+
+        XCTAssertEqual(app.textFields["reps-field-Bench Press-0"].value as? String, "8")
+        XCTAssertEqual(app.textFields["weight-field-Bench Press-0"].value as? String, "50")
+    }
+
     func testDiscardsActiveWorkout() {
         let app = launchFreshApp()
         app.buttons["start-free-workout"].tap()
@@ -306,8 +332,15 @@ final class GymTrackerUITEST: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
         app.launch()
-        // First launch after a fresh install reseeds the catalogue and can
-        // exceed 5 seconds on a cold simulator.
+        XCTAssertEqual(app.state, .runningForeground)
+
+        // A reset clears and reseeds SwiftData before the tab content becomes
+        // interactive. Wait on that real state transition instead of guessing
+        // how long a cold simulator needs.
+        let preparing = app.descendants(matching: .any)["app-preparing"]
+        if preparing.waitForExistence(timeout: 2) {
+            XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
+        }
         XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 15))
         return app
     }
@@ -340,11 +373,13 @@ final class GymTrackerUITEST: XCTestCase {
         let reps = app.textFields["reps-field-\(exercise)-\(set)"]
         XCTAssertTrue(reps.waitForExistence(timeout: 5))
         reps.tap()
+        reps.typeText(XCUIKeyboardKey.delete.rawValue)
         reps.typeText("8")
 
         let weight = app.textFields["weight-field-\(exercise)-\(set)"]
         XCTAssertTrue(weight.waitForExistence(timeout: 5))
         weight.tap()
+        weight.typeText(XCUIKeyboardKey.delete.rawValue)
         weight.typeText("50")
 
         app.buttons["Done"].tap()
@@ -495,7 +530,15 @@ final class GymTrackerUITEST: XCTestCase {
         
         // Wait to return to Home
         XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
-        
+
+        // Previous-session performance is a primary active-workout reference.
+        // Start a second session from the workout just saved above.
+        app.buttons["start-free-workout"].tap()
+        addExercise("Bench Press", in: app)
+        XCTAssertTrue(app.staticTexts["previous-performance-Bench Press"].waitForExistence(timeout: 5))
+        saveScreenshot(name: "10_Previous_Performance")
+        app.buttons["minimize-workout"].tap()
+
         // 10. History Tab (With Saved Workout)
         app.tabBars.buttons.element(boundBy: 2).tap()
         saveScreenshot(name: "10_History_With_Workout")

@@ -9,20 +9,16 @@ extension ModelContext {
         }
         try save()
 
-        try delete(model: ExerciseSet.self)
-        try delete(model: ExerciceEntry.self)
-        try delete(model: Workout.self)
-        try delete(model: PlanWorkoutProgress.self)
-        try delete(model: PlanRun.self)
-        try delete(model: PlannedExercise.self)
-        try delete(model: PlannedWorkout.self)
-        try delete(model: PlanWeek.self)
-        try delete(model: PlanBlock.self)
-        try delete(model: WorkoutPlan.self)
-        try delete(model: WorkoutCollection.self)
-        try delete(model: WorkoutTemplate.self)
-        try delete(model: TemplateExercise.self)
-        try delete(model: ExerciceTemplate.self)
+        // Delete graph roots, never relationship children by batch request. This
+        // lets SwiftData apply the same cascade and nullification rules that the
+        // app uses for a real discard or deletion.
+        for workout in workouts { delete(workout) }
+        for run in try fetch(FetchDescriptor<PlanRun>()) { delete(run) }
+        for plan in try fetch(FetchDescriptor<WorkoutPlan>()) { delete(plan) }
+        for collection in try fetch(FetchDescriptor<WorkoutCollection>()) { delete(collection) }
+        for template in try fetch(FetchDescriptor<WorkoutTemplate>()) { delete(template) }
+        for exercise in try fetch(FetchDescriptor<ExerciceTemplate>()) { delete(exercise) }
         try save()
+        _ = try DataMaintenanceService.cleanupOrphans(using: self)
     }
 }

@@ -4,6 +4,7 @@ struct DefaultsKey {
     static let darkMode = "darkMode"
     static let restTimer = "restTimer"
     static let useMetric = "useMetric"
+    static let orphanCleanupVersion = "orphanCleanupVersion"
 }
 
 extension UserDefaults {

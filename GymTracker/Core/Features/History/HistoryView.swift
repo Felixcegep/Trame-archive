@@ -313,19 +313,27 @@ private struct HistoryProgressView: View {
 
     private var exerciseSeries: [HistoryExerciseSeries] {
         var byName: [String: HistoryExerciseSeries] = [:]
+        let displayWeightType: WeightType = UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
 
         for workout in workouts.sorted(by: { $0.startTime < $1.startTime }) {
             for exercise in workout.orderedExercises {
                 let completedSets = exercise.orderedSets.filter(\.done)
-                let load = completedSets.filter { _ in exercise.exercice.trackingType.usesWeight }.map(\.weight).max()
+                let weightedSets = completedSets.filter { _ in exercise.exercice.trackingType.usesWeight }
+                let load = weightedSets
+                    .map { UnitConversion.weight($0.weight, from: $0.weightType, to: displayWeightType) }
+                    .max()
                 let volume = completedSets.reduce(Float.zero) { total, set in
                     guard exercise.exercice.trackingType.usesWeight, exercise.exercice.trackingType.usesReps else { return total }
-                    return total + (set.weight * set.repetition)
+                    let displayWeight = UnitConversion.weight(set.weight, from: set.weightType, to: displayWeightType)
+                    return total + (displayWeight * set.repetition)
                 }
                 let reps = completedSets.reduce(Float.zero) { $0 + (exercise.exercice.trackingType.usesReps ? $1.repetition : 0) }
 
                 guard load != nil || volume > 0 || reps > 0 else { continue }
-                var series = byName[exercise.exercice.name] ?? HistoryExerciseSeries(name: exercise.exercice.name, unit: completedSets.first?.weightType.rawValue ?? "")
+                var series = byName[exercise.exercice.name] ?? HistoryExerciseSeries(
+                    name: exercise.exercice.name,
+                    unit: exercise.exercice.trackingType.usesWeight ? displayWeightType.rawValue : ""
+                )
                 if let load {
                     series.loadPoints.append(HistoryMetricPoint(date: workout.startTime, value: load))
                 }

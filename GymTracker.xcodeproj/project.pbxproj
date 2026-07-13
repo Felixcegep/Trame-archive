@@ -27,6 +27,13 @@
 			remoteGlobalIDString = 44E0076B2FFAEB0600BF7D2B;
 			remoteInfo = GymTrackerExtensionExtension;
 		};
+		A10000000000000000000009 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 44E006322FF6E3C000BF7D2B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 44E006392FF6E3C000BF7D2B;
+			remoteInfo = GymTracker;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -49,6 +56,7 @@
 		44E0076C2FFAEB0600BF7D2B /* GymTrackerExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GymTrackerExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		44E0076E2FFAEB0600BF7D2B /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		44E007702FFAEB0600BF7D2B /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		A10000000000000000000001 /* GymTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GymTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -100,6 +108,11 @@
 			path = GymTracker/Core/Foundation;
 			sourceTree = "<group>";
 		};
+		A10000000000000000000002 /* GymTrackerTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = GymTrackerTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,6 +139,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -144,6 +164,7 @@
 				44E0063C2FF6E3C000BF7D2B /* GymTracker */,
 				44E007722FFAEB0600BF7D2B /* GymTrackerExtension */,
 				4406369B300194FD0084434D /* GymTrackerUITEST */,
+				A10000000000000000000002 /* GymTrackerTests */,
 				44E0076D2FFAEB0600BF7D2B /* Frameworks */,
 				44E0063B2FF6E3C000BF7D2B /* Products */,
 				4446FF1A3002CEB5002547B3 /* Recovered References */,
@@ -156,6 +177,7 @@
 				44E0063A2FF6E3C000BF7D2B /* GymTracker.app */,
 				44E0076C2FFAEB0600BF7D2B /* GymTrackerExtensionExtension.appex */,
 				4406369A300194FD0084434D /* GymTrackerUITEST.xctest */,
+				A10000000000000000000001 /* GymTrackerTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -243,6 +265,29 @@
 			productReference = 44E0076C2FFAEB0600BF7D2B /* GymTrackerExtensionExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		A10000000000000000000003 /* GymTrackerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000004 /* Build configuration list for PBXNativeTarget "GymTrackerTests" */;
+			buildPhases = (
+				A10000000000000000000005 /* Sources */,
+				A10000000000000000000006 /* Frameworks */,
+				A10000000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A10000000000000000000008 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000002 /* GymTrackerTests */,
+			);
+			name = GymTrackerTests;
+			packageProductDependencies = (
+			);
+			productName = GymTrackerTests;
+			productReference = A10000000000000000000001 /* GymTrackerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -283,6 +328,7 @@
 				44E006392FF6E3C000BF7D2B /* GymTracker */,
 				44E0076B2FFAEB0600BF7D2B /* GymTrackerExtensionExtension */,
 				44063699300194FD0084434D /* GymTrackerUITEST */,
+				A10000000000000000000003 /* GymTrackerTests */,
 			);
 		};
 /* End PBXProject section */
@@ -303,6 +349,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		44E0076A2FFAEB0600BF7D2B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000007 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -333,6 +386,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -345,6 +405,11 @@
 			isa = PBXTargetDependency;
 			target = 44E0076B2FFAEB0600BF7D2B /* GymTrackerExtensionExtension */;
 			targetProxy = 44E007802FFAEB0700BF7D2B /* PBXContainerItemProxy */;
+		};
+		A10000000000000000000008 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 44E006392FF6E3C000BF7D2B /* GymTracker */;
+			targetProxy = A10000000000000000000009 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -638,6 +703,42 @@
 			};
 			name = Release;
 		};
+		A10000000000000000000010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M9FC992T46;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = felix.GymTrackerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GymTracker.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GymTracker";
+				TEST_TARGET_NAME = GymTracker;
+			};
+			name = Debug;
+		};
+		A10000000000000000000011 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M9FC992T46;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = felix.GymTrackerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GymTracker.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GymTracker";
+				TEST_TARGET_NAME = GymTracker;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -673,6 +774,15 @@
 			buildConfigurations = (
 				44E007852FFAEB0700BF7D2B /* Debug */,
 				44E007862FFAEB0700BF7D2B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000004 /* Build configuration list for PBXNativeTarget "GymTrackerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000010 /* Debug */,
+				A10000000000000000000011 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

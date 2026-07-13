@@ -6,6 +6,10 @@ struct PlateCalculatorView: View {
     let usesBarbell: Bool
     @State private var selectedBarID = BarKind.mensOlympic.id
 
+    private var selectedBar: BarKind {
+        BarKind.allCases.first { $0.id == selectedBarID } ?? .mensOlympic
+    }
+
     private var equipment: PlateEquipment {
         PlateEquipment(
             unitSystem: exerciseSet.usedMetric,
@@ -50,10 +54,16 @@ struct PlateCalculatorView: View {
 
     private var plateDiagram: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("BAR LOAD")
-                .font(AppFont.captionBold)
-                .tracking(0.8)
-                .foregroundStyle(WorkoutPalette.subduedText)
+            HStack {
+                Text("BAR LOAD")
+                    .font(AppFont.captionBold)
+                    .tracking(0.8)
+                    .foregroundStyle(WorkoutPalette.subduedText)
+
+                Spacer()
+
+                barChip
+            }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
@@ -86,6 +96,30 @@ struct PlateCalculatorView: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Bar load diagram, one side shown")
+    }
+
+    private var barChip: some View {
+        Menu {
+            Picker("Bar type", selection: $selectedBarID) {
+                ForEach(BarKind.allCases) { bar in
+                    Text("\(bar.title) · \(formatted(bar.weight(for: exerciseSet.usedMetric))) \(equipment.unitLabel)")
+                        .tag(bar.id)
+                }
+            }
+        } label: {
+            HStack(spacing: Spacing.xs) {
+                Text("\(selectedBar.title) · \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
+                    .font(AppFont.captionSemiboldMonospaced)
+                Image(systemName: AppIcon.picker)
+                    .font(.caption2)
+            }
+            .foregroundStyle(WorkoutPalette.primary)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.xs)
+            .background(WorkoutPalette.primarySurface)
+            .clipShape(Capsule())
+        }
+        .accessibilityLabel("Bar type: \(selectedBar.title), \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
     }
 
     private func barSegment(width: CGFloat) -> some View {
@@ -213,6 +247,11 @@ struct PlateCalculatorView: View {
                 Text(calculation.plates.isEmpty ? "No plates" : calculation.plates.map { "\(formatted($0)) \(equipment.unitLabel) each side" }.joined(separator: " + "))
                     .font(AppFont.titleSmallSemiboldMonospaced)
                     .foregroundStyle(WorkoutPalette.primary)
+                if usesBarbell {
+                    Text("On the \(selectedBar.title) bar · \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
+                        .font(AppFont.caption)
+                        .foregroundStyle(WorkoutPalette.subduedText)
+                }
                 loadingSummary(label: "Total load")
             }
             .padding(Spacing.l)
@@ -231,7 +270,7 @@ struct PlateCalculatorView: View {
 
             HStack(spacing: Spacing.md) {
                 if usesBarbell {
-                    Button("Bar \(formatted(equipment.barWeight))") {
+                    Button("Bar \(formatted(equipment.barWeight)) \(equipment.unitLabel)") {
                         exerciseSet.weight = equipment.barWeight
                     }
                 }
@@ -336,7 +375,7 @@ struct PlateCalculatorView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: Spacing.xs) {
-                Text("Per side")
+                Text(usesBarbell ? "Per side · incl. ½ bar" : "Per side")
                     .font(AppFont.caption)
                     .foregroundStyle(WorkoutPalette.subduedText)
                 Text("\(formatted(calculation.perSideWeight)) \(equipment.unitLabel)")

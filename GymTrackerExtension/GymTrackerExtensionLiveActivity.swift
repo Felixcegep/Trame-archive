@@ -1,5 +1,4 @@
 import ActivityKit
-import AppIntents
 import WidgetKit
 import SwiftUI
 
@@ -105,13 +104,6 @@ struct GymTrackerExtensionLiveActivity: Widget {
                 )
                 .tint(.white.opacity(0.9))
 
-                Button(intent: CompleteSetIntent()) {
-                    Label("Complete set", systemImage: "checkmark.circle.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Complete set")
             }
         }
         .padding(.horizontal, 16)

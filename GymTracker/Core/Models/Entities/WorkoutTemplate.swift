@@ -9,7 +9,7 @@ import SwiftData
 @Model
 class WorkoutTemplate {
     var name: String
-    @Relationship(deleteRule: .cascade)
+    @Relationship(deleteRule: .cascade, inverse: \TemplateExercise.workoutTemplate)
     var templateExercises: [TemplateExercise] = []
     @Relationship(deleteRule: .nullify, inverse: \WorkoutCollection.workoutTemplates)
     var workoutCollections: [WorkoutCollection] = []

@@ -23,6 +23,7 @@ final class ExerciseSet {
     var rpe: Int?
     var setType: SetType = SetType.normal
     var usedMetric : UnitSystem
+    var exerciseEntry: ExerciceEntry?
     init(
         repetition: Float = 0,
         weight: Float = 0,

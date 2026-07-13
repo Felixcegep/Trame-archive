@@ -9,6 +9,7 @@ struct SetRowView: View {
     let focusedInput: FocusState<SetInputFocus?>.Binding
     let onButtonPress: () -> Void
     let onSetCompleted: () -> Void
+    let previousSet: PreviousSetPerformance?
     let onRemove: () -> Void
 
     @State private var isShowingPlateCalculator = false
@@ -42,6 +43,20 @@ struct SetRowView: View {
                     .accessibilityLabel(completionValidationMessage)
             }
 
+            if let previousSet, !exerciseSet.done {
+                Button {
+                    viewModel.applyPreviousPerformance(to: exerciseSet, in: exerciseEntry, index: index)
+                } label: {
+                    Text("Use last time: \(previousSetText(previousSet))")
+                        .font(AppFont.caption)
+                        .foregroundStyle(WorkoutPalette.primary)
+                }
+                .buttonStyle(.borderless)
+                .padding(.leading, 45)
+                .accessibilityLabel("Use last time values for set \(index + 1)")
+                .accessibilityIdentifier("use-previous-set-\(exerciseEntry.exercice.name)-\(index)")
+            }
+
             if let rpe = exerciseSet.rpe {
                 Button {
                     isShowingSetDetails = true
@@ -65,7 +80,7 @@ struct SetRowView: View {
 
     private var repsField: some View {
         numberField("Reps", text: Binding(
-            get: { Formatters.formatFloat(exerciseSet.repetition) },
+            get: { exerciseSet.repetition == 0 ? "" : Formatters.formatFloat(exerciseSet.repetition) },
             set: {
                 if let value = Float($0) {
                     exerciseSet.repetition = value
@@ -74,14 +89,14 @@ struct SetRowView: View {
                 }
                 viewModel.persistChanges()
             }
-        ), focusID: setFocus)
+        ), focusID: setFocus, prompt: previousSet.map { Formatters.formatFloat($0.repetitions) })
         .accessibilityIdentifier("reps-field-\(exerciseEntry.exercice.name)-\(index)")
     }
 
     private var weightField: some View {
         HStack(spacing: 0) {
             TextField("Weight", text: Binding(
-                get: { Formatters.formatFloat(exerciseSet.weight) },
+                get: { exerciseSet.weight == 0 ? "" : Formatters.formatFloat(exerciseSet.weight) },
                 set: {
                     if let value = Float($0) {
                         exerciseSet.weight = max(value, 0)
@@ -90,7 +105,7 @@ struct SetRowView: View {
                     }
                     viewModel.persistChanges()
                 }
-            ))
+            ), prompt: previousSet.map { Text(Formatters.formatFloat(displayWeight(for: $0))) })
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
             .font(AppFont.titleSmallSemiboldMonospaced)
@@ -130,25 +145,28 @@ struct SetRowView: View {
 
     private var durationField: some View {
         numberField("Seconds", text: Binding(
-            get: { exerciseSet.duration.map { String(Int($0)) } ?? "" },
+                get: {
+                    if (exerciseSet.duration ?? 0) == 0 { return "" }
+                    return exerciseSet.duration.map { String(Int($0)) } ?? ""
+                },
             set: {
                 exerciseSet.duration = $0.isEmpty ? nil : TimeInterval($0)
                 viewModel.persistChanges()
             }
-        ), focusID: setFocus)
+        ), focusID: setFocus, prompt: previousSet?.duration.map { String(Int($0)) })
     }
 
     private var distanceField: some View {
         numberField("Distance", text: Binding(
             get: {
-                guard let distance = exerciseSet.distance else { return "" }
+                guard let distance = exerciseSet.distance, distance > 0 else { return "" }
                 return Formatters.formatFloat(distance)
             },
             set: {
                 exerciseSet.distance = $0.isEmpty ? nil : Float($0)
                 viewModel.persistChanges()
             }
-        ), focusID: setFocus)
+        ), focusID: setFocus, prompt: previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) })
     }
 
     private var doneButton: some View {
@@ -252,9 +270,10 @@ struct SetRowView: View {
     private func numberField(
         _ title: LocalizedStringKey,
         text: Binding<String>,
-        focusID: SetInputFocus
+        focusID: SetInputFocus,
+        prompt: String? = nil
     ) -> some View {
-        TextField(title, text: text)
+        TextField(title, text: text, prompt: prompt.map(Text.init))
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
             .font(AppFont.titleSmallSemiboldMonospaced)
@@ -302,5 +321,23 @@ struct SetRowView: View {
         }
 
         return "Enter a distance before completing this set."
+    }
+
+    private func previousSetText(_ previousSet: PreviousSetPerformance) -> String {
+        if trackingType.usesWeight {
+            return "\(Formatters.formatFloat(previousSet.repetitions)) × \(Formatters.formatFloat(displayWeight(for: previousSet))) \(exerciseSet.weightType.rawValue)"
+        }
+        if trackingType.usesDuration {
+            return "\(Int(previousSet.duration ?? 0)) sec"
+        }
+        return "\(Formatters.formatFloat(previousSet.repetitions)) reps"
+    }
+
+    private func displayWeight(for previousSet: PreviousSetPerformance) -> Float {
+        UnitConversion.weight(previousSet.weight, from: previousSet.weightType, to: exerciseSet.weightType)
+    }
+
+    private func displayDistance(for previousSet: PreviousSetPerformance) -> Float {
+        UnitConversion.distance(previousSet.distance ?? 0, from: previousSet.distanceType, to: exerciseSet.distanceType)
     }
 }

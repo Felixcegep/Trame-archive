@@ -11,11 +11,12 @@ class ActiveWorkoutViewModel {
     var workoutVM: WorkoutViewModel
     let modelContext: ModelContext
     
-    var isTimerVisible : Bool = false
-    var timerTask: Task<Void, Never>?
-    
-    // timer
-    var timerPause : Date?
+    private let restTimer = RestTimerController()
+    private var timerTask: Task<Void, Never>?
+    private(set) var previousPerformances: [PersistentIdentifier: PreviousExercisePerformance] = [:]
+
+    var isTimerVisible: Bool { restTimer.isVisible }
+    var timerPause: Date? { restTimer.endDate }
     
     init(workoutVM: WorkoutViewModel, modelContext: ModelContext) {
         self.workoutVM = workoutVM
@@ -63,6 +64,7 @@ class ActiveWorkoutViewModel {
         )
         activeWorkout.exercises.append(newExercise)
         persistChanges()
+        loadPreviousPerformance(for: newExercise)
 
         if let nextExercise = getNextExerciseToDo(),
            let nextSetIndex = nextExercise.exercise.orderedSets.firstIndex(where: { !$0.done }) {
@@ -78,7 +80,9 @@ class ActiveWorkoutViewModel {
 
     func removeSet(_ exerciseEntry: ExerciceEntry, _ set: ExerciseSet) {
         if let workout = workoutVM.activeWorkout {
-            workout.exercises.first(where: { $0.id == exerciseEntry.id })?.sets.removeAll(where: { $0.id == set.id })
+            guard let storedExercise = workout.exercises.first(where: { $0.id == exerciseEntry.id }) else { return }
+            storedExercise.sets.removeAll(where: { $0.id == set.id })
+            modelContext.delete(set)
             exerciseEntry.normalizeSetOrder()
             persistChanges()
         }
@@ -116,6 +120,49 @@ class ActiveWorkoutViewModel {
         currentSet.duration = previousSet.duration
         currentSet.distance = previousSet.distance
         currentSet.rpe = previousSet.rpe
+        persistChanges()
+    }
+
+    func loadPreviousPerformances() {
+        guard let workout = activeWorkout else { return }
+        for exercise in workout.orderedExercises {
+            loadPreviousPerformance(for: exercise)
+        }
+    }
+
+    func previousPerformance(for exercise: ExerciceEntry) -> PreviousExercisePerformance? {
+        previousPerformances[exercise.persistentModelID]
+    }
+
+    /// Applies the matching prior set only when the active set has not been
+    /// completed. Historical units are converted into this set's stored unit.
+    func applyPreviousPerformance(to set: ExerciseSet, in exercise: ExerciceEntry, index: Int) {
+        guard !set.done,
+              let previousSet = previousPerformance(for: exercise)?.set(at: index)
+        else {
+            return
+        }
+
+        if exercise.exercice.trackingType.usesReps {
+            set.repetition = previousSet.repetitions
+        }
+        if exercise.exercice.trackingType.usesWeight {
+            set.weight = UnitConversion.weight(
+                previousSet.weight,
+                from: previousSet.weightType,
+                to: set.weightType
+            )
+        }
+        if exercise.exercice.trackingType.usesDuration {
+            set.duration = previousSet.duration
+        }
+        if exercise.exercice.trackingType.usesDistance, let distance = previousSet.distance {
+            set.distance = UnitConversion.distance(
+                distance,
+                from: previousSet.distanceType,
+                to: set.distanceType
+            )
+        }
         persistChanges()
     }
     
@@ -182,71 +229,21 @@ class ActiveWorkoutViewModel {
    
     
     func startTime(after exercise: ExerciceEntry? = nil) {
-        timerTask?.cancel()
-
         let duration = TimeInterval(exercise?.prescribedRestSeconds ?? Int(restDuration))
         let timerEndDate = Date.now.addingTimeInterval(duration)
 
         workoutVM.activeWorkout?.restEndDate = timerEndDate
+        workoutVM.activeWorkout?.pausedRemainingTime = nil
         persistChanges()
-
-        isTimerVisible = true
-        timerPause = timerEndDate
-        
-        
-
-        
-        
-        timerTask = Task {
-            do {
-                print("lancement de la pause")
-
-                if let nextExercise = getNextExerciseToDo(),
-                   let nextSetIndex = nextExercise.exercise.orderedSets.firstIndex(where: { !$0.done }) {
-                    await LiveActivityManager.shared.updateExercise(
-                        name: nextExercise.exercise.exercice.name,
-                        currentSet: nextSetIndex + 1,
-                        totalSets: nextExercise.exercise.sets.count
-                    )
-                }
-
-                await LiveActivityManager.shared.startPause(timerEndDate: timerEndDate)
-        
-                try await Task.sleep(for: .seconds(duration))
-                
-                guard !Task.isCancelled else { return }
-                
-                await MainActor.run {
-                    isTimerVisible = false
-                    timerPause = nil
-                    workoutVM.activeWorkout?.restEndDate = nil
-                    persistChanges()
-                }
-                if let nextExercice = getNextExerciseToDo(),
-                   let nextSetIndex = nextExercice.exercise.orderedSets.firstIndex(where: { !$0.done }) {
-                    print("Live ACtive Exercice Changement")
-                    await LiveActivityManager.shared.updateExercise(
-                        name: nextExercice.exercise.exercice.name,
-                        currentSet: nextSetIndex + 1,
-                        totalSets: nextExercice.exercise.sets.count
-                    )
-                }
-                
-                
-                
-                    return
-            } catch {
-                return
-            }
-        }
+        runRestCountdown(until: timerEndDate)
     }
 
     var isTimerPaused: Bool {
-        activeWorkout?.pausedRemainingTime != nil
+        restTimer.pausedRemaining != nil
     }
 
     var pausedTimeRemaining: TimeInterval {
-        activeWorkout?.pausedRemainingTime ?? 0
+        restTimer.pausedRemaining ?? 0
     }
 
     func restorePersistedRestTimer() {
@@ -254,35 +251,14 @@ class ActiveWorkoutViewModel {
             guard timerEndDate > .now else {
                 workoutVM.activeWorkout?.restEndDate = nil
                 persistChanges()
+                restTimer.cancel()
                 return
             }
-
-            timerTask?.cancel()
-            isTimerVisible = true
-            timerPause = timerEndDate
-
-            timerTask = Task {
-                await LiveActivityManager.shared.startPause(timerEndDate: timerEndDate)
-
-                do {
-                    try await Task.sleep(for: .seconds(timerEndDate.timeIntervalSinceNow))
-                    guard !Task.isCancelled else { return }
-
-                    await MainActor.run {
-                        isTimerVisible = false
-                        timerPause = nil
-                        workoutVM.activeWorkout?.restEndDate = nil
-                        persistChanges()
-                    }
-                } catch {
-                    return
-                }
-            }
+            runRestCountdown(until: timerEndDate)
         } else if let pausedRemaining = workoutVM.activeWorkout?.pausedRemainingTime {
             timerTask?.cancel()
             timerTask = nil
-            isTimerVisible = true
-            timerPause = nil
+            restTimer.restore(endDate: nil, pausedRemaining: pausedRemaining)
             Task {
                 await LiveActivityManager.shared.pausePause()
             }
@@ -298,7 +274,7 @@ class ActiveWorkoutViewModel {
         let remaining = max(0, timerEndDate.timeIntervalSinceNow)
         workoutVM.activeWorkout?.pausedRemainingTime = remaining
         workoutVM.activeWorkout?.restEndDate = nil
-        timerPause = nil
+        restTimer.pause(remaining: remaining)
         persistChanges()
 
         Task {
@@ -313,75 +289,73 @@ class ActiveWorkoutViewModel {
         workoutVM.activeWorkout?.restEndDate = timerEndDate
         workoutVM.activeWorkout?.pausedRemainingTime = nil
         persistChanges()
-
-        timerPause = timerEndDate
-        isTimerVisible = true
-
-        timerTask?.cancel()
-        timerTask = Task {
-            await LiveActivityManager.shared.startPause(timerEndDate: timerEndDate)
-
-            do {
-                try await Task.sleep(for: .seconds(pausedRemaining))
-                guard !Task.isCancelled else { return }
-
-                await MainActor.run {
-                    isTimerVisible = false
-                    timerPause = nil
-                    workoutVM.activeWorkout?.restEndDate = nil
-                    persistChanges()
-                }
-            } catch {
-                return
-            }
-        }
+        runRestCountdown(until: timerEndDate)
     }
 
     func addRestTime(_ seconds: TimeInterval) {
         if isTimerPaused {
             if let currentPaused = workoutVM.activeWorkout?.pausedRemainingTime {
                 workoutVM.activeWorkout?.pausedRemainingTime = currentPaused + seconds
+                restTimer.extendPaused(by: seconds)
                 persistChanges()
             }
         } else if let timerEndDate = workoutVM.activeWorkout?.restEndDate {
             let newEndDate = timerEndDate.addingTimeInterval(seconds)
             workoutVM.activeWorkout?.restEndDate = newEndDate
             persistChanges()
-
-            timerPause = newEndDate
-
-            let remaining = newEndDate.timeIntervalSinceNow
-
-            timerTask?.cancel()
-            timerTask = Task {
-                await LiveActivityManager.shared.startPause(timerEndDate: newEndDate)
-
-                do {
-                    try await Task.sleep(for: .seconds(remaining))
-                    guard !Task.isCancelled else { return }
-
-                    await MainActor.run {
-                        isTimerVisible = false
-                        timerPause = nil
-                        workoutVM.activeWorkout?.restEndDate = nil
-                        persistChanges()
-                    }
-                } catch {
-                    return
-                }
-            }
+            runRestCountdown(until: newEndDate)
         }
     }
 
     func cancelTimer() {
         timerTask?.cancel()
         timerTask = nil
-        isTimerVisible = false
-        timerPause = nil
+        restTimer.cancel()
         if workoutVM.activeWorkout?.restEndDate != nil || workoutVM.activeWorkout?.pausedRemainingTime != nil {
             workoutVM.activeWorkout?.restEndDate = nil
             workoutVM.activeWorkout?.pausedRemainingTime = nil
             persistChanges()
+        }
+    }
+
+    /// The single countdown path used by a newly started, restored, resumed, or
+    /// extended rest period. Persisted state remains the recovery source of truth.
+    private func runRestCountdown(until timerEndDate: Date) {
+        timerTask?.cancel()
+        restTimer.start(until: timerEndDate)
+
+        timerTask = Task {
+            if let nextExercise = getNextExerciseToDo(),
+               let nextSetIndex = nextExercise.exercise.orderedSets.firstIndex(where: { !$0.done }) {
+                await LiveActivityManager.shared.updateExercise(
+                    name: nextExercise.exercise.exercice.name,
+                    currentSet: nextSetIndex + 1,
+                    totalSets: nextExercise.exercise.sets.count
+                )
+            }
+            await LiveActivityManager.shared.startPause(timerEndDate: timerEndDate)
+
+            do {
+                try await Task.sleep(for: .seconds(max(0, timerEndDate.timeIntervalSinceNow)))
+                guard !Task.isCancelled else { return }
+
+                await MainActor.run {
+                    restTimer.cancel()
+                    workoutVM.activeWorkout?.restEndDate = nil
+                    persistChanges()
+                }
+
+                if let nextExercise = getNextExerciseToDo(),
+                   let nextSetIndex = nextExercise.exercise.orderedSets.firstIndex(where: { !$0.done }) {
+                    await LiveActivityManager.shared.updateExercise(
+                        name: nextExercise.exercise.exercice.name,
+                        currentSet: nextSetIndex + 1,
+                        totalSets: nextExercise.exercise.sets.count
+                    )
+                }
+            } catch {
+                return
+            }
         }
     }
 
@@ -390,6 +364,7 @@ class ActiveWorkoutViewModel {
     func removeExercise(_ exerciseEntry: ExerciceEntry) {
         if let workout = workoutVM.activeWorkout {
             workout.exercises.removeAll { $0 === exerciseEntry }
+            modelContext.delete(exerciseEntry)
             workout.normalizeExerciseOrder()
             persistChanges()
         }
@@ -400,6 +375,21 @@ class ActiveWorkoutViewModel {
             try modelContext.save()
         } catch {
             print("Failed to persist active workout changes: \(error)")
+        }
+    }
+
+    private func loadPreviousPerformance(for exercise: ExerciceEntry) {
+        guard let workout = activeWorkout else { return }
+
+        do {
+            if let performance = try ExerciseHistoryService(modelContext: modelContext)
+                .mostRecentPerformance(for: exercise.exercice, before: workout.startTime) {
+                previousPerformances[exercise.persistentModelID] = performance
+            } else {
+                previousPerformances.removeValue(forKey: exercise.persistentModelID)
+            }
+        } catch {
+            print("Failed to load previous exercise performance: \(error)")
         }
     }
 
