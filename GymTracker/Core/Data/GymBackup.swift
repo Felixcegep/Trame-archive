@@ -26,7 +26,6 @@ struct ExerciseTemplateDTO: Codable {
 
 struct TemplateExerciseDTO: Codable {
     let exerciseName: String
-    let order: Int
     let orderIndex: Int
     let targetSets: Int
     let repRangeMinimum: Int
@@ -162,7 +161,6 @@ extension BackupDTO {
                 templateExercises: template.templateExercises.map { te in
                     TemplateExerciseDTO(
                         exerciseName: te.exercise.name,
-                        order: te.order,
                         orderIndex: te.orderIndex,
                         targetSets: te.targetSets,
                         repRangeMinimum: te.repRangeMinimum,
@@ -309,11 +307,11 @@ extension BackupDTO {
         for templateDTO in self.templates {
             var templateExercises: [TemplateExercise] = []
             
-            for (index, teDTO) in templateDTO.templateExercises.enumerated() {
+            for teDTO in templateDTO.templateExercises {
                 guard let exercise = exerciseMap[teDTO.exerciseName] else { continue }
                 let te = TemplateExercise(
                     exercise: exercise,
-                    order: teDTO.order,
+                    order: teDTO.orderIndex,
                     targetSets: teDTO.targetSets,
                     repRangeMinimum: teDTO.repRangeMinimum,
                     repRangeMaximum: teDTO.repRangeMaximum,

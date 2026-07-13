@@ -29,7 +29,9 @@ class WorkoutTemplate {
 
     var orderedTemplateExercises: [TemplateExercise] {
         templateExercises.sorted { lhs, rhs in
-            lhs.orderIndex == rhs.orderIndex ? lhs.order < rhs.order : lhs.orderIndex < rhs.orderIndex
+            lhs.orderIndex == rhs.orderIndex
+                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
+                : lhs.orderIndex < rhs.orderIndex
         }
     }
 
@@ -39,7 +41,6 @@ class WorkoutTemplate {
 
     func normalizeTemplateExerciseOrder() {
         for (index, templateExercise) in orderedTemplateExercises.enumerated() {
-            templateExercise.order = index
             templateExercise.orderIndex = index
         }
     }

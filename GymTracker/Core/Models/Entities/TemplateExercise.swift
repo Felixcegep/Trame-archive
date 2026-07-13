@@ -3,7 +3,6 @@ import SwiftData
 
 @Model
 final class TemplateExercise {
-    var order: Int
     var orderIndex: Int = 0
     var targetSets: Int
     var repRangeMinimum: Int
@@ -27,7 +26,6 @@ final class TemplateExercise {
         notes: String? = nil
     ) {
         self.exercise = exercise
-        self.order = order
         self.orderIndex = order
         self.targetSets = targetSets
         self.repRangeMinimum = repRangeMinimum

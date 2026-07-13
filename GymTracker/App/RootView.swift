@@ -323,23 +323,6 @@ struct RootView: View {
         do {
             var didChange = false
 
-            let templates = try modelContext.fetch(FetchDescriptor<WorkoutTemplate>())
-            for template in templates {
-                let templateExercises = template.templateExercises
-                let hasStableOrder = Set(templateExercises.map(\.orderIndex)).count == templateExercises.count
-                guard !hasStableOrder else { continue }
-
-                for (index, exercise) in templateExercises
-                    .sorted(by: { $0.order < $1.order })
-                    .enumerated() {
-                    if exercise.orderIndex != index || exercise.order != index {
-                        exercise.orderIndex = index
-                        exercise.order = index
-                        didChange = true
-                    }
-                }
-            }
-
             let workouts = try modelContext.fetch(FetchDescriptor<Workout>())
             for workout in workouts {
                 let expectedStatus: WorkoutStatus = workout.endTime == nil ? .active : .completed
