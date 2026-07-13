@@ -103,6 +103,70 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertTrue(recommendation?.explanation.contains("105 lbs recommended") == true)
     }
 
+    func testBackupRoundTripsProgressionRuleAndRecommendationSnapshot() throws {
+        let source = try makeContext()
+        let exercise = makeExercise()
+        let templateExercise = TemplateExercise(
+            exercise: exercise,
+            order: 0,
+            progressionRule: .none
+        )
+        let template = WorkoutTemplate(
+            name: "Progression Template",
+            exercises: [exercise],
+            templateExercises: [templateExercise]
+        )
+        let workout = makeWorkout(with: exercise)
+        let entry = try XCTUnwrap(workout.exercises.first)
+        entry.recommendedDecision = .increase
+        entry.recommendedLoad = 105
+        entry.recommendedUnit = .lbs
+        entry.recommendationPriorLoad = 100
+        entry.recommendationRequiredSets = 3
+        entry.recommendationRepCeiling = 12
+        entry.recommendationCompletedSets = 3
+        entry.recommendationPriorWorkoutDate = Date(timeIntervalSince1970: 1_700_000_000)
+        source.insert(exercise)
+        source.insert(template)
+        source.insert(workout)
+        try source.save()
+
+        let backup = try BackupDTO.create(
+            from: source,
+            restTimer: 90,
+            darkMode: false,
+            unitSystem: .metric
+        )
+        let data = try JSONEncoder().encode(backup)
+        let decoded = try JSONDecoder().decode(BackupDTO.self, from: data)
+        let restored = try makeContext()
+        try decoded.restore(to: restored)
+
+        let restoredTemplate = try XCTUnwrap(
+            restored.fetch(FetchDescriptor<WorkoutTemplate>())
+                .first { $0.name == "Progression Template" }
+        )
+        XCTAssertEqual(
+            restoredTemplate.orderedTemplateExercises.first?.progressionRule,
+            ProgressionRule.none
+        )
+
+        let restoredEntry = try XCTUnwrap(
+            restored.fetch(FetchDescriptor<Workout>()).first?.orderedExercises.first
+        )
+        XCTAssertEqual(restoredEntry.recommendedDecision, .increase)
+        XCTAssertEqual(restoredEntry.recommendedLoad, 105)
+        XCTAssertEqual(restoredEntry.recommendedUnit, .lbs)
+        XCTAssertEqual(restoredEntry.recommendationPriorLoad, 100)
+        XCTAssertEqual(restoredEntry.recommendationRequiredSets, 3)
+        XCTAssertEqual(restoredEntry.recommendationRepCeiling, 12)
+        XCTAssertEqual(restoredEntry.recommendationCompletedSets, 3)
+        XCTAssertEqual(
+            restoredEntry.recommendationPriorWorkoutDate,
+            Date(timeIntervalSince1970: 1_700_000_000)
+        )
+    }
+
     private func makeContext() throws -> ModelContext {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(

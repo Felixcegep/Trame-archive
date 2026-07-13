@@ -34,6 +34,7 @@ struct TemplateExerciseDTO: Codable {
     let targetRPE: Double?
     let targetRIR: Int?
     let notes: String?
+    let progressionRule: String?
 }
 
 struct WorkoutTemplateDTO: Codable {
@@ -80,6 +81,14 @@ struct ExerciseEntryDTO: Codable {
     let prescribedSuggestedLoad: Double?
     let prescribedSuggestedLoadType: String?
     let prescribedProgressionRule: String?
+    let recommendedDecision: String?
+    let recommendedLoad: Float?
+    let recommendedUnit: String?
+    let recommendationPriorLoad: Float?
+    let recommendationRequiredSets: Int?
+    let recommendationRepCeiling: Int?
+    let recommendationCompletedSets: Int?
+    let recommendationPriorWorkoutDate: Date?
 }
 
 struct WorkoutDTO: Codable {
@@ -168,7 +177,8 @@ extension BackupDTO {
                         restSeconds: te.restSeconds,
                         targetRPE: te.targetRPE,
                         targetRIR: te.targetRIR,
-                        notes: te.notes
+                        notes: te.notes,
+                        progressionRule: te.progressionRule.rawValue
                     )
                 }
             )
@@ -233,7 +243,15 @@ extension BackupDTO {
                         isPrescribedOptional: exercise.isPrescribedOptional,
                         prescribedSuggestedLoad: exercise.prescribedSuggestedLoad,
                         prescribedSuggestedLoadType: exercise.prescribedSuggestedLoadType?.rawValue,
-                        prescribedProgressionRule: exercise.prescribedProgressionRule?.rawValue
+                        prescribedProgressionRule: exercise.prescribedProgressionRule?.rawValue,
+                        recommendedDecision: exercise.recommendedDecision?.rawValue,
+                        recommendedLoad: exercise.recommendedLoad,
+                        recommendedUnit: exercise.recommendedUnit?.rawValue,
+                        recommendationPriorLoad: exercise.recommendationPriorLoad,
+                        recommendationRequiredSets: exercise.recommendationRequiredSets,
+                        recommendationRepCeiling: exercise.recommendationRepCeiling,
+                        recommendationCompletedSets: exercise.recommendationCompletedSets,
+                        recommendationPriorWorkoutDate: exercise.recommendationPriorWorkoutDate
                     )
                 }
             )
@@ -318,7 +336,8 @@ extension BackupDTO {
                     restSeconds: teDTO.restSeconds,
                     targetRPE: teDTO.targetRPE,
                     targetRIR: teDTO.targetRIR,
-                    notes: teDTO.notes
+                    notes: teDTO.notes,
+                    progressionRule: ProgressionRule(rawValue: teDTO.progressionRule ?? "") ?? .doubleProgression
                 )
                 te.orderIndex = teDTO.orderIndex
                 templateExercises.append(te)
@@ -406,6 +425,18 @@ extension BackupDTO {
                 if let ruleStr = entryDTO.prescribedProgressionRule, let rule = ProgressionRule(rawValue: ruleStr) {
                     entry.prescribedProgressionRule = rule
                 }
+                if let decision = entryDTO.recommendedDecision.flatMap(DoubleProgressionDecision.init(rawValue:)) {
+                    entry.recommendedDecision = decision
+                }
+                entry.recommendedLoad = entryDTO.recommendedLoad
+                if let unit = entryDTO.recommendedUnit.flatMap(WeightType.init(rawValue:)) {
+                    entry.recommendedUnit = unit
+                }
+                entry.recommendationPriorLoad = entryDTO.recommendationPriorLoad
+                entry.recommendationRequiredSets = entryDTO.recommendationRequiredSets
+                entry.recommendationRepCeiling = entryDTO.recommendationRepCeiling
+                entry.recommendationCompletedSets = entryDTO.recommendationCompletedSets
+                entry.recommendationPriorWorkoutDate = entryDTO.recommendationPriorWorkoutDate
 
                 var sets: [ExerciseSet] = []
                 for setDTO in entryDTO.sets {
