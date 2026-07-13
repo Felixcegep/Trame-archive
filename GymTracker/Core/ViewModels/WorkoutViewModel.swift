@@ -107,6 +107,8 @@ class WorkoutViewModel {
         guard !restoreActiveWorkout(using: modelContext) else { return false }
 
         let newWorkout = Workout(template: template, unitSystem: unitSystem)
+        ProgressionSnapshotService(modelContext: modelContext)
+            .applyRecommendations(to: newWorkout, from: template)
         return persistAndActivate(newWorkout, using: modelContext)
     }
 
