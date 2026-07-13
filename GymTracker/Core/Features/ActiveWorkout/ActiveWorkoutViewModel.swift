@@ -84,14 +84,27 @@ class ActiveWorkoutViewModel {
         }
     }
     
+    /// Adds a set pre-filled with the last set's values (reps, weight,
+    /// duration, distance) so lifters rarely retype; RPE and set type reset
+    /// because they describe one specific effort.
     func addSet(_ exerciseEntry: ExerciceEntry) {
-        if let workout = workoutVM.activeWorkout {
-            workout.exercises.first(where: { $0.id == exerciseEntry.id })?.addEmptySet()
-            persistChanges()
+        guard
+            let workout = workoutVM.activeWorkout,
+            let exercise = workout.exercises.first(where: { $0.id == exerciseEntry.id })
+        else { return }
+
+        if let lastSet = exercise.orderedSets.last {
+            let newSet = lastSet.copy()
+            newSet.rpe = nil
+            newSet.setType = .normal
+            newSet.orderIndex = lastSet.orderIndex + 1
+            exercise.sets.append(newSet)
+        } else {
+            exercise.addEmptySet()
         }
-        
+        persistChanges()
     }
-    
+
     func copyPreviousSetValue(exerciseEntry: ExerciceEntry, currentSetIndex: Int) {
         let orderedSets = exerciseEntry.orderedSets
         guard currentSetIndex > 0, currentSetIndex < orderedSets.count else { return }
@@ -106,21 +119,6 @@ class ActiveWorkoutViewModel {
         persistChanges()
     }
     
-    func addSetCopyLastSet(exerciseEntry: ExerciceEntry) {
-        guard
-            let workout = workoutVM.activeWorkout,
-            let exercise = workout.exercises.first(where: { $0.id == exerciseEntry.id }),
-            let lastSet = exercise.orderedSets.last
-        else {
-            return
-        }
-
-        let newSet = lastSet.copy()
-        newSet.orderIndex = (exercise.orderedSets.last?.orderIndex ?? -1) + 1
-        exercise.sets.append(newSet)
-        persistChanges()
-    }
-
     @discardableResult
     func switchStateDoneSet(
         _ selectedExercise: ExerciceEntry,

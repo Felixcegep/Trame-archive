@@ -12,6 +12,7 @@ struct SetRowView: View {
     let onRemove: () -> Void
 
     @State private var isShowingPlateCalculator = false
+    @State private var isShowingSetDetails = false
     @State private var completionValidationMessage: String?
 
     private var trackingType: TrackingType {
@@ -39,6 +40,21 @@ struct SetRowView: View {
                     .foregroundStyle(WorkoutPalette.accent)
                     .padding(.leading, 45)
                     .accessibilityLabel(completionValidationMessage)
+            }
+
+            if let rpe = exerciseSet.rpe {
+                Button {
+                    isShowingSetDetails = true
+                } label: {
+                    Text("RPE \(rpe) · \(RPEScale.meaning(for: rpe))")
+                        .font(AppFont.caption)
+                        .foregroundStyle(WorkoutPalette.subduedText)
+                }
+                .buttonStyle(.borderless)
+                .padding(.leading, 45)
+                .accessibilityLabel("RPE \(rpe), \(RPEScale.meaning(for: rpe))")
+                .accessibilityHint("Edit set details")
+                .accessibilityIdentifier("rpe-badge-\(exerciseEntry.exercice.name)-\(index)")
             }
         }
         .padding(.horizontal, Spacing.s)
@@ -171,7 +187,7 @@ struct SetRowView: View {
                 }
             )) {
                 ForEach(SetType.allCases, id: \.self) { type in
-                    Label(type.title, systemImage: icon(for: type)).tag(type)
+                    Label(type.title, systemImage: type.icon).tag(type)
                 }
             }
         } label: {
@@ -189,66 +205,41 @@ struct SetRowView: View {
         .accessibilityIdentifier("set-type-\(exerciseEntry.exercice.name)-\(index)")
     }
 
-    private var setTypeColor: Color? {
-        switch exerciseSet.setType {
-        case .normal: nil
-        case .warmup: WorkoutPalette.accent
-        case .dropSet: WorkoutPalette.primary
-        case .failure: Color.gymDestructive
-        case .backoff: WorkoutPalette.secondary
-        }
-    }
-
     private var chipForeground: Color {
-        if let setTypeColor { return setTypeColor }
+        if let accent = exerciseSet.setType.accentColor { return accent }
         return exerciseSet.done ? WorkoutPalette.secondary : WorkoutPalette.text
     }
 
     private var chipBackground: Color {
-        setTypeColor?.opacity(0.14) ?? .clear
-    }
-
-    private func icon(for type: SetType) -> String {
-        switch type {
-        case .normal: AppIcon.circle
-        case .warmup: AppIcon.warmup
-        case .dropSet: "arrow.down.right"
-        case .failure: "bolt.fill"
-        case .backoff: "arrow.uturn.down"
-        }
+        exerciseSet.setType.accentColor?.opacity(0.14) ?? .clear
     }
 
     private var rowMenu: some View {
-        Menu {
-            Button(action: copyPreviousSetValue) {
-                Label("Copy previous values", systemImage: AppIcon.copy)
-            }
-            .disabled(index == 0)
-
-            Menu(exerciseSet.rpe.map { "RPE \($0)" } ?? "RPE") {
-                Button("No RPE") {
-                    exerciseSet.rpe = nil
-                }
-
-                ForEach(1...10, id: \.self) { rpe in
-                    Button("RPE \(rpe)") {
-                        exerciseSet.rpe = rpe
-                    }
-                }
-            }
-
-            Button(role: .destructive, action: onRemove) {
-                Label("Delete set", systemImage: AppIcon.trash)
-            }
-            .accessibilityIdentifier("delete-set-\(exerciseEntry.exercice.name)-\(index)")
+        Button {
+            isShowingSetDetails = true
         } label: {
             Image(systemName: AppIcon.ellipsis)
                 .font(AppFont.captionBold)
                 .foregroundStyle(WorkoutPalette.subduedText)
                 .frame(width: 20, height: 28)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
+        .accessibilityLabel("Set details")
         .accessibilityIdentifier("set-menu-\(exerciseEntry.exercice.name)-\(index)")
+        .sheet(isPresented: $isShowingSetDetails, onDismiss: {
+            viewModel.persistChanges()
+        }) {
+            SetDetailSheet(
+                index: index,
+                exerciseSet: exerciseSet,
+                exerciseName: exerciseEntry.exercice.name,
+                onPersist: { viewModel.persistChanges() },
+                onDelete: onRemove
+            )
+            .presentationDetents([.height(480), .large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     private var setFocus: SetInputFocus {
@@ -311,9 +302,5 @@ struct SetRowView: View {
         }
 
         return "Enter a distance before completing this set."
-    }
-
-    private func copyPreviousSetValue() {
-        viewModel.copyPreviousSetValue(exerciseEntry: exerciseEntry, currentSetIndex: index)
     }
 }

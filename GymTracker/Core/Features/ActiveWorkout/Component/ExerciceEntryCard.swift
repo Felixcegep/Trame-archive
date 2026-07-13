@@ -173,21 +173,12 @@ struct ExerciceEntryCard: View {
     }
 
     private var setActions: some View {
-        HStack(spacing: Spacing.md) {
-            Button {
-                viewModel.addSet(exerciseEntry)
-            } label: {
-                Label("Add set", systemImage: AppIcon.plus)
-            }
-            .accessibilityIdentifier("add-set-\(exerciseEntry.exercice.name)")
-
-            Button {
-                viewModel.addSetCopyLastSet(exerciseEntry: exerciseEntry)
-            } label: {
-                Label("Copy last", systemImage: AppIcon.copy)
-            }
-            .accessibilityIdentifier("copy-last-set-\(exerciseEntry.exercice.name)")
+        Button {
+            viewModel.addSet(exerciseEntry)
+        } label: {
+            Label("Add set", systemImage: AppIcon.plus)
         }
+        .accessibilityIdentifier("add-set-\(exerciseEntry.exercice.name)")
         .font(AppFont.subheadlineSemibold)
         .foregroundStyle(WorkoutPalette.primary)
         .buttonStyle(.borderless)

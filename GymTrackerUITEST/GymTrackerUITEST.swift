@@ -147,9 +147,9 @@ final class GymTrackerUITEST: XCTestCase {
         let addSet = app.buttons["add-set-Bench Press"]
         XCTAssertTrue(addSet.waitForExistence(timeout: 5))
         addSet.tap()
-        XCTAssertTrue(app.buttons["complete-set-Bench Press-1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["complete-set-Bench Press-3"].waitForExistence(timeout: 5))
 
-        app.buttons["copy-last-set-Bench Press"].tap()
+        addSet.tap()
         XCTAssertTrue(app.buttons["complete-set-Bench Press-4"].waitForExistence(timeout: 5))
         enterValidValues(for: "Bench Press", set: 0, in: app)
         app.buttons["complete-set-Bench Press-0"].tap()
@@ -456,6 +456,19 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(doneButton.waitForExistence(timeout: 5))
         doneButton.tap()
 
+        // 7b. Set details sheet (set type chips + RPE slider), set RPE ≈ 8
+        let setMenuButton = app.buttons["set-menu-Bench Press-0"]
+        XCTAssertTrue(setMenuButton.waitForExistence(timeout: 5))
+        setMenuButton.tap()
+        let rpeSlider = app.sliders["rpe-slider"]
+        XCTAssertTrue(rpeSlider.waitForExistence(timeout: 5))
+        rpeSlider.adjust(toNormalizedSliderPosition: 0.78)
+        saveScreenshot(name: "07b_Set_Details")
+
+        let closeSetDetails = app.buttons["close-set-details"]
+        XCTAssertTrue(closeSetDetails.waitForExistence(timeout: 5))
+        closeSetDetails.tap()
+
         completeSetButton.tap()
         saveScreenshot(name: "08_Active_Workout_With_Set")
 
@@ -506,7 +519,7 @@ final class GymTrackerUITEST: XCTestCase {
         app.buttons["save-plan"].tap()
 
         app.buttons["plans-browser"].tap()
-        let screenshotPlan = app.buttons["plan-row-Screenshot Plan"]
+        let screenshotPlan = app.buttons["plan-row-Screenshot Plan"].firstMatch
         XCTAssertTrue(screenshotPlan.waitForExistence(timeout: 5))
         screenshotPlan.tap()
         app.buttons["edit-plan"].tap()
