@@ -184,6 +184,24 @@ class ActiveWorkoutViewModel {
         }
         persistChanges()
     }
+
+    /// Applies the last completed session's load to every incomplete set. This
+    /// is intentionally separate from previous-set prefill because the
+    /// recommendation card changes load only and leaves reps explicit.
+    func applyPriorRecommendationLoad(to exercise: ExerciceEntry) {
+        guard
+            exercise.exercice.trackingType.usesWeight,
+            let load = exercise.recommendationPriorLoad,
+            let unit = exercise.recommendedUnit
+        else {
+            return
+        }
+
+        for set in exercise.orderedSets where !set.done {
+            set.weight = UnitConversion.weight(load, from: unit, to: set.weightType)
+        }
+        persistChanges()
+    }
     
     @discardableResult
     func switchStateDoneSet(
@@ -228,6 +246,22 @@ class ActiveWorkoutViewModel {
 
         return true
     }
+
+    func trackActiveExercise(with identifier: PersistentIdentifier?) {
+        guard let workout = activeWorkout else { return }
+        let now = Date.now
+
+        for exercise in workout.orderedExercises {
+            let shouldRun = exercise.persistentModelID == identifier
+                && exercise.orderedSets.contains(where: { !$0.done })
+            if shouldRun {
+                exercise.startActiveDuration(at: now)
+            } else {
+                exercise.stopActiveDuration(at: now)
+            }
+        }
+        persistChanges()
+    }
     func getNextSet(in selectedExercise: ExerciceEntry) -> ExerciseSet?{
         guard let nextSet = selectedExercise.orderedSets.first(where: { !$0.done }) else {
             return nil
@@ -261,6 +295,10 @@ class ActiveWorkoutViewModel {
         restTimer.pausedRemaining != nil
     }
 
+    var isRestReady: Bool {
+        restTimer.isReady
+    }
+
     var pausedTimeRemaining: TimeInterval {
         restTimer.pausedRemaining ?? 0
     }
@@ -270,7 +308,7 @@ class ActiveWorkoutViewModel {
             guard timerEndDate > .now else {
                 workoutVM.activeWorkout?.restEndDate = nil
                 persistChanges()
-                restTimer.cancel()
+                restTimer.ready()
                 return
             }
             runRestCountdown(until: timerEndDate)
@@ -359,7 +397,7 @@ class ActiveWorkoutViewModel {
                 guard !Task.isCancelled else { return }
 
                 await MainActor.run {
-                    restTimer.cancel()
+                    restTimer.ready()
                     workoutVM.activeWorkout?.restEndDate = nil
                     persistChanges()
                 }

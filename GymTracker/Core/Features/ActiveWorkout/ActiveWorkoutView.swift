@@ -17,6 +17,8 @@ struct ActiveWorkoutView: View {
     @State private var isShowingExercisePicker = false
     @FocusState private var focusedInput: SetInputFocus?
     @State private var draggedExercise: ExerciceEntry? = nil
+    @State private var handledRecommendationExerciseIDs: Set<PersistentIdentifier> = []
+    @State private var editingCompletedSetID: PersistentIdentifier?
 
     private var unitSystem: UnitSystem {
         UserDefaults.standard.unitSystem
@@ -102,6 +104,10 @@ struct ActiveWorkoutView: View {
         .onAppear {
             viewModel.loadPreviousPerformances()
         }
+        .onChange(of: expandedExerciseID) { _, identifier in
+            editingCompletedSetID = nil
+            viewModel.trackActiveExercise(with: identifier)
+        }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Button {
@@ -125,8 +131,22 @@ struct ActiveWorkoutView: View {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 sessionHeader(for: workout)
 
-                if viewModel.isTimerVisible, let timerPause = viewModel.timerPause {
-                    restTimer(endDate: timerPause)
+                if let recommendation = firstRecommendation(in: workout) {
+                    ProgressionRecommendationCard(
+                        exerciseName: recommendation.exercise.exercice.name,
+                        state: recommendation.state,
+                        onAction: { action in
+                            handleRecommendationAction(action, for: recommendation.exercise)
+                        }
+                    )
+                }
+
+                if viewModel.isTimerVisible {
+                    // A paused timer intentionally has no end date. Keep its
+                    // controls visible by supplying an unused placeholder; the
+                    // paused branch of `restTimer` renders the saved remaining
+                    // duration instead of this value.
+                    restTimer(endDate: viewModel.timerPause ?? .now)
                 }
 
                 exerciseList(for: workout)
@@ -144,6 +164,7 @@ struct ActiveWorkoutView: View {
         }
         .onAppear {
             selectInitialDisclosure(in: workout)
+            viewModel.trackActiveExercise(with: expandedExerciseID)
             viewModel.restorePersistedRestTimer()
         }
     }
@@ -174,7 +195,7 @@ struct ActiveWorkoutView: View {
                 }
                 Spacer()
                 if !workout.exercises.isEmpty {
-                    Text("\(workout.exercises.count) exercises")
+                    Text("^[\(workout.exercises.count) exercise](inflect: true)")
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(WorkoutPalette.subduedText)
                 }
@@ -205,14 +226,18 @@ struct ActiveWorkoutView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Rest between sets")
                         .font(.subheadline.weight(.semibold))
-                    Text(viewModel.isTimerPaused ? "Rest paused." : "Take a breath. Your next set is ready when you are.")
+                    Text(restStatusMessage)
                         .font(.caption)
                         .foregroundStyle(WorkoutPalette.subduedText)
                 }
 
                 Spacer(minLength: 0)
 
-                if viewModel.isTimerPaused {
+                if viewModel.isRestReady {
+                    Text("Ready")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(WorkoutPalette.secondary)
+                } else if viewModel.isTimerPaused {
                     Text(formatRemainingTime(viewModel.pausedTimeRemaining))
                         .font(.headline.monospacedDigit())
                         .foregroundStyle(WorkoutPalette.accent)
@@ -223,41 +248,66 @@ struct ActiveWorkoutView: View {
                 }
             }
 
-            HStack(spacing: Spacing.s) {
-                Button("+15s") {
-                    viewModel.addRestTime(15)
-                }
-
-                Button("+30s") {
-                    viewModel.addRestTime(30)
-                }
-
-                Spacer(minLength: 0)
-
-                Button {
-                    if viewModel.isTimerPaused {
-                        viewModel.resumeTimer()
-                    } else {
-                        viewModel.pauseTimer()
-                    }
-                } label: {
-                    Image(systemName: viewModel.isTimerPaused ? "play.fill" : "pause.fill")
-                }
-                .accessibilityLabel(viewModel.isTimerPaused ? "Resume rest" : "Pause rest")
-
-                Button {
+            if viewModel.isRestReady {
+                Button("Continue workout") {
                     viewModel.cancelTimer()
-                } label: {
-                    Image(systemName: "forward.fill")
                 }
-                .accessibilityLabel("Skip rest")
+                .buttonStyle(.borderedProminent)
+                .tint(WorkoutPalette.primary)
+                .frame(maxWidth: .infinity)
+            } else {
+                HStack(spacing: Spacing.s) {
+                    Button("+15s") {
+                        viewModel.addRestTime(15)
+                    }
+
+                    Button("+30s") {
+                        viewModel.addRestTime(30)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Button {
+                        if viewModel.isTimerPaused {
+                            viewModel.resumeTimer()
+                        } else {
+                            viewModel.pauseTimer()
+                        }
+                    } label: {
+                        Image(systemName: viewModel.isTimerPaused ? "play.fill" : "pause.fill")
+                    }
+                    .accessibilityLabel(viewModel.isTimerPaused ? "Resume rest" : "Pause rest")
+
+                    Button {
+                        viewModel.cancelTimer()
+                    } label: {
+                        Image(systemName: "forward.fill")
+                    }
+                    .accessibilityLabel("Skip rest")
+                }
+                .buttonStyle(.bordered)
+                .tint(WorkoutPalette.accent)
             }
-            .buttonStyle(.bordered)
-            .tint(WorkoutPalette.accent)
         }
         .padding(Spacing.m + 2)
         .background(WorkoutPalette.accentSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
+        .accessibilityIdentifier(restAccessibilityIdentifier)
+    }
+
+    private var restStatusMessage: String {
+        if viewModel.isRestReady {
+            return "Rest complete. Your next set is ready."
+        }
+        if viewModel.isTimerPaused {
+            return "Rest paused."
+        }
+        return "Take a breath. Your next set is ready when you are."
+    }
+
+    private var restAccessibilityIdentifier: String {
+        if viewModel.isRestReady { return "rest-ready" }
+        return viewModel.isTimerPaused ? "rest-paused" : "rest-running"
     }
 
     private func formatRemainingTime(_ seconds: TimeInterval) -> String {
@@ -300,6 +350,7 @@ struct ActiveWorkoutView: View {
                         unitSystem: unitSystem,
                         focusedInput: $focusedInput,
                         expandedExerciseID: $expandedExerciseID,
+                        editingCompletedSetID: $editingCompletedSetID,
                         previousPerformance: viewModel.previousPerformance(for: exercise),
                         onExerciseCompleted: {
                             advanceDisclosure(after: exercise, in: workout)
@@ -419,6 +470,43 @@ struct ActiveWorkoutView: View {
         viewModel.cancelTimer()
         navigationPath.removeAll()
         onDiscardRequested()
+    }
+
+    private func firstRecommendation(
+        in workout: Workout
+    ) -> (exercise: ExerciceEntry, state: RecommendationPresentationState)? {
+        for exercise in workout.orderedExercises {
+            guard
+                !handledRecommendationExerciseIDs.contains(exercise.persistentModelID),
+                !exercise.orderedSets.contains(where: \.done),
+                let state = RecommendationPresentationState(entry: exercise)
+            else {
+                continue
+            }
+            return (exercise, state)
+        }
+        return nil
+    }
+
+    private func handleRecommendationAction(
+        _ action: RecommendationAction,
+        for exercise: ExerciceEntry
+    ) {
+        switch action {
+        case .accept:
+            viewModel.applyRecommendation(to: exercise)
+        case .keepLast:
+            viewModel.applyPriorRecommendationLoad(to: exercise)
+        case .edit:
+            expandedExerciseID = exercise.persistentModelID
+            if let set = exercise.orderedSets.first(where: { !$0.done }) {
+                focusedInput = SetInputFocus(
+                    exerciseID: exercise.persistentModelID,
+                    setID: set.persistentModelID
+                )
+            }
+        }
+        handledRecommendationExerciseIDs.insert(exercise.persistentModelID)
     }
 }
 

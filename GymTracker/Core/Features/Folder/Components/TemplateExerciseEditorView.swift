@@ -48,6 +48,8 @@ struct TemplateExerciseEditorView: View {
                     .frame(minHeight: 96)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle(templateExercise.exercise.name)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {

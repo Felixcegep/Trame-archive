@@ -4,37 +4,34 @@ import SwiftData
 struct ProgressionSnapshotService {
     let modelContext: ModelContext
 
+    /// Captures recommendations from the prescription already snapshotted onto
+    /// workout entries. This keeps template and plan starts on the same path.
+    func applyRecommendations(to workout: Workout) {
+        for entry in workout.orderedExercises {
+            guard
+                let rule = entry.prescribedProgressionRule,
+                let requiredSets = entry.prescribedSets,
+                let repCeiling = entry.prescribedRepRangeMaximum,
+                let recommendation = recommendation(
+                    for: entry.exercice,
+                    rule: rule,
+                    requiredSets: requiredSets,
+                    repCeiling: repCeiling,
+                    startedAt: workout.startTime
+                )
+            else {
+                continue
+            }
+
+            snapshot(recommendation, onto: entry)
+        }
+    }
+
     /// Pairs the template prescription with its newly created workout entry and
     /// captures an explainable recommendation. This is deliberately show-only:
     /// performed set weights remain untouched until the user applies it.
     func applyRecommendations(to workout: Workout, from template: WorkoutTemplate) {
-        for (templateExercise, entry) in zip(
-            template.orderedTemplateExercises,
-            workout.orderedExercises
-        ) {
-            guard entry.exercice.persistentModelID == templateExercise.exercise.persistentModelID else {
-                continue
-            }
-
-            guard let recommendation = recommendation(
-                for: templateExercise.exercise,
-                rule: templateExercise.progressionRule,
-                requiredSets: templateExercise.targetSets,
-                repCeiling: templateExercise.repRangeMaximum,
-                startedAt: workout.startTime
-            ) else {
-                continue
-            }
-
-            entry.recommendedDecision = recommendation.decision
-            entry.recommendedLoad = recommendation.recommendedLoad
-            entry.recommendedUnit = recommendation.unit
-            entry.recommendationPriorLoad = recommendation.evidence.priorLoad
-            entry.recommendationRequiredSets = recommendation.evidence.requiredSets
-            entry.recommendationRepCeiling = recommendation.evidence.repCeiling
-            entry.recommendationCompletedSets = recommendation.evidence.completedSets
-            entry.recommendationPriorWorkoutDate = recommendation.evidence.workoutDate
-        }
+        applyRecommendations(to: workout)
     }
 
     /// Source-agnostic core reused by template workouts now and planned workouts
@@ -48,11 +45,12 @@ struct ProgressionSnapshotService {
         startedAt: Date
     ) -> DoubleProgressionRecommendation? {
         guard
-            rule == .doubleProgression,
-            exercise.trackingType.usesWeight,
-            exercise.trackingType != .assistedBodyweight,
-            requiredSets > 0,
-            repCeiling > 0,
+            Self.isEligible(
+                exercise: exercise,
+                rule: rule,
+                requiredSets: requiredSets,
+                repCeiling: repCeiling
+            ),
             let performance = try? ExerciseHistoryService(modelContext: modelContext)
                 .mostRecentPerformance(for: exercise, before: startedAt)
         else {
@@ -79,5 +77,32 @@ struct ProgressionSnapshotService {
             repCeiling: repCeiling,
             increment: Constants.Progression.increment(for: latest.weightType)
         )
+    }
+
+    static func isEligible(
+        exercise: ExerciceTemplate,
+        rule: ProgressionRule,
+        requiredSets: Int,
+        repCeiling: Int
+    ) -> Bool {
+        rule == .doubleProgression
+            && exercise.trackingType.usesWeight
+            && exercise.trackingType != .assistedBodyweight
+            && requiredSets > 0
+            && repCeiling > 0
+    }
+
+    private func snapshot(
+        _ recommendation: DoubleProgressionRecommendation,
+        onto entry: ExerciceEntry
+    ) {
+        entry.recommendedDecision = recommendation.decision
+        entry.recommendedLoad = recommendation.recommendedLoad
+        entry.recommendedUnit = recommendation.unit
+        entry.recommendationPriorLoad = recommendation.evidence.priorLoad
+        entry.recommendationRequiredSets = recommendation.evidence.requiredSets
+        entry.recommendationRepCeiling = recommendation.evidence.repCeiling
+        entry.recommendationCompletedSets = recommendation.evidence.completedSets
+        entry.recommendationPriorWorkoutDate = recommendation.evidence.workoutDate
     }
 }

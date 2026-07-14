@@ -33,7 +33,10 @@ struct ExerciseHistoryService {
         before date: Date
     ) throws -> PreviousExercisePerformance? {
         let descriptor = FetchDescriptor<Workout>(
-            sortBy: [SortDescriptor(\Workout.startTime, order: .reverse)]
+            sortBy: [
+                SortDescriptor(\Workout.startTime, order: .reverse),
+                SortDescriptor(\Workout.id, order: .forward)
+            ]
         )
         let completedWorkouts = try modelContext.fetch(descriptor)
 

@@ -153,6 +153,8 @@ struct RootView: View {
             Text("Do you want to continue your active workout, or discard it and start a new one?")
         }
         .task {
+            let fixture = UITestFixture.launchFixture
+            let isResettingForUITesting = CommandLine.arguments.contains("-reset-data") || fixture != nil
             if CommandLine.arguments.contains("-ui-testing-open-history") {
                 selectedTab = .history
             }
@@ -161,7 +163,11 @@ struct RootView: View {
                 selectedTab = .library
             }
 
-            if CommandLine.arguments.contains("-reset-data") {
+            if CommandLine.arguments.contains("-ui-testing-open-settings") {
+                selectedTab = .settings
+            }
+
+            if isResettingForUITesting {
                 resetDataForUITesting()
             }
             runDataMaintenance()
@@ -169,7 +175,21 @@ struct RootView: View {
             seedWorkoutTemplatesIfNeeded()
             seedWorkoutCollectionsIfNeeded()
             normalizePersistedWorkoutData()
-            workoutVM.restoreActiveWorkout(using: modelContext)
+            if let fixture {
+                do {
+                    try UITestFixture.apply(fixture, using: modelContext)
+                    _ = workoutVM.restoreActiveWorkout(using: modelContext)
+                    isShowingActiveWorkout = fixture.opensActiveWorkout && workoutVM.hasActiveWorkout
+                    isShowingActiveWorkoutConflictAlert = fixture.showsActiveWorkoutConflict
+                } catch {
+                    print("Failed to prepare UI-test fixture '\(fixture.rawValue)': \(error)")
+                }
+            } else if !isResettingForUITesting {
+                // A test reset has just deleted every persisted workout. Avoid
+                // restoring a stale in-memory result while SwiftData finishes
+                // reconciling that deletion with its query cache.
+                workoutVM.restoreActiveWorkout(using: modelContext)
+            }
             isPreparingApp = false
         }
         .onReceive(NotificationCenter.default.publisher(for: .gymDataRestored)) { _ in
@@ -306,6 +326,7 @@ struct RootView: View {
         templateToStart = nil
         plannedWorkoutToStart = nil
         workoutVM.workout = nil
+        workoutVM.activeWorkout = nil
 
         do {
             try modelContext.clearAllGymData()

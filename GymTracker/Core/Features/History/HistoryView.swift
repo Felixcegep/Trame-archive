@@ -21,6 +21,7 @@ struct HistoryView: View {
             if completedWorkouts.isEmpty {
                 ContentUnavailableView {
                     Label("No Workout History", systemImage: AppIcon.history)
+                        .foregroundStyle(Color.gymAccent)
                 } description: {
                     Text("Completed workouts will appear here.")
                 } actions: {

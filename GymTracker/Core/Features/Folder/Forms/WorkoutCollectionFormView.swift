@@ -38,6 +38,8 @@ struct WorkoutCollectionFormView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle("New Collection")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

@@ -9,6 +9,7 @@ struct ExerciceEntryCard: View {
     let unitSystem: UnitSystem
     let focusedInput: FocusState<SetInputFocus?>.Binding
     @Binding var expandedExerciseID: PersistentIdentifier?
+    @Binding var editingCompletedSetID: PersistentIdentifier?
     let previousPerformance: PreviousExercisePerformance?
     let onExerciseCompleted: () -> Void
 
@@ -39,12 +40,12 @@ struct ExerciceEntryCard: View {
     private var activeExerciseCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             DisclosureGroup(isExpanded: disclosureBinding) {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: Spacing.m) {
                     setHeader
                     setRows
                     setActions
                 }
-                .padding(.top, 12)
+                .padding(.top, Spacing.m)
             } label: {
                 exerciseHeader
             }
@@ -77,14 +78,14 @@ struct ExerciceEntryCard: View {
     }
 
     private var exerciseHeader: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.m) {
             if exerciseIsDone {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(WorkoutPalette.secondary)
                     .font(.title3)
             }
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
                 if isCurrentExercise && !exerciseIsDone {
                     Label("CURRENT EXERCISE", systemImage: AppIcon.circleFill)
                         .font(AppFont.caption2Bold)
@@ -117,10 +118,14 @@ struct ExerciceEntryCard: View {
                         .accessibilityIdentifier("previous-performance-\(exerciseEntry.exercice.name)")
                 }
 
-                HStack(spacing: 7) {
+                HStack(spacing: Spacing.s) {
                     Text("\(completedSetCount)/\(exerciseEntry.sets.count) sets")
                     Text("•")
-                    Text(exerciseSummaryText)
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(exerciseDurationText(at: context.date))
+                            .monospacedDigit()
+                            .accessibilityLabel("Exercise time \(exerciseDurationText(at: context.date))")
+                    }
                 }
                 .font(AppFont.caption)
                 .foregroundStyle(WorkoutPalette.subduedText)
@@ -177,6 +182,7 @@ struct ExerciceEntryCard: View {
                     exerciseEntry: exerciseEntry,
                     viewModel: viewModel,
                     focusedInput: focusedInput,
+                    editingCompletedSetID: $editingCompletedSetID,
                     onButtonPress: onButtonPress,
                     onSetCompleted: handleSetCompletion,
                     previousSet: previousPerformance?.set(at: exerciseSet.orderIndex),
@@ -257,6 +263,11 @@ struct ExerciceEntryCard: View {
 
     private var exerciseSummaryText: String {
         exerciseEntry.orderedSets.first?.displayText() ?? "No sets"
+    }
+
+    private func exerciseDurationText(at date: Date) -> String {
+        let totalSeconds = max(0, Int(exerciseEntry.activeDuration(at: date)))
+        return String(format: "%d:%02d", totalSeconds / 60, totalSeconds % 60)
     }
 
     private var prescriptionSummary: String? {

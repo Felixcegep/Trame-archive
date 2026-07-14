@@ -138,6 +138,11 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(WorkoutPalette.subduedText)
             }
 
+            let comparison = WorkoutPerformanceComparison(exercise: exercise)
+            if comparison.hasTargets {
+                PerformanceComparisonView(comparison: comparison)
+            }
+
             setTable
         }
         .frame(maxWidth: .infinity, alignment: .leading)

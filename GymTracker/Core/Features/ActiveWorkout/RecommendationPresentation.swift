@@ -1,5 +1,39 @@
 import Foundation
 
+enum RecommendationAction {
+    case accept
+    case keepLast
+    case edit
+}
+
+enum RecommendationPresentationState {
+    case recommendation(RecommendationPresentation)
+    case insufficientHistory
+
+    init?(entry: ExerciceEntry) {
+        if let presentation = RecommendationPresentation(entry: entry) {
+            self = .recommendation(presentation)
+            return
+        }
+
+        guard
+            let rule = entry.prescribedProgressionRule,
+            let requiredSets = entry.prescribedSets,
+            let repCeiling = entry.prescribedRepRangeMaximum,
+            ProgressionSnapshotService.isEligible(
+                exercise: entry.exercice,
+                rule: rule,
+                requiredSets: requiredSets,
+                repCeiling: repCeiling
+            )
+        else {
+            return nil
+        }
+
+        self = .insufficientHistory
+    }
+}
+
 struct RecommendationPresentation {
     let decision: DoubleProgressionDecision
     let recommendedLoad: Float
@@ -61,5 +95,9 @@ struct RecommendationPresentation {
 
     var appliedLoadText: String {
         "\(Formatters.formatFloat(recommendedLoad)) \(unit.rawValue)"
+    }
+
+    var priorLoadText: String {
+        "\(Formatters.formatFloat(priorLoad)) \(unit.rawValue)"
     }
 }

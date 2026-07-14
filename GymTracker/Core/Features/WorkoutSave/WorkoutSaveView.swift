@@ -290,6 +290,13 @@ struct WorkoutSaveView: View {
                         .padding(.horizontal, Spacing.m)
 
                     VStack(alignment: .leading, spacing: Spacing.xs) {
+                        let comparison = WorkoutPerformanceComparison(exercise: exercise)
+                        if comparison.hasTargets {
+                            PerformanceComparisonView(comparison: comparison)
+                                .padding(.horizontal, Spacing.m)
+                                .padding(.top, Spacing.s)
+                        }
+
                         ForEach(Array(savedSets.enumerated()), id: \.element.persistentModelID) { index, set in
                             HStack(spacing: Spacing.s) {
                                 Text("Set \(index + 1)")

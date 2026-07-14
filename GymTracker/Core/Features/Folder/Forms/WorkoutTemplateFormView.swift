@@ -39,6 +39,8 @@ struct WorkoutTemplateFormView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle("New Template")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

@@ -102,6 +102,10 @@ struct SettingView: View {
                 Text(importErrorMessage)
             }
         }
+        .onAppear {
+            guard CommandLine.arguments.contains("-ui-testing-import-error") else { return }
+            showImportError("Invalid backup file: The selected file is not a GymTracker backup.")
+        }
     }
 
     private var formattedRestTimer: String {
@@ -225,6 +229,8 @@ struct ImportPreviewView: View {
                     LabeledContent("Custom Exercises", value: "\(backup.exercises.filter(\.isCustom).count)")
                     LabeledContent("Workout Templates", value: "\(backup.templates.count)")
                     LabeledContent("Collections", value: "\(backup.collections.count)")
+                    LabeledContent("Plans", value: "\(backup.plans.count)")
+                    LabeledContent("Plan Runs", value: "\(backup.planRuns.count)")
                     LabeledContent("Workout History", value: "\(backup.workouts.count)")
                 }
             }
@@ -253,7 +259,7 @@ struct ImportPreviewView: View {
                     dismiss()
                 }
             } message: {
-                Text("This will delete all your current workouts, templates, collections, and custom exercises. This cannot be undone.")
+                Text("This will delete all your current workouts, templates, collections, plans, plan runs, and custom exercises. This cannot be undone.")
             }
         }
     }

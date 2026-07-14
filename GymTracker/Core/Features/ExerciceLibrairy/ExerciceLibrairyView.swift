@@ -50,6 +50,8 @@ struct ExerciceLibrairyView : View {
             }
         }
         .searchable(text: $searchText, prompt: "Search exercises")
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle("Add Exercise")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {

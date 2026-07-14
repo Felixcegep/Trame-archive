@@ -17,14 +17,30 @@ final class PlanWorkoutProgress {
     @Relationship(deleteRule: .nullify)
     var completedWorkout: Workout?
 
-    init(
+    convenience init(
         plannedWorkout: PlannedWorkout,
         weekIndex: Int,
         workoutIndex: Int,
         scheduledDate: Date? = nil
     ) {
-        self.plannedWorkoutID = plannedWorkout.id
-        self.plannedWorkoutName = plannedWorkout.name
+        self.init(
+            plannedWorkoutID: plannedWorkout.id,
+            plannedWorkoutName: plannedWorkout.name,
+            weekIndex: weekIndex,
+            workoutIndex: workoutIndex,
+            scheduledDate: scheduledDate
+        )
+    }
+
+    init(
+        plannedWorkoutID: UUID,
+        plannedWorkoutName: String,
+        weekIndex: Int,
+        workoutIndex: Int,
+        scheduledDate: Date? = nil
+    ) {
+        self.plannedWorkoutID = plannedWorkoutID
+        self.plannedWorkoutName = plannedWorkoutName
         self.weekIndex = weekIndex
         self.workoutIndex = workoutIndex
         self.scheduledDate = scheduledDate

@@ -38,6 +38,8 @@ final class ExerciceEntry{
     var recommendationRepCeiling: Int?
     var recommendationCompletedSets: Int?
     var recommendationPriorWorkoutDate: Date?
+    var accumulatedActiveDuration: TimeInterval = 0
+    var activeDurationStartedAt: Date?
     var workout: Workout?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseSet.exerciseEntry)
     var sets: [ExerciseSet]
@@ -75,6 +77,8 @@ final class ExerciceEntry{
         self.recommendationRepCeiling = nil
         self.recommendationCompletedSets = nil
         self.recommendationPriorWorkoutDate = nil
+        self.accumulatedActiveDuration = 0
+        self.activeDurationStartedAt = nil
         normalizeSetOrder()
     }
 
@@ -162,6 +166,21 @@ final class ExerciceEntry{
         for (index, set) in orderedSets.enumerated() {
             set.orderIndex = index
         }
+    }
+
+    func activeDuration(at date: Date = .now) -> TimeInterval {
+        accumulatedActiveDuration + max(0, activeDurationStartedAt.map { date.timeIntervalSince($0) } ?? 0)
+    }
+
+    func startActiveDuration(at date: Date = .now) {
+        guard activeDurationStartedAt == nil else { return }
+        activeDurationStartedAt = date
+    }
+
+    func stopActiveDuration(at date: Date = .now) {
+        guard let startedAt = activeDurationStartedAt else { return }
+        accumulatedActiveDuration += max(0, date.timeIntervalSince(startedAt))
+        activeDurationStartedAt = nil
     }
 
     private var nextSetOrderIndex: Int {

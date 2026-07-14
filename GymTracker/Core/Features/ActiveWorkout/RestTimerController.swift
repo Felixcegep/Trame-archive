@@ -7,6 +7,7 @@ final class RestTimerController {
         case idle
         case running(Date)
         case paused(TimeInterval)
+        case ready
     }
 
     private(set) var state: State = .idle
@@ -26,6 +27,11 @@ final class RestTimerController {
         return remaining
     }
 
+    var isReady: Bool {
+        if case .ready = state { return true }
+        return false
+    }
+
     func start(until endDate: Date) {
         state = .running(endDate)
     }
@@ -42,6 +48,10 @@ final class RestTimerController {
 
     func pause(remaining: TimeInterval) {
         state = remaining > 0 ? .paused(remaining) : .idle
+    }
+
+    func ready() {
+        state = .ready
     }
 
     func extendPaused(by seconds: TimeInterval) {

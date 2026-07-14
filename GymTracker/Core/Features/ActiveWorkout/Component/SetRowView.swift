@@ -7,6 +7,7 @@ struct SetRowView: View {
     let exerciseEntry: ExerciceEntry
     let viewModel: ActiveWorkoutViewModel
     let focusedInput: FocusState<SetInputFocus?>.Binding
+    @Binding var editingCompletedSetID: PersistentIdentifier?
     let onButtonPress: () -> Void
     let onSetCompleted: () -> Void
     let previousSet: PreviousSetPerformance?
@@ -15,6 +16,7 @@ struct SetRowView: View {
     @State private var isShowingPlateCalculator = false
     @State private var isShowingSetDetails = false
     @State private var completionValidationMessage: String?
+    @State private var isShowingIncompleteConfirmation = false
 
     private var trackingType: TrackingType {
         exerciseEntry.exercice.trackingType
@@ -76,6 +78,15 @@ struct SetRowView: View {
         .padding(.vertical, 7)
         .background(rowSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .confirmationDialog(
+            "Mark this set incomplete?",
+            isPresented: $isShowingIncompleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Mark set incomplete", role: .destructive, action: markIncomplete)
+        } message: {
+            Text("Its logged values will stay in place and become editable.")
+        }
     }
 
     private var repsField: some View {
@@ -91,6 +102,7 @@ struct SetRowView: View {
             }
         ), focusID: setFocus, prompt: previousSet.map { Formatters.formatFloat($0.repetitions) })
         .accessibilityIdentifier("reps-field-\(exerciseEntry.exercice.name)-\(index)")
+        .disabled(isCompletedAndLocked)
     }
 
     private var weightField: some View {
@@ -111,6 +123,7 @@ struct SetRowView: View {
             .font(AppFont.titleSmallSemiboldMonospaced)
             .focused(focusedInput, equals: setFocus)
             .accessibilityIdentifier("weight-field-\(exerciseEntry.exercice.name)-\(index)")
+            .disabled(isCompletedAndLocked)
 
             if exerciseEntry.exercice.supportsPlateCalculator {
                 Button {
@@ -124,6 +137,7 @@ struct SetRowView: View {
                 .foregroundStyle(WorkoutPalette.primary)
                 .accessibilityLabel("Open plate calculator")
                 .accessibilityIdentifier("plate-calculator-\(exerciseEntry.exercice.name)")
+                .disabled(isCompletedAndLocked)
             }
         }
         .frame(maxWidth: .infinity)
@@ -154,6 +168,7 @@ struct SetRowView: View {
                 viewModel.persistChanges()
             }
         ), focusID: setFocus, prompt: previousSet?.duration.map { String(Int($0)) })
+        .disabled(isCompletedAndLocked)
     }
 
     private var distanceField: some View {
@@ -167,10 +182,11 @@ struct SetRowView: View {
                 viewModel.persistChanges()
             }
         ), focusID: setFocus, prompt: previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) })
+        .disabled(isCompletedAndLocked)
     }
 
     private var doneButton: some View {
-        Button(action: toggleDone) {
+        Button(action: handleCompletionButton) {
             Image(systemName: exerciseSet.done ? AppIcon.checkmark : AppIcon.circle)
                 .font(AppFont.subheadlineBold)
                 .foregroundStyle(exerciseSet.done ? .white : WorkoutPalette.primary)
@@ -179,7 +195,8 @@ struct SetRowView: View {
                 .clipShape(Circle())
         }
         .buttonStyle(.borderless)
-        .accessibilityLabel(exerciseSet.done ? "Mark set incomplete" : "Complete set")
+        .accessibilityLabel(exerciseSet.done ? "Completed set" : "Complete set")
+        .accessibilityHint(exerciseSet.done ? "Opens confirmation before marking this set incomplete." : "Marks this set complete.")
         .accessibilityIdentifier("complete-set-\(exerciseEntry.exercice.name)-\(index)")
     }
 
@@ -221,6 +238,7 @@ struct SetRowView: View {
         .accessibilityLabel("Set \(index + 1), \(exerciseSet.setType.title)")
         .accessibilityHint("Change set type")
         .accessibilityIdentifier("set-type-\(exerciseEntry.exercice.name)-\(index)")
+        .disabled(isCompletedAndLocked)
     }
 
     private var chipForeground: Color {
@@ -233,17 +251,34 @@ struct SetRowView: View {
     }
 
     private var rowMenu: some View {
-        Button {
-            isShowingSetDetails = true
+        Menu {
+            if exerciseSet.done {
+                Button {
+                    editingCompletedSetID = isCompletedAndLocked ? exerciseSet.persistentModelID : nil
+                } label: {
+                    Label(isCompletedAndLocked ? "Edit completed set" : "Lock completed set", systemImage: isCompletedAndLocked ? AppIcon.edit : AppIcon.lock)
+                }
+                .accessibilityIdentifier("edit-completed-set-\(exerciseEntry.exercice.name)-\(index)")
+
+                Button("Mark set incomplete", role: .destructive) {
+                    isShowingIncompleteConfirmation = true
+                }
+            }
+
+            Button {
+                isShowingSetDetails = true
+            } label: {
+                Label("Set details", systemImage: AppIcon.ellipsis)
+            }
         } label: {
-            Image(systemName: AppIcon.ellipsis)
+            Image(systemName: isCompletedAndLocked ? AppIcon.lock : AppIcon.ellipsis)
                 .font(AppFont.captionBold)
                 .foregroundStyle(WorkoutPalette.subduedText)
                 .frame(width: 20, height: 28)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
-        .accessibilityLabel("Set details")
+        .accessibilityLabel(isCompletedAndLocked ? "Completed set actions, locked" : "Set actions")
         .accessibilityIdentifier("set-menu-\(exerciseEntry.exercice.name)-\(index)")
         .sheet(isPresented: $isShowingSetDetails, onDismiss: {
             viewModel.persistChanges()
@@ -258,6 +293,24 @@ struct SetRowView: View {
             .presentationDetents([.height(480), .large])
             .presentationDragIndicator(.visible)
         }
+    }
+
+    private var isCompletedAndLocked: Bool {
+        exerciseSet.done && editingCompletedSetID != exerciseSet.persistentModelID
+    }
+
+    private func handleCompletionButton() {
+        if exerciseSet.done {
+            isShowingIncompleteConfirmation = true
+        } else {
+            toggleDone()
+        }
+    }
+
+    private func markIncomplete() {
+        guard exerciseSet.done, viewModel.switchStateDoneSet(exerciseEntry, exerciseSet) else { return }
+        editingCompletedSetID = exerciseSet.persistentModelID
+        completionValidationMessage = nil
     }
 
     private var setFocus: SetInputFocus {

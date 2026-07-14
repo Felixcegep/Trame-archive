@@ -61,6 +61,8 @@ struct PlanEditorView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle("Edit Plan")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -146,6 +148,8 @@ private struct PlanReviewView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle("Review Plan")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -273,6 +277,8 @@ private struct PlanWorkoutEditorView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle(workout.name.isEmpty ? "Workout" : workout.name)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -322,6 +328,8 @@ private struct PlanExercisePickerView: View {
             }
         }
         .searchable(text: $searchText, prompt: "Search exercises")
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle("Add Exercise")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -347,6 +355,8 @@ private struct PlanExerciseEditorView: View {
             prescriptionSection
             coachingSection
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle("Prescription")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -379,6 +389,10 @@ private struct PlanExerciseEditorView: View {
             Picker("Load unit", selection: $exercise.suggestedLoadType) {
                 Text("Metric (kg)").tag(WeightType.kg)
                 Text("Imperial (lb)").tag(WeightType.lbs)
+            }
+            if exercise.supportsDoubleProgression {
+                Toggle("Double progression", isOn: $exercise.doubleProgressionEnabled)
+                    .accessibilityIdentifier("plan-double-progression-toggle")
             }
         }
     }
@@ -479,6 +493,7 @@ private struct PlanExerciseDraft: Identifiable {
     var targetRPEText: String
     var targetRIR: Int
     var notes: String
+    var progressionRule: ProgressionRule
 
     init(exercise: ExerciceTemplate, orderIndex: Int) {
         id = UUID()
@@ -495,6 +510,10 @@ private struct PlanExerciseDraft: Identifiable {
         targetRPEText = ""
         targetRIR = 0
         notes = ""
+        progressionRule = exercise.trackingType.usesWeight
+            && exercise.trackingType != .assistedBodyweight
+            ? .doubleProgression
+            : .none
     }
 
     init(plannedExercise: PlannedExercise) {
@@ -512,6 +531,7 @@ private struct PlanExerciseDraft: Identifiable {
         targetRPEText = plannedExercise.targetRPE.map { String($0) } ?? ""
         targetRIR = plannedExercise.targetRIR ?? 0
         notes = plannedExercise.notes ?? ""
+        progressionRule = plannedExercise.progressionRule
     }
 
     var summary: String {
@@ -537,7 +557,8 @@ private struct PlanExerciseDraft: Identifiable {
             restSeconds: restSeconds,
             targetRPE: Double(targetRPEText),
             targetRIR: targetRIR == 0 ? nil : targetRIR,
-            notes: notes.isEmpty ? nil : notes
+            notes: notes.isEmpty ? nil : notes,
+            progressionRule: progressionRule
         )
     }
 
@@ -555,11 +576,21 @@ private struct PlanExerciseDraft: Identifiable {
         model.targetRPE = Double(targetRPEText)
         model.targetRIR = targetRIR == 0 ? nil : targetRIR
         model.notes = notes.isEmpty ? nil : notes
+        model.progressionRule = progressionRule
     }
 }
 
 private extension PlanExerciseDraft {
     var title: String { exercise.name }
+
+    var supportsDoubleProgression: Bool {
+        exercise.trackingType.usesWeight && exercise.trackingType != .assistedBodyweight
+    }
+
+    var doubleProgressionEnabled: Bool {
+        get { progressionRule == .doubleProgression }
+        set { progressionRule = newValue ? .doubleProgression : .none }
+    }
 }
 
 extension PlanGoal {

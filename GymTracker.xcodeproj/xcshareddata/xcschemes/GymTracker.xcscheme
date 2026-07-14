@@ -7,20 +7,20 @@
       buildImplicitDependencies = "YES"
       buildArchitectures = "Automatic">
       <BuildActionEntries>
-		 <BuildActionEntry
-			buildForTesting = "YES"
-			buildForRunning = "NO"
-			buildForProfiling = "NO"
-			buildForArchiving = "NO"
-			buildForAnalyzing = "YES">
-			<BuildableReference
-				BuildableIdentifier = "primary"
-				BlueprintIdentifier = "A10000000000000000000003"
-				BuildableName = "GymTrackerTests.xctest"
-				BlueprintName = "GymTrackerTests"
-				ReferencedContainer = "container:GymTracker.xcodeproj">
-			</BuildableReference>
-		 </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A10000000000000000000003"
+               BuildableName = "GymTrackerTests.xctest"
+               BlueprintName = "GymTrackerTests"
+               ReferencedContainer = "container:GymTracker.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
          <BuildActionEntry
             buildForTesting = "YES"
             buildForRunning = "YES"
@@ -44,17 +44,17 @@
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
       <Testables>
-		 <TestableReference
-			skipped = "NO"
-			parallelizable = "NO">
-			<BuildableReference
-				BuildableIdentifier = "primary"
-				BlueprintIdentifier = "A10000000000000000000003"
-				BuildableName = "GymTrackerTests.xctest"
-				BlueprintName = "GymTrackerTests"
-				ReferencedContainer = "container:GymTracker.xcodeproj">
-			</BuildableReference>
-		 </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A10000000000000000000003"
+               BuildableName = "GymTrackerTests.xctest"
+               BlueprintName = "GymTrackerTests"
+               ReferencedContainer = "container:GymTracker.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
          <TestableReference
             skipped = "NO"
             parallelizable = "YES">

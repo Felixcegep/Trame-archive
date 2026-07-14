@@ -2,33 +2,44 @@ import Foundation
 import SwiftData
 
 enum PlanCoordinator {
-    static func createRepeatedPlan(
+    struct DayAssignment {
+        let dayOffset: Int
+        let template: WorkoutTemplate
+    }
+
+    static func createPlan(
         name: String,
         goal: PlanGoal,
         experienceLevel: PlanExperienceLevel,
         durationWeeks: Int,
-        template: WorkoutTemplate,
-        dayOffsets: [Int]
+        dayAssignments: [DayAssignment]
     ) -> WorkoutPlan {
-        let normalizedDays = Array(Set(dayOffsets.filter { (0...6).contains($0) })).sorted()
+        let assignments = dayAssignments
+            .filter { (0...6).contains($0.dayOffset) && !$0.template.orderedTemplateExercises.isEmpty }
+            .reduce(into: [Int: WorkoutTemplate]()) { result, assignment in
+                result[assignment.dayOffset] = assignment.template
+            }
+            .map { DayAssignment(dayOffset: $0.key, template: $0.value) }
+            .sorted { $0.dayOffset < $1.dayOffset }
+
         let plan = WorkoutPlan(
             name: name,
             goal: goal,
             experienceLevel: experienceLevel,
-            daysPerWeek: normalizedDays.count,
+            daysPerWeek: assignments.count,
             durationWeeks: durationWeeks
         )
 
         let weeks = (0..<durationWeeks).map { weekIndex in
             PlanWeek(
                 weekIndex: weekIndex,
-                plannedWorkouts: normalizedDays.enumerated().map { workoutIndex, dayOffset in
+                plannedWorkouts: assignments.enumerated().map { workoutIndex, assignment in
                     PlannedWorkout(
-                        name: template.name,
+                        name: assignment.template.name,
                         orderIndex: workoutIndex,
-                        dayOffset: dayOffset,
-                        sourceTemplate: template,
-                        plannedExercises: copiedExercises(from: template)
+                        dayOffset: assignment.dayOffset,
+                        sourceTemplate: assignment.template,
+                        plannedExercises: copiedExercises(from: assignment.template)
                     )
                 }
             )
@@ -43,6 +54,25 @@ enum PlanCoordinator {
             )
         ]
         return plan
+    }
+
+    static func createRepeatedPlan(
+        name: String,
+        goal: PlanGoal,
+        experienceLevel: PlanExperienceLevel,
+        durationWeeks: Int,
+        template: WorkoutTemplate,
+        dayOffsets: [Int]
+    ) -> WorkoutPlan {
+        createPlan(
+            name: name,
+            goal: goal,
+            experienceLevel: experienceLevel,
+            durationWeeks: durationWeeks,
+            dayAssignments: dayOffsets.map {
+                DayAssignment(dayOffset: $0, template: template)
+            }
+        )
     }
 
     @discardableResult
@@ -151,7 +181,8 @@ enum PlanCoordinator {
                 restSeconds: templateExercise.restSeconds,
                 targetRPE: templateExercise.targetRPE,
                 targetRIR: templateExercise.targetRIR,
-                notes: templateExercise.notes
+                notes: templateExercise.notes,
+                progressionRule: templateExercise.progressionRule
             )
         }
     }

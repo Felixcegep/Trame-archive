@@ -124,6 +124,8 @@ struct ExerciseFormView: View {
                     .autocorrectionDisabled()
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle(exercise == nil ? "New Exercise" : "Edit Exercise")
         .onChange(of: equipmentType) { previousEquipment, equipment in
             if previousEquipment == .barbell && equipment != .barbell {

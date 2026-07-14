@@ -18,9 +18,23 @@ final class PlanRun {
     @Relationship(deleteRule: .cascade, inverse: \PlanWorkoutProgress.planRun)
     var workoutProgress: [PlanWorkoutProgress] = []
 
-    init(plan: WorkoutPlan, startDate: Date = .now) {
-        self.sourcePlanID = plan.id
-        self.sourcePlanName = plan.name
+    convenience init(plan: WorkoutPlan, startDate: Date = .now) {
+        self.init(
+            sourcePlanID: plan.id,
+            sourcePlanName: plan.name,
+            startDate: startDate,
+            plan: plan
+        )
+    }
+
+    init(
+        sourcePlanID: UUID,
+        sourcePlanName: String,
+        startDate: Date,
+        plan: WorkoutPlan? = nil
+    ) {
+        self.sourcePlanID = sourcePlanID
+        self.sourcePlanName = sourcePlanName
         self.startDate = startDate
         self.status = .active
         self.currentWeekIndex = 0

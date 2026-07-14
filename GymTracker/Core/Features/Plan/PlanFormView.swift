@@ -11,8 +11,8 @@ struct PlanFormView: View {
     @State private var durationWeeks = 4
     @State private var goal: PlanGoal = .generalStrength
     @State private var experienceLevel: PlanExperienceLevel = .beginner
-    @State private var selectedTemplateID: PersistentIdentifier?
     @State private var selectedDayOffsets: Set<Int> = [0, 2, 4]
+    @State private var templateIDByDay: [Int: PersistentIdentifier] = [:]
 
     var body: some View {
         Form {
@@ -36,43 +36,41 @@ struct PlanFormView: View {
             }
 
             Section("Weekly schedule") {
-                Text("Choose the days this workout repeats. You can add week-specific programming in a later release.")
+                Text("Choose each training day and the workout template assigned to it.")
                     .font(AppFont.footnote)
                     .foregroundStyle(.secondary)
 
                 ForEach(weekdayOptions, id: \.offset) { day in
-                    Toggle(day.name, isOn: binding(for: day.offset))
-                        .accessibilityIdentifier("plan-day-\(day.offset)")
-                }
-            }
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        Toggle(day.name, isOn: binding(for: day.offset))
+                            .accessibilityIdentifier("plan-day-\(day.offset)")
 
-            Section("Workout template") {
-                if templates.isEmpty {
-                    Text("Create a workout template before creating a plan.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(templates, id: \.persistentModelID) { template in
-                        Button {
-                            selectedTemplateID = template.persistentModelID
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                    Text(template.name)
-                                        .foregroundStyle(Color.gymText)
-                                    Text(exerciseCountText(for: template))
-                                        .font(AppFont.caption)
-                                        .foregroundStyle(.secondary)
+                        if selectedDayOffsets.contains(day.offset), !availableTemplates.isEmpty {
+                            Picker("Workout", selection: templateBinding(for: day.offset)) {
+                                ForEach(availableTemplates, id: \.persistentModelID) { template in
+                                    VStack(alignment: .leading) {
+                                        Text(template.name)
+                                        Text(exerciseCountText(for: template))
+                                            .font(AppFont.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .tag(template.persistentModelID)
                                 }
-                                Spacer()
-                                Image(systemName: selectedTemplateID == template.persistentModelID ? AppIcon.checkmarkCircle : AppIcon.circle)
-                                    .foregroundStyle(Color.gymPrimary)
                             }
+                            .pickerStyle(.navigationLink)
+                            .accessibilityIdentifier("plan-day-template-\(day.offset)")
                         }
-                        .accessibilityIdentifier("plan-template-\(template.name)")
                     }
+                }
+
+                if availableTemplates.isEmpty {
+                    Text("Create a non-empty workout template before creating a plan.")
+                        .foregroundStyle(.secondary)
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle("New Plan")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -80,26 +78,26 @@ struct PlanFormView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    guard let template = selectedTemplate else { return }
                     onSave(
-                        PlanCoordinator.createRepeatedPlan(
+                        PlanCoordinator.createPlan(
                             name: trimmedName,
                             goal: goal,
                             experienceLevel: experienceLevel,
                             durationWeeks: durationWeeks,
-                            template: template,
-                            dayOffsets: Array(selectedDayOffsets)
+                            dayAssignments: selectedDayAssignments
                         )
                     )
                     dismiss()
                 }
-                .disabled(trimmedName.isEmpty || selectedTemplate?.templateExercises.isEmpty != false || selectedDayOffsets.isEmpty)
+                .disabled(!canSave)
                 .accessibilityIdentifier("save-plan")
             }
         }
         .onAppear {
-            if selectedTemplateID == nil {
-                selectedTemplateID = templates.first?.persistentModelID
+            if let firstTemplateID = availableTemplates.first?.persistentModelID {
+                for dayOffset in selectedDayOffsets where templateIDByDay[dayOffset] == nil {
+                    templateIDByDay[dayOffset] = firstTemplateID
+                }
             }
         }
     }
@@ -108,8 +106,28 @@ struct PlanFormView: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var selectedTemplate: WorkoutTemplate? {
-        templates.first(where: { $0.persistentModelID == selectedTemplateID })
+    private var availableTemplates: [WorkoutTemplate] {
+        templates
+            .filter { !$0.orderedTemplateExercises.isEmpty }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private var selectedDayAssignments: [PlanCoordinator.DayAssignment] {
+        selectedDayOffsets.sorted().compactMap { dayOffset in
+            guard
+                let templateID = templateIDByDay[dayOffset],
+                let template = availableTemplates.first(where: { $0.persistentModelID == templateID })
+            else {
+                return nil
+            }
+            return PlanCoordinator.DayAssignment(dayOffset: dayOffset, template: template)
+        }
+    }
+
+    private var canSave: Bool {
+        !trimmedName.isEmpty
+            && !selectedDayOffsets.isEmpty
+            && selectedDayAssignments.count == selectedDayOffsets.count
     }
 
     private func binding(for dayOffset: Int) -> Binding<Bool> {
@@ -118,10 +136,24 @@ struct PlanFormView: View {
             set: { isSelected in
                 if isSelected {
                     selectedDayOffsets.insert(dayOffset)
+                    if templateIDByDay[dayOffset] == nil {
+                        templateIDByDay[dayOffset] = availableTemplates.first?.persistentModelID
+                    }
                 } else {
                     selectedDayOffsets.remove(dayOffset)
+                    templateIDByDay.removeValue(forKey: dayOffset)
                 }
             }
+        )
+    }
+
+    private func templateBinding(for dayOffset: Int) -> Binding<PersistentIdentifier> {
+        Binding(
+            get: {
+                templateIDByDay[dayOffset]
+                    ?? availableTemplates.first!.persistentModelID
+            },
+            set: { templateIDByDay[dayOffset] = $0 }
         )
     }
 

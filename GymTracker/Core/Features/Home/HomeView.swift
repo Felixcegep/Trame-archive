@@ -74,7 +74,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: Spacing.xs + 2) {
             Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
                 .font(AppFont.subheadlineMediumMonospaced)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(WorkoutPalette.accent)
 
             Text(workoutVM.hasActiveWorkout ? "Your workout is ready." : "Ready when you are.")
                 .font(AppFont.displayMedium)
@@ -101,9 +101,11 @@ struct HomeView: View {
 
                     Spacer()
 
-                    Image(systemName: "chevron.right")
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(workoutVM.hasActiveWorkout ? .white : Color.gymPrimary)
+                    if workoutVM.hasActiveWorkout {
+                        Image(systemName: "chevron.right")
+                            .font(AppFont.subheadlineBold)
+                            .foregroundStyle(.white)
+                    }
                 }
 
                 Text(primaryCardTitle)
@@ -122,6 +124,20 @@ struct HomeView: View {
                     .tint(.white.opacity(0.95))
                     .padding(.top, Spacing.xxs)
                 }
+
+                if !workoutVM.hasActiveWorkout {
+                    HStack(spacing: Spacing.s) {
+                        Text("Start now")
+                            .font(AppFont.subheadlineBold)
+                        Image(systemName: "arrow.right")
+                            .font(AppFont.captionBold)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.vertical, Spacing.md)
+                    .padding(.horizontal, Spacing.xl)
+                    .background(Color.gymPrimary, in: Capsule())
+                    .padding(.top, Spacing.xs)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.l)
@@ -133,7 +149,11 @@ struct HomeView: View {
                         endPoint: .bottomTrailing
                     )
                 } else {
-                    WorkoutPalette.surface
+                    LinearGradient(
+                        colors: [WorkoutPalette.surface, Color.gymPrimarySurface.opacity(0.55)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -230,7 +250,7 @@ struct HomeView: View {
                         .font(AppFont.headline)
                         .frame(width: 38, height: 38)
                         .foregroundStyle(WorkoutPalette.accent)
-                        .background(WorkoutPalette.accentSurface)
+                        .background(WorkoutPalette.surface)
                         .clipShape(Circle())
 
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -243,10 +263,10 @@ struct HomeView: View {
                 }
                 .padding(Spacing.m)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(WorkoutPalette.surface)
+                .background(WorkoutPalette.accentSurface)
                 .overlay {
                     RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                        .stroke(WorkoutPalette.border, lineWidth: 1)
+                        .stroke(WorkoutPalette.accent.opacity(0.14), lineWidth: 1)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                 .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)

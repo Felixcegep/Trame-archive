@@ -36,6 +36,12 @@ class WorkoutViewModel {
             return false
         }
 
+        // Validate before pruning incomplete sets or empty exercises. An invalid
+        // save must leave the active draft untouched so the user can complete it.
+        guard activeWorkout.completedSetCount > 0 else {
+            return false
+        }
+
         // Incomplete work is intentionally excluded from historical truth. Removing
         // a SwiftData relationship alone does not delete its model, so explicitly
         // delete each child as well.
@@ -57,8 +63,6 @@ class WorkoutViewModel {
             modelContext.delete(exercise)
         }
 
-        guard activeWorkout.completedSetCount > 0 else { return false }
-
         activeWorkout.nom = normalized(activeWorkout.nom)
         activeWorkout.notes = normalized(activeWorkout.notes)
 
@@ -70,6 +74,10 @@ class WorkoutViewModel {
         do {
             try modelContext.save()
         } catch {
+            // The active workout remains recoverable after a persistence failure.
+            // SwiftData's rollback also undoes planned-run advancement and child
+            // pruning performed above.
+            modelContext.rollback()
             print("Failed to save workout: \(error)")
             return false
         }
@@ -90,6 +98,9 @@ class WorkoutViewModel {
             try modelContext.save()
             workout = nil
         } catch {
+            modelContext.rollback()
+            self.activeWorkout = try? modelContext.fetch(FetchDescriptor<Workout>())
+                .first { $0.status == .active }
             print("Failed to discard active workout: \(error)")
         }
     }
@@ -123,6 +134,8 @@ class WorkoutViewModel {
         guard progress.status == .available || progress.status == .upcoming else { return false }
 
         let newWorkout = Workout(plannedWorkout: plannedWorkout, planRun: planRun, unitSystem: unitSystem)
+        ProgressionSnapshotService(modelContext: modelContext)
+            .applyRecommendations(to: newWorkout)
         progress.status = .inProgress
         progress.startedAt = .now
         planRun.updatedAt = .now
@@ -164,6 +177,7 @@ class WorkoutViewModel {
             LiveActivityManager.shared.startWorkout(startTime: workout.startTime)
             return true
         } catch {
+            modelContext.rollback()
             print("Failed to start workout: \(error)")
             return false
         }

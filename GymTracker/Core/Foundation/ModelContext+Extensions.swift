@@ -2,12 +2,14 @@ import Foundation
 import SwiftData
 
 extension ModelContext {
-    func clearAllGymData() throws {
+    func clearAllGymData(saveChanges: Bool = true) throws {
         let workouts = try fetch(FetchDescriptor<Workout>())
         for workout in workouts {
             workout.sourceTemplate = nil
         }
-        try save()
+        if saveChanges {
+            try save()
+        }
 
         // Delete graph roots, never relationship children by batch request. This
         // lets SwiftData apply the same cascade and nullification rules that the
@@ -18,7 +20,9 @@ extension ModelContext {
         for collection in try fetch(FetchDescriptor<WorkoutCollection>()) { delete(collection) }
         for template in try fetch(FetchDescriptor<WorkoutTemplate>()) { delete(template) }
         for exercise in try fetch(FetchDescriptor<ExerciceTemplate>()) { delete(exercise) }
-        try save()
-        _ = try DataMaintenanceService.cleanupOrphans(using: self)
+        if saveChanges {
+            try save()
+            _ = try DataMaintenanceService.cleanupOrphans(using: self)
+        }
     }
 }
