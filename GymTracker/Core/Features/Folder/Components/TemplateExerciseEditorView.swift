@@ -32,6 +32,17 @@ struct TemplateExerciseEditorView: View {
                 }
             }
 
+            if progressionIsEligible {
+                Section {
+                    Toggle("Double progression", isOn: doubleProgressionEnabled)
+                        .accessibilityIdentifier("double-progression-toggle")
+                } header: {
+                    Text("Progression")
+                } footer: {
+                    Text("When every set reaches the top of the rep range, GymTracker recommends adding 2.5 kg / 5 lb next time. Recommendations are suggestions — your logged weights always win.")
+                }
+            }
+
             Section("Notes") {
                 TextEditor(text: notes)
                     .frame(minHeight: 96)
@@ -66,6 +77,18 @@ struct TemplateExerciseEditorView: View {
         Binding(
             get: { templateExercise.notes ?? "" },
             set: { templateExercise.notes = $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+        )
+    }
+
+    private var progressionIsEligible: Bool {
+        templateExercise.exercise.trackingType.usesWeight
+            && templateExercise.exercise.trackingType != .assistedBodyweight
+    }
+
+    private var doubleProgressionEnabled: Binding<Bool> {
+        Binding(
+            get: { templateExercise.progressionRule == .doubleProgression },
+            set: { templateExercise.progressionRule = $0 ? .doubleProgression : .none }
         )
     }
 

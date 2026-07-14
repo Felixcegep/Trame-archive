@@ -34,6 +34,7 @@ struct WorkoutTemplateDetailView: View {
                                 systemImage: "figure.strengthtraining.traditional"
                             )
                         }
+                        .accessibilityIdentifier("template-exercise-editor-\(templateExercise.exercise.name)")
                     }
                     .onDelete(perform: removeExercises)
                 }

@@ -512,6 +512,15 @@ final class GymTrackerUITEST: XCTestCase {
 
         // 9. Save Workout Screen (Tap finish button)
         app.buttons["Done"].tap()
+        for setIndex in 1...2 {
+            enterValidValues(for: "Bench Press", set: setIndex, in: app)
+            app.buttons["complete-set-Bench Press-\(setIndex)"].tap()
+            XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+            let dismissRest = app.buttons["Done"]
+            if dismissRest.waitForExistence(timeout: 1) {
+                dismissRest.tap()
+            }
+        }
         let finishButton = app.buttons["Review Workout"].exists ? app.buttons["Review Workout"] : app.buttons["Terminer l'entraînement"]
         XCTAssertTrue(finishButton.waitForExistence(timeout: 5))
         finishButton.tap()
@@ -531,11 +540,15 @@ final class GymTrackerUITEST: XCTestCase {
         // Wait to return to Home
         XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
 
-        // Previous-session performance is a primary active-workout reference.
-        // Start a second session from the workout just saved above.
-        app.buttons["start-free-workout"].tap()
-        addExercise("Bench Press", in: app)
+        // A template-started second session displays both historical truth and
+        // its explainable, show-only progression recommendation.
+        app.buttons["start-from-template"].tap()
+        let upperBodyTemplate = app.buttons["workout-template-Jour 2 - Haut du Corps (Poussée/Tirage)"]
+        XCTAssertTrue(upperBodyTemplate.waitForExistence(timeout: 5))
+        upperBodyTemplate.tap()
         XCTAssertTrue(app.staticTexts["previous-performance-Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["recommendation-Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["apply-recommendation-Bench Press"].exists)
         saveScreenshot(name: "10_Previous_Performance")
         app.buttons["minimize-workout"].tap()
 
@@ -549,7 +562,24 @@ final class GymTrackerUITEST: XCTestCase {
         workoutRow.tap()
         saveScreenshot(name: "11_History_Detail")
 
-        // 12. Plan Review
+        // 12. Template progression toggle
+        app.tabBars.buttons.element(boundBy: 1).tap()
+        let templatesBrowser = app.staticTexts["Workout Templates"].firstMatch
+        XCTAssertTrue(templatesBrowser.waitForExistence(timeout: 5))
+        templatesBrowser.tap()
+        let upperBodyTemplateRow = app.staticTexts["Jour 2 - Haut du Corps (Poussée/Tirage)"].firstMatch
+        XCTAssertTrue(upperBodyTemplateRow.waitForExistence(timeout: 5))
+        upperBodyTemplateRow.tap()
+        let benchPressEditor = app.buttons["template-exercise-editor-Bench Press"]
+        XCTAssertTrue(benchPressEditor.waitForExistence(timeout: 5))
+        benchPressEditor.tap()
+        XCTAssertTrue(app.switches["double-progression-toggle"].waitForExistence(timeout: 5))
+        saveScreenshot(name: "12_Template_Progression")
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // 13. Plan Review
         app.tabBars.buttons.element(boundBy: 1).tap()
         app.buttons["Create library item"].tap()
         XCTAssertTrue(app.buttons["New Plan"].waitForExistence(timeout: 5))
@@ -568,7 +598,7 @@ final class GymTrackerUITEST: XCTestCase {
         app.buttons["edit-plan"].tap()
         app.buttons["save-plan-edits"].tap()
         XCTAssertTrue(app.buttons["confirm-plan-changes"].waitForExistence(timeout: 5))
-        saveScreenshot(name: "12_Plan_Review")
+        saveScreenshot(name: "13_Plan_Review")
     }
 
     func testDefaultCollectionSeededOnLaunch() {

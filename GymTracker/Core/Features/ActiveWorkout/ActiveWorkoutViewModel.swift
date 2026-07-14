@@ -165,6 +165,25 @@ class ActiveWorkoutViewModel {
         }
         persistChanges()
     }
+
+    /// Applies only the suggested load. Reps remain explicit user input (or can
+    /// still be filled from previous-performance hints), and completed sets are
+    /// never rewritten.
+    func applyRecommendation(to exercise: ExerciceEntry) {
+        guard
+            exercise.exercice.trackingType.usesWeight,
+            exercise.recommendedDecision != nil,
+            let load = exercise.recommendedLoad,
+            let unit = exercise.recommendedUnit
+        else {
+            return
+        }
+
+        for set in exercise.orderedSets where !set.done {
+            set.weight = UnitConversion.weight(load, from: unit, to: set.weightType)
+        }
+        persistChanges()
+    }
     
     @discardableResult
     func switchStateDoneSet(

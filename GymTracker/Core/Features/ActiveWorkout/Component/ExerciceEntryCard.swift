@@ -105,6 +105,10 @@ struct ExerciceEntryCard: View {
                         .accessibilityIdentifier("prescription-summary-\(exerciseEntry.exercice.name)")
                 }
 
+                if let recommendationPresentation, !exerciseIsDone {
+                    recommendationRow(recommendationPresentation)
+                }
+
                 if let previousPerformance {
                     Text(previousPerformanceSummary(previousPerformance))
                         .font(AppFont.caption)
@@ -275,6 +279,52 @@ struct ExerciceEntryCard: View {
 
     private var trackingType: TrackingType {
         exerciseEntry.exercice.trackingType
+    }
+
+    private var recommendationPresentation: RecommendationPresentation? {
+        RecommendationPresentation(entry: exerciseEntry)
+    }
+
+    @ViewBuilder
+    private func recommendationRow(_ presentation: RecommendationPresentation) -> some View {
+        HStack(alignment: .center, spacing: Spacing.s) {
+            Text(presentation.explanation)
+                .font(AppFont.caption)
+                .foregroundStyle(
+                    presentation.decision == .increase
+                        ? WorkoutPalette.primary
+                        : WorkoutPalette.subduedText
+                )
+                .lineLimit(2)
+                .accessibilityIdentifier("recommendation-\(exerciseEntry.exercice.name)")
+
+            Spacer(minLength: 0)
+
+            if shouldShowApplyRecommendation(presentation) {
+                Button {
+                    viewModel.applyRecommendation(to: exerciseEntry)
+                } label: {
+                    Text("Apply \(presentation.appliedLoadText)")
+                        .font(AppFont.captionBold)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityIdentifier("apply-recommendation-\(exerciseEntry.exercice.name)")
+            }
+        }
+    }
+
+    private func shouldShowApplyRecommendation(_ presentation: RecommendationPresentation) -> Bool {
+        let incompleteSets = exerciseEntry.orderedSets.filter { !$0.done }
+        guard !incompleteSets.isEmpty else { return false }
+        return incompleteSets.contains { set in
+            let convertedLoad = UnitConversion.weight(
+                presentation.recommendedLoad,
+                from: presentation.unit,
+                to: set.weightType
+            )
+            return abs(set.weight - convertedLoad) > 0.0001
+        }
     }
 
     private var inputTitles: [String] {

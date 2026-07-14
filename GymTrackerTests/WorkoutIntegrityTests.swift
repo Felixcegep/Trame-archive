@@ -103,6 +103,207 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertTrue(recommendation?.explanation.contains("105 lbs recommended") == true)
     }
 
+    func testDoubleProgressionHoldsLoadWhenAnyRequiredSetIsBelowTheRepCeiling() {
+        let performance = PreviousExercisePerformance(
+            workoutDate: .now,
+            sets: [
+                previousSet(order: 0, reps: 12, weight: 100),
+                previousSet(order: 1, reps: 11, weight: 100),
+                previousSet(order: 2, reps: 12, weight: 100)
+            ]
+        )
+
+        let recommendation = DoubleProgressionEngine.recommend(
+            from: performance,
+            requiredSets: 3,
+            repCeiling: 12,
+            increment: Constants.Progression.imperialIncrementLbs
+        )
+
+        XCTAssertEqual(recommendation?.decision, .hold)
+        XCTAssertEqual(recommendation?.recommendedLoad, 100)
+        XCTAssertEqual(recommendation?.evidence.completedSets, 3)
+    }
+
+    func testDoubleProgressionRequiresTheFullRequiredSetPrefix() {
+        let performance = PreviousExercisePerformance(
+            workoutDate: .now,
+            sets: [
+                previousSet(order: 0, reps: 12, weight: 100),
+                previousSet(order: 1, reps: 12, weight: 100)
+            ]
+        )
+
+        XCTAssertNil(
+            DoubleProgressionEngine.recommend(
+                from: performance,
+                requiredSets: 3,
+                repCeiling: 12,
+                increment: Constants.Progression.imperialIncrementLbs
+            )
+        )
+    }
+
+    func testProgressionSnapshotExcludesWarmupsAndPreservesTheStartedTemplateEvidence() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let priorWorkout = Workout(nom: "Prior", endTime: .now)
+        priorWorkout.startTime = .now.addingTimeInterval(-86_400)
+        let priorEntry = ExerciceEntry(exercice: exercise, usedMetric: .imperial)
+        priorEntry.sets = [
+            ExerciseSet(repetition: 20, weight: 45, done: true, setType: .warmup, orderIndex: 0, usedMetric: .imperial),
+            ExerciseSet(repetition: 12, weight: 100, done: true, orderIndex: 1, usedMetric: .imperial),
+            ExerciseSet(repetition: 12, weight: 100, done: true, orderIndex: 2, usedMetric: .imperial)
+        ]
+        priorWorkout.exercises = [priorEntry]
+
+        let templateExercise = TemplateExercise(
+            exercise: exercise,
+            order: 0,
+            targetSets: 2,
+            repRangeMinimum: 8,
+            repRangeMaximum: 12
+        )
+        let template = WorkoutTemplate(
+            name: "Progression",
+            exercises: [exercise],
+            templateExercises: [templateExercise]
+        )
+        let activeWorkout = Workout(template: template, unitSystem: .metric)
+
+        context.insert(exercise)
+        context.insert(priorWorkout)
+        context.insert(template)
+        try context.save()
+
+        ProgressionSnapshotService(modelContext: context)
+            .applyRecommendations(to: activeWorkout, from: template)
+
+        let entry = try XCTUnwrap(activeWorkout.orderedExercises.first)
+        XCTAssertEqual(entry.recommendedDecision, .increase)
+        XCTAssertEqual(entry.recommendedLoad, 105)
+        XCTAssertEqual(entry.recommendedUnit, .lbs)
+        XCTAssertEqual(entry.recommendationRequiredSets, 2)
+        XCTAssertEqual(entry.recommendationCompletedSets, 2)
+
+        templateExercise.progressionRule = .none
+        templateExercise.repRangeMaximum = 1
+        XCTAssertEqual(entry.recommendedDecision, .increase)
+        XCTAssertEqual(entry.recommendationRepCeiling, 12)
+    }
+
+    func testProgressionSnapshotSkipsDisabledAndAssistedBodyweightExercises() throws {
+        let context = try makeContext()
+        let disabledExercise = makeExercise()
+        let assistedExercise = ExerciceTemplate(
+            name: "Assisted Pull-up",
+            PrimaryMuscle: [.latissimusDorsi],
+            trackingType: .assistedBodyweight
+        )
+
+        let disabled = TemplateExercise(exercise: disabledExercise, order: 0, progressionRule: .none)
+        let assisted = TemplateExercise(exercise: assistedExercise, order: 1)
+        let service = ProgressionSnapshotService(modelContext: context)
+
+        XCTAssertNil(
+            service.recommendation(
+                for: disabledExercise,
+                rule: disabled.progressionRule,
+                requiredSets: 3,
+                repCeiling: 12,
+                startedAt: .now
+            )
+        )
+        XCTAssertNil(
+            service.recommendation(
+                for: assistedExercise,
+                rule: assisted.progressionRule,
+                requiredSets: 3,
+                repCeiling: 12,
+                startedAt: .now
+            )
+        )
+    }
+
+    func testApplyRecommendationConvertsOnlyIncompleteSets() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let openSet = ExerciseSet(repetition: 0, weight: 0, orderIndex: 0, usedMetric: .metric)
+        let completedSet = ExerciseSet(repetition: 8, weight: 80, done: true, orderIndex: 1, usedMetric: .imperial)
+        let entry = ExerciceEntry(exercice: exercise, sets: [openSet, completedSet], usedMetric: .metric)
+        entry.recommendedDecision = .increase
+        entry.recommendedLoad = 105
+        entry.recommendedUnit = .lbs
+        let workout = Workout(nom: "Active")
+        workout.exercises = [entry]
+        context.insert(exercise)
+        context.insert(workout)
+        try context.save()
+
+        let workoutViewModel = WorkoutViewModel()
+        workoutViewModel.activeWorkout = workout
+        ActiveWorkoutViewModel(workoutVM: workoutViewModel, modelContext: context)
+            .applyRecommendation(to: entry)
+
+        XCTAssertEqual(openSet.weight, UnitConversion.weight(105, from: .lbs, to: .kg), accuracy: 0.001)
+        XCTAssertEqual(completedSet.weight, 80)
+    }
+
+    func testLegacyBackupDefaultsTemplateProgressionToDoubleProgression() throws {
+        let context = try makeContext()
+        let backup = BackupDTO(
+            version: BackupDTO.currentVersion,
+            preferences: PreferencesDTO(darkMode: false, restTimer: 90, unitSystem: UnitSystem.metric.rawValue),
+            exercises: [
+                ExerciseTemplateDTO(
+                    name: "Bench Press",
+                    primaryMuscles: [Muscle.upperChest.rawValue],
+                    secondaryMuscles: nil,
+                    category: nil,
+                    trackingType: TrackingType.weightAndReps.rawValue,
+                    equipmentType: nil,
+                    resistanceType: nil,
+                    movementPattern: nil,
+                    difficulty: nil,
+                    tags: [],
+                    isFavorite: false,
+                    isPlateLoaded: false,
+                    isCustom: true,
+                    isArchived: false
+                )
+            ],
+            templates: [
+                WorkoutTemplateDTO(
+                    name: "Legacy Template",
+                    templateExercises: [
+                        TemplateExerciseDTO(
+                            exerciseName: "Bench Press",
+                            orderIndex: 0,
+                            targetSets: 3,
+                            repRangeMinimum: 8,
+                            repRangeMaximum: 12,
+                            restSeconds: 90,
+                            targetRPE: nil,
+                            targetRIR: nil,
+                            notes: nil,
+                            progressionRule: nil
+                        )
+                    ]
+                )
+            ],
+            collections: [],
+            workouts: []
+        )
+
+        try backup.restore(to: context)
+
+        XCTAssertEqual(
+            try XCTUnwrap(context.fetch(FetchDescriptor<WorkoutTemplate>()).first)
+                .orderedTemplateExercises.first?.progressionRule,
+            .doubleProgression
+        )
+    }
+
     func testBackupRoundTripsProgressionRuleAndRecommendationSnapshot() throws {
         let source = try makeContext()
         let exercise = makeExercise()
@@ -203,5 +404,18 @@ final class WorkoutIntegrityTests: XCTestCase {
         let workout = Workout(nom: "Test Workout", endTime: .now)
         workout.exercises = [entry]
         return workout
+    }
+
+    private func previousSet(order: Int, reps: Float, weight: Float) -> PreviousSetPerformance {
+        PreviousSetPerformance(
+            orderIndex: order,
+            repetitions: reps,
+            weight: weight,
+            weightType: .lbs,
+            duration: nil,
+            distance: nil,
+            distanceType: .miles,
+            setType: .normal
+        )
     }
 }
