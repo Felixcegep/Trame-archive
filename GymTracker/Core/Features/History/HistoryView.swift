@@ -73,6 +73,8 @@ struct HistoryView: View {
                         HistoryProgressView(workouts: completedWorkouts)
                     case .records:
                         HistoryRecordsView(workouts: completedWorkouts)
+                    case .balance:
+                        HistoryMuscleBalanceDestination()
                     }
                 }
             }
@@ -130,6 +132,7 @@ private enum HistoryTab: String, CaseIterable, Identifiable {
     case workouts
     case progress
     case records
+    case balance
 
     var id: Self { self }
 
@@ -138,6 +141,7 @@ private enum HistoryTab: String, CaseIterable, Identifiable {
         case .workouts: "Workouts"
         case .progress: "Progress"
         case .records: "Records"
+        case .balance: "Balance"
         }
     }
 }

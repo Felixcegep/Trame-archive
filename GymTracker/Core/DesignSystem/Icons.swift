@@ -8,6 +8,7 @@ struct AppIcon {
     static let settings = "gearshape"
     static let plan = "calendar"
     static let planAdd = "calendar.badge.plus"
+    static let reschedule = "calendar.badge.clock"
     static let minimize = "chevron.down"
     static let chevronRight = "chevron.right"
     static let picker = "chevron.up.chevron.down"
