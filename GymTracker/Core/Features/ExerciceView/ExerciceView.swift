@@ -42,6 +42,7 @@ struct ExerciceView : View {
     private let editableExercise: ExerciceTemplate?
     private let snapshot: ExerciceDetailSnapshot?
     @State private var isShowingEditor = false
+    @State private var isShowingInsights = false
 
     init(exercice: ExerciceTemplate) {
         editableExercise = exercice
@@ -95,6 +96,7 @@ struct ExerciceView : View {
                 } label: {
                     Label("Exercise Stats", systemImage: "chart.bar")
                 }
+                .accessibilityIdentifier("exercise-stats")
             }
 
             Section("Primary Muscles") {
@@ -151,6 +153,11 @@ struct ExerciceView : View {
                 }
             }
         }
+        .navigationDestination(isPresented: $isShowingInsights) {
+            if let editableExercise {
+                ExerciseDetailInsightsDestination(exercise: editableExercise)
+            }
+        }
     }
 
     private func showExerciseHistory() {
@@ -168,30 +175,17 @@ struct ExerciceView : View {
     }
 
     private func showExerciseStats() {
-        // Placeholder for future exercise stats.
+        guard editableExercise != nil else { return }
+        isShowingInsights = true
     }
 
     private func deleteExercise() {
         guard let editableExercise else { return }
         do {
-            let entries = try modelContext.fetch(FetchDescriptor<ExerciceEntry>())
-            let hasEntryReference = entries.contains { $0.exercice.id == editableExercise.id }
-
-            let templateExercises = try modelContext.fetch(FetchDescriptor<TemplateExercise>())
-            let hasTemplateReference = templateExercises.contains { $0.exercise.id == editableExercise.id }
-
-            let plannedExercises = try modelContext.fetch(FetchDescriptor<PlannedExercise>())
-            let hasPlanReference = plannedExercises.contains { $0.exercise.id == editableExercise.id }
-
-            if hasEntryReference || hasTemplateReference || hasPlanReference {
-                editableExercise.isArchived = true
-            } else {
-                modelContext.delete(editableExercise)
-            }
-            try modelContext.save()
+            try ExerciseArchiveService.hideOrDelete(editableExercise, using: modelContext)
             dismiss()
         } catch {
-            print("Failed to delete/archive exercise: \(error)")
+            print("Failed to delete exercise: \(error)")
         }
     }
 }
