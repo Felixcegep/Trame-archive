@@ -9,9 +9,17 @@ enum WorkoutTemplateSeedData {
         let notes: String?
     }
 
+    static let collectionName = "Upper/Lower Program – 4 Days"
+    static let seededTemplateNames = [
+        "Day 1 – Lower Body (Squat Focus)",
+        "Day 2 – Upper Body (Push/Pull)",
+        "Day 3 – Lower Body (Posterior Chain)",
+        "Day 4 – Upper Body (Vertical Push/Pull)"
+    ]
+
     private static let definitions: [(name: String, prescriptions: [Prescription])] = [
         (
-            "Jour 1 - Bas du Corps (Squat/Genoux)",
+            "Day 1 – Lower Body (Squat Focus)",
             [
                 Prescription(exerciseName: "Goblet Stiletto Squat", sets: 3, minimum: 8, maximum: 10, rpe: 8, restSeconds: 120, notes: "Heels elevated, dumbbell in front, neutral pelvis."),
                 Prescription(exerciseName: "Bulgarian Split Squat", sets: 3, minimum: 8, maximum: 10, rpe: 8, restSeconds: 120, notes: "Lean torso forward; work each leg."),
@@ -20,7 +28,7 @@ enum WorkoutTemplateSeedData {
             ]
         ),
         (
-            "Jour 2 - Haut du Corps (Poussée/Tirage)",
+            "Day 2 – Upper Body (Push/Pull)",
             [
                 Prescription(exerciseName: "Bench Press", sets: 3, minimum: 6, maximum: 8, rpe: 8, restSeconds: 120, notes: "Superset A1 with Barbell Row."),
                 Prescription(exerciseName: "Barbell Row", sets: 3, minimum: 6, maximum: 8, rpe: 8, restSeconds: 120, notes: "Superset A2 with Bench Press."),
@@ -30,7 +38,7 @@ enum WorkoutTemplateSeedData {
             ]
         ),
         (
-            "Jour 3 - Bas du Corps (Chaîne Postérieure)",
+            "Day 3 – Lower Body (Posterior Chain)",
             [
                 Prescription(exerciseName: "B-Stance RDL", sets: 3, minimum: 8, maximum: 10, rpe: 8, restSeconds: 120, notes: "Rear foot is a kickstand; hinge through the front leg."),
                 Prescription(exerciseName: "45-Degree Back Extension", sets: 3, minimum: 15, maximum: 20, rpe: 8.5, restSeconds: 90, notes: "Squeeze glutes at the top without hyperextending."),
@@ -39,7 +47,7 @@ enum WorkoutTemplateSeedData {
             ]
         ),
         (
-            "Jour 4 - Haut du Corps (Poussée Verticale/Tirage)",
+            "Day 4 – Upper Body (Vertical Push/Pull)",
             [
                 Prescription(exerciseName: "Military Press", sets: 3, minimum: 6, maximum: 8, rpe: 8, restSeconds: 120, notes: "Standing barbell or seated dumbbells. Superset A1 with Pull Up."),
                 Prescription(exerciseName: "Pull Up", sets: 3, minimum: 6, maximum: 8, rpe: 8, restSeconds: 120, notes: "Weighted or bodyweight. Superset A2 with Military Press."),

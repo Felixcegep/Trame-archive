@@ -1568,10 +1568,10 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(seededTemplates.count, 4)
 
         let expectedNames = [
-            "Jour 1 - Bas du Corps (Squat/Genoux)",
-            "Jour 2 - Haut du Corps (Poussée/Tirage)",
-            "Jour 3 - Bas du Corps (Chaîne Postérieure)",
-            "Jour 4 - Haut du Corps (Poussée Verticale/Tirage)"
+            "Day 1 – Lower Body (Squat Focus)",
+            "Day 2 – Upper Body (Push/Pull)",
+            "Day 3 – Lower Body (Posterior Chain)",
+            "Day 4 – Upper Body (Vertical Push/Pull)"
         ]
         XCTAssertEqual(seededTemplates.map(\.name), expectedNames)
 
@@ -1581,18 +1581,21 @@ final class WorkoutIntegrityTests: XCTestCase {
         try context.save()
 
         let templates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
-        let programTemplates = templates.filter { $0.name.starts(with: "Jour ") }
+        let seedNames = Set(WorkoutTemplateSeedData.seededTemplateNames)
+        let programTemplates = templates.filter { seedNames.contains($0.name) }
         XCTAssertEqual(programTemplates.count, 4)
 
-        let sortedTemplates = programTemplates.sorted { $0.name < $1.name }
-        let collection = WorkoutCollection(name: "Programme Haut/Bas - 4 Jours", workoutTemplates: sortedTemplates)
+        let orderedTemplates = WorkoutTemplateSeedData.seededTemplateNames.compactMap { name in
+            programTemplates.first { $0.name == name }
+        }
+        let collection = WorkoutCollection(name: WorkoutTemplateSeedData.collectionName, workoutTemplates: orderedTemplates)
         context.insert(collection)
         try context.save()
 
         let fetchedCollections = try context.fetch(FetchDescriptor<WorkoutCollection>())
         XCTAssertEqual(fetchedCollections.count, 1)
         let firstCollection = try XCTUnwrap(fetchedCollections.first)
-        XCTAssertEqual(firstCollection.name, "Programme Haut/Bas - 4 Jours")
+        XCTAssertEqual(firstCollection.name, WorkoutTemplateSeedData.collectionName)
         XCTAssertEqual(Set(firstCollection.workoutTemplates.map(\.name)), Set(expectedNames))
 
         let existingTemplates = try context.fetch(FetchDescriptor<WorkoutTemplate>())

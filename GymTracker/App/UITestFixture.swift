@@ -258,7 +258,7 @@ enum UITestFixture: String {
     }
 
     private static func makeActivePlanRun(using context: ModelContext) throws {
-        let template = try workoutTemplate(named: "Jour 1 - Bas du Corps (Squat/Genoux)", using: context)
+        let template = try workoutTemplate(named: "Day 1 – Lower Body (Squat Focus)", using: context)
         let plan = PlanCoordinator.createRepeatedPlan(
             name: "Screenshot Plan Run",
             goal: .generalStrength,
@@ -276,7 +276,7 @@ enum UITestFixture: String {
     }
 
     private static func makePartialPlannedWorkout(using context: ModelContext) throws {
-        let template = try workoutTemplate(named: "Jour 1 - Bas du Corps (Squat/Genoux)", using: context)
+        let template = try workoutTemplate(named: "Day 1 – Lower Body (Squat Focus)", using: context)
         let plan = PlanCoordinator.createRepeatedPlan(
             name: "Integration Fixture Plan",
             goal: .generalStrength,

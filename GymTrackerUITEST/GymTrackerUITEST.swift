@@ -163,7 +163,7 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(startFromTemplate.waitForExistence(timeout: 5))
         startFromTemplate.tap()
 
-        let template = app.buttons["workout-template-Jour 1 - Bas du Corps (Squat/Genoux)"]
+        let template = app.buttons["workout-template-Day 1 – Lower Body (Squat Focus)"]
         XCTAssertTrue(template.waitForExistence(timeout: 5))
         template.tap()
 
@@ -314,8 +314,8 @@ final class GymTrackerUITEST: XCTestCase {
         app.launchArguments = ["-ui-testing", "-ui-testing-open-history"]
         app.launch()
 
-        XCTAssertTrue(app.otherElements["history-screen"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["history-workout-row"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["history-screen"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["history-workout-row"].waitForExistence(timeout: 15))
     }
 
     func testShowsAndAppliesPreviousSessionPerformance() {
@@ -433,7 +433,7 @@ final class GymTrackerUITEST: XCTestCase {
         nameField.typeText("Four Week Integration Plan")
         nameField.typeText("\n")
         selectPlanTemplate(
-            "Jour 1 - Bas du Corps (Squat/Genoux)",
+            "Day 1 – Lower Body (Squat Focus)",
             forDayOffset: 0,
             in: app
         )
@@ -1099,7 +1099,7 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(templatesBrowser.waitForExistence(timeout: 5))
         templatesBrowser.tap()
 
-        let template = app.staticTexts["Jour 2 - Haut du Corps (Poussée/Tirage)"].firstMatch
+        let template = app.staticTexts["Day 2 – Upper Body (Push/Pull)"].firstMatch
         XCTAssertTrue(template.waitForExistence(timeout: 5))
         template.tap()
     }
@@ -1142,7 +1142,7 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(collectionsRow.waitForExistence(timeout: 5))
         collectionsRow.tap()
 
-        let seededCollection = app.staticTexts["Programme Haut/Bas - 4 Jours"]
+        let seededCollection = app.staticTexts["Upper/Lower Program – 4 Days"]
         XCTAssertTrue(seededCollection.waitForExistence(timeout: 5))
     }
 

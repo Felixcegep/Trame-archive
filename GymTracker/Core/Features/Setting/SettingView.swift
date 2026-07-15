@@ -162,10 +162,13 @@ struct SettingView: View {
             try modelContext.save()
 
             let templates = try modelContext.fetch(FetchDescriptor<WorkoutTemplate>())
-            let programTemplates = templates.filter { $0.name.starts(with: "Jour ") }
+            let seedNames = Set(WorkoutTemplateSeedData.seededTemplateNames)
+            let programTemplates = templates.filter { seedNames.contains($0.name) }
             if !programTemplates.isEmpty {
-                let sortedTemplates = programTemplates.sorted { $0.name < $1.name }
-                let collection = WorkoutCollection(name: "Programme Haut/Bas - 4 Jours", workoutTemplates: sortedTemplates)
+                let orderedTemplates = WorkoutTemplateSeedData.seededTemplateNames.compactMap { name in
+                    programTemplates.first { $0.name == name }
+                }
+                let collection = WorkoutCollection(name: WorkoutTemplateSeedData.collectionName, workoutTemplates: orderedTemplates)
                 modelContext.insert(collection)
                 try modelContext.save()
             }
