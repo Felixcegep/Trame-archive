@@ -214,7 +214,10 @@ struct WorkoutSaveView: View {
             titleVisibility: .visible
         ) {
             Button("Save completed sets", action: saveWorkout)
-            Button("Keep editing", role: .cancel) {}
+            Button("Keep editing") {
+                isShowingPartialSaveConfirmation = false
+            }
+                .accessibilityIdentifier("keep-editing-partial-save")
         } message: {
             Text("^[\(saveableSetCount(for: workout)) completed set](inflect: true) will be saved to History. ^[\(workout.incompleteSetCount) incomplete set](inflect: true) will be excluded. Your workout name and notes will be saved.")
         }

@@ -175,6 +175,21 @@ struct RootView: View {
             seedWorkoutTemplatesIfNeeded()
             seedWorkoutCollectionsIfNeeded()
             normalizePersistedWorkoutData()
+            if CommandLine.arguments.contains("-ui-testing-import-valid") {
+                do {
+                    let backup = try BackupDTO.create(
+                        from: modelContext,
+                        restTimer: 120,
+                        darkMode: true,
+                        unitSystem: .imperial
+                    )
+                    let encoder = JSONEncoder()
+                    encoder.dateEncodingStrategy = .iso8601
+                    UITestFixture.UITestImportPayload.validData = try encoder.encode(backup)
+                } catch {
+                    print("Failed to prepare valid UI-test import payload: \(error)")
+                }
+            }
             if let fixture {
                 do {
                     try UITestFixture.apply(fixture, using: modelContext)

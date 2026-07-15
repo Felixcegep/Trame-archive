@@ -491,6 +491,60 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertFalse(WorkoutViewModel().restoreActiveWorkout(using: context))
     }
 
+    func testPartialPlannedWorkoutSaveKeepsOnlyCompletedSetsAndAdvancesOnce() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let template = makeTemplate(exercise: exercise, targetSets: 2)
+        let plan = PlanCoordinator.createPlan(
+            name: "Partial Planned Save",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            dayAssignments: [
+                .init(dayOffset: 0, template: template),
+                .init(dayOffset: 2, template: template)
+            ]
+        )
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        context.insert(exercise)
+        context.insert(template)
+        context.insert(plan)
+        context.insert(run)
+        try context.save()
+
+        let firstProgress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let plannedWorkout = try XCTUnwrap(PlanCoordinator.plannedWorkout(for: firstProgress, in: run))
+        let viewModel = WorkoutViewModel()
+        XCTAssertTrue(
+            viewModel.startWorkout(
+                from: plannedWorkout,
+                progress: firstProgress,
+                in: run,
+                using: context
+            )
+        )
+
+        let activeWorkout = try XCTUnwrap(viewModel.activeWorkout)
+        let activeEntry = try XCTUnwrap(activeWorkout.orderedExercises.first)
+        let completedSet = try XCTUnwrap(activeEntry.orderedSets.first)
+        completedSet.repetition = 8
+        completedSet.weight = 50
+        completedSet.done = true
+
+        XCTAssertTrue(viewModel.saveWorkout(using: context))
+        XCTAssertFalse(viewModel.saveWorkout(using: context))
+        XCTAssertEqual(firstProgress.status, .completed)
+        XCTAssertEqual(run.orderedWorkoutProgress[1].status, .available)
+        XCTAssertEqual(activeWorkout.status, .completed)
+        XCTAssertEqual(activeWorkout.orderedExercises.count, 1)
+        XCTAssertEqual(activeWorkout.orderedExercises.first?.orderedSets.count, 1)
+        XCTAssertTrue(activeWorkout.orderedExercises.first?.orderedSets.first?.done == true)
+        XCTAssertEqual(
+            try context.fetch(FetchDescriptor<Workout>()).filter { $0.status == .completed }.count,
+            1
+        )
+    }
+
     func testDiscardingPlannedWorkoutRestoresRunAvailabilityAndDeletesActiveWorkout() throws {
         let context = try makeContext()
         let exercise = makeExercise()
@@ -874,6 +928,127 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertTrue(try context.fetch(FetchDescriptor<PlanRun>()).isEmpty)
     }
 
+    func testBackupReplacementSurvivesDiskRelaunchWithPlanRunHistoryLinks() throws {
+        let storeURL = try makeDiskStoreURL()
+        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+        let backup = try makePlanRunBackup()
+
+        try withDiskContext(at: storeURL) { context in
+            let sentinel = ExerciceTemplate(name: "Replace Me", PrimaryMuscle: [.upperChest])
+            context.insert(sentinel)
+            try context.save()
+            try backup.restore(to: context)
+        }
+
+        try withDiskContext(at: storeURL) { context in
+            let exercises = try context.fetch(FetchDescriptor<ExerciceTemplate>())
+            XCTAssertFalse(exercises.contains { $0.name == "Replace Me" })
+            XCTAssertTrue(exercises.contains { $0.name == "Bench Press" })
+
+            let plan = try XCTUnwrap(context.fetch(FetchDescriptor<WorkoutPlan>()).first)
+            let run = try XCTUnwrap(context.fetch(FetchDescriptor<PlanRun>()).first)
+            let workout = try XCTUnwrap(context.fetch(FetchDescriptor<Workout>()).first {
+                $0.status == .completed
+            })
+            let completedProgress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+
+            XCTAssertEqual(plan.name, "Backup Plan")
+            XCTAssertEqual(run.plan?.id, plan.id)
+            XCTAssertEqual(completedProgress.status, .completed)
+            XCTAssertEqual(completedProgress.completedWorkout?.id, workout.id)
+            XCTAssertEqual(workout.sourcePlanRunID, run.id)
+            XCTAssertEqual(workout.sourcePlannedWorkoutID, completedProgress.plannedWorkoutID)
+            XCTAssertEqual(run.orderedWorkoutProgress.dropFirst().first?.status, .available)
+        }
+    }
+
+    func testCorruptDiskBackupLeavesOriginalDatabaseAfterRelaunch() throws {
+        let storeURL = try makeDiskStoreURL()
+        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+
+        try withDiskContext(at: storeURL) { context in
+            let sentinel = ExerciceTemplate(name: "Keep Corrupt Import", PrimaryMuscle: [.upperChest])
+            context.insert(sentinel)
+            try context.save()
+
+            XCTAssertThrowsError(
+                try JSONDecoder().decode(BackupDTO.self, from: Data("not-json".utf8))
+            )
+
+            let invalidPlanID = UUID().uuidString
+            let backup = BackupDTO(
+                version: BackupDTO.currentVersion,
+                preferences: PreferencesDTO(
+                    darkMode: true,
+                    restTimer: 120,
+                    unitSystem: UnitSystem.imperial.rawValue
+                ),
+                exercises: [],
+                templates: [],
+                collections: [],
+                workouts: [],
+                plans: [],
+                planRuns: [
+                    PlanRunDTO(
+                        id: UUID().uuidString,
+                        sourcePlanID: invalidPlanID,
+                        sourcePlanName: "Missing plan",
+                        planID: invalidPlanID,
+                        startDate: .now,
+                        endDate: nil,
+                        status: PlanRunStatus.active.rawValue,
+                        currentWeekIndex: 0,
+                        currentWorkoutIndex: 0,
+                        createdAt: .now,
+                        updatedAt: .now,
+                        workoutProgress: []
+                    )
+                ]
+            )
+
+            XCTAssertThrowsError(try backup.restore(to: context))
+        }
+
+        try withDiskContext(at: storeURL) { context in
+            XCTAssertTrue(
+                try context.fetch(FetchDescriptor<ExerciceTemplate>()).contains {
+                    $0.name == "Keep Corrupt Import"
+                }
+            )
+            XCTAssertTrue(try context.fetch(FetchDescriptor<WorkoutPlan>()).isEmpty)
+            XCTAssertTrue(try context.fetch(FetchDescriptor<PlanRun>()).isEmpty)
+        }
+    }
+
+    func testInterruptedDiskBackupRestoreLeavesOriginalDatabaseAfterRelaunch() throws {
+        let storeURL = try makeDiskStoreURL()
+        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+        let backup = try makePlanRunBackup()
+
+        try withDiskContext(at: storeURL) { context in
+            let sentinel = ExerciceTemplate(name: "Keep Interrupted Import", PrimaryMuscle: [.upperChest])
+            context.insert(sentinel)
+            try context.save()
+
+            XCTAssertThrowsError(
+                try backup.restore(to: context, beforeCommit: {
+                    throw NSError(domain: "BackupRestoreTest", code: 2)
+                })
+            )
+        }
+
+        try withDiskContext(at: storeURL) { context in
+            XCTAssertTrue(
+                try context.fetch(FetchDescriptor<ExerciceTemplate>()).contains {
+                    $0.name == "Keep Interrupted Import"
+                }
+            )
+            XCTAssertTrue(try context.fetch(FetchDescriptor<WorkoutPlan>()).isEmpty)
+            XCTAssertTrue(try context.fetch(FetchDescriptor<PlanRun>()).isEmpty)
+            XCTAssertTrue(try context.fetch(FetchDescriptor<Workout>()).isEmpty)
+        }
+    }
+
     private func makeContext() throws -> ModelContext {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
@@ -894,6 +1069,91 @@ final class WorkoutIntegrityTests: XCTestCase {
             configurations: configuration
         )
         return ModelContext(container)
+    }
+
+    private func makeDiskStoreURL() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("GymTrackerBackupTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appendingPathComponent("GymTracker.store")
+    }
+
+    private func withDiskContext<T>(
+        at url: URL,
+        _ body: (ModelContext) throws -> T
+    ) throws -> T {
+        let configuration = ModelConfiguration(url: url)
+        let container = try ModelContainer(
+            for: Workout.self,
+            ExerciceTemplate.self,
+            ExerciceEntry.self,
+            ExerciseSet.self,
+            WorkoutTemplate.self,
+            TemplateExercise.self,
+            WorkoutCollection.self,
+            PlanRun.self,
+            PlanWorkoutProgress.self,
+            WorkoutPlan.self,
+            PlanBlock.self,
+            PlanWeek.self,
+            PlannedWorkout.self,
+            PlannedExercise.self,
+            configurations: configuration
+        )
+        return try body(ModelContext(container))
+    }
+
+    private func makePlanRunBackup() throws -> BackupDTO {
+        let source = try makeContext()
+        let exercise = makeExercise()
+        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        template.name = "Backup Plan Template"
+        let plan = PlanCoordinator.createPlan(
+            name: "Backup Plan",
+            goal: .hypertrophy,
+            experienceLevel: .intermediate,
+            durationWeeks: 1,
+            dayAssignments: [
+                .init(dayOffset: 0, template: template),
+                .init(dayOffset: 2, template: template)
+            ]
+        )
+        let run = try XCTUnwrap(
+            PlanCoordinator.startRun(
+                for: plan,
+                startDate: Date(timeIntervalSince1970: 1_700_000_000)
+            )
+        )
+        let firstProgress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let firstPlannedWorkout = try XCTUnwrap(
+            PlanCoordinator.plannedWorkout(for: firstProgress, in: run)
+        )
+        let completedWorkout = Workout(
+            plannedWorkout: firstPlannedWorkout,
+            planRun: run,
+            unitSystem: .metric
+        )
+        completedWorkout.status = .completed
+        completedWorkout.endTime = Date(timeIntervalSince1970: 1_700_003_600)
+        let firstSet = try XCTUnwrap(completedWorkout.orderedExercises.first?.orderedSets.first)
+        firstSet.repetition = 8
+        firstSet.weight = 50
+        firstSet.done = true
+        PlanCoordinator.markCompleted(firstProgress, with: completedWorkout, in: run)
+
+        source.insert(exercise)
+        source.insert(template)
+        source.insert(plan)
+        source.insert(run)
+        source.insert(completedWorkout)
+        try source.save()
+
+        return try BackupDTO.create(
+            from: source,
+            restTimer: 120,
+            darkMode: true,
+            unitSystem: .imperial
+        )
     }
 
     private func makeExercise() -> ExerciceTemplate {

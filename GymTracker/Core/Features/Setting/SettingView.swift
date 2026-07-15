@@ -19,6 +19,7 @@ struct SettingView: View {
     @State private var importBackup: BackupDTO? = nil
     @State private var importErrorMessage: String? = nil
     @State private var isShowingImportError = false
+    @State private var didHandleUITestImport = false
 
     var body: some View {
         Form {
@@ -30,12 +31,15 @@ struct SettingView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .accessibilityIdentifier("settings-units-picker")
+                .accessibilityValue(unitSystem == .metric ? String(localized: "Metric") : String(localized: "Imperial"))
             }
 
             Section("Rest Timer") {
                 Stepper(value: $restTimer, in: 10...300, step: 5) {
                     LabeledContent("Duration", value: formattedRestTimer)
                 }
+                .accessibilityIdentifier("settings-rest-duration")
             }
 
             Section("Backup & Restore") {
@@ -50,6 +54,7 @@ struct SettingView: View {
                 } label: {
                     Label("Import Data", systemImage: AppIcon.import)
                 }
+                .accessibilityIdentifier("settings-import-data")
             }
 
             #if DEBUG
@@ -102,9 +107,27 @@ struct SettingView: View {
                 Text(importErrorMessage)
             }
         }
+        .accessibilityIdentifier("settings-screen")
         .onAppear {
-            guard CommandLine.arguments.contains("-ui-testing-import-error") else { return }
-            showImportError("Invalid backup file: The selected file is not a GymTracker backup.")
+            guard !didHandleUITestImport else { return }
+            didHandleUITestImport = true
+
+            if CommandLine.arguments.contains("-ui-testing-import-error") {
+                showImportError("Invalid backup file: The selected file is not a GymTracker backup.")
+            } else if CommandLine.arguments.contains("-ui-testing-import-corrupt") {
+                do {
+                    _ = try BackupImportService.decodeAndValidate(Data("not-json".utf8))
+                } catch {
+                    showImportError("Invalid backup file: \(error.localizedDescription)")
+                }
+            } else if CommandLine.arguments.contains("-ui-testing-import-valid"),
+                      let data = UITestFixture.UITestImportPayload.validData {
+                do {
+                    importBackup = try BackupImportService.decodeAndValidate(data)
+                } catch {
+                    showImportError("Invalid backup file: \(error.localizedDescription)")
+                }
+            }
         }
     }
 
@@ -178,11 +201,7 @@ struct SettingView: View {
 
         do {
             let data = try Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let backup = try decoder.decode(BackupDTO.self, from: data)
-            try backup.validate()
-            self.importBackup = backup
+            self.importBackup = try BackupImportService.decodeAndValidate(data)
         } catch {
             showImportError("Invalid backup file: \(error.localizedDescription)")
         }
@@ -195,10 +214,10 @@ struct SettingView: View {
 
     private func restoreBackup(_ backup: BackupDTO) {
         do {
-            try backup.restore(to: modelContext)
-            self.darkMode = backup.preferences.darkMode
-            self.restTimer = backup.preferences.restTimer
-            self.unitSystem = UnitSystem(rawValue: backup.preferences.unitSystem) ?? .metric
+            let preferences = try BackupImportService.restore(backup, to: modelContext)
+            self.darkMode = preferences.darkMode
+            self.restTimer = preferences.restTimer
+            self.unitSystem = UnitSystem(rawValue: preferences.unitSystem) ?? .metric
             NotificationCenter.default.post(name: .gymDataRestored, object: nil)
         } catch {
             showImportError("Failed to restore backup: \(error.localizedDescription)")
@@ -247,6 +266,7 @@ struct ImportPreviewView: View {
                         isShowingConfirmation = true
                     }
                     .font(AppFont.headline)
+                    .accessibilityIdentifier("confirm-backup-restore")
                 }
             }
             .confirmationDialog(
@@ -258,9 +278,11 @@ struct ImportPreviewView: View {
                     onConfirm()
                     dismiss()
                 }
+                .accessibilityIdentifier("restore-replace-all-data")
             } message: {
                 Text("This will delete all your current workouts, templates, collections, plans, plan runs, and custom exercises. This cannot be undone.")
             }
         }
+        .accessibilityIdentifier("import-preview")
     }
 }

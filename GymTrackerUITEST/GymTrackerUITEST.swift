@@ -433,61 +433,104 @@ final class GymTrackerUITEST: XCTestCase {
     }
 
     func testPlannedWorkoutSavePersistsHistoryAndAdvancesRunAfterRelaunch() {
-        let app = launchFreshApp()
-        selectTab(.library, in: app)
-        tapButton("Create library item", in: app)
-        tapButton("New Plan", in: app)
+        let app = launchFixture("plan-partial-save")
+        XCTAssertTrue(app.staticTexts["active-workout-title"].label.contains("Fixture Day 1"))
 
-        let nameField = app.textFields["plan-name-field"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
-        nameField.tap()
-        nameField.typeText("Plan Run Save Integration")
-        nameField.typeText("\n")
-        selectPlanTemplate(
-            "Jour 1 - Bas du Corps (Squat/Genoux)",
-            forDayOffset: 0,
-            in: app
-        )
-        tapButton("save-plan", in: app)
-
-        tapButton("plans-browser", in: app)
-        tapButton("plan-row-Plan Run Save Integration", in: app)
-        tapButton("start-plan", in: app)
-        tapButton("confirm-start-plan", in: app)
-        tapButton("start-planned-workout", in: app)
-
-        XCTAssertTrue(activeExerciseCard("Goblet Stiletto Squat", in: app).waitForExistence(timeout: 5))
-        enterValidValues(for: "Goblet Stiletto Squat", set: 0, in: app)
-        completeSet("Goblet Stiletto Squat", index: 0, dismissRest: true, in: app)
-
-        // A planned workout must retain both its active workout and run linkage
-        // across an interruption, then advance the plan only when it is saved.
-        relaunchPreservingData(app)
-        resumeActiveWorkout(in: app)
-        XCTAssertTrue(activeExerciseCard("Goblet Stiletto Squat", in: app).waitForExistence(timeout: 5))
-
+        // Verify that cancelling the partial-save confirmation keeps the draft
+        // intact before exercising the committed path.
         tapButton("Review Workout", in: app)
         tapButton("save-workout", in: app)
-        if app.buttons["Save completed sets"].waitForExistence(timeout: 2) {
-            app.buttons["Save completed sets"].tap()
-        }
+        XCTAssertTrue(app.buttons["Save completed sets"].waitForExistence(timeout: 5))
+        tapButton("keep-editing-partial-save", in: app)
+        XCTAssertTrue(app.buttons["save-workout"].waitForExistence(timeout: 5))
+
+        tapButton("save-workout", in: app)
+        app.buttons["Save completed sets"].tap()
 
         relaunchPreservingData(app)
         selectTab(.history, in: app)
         XCTAssertTrue(app.buttons["history-workout-row"].waitForExistence(timeout: 5))
+        let historyRows = app.buttons.matching(identifier: "history-workout-row")
+        XCTAssertEqual(historyRows.count, 1)
+        XCTAssertTrue(historyRows.firstMatch.label.contains("Fixture Day 1"))
 
         selectTab(.library, in: app)
         tapButton("plans-browser", in: app)
-        tapButton("plan-row-Plan Run Save Integration", in: app)
-        XCTAssertTrue(app.buttons["start-planned-workout"].waitForExistence(timeout: 5))
+        tapButton("plan-row-Integration Fixture Plan", in: app)
+        let nextWorkout = app.buttons["start-planned-workout"]
+        XCTAssertTrue(nextWorkout.waitForExistence(timeout: 5))
+        XCTAssertTrue(nextWorkout.label.contains("Fixture Day 2"))
+
+        // Relaunching after save must not duplicate History or advance the run
+        // a second time.
+        relaunchPreservingData(app)
+        selectTab(.history, in: app)
+        XCTAssertEqual(app.buttons.matching(identifier: "history-workout-row").count, 1)
     }
 
     func testRecommendationEditFocusesTheFirstIncompleteSet() {
         let app = launchFixture("progression-increase")
 
         tapButton("edit-recommendation-Bench Press", in: app)
-        XCTAssertTrue(app.textFields["weight-field-Bench Press-0"].waitForExistence(timeout: 5))
+        let firstIncompleteWeight = app.textFields["weight-field-Bench Press-0"]
+        XCTAssertTrue(firstIncompleteWeight.waitForExistence(timeout: 5))
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertEqual(firstIncompleteWeight.value(forKey: "hasKeyboardFocus") as? Bool, true)
+        XCTAssertFalse(app.buttons["progression-recommendation-card-Bench Press"].exists)
+    }
+
+    func testSettingsImportsValidBackupAndRestoresPreferencesAfterRelaunch() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-testing-open-settings",
+            "-ui-testing-import-valid",
+            "-ui-test-fixture",
+            "backup-import-target"
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.descendants(matching: .any)["import-preview"].waitForExistence(timeout: 15))
+
+        tapButton("confirm-backup-restore", in: app)
+        tapButton("restore-replace-all-data", in: app)
+
+        XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
+        assertUnitSystem("Imperial", in: app)
+        assertRestDuration("120", in: app)
+
+        // The preferences and replacement are persisted independently of the
+        // sheet lifecycle and must survive a fresh process launch.
+        relaunchPreservingData(app, launchArguments: ["-ui-testing", "-ui-testing-open-settings"])
+        XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 15))
+        assertUnitSystem("Imperial", in: app)
+        assertRestDuration("120", in: app)
+
+        selectTab(.history, in: app)
+        XCTAssertTrue(app.staticTexts["No Workout History"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Sentinel Workout"].exists)
+    }
+
+    func testSettingsRejectsCorruptBackupWithoutReplacingData() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-testing-open-settings",
+            "-ui-testing-import-corrupt",
+            "-ui-test-fixture",
+            "backup-import-target"
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.alerts["Import Error"].waitForExistence(timeout: 15))
+        tapButton("OK", in: app)
+
+        relaunchPreservingData(app, launchArguments: ["-ui-testing", "-ui-testing-open-history"])
+        XCTAssertTrue(app.buttons["history-workout-row"].firstMatch.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Sentinel Workout"].waitForExistence(timeout: 5))
     }
 
     private func assertLibrarySearchResult(_ name: String, in app: XCUIApplication) {
@@ -496,6 +539,20 @@ final class GymTrackerUITEST: XCTestCase {
         search.tap()
         search.typeText(name)
         XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 5))
+    }
+
+    private func assertRestDuration(_ expected: String, in app: XCUIApplication) {
+        let duration = app.descendants(matching: .any)["settings-rest-duration"]
+        XCTAssertTrue(duration.waitForExistence(timeout: 5))
+        let value = duration.value as? String ?? duration.label
+        XCTAssertTrue(value.contains(expected), "Expected rest duration to contain '\(expected)', got '\(value)'")
+    }
+
+    private func assertUnitSystem(_ expected: String, in app: XCUIApplication) {
+        let picker = app.buttons["settings-units-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        let value = picker.value as? String ?? picker.label
+        XCTAssertTrue(value.localizedCaseInsensitiveContains(expected), "Expected units to contain '\(expected)', got '\(value)'")
     }
 
     private func launchFreshApp() -> XCUIApplication {
@@ -837,6 +894,21 @@ final class GymTrackerUITEST: XCTestCase {
         settings.launch()
         XCTAssertTrue(settings.alerts["Import Error"].waitForExistence(timeout: 15))
         saveScreenshot("overview/04b_Settings_Import_Error")
+    }
+
+    func testCaptureSettingsImportPreviewScreenshot() {
+        let preview = XCUIApplication()
+        preview.launchArguments = [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-testing-open-settings",
+            "-ui-testing-import-valid",
+            "-ui-test-fixture",
+            "backup-import-target"
+        ]
+        preview.launch()
+        XCTAssertTrue(preview.descendants(matching: .any)["import-preview"].waitForExistence(timeout: 15))
+        saveScreenshot("overview/04c_Settings_Import_Preview")
     }
 
     func testCaptureTemplateProgressionScreenshot() {

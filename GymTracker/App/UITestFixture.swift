@@ -22,6 +22,8 @@ enum UITestFixture: String {
     case performanceComparison = "performance-comparison"
     case homeActiveConflict = "home-active-conflict"
     case planActiveRun = "plan-active-run"
+    case planPartialSave = "plan-partial-save"
+    case backupImportTarget = "backup-import-target"
 
     static var launchFixture: UITestFixture? {
         guard
@@ -35,7 +37,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .homeActiveConflict, .planActiveRun:
+        case .historyBench, .homeActiveConflict, .planActiveRun, .backupImportTarget:
             false
         default:
             true
@@ -84,7 +86,16 @@ enum UITestFixture: String {
             try makeActiveWorkout(exercises: [inProgressEntry(named: "Bench Press", using: context)], using: context)
         case .planActiveRun:
             try makeActivePlanRun(using: context)
+        case .planPartialSave:
+            try makePartialPlannedWorkout(using: context)
+        case .backupImportTarget:
+            try makeBackupImportTarget(using: context)
         }
+    }
+
+    @MainActor
+    enum UITestImportPayload {
+        static var validData: Data?
     }
 
     private enum RestState {
@@ -196,6 +207,75 @@ enum UITestFixture: String {
             throw FixtureError.invalidPlan
         }
         context.insert(run)
+        try context.save()
+    }
+
+    private static func makePartialPlannedWorkout(using context: ModelContext) throws {
+        let template = try workoutTemplate(named: "Jour 1 - Bas du Corps (Squat/Genoux)", using: context)
+        let plan = PlanCoordinator.createRepeatedPlan(
+            name: "Integration Fixture Plan",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            template: template,
+            dayOffsets: [0, 2]
+        )
+
+        // Give the two sessions stable, distinguishable titles for UI assertions.
+        let plannedWorkouts = plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts)
+        plannedWorkouts.first?.name = "Fixture Day 1"
+        plannedWorkouts.dropFirst().first?.name = "Fixture Day 2"
+
+        context.insert(plan)
+        guard
+            let run = PlanCoordinator.startRun(for: plan),
+            let progress = run.orderedWorkoutProgress.first,
+            let plannedWorkout = PlanCoordinator.plannedWorkout(for: progress, in: run)
+        else {
+            throw FixtureError.invalidPlan
+        }
+
+        let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
+        workout.startTime = Date.now.addingTimeInterval(-47)
+        progress.status = .inProgress
+        progress.startedAt = workout.startTime
+
+        // One completed set is enough for a valid partial save. All remaining
+        // sets and exercises stay incomplete so the Review warning and pruning
+        // behavior are exercised in one deterministic journey.
+        if let firstExercise = workout.orderedExercises.first,
+           let firstSet = firstExercise.orderedSets.first {
+            firstSet.repetition = 8
+            firstSet.weight = 50
+            firstSet.done = true
+        }
+
+        context.insert(run)
+        context.insert(workout)
+        try context.save()
+    }
+
+    private static func makeBackupImportTarget(using context: ModelContext) throws {
+        let exercise = ExerciceTemplate(
+            name: "Sentinel Exercise",
+            PrimaryMuscle: [.upperChest],
+            equipmentType: .dumbbell,
+            resistanceType: .externalWeight,
+            movementPattern: .horizontalPush,
+            isCustom: true
+        )
+        context.insert(exercise)
+
+        let entry = ExerciceEntry(from: exercise, orderIndex: 0, usedMetric: .metric)
+        if let set = entry.orderedSets.first {
+            set.repetition = 8
+            set.weight = 25
+            set.done = true
+        }
+        let workout = Workout(nom: "Sentinel Workout", endTime: Date.now.addingTimeInterval(-300))
+        workout.startTime = Date.now.addingTimeInterval(-900)
+        workout.exercises = [entry]
+        context.insert(workout)
         try context.save()
     }
 

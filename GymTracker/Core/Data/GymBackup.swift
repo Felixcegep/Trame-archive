@@ -251,6 +251,25 @@ struct BackupDTO: Codable, Identifiable {
     }
 }
 
+/// Shared import boundary used by both the Settings UI and integration tests.
+/// Keeping decode, validation, and replacement behind one service prevents the
+/// file-import path from drifting away from the data-loss guarantees of Backup v2.
+enum BackupImportService {
+    static func decodeAndValidate(_ data: Data) throws -> BackupDTO {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let backup = try decoder.decode(BackupDTO.self, from: data)
+        try backup.validate()
+        return backup
+    }
+
+    @discardableResult
+    static func restore(_ backup: BackupDTO, to context: ModelContext) throws -> PreferencesDTO {
+        try backup.restore(to: context)
+        return backup.preferences
+    }
+}
+
 enum BackupValidationError: LocalizedError {
     case unsupportedVersion(Int)
     case duplicateExerciseName(String)
