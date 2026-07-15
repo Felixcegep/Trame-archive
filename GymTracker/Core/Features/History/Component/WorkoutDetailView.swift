@@ -124,15 +124,15 @@ struct HistoryWorkoutView: View {
 }
 
 struct WorkoutDetailView: View {
-    let exercise: ExerciceEntry
+    let exercise: ExerciseEntry
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            Text(exercise.exercice.name)
+            Text(exercise.exercise.name)
                 .font(AppFont.titleSmallSemibold)
                 .foregroundStyle(Color.gymText)
 
-            if let note = exercise.Comment?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
+            if let note = exercise.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
                 Text(note)
                     .font(AppFont.footnote)
                     .foregroundStyle(WorkoutPalette.subduedText)
@@ -166,16 +166,16 @@ struct WorkoutDetailView: View {
             ForEach(Array(exercise.orderedSets.enumerated()), id: \.element.persistentModelID) { index, set in
                 GridRow {
                     tableValue(setLabel(for: set, index: index), alignment: .leading)
-                    if exercise.exercice.trackingType.usesWeight {
+                    if exercise.exercise.trackingType.usesWeight {
                         tableValue(weightText(for: set))
                     }
-                    if exercise.exercice.trackingType.usesReps {
-                        tableValue("\(Formatters.formatFloat(set.repetition))")
+                    if exercise.exercise.trackingType.usesReps {
+                        tableValue("\(Formatters.formatFloat(set.repetitions))")
                     }
-                    if exercise.exercice.trackingType.usesDuration {
+                    if exercise.exercise.trackingType.usesDuration {
                         tableValue(durationText(for: set))
                     }
-                    if exercise.exercice.trackingType.usesDistance {
+                    if exercise.exercise.trackingType.usesDistance {
                         tableValue(distanceText(for: set))
                     }
                     if showsRPE {
@@ -194,10 +194,10 @@ struct WorkoutDetailView: View {
 
     private var tableColumns: [String] {
         var columns = ["Set"]
-        if exercise.exercice.trackingType.usesWeight { columns.append("Weight") }
-        if exercise.exercice.trackingType.usesReps { columns.append("Reps") }
-        if exercise.exercice.trackingType.usesDuration { columns.append("Time") }
-        if exercise.exercice.trackingType.usesDistance { columns.append("Distance") }
+        if exercise.exercise.trackingType.usesWeight { columns.append("Weight") }
+        if exercise.exercise.trackingType.usesReps { columns.append("Reps") }
+        if exercise.exercise.trackingType.usesDuration { columns.append("Time") }
+        if exercise.exercise.trackingType.usesDistance { columns.append("Distance") }
         if showsRPE { columns.append("RPE") }
         return columns
     }
@@ -231,10 +231,10 @@ struct WorkoutDetailView: View {
 
     private func accessibilityDescription(for set: ExerciseSet, index: Int) -> String {
         var values = ["Set \(setLabel(for: set, index: index))"]
-        if exercise.exercice.trackingType.usesWeight { values.append("\(weightText(for: set))") }
-        if exercise.exercice.trackingType.usesReps { values.append("\(Formatters.formatFloat(set.repetition)) reps") }
-        if exercise.exercice.trackingType.usesDuration { values.append(durationText(for: set)) }
-        if exercise.exercice.trackingType.usesDistance { values.append(distanceText(for: set)) }
+        if exercise.exercise.trackingType.usesWeight { values.append("\(weightText(for: set))") }
+        if exercise.exercise.trackingType.usesReps { values.append("\(Formatters.formatFloat(set.repetitions)) reps") }
+        if exercise.exercise.trackingType.usesDuration { values.append(durationText(for: set)) }
+        if exercise.exercise.trackingType.usesDistance { values.append(distanceText(for: set)) }
         if let rpe = set.rpe { values.append("RPE \(rpe)") }
         return values.joined(separator: ", ")
     }

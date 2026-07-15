@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct ExerciceEntryCard: View {
-    @Bindable var exerciseEntry: ExerciceEntry
+    @Bindable var exerciseEntry: ExerciseEntry
 
     let viewModel: ActiveWorkoutViewModel
     let onButtonPress: () -> Void
@@ -93,17 +93,17 @@ struct ExerciceEntryCard: View {
                         .foregroundStyle(WorkoutPalette.primary)
                 }
 
-                Text(exerciseEntry.exercice.name)
+                Text(exerciseEntry.exercise.name)
                     .font(isCurrentExercise ? AppFont.titleSmall : AppFont.headlineSemibold)
                     .foregroundStyle(WorkoutPalette.text)
-                    .accessibilityIdentifier("active-exercise-\(exerciseEntry.exercice.name)")
+                    .accessibilityIdentifier("active-exercise-\(exerciseEntry.exercise.name)")
 
                 if let prescription = prescriptionSummary {
                     Text(prescription)
                         .font(AppFont.captionSemiboldMonospaced)
                         .foregroundStyle(WorkoutPalette.primary)
                         .lineLimit(1)
-                        .accessibilityIdentifier("prescription-summary-\(exerciseEntry.exercice.name)")
+                        .accessibilityIdentifier("prescription-summary-\(exerciseEntry.exercise.name)")
                 }
 
                 if let recommendationPresentation, !exerciseIsDone {
@@ -115,7 +115,7 @@ struct ExerciceEntryCard: View {
                         .font(AppFont.caption)
                         .foregroundStyle(WorkoutPalette.subduedText)
                         .lineLimit(1)
-                        .accessibilityIdentifier("previous-performance-\(exerciseEntry.exercice.name)")
+                        .accessibilityIdentifier("previous-performance-\(exerciseEntry.exercise.name)")
                 }
 
                 HStack(spacing: Spacing.s) {
@@ -140,7 +140,7 @@ struct ExerciceEntryCard: View {
                 } label: {
                     Label("Remove exercise", systemImage: AppIcon.trash)
                 }
-                .accessibilityIdentifier("remove-exercise-\(exerciseEntry.exercice.name)")
+                .accessibilityIdentifier("remove-exercise-\(exerciseEntry.exercise.name)")
             } label: {
                 Image(systemName: AppIcon.ellipsis)
                     .font(AppFont.subheadlineBold)
@@ -150,7 +150,7 @@ struct ExerciceEntryCard: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
-            .accessibilityIdentifier("exercise-menu-\(exerciseEntry.exercice.name)")
+            .accessibilityIdentifier("exercise-menu-\(exerciseEntry.exercise.name)")
         }
         .contentShape(Rectangle())
     }
@@ -198,7 +198,7 @@ struct ExerciceEntryCard: View {
         } label: {
             Label("Add set", systemImage: AppIcon.plus)
         }
-        .accessibilityIdentifier("add-set-\(exerciseEntry.exercice.name)")
+        .accessibilityIdentifier("add-set-\(exerciseEntry.exercise.name)")
         .font(AppFont.subheadlineSemibold)
         .foregroundStyle(WorkoutPalette.primary)
         .buttonStyle(.borderless)
@@ -289,7 +289,7 @@ struct ExerciceEntryCard: View {
     }
 
     private var trackingType: TrackingType {
-        exerciseEntry.exercice.trackingType
+        exerciseEntry.exercise.trackingType
     }
 
     private var recommendationPresentation: RecommendationPresentation? {
@@ -307,7 +307,7 @@ struct ExerciceEntryCard: View {
                         : WorkoutPalette.subduedText
                 )
                 .lineLimit(2)
-                .accessibilityIdentifier("recommendation-\(exerciseEntry.exercice.name)")
+                .accessibilityIdentifier("recommendation-\(exerciseEntry.exercise.name)")
 
             Spacer(minLength: 0)
 
@@ -320,7 +320,7 @@ struct ExerciceEntryCard: View {
                         .frame(minHeight: 44)
                 }
                 .buttonStyle(.borderless)
-                .accessibilityIdentifier("apply-recommendation-\(exerciseEntry.exercice.name)")
+                .accessibilityIdentifier("apply-recommendation-\(exerciseEntry.exercise.name)")
             }
         }
     }

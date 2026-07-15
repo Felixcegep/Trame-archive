@@ -125,8 +125,8 @@ struct WorkoutSaveView: View {
                     TextField(
                         workout.displayTitle,
                         text: Binding(
-                            get: { workout.nom ?? "" },
-                            set: { workout.nom = $0.isEmpty ? nil : $0 }
+                            get: { workout.name ?? "" },
+                            set: { workout.name = $0.isEmpty ? nil : $0 }
                         )
                     )
                     .font(AppFont.titleSmallSemibold)
@@ -278,7 +278,7 @@ struct WorkoutSaveView: View {
                         Image(systemName: AppIcon.checkmarkCircle)
                             .foregroundStyle(WorkoutPalette.secondary)
 
-                        Text(exercise.exercice.name)
+                        Text(exercise.exercise.name)
                             .font(AppFont.subheadlineSemibold)
 
                         Spacer()
@@ -357,7 +357,7 @@ struct WorkoutSaveView: View {
         hasNotes(for: workout) || isNotesFocused ? 104 : 44
     }
 
-    private func saveableExercises(for workout: Workout) -> [ExerciceEntry] {
+    private func saveableExercises(for workout: Workout) -> [ExerciseEntry] {
         workout.orderedExercises.filter { exercise in
             exercise.orderedSets.contains(where: \.done)
         }

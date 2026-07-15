@@ -314,7 +314,10 @@ final class GymTrackerUITEST: XCTestCase {
         app.launchArguments = ["-ui-testing", "-ui-testing-open-history"]
         app.launch()
 
-        XCTAssertTrue(app.otherElements["history-screen"].waitForExistence(timeout: 15))
+        let historyScreen = app.descendants(matching: .any)
+            .matching(identifier: "history-screen")
+            .firstMatch
+        XCTAssertTrue(historyScreen.waitForExistence(timeout: 15))
         XCTAssertTrue(app.buttons["history-workout-row"].waitForExistence(timeout: 15))
     }
 

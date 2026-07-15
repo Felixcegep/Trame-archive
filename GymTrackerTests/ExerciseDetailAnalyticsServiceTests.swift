@@ -39,9 +39,9 @@ final class ExerciseDetailAnalyticsServiceTests: XCTestCase {
             sets: [(8, 100, .kg, .normal)],
             in: context
         )
-        let active = Workout(nom: "Active", endTime: nil)
-        let activeEntry = ExerciceEntry(exercice: exercise, usedMetric: .metric)
-        activeEntry.sets = [ExerciseSet(repetition: 12, weight: 999, done: true, usedMetric: .metric)]
+        let active = Workout(name: "Active", endTime: nil)
+        let activeEntry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
+        activeEntry.sets = [ExerciseSet(repetitions: 12, weight: 999, done: true, usedMetric: .metric)]
         active.exercises = [activeEntry]
         context.insert(active)
         try context.save()
@@ -180,9 +180,9 @@ final class ExerciseDetailAnalyticsServiceTests: XCTestCase {
 
     func testAssistedBodyweightExcludesLoadMetricsButKeepsRepetitionPR() throws {
         let context = try makeContext()
-        let exercise = ExerciceTemplate(
+        let exercise = Exercise(
             name: "Assisted Pull-up",
-            PrimaryMuscle: [.latissimusDorsi],
+            primaryMuscles: [.latissimusDorsi],
             trackingType: .assistedBodyweight
         )
         context.insert(exercise)
@@ -269,24 +269,24 @@ final class ExerciseDetailAnalyticsServiceTests: XCTestCase {
         referenceDate.addingTimeInterval(-Double(days) * 86_400)
     }
 
-    private func makeExercise() -> ExerciceTemplate {
-        ExerciceTemplate(name: "Bench Press", PrimaryMuscle: [.upperChest])
+    private func makeExercise() -> Exercise {
+        Exercise(name: "Bench Press", primaryMuscles: [.upperChest])
     }
 
     @discardableResult
     private func insertCompletedWorkout(
-        exercise: ExerciceTemplate,
+        exercise: Exercise,
         date: Date,
         sets: [(reps: Float, weight: Float, unit: WeightType, type: SetType)],
         comment: String? = nil,
         in context: ModelContext
     ) -> Workout {
-        let workout = Workout(nom: "Session", endTime: date.addingTimeInterval(3_600))
+        let workout = Workout(name: "Session", endTime: date.addingTimeInterval(3_600))
         workout.startTime = date
-        let entry = ExerciceEntry(Comment: comment, exercice: exercise, usedMetric: .metric)
+        let entry = ExerciseEntry(comment: comment, exercise: exercise, usedMetric: .metric)
         entry.sets = sets.enumerated().map { index, set in
             let exerciseSet = ExerciseSet(
-                repetition: set.reps,
+                repetitions: set.reps,
                 weight: set.weight,
                 done: true,
                 setType: set.type,
@@ -305,8 +305,8 @@ final class ExerciseDetailAnalyticsServiceTests: XCTestCase {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: Workout.self,
-            ExerciceTemplate.self,
-            ExerciceEntry.self,
+            Exercise.self,
+            ExerciseEntry.self,
             ExerciseSet.self,
             configurations: configuration
         )

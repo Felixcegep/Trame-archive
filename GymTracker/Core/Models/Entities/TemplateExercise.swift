@@ -12,11 +12,11 @@ final class TemplateExercise {
     var targetRIR: Int?
     var notes: String?
     var progressionRule: ProgressionRule = ProgressionRule.doubleProgression
-    var exercise: ExerciceTemplate
+    var exercise: Exercise
     var workoutTemplate: WorkoutTemplate?
 
     init(
-        exercise: ExerciceTemplate,
+        exercise: Exercise,
         order: Int,
         targetSets: Int = 3,
         repRangeMinimum: Int = 8,

@@ -113,7 +113,7 @@ struct ExerciseDetailAnalyticsService {
     }
 
     func analytics(
-        for exercise: ExerciceTemplate,
+        for exercise: Exercise,
         referenceDate: Date = .now,
         weekCount: Int = 8
     ) throws -> ExerciseDetailAnalytics {
@@ -170,10 +170,10 @@ struct ExerciseDetailAnalyticsService {
     }
 
     /// Chronological (oldest first) sessions so the latest is always `.last`.
-    private func sessions(from workouts: [Workout], for exercise: ExerciceTemplate) -> [ExerciseSession] {
+    private func sessions(from workouts: [Workout], for exercise: Exercise) -> [ExerciseSession] {
         workouts.compactMap { workout -> ExerciseSession? in
             guard let entry = workout.orderedExercises.first(where: {
-                $0.exercice.persistentModelID == exercise.persistentModelID
+                $0.exercise.persistentModelID == exercise.persistentModelID
             }) else { return nil }
 
             let sets = entry.orderedSets
@@ -181,7 +181,7 @@ struct ExerciseDetailAnalyticsService {
                 .map {
                     ExerciseSessionSet(
                         orderIndex: $0.orderIndex,
-                        repetitions: $0.repetition,
+                        repetitions: $0.repetitions,
                         weight: $0.weight,
                         weightType: $0.weightType,
                         setType: $0.setType
@@ -192,12 +192,12 @@ struct ExerciseDetailAnalyticsService {
         }
     }
 
-    private func notes(from workouts: [Workout], for exercise: ExerciceTemplate) -> [ExerciseNote] {
+    private func notes(from workouts: [Workout], for exercise: Exercise) -> [ExerciseNote] {
         workouts.compactMap { workout -> ExerciseNote? in
             guard let entry = workout.orderedExercises.first(where: {
-                $0.exercice.persistentModelID == exercise.persistentModelID
+                $0.exercise.persistentModelID == exercise.persistentModelID
             }) else { return nil }
-            let text = entry.Comment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let text = entry.comment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !text.isEmpty else { return nil }
             return ExerciseNote(workoutDate: workout.startTime, text: text)
         }

@@ -33,7 +33,7 @@ struct WorkoutPerformanceComparison {
     let performedSummary: String
     let recommendationSummary: String?
 
-    init(exercise: ExerciceEntry) {
+    init(exercise: ExerciseEntry) {
         let completedSets = exercise.orderedSets.filter(\.done)
 
         sets = Self.compareCount(
@@ -100,7 +100,7 @@ struct WorkoutPerformanceComparison {
         maximum: Int?
     ) -> PerformanceComparisonStatus {
         guard let minimum, let maximum, !sets.isEmpty else { return .noTarget }
-        let repetitions = sets.map { Int($0.repetition.rounded()) }
+        let repetitions = sets.map { Int($0.repetitions.rounded()) }
         if repetitions.contains(where: { $0 < minimum }) { return .below }
         if repetitions.contains(where: { $0 > maximum }) { return .above }
         return .met
@@ -134,7 +134,7 @@ struct WorkoutPerformanceComparison {
         return .met
     }
 
-    private static func plannedSummary(for exercise: ExerciceEntry) -> String {
+    private static func plannedSummary(for exercise: ExerciseEntry) -> String {
         var components: [String] = []
         if let sets = exercise.prescribedSets,
            let minimum = exercise.prescribedRepRangeMinimum,
@@ -153,17 +153,17 @@ struct WorkoutPerformanceComparison {
     }
 
     private static func performedSummary(
-        for exercise: ExerciceEntry,
+        for exercise: ExerciseEntry,
         completedSets: [ExerciseSet]
     ) -> String {
         guard !completedSets.isEmpty else { return String(localized: "No completed sets") }
         var components = [String(localized: "\(completedSets.count) sets")]
-        if exercise.exercice.trackingType.usesReps {
-            let reps = completedSets.map { Int($0.repetition.rounded()) }
+        if exercise.exercise.trackingType.usesReps {
+            let reps = completedSets.map { Int($0.repetitions.rounded()) }
             let range = reps.min() == reps.max() ? "\(reps.first ?? 0) reps" : "\(reps.min() ?? 0)–\(reps.max() ?? 0) reps"
             components.append(range)
         }
-        if exercise.exercice.trackingType.usesWeight,
+        if exercise.exercise.trackingType.usesWeight,
            let first = completedSets.first {
             let loads = completedSets.map {
                 UnitConversion.weight($0.weight, from: $0.weightType, to: first.weightType)
@@ -178,7 +178,7 @@ struct WorkoutPerformanceComparison {
         return components.joined(separator: " · ")
     }
 
-    private static func recommendationSummary(for exercise: ExerciceEntry) -> String? {
+    private static func recommendationSummary(for exercise: ExerciseEntry) -> String? {
         guard let load = exercise.recommendedLoad, let unit = exercise.recommendedUnit else { return nil }
         return "\(Formatters.formatFloat(load)) \(unit.rawValue)"
     }

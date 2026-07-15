@@ -19,7 +19,7 @@ extension ModelContext {
         for plan in try fetch(FetchDescriptor<WorkoutPlan>()) { delete(plan) }
         for collection in try fetch(FetchDescriptor<WorkoutCollection>()) { delete(collection) }
         for template in try fetch(FetchDescriptor<WorkoutTemplate>()) { delete(template) }
-        for exercise in try fetch(FetchDescriptor<ExerciceTemplate>()) { delete(exercise) }
+        for exercise in try fetch(FetchDescriptor<Exercise>()) { delete(exercise) }
         if saveChanges {
             try save()
             _ = try DataMaintenanceService.cleanupOrphans(using: self)

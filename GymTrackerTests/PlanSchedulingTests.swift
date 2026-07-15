@@ -128,7 +128,7 @@ final class PlanSchedulingTests: XCTestCase {
 
     @discardableResult
     private func makeScheduledPlan(in context: ModelContext) throws -> WorkoutPlan {
-        let exercise = ExerciceTemplate(name: "Back Squat", PrimaryMuscle: [.quadriceps])
+        let exercise = Exercise(name: "Back Squat", primaryMuscles: [.quadriceps])
         let template = WorkoutTemplate(
             name: "Lower",
             exercises: [exercise],
@@ -152,8 +152,8 @@ final class PlanSchedulingTests: XCTestCase {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: Workout.self,
-            ExerciceTemplate.self,
-            ExerciceEntry.self,
+            Exercise.self,
+            ExerciseEntry.self,
             ExerciseSet.self,
             WorkoutTemplate.self,
             TemplateExercise.self,
@@ -184,8 +184,8 @@ final class PlanSchedulingTests: XCTestCase {
         let configuration = ModelConfiguration(url: url)
         let container = try ModelContainer(
             for: Workout.self,
-            ExerciceTemplate.self,
-            ExerciceEntry.self,
+            Exercise.self,
+            ExerciseEntry.self,
             ExerciseSet.self,
             WorkoutTemplate.self,
             TemplateExercise.self,

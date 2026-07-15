@@ -7,13 +7,13 @@ import XCTest
 final class WorkoutIntegrityTests: XCTestCase {
     func testExerciseArchiveServiceHidesBuiltInAndRestoresIt() throws {
         let context = try makeContext()
-        let exercise = ExerciceTemplate(name: "Built In", PrimaryMuscle: [.upperChest])
+        let exercise = Exercise(name: "Built In", primaryMuscles: [.upperChest])
         context.insert(exercise)
         try context.save()
 
         try ExerciseArchiveService.hideOrDelete(exercise, using: context)
         XCTAssertTrue(exercise.isArchived)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<ExerciceTemplate>()).count, 1)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<Exercise>()).count, 1)
 
         try ExerciseArchiveService.restore(exercise, using: context)
         XCTAssertFalse(exercise.isArchived)
@@ -21,8 +21,8 @@ final class WorkoutIntegrityTests: XCTestCase {
 
     func testExerciseArchiveServiceDeletesUnreferencedCustomAndArchivesReferencedCustom() throws {
         let context = try makeContext()
-        let unreferenced = ExerciceTemplate(name: "Unused Custom", PrimaryMuscle: [.upperChest], isCustom: true)
-        let referenced = ExerciceTemplate(name: "Referenced Custom", PrimaryMuscle: [.upperChest], isCustom: true)
+        let unreferenced = Exercise(name: "Unused Custom", primaryMuscles: [.upperChest], isCustom: true)
+        let referenced = Exercise(name: "Referenced Custom", primaryMuscles: [.upperChest], isCustom: true)
         let template = WorkoutTemplate(
             name: "Reference",
             exercises: [referenced],
@@ -36,7 +36,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         try ExerciseArchiveService.hideOrDelete(unreferenced, using: context)
         try ExerciseArchiveService.hideOrDelete(referenced, using: context)
 
-        let exercises = try context.fetch(FetchDescriptor<ExerciceTemplate>())
+        let exercises = try context.fetch(FetchDescriptor<Exercise>())
         XCTAssertFalse(exercises.contains { $0.name == "Unused Custom" })
         XCTAssertTrue(exercises.first { $0.name == "Referenced Custom" }?.isArchived == true)
         XCTAssertEqual(try context.fetch(FetchDescriptor<TemplateExercise>()).count, 1)
@@ -54,16 +54,16 @@ final class WorkoutIntegrityTests: XCTestCase {
         try context.save()
 
         XCTAssertTrue(try context.fetch(FetchDescriptor<Workout>()).isEmpty)
-        XCTAssertTrue(try context.fetch(FetchDescriptor<ExerciceEntry>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<ExerciseEntry>()).isEmpty)
         XCTAssertTrue(try context.fetch(FetchDescriptor<ExerciseSet>()).isEmpty)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<ExerciceTemplate>()).count, 1)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<Exercise>()).count, 1)
     }
 
     func testOrderedViewsUsePersistedIndicesAcrossTemplateWorkoutAndSets() throws {
         let context = try makeContext()
-        let first = ExerciceTemplate(name: "First", PrimaryMuscle: [.upperChest])
-        let second = ExerciceTemplate(name: "Second", PrimaryMuscle: [.latissimusDorsi])
-        let third = ExerciceTemplate(name: "Third", PrimaryMuscle: [.quadriceps])
+        let first = Exercise(name: "First", primaryMuscles: [.upperChest])
+        let second = Exercise(name: "Second", primaryMuscles: [.latissimusDorsi])
+        let third = Exercise(name: "Third", primaryMuscles: [.quadriceps])
         let template = WorkoutTemplate(
             name: "Ordered Template",
             exercises: [first, second, third],
@@ -78,12 +78,12 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(template.exercises.map(\.name), ["Second", "Third", "First"])
 
         let workout = Workout(template: template, unitSystem: .metric)
-        XCTAssertEqual(workout.orderedExercises.map { $0.exercice.name }, ["Second", "Third", "First"])
+        XCTAssertEqual(workout.orderedExercises.map { $0.exercise.name }, ["Second", "Third", "First"])
 
         let entry = try XCTUnwrap(workout.orderedExercises.first)
-        let late = ExerciseSet(repetition: 12, weight: 60, done: true, orderIndex: 2, usedMetric: .metric)
-        let early = ExerciseSet(repetition: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric)
-        let middle = ExerciseSet(repetition: 10, weight: 50, done: true, orderIndex: 1, usedMetric: .metric)
+        let late = ExerciseSet(repetitions: 12, weight: 60, done: true, orderIndex: 2, usedMetric: .metric)
+        let early = ExerciseSet(repetitions: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric)
+        let middle = ExerciseSet(repetitions: 10, weight: 50, done: true, orderIndex: 1, usedMetric: .metric)
         entry.sets = [late, early, middle]
 
         context.insert(first)
@@ -93,20 +93,20 @@ final class WorkoutIntegrityTests: XCTestCase {
         context.insert(workout)
         try context.save()
 
-        XCTAssertEqual(entry.orderedSets.map(\.repetition), [8, 10, 12])
+        XCTAssertEqual(entry.orderedSets.map(\.repetitions), [8, 10, 12])
         XCTAssertEqual(entry.orderedSets.map(\.orderIndex), [0, 1, 2])
     }
 
     func testAddingCopyingAndDeletingSetsKeepsContiguousOrderIndices() throws {
         let context = try makeContext()
         let exercise = makeExercise()
-        let entry = ExerciceEntry(exercice: exercise, usedMetric: .metric)
+        let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         entry.sets = [
-            ExerciseSet(repetition: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric),
-            ExerciseSet(repetition: 10, weight: 50, done: true, orderIndex: 1, usedMetric: .metric),
-            ExerciseSet(repetition: 12, weight: 60, done: true, orderIndex: 2, usedMetric: .metric)
+            ExerciseSet(repetitions: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric),
+            ExerciseSet(repetitions: 10, weight: 50, done: true, orderIndex: 1, usedMetric: .metric),
+            ExerciseSet(repetitions: 12, weight: 60, done: true, orderIndex: 2, usedMetric: .metric)
         ]
-        let workout = Workout(nom: "Set Ordering")
+        let workout = Workout(name: "Set Ordering")
         workout.exercises = [entry]
         context.insert(exercise)
         context.insert(workout)
@@ -114,7 +114,7 @@ final class WorkoutIntegrityTests: XCTestCase {
 
         entry.copyLastSet()
         XCTAssertEqual(entry.orderedSets.map(\.orderIndex), [0, 1, 2, 3])
-        XCTAssertEqual(entry.orderedSets.last?.repetition, 12)
+        XCTAssertEqual(entry.orderedSets.last?.repetitions, 12)
         XCTAssertFalse(entry.orderedSets.last?.done == true)
 
         entry.addEmptySet()
@@ -127,18 +127,18 @@ final class WorkoutIntegrityTests: XCTestCase {
         activeViewModel.removeSet(entry, middle)
 
         XCTAssertEqual(entry.orderedSets.map(\.orderIndex), [0, 1, 2, 3])
-        XCTAssertEqual(entry.orderedSets.map(\.repetition), [8, 12, 12, 0])
+        XCTAssertEqual(entry.orderedSets.map(\.repetitions), [8, 12, 12, 0])
     }
 
     func testDuplicateLegacyIndicesNormalizeToUniqueContiguousValues() throws {
         let exercise = makeExercise()
-        let first = ExerciceEntry(exercice: exercise, orderIndex: 0, usedMetric: .metric)
-        let second = ExerciceEntry(exercice: exercise, orderIndex: 0, usedMetric: .metric)
+        let first = ExerciseEntry(exercise: exercise, orderIndex: 0, usedMetric: .metric)
+        let second = ExerciseEntry(exercise: exercise, orderIndex: 0, usedMetric: .metric)
         first.sets = [
-            ExerciseSet(repetition: 8, weight: 40, orderIndex: 0, usedMetric: .metric),
-            ExerciseSet(repetition: 10, weight: 50, orderIndex: 0, usedMetric: .metric)
+            ExerciseSet(repetitions: 8, weight: 40, orderIndex: 0, usedMetric: .metric),
+            ExerciseSet(repetitions: 10, weight: 50, orderIndex: 0, usedMetric: .metric)
         ]
-        let workout = Workout(nom: "Legacy Ordering")
+        let workout = Workout(name: "Legacy Ordering")
         workout.exercises = [first, second]
 
         workout.normalizeExerciseOrder()
@@ -152,15 +152,15 @@ final class WorkoutIntegrityTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
 
         try withDiskContext(at: storeURL) { context in
-            let first = ExerciceTemplate(name: "First", PrimaryMuscle: [.upperChest])
-            let second = ExerciceTemplate(name: "Second", PrimaryMuscle: [.latissimusDorsi])
-            let firstEntry = ExerciceEntry(exercice: first, orderIndex: 1, usedMetric: .metric)
+            let first = Exercise(name: "First", primaryMuscles: [.upperChest])
+            let second = Exercise(name: "Second", primaryMuscles: [.latissimusDorsi])
+            let firstEntry = ExerciseEntry(exercise: first, orderIndex: 1, usedMetric: .metric)
             firstEntry.sets = [
-                ExerciseSet(repetition: 12, weight: 60, done: true, orderIndex: 1, usedMetric: .metric),
-                ExerciseSet(repetition: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric)
+                ExerciseSet(repetitions: 12, weight: 60, done: true, orderIndex: 1, usedMetric: .metric),
+                ExerciseSet(repetitions: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric)
             ]
-            let secondEntry = ExerciceEntry(exercice: second, orderIndex: 0, usedMetric: .metric)
-            let workout = Workout(nom: "Persisted Ordering")
+            let secondEntry = ExerciseEntry(exercise: second, orderIndex: 0, usedMetric: .metric)
+            let workout = Workout(name: "Persisted Ordering")
             workout.exercises = [firstEntry, secondEntry]
             context.insert(first)
             context.insert(second)
@@ -171,27 +171,27 @@ final class WorkoutIntegrityTests: XCTestCase {
 
         try withDiskContext(at: storeURL) { context in
             let workout = try XCTUnwrap(context.fetch(FetchDescriptor<Workout>()).first)
-            XCTAssertEqual(workout.orderedExercises.map { $0.exercice.name }, ["Second", "First"])
+            XCTAssertEqual(workout.orderedExercises.map { $0.exercise.name }, ["Second", "First"])
             XCTAssertEqual(workout.orderedExercises.map(\.orderIndex), [0, 1])
-            XCTAssertEqual(workout.orderedExercises[1].orderedSets.map(\.repetition), [8, 12])
+            XCTAssertEqual(workout.orderedExercises[1].orderedSets.map(\.repetitions), [8, 12])
             XCTAssertEqual(workout.orderedExercises[1].orderedSets.map(\.orderIndex), [0, 1])
         }
     }
 
     func testSavingWorkoutAndHistoryUseTheSameOrderedEntriesAndSets() throws {
         let context = try makeContext()
-        let first = ExerciceTemplate(name: "First", PrimaryMuscle: [.upperChest])
-        let second = ExerciceTemplate(name: "Second", PrimaryMuscle: [.latissimusDorsi])
-        let firstEntry = ExerciceEntry(exercice: first, orderIndex: 1, usedMetric: .metric)
+        let first = Exercise(name: "First", primaryMuscles: [.upperChest])
+        let second = Exercise(name: "Second", primaryMuscles: [.latissimusDorsi])
+        let firstEntry = ExerciseEntry(exercise: first, orderIndex: 1, usedMetric: .metric)
         firstEntry.sets = [
-            ExerciseSet(repetition: 12, weight: 60, done: true, orderIndex: 1, usedMetric: .metric),
-            ExerciseSet(repetition: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric)
+            ExerciseSet(repetitions: 12, weight: 60, done: true, orderIndex: 1, usedMetric: .metric),
+            ExerciseSet(repetitions: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric)
         ]
-        let secondEntry = ExerciceEntry(exercice: second, orderIndex: 0, usedMetric: .metric)
+        let secondEntry = ExerciseEntry(exercise: second, orderIndex: 0, usedMetric: .metric)
         secondEntry.sets = [
-            ExerciseSet(repetition: 10, weight: 50, done: true, orderIndex: 0, usedMetric: .metric)
+            ExerciseSet(repetitions: 10, weight: 50, done: true, orderIndex: 0, usedMetric: .metric)
         ]
-        let workout = Workout(nom: "History Ordering")
+        let workout = Workout(name: "History Ordering")
         workout.exercises = [firstEntry, secondEntry]
         context.insert(first)
         context.insert(second)
@@ -202,11 +202,11 @@ final class WorkoutIntegrityTests: XCTestCase {
         viewModel.activeWorkout = workout
         XCTAssertTrue(viewModel.saveWorkout(using: context))
 
-        XCTAssertEqual(workout.orderedExercises.map { $0.exercice.name }, ["Second", "First"])
+        XCTAssertEqual(workout.orderedExercises.map { $0.exercise.name }, ["Second", "First"])
         let savedFirstEntry = try XCTUnwrap(
-            workout.orderedExercises.first(where: { $0.exercice.name == "First" })
+            workout.orderedExercises.first(where: { $0.exercise.name == "First" })
         )
-        XCTAssertEqual(savedFirstEntry.orderedSets.map(\.repetition), [8, 12])
+        XCTAssertEqual(savedFirstEntry.orderedSets.map(\.repetitions), [8, 12])
 
         let performance = try ExerciseHistoryService(modelContext: context)
             .mostRecentPerformance(for: first, before: Date(timeIntervalSinceNow: 1))
@@ -217,8 +217,8 @@ final class WorkoutIntegrityTests: XCTestCase {
     func testOrphanCleanupDeletesUnownedEntriesAndSets() throws {
         let context = try makeContext()
         let exercise = makeExercise()
-        let entry = ExerciceEntry(exercice: exercise, usedMetric: .metric)
-        entry.sets = [ExerciseSet(repetition: 8, weight: 50, usedMetric: .metric)]
+        let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
+        entry.sets = [ExerciseSet(repetitions: 8, weight: 50, usedMetric: .metric)]
         context.insert(exercise)
         context.insert(entry)
         try context.save()
@@ -226,7 +226,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         let result = try DataMaintenanceService.cleanupOrphans(using: context)
 
         XCTAssertEqual(result.deletedExercises, 1)
-        XCTAssertTrue(try context.fetch(FetchDescriptor<ExerciceEntry>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<ExerciseEntry>()).isEmpty)
         XCTAssertTrue(try context.fetch(FetchDescriptor<ExerciseSet>()).isEmpty)
     }
 
@@ -277,7 +277,7 @@ final class WorkoutIntegrityTests: XCTestCase {
     func testExerciseActiveDurationAccumulatesAcrossSelectionsAndRelaunches() throws {
         let context = try makeContext()
         let exercise = makeExercise()
-        let entry = ExerciceEntry(exercice: exercise, usedMetric: .metric)
+        let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         let startedAt = Date(timeIntervalSinceReferenceDate: 1_000)
         context.insert(exercise)
         context.insert(entry)
@@ -287,7 +287,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         entry.startActiveDuration(at: startedAt.addingTimeInterval(60))
         try context.save()
 
-        let restored = try XCTUnwrap(context.fetch(FetchDescriptor<ExerciceEntry>()).first)
+        let restored = try XCTUnwrap(context.fetch(FetchDescriptor<ExerciseEntry>()).first)
         XCTAssertEqual(restored.activeDuration(at: startedAt.addingTimeInterval(78)), 60, accuracy: 0.001)
 
         restored.stopActiveDuration(at: startedAt.addingTimeInterval(78))
@@ -361,13 +361,13 @@ final class WorkoutIntegrityTests: XCTestCase {
     func testProgressionSnapshotExcludesWarmupsAndPreservesTheStartedTemplateEvidence() throws {
         let context = try makeContext()
         let exercise = makeExercise()
-        let priorWorkout = Workout(nom: "Prior", endTime: .now)
+        let priorWorkout = Workout(name: "Prior", endTime: .now)
         priorWorkout.startTime = .now.addingTimeInterval(-86_400)
-        let priorEntry = ExerciceEntry(exercice: exercise, usedMetric: .imperial)
+        let priorEntry = ExerciseEntry(exercise: exercise, usedMetric: .imperial)
         priorEntry.sets = [
-            ExerciseSet(repetition: 20, weight: 45, done: true, setType: .warmup, orderIndex: 0, usedMetric: .imperial),
-            ExerciseSet(repetition: 12, weight: 100, done: true, orderIndex: 1, usedMetric: .imperial),
-            ExerciseSet(repetition: 12, weight: 100, done: true, orderIndex: 2, usedMetric: .imperial)
+            ExerciseSet(repetitions: 20, weight: 45, done: true, setType: .warmup, orderIndex: 0, usedMetric: .imperial),
+            ExerciseSet(repetitions: 12, weight: 100, done: true, orderIndex: 1, usedMetric: .imperial),
+            ExerciseSet(repetitions: 12, weight: 100, done: true, orderIndex: 2, usedMetric: .imperial)
         ]
         priorWorkout.exercises = [priorEntry]
 
@@ -409,9 +409,9 @@ final class WorkoutIntegrityTests: XCTestCase {
     func testProgressionSnapshotSkipsDisabledAndAssistedBodyweightExercises() throws {
         let context = try makeContext()
         let disabledExercise = makeExercise()
-        let assistedExercise = ExerciceTemplate(
+        let assistedExercise = Exercise(
             name: "Assisted Pull-up",
-            PrimaryMuscle: [.latissimusDorsi],
+            primaryMuscles: [.latissimusDorsi],
             trackingType: .assistedBodyweight
         )
 
@@ -442,13 +442,13 @@ final class WorkoutIntegrityTests: XCTestCase {
     func testApplyRecommendationConvertsOnlyIncompleteSets() throws {
         let context = try makeContext()
         let exercise = makeExercise()
-        let openSet = ExerciseSet(repetition: 0, weight: 0, orderIndex: 0, usedMetric: .metric)
-        let completedSet = ExerciseSet(repetition: 8, weight: 80, done: true, orderIndex: 1, usedMetric: .imperial)
-        let entry = ExerciceEntry(exercice: exercise, sets: [openSet, completedSet], usedMetric: .metric)
+        let openSet = ExerciseSet(repetitions: 0, weight: 0, orderIndex: 0, usedMetric: .metric)
+        let completedSet = ExerciseSet(repetitions: 8, weight: 80, done: true, orderIndex: 1, usedMetric: .imperial)
+        let entry = ExerciseEntry(exercise: exercise, sets: [openSet, completedSet], usedMetric: .metric)
         entry.recommendedDecision = .increase
         entry.recommendedLoad = 105
         entry.recommendedUnit = .lbs
-        let workout = Workout(nom: "Active")
+        let workout = Workout(name: "Active")
         workout.exercises = [entry]
         context.insert(exercise)
         context.insert(workout)
@@ -466,12 +466,12 @@ final class WorkoutIntegrityTests: XCTestCase {
     func testKeepLastRecommendationConvertsOnlyIncompleteSets() throws {
         let context = try makeContext()
         let exercise = makeExercise()
-        let openSet = ExerciseSet(repetition: 0, weight: 0, orderIndex: 0, usedMetric: .metric)
-        let completedSet = ExerciseSet(repetition: 8, weight: 80, done: true, orderIndex: 1, usedMetric: .imperial)
-        let entry = ExerciceEntry(exercice: exercise, sets: [openSet, completedSet], usedMetric: .metric)
+        let openSet = ExerciseSet(repetitions: 0, weight: 0, orderIndex: 0, usedMetric: .metric)
+        let completedSet = ExerciseSet(repetitions: 8, weight: 80, done: true, orderIndex: 1, usedMetric: .imperial)
+        let entry = ExerciseEntry(exercise: exercise, sets: [openSet, completedSet], usedMetric: .metric)
         entry.recommendationPriorLoad = 100
         entry.recommendedUnit = .lbs
-        let workout = Workout(nom: "Active")
+        let workout = Workout(name: "Active")
         workout.exercises = [entry]
         context.insert(exercise)
         context.insert(workout)
@@ -488,7 +488,7 @@ final class WorkoutIntegrityTests: XCTestCase {
 
     func testRecommendationPresentationDistinguishesInsufficientHistoryFromIneligible() {
         let exercise = makeExercise()
-        let eligible = ExerciceEntry(exercice: exercise, usedMetric: .metric)
+        let eligible = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         eligible.prescribedSets = 3
         eligible.prescribedRepRangeMaximum = 12
         eligible.prescribedProgressionRule = .doubleProgression
@@ -504,11 +504,11 @@ final class WorkoutIntegrityTests: XCTestCase {
     func testPlannedWorkoutSnapshotsProgressionAndPreservesRule() throws {
         let context = try makeContext()
         let exercise = makeExercise()
-        let priorWorkout = Workout(nom: "Prior", endTime: .now)
+        let priorWorkout = Workout(name: "Prior", endTime: .now)
         priorWorkout.startTime = .now.addingTimeInterval(-86_400)
-        let priorEntry = ExerciceEntry(exercice: exercise, usedMetric: .imperial)
+        let priorEntry = ExerciseEntry(exercise: exercise, usedMetric: .imperial)
         priorEntry.sets = (0..<3).map {
-            ExerciseSet(repetition: 12, weight: 100, done: true, orderIndex: $0, usedMetric: .imperial)
+            ExerciseSet(repetitions: 12, weight: 100, done: true, orderIndex: $0, usedMetric: .imperial)
         }
         priorWorkout.exercises = [priorEntry]
 
@@ -553,7 +553,7 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testPlanCreationAssignsDifferentTemplatesPerTrainingDay() throws {
-        let lowerExercise = ExerciceTemplate(name: "Back Squat", PrimaryMuscle: [.quadriceps])
+        let lowerExercise = Exercise(name: "Back Squat", primaryMuscles: [.quadriceps])
         let upperExercise = makeExercise()
         let lower = WorkoutTemplate(
             name: "Lower",
@@ -592,14 +592,14 @@ final class WorkoutIntegrityTests: XCTestCase {
 
     func testPlannedVersusPerformedComparisonReportsMetAboveBelowAndNoTarget() {
         let exercise = makeExercise()
-        let entry = ExerciceEntry(exercice: exercise, usedMetric: .metric)
+        let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         entry.prescribedSets = 3
         entry.prescribedRepRangeMinimum = 8
         entry.prescribedRepRangeMaximum = 12
         entry.prescribedSuggestedLoad = 50
         entry.prescribedSuggestedLoadType = .kg
         entry.sets = (0..<3).map {
-            ExerciseSet(repetition: 12, weight: 50, done: true, orderIndex: $0, usedMetric: .metric)
+            ExerciseSet(repetitions: 12, weight: 50, done: true, orderIndex: $0, usedMetric: .metric)
         }
 
         var comparison = WorkoutPerformanceComparison(exercise: entry)
@@ -608,7 +608,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(comparison.load, .met)
         XCTAssertEqual(comparison.overall, .met)
 
-        entry.sets[0].repetition = 13
+        entry.sets[0].repetitions = 13
         comparison = WorkoutPerformanceComparison(exercise: entry)
         XCTAssertEqual(comparison.reps, .above)
         XCTAssertEqual(comparison.overall, .above)
@@ -618,7 +618,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(comparison.load, .below)
         XCTAssertEqual(comparison.overall, .below)
 
-        let freeEntry = ExerciceEntry(exercice: exercise, usedMetric: .metric)
+        let freeEntry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         XCTAssertEqual(WorkoutPerformanceComparison(exercise: freeEntry).overall, .noTarget)
     }
 
@@ -662,7 +662,7 @@ final class WorkoutIntegrityTests: XCTestCase {
 
         let activeWorkout = try XCTUnwrap(viewModel.activeWorkout)
         let activeSet = try XCTUnwrap(activeWorkout.orderedExercises.first?.orderedSets.first)
-        activeSet.repetition = 8
+        activeSet.repetitions = 8
         activeSet.weight = 50
         activeSet.done = true
 
@@ -679,7 +679,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(savedWorkouts.filter { $0.status == .completed }.count, 1)
         XCTAssertEqual(activeWorkout.sourcePlanRunID, run.id)
         XCTAssertEqual(activeWorkout.sourcePlannedWorkoutID, firstPlannedWorkout.id)
-        XCTAssertEqual(activeWorkout.orderedExercises.map(\.exercice.name), ["Bench Press"])
+        XCTAssertEqual(activeWorkout.orderedExercises.map(\.exercise.name), ["Bench Press"])
         XCTAssertFalse(WorkoutViewModel().restoreActiveWorkout(using: context))
     }
 
@@ -719,7 +719,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         let activeWorkout = try XCTUnwrap(viewModel.activeWorkout)
         let activeEntry = try XCTUnwrap(activeWorkout.orderedExercises.first)
         let completedSet = try XCTUnwrap(activeEntry.orderedSets.first)
-        completedSet.repetition = 8
+        completedSet.repetitions = 8
         completedSet.weight = 50
         completedSet.done = true
 
@@ -784,15 +784,15 @@ final class WorkoutIntegrityTests: XCTestCase {
     func testSavingWorkoutExcludesIncompleteSetsAndEmptyExercisesFromHistory() throws {
         let context = try makeContext()
         let completedExercise = makeExercise()
-        let emptyExercise = ExerciceTemplate(name: "Cable Fly", PrimaryMuscle: [.upperChest])
-        let workout = Workout(nom: "Partial")
-        let completedEntry = ExerciceEntry(exercice: completedExercise, usedMetric: .metric)
+        let emptyExercise = Exercise(name: "Cable Fly", primaryMuscles: [.upperChest])
+        let workout = Workout(name: "Partial")
+        let completedEntry = ExerciseEntry(exercise: completedExercise, usedMetric: .metric)
         completedEntry.sets = [
-            ExerciseSet(repetition: 8, weight: 50, done: true, orderIndex: 0, usedMetric: .metric),
-            ExerciseSet(repetition: 0, weight: 50, done: false, orderIndex: 1, usedMetric: .metric)
+            ExerciseSet(repetitions: 8, weight: 50, done: true, orderIndex: 0, usedMetric: .metric),
+            ExerciseSet(repetitions: 0, weight: 50, done: false, orderIndex: 1, usedMetric: .metric)
         ]
-        let emptyEntry = ExerciceEntry(exercice: emptyExercise, usedMetric: .metric)
-        emptyEntry.sets = [ExerciseSet(repetition: 0, weight: 20, usedMetric: .metric)]
+        let emptyEntry = ExerciseEntry(exercise: emptyExercise, usedMetric: .metric)
+        emptyEntry.sets = [ExerciseSet(repetitions: 0, weight: 20, usedMetric: .metric)]
         workout.exercises = [completedEntry, emptyEntry]
 
         context.insert(completedExercise)
@@ -808,19 +808,19 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(workout.orderedExercises.count, 1)
         XCTAssertEqual(workout.orderedExercises.first?.orderedSets.count, 1)
         XCTAssertTrue(workout.orderedExercises.first?.orderedSets.first?.done == true)
-        XCTAssertTrue(try context.fetch(FetchDescriptor<ExerciceEntry>()).contains { $0 === completedEntry })
-        XCTAssertFalse(try context.fetch(FetchDescriptor<ExerciceEntry>()).contains { $0 === emptyEntry })
+        XCTAssertTrue(try context.fetch(FetchDescriptor<ExerciseEntry>()).contains { $0 === completedEntry })
+        XCTAssertFalse(try context.fetch(FetchDescriptor<ExerciseEntry>()).contains { $0 === emptyEntry })
     }
 
     func testInvalidSaveLeavesActiveDraftUntouched() throws {
         let context = try makeContext()
         let exercise = makeExercise()
-        let entry = ExerciceEntry(exercice: exercise, usedMetric: .metric)
+        let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         entry.sets = [
-            ExerciseSet(repetition: 0, weight: 50, done: false, orderIndex: 0, usedMetric: .metric),
-            ExerciseSet(repetition: 0, weight: 55, done: false, orderIndex: 1, usedMetric: .metric)
+            ExerciseSet(repetitions: 0, weight: 50, done: false, orderIndex: 0, usedMetric: .metric),
+            ExerciseSet(repetitions: 0, weight: 55, done: false, orderIndex: 1, usedMetric: .metric)
         ]
-        let workout = Workout(nom: "Draft")
+        let workout = Workout(name: "Draft")
         workout.exercises = [entry]
         context.insert(exercise)
         context.insert(workout)
@@ -989,7 +989,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         let completedWorkout = Workout(plannedWorkout: firstPlannedWorkout, planRun: run, unitSystem: .metric)
         completedWorkout.status = .completed
         completedWorkout.endTime = Date(timeIntervalSince1970: 1_700_003_600)
-        completedWorkout.orderedExercises.first?.orderedSets.first?.repetition = 8
+        completedWorkout.orderedExercises.first?.orderedSets.first?.repetitions = 8
         completedWorkout.orderedExercises.first?.orderedSets.first?.weight = 50
         completedWorkout.orderedExercises.first?.orderedSets.first?.done = true
         PlanCoordinator.markCompleted(firstProgress, with: completedWorkout, in: run)
@@ -1045,7 +1045,7 @@ final class WorkoutIntegrityTests: XCTestCase {
 
     func testInvalidPlanRunBackupDoesNotReplaceExistingData() throws {
         let context = try makeContext()
-        let sentinel = ExerciceTemplate(name: "Do Not Delete", PrimaryMuscle: [.upperChest])
+        let sentinel = Exercise(name: "Do Not Delete", primaryMuscles: [.upperChest])
         context.insert(sentinel)
         try context.save()
 
@@ -1083,13 +1083,13 @@ final class WorkoutIntegrityTests: XCTestCase {
             XCTAssertEqual(identifier, missingPlanID)
         }
         XCTAssertTrue(
-            try context.fetch(FetchDescriptor<ExerciceTemplate>()).contains { $0.name == sentinel.name }
+            try context.fetch(FetchDescriptor<Exercise>()).contains { $0.name == sentinel.name }
         )
     }
 
     func testBackupInterruptionBeforeCommitPreservesExistingDatabase() throws {
         let context = try makeContext()
-        let sentinel = ExerciceTemplate(name: "Keep During Import", PrimaryMuscle: [.upperChest])
+        let sentinel = Exercise(name: "Keep During Import", primaryMuscles: [.upperChest])
         context.insert(sentinel)
         try context.save()
 
@@ -1114,7 +1114,7 @@ final class WorkoutIntegrityTests: XCTestCase {
             })
         )
         XCTAssertTrue(
-            try context.fetch(FetchDescriptor<ExerciceTemplate>()).contains { $0.name == sentinel.name }
+            try context.fetch(FetchDescriptor<Exercise>()).contains { $0.name == sentinel.name }
         )
         XCTAssertTrue(try context.fetch(FetchDescriptor<WorkoutPlan>()).isEmpty)
         XCTAssertTrue(try context.fetch(FetchDescriptor<PlanRun>()).isEmpty)
@@ -1126,14 +1126,14 @@ final class WorkoutIntegrityTests: XCTestCase {
         let backup = try makePlanRunBackup()
 
         try withDiskContext(at: storeURL) { context in
-            let sentinel = ExerciceTemplate(name: "Replace Me", PrimaryMuscle: [.upperChest])
+            let sentinel = Exercise(name: "Replace Me", primaryMuscles: [.upperChest])
             context.insert(sentinel)
             try context.save()
             try backup.restore(to: context)
         }
 
         try withDiskContext(at: storeURL) { context in
-            let exercises = try context.fetch(FetchDescriptor<ExerciceTemplate>())
+            let exercises = try context.fetch(FetchDescriptor<Exercise>())
             XCTAssertFalse(exercises.contains { $0.name == "Replace Me" })
             XCTAssertTrue(exercises.contains { $0.name == "Bench Press" })
 
@@ -1159,7 +1159,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
 
         try withDiskContext(at: storeURL) { context in
-            let sentinel = ExerciceTemplate(name: "Keep Corrupt Import", PrimaryMuscle: [.upperChest])
+            let sentinel = Exercise(name: "Keep Corrupt Import", primaryMuscles: [.upperChest])
             context.insert(sentinel)
             try context.save()
 
@@ -1203,7 +1203,7 @@ final class WorkoutIntegrityTests: XCTestCase {
 
         try withDiskContext(at: storeURL) { context in
             XCTAssertTrue(
-                try context.fetch(FetchDescriptor<ExerciceTemplate>()).contains {
+                try context.fetch(FetchDescriptor<Exercise>()).contains {
                     $0.name == "Keep Corrupt Import"
                 }
             )
@@ -1218,7 +1218,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         let backup = try makePlanRunBackup()
 
         try withDiskContext(at: storeURL) { context in
-            let sentinel = ExerciceTemplate(name: "Keep Interrupted Import", PrimaryMuscle: [.upperChest])
+            let sentinel = Exercise(name: "Keep Interrupted Import", primaryMuscles: [.upperChest])
             context.insert(sentinel)
             try context.save()
 
@@ -1231,7 +1231,7 @@ final class WorkoutIntegrityTests: XCTestCase {
 
         try withDiskContext(at: storeURL) { context in
             XCTAssertTrue(
-                try context.fetch(FetchDescriptor<ExerciceTemplate>()).contains {
+                try context.fetch(FetchDescriptor<Exercise>()).contains {
                     $0.name == "Keep Interrupted Import"
                 }
             )
@@ -1245,8 +1245,8 @@ final class WorkoutIntegrityTests: XCTestCase {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: Workout.self,
-            ExerciceTemplate.self,
-            ExerciceEntry.self,
+            Exercise.self,
+            ExerciseEntry.self,
             ExerciseSet.self,
             WorkoutTemplate.self,
             TemplateExercise.self,
@@ -1277,8 +1277,8 @@ final class WorkoutIntegrityTests: XCTestCase {
         let configuration = ModelConfiguration(url: url)
         let container = try ModelContainer(
             for: Workout.self,
-            ExerciceTemplate.self,
-            ExerciceEntry.self,
+            Exercise.self,
+            ExerciseEntry.self,
             ExerciseSet.self,
             WorkoutTemplate.self,
             TemplateExercise.self,
@@ -1328,7 +1328,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         completedWorkout.status = .completed
         completedWorkout.endTime = Date(timeIntervalSince1970: 1_700_003_600)
         let firstSet = try XCTUnwrap(completedWorkout.orderedExercises.first?.orderedSets.first)
-        firstSet.repetition = 8
+        firstSet.repetitions = 8
         firstSet.weight = 50
         firstSet.done = true
         PlanCoordinator.markCompleted(firstProgress, with: completedWorkout, in: run)
@@ -1348,12 +1348,12 @@ final class WorkoutIntegrityTests: XCTestCase {
         )
     }
 
-    private func makeExercise() -> ExerciceTemplate {
-        ExerciceTemplate(name: "Bench Press", PrimaryMuscle: [.upperChest])
+    private func makeExercise() -> Exercise {
+        Exercise(name: "Bench Press", primaryMuscles: [.upperChest])
     }
 
     private func makeTemplate(
-        exercise: ExerciceTemplate,
+        exercise: Exercise,
         targetSets: Int
     ) -> WorkoutTemplate {
         WorkoutTemplate(
@@ -1373,13 +1373,13 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     private func makeWorkout(
-        with exercise: ExerciceTemplate,
+        with exercise: Exercise,
         reps: Float = 8,
         weight: Float = 50
     ) -> Workout {
-        let set = ExerciseSet(repetition: reps, weight: weight, done: true, usedMetric: .metric)
-        let entry = ExerciceEntry(exercice: exercise, sets: [set], usedMetric: .metric)
-        let workout = Workout(nom: "Test Workout", endTime: .now)
+        let set = ExerciseSet(repetitions: reps, weight: weight, done: true, usedMetric: .metric)
+        let entry = ExerciseEntry(exercise: exercise, sets: [set], usedMetric: .metric)
+        let workout = Workout(name: "Test Workout", endTime: .now)
         workout.exercises = [entry]
         return workout
     }

@@ -38,7 +38,7 @@ enum DataMaintenanceService {
             context.delete(set)
         }
 
-        let orphanEntries = try context.fetch(FetchDescriptor<ExerciceEntry>())
+        let orphanEntries = try context.fetch(FetchDescriptor<ExerciseEntry>())
             .filter { $0.workout == nil }
         for entry in orphanEntries {
             context.delete(entry)

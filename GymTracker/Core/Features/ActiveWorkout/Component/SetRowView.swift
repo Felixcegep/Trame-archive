@@ -4,7 +4,7 @@ import SwiftData
 struct SetRowView: View {
     let index: Int
     @Bindable var exerciseSet: ExerciseSet
-    let exerciseEntry: ExerciceEntry
+    let exerciseEntry: ExerciseEntry
     let viewModel: ActiveWorkoutViewModel
     let focusedInput: FocusState<SetInputFocus?>.Binding
     @Binding var editingCompletedSetID: PersistentIdentifier?
@@ -19,7 +19,7 @@ struct SetRowView: View {
     @State private var isShowingIncompleteConfirmation = false
 
     private var trackingType: TrackingType {
-        exerciseEntry.exercice.trackingType
+        exerciseEntry.exercise.trackingType
     }
 
     var body: some View {
@@ -56,7 +56,7 @@ struct SetRowView: View {
                 .buttonStyle(.borderless)
                 .padding(.leading, 45)
                 .accessibilityLabel("Use last time values for set \(index + 1)")
-                .accessibilityIdentifier("use-previous-set-\(exerciseEntry.exercice.name)-\(index)")
+                .accessibilityIdentifier("use-previous-set-\(exerciseEntry.exercise.name)-\(index)")
             }
 
             if let rpe = exerciseSet.rpe {
@@ -71,7 +71,7 @@ struct SetRowView: View {
                 .padding(.leading, 45)
                 .accessibilityLabel("RPE \(rpe), \(RPEScale.meaning(for: rpe))")
                 .accessibilityHint("Edit set details")
-                .accessibilityIdentifier("rpe-badge-\(exerciseEntry.exercice.name)-\(index)")
+                .accessibilityIdentifier("rpe-badge-\(exerciseEntry.exercise.name)-\(index)")
             }
         }
         .padding(.horizontal, Spacing.s)
@@ -91,17 +91,17 @@ struct SetRowView: View {
 
     private var repsField: some View {
         numberField("Reps", text: Binding(
-            get: { exerciseSet.repetition == 0 ? "" : Formatters.formatFloat(exerciseSet.repetition) },
+            get: { exerciseSet.repetitions == 0 ? "" : Formatters.formatFloat(exerciseSet.repetitions) },
             set: {
                 if let value = Float($0) {
-                    exerciseSet.repetition = value
+                    exerciseSet.repetitions = value
                 } else if $0.isEmpty {
-                    exerciseSet.repetition = 0
+                    exerciseSet.repetitions = 0
                 }
                 viewModel.persistChanges()
             }
         ), focusID: setFocus, prompt: previousSet.map { Formatters.formatFloat($0.repetitions) })
-        .accessibilityIdentifier("reps-field-\(exerciseEntry.exercice.name)-\(index)")
+        .accessibilityIdentifier("reps-field-\(exerciseEntry.exercise.name)-\(index)")
         .disabled(isCompletedAndLocked)
     }
 
@@ -122,10 +122,10 @@ struct SetRowView: View {
             .multilineTextAlignment(.center)
             .font(AppFont.titleSmallSemiboldMonospaced)
             .focused(focusedInput, equals: setFocus)
-            .accessibilityIdentifier("weight-field-\(exerciseEntry.exercice.name)-\(index)")
+            .accessibilityIdentifier("weight-field-\(exerciseEntry.exercise.name)-\(index)")
             .disabled(isCompletedAndLocked)
 
-            if exerciseEntry.exercice.supportsPlateCalculator {
+            if exerciseEntry.exercise.supportsPlateCalculator {
                 Button {
                     isShowingPlateCalculator = true
                 } label: {
@@ -136,7 +136,7 @@ struct SetRowView: View {
                 .buttonStyle(.borderless)
                 .foregroundStyle(WorkoutPalette.primary)
                 .accessibilityLabel("Open plate calculator")
-                .accessibilityIdentifier("plate-calculator-\(exerciseEntry.exercice.name)")
+                .accessibilityIdentifier("plate-calculator-\(exerciseEntry.exercise.name)")
                 .disabled(isCompletedAndLocked)
             }
         }
@@ -150,7 +150,7 @@ struct SetRowView: View {
         }) {
             PlateCalculatorView(
                 exerciseSet: exerciseSet,
-                usesBarbell: exerciseEntry.exercice.equipmentType == .barbell
+                usesBarbell: exerciseEntry.exercise.equipmentType == .barbell
             )
                 .presentationDetents([.height(560), .large])
                 .presentationDragIndicator(.visible)
@@ -197,7 +197,7 @@ struct SetRowView: View {
         .buttonStyle(.borderless)
         .accessibilityLabel(exerciseSet.done ? "Completed set" : "Complete set")
         .accessibilityHint(exerciseSet.done ? "Opens confirmation before marking this set incomplete." : "Marks this set complete.")
-        .accessibilityIdentifier("complete-set-\(exerciseEntry.exercice.name)-\(index)")
+        .accessibilityIdentifier("complete-set-\(exerciseEntry.exercise.name)-\(index)")
     }
 
     private var isCurrentSet: Bool {
@@ -237,7 +237,7 @@ struct SetRowView: View {
         .buttonStyle(.borderless)
         .accessibilityLabel("Set \(index + 1), \(exerciseSet.setType.title)")
         .accessibilityHint("Change set type")
-        .accessibilityIdentifier("set-type-\(exerciseEntry.exercice.name)-\(index)")
+        .accessibilityIdentifier("set-type-\(exerciseEntry.exercise.name)-\(index)")
         .disabled(isCompletedAndLocked)
     }
 
@@ -258,7 +258,7 @@ struct SetRowView: View {
                 } label: {
                     Label(isCompletedAndLocked ? "Edit completed set" : "Lock completed set", systemImage: isCompletedAndLocked ? AppIcon.edit : AppIcon.lock)
                 }
-                .accessibilityIdentifier("edit-completed-set-\(exerciseEntry.exercice.name)-\(index)")
+                .accessibilityIdentifier("edit-completed-set-\(exerciseEntry.exercise.name)-\(index)")
 
                 Button("Mark set incomplete", role: .destructive) {
                     isShowingIncompleteConfirmation = true
@@ -279,14 +279,14 @@ struct SetRowView: View {
         }
         .buttonStyle(.borderless)
         .accessibilityLabel(isCompletedAndLocked ? "Completed set actions, locked" : "Set actions")
-        .accessibilityIdentifier("set-menu-\(exerciseEntry.exercice.name)-\(index)")
+        .accessibilityIdentifier("set-menu-\(exerciseEntry.exercise.name)-\(index)")
         .sheet(isPresented: $isShowingSetDetails, onDismiss: {
             viewModel.persistChanges()
         }) {
             SetDetailSheet(
                 index: index,
                 exerciseSet: exerciseSet,
-                exerciseName: exerciseEntry.exercice.name,
+                exerciseName: exerciseEntry.exercise.name,
                 onPersist: { viewModel.persistChanges() },
                 onDelete: onRemove
             )
@@ -365,7 +365,7 @@ struct SetRowView: View {
     }
 
     private var validationMessage: String {
-        if trackingType.usesReps, exerciseSet.repetition <= 0 {
+        if trackingType.usesReps, exerciseSet.repetitions <= 0 {
             return "Enter reps before completing this set."
         }
 

@@ -8,22 +8,22 @@
 import SwiftUI
 
 struct ExerciseSelectionRow: View {
-    let exercise: ExerciceTemplate
+    let exercise: Exercise
     let isSelected: Bool
     let onSelect: () -> Void
     private let exerciseDetail: ExerciceDetailSnapshot
 
-    init(exercise: ExerciceTemplate, isSelected: Bool, onSelect: @escaping () -> Void) {
+    init(exercise: Exercise, isSelected: Bool, onSelect: @escaping () -> Void) {
         self.exercise = exercise
         self.isSelected = isSelected
         self.onSelect = onSelect
-        self.exerciseDetail = ExerciceDetailSnapshot(exercice: exercise)
+        self.exerciseDetail = ExerciceDetailSnapshot(exercise: exercise)
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.s) {
             NavigationLink {
-                ExerciceView(exercice: exerciseDetail)
+                ExerciceView(exercise: exerciseDetail)
             } label: {
                 HStack(alignment: .top, spacing: Spacing.m) {
                     VStack(alignment: .leading, spacing: Spacing.xs) {

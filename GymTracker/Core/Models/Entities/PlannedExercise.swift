@@ -17,11 +17,11 @@ final class PlannedExercise {
     var targetRIR: Int?
     var notes: String?
     var progressionRule: ProgressionRule
-    var exercise: ExerciceTemplate
+    var exercise: Exercise
     var plannedWorkout: PlannedWorkout?
 
     init(
-        exercise: ExerciceTemplate,
+        exercise: Exercise,
         orderIndex: Int,
         role: ExerciseRole = .main,
         isOptional: Bool = false,

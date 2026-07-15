@@ -10,8 +10,8 @@ import SwiftUI
 struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
 
-    let exercises: [ExerciceTemplate]
-    let onSelect: (ExerciceTemplate) -> Void
+    let exercises: [Exercise]
+    let onSelect: (Exercise) -> Void
 
     @State private var addedExerciseIDs: Set<ObjectIdentifier> = []
 

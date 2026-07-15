@@ -1,5 +1,5 @@
 //
-//  Exercice.swift
+//  Exercise.swift
 //  GymTracker
 //
 //  Created by Felix Lachapelle on 2026-07-02.
@@ -9,10 +9,10 @@ import Foundation
 import SwiftData
 
 @Model
-final class ExerciceTemplate {
+final class Exercise {
     var name: String
-    var PrimaryMuscle: [Muscle]
-    var SecondaryMuscle: [Muscle]?
+    var primaryMuscles: [Muscle]
+    var secondaryMuscles: [Muscle]?
     var category: ExerciseCategory?
     var trackingType: TrackingType = TrackingType.weightAndReps
     var equipmentType: EquipmentType? = EquipmentType.other
@@ -27,8 +27,8 @@ final class ExerciceTemplate {
 
     init(
         name: String,
-        PrimaryMuscle: [Muscle],
-        SecondaryMuscle: [Muscle]? = nil,
+        primaryMuscles: [Muscle],
+        secondaryMuscles: [Muscle]? = nil,
         category: ExerciseCategory = .strength,
         trackingType: TrackingType = .weightAndReps,
         equipmentType: EquipmentType? = .other,
@@ -42,8 +42,8 @@ final class ExerciceTemplate {
         isArchived: Bool = false
     ) {
         self.name = name
-        self.PrimaryMuscle = PrimaryMuscle
-        self.SecondaryMuscle = SecondaryMuscle
+        self.primaryMuscles = primaryMuscles
+        self.secondaryMuscles = secondaryMuscles
         self.category = category
         self.trackingType = trackingType
         self.equipmentType = equipmentType ?? .other
@@ -66,7 +66,7 @@ final class ExerciceTemplate {
     }
 
     var subtitle: String {
-        let muscle = PrimaryMuscle.first?.displayName ?? NSLocalizedString("General", comment: "")
+        let muscle = primaryMuscles.first?.displayName ?? NSLocalizedString("General", comment: "")
         let equipment = NSLocalizedString(equipmentType?.rawValue ?? "Other", comment: "")
         let tracking = NSLocalizedString(trackingType.rawValue, comment: "")
         return "\(muscle) · \(equipment) · \(tracking)"

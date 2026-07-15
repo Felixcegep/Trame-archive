@@ -6,7 +6,7 @@ struct PlanEditorView: View {
     @Environment(\.modelContext) private var modelContext
 
     let plan: WorkoutPlan
-    @Query(filter: #Predicate<ExerciceTemplate> { !$0.isArchived }) private var exercises: [ExerciceTemplate]
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exercises: [Exercise]
     @State private var draft: PlanEditorDraft
     @State private var selectedWeekIndex: Int?
     @State private var selectedWorkoutIndex: Int?
@@ -236,7 +236,7 @@ private struct PlanReviewExerciseRow: View {
 private struct PlanWorkoutEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var workout: PlanWorkoutDraft
-    let exercises: [ExerciceTemplate]
+    let exercises: [Exercise]
     @State private var selectedExerciseIndex: Int?
     @State private var isShowingExerciseEditor = false
     @State private var isShowingExercisePicker = false
@@ -308,8 +308,8 @@ private struct PlanWorkoutEditorView: View {
 
 private struct PlanExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
-    let exercises: [ExerciceTemplate]
-    let onSelect: (ExerciceTemplate) -> Void
+    let exercises: [Exercise]
+    let onSelect: (Exercise) -> Void
     @State private var searchText = ""
 
     var body: some View {
@@ -338,7 +338,7 @@ private struct PlanExercisePickerView: View {
         }
     }
 
-    private var filteredExercises: [ExerciceTemplate] {
+    private var filteredExercises: [Exercise] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return exercises.sorted { $0.name < $1.name } }
         return exercises.filter { $0.name.localizedCaseInsensitiveContains(query) }
@@ -481,7 +481,7 @@ private struct PlanWorkoutDraft: Identifiable {
 private struct PlanExerciseDraft: Identifiable {
     let id: UUID
     let existingID: UUID?
-    var exercise: ExerciceTemplate
+    var exercise: Exercise
     var role: ExerciseRole
     var isOptional: Bool
     var targetSets: Int
@@ -495,7 +495,7 @@ private struct PlanExerciseDraft: Identifiable {
     var notes: String
     var progressionRule: ProgressionRule
 
-    init(exercise: ExerciceTemplate, orderIndex: Int) {
+    init(exercise: Exercise, orderIndex: Int) {
         id = UUID()
         existingID = nil
         self.exercise = exercise

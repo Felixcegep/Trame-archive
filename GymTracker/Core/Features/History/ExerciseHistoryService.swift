@@ -29,7 +29,7 @@ struct ExerciseHistoryService {
     let modelContext: ModelContext
 
     func mostRecentPerformance(
-        for exercise: ExerciceTemplate,
+        for exercise: Exercise,
         before date: Date
     ) throws -> PreviousExercisePerformance? {
         let descriptor = FetchDescriptor<Workout>(
@@ -42,7 +42,7 @@ struct ExerciseHistoryService {
 
         for workout in completedWorkouts where workout.status == .completed && workout.startTime < date {
             guard let entry = workout.orderedExercises.first(where: {
-                $0.exercice.persistentModelID == exercise.persistentModelID
+                $0.exercise.persistentModelID == exercise.persistentModelID
             }) else {
                 continue
             }
@@ -52,7 +52,7 @@ struct ExerciseHistoryService {
                 .map {
                     PreviousSetPerformance(
                         orderIndex: $0.orderIndex,
-                        repetitions: $0.repetition,
+                        repetitions: $0.repetitions,
                         weight: $0.weight,
                         weightType: $0.weightType,
                         duration: $0.duration,

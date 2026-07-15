@@ -13,7 +13,7 @@ struct ProgressionSnapshotService {
                 let requiredSets = entry.prescribedSets,
                 let repCeiling = entry.prescribedRepRangeMaximum,
                 let recommendation = recommendation(
-                    for: entry.exercice,
+                    for: entry.exercise,
                     rule: rule,
                     requiredSets: requiredSets,
                     repCeiling: repCeiling,
@@ -38,7 +38,7 @@ struct ProgressionSnapshotService {
     /// later. Evidence remains in its historical unit; conversion happens only
     /// when a user applies the recommendation to an active set.
     func recommendation(
-        for exercise: ExerciceTemplate,
+        for exercise: Exercise,
         rule: ProgressionRule,
         requiredSets: Int,
         repCeiling: Int,
@@ -80,7 +80,7 @@ struct ProgressionSnapshotService {
     }
 
     static func isEligible(
-        exercise: ExerciceTemplate,
+        exercise: Exercise,
         rule: ProgressionRule,
         requiredSets: Int,
         repCeiling: Int
@@ -94,7 +94,7 @@ struct ProgressionSnapshotService {
 
     private func snapshot(
         _ recommendation: DoubleProgressionRecommendation,
-        onto entry: ExerciceEntry
+        onto entry: ExerciseEntry
     ) {
         entry.recommendedDecision = recommendation.decision
         entry.recommendedLoad = recommendation.recommendedLoad

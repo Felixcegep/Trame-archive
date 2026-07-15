@@ -63,7 +63,7 @@ class WorkoutViewModel {
             modelContext.delete(exercise)
         }
 
-        activeWorkout.nom = normalized(activeWorkout.nom)
+        activeWorkout.name = normalized(activeWorkout.name)
         activeWorkout.notes = normalized(activeWorkout.notes)
 
         activeWorkout.normalizeExerciseOrder()
@@ -109,7 +109,7 @@ class WorkoutViewModel {
     func startWorkout(using modelContext: ModelContext) -> Bool {
         guard !restoreActiveWorkout(using: modelContext) else { return false }
 
-        let newWorkout = Workout(nom : nil)
+        let newWorkout = Workout(name : nil)
         return persistAndActivate(newWorkout, using: modelContext)
     }
 

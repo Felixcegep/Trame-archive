@@ -1,7 +1,7 @@
 import SwiftData
 
 enum ExerciseArchiveService {
-    static func hideOrDelete(_ exercise: ExerciceTemplate, using context: ModelContext) throws {
+    static func hideOrDelete(_ exercise: Exercise, using context: ModelContext) throws {
         if !exercise.isCustom {
             exercise.isArchived = true
         } else if try isReferenced(exercise, using: context) {
@@ -13,17 +13,17 @@ enum ExerciseArchiveService {
         try context.save()
     }
 
-    static func restore(_ exercise: ExerciceTemplate, using context: ModelContext) throws {
+    static func restore(_ exercise: Exercise, using context: ModelContext) throws {
         exercise.isArchived = false
         try context.save()
     }
 
     private static func isReferenced(
-        _ exercise: ExerciceTemplate,
+        _ exercise: Exercise,
         using context: ModelContext
     ) throws -> Bool {
-        let entries = try context.fetch(FetchDescriptor<ExerciceEntry>())
-        if entries.contains(where: { $0.exercice.id == exercise.id }) { return true }
+        let entries = try context.fetch(FetchDescriptor<ExerciseEntry>())
+        if entries.contains(where: { $0.exercise.id == exercise.id }) { return true }
 
         let templateExercises = try context.fetch(FetchDescriptor<TemplateExercise>())
         if templateExercises.contains(where: { $0.exercise.id == exercise.id }) { return true }

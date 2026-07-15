@@ -111,10 +111,10 @@ enum UITestFixture: String {
     }
 
     private static func makeActiveWorkout(
-        exercises: [ExerciceEntry],
+        exercises: [ExerciseEntry],
         using context: ModelContext
     ) throws {
-        let workout = Workout(nom: "Today’s workout")
+        let workout = Workout(name: "Today’s workout")
         workout.startTime = Date.now.addingTimeInterval(-47)
         workout.exercises = exercises
         context.insert(workout)
@@ -126,7 +126,7 @@ enum UITestFixture: String {
         using context: ModelContext
     ) throws {
         let entry = try completedSetEntry(named: "Bench Press", using: context)
-        let workout = Workout(nom: "Today’s workout")
+        let workout = Workout(name: "Today’s workout")
         workout.startTime = Date.now.addingTimeInterval(-47)
         workout.exercises = [entry]
 
@@ -147,7 +147,7 @@ enum UITestFixture: String {
 
     private static func makeCompletedBenchHistory(using context: ModelContext) throws {
         let entry = try completedExerciseEntry(named: "Bench Press", using: context)
-        let workout = Workout(nom: "Upper Body", endTime: Date.now.addingTimeInterval(-3_600))
+        let workout = Workout(name: "Upper Body", endTime: Date.now.addingTimeInterval(-3_600))
         workout.startTime = Date.now.addingTimeInterval(-7_200)
         workout.exercises = [entry]
         context.insert(workout)
@@ -159,22 +159,22 @@ enum UITestFixture: String {
         let recentDate = Date.now.addingTimeInterval(-3 * 86_400)
 
         let olderEntry = try completedExerciseEntry(named: "Bench Press", using: context)
-        olderEntry.Comment = "Paused the last rep and kept the bar path steady."
+        olderEntry.comment = "Paused the last rep and kept the bar path steady."
         for (index, set) in olderEntry.orderedSets.enumerated() {
             set.weight = 45
-            set.repetition = Float(8 + min(index, 1))
+            set.repetitions = Float(8 + min(index, 1))
         }
-        let olderWorkout = Workout(nom: "Older Bench Session", endTime: olderDate.addingTimeInterval(3_600))
+        let olderWorkout = Workout(name: "Older Bench Session", endTime: olderDate.addingTimeInterval(3_600))
         olderWorkout.startTime = olderDate
         olderWorkout.exercises = [olderEntry]
 
         let recentEntry = try completedExerciseEntry(named: "Bench Press", using: context)
-        recentEntry.Comment = "Add a small amount next time if all sets reach 10 reps."
+        recentEntry.comment = "Add a small amount next time if all sets reach 10 reps."
         for (index, set) in recentEntry.orderedSets.enumerated() {
             set.weight = 50
-            set.repetition = Float(8 - min(index, 1))
+            set.repetitions = Float(8 - min(index, 1))
         }
-        let recentWorkout = Workout(nom: "Recent Bench Session", endTime: recentDate.addingTimeInterval(3_600))
+        let recentWorkout = Workout(name: "Recent Bench Session", endTime: recentDate.addingTimeInterval(3_600))
         recentWorkout.startTime = recentDate
         recentWorkout.exercises = [recentEntry]
 
@@ -184,25 +184,25 @@ enum UITestFixture: String {
     }
 
     private static func makeMuscleBalanceHistory(using context: ModelContext) throws {
-        let olderWorkout = Workout(nom: "Lower Balance", endTime: Date.now.addingTimeInterval(-70 * 86_400))
+        let olderWorkout = Workout(name: "Lower Balance", endTime: Date.now.addingTimeInterval(-70 * 86_400))
         olderWorkout.startTime = Date.now.addingTimeInterval(-71 * 86_400)
         olderWorkout.exercises = [
             try completedExerciseEntry(named: "Deadlift", using: context),
             try completedExerciseEntry(named: "Bench Press", using: context)
         ]
 
-        let previousWorkout = Workout(nom: "Lower Balance", endTime: Date.now.addingTimeInterval(-63 * 86_400))
+        let previousWorkout = Workout(name: "Lower Balance", endTime: Date.now.addingTimeInterval(-63 * 86_400))
         previousWorkout.startTime = Date.now.addingTimeInterval(-64 * 86_400)
         previousWorkout.exercises = [try completedExerciseEntry(named: "Deadlift", using: context)]
 
-        let recentWorkout = Workout(nom: "Upper Balance", endTime: Date.now.addingTimeInterval(-14 * 86_400))
+        let recentWorkout = Workout(name: "Upper Balance", endTime: Date.now.addingTimeInterval(-14 * 86_400))
         recentWorkout.startTime = Date.now.addingTimeInterval(-15 * 86_400)
         recentWorkout.exercises = [
             try completedExerciseEntry(named: "Bench Press", using: context),
             try completedExerciseEntry(named: "Back Squat", using: context)
         ]
 
-        let latestWorkout = Workout(nom: "Upper Balance", endTime: Date.now.addingTimeInterval(-3 * 86_400))
+        let latestWorkout = Workout(name: "Upper Balance", endTime: Date.now.addingTimeInterval(-3 * 86_400))
         latestWorkout.startTime = Date.now.addingTimeInterval(-4 * 86_400)
         latestWorkout.exercises = [try completedExerciseEntry(named: "Bench Press", using: context)]
 
@@ -229,7 +229,7 @@ enum UITestFixture: String {
         try makeCompletedBenchHistory(using: context)
         let completed = try completedSetEntry(named: "Barbell Row", orderIndex: 0, using: context)
         let recommended = try progressionEntry(named: "Bench Press", decision: .increase, orderIndex: 1, using: context)
-        let workout = Workout(nom: "Upper Body Progression")
+        let workout = Workout(name: "Upper Body Progression")
         workout.startTime = Date.now.addingTimeInterval(-47)
         workout.exercises = [completed, recommended]
 
@@ -251,7 +251,7 @@ enum UITestFixture: String {
         let entry = try progressionEntry(named: "Bench Press", decision: .increase, orderIndex: 0, using: context)
         for set in entry.orderedSets {
             set.done = true
-            set.repetition = 8
+            set.repetitions = 8
             set.weight = 52.5
         }
         try makeActiveWorkout(exercises: [entry], using: context)
@@ -310,7 +310,7 @@ enum UITestFixture: String {
         // behavior are exercised in one deterministic journey.
         if let firstExercise = workout.orderedExercises.first,
            let firstSet = firstExercise.orderedSets.first {
-            firstSet.repetition = 8
+            firstSet.repetitions = 8
             firstSet.weight = 50
             firstSet.done = true
         }
@@ -321,9 +321,9 @@ enum UITestFixture: String {
     }
 
     private static func makeBackupImportTarget(using context: ModelContext) throws {
-        let exercise = ExerciceTemplate(
+        let exercise = Exercise(
             name: "Sentinel Exercise",
-            PrimaryMuscle: [.upperChest],
+            primaryMuscles: [.upperChest],
             equipmentType: .dumbbell,
             resistanceType: .externalWeight,
             movementPattern: .horizontalPush,
@@ -331,13 +331,13 @@ enum UITestFixture: String {
         )
         context.insert(exercise)
 
-        let entry = ExerciceEntry(from: exercise, orderIndex: 0, usedMetric: .metric)
+        let entry = ExerciseEntry(from: exercise, orderIndex: 0, usedMetric: .metric)
         if let set = entry.orderedSets.first {
-            set.repetition = 8
+            set.repetitions = 8
             set.weight = 25
             set.done = true
         }
-        let workout = Workout(nom: "Sentinel Workout", endTime: Date.now.addingTimeInterval(-300))
+        let workout = Workout(name: "Sentinel Workout", endTime: Date.now.addingTimeInterval(-300))
         workout.startTime = Date.now.addingTimeInterval(-900)
         workout.exercises = [entry]
         context.insert(workout)
@@ -348,10 +348,10 @@ enum UITestFixture: String {
         named name: String,
         orderIndex: Int = 0,
         using context: ModelContext
-    ) throws -> ExerciceEntry {
-        let entry = ExerciceEntry(from: try exercise(named: name, using: context), orderIndex: orderIndex, usedMetric: .metric)
+    ) throws -> ExerciseEntry {
+        let entry = ExerciseEntry(from: try exercise(named: name, using: context), orderIndex: orderIndex, usedMetric: .metric)
         for set in entry.orderedSets {
-            set.repetition = 8
+            set.repetitions = 8
             set.weight = 50
             set.weightType = .kg
         }
@@ -362,7 +362,7 @@ enum UITestFixture: String {
         named name: String,
         orderIndex: Int = 0,
         using context: ModelContext
-    ) throws -> ExerciceEntry {
+    ) throws -> ExerciseEntry {
         let entry = try inProgressEntry(named: name, orderIndex: orderIndex, using: context)
         if let first = entry.orderedSets.first {
             first.done = true
@@ -375,7 +375,7 @@ enum UITestFixture: String {
         named name: String,
         orderIndex: Int = 0,
         using context: ModelContext
-    ) throws -> ExerciceEntry {
+    ) throws -> ExerciseEntry {
         let entry = try inProgressEntry(named: name, orderIndex: orderIndex, using: context)
         for set in entry.orderedSets {
             set.done = true
@@ -389,7 +389,7 @@ enum UITestFixture: String {
         decision: DoubleProgressionDecision?,
         orderIndex: Int,
         using context: ModelContext
-    ) throws -> ExerciceEntry {
+    ) throws -> ExerciseEntry {
         let entry = try inProgressEntry(named: name, orderIndex: orderIndex, using: context)
         entry.prescribedSets = 3
         entry.prescribedRepRangeMinimum = 6
@@ -409,8 +409,8 @@ enum UITestFixture: String {
         return entry
     }
 
-    private static func exercise(named name: String, using context: ModelContext) throws -> ExerciceTemplate {
-        let descriptor = FetchDescriptor<ExerciceTemplate>(predicate: #Predicate { $0.name == name })
+    private static func exercise(named name: String, using context: ModelContext) throws -> Exercise {
+        let descriptor = FetchDescriptor<Exercise>(predicate: #Predicate { $0.name == name })
         guard let exercise = try context.fetch(descriptor).first else {
             throw FixtureError.missingSeededExercise(name)
         }

@@ -13,9 +13,9 @@ struct ExerciceLibrairyView : View {
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     
     let isSelectingExercise: Bool
-    var selectedExercise: ExerciceTemplate?
-    var availableExercises: [ExerciceTemplate]
-    let onSelect: (ExerciceTemplate) -> Void
+    var selectedExercise: Exercise?
+    var availableExercises: [Exercise]
+    let onSelect: (Exercise) -> Void
 
     @State private var searchText = ""
     @State private var filter = ExerciseFilterState()
@@ -23,10 +23,10 @@ struct ExerciceLibrairyView : View {
 
     init(
         isSelectingExercise: Bool,
-        selectedExercise: ExerciceTemplate? = nil,
-        availableExercises: [ExerciceTemplate],
+        selectedExercise: Exercise? = nil,
+        availableExercises: [Exercise],
         selectedExerciseNames: Set<String> = [],
-        onSelect: @escaping (ExerciceTemplate) -> Void
+        onSelect: @escaping (Exercise) -> Void
     ) {
         self.isSelectingExercise = isSelectingExercise
         self.selectedExercise = selectedExercise
@@ -63,7 +63,7 @@ struct ExerciceLibrairyView : View {
         }
     }
 
-    private var filteredExercises: [ExerciceTemplate] {
+    private var filteredExercises: [Exercise] {
         let filtered = availableExercises.filter { exercise in
             filter.matches(exercise, searchText: searchText)
         }
@@ -78,7 +78,7 @@ struct ExerciceLibrairyView : View {
         }
     }
 
-    private func exerciseRow(for exercise: ExerciceTemplate) -> some View {
+    private func exerciseRow(for exercise: Exercise) -> some View {
         let isSelected = selectedExerciseNames.contains(exercise.name)
 
         return ExerciseLibrarySelectionRow(exercise: exercise, isSelected: isSelected) {
@@ -96,8 +96,8 @@ struct ExerciceLibrairyView : View {
         var ranks: [String: Int] = [:]
         var nextRank = 0
         for workout in workouts where workout.status == .completed {
-            for exercise in workout.orderedExercises where ranks[exercise.exercice.name] == nil {
-                ranks[exercise.exercice.name] = nextRank
+            for exercise in workout.orderedExercises where ranks[exercise.exercise.name] == nil {
+                ranks[exercise.exercise.name] = nextRank
                 nextRank += 1
             }
         }
@@ -107,7 +107,7 @@ struct ExerciceLibrairyView : View {
 }
 
 private struct ExerciseLibrarySelectionRow: View {
-    let exercise: ExerciceTemplate
+    let exercise: Exercise
     let isSelected: Bool
     let onToggle: () -> Void
     @State private var isShowingDetails = false
@@ -149,7 +149,7 @@ private struct ExerciseLibrarySelectionRow: View {
             .accessibilityValue(isSelected ? "Selected" : "Not selected")
         }
         .navigationDestination(isPresented: $isShowingDetails) {
-            ExerciceView(exercice: exercise)
+            ExerciceView(exercise: exercise)
         }
     }
 }

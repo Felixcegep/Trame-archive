@@ -83,7 +83,7 @@ struct ExerciseFilterState: Equatable {
         self = ExerciseFilterState()
     }
 
-    func matches(_ exercise: ExerciceTemplate, searchText: String) -> Bool {
+    func matches(_ exercise: Exercise, searchText: String) -> Bool {
         let normalizedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let matchesSearch = normalizedSearch.isEmpty || searchTerms(for: exercise)
             .contains { $0.localizedCaseInsensitiveContains(normalizedSearch) }
@@ -99,7 +99,7 @@ struct ExerciseFilterState: Equatable {
         return matchesSearch && matchesFocus && matchesBodyArea && matchesMovement && matchesEquipment && matchesCategory && matchesDifficulty && matchesTracking && matchesFavorites
     }
 
-    private func searchTerms(for exercise: ExerciceTemplate) -> [String] {
+    private func searchTerms(for exercise: Exercise) -> [String] {
         [
             exercise.name,
             exercise.displayCategory.rawValue,
@@ -111,7 +111,7 @@ struct ExerciseFilterState: Equatable {
         + exercise.allMuscles.map(\.displayName)
     }
 
-    private func matches(_ focus: ExerciseFocus, exercise: ExerciceTemplate) -> Bool {
+    private func matches(_ focus: ExerciseFocus, exercise: Exercise) -> Bool {
         switch focus {
         case .push:
             return matchesPattern(exercise, [.horizontalPush, .verticalPush])
@@ -136,15 +136,15 @@ struct ExerciseFilterState: Equatable {
         }
     }
 
-    private func matchesPattern(_ exercise: ExerciceTemplate, _ patterns: Set<MovementPattern>) -> Bool {
+    private func matchesPattern(_ exercise: Exercise, _ patterns: Set<MovementPattern>) -> Bool {
         guard let movementPattern = exercise.movementPattern else { return false }
         return patterns.contains(movementPattern)
     }
 }
 
-extension ExerciceTemplate {
+extension Exercise {
     var allMuscles: [Muscle] {
-        PrimaryMuscle + (SecondaryMuscle ?? [])
+        primaryMuscles + (secondaryMuscles ?? [])
     }
 }
 

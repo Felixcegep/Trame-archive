@@ -3,7 +3,7 @@ import SwiftData
 import UniformTypeIdentifiers
 
 struct ActiveWorkoutView: View {
-    @Query(filter: #Predicate<ExerciceTemplate> { !$0.isArchived }) private var exerciceTemplates: [ExerciceTemplate]
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
 
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [HomeRoute]
@@ -16,7 +16,7 @@ struct ActiveWorkoutView: View {
     @State private var isShowingDiscardConfirmation = false
     @State private var isShowingExercisePicker = false
     @FocusState private var focusedInput: SetInputFocus?
-    @State private var draggedExercise: ExerciceEntry? = nil
+    @State private var draggedExercise: ExerciseEntry? = nil
     @State private var handledRecommendationExerciseIDs: Set<PersistentIdentifier> = []
     @State private var editingCompletedSetID: PersistentIdentifier?
 
@@ -92,8 +92,8 @@ struct ActiveWorkoutView: View {
             NavigationStack {
                 ExerciceLibrairyView(
                     isSelectingExercise: true,
-                    availableExercises: exerciceTemplates,
-                    selectedExerciseNames: Set(viewModel.activeWorkout?.orderedExercises.map(\.exercice.name) ?? []),
+                    availableExercises: exerciseTemplates,
+                    selectedExerciseNames: Set(viewModel.activeWorkout?.orderedExercises.map(\.exercise.name) ?? []),
                     onSelect: toggleExerciseFromPicker
                 )
             }
@@ -133,7 +133,7 @@ struct ActiveWorkoutView: View {
 
                 if let recommendation = firstRecommendation(in: workout) {
                     ProgressionRecommendationCard(
-                        exerciseName: recommendation.exercise.exercice.name,
+                        exerciseName: recommendation.exercise.exercise.name,
                         state: recommendation.state,
                         onAction: { action in
                             handleRecommendationAction(action, for: recommendation.exercise)
@@ -172,7 +172,7 @@ struct ActiveWorkoutView: View {
     private func sessionHeader(for workout: Workout) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(workout.nom?.isEmpty == false ? workout.nom! : "Today’s workout")
+                Text(workout.name?.isEmpty == false ? workout.name! : "Today’s workout")
                     .font(.title2.weight(.bold))
                     .accessibilityIdentifier("active-workout-title")
 
@@ -440,7 +440,7 @@ struct ActiveWorkoutView: View {
         expandedExerciseID = workout.orderedExercises.first(where: { $0.orderedSets.contains(where: { !$0.done }) })?.persistentModelID
     }
 
-    private func advanceDisclosure(after completedExercise: ExerciceEntry, in workout: Workout) {
+    private func advanceDisclosure(after completedExercise: ExerciseEntry, in workout: Workout) {
         let orderedExercises = workout.orderedExercises
         guard let completedIndex = orderedExercises.firstIndex(where: {
             $0.persistentModelID == completedExercise.persistentModelID
@@ -457,8 +457,8 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    private func toggleExerciseFromPicker(_ exercise: ExerciceTemplate) {
-        if let existingExercise = viewModel.activeWorkout?.orderedExercises.first(where: { $0.exercice.name == exercise.name }) {
+    private func toggleExerciseFromPicker(_ exercise: Exercise) {
+        if let existingExercise = viewModel.activeWorkout?.orderedExercises.first(where: { $0.exercise.name == exercise.name }) {
             viewModel.removeExercise(existingExercise)
         } else {
             viewModel.addExercise(exercise)
@@ -474,7 +474,7 @@ struct ActiveWorkoutView: View {
 
     private func firstRecommendation(
         in workout: Workout
-    ) -> (exercise: ExerciceEntry, state: RecommendationPresentationState)? {
+    ) -> (exercise: ExerciseEntry, state: RecommendationPresentationState)? {
         for exercise in workout.orderedExercises {
             guard
                 !handledRecommendationExerciseIDs.contains(exercise.persistentModelID),
@@ -490,7 +490,7 @@ struct ActiveWorkoutView: View {
 
     private func handleRecommendationAction(
         _ action: RecommendationAction,
-        for exercise: ExerciceEntry
+        for exercise: ExerciseEntry
     ) {
         switch action {
         case .accept:
@@ -511,10 +511,10 @@ struct ActiveWorkoutView: View {
 }
 
 struct ExerciseDragDelegate: DropDelegate {
-    let item: ExerciceEntry
+    let item: ExerciseEntry
     let workout: Workout
     let viewModel: ActiveWorkoutViewModel
-    @Binding var draggedItem: ExerciceEntry?
+    @Binding var draggedItem: ExerciseEntry?
 
     func performDrop(info: DropInfo) -> Bool {
         draggedItem = nil

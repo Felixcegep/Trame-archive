@@ -38,7 +38,7 @@ class ActiveWorkoutViewModel {
         return TimeInterval(savedDuration)
     }
 
-    func getNextExerciseToDo() -> (exercise: ExerciceEntry, set: ExerciseSet)? {
+    func getNextExerciseToDo() -> (exercise: ExerciseEntry, set: ExerciseSet)? {
         guard let workout = workoutVM.workout else {
             return nil
         }
@@ -54,10 +54,10 @@ class ActiveWorkoutViewModel {
         return nil
     }
     
-    func addExercise(_ template: ExerciceTemplate) {
+    func addExercise(_ template: Exercise) {
         guard let activeWorkout = workoutVM.activeWorkout else { return }
 
-        let newExercise = ExerciceEntry(
+        let newExercise = ExerciseEntry(
             from: template,
             orderIndex: (activeWorkout.orderedExercises.last?.orderIndex ?? -1) + 1,
             usedMetric: unitSystem
@@ -70,7 +70,7 @@ class ActiveWorkoutViewModel {
            let nextSetIndex = nextExercise.exercise.orderedSets.firstIndex(where: { !$0.done }) {
             Task {
                 await LiveActivityManager.shared.updateExercise(
-                    name: nextExercise.exercise.exercice.name,
+                    name: nextExercise.exercise.exercise.name,
                     currentSet: nextSetIndex + 1,
                     totalSets: nextExercise.exercise.sets.count
                 )
@@ -78,7 +78,7 @@ class ActiveWorkoutViewModel {
         }
     }
 
-    func removeSet(_ exerciseEntry: ExerciceEntry, _ set: ExerciseSet) {
+    func removeSet(_ exerciseEntry: ExerciseEntry, _ set: ExerciseSet) {
         if let workout = workoutVM.activeWorkout {
             guard let storedExercise = workout.exercises.first(where: { $0.id == exerciseEntry.id }) else { return }
             storedExercise.sets.removeAll(where: { $0.id == set.id })
@@ -91,7 +91,7 @@ class ActiveWorkoutViewModel {
     /// Adds a set pre-filled with the last set's values (reps, weight,
     /// duration, distance) so lifters rarely retype; RPE and set type reset
     /// because they describe one specific effort.
-    func addSet(_ exerciseEntry: ExerciceEntry) {
+    func addSet(_ exerciseEntry: ExerciseEntry) {
         guard
             let workout = workoutVM.activeWorkout,
             let exercise = workout.exercises.first(where: { $0.id == exerciseEntry.id })
@@ -109,13 +109,13 @@ class ActiveWorkoutViewModel {
         persistChanges()
     }
 
-    func copyPreviousSetValue(exerciseEntry: ExerciceEntry, currentSetIndex: Int) {
+    func copyPreviousSetValue(exerciseEntry: ExerciseEntry, currentSetIndex: Int) {
         let orderedSets = exerciseEntry.orderedSets
         guard currentSetIndex > 0, currentSetIndex < orderedSets.count else { return }
 
         let previousSet = orderedSets[currentSetIndex - 1]
         let currentSet = orderedSets[currentSetIndex]
-        currentSet.repetition = previousSet.repetition
+        currentSet.repetitions = previousSet.repetitions
         currentSet.weight = previousSet.weight
         currentSet.duration = previousSet.duration
         currentSet.distance = previousSet.distance
@@ -130,33 +130,33 @@ class ActiveWorkoutViewModel {
         }
     }
 
-    func previousPerformance(for exercise: ExerciceEntry) -> PreviousExercisePerformance? {
+    func previousPerformance(for exercise: ExerciseEntry) -> PreviousExercisePerformance? {
         previousPerformances[exercise.persistentModelID]
     }
 
     /// Applies the matching prior set only when the active set has not been
     /// completed. Historical units are converted into this set's stored unit.
-    func applyPreviousPerformance(to set: ExerciseSet, in exercise: ExerciceEntry, index: Int) {
+    func applyPreviousPerformance(to set: ExerciseSet, in exercise: ExerciseEntry, index: Int) {
         guard !set.done,
               let previousSet = previousPerformance(for: exercise)?.set(at: index)
         else {
             return
         }
 
-        if exercise.exercice.trackingType.usesReps {
-            set.repetition = previousSet.repetitions
+        if exercise.exercise.trackingType.usesReps {
+            set.repetitions = previousSet.repetitions
         }
-        if exercise.exercice.trackingType.usesWeight {
+        if exercise.exercise.trackingType.usesWeight {
             set.weight = UnitConversion.weight(
                 previousSet.weight,
                 from: previousSet.weightType,
                 to: set.weightType
             )
         }
-        if exercise.exercice.trackingType.usesDuration {
+        if exercise.exercise.trackingType.usesDuration {
             set.duration = previousSet.duration
         }
-        if exercise.exercice.trackingType.usesDistance, let distance = previousSet.distance {
+        if exercise.exercise.trackingType.usesDistance, let distance = previousSet.distance {
             set.distance = UnitConversion.distance(
                 distance,
                 from: previousSet.distanceType,
@@ -169,9 +169,9 @@ class ActiveWorkoutViewModel {
     /// Applies only the suggested load. Reps remain explicit user input (or can
     /// still be filled from previous-performance hints), and completed sets are
     /// never rewritten.
-    func applyRecommendation(to exercise: ExerciceEntry) {
+    func applyRecommendation(to exercise: ExerciseEntry) {
         guard
-            exercise.exercice.trackingType.usesWeight,
+            exercise.exercise.trackingType.usesWeight,
             exercise.recommendedDecision != nil,
             let load = exercise.recommendedLoad,
             let unit = exercise.recommendedUnit
@@ -188,9 +188,9 @@ class ActiveWorkoutViewModel {
     /// Applies the last completed session's load to every incomplete set. This
     /// is intentionally separate from previous-set prefill because the
     /// recommendation card changes load only and leaves reps explicit.
-    func applyPriorRecommendationLoad(to exercise: ExerciceEntry) {
+    func applyPriorRecommendationLoad(to exercise: ExerciseEntry) {
         guard
-            exercise.exercice.trackingType.usesWeight,
+            exercise.exercise.trackingType.usesWeight,
             let load = exercise.recommendationPriorLoad,
             let unit = exercise.recommendedUnit
         else {
@@ -205,7 +205,7 @@ class ActiveWorkoutViewModel {
     
     @discardableResult
     func switchStateDoneSet(
-        _ selectedExercise: ExerciceEntry,
+        _ selectedExercise: ExerciseEntry,
         _ selectedSet: ExerciseSet
     ) -> Bool {
         guard
@@ -229,10 +229,10 @@ class ActiveWorkoutViewModel {
         return true
     }
 
-    func canComplete(_ set: ExerciseSet, for exercise: ExerciceEntry) -> Bool {
-        let trackingType = exercise.exercice.trackingType
+    func canComplete(_ set: ExerciseSet, for exercise: ExerciseEntry) -> Bool {
+        let trackingType = exercise.exercise.trackingType
 
-        if trackingType.usesReps, set.repetition <= 0 {
+        if trackingType.usesReps, set.repetitions <= 0 {
             return false
         }
 
@@ -262,14 +262,14 @@ class ActiveWorkoutViewModel {
         }
         persistChanges()
     }
-    func getNextSet(in selectedExercise: ExerciceEntry) -> ExerciseSet?{
+    func getNextSet(in selectedExercise: ExerciseEntry) -> ExerciseSet?{
         guard let nextSet = selectedExercise.orderedSets.first(where: { !$0.done }) else {
             return nil
         }
         return nextSet
     }
     
-    func markNextSetDone(in selectedExercise: ExerciceEntry) {
+    func markNextSetDone(in selectedExercise: ExerciseEntry) {
         guard let nextSet = selectedExercise.orderedSets.first(where: { !$0.done }) else {
             return
         }
@@ -281,7 +281,7 @@ class ActiveWorkoutViewModel {
 
    
     
-    func startTime(after exercise: ExerciceEntry? = nil) {
+    func startTime(after exercise: ExerciseEntry? = nil) {
         let duration = TimeInterval(exercise?.prescribedRestSeconds ?? Int(restDuration))
         let timerEndDate = Date.now.addingTimeInterval(duration)
 
@@ -385,7 +385,7 @@ class ActiveWorkoutViewModel {
             if let nextExercise = getNextExerciseToDo(),
                let nextSetIndex = nextExercise.exercise.orderedSets.firstIndex(where: { !$0.done }) {
                 await LiveActivityManager.shared.updateExercise(
-                    name: nextExercise.exercise.exercice.name,
+                    name: nextExercise.exercise.exercise.name,
                     currentSet: nextSetIndex + 1,
                     totalSets: nextExercise.exercise.sets.count
                 )
@@ -405,7 +405,7 @@ class ActiveWorkoutViewModel {
                 if let nextExercise = getNextExerciseToDo(),
                    let nextSetIndex = nextExercise.exercise.orderedSets.firstIndex(where: { !$0.done }) {
                     await LiveActivityManager.shared.updateExercise(
-                        name: nextExercise.exercise.exercice.name,
+                        name: nextExercise.exercise.exercise.name,
                         currentSet: nextSetIndex + 1,
                         totalSets: nextExercise.exercise.sets.count
                     )
@@ -418,7 +418,7 @@ class ActiveWorkoutViewModel {
 
 
     
-    func removeExercise(_ exerciseEntry: ExerciceEntry) {
+    func removeExercise(_ exerciseEntry: ExerciseEntry) {
         if let workout = workoutVM.activeWorkout {
             workout.exercises.removeAll { $0 === exerciseEntry }
             modelContext.delete(exerciseEntry)
@@ -435,12 +435,12 @@ class ActiveWorkoutViewModel {
         }
     }
 
-    private func loadPreviousPerformance(for exercise: ExerciceEntry) {
+    private func loadPreviousPerformance(for exercise: ExerciseEntry) {
         guard let workout = activeWorkout else { return }
 
         do {
             if let performance = try ExerciseHistoryService(modelContext: modelContext)
-                .mostRecentPerformance(for: exercise.exercice, before: workout.startTime) {
+                .mostRecentPerformance(for: exercise.exercise, before: workout.startTime) {
                 previousPerformances[exercise.persistentModelID] = performance
             } else {
                 previousPerformances.removeValue(forKey: exercise.persistentModelID)

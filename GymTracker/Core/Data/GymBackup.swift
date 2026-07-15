@@ -313,12 +313,12 @@ extension BackupDTO {
     static let legacyVersion = 1
 
     static func create(from context: ModelContext, restTimer: Int, darkMode: Bool, unitSystem: UnitSystem) throws -> BackupDTO {
-        let exercises = try context.fetch(FetchDescriptor<ExerciceTemplate>())
+        let exercises = try context.fetch(FetchDescriptor<Exercise>())
         let exerciseDTOs = exercises.map { exercise in
             ExerciseTemplateDTO(
                 name: exercise.name,
-                primaryMuscles: exercise.PrimaryMuscle.map(\.rawValue),
-                secondaryMuscles: exercise.SecondaryMuscle?.map(\.rawValue),
+                primaryMuscles: exercise.primaryMuscles.map(\.rawValue),
+                secondaryMuscles: exercise.secondaryMuscles?.map(\.rawValue),
                 category: exercise.category?.rawValue,
                 trackingType: exercise.trackingType.rawValue,
                 equipmentType: exercise.equipmentType?.rawValue,
@@ -367,7 +367,7 @@ extension BackupDTO {
             WorkoutDTO(
                 id: workout.id.uuidString,
                 status: workout.status.rawValue,
-                name: workout.nom,
+                name: workout.name,
                 notes: workout.notes,
                 startTime: workout.startTime,
                 endTime: workout.endTime,
@@ -386,7 +386,7 @@ extension BackupDTO {
                             orderIndex: set.orderIndex,
                             weightType: set.weightType.rawValue,
                             distanceType: set.distanceType.rawValue,
-                            repetition: set.repetition,
+                            repetition: set.repetitions,
                             weight: set.weight,
                             duration: set.duration,
                             distance: set.distance,
@@ -398,8 +398,8 @@ extension BackupDTO {
                     }
                     return ExerciseEntryDTO(
                         orderIndex: exercise.orderIndex,
-                        comment: exercise.Comment,
-                        exerciseName: exercise.exercice.name,
+                        comment: exercise.comment,
+                        exerciseName: exercise.exercise.name,
                         usedMetric: exercise.usedMetric.rawValue,
                         sets: setsDTO,
                         prescribedSets: exercise.prescribedSets,
@@ -580,10 +580,10 @@ extension BackupDTO {
                 existing.isArchived = exerciseDTO.isArchived
                 existing.isPlateLoaded = exerciseDTO.isPlateLoaded
             } else {
-                let newExercise = ExerciceTemplate(
+                let newExercise = Exercise(
                     name: exerciseDTO.name,
-                    PrimaryMuscle: primaryMuscles,
-                    SecondaryMuscle: secondaryMuscles,
+                    primaryMuscles: primaryMuscles,
+                    secondaryMuscles: secondaryMuscles,
                     category: category,
                     trackingType: trackingType,
                     equipmentType: equipmentType,
@@ -723,7 +723,7 @@ extension BackupDTO {
             var workoutMap: [String: Workout] = [:]
             for workoutDTO in self.workouts {
             let status = WorkoutStatus(rawValue: workoutDTO.status) ?? .completed
-            let newWorkout = Workout(nom: workoutDTO.name, endTime: workoutDTO.endTime)
+            let newWorkout = Workout(name: workoutDTO.name, endTime: workoutDTO.endTime)
             if let identifier = workoutDTO.id {
                 newWorkout.id = try requiredUUID(identifier, named: "workout")
             }
@@ -753,14 +753,14 @@ extension BackupDTO {
             }
             newWorkout.sourcePlanName = workoutDTO.sourcePlanName
 
-            var exercises: [ExerciceEntry] = []
+            var exercises: [ExerciseEntry] = []
             for entryDTO in workoutDTO.exercises {
                 guard let exerciseTemplate = exerciseMap[entryDTO.exerciseName] else { continue }
                 let usedMetric = UnitSystem(rawValue: entryDTO.usedMetric) ?? .metric
                 
-                let entry = ExerciceEntry(
-                    Comment: entryDTO.comment,
-                    exercice: exerciseTemplate,
+                let entry = ExerciseEntry(
+                    comment: entryDTO.comment,
+                    exercise: exerciseTemplate,
                     orderIndex: entryDTO.orderIndex,
                     usedMetric: usedMetric
                 )
@@ -808,7 +808,7 @@ extension BackupDTO {
                     let setUsedMetric = UnitSystem(rawValue: setDTO.usedMetric) ?? .metric
                     
                     let setObj = ExerciseSet(
-                        repetition: setDTO.repetition,
+                        repetitions: setDTO.repetition,
                         weight: setDTO.weight,
                         duration: setDTO.duration,
                         distance: setDTO.distance,

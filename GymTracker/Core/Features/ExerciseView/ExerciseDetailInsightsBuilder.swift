@@ -3,7 +3,7 @@ import SwiftData
 
 enum ExerciseDetailInsightsBuilder {
     static func make(
-        for exercise: ExerciceTemplate,
+        for exercise: Exercise,
         using context: ModelContext,
         referenceDate: Date = .now
     ) throws -> ExerciseDetailInsightsModel {
@@ -116,12 +116,12 @@ enum ExerciseDetailInsightsBuilder {
     }
 
     private static func activeProgression(
-        for exercise: ExerciceTemplate,
+        for exercise: Exercise,
         using context: ModelContext
     ) -> ExerciseDetailProgression? {
         guard
             let workout = try? context.fetch(FetchDescriptor<Workout>()).first(where: { $0.status == .active }),
-            let entry = workout.orderedExercises.first(where: { $0.exercice.persistentModelID == exercise.persistentModelID }),
+            let entry = workout.orderedExercises.first(where: { $0.exercise.persistentModelID == exercise.persistentModelID }),
             let decision = entry.recommendedDecision,
             let recommendedLoad = entry.recommendedLoad,
             let unit = entry.recommendedUnit

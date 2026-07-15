@@ -21,17 +21,17 @@ struct ExerciceDetailSnapshot {
     let difficulty: Difficulty
     let usesWeightPlates: Bool
 
-    init(exercice: ExerciceTemplate) {
-        name = exercice.name
-        primaryMuscles = exercice.PrimaryMuscle
-        secondaryMuscles = exercice.SecondaryMuscle ?? []
-        category = exercice.displayCategory
-        trackingType = exercice.trackingType
-        equipmentType = exercice.equipmentType ?? .other
-        resistanceType = exercice.resistanceType
-        movementPattern = exercice.movementPattern
-        difficulty = exercice.displayDifficulty
-        usesWeightPlates = exercice.supportsPlateCalculator
+    init(exercise: Exercise) {
+        name = exercise.name
+        primaryMuscles = exercise.primaryMuscles
+        secondaryMuscles = exercise.secondaryMuscles ?? []
+        category = exercise.displayCategory
+        trackingType = exercise.trackingType
+        equipmentType = exercise.equipmentType ?? .other
+        resistanceType = exercise.resistanceType
+        movementPattern = exercise.movementPattern
+        difficulty = exercise.displayDifficulty
+        usesWeightPlates = exercise.supportsPlateCalculator
     }
 }
 
@@ -39,24 +39,24 @@ struct ExerciceView : View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    private let editableExercise: ExerciceTemplate?
+    private let editableExercise: Exercise?
     private let snapshot: ExerciceDetailSnapshot?
     @State private var isShowingEditor = false
     @State private var isShowingInsights = false
 
-    init(exercice: ExerciceTemplate) {
-        editableExercise = exercice
+    init(exercise: Exercise) {
+        editableExercise = exercise
         snapshot = nil
     }
 
-    init(exercice: ExerciceDetailSnapshot) {
+    init(exercise: ExerciceDetailSnapshot) {
         editableExercise = nil
-        snapshot = exercice
+        snapshot = exercise
     }
 
-    private var exercice: ExerciceDetailSnapshot {
+    private var exercise: ExerciceDetailSnapshot {
         if let editableExercise {
-            return ExerciceDetailSnapshot(exercice: editableExercise)
+            return ExerciceDetailSnapshot(exercise: editableExercise)
         }
         return snapshot!
     }
@@ -64,16 +64,16 @@ struct ExerciceView : View {
     var body: some View {
         List {
             Section("Exercise") {
-                LabeledContent("Name", value: exercice.name)
-                LabeledContent("Category") { Text(LocalizedStringKey(exercice.category.rawValue)) }
-                LabeledContent("Tracking") { Text(LocalizedStringKey(exercice.trackingType.rawValue)) }
-                LabeledContent("Equipment") { Text(LocalizedStringKey(exercice.equipmentType.rawValue)) }
-                LabeledContent("Resistance") { Text(LocalizedStringKey(exercice.resistanceType?.rawValue ?? "None")) }
-                LabeledContent("Movement") { Text(LocalizedStringKey(exercice.movementPattern?.rawValue ?? "None")) }
-                LabeledContent("Difficulty") { Text(LocalizedStringKey(exercice.difficulty.rawValue)) }
-                if exercice.trackingType.usesWeight {
+                LabeledContent("Name", value: exercise.name)
+                LabeledContent("Category") { Text(LocalizedStringKey(exercise.category.rawValue)) }
+                LabeledContent("Tracking") { Text(LocalizedStringKey(exercise.trackingType.rawValue)) }
+                LabeledContent("Equipment") { Text(LocalizedStringKey(exercise.equipmentType.rawValue)) }
+                LabeledContent("Resistance") { Text(LocalizedStringKey(exercise.resistanceType?.rawValue ?? "None")) }
+                LabeledContent("Movement") { Text(LocalizedStringKey(exercise.movementPattern?.rawValue ?? "None")) }
+                LabeledContent("Difficulty") { Text(LocalizedStringKey(exercise.difficulty.rawValue)) }
+                if exercise.trackingType.usesWeight {
                     LabeledContent("Weight entry") {
-                        Text(LocalizedStringKey(exercice.usesWeightPlates ? "Plate calculator" : "Direct weight entry"))
+                        Text(LocalizedStringKey(exercise.usesWeightPlates ? "Plate calculator" : "Direct weight entry"))
                     }
                 }
             }
@@ -100,20 +100,20 @@ struct ExerciceView : View {
             }
 
             Section("Primary Muscles") {
-                ForEach(exercice.primaryMuscles, id: \.self) { muscle in
+                ForEach(exercise.primaryMuscles, id: \.self) { muscle in
                     Text(muscle.displayName)
                 }
             }
 
-            if !exercice.secondaryMuscles.isEmpty {
+            if !exercise.secondaryMuscles.isEmpty {
                 Section("Secondary Muscles") {
-                    ForEach(exercice.secondaryMuscles, id: \.self) { muscle in
+                    ForEach(exercise.secondaryMuscles, id: \.self) { muscle in
                         Text(muscle.displayName)
                     }
                 }
             }
         }
-        .navigationTitle(exercice.name)
+        .navigationTitle(exercise.name)
         .toolbar {
             if editableExercise != nil {
                 ToolbarItem(placement: .topBarTrailing) {

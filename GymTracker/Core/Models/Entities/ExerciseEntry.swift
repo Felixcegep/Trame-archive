@@ -1,5 +1,5 @@
 //
-//  ExerciceEntry.swift
+//  ExerciseEntry.swift
 //  GymTracker
 //
 //  Created by Felix Lachapelle on 2026-07-02.
@@ -10,10 +10,10 @@ import Combine
 import SwiftData
 
 @Model
-final class ExerciceEntry{
+final class ExerciseEntry{
     var orderIndex: Int = 0
-    var Comment: String?
-    var exercice: ExerciceTemplate
+    var comment: String?
+    var exercise: Exercise
     var usedMetric : UnitSystem
     var prescribedSets: Int?
     var prescribedRepRangeMinimum: Int?
@@ -45,15 +45,15 @@ final class ExerciceEntry{
     var sets: [ExerciseSet]
 
     init(
-        Comment: String? = nil,
-        exercice: ExerciceTemplate,
+        comment: String? = nil,
+        exercise: Exercise,
         sets: [ExerciseSet] = [],
         orderIndex: Int = 0,
         usedMetric: UnitSystem
     ) {
         self.orderIndex = orderIndex
-        self.Comment = Comment
-        self.exercice = exercice
+        self.comment = comment
+        self.exercise = exercise
         self.sets = sets
         self.usedMetric = usedMetric
         self.prescribedSets = nil
@@ -82,13 +82,13 @@ final class ExerciceEntry{
         normalizeSetOrder()
     }
 
-    convenience init(from: ExerciceTemplate, orderIndex: Int = 0, usedMetric: UnitSystem) {
-        self.init(exercice: from, orderIndex: orderIndex, usedMetric: usedMetric)
+    convenience init(from: Exercise, orderIndex: Int = 0, usedMetric: UnitSystem) {
+        self.init(exercise: from, orderIndex: orderIndex, usedMetric: usedMetric)
         addDefaultSets()
     }
 
     convenience init(from templateExercise: TemplateExercise, orderIndex: Int, usedMetric: UnitSystem) {
-        self.init(exercice: templateExercise.exercise, orderIndex: orderIndex, usedMetric: usedMetric)
+        self.init(exercise: templateExercise.exercise, orderIndex: orderIndex, usedMetric: usedMetric)
         prescribedSets = templateExercise.targetSets
         prescribedRepRangeMinimum = templateExercise.repRangeMinimum
         prescribedRepRangeMaximum = templateExercise.repRangeMaximum
@@ -101,7 +101,7 @@ final class ExerciceEntry{
     }
 
     convenience init(from plannedExercise: PlannedExercise, orderIndex: Int, usedMetric: UnitSystem) {
-        self.init(exercice: plannedExercise.exercise, orderIndex: orderIndex, usedMetric: usedMetric)
+        self.init(exercise: plannedExercise.exercise, orderIndex: orderIndex, usedMetric: usedMetric)
         prescribedSets = plannedExercise.targetSets
         prescribedRepRangeMinimum = plannedExercise.repRangeMinimum
         prescribedRepRangeMaximum = plannedExercise.repRangeMaximum
@@ -121,10 +121,10 @@ final class ExerciceEntry{
         let count = plannedExercise.targetSets
         for i in 0..<count {
             let setObj = createEmptySet(orderIndex: i)
-            if exercice.trackingType.usesReps {
-                setObj.repetition = reps
+            if exercise.trackingType.usesReps {
+                setObj.repetitions = reps
             }
-            if exercice.trackingType.usesWeight {
+            if exercise.trackingType.usesWeight {
                 setObj.weight = weight
                 setObj.weightType = plannedExercise.suggestedLoadType
                     ?? (usedMetric == .metric ? .kg : .lbs)
@@ -188,12 +188,12 @@ final class ExerciceEntry{
     }
 
     private func createEmptySet(orderIndex: Int) -> ExerciseSet {
-        switch exercice.trackingType {
+        switch exercise.trackingType {
         case .weightAndReps, .weightedBodyweight, .assistedBodyweight:
-            return ExerciseSet(repetition: 0, weight: 0, orderIndex: orderIndex, usedMetric: usedMetric)
+            return ExerciseSet(repetitions: 0, weight: 0, orderIndex: orderIndex, usedMetric: usedMetric)
 
         case .repsOnly:
-            return ExerciseSet(repetition: 0, orderIndex: orderIndex, usedMetric: usedMetric)
+            return ExerciseSet(repetitions: 0, orderIndex: orderIndex, usedMetric: usedMetric)
 
         case .duration:
             return ExerciseSet(duration: 0, orderIndex: orderIndex, usedMetric: usedMetric)

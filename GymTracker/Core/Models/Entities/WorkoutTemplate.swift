@@ -18,7 +18,7 @@ class WorkoutTemplate {
 
     init(
         name: String,
-        exercises: [ExerciceTemplate],
+        exercises: [Exercise],
         templateExercises: [TemplateExercise]? = nil
     ) {
         self.name = name
@@ -35,7 +35,7 @@ class WorkoutTemplate {
         }
     }
 
-    var exercises: [ExerciceTemplate] {
+    var exercises: [Exercise] {
         orderedTemplateExercises.map(\.exercise)
     }
 

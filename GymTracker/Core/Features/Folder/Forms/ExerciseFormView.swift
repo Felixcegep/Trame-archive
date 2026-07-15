@@ -10,8 +10,8 @@ import SwiftUI
 struct ExerciseFormView: View {
     @Environment(\.dismiss) private var dismiss
 
-    let exercise: ExerciceTemplate?
-    let onSave: (ExerciceTemplate) -> Void
+    let exercise: Exercise?
+    let onSave: (Exercise) -> Void
 
     @State private var name: String
     @State private var category: ExerciseCategory
@@ -25,7 +25,7 @@ struct ExerciseFormView: View {
     @State private var tagsText: String
     @State private var isPlateLoaded: Bool
 
-    init(exercise: ExerciceTemplate? = nil, onSave: @escaping (ExerciceTemplate) -> Void) {
+    init(exercise: Exercise? = nil, onSave: @escaping (Exercise) -> Void) {
         self.exercise = exercise
         self.onSave = onSave
         _name = State(initialValue: exercise?.name ?? "")
@@ -34,8 +34,8 @@ struct ExerciseFormView: View {
         _trackingType = State(initialValue: exercise?.trackingType ?? .weightAndReps)
         _resistanceType = State(initialValue: exercise?.resistanceType)
         _movementPattern = State(initialValue: exercise?.movementPattern)
-        _primaryMuscles = State(initialValue: Set(exercise?.PrimaryMuscle ?? [.middleChest]))
-        _secondaryMuscles = State(initialValue: Set(exercise?.SecondaryMuscle ?? []))
+        _primaryMuscles = State(initialValue: Set(exercise?.primaryMuscles ?? [.middleChest]))
+        _secondaryMuscles = State(initialValue: Set(exercise?.secondaryMuscles ?? []))
         _difficulty = State(initialValue: exercise?.displayDifficulty ?? .beginner)
         _tagsText = State(initialValue: exercise?.tags.joined(separator: ", ") ?? "")
         _isPlateLoaded = State(initialValue: exercise?.isPlateLoaded ?? false)
@@ -161,14 +161,14 @@ struct ExerciseFormView: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var savedExercise: ExerciceTemplate {
+    private var savedExercise: Exercise {
         let selectedPrimaryMuscles = sortedMuscles(primaryMuscles)
         let selectedSecondaryMuscles = secondaryMuscles.isEmpty ? nil : sortedMuscles(secondaryMuscles)
 
         if let exercise {
             exercise.name = trimmedName
-            exercise.PrimaryMuscle = selectedPrimaryMuscles
-            exercise.SecondaryMuscle = selectedSecondaryMuscles
+            exercise.primaryMuscles = selectedPrimaryMuscles
+            exercise.secondaryMuscles = selectedSecondaryMuscles
             exercise.category = category
             exercise.equipmentType = equipmentType
             exercise.trackingType = trackingType
@@ -180,10 +180,10 @@ struct ExerciseFormView: View {
             return exercise
         }
 
-        return ExerciceTemplate(
+        return Exercise(
             name: trimmedName,
-            PrimaryMuscle: selectedPrimaryMuscles,
-            SecondaryMuscle: selectedSecondaryMuscles,
+            primaryMuscles: selectedPrimaryMuscles,
+            secondaryMuscles: selectedSecondaryMuscles,
             category: category,
             trackingType: trackingType,
             equipmentType: equipmentType,

@@ -138,7 +138,7 @@ struct MuscleBalanceAnalyticsService {
             }
 
             for entry in workout.orderedExercises {
-                let weights = groupWeights(for: entry.exercice)
+                let weights = groupWeights(for: entry.exercise)
                 let workingSetCount = entry.orderedSets.filter { $0.done && $0.setType != .warmup }.count
                 for (group, weight) in weights {
                     counts[weekIndex][group, default: 0] += Double(workingSetCount) * weight
@@ -213,14 +213,14 @@ struct MuscleBalanceAnalyticsService {
         return weeks.reduce(0) { $0 + $1.count(for: group) } / Double(weeks.count)
     }
 
-    private func groupWeights(for exercise: ExerciceTemplate) -> [MuscleBalanceGroup: Double] {
+    private func groupWeights(for exercise: Exercise) -> [MuscleBalanceGroup: Double] {
         var weights: [MuscleBalanceGroup: Double] = [:]
-        for muscle in exercise.PrimaryMuscle {
+        for muscle in exercise.primaryMuscles {
             if let group = MuscleBalanceGroup.containing(muscle) {
                 weights[group] = max(weights[group, default: 0], 1)
             }
         }
-        for muscle in exercise.SecondaryMuscle ?? [] {
+        for muscle in exercise.secondaryMuscles ?? [] {
             if let group = MuscleBalanceGroup.containing(muscle) {
                 weights[group] = max(weights[group, default: 0], 0.5)
             }

@@ -14,7 +14,7 @@ class Workout {
     /// and for durable prescription evidence.
     var id = UUID()
     var status: WorkoutStatus = WorkoutStatus.active
-    var nom: String?
+    var name: String?
     var notes: String?
     var startTime: Date
     var endTime: Date?
@@ -27,12 +27,12 @@ class Workout {
     var sourcePlanWeekID: UUID?
     var sourcePlannedWorkoutID: UUID?
     var sourcePlanName: String?
-    @Relationship(deleteRule: .cascade, inverse: \ExerciceEntry.workout)
-    var exercises: [ExerciceEntry] = []
+    @Relationship(deleteRule: .cascade, inverse: \ExerciseEntry.workout)
+    var exercises: [ExerciseEntry] = []
     
-    init(nom: String?, endTime: Date? = nil) {
+    init(name: String?, endTime: Date? = nil) {
         self.status = endTime == nil ? .active : .completed
-        self.nom = nom
+        self.name = name
         self.notes = nil
         self.startTime = Date.now
         self.endTime = endTime
@@ -48,7 +48,7 @@ class Workout {
     }
     init(template : WorkoutTemplate, unitSystem : UnitSystem){
         self.status = .active
-        self.nom = template.name
+        self.name = template.name
         self.notes = nil
         self.startTime = Date.now
         self.restEndDate = nil
@@ -62,12 +62,12 @@ class Workout {
         self.sourcePlanName = nil
         self.exercises = []
         for (index, templateExercise) in template.orderedTemplateExercises.enumerated() {
-            exercises.append(ExerciceEntry(from: templateExercise, orderIndex: index, usedMetric: unitSystem))
+            exercises.append(ExerciseEntry(from: templateExercise, orderIndex: index, usedMetric: unitSystem))
         }
     }
 
     convenience init(plannedWorkout: PlannedWorkout, planRun: PlanRun, unitSystem: UnitSystem) {
-        self.init(nom: plannedWorkout.name)
+        self.init(name: plannedWorkout.name)
         self.sourceTemplate = plannedWorkout.sourceTemplate
         self.sourcePlanID = planRun.sourcePlanID
         self.sourcePlanRunID = planRun.id
@@ -78,7 +78,7 @@ class Workout {
 
         self.exercises = []
         for (index, plannedExercise) in plannedWorkout.orderedPlannedExercises.enumerated() {
-            exercises.append(ExerciceEntry(from: plannedExercise, orderIndex: index, usedMetric: unitSystem))
+            exercises.append(ExerciseEntry(from: plannedExercise, orderIndex: index, usedMetric: unitSystem))
         }
     }
 
@@ -86,10 +86,10 @@ class Workout {
     /// flow, History list, and History detail: the explicit name when set,
     /// otherwise a title derived from its exercises.
     var displayTitle: String {
-        let explicitName = nom?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let explicitName = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard explicitName.isEmpty else { return explicitName }
 
-        let exerciseNames = orderedExercises.map(\.exercice.name)
+        let exerciseNames = orderedExercises.map(\.exercise.name)
         switch exerciseNames.count {
         case 0:
             return String(localized: "Workout")
@@ -102,7 +102,7 @@ class Workout {
         }
     }
 
-    var orderedExercises: [ExerciceEntry] {
+    var orderedExercises: [ExerciseEntry] {
         exercises.sorted { lhs, rhs in
             lhs.orderIndex == rhs.orderIndex
                 ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue

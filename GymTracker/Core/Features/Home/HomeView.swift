@@ -318,8 +318,8 @@ struct HomeView: View {
 
     private var primaryCardTitle: LocalizedStringKey {
         if let workout = workoutVM.activeWorkout {
-            if let nom = workout.nom, !nom.isEmpty {
-                return "Resume \(nom)"
+            if let name = workout.name, !name.isEmpty {
+                return "Resume \(name)"
             }
             return "Resume workout"
         }
@@ -357,7 +357,7 @@ struct HomeView: View {
         }
 
         let format = String(localized: "Next: %@ · Set %lld")
-        return String(format: format, exercise.exercice.name, Int64(setIndex + 1))
+        return String(format: format, exercise.exercise.name, Int64(setIndex + 1))
     }
 
     private func openPrimaryWorkout() {

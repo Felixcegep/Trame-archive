@@ -15,7 +15,7 @@ final class ExerciseSet {
     var orderIndex: Int = 0
     var weightType: WeightType = WeightType.kg
     var distanceType: DistanceType = DistanceType.kilometers
-    var repetition: Float
+    var repetitions: Float
     var weight: Float
     var duration: TimeInterval?
     var distance: Float?
@@ -23,9 +23,9 @@ final class ExerciseSet {
     var rpe: Int?
     var setType: SetType = SetType.normal
     var usedMetric : UnitSystem
-    var exerciseEntry: ExerciceEntry?
+    var exerciseEntry: ExerciseEntry?
     init(
-        repetition: Float = 0,
+        repetitions: Float = 0,
         weight: Float = 0,
         duration: TimeInterval? = nil,
         distance: Float? = nil,
@@ -40,7 +40,7 @@ final class ExerciseSet {
         self.orderIndex = orderIndex
         self.weightType = usedMetric == .metric ? .kg : .lbs
         self.distanceType = usedMetric == .metric ? .kilometers : .miles
-        self.repetition = repetition
+        self.repetitions = repetitions
         self.weight = weight
         self.duration = duration
         self.distance = distance
@@ -52,7 +52,7 @@ final class ExerciseSet {
 
     func copy() -> ExerciseSet {
         return ExerciseSet(
-            repetition: repetition,
+            repetitions: repetitions,
             weight: weight,
             duration: duration,
             distance: distance,
@@ -75,9 +75,9 @@ final class ExerciseSet {
         }
 
         if weight > 0 {
-            return "\(Int(repetition)) x \(String(format: "%.1f", weight)) \(weightType.rawValue)"
+            return "\(Int(repetitions)) x \(String(format: "%.1f", weight)) \(weightType.rawValue)"
         }
 
-        return "\(Int(repetition)) reps"
+        return "\(Int(repetitions)) reps"
     }
 }

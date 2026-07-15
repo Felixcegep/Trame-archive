@@ -4,7 +4,7 @@ import SwiftUI
 struct ExerciseDetailInsightsDestination: View {
     @Environment(\.modelContext) private var modelContext
 
-    let exercise: ExerciceTemplate
+    let exercise: Exercise
 
     @State private var model: ExerciseDetailInsightsModel?
     @State private var errorMessage: String?

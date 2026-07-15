@@ -155,7 +155,7 @@ struct SettingView: View {
             }
             try modelContext.save()
 
-            let exercises = try modelContext.fetch(FetchDescriptor<ExerciceTemplate>())
+            let exercises = try modelContext.fetch(FetchDescriptor<Exercise>())
             for template in WorkoutTemplateSeedData.templates(using: exercises) {
                 modelContext.insert(template)
             }

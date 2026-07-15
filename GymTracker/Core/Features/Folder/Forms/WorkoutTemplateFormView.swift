@@ -10,8 +10,8 @@ import SwiftUI
 struct WorkoutTemplateFormView: View {
     @Environment(\.dismiss) private var dismiss
 
-    let availableExercises: [ExerciceTemplate]
-    let onSave: (String, [ExerciceTemplate]) -> Void
+    let availableExercises: [Exercise]
+    let onSave: (String, [Exercise]) -> Void
 
     @State private var name = ""
     @State private var selectedExerciseNames: Set<String> = []
@@ -64,7 +64,7 @@ struct WorkoutTemplateFormView: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var selectedExercises: [ExerciceTemplate] {
+    private var selectedExercises: [Exercise] {
         availableExercises.filter { selectedExerciseNames.contains($0.name) }
     }
 }

@@ -58,7 +58,7 @@ enum WorkoutTemplateSeedData {
         )
     ]
 
-    static func templates(using exercises: [ExerciceTemplate]) -> [WorkoutTemplate] {
+    static func templates(using exercises: [Exercise]) -> [WorkoutTemplate] {
         let exercisesByName = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0) })
 
         return definitions.compactMap { definition -> WorkoutTemplate? in

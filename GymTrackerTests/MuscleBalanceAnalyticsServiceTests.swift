@@ -7,10 +7,10 @@ import XCTest
 final class MuscleBalanceAnalyticsServiceTests: XCTestCase {
     func testCountsPrimaryAndSecondaryWorkingSetsAndExcludesWarmups() throws {
         let context = try makeContext()
-        let exercise = ExerciceTemplate(
+        let exercise = Exercise(
             name: "Bench Press",
-            PrimaryMuscle: [.middleChest],
-            SecondaryMuscle: [.frontDeltoid]
+            primaryMuscles: [.middleChest],
+            secondaryMuscles: [.frontDeltoid]
         )
         context.insert(exercise)
         insertWorkout(
@@ -31,14 +31,14 @@ final class MuscleBalanceAnalyticsServiceTests: XCTestCase {
 
     func testActiveWorkoutsDoNotContributeToBalance() throws {
         let context = try makeContext()
-        let exercise = ExerciceTemplate(name: "Deadlift", PrimaryMuscle: [.hamstrings])
+        let exercise = Exercise(name: "Deadlift", primaryMuscles: [.hamstrings])
         context.insert(exercise)
         insertWorkout(exercise: exercise, date: referenceDate, setTypes: [.normal], in: context)
 
-        let active = Workout(nom: "Active")
+        let active = Workout(name: "Active")
         active.startTime = referenceDate
-        let entry = ExerciceEntry(exercice: exercise, usedMetric: .metric)
-        entry.sets = [ExerciseSet(repetition: 8, weight: 100, done: true, usedMetric: .metric)]
+        let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
+        entry.sets = [ExerciseSet(repetitions: 8, weight: 100, done: true, usedMetric: .metric)]
         active.exercises = [entry]
         context.insert(active)
         try context.save()
@@ -50,7 +50,7 @@ final class MuscleBalanceAnalyticsServiceTests: XCTestCase {
 
     func testLowerRecentWorkCreatesAnEstimatedImbalanceCallout() throws {
         let context = try makeContext()
-        let exercise = ExerciceTemplate(name: "Deadlift", PrimaryMuscle: [.hamstrings])
+        let exercise = Exercise(name: "Deadlift", primaryMuscles: [.hamstrings])
         context.insert(exercise)
         insertWorkout(exercise: exercise, date: weeksAgo(6), setTypes: [.normal, .normal, .normal], in: context)
         insertWorkout(exercise: exercise, date: weeksAgo(5), setTypes: [.normal, .normal, .normal], in: context)
@@ -81,17 +81,17 @@ final class MuscleBalanceAnalyticsServiceTests: XCTestCase {
     }
 
     private func insertWorkout(
-        exercise: ExerciceTemplate,
+        exercise: Exercise,
         date: Date,
         setTypes: [SetType],
         in context: ModelContext
     ) {
-        let workout = Workout(nom: "Balance Fixture", endTime: date.addingTimeInterval(3_600))
+        let workout = Workout(name: "Balance Fixture", endTime: date.addingTimeInterval(3_600))
         workout.startTime = date
-        let entry = ExerciceEntry(exercice: exercise, usedMetric: .metric)
+        let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         entry.sets = setTypes.enumerated().map { index, setType in
             ExerciseSet(
-                repetition: 8,
+                repetitions: 8,
                 weight: 50,
                 done: true,
                 setType: setType,
@@ -107,8 +107,8 @@ final class MuscleBalanceAnalyticsServiceTests: XCTestCase {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: Workout.self,
-            ExerciceTemplate.self,
-            ExerciceEntry.self,
+            Exercise.self,
+            ExerciseEntry.self,
             ExerciseSet.self,
             configurations: configuration
         )

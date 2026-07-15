@@ -10,7 +10,7 @@ import SwiftUI
 
 struct WorkoutTemplateDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(filter: #Predicate<ExerciceTemplate> { !$0.isArchived }) private var availableExercises: [ExerciceTemplate]
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var availableExercises: [Exercise]
 
     let template: WorkoutTemplate
     let onStartWorkout: (WorkoutTemplate) -> Void
@@ -66,7 +66,7 @@ struct WorkoutTemplateDetailView: View {
         }
     }
 
-    private var exercisesToAdd: [ExerciceTemplate] {
+    private var exercisesToAdd: [Exercise] {
         availableExercises.filter { exercise in
             !template.exercises.contains {
                 $0.persistentModelID == exercise.persistentModelID
@@ -74,7 +74,7 @@ struct WorkoutTemplateDetailView: View {
         }
     }
 
-    private func addExercise(_ exercise: ExerciceTemplate) {
+    private func addExercise(_ exercise: Exercise) {
         guard !template.exercises.contains(where: {
             $0.persistentModelID == exercise.persistentModelID
         }) else {

@@ -19,7 +19,7 @@ struct RootView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Query private var exerciceTemplates: [ExerciceTemplate]
+    @Query private var exerciseTemplates: [Exercise]
 
     @State private var workoutVM = WorkoutViewModel()
     @State private var homePath: [HomeRoute] = []
@@ -227,7 +227,7 @@ struct RootView: View {
 
     private func seedExerciseTemplatesIfNeeded() {
         do {
-            let existingExercises = try modelContext.fetch(FetchDescriptor<ExerciceTemplate>())
+            let existingExercises = try modelContext.fetch(FetchDescriptor<Exercise>())
             let existingByName = Dictionary(uniqueKeysWithValues: existingExercises.map { ($0.name, $0) })
             var didChangeTemplates = false
 
@@ -265,7 +265,7 @@ struct RootView: View {
 
     private func seedWorkoutTemplatesIfNeeded() {
         do {
-            let exercises = try modelContext.fetch(FetchDescriptor<ExerciceTemplate>())
+            let exercises = try modelContext.fetch(FetchDescriptor<Exercise>())
             let existingTemplates = try modelContext.fetch(FetchDescriptor<WorkoutTemplate>())
             let existingNames = Set(existingTemplates.map(\.name))
 

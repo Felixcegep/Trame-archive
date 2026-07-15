@@ -10,7 +10,7 @@ enum RecommendationPresentationState {
     case recommendation(RecommendationPresentation)
     case insufficientHistory
 
-    init?(entry: ExerciceEntry) {
+    init?(entry: ExerciseEntry) {
         if let presentation = RecommendationPresentation(entry: entry) {
             self = .recommendation(presentation)
             return
@@ -21,7 +21,7 @@ enum RecommendationPresentationState {
             let requiredSets = entry.prescribedSets,
             let repCeiling = entry.prescribedRepRangeMaximum,
             ProgressionSnapshotService.isEligible(
-                exercise: entry.exercice,
+                exercise: entry.exercise,
                 rule: rule,
                 requiredSets: requiredSets,
                 repCeiling: repCeiling
@@ -42,7 +42,7 @@ struct RecommendationPresentation {
     let requiredSets: Int
     let repCeiling: Int
 
-    init?(entry: ExerciceEntry) {
+    init?(entry: ExerciseEntry) {
         guard
             let decision = entry.recommendedDecision,
             let recommendedLoad = entry.recommendedLoad,

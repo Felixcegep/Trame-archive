@@ -5,7 +5,7 @@ struct FolderView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var workoutCollections: [WorkoutCollection]
     @Query private var workoutTemplates: [WorkoutTemplate]
-    @Query(filter: #Predicate<ExerciceTemplate> { !$0.isArchived }) private var exerciceTemplates: [ExerciceTemplate]
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
     @Query private var workoutPlans: [WorkoutPlan]
 
     @State private var activeSheet: FolderSheet?
@@ -71,7 +71,7 @@ struct FolderView: View {
                         saveModelContext(modelContext)
                     }
                 case .workoutTemplate:
-                    WorkoutTemplateFormView(availableExercises: exerciceTemplates) { name, exercises in
+                    WorkoutTemplateFormView(availableExercises: exerciseTemplates) { name, exercises in
                         modelContext.insert(WorkoutTemplate(name: name, exercises: exercises))
                         saveModelContext(modelContext)
                     }
@@ -171,7 +171,7 @@ struct FolderView: View {
                 LibraryCategoryRow(
                     title: "Exercises",
                     subtitle: "Your complete exercise catalogue",
-                    count: exerciceTemplates.count,
+                    count: exerciseTemplates.count,
                     icon: "dumbbell.fill",
                     color: FolderPalette.secondary,
                     surface: FolderPalette.secondarySurface
@@ -185,7 +185,7 @@ struct FolderView: View {
     private var quickAccessSection: some View {
         let collection = workoutCollections.first
         let template = workoutTemplates.first
-        let exercise = exerciceTemplates.first
+        let exercise = exerciseTemplates.first
 
         if collection != nil || template != nil || exercise != nil {
             VStack(alignment: .leading, spacing: 10) {
@@ -222,7 +222,7 @@ struct FolderView: View {
                     if let exercise {
                         if collection != nil || template != nil { quickAccessDivider }
                         NavigationLink {
-                            ExerciceView(exercice: exercise)
+                            ExerciceView(exercise: exercise)
                         } label: {
                             RecentLibraryRow(
                                 title: exercise.name,
@@ -312,7 +312,7 @@ struct FolderView: View {
                 searchResultsCard(title: "Exercises") {
                     ForEach(matchingExercises, id: \.self) { exercise in
                         NavigationLink {
-                            ExerciceView(exercice: exercise)
+                            ExerciceView(exercise: exercise)
                         } label: {
                             RecentLibraryRow(
                                 title: exercise.name,
@@ -354,8 +354,8 @@ struct FolderView: View {
         workoutTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
-    private var matchingExercises: [ExerciceTemplate] {
-        exerciceTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    private var matchingExercises: [Exercise] {
+        exerciseTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
     private var matchingPlans: [WorkoutPlan] {
@@ -423,7 +423,7 @@ private struct WorkoutTemplatesBrowserView: View {
 
 private struct ExerciseBrowserView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(filter: #Predicate<ExerciceTemplate> { !$0.isArchived }) private var exercises: [ExerciceTemplate]
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exercises: [Exercise]
     @State private var searchText = ""
     @State private var filter = ExerciseFilterState()
     @State private var sortOrder: ExerciseSortOrder = .nameAscending
@@ -447,7 +447,7 @@ private struct ExerciseBrowserView: View {
 
             ForEach(filteredExercises, id: \.self) { exercise in
                 NavigationLink {
-                    ExerciceView(exercice: exercise)
+                    ExerciceView(exercise: exercise)
                 } label: {
                     LibraryItemRow(
                         title: exercise.name,
@@ -488,7 +488,7 @@ private struct ExerciseBrowserView: View {
         }
     }
 
-    private var filteredExercises: [ExerciceTemplate] {
+    private var filteredExercises: [Exercise] {
         exercises.filter { exercise in
             filter.matches(exercise, searchText: searchText)
         }
@@ -502,7 +502,7 @@ private struct ExerciseBrowserView: View {
         }
     }
 
-    private func hideExercise(_ exercise: ExerciceTemplate) {
+    private func hideExercise(_ exercise: Exercise) {
         do {
             try ExerciseArchiveService.hideOrDelete(exercise, using: modelContext)
         } catch {
@@ -510,7 +510,7 @@ private struct ExerciseBrowserView: View {
         }
     }
 
-    private func deleteExercise(_ exercise: ExerciceTemplate) {
+    private func deleteExercise(_ exercise: Exercise) {
         do {
             try ExerciseArchiveService.hideOrDelete(exercise, using: modelContext)
         } catch {
@@ -522,10 +522,10 @@ private struct ExerciseBrowserView: View {
 
 struct ArchivedExercisesView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(filter: #Predicate<ExerciceTemplate> { $0.isArchived }) private var exercises: [ExerciceTemplate]
+    @Query(filter: #Predicate<Exercise> { $0.isArchived }) private var exercises: [Exercise]
     @State private var searchText = ""
 
-    private var filteredExercises: [ExerciceTemplate] {
+    private var filteredExercises: [Exercise] {
         exercises
             .filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -581,7 +581,7 @@ struct ArchivedExercisesView: View {
         .searchable(text: $searchText, prompt: "Search hidden exercises")
     }
 
-    private func restore(_ exercise: ExerciceTemplate) {
+    private func restore(_ exercise: Exercise) {
         do {
             try ExerciseArchiveService.restore(exercise, using: modelContext)
         } catch {
