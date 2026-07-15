@@ -5,6 +5,43 @@ import XCTest
 
 @MainActor
 final class WorkoutIntegrityTests: XCTestCase {
+    func testExerciseArchiveServiceHidesBuiltInAndRestoresIt() throws {
+        let context = try makeContext()
+        let exercise = ExerciceTemplate(name: "Built In", PrimaryMuscle: [.upperChest])
+        context.insert(exercise)
+        try context.save()
+
+        try ExerciseArchiveService.hideOrDelete(exercise, using: context)
+        XCTAssertTrue(exercise.isArchived)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<ExerciceTemplate>()).count, 1)
+
+        try ExerciseArchiveService.restore(exercise, using: context)
+        XCTAssertFalse(exercise.isArchived)
+    }
+
+    func testExerciseArchiveServiceDeletesUnreferencedCustomAndArchivesReferencedCustom() throws {
+        let context = try makeContext()
+        let unreferenced = ExerciceTemplate(name: "Unused Custom", PrimaryMuscle: [.upperChest], isCustom: true)
+        let referenced = ExerciceTemplate(name: "Referenced Custom", PrimaryMuscle: [.upperChest], isCustom: true)
+        let template = WorkoutTemplate(
+            name: "Reference",
+            exercises: [referenced],
+            templateExercises: [TemplateExercise(exercise: referenced, order: 0)]
+        )
+        context.insert(unreferenced)
+        context.insert(referenced)
+        context.insert(template)
+        try context.save()
+
+        try ExerciseArchiveService.hideOrDelete(unreferenced, using: context)
+        try ExerciseArchiveService.hideOrDelete(referenced, using: context)
+
+        let exercises = try context.fetch(FetchDescriptor<ExerciceTemplate>())
+        XCTAssertFalse(exercises.contains { $0.name == "Unused Custom" })
+        XCTAssertTrue(exercises.first { $0.name == "Referenced Custom" }?.isArchived == true)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<TemplateExercise>()).count, 1)
+    }
+
     func testDeletingWorkoutCascadesEntriesAndSets() throws {
         let context = try makeContext()
         let exercise = makeExercise()

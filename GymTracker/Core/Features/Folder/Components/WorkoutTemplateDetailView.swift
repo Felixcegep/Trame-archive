@@ -10,7 +10,7 @@ import SwiftUI
 
 struct WorkoutTemplateDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var availableExercises: [ExerciceTemplate]
+    @Query(filter: #Predicate<ExerciceTemplate> { !$0.isArchived }) private var availableExercises: [ExerciceTemplate]
 
     let template: WorkoutTemplate
     let onStartWorkout: (WorkoutTemplate) -> Void

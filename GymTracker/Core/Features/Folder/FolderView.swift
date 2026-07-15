@@ -457,15 +457,33 @@ private struct ExerciseBrowserView: View {
                         surface: FolderPalette.secondarySurface
                     )
                 }
+                .accessibilityIdentifier("exercise-row-\(exercise.name)")
                 .swipeActions(allowsFullSwipe: true) {
                     if exercise.isCustom {
                         Button(role: .destructive) {
-                            deleteOrArchiveExercise(exercise)
+                            deleteExercise(exercise)
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
+                    } else {
+                        Button {
+                            hideExercise(exercise)
+                        } label: {
+                            Label("Hide", systemImage: AppIcon.archive)
+                        }
+                        .tint(FolderPalette.primary)
                     }
                 }
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    ArchivedExercisesView()
+                } label: {
+                    Label("Hidden Exercises", systemImage: AppIcon.archive)
+                }
+                .accessibilityIdentifier("hidden-exercises")
             }
         }
     }
@@ -484,28 +502,92 @@ private struct ExerciseBrowserView: View {
         }
     }
 
-    private func deleteOrArchiveExercise(_ exercise: ExerciceTemplate) {
+    private func hideExercise(_ exercise: ExerciceTemplate) {
         do {
-            let entries = try modelContext.fetch(FetchDescriptor<ExerciceEntry>())
-            let hasEntryReference = entries.contains { $0.exercice.id == exercise.id }
-
-            let templateExercises = try modelContext.fetch(FetchDescriptor<TemplateExercise>())
-            let hasTemplateReference = templateExercises.contains { $0.exercise.id == exercise.id }
-
-            let plannedExercises = try modelContext.fetch(FetchDescriptor<PlannedExercise>())
-            let hasPlanReference = plannedExercises.contains { $0.exercise.id == exercise.id }
-
-            if hasEntryReference || hasTemplateReference || hasPlanReference {
-                exercise.isArchived = true
-            } else {
-                modelContext.delete(exercise)
-            }
-            try modelContext.save()
+            try ExerciseArchiveService.hideOrDelete(exercise, using: modelContext)
         } catch {
-            print("Failed to delete/archive exercise: \(error)")
+            print("Failed to hide exercise: \(error)")
         }
     }
 
+    private func deleteExercise(_ exercise: ExerciceTemplate) {
+        do {
+            try ExerciseArchiveService.hideOrDelete(exercise, using: modelContext)
+        } catch {
+            print("Failed to delete exercise: \(error)")
+        }
+    }
+
+}
+
+struct ArchivedExercisesView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(filter: #Predicate<ExerciceTemplate> { $0.isArchived }) private var exercises: [ExerciceTemplate]
+    @State private var searchText = ""
+
+    private var filteredExercises: [ExerciceTemplate] {
+        exercises
+            .filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    var body: some View {
+        List {
+            Section {
+                Text("Hidden exercises stay out of workout, template, and plan pickers. History remains unchanged.")
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(FolderPalette.mutedText)
+            }
+
+            if filteredExercises.isEmpty {
+                ContentUnavailableView(
+                    "No hidden exercises",
+                    systemImage: AppIcon.archive,
+                    description: Text(searchText.isEmpty ? "Exercises you hide or archive will appear here." : "Try a different search.")
+                )
+                .listRowBackground(Color.clear)
+            } else {
+                Section("Hidden Exercises") {
+                    ForEach(filteredExercises, id: \.self) { exercise in
+                        HStack {
+                            LibraryItemRow(
+                                title: exercise.name,
+                                subtitle: exercise.isCustom ? "Custom exercise" : "Built-in exercise",
+                                icon: "dumbbell.fill",
+                                color: FolderPalette.secondary,
+                                surface: FolderPalette.secondarySurface
+                            )
+                            Spacer()
+                            Button("Restore") {
+                                restore(exercise)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .accessibilityIdentifier("restore-exercise-\(exercise.name)")
+                        }
+                    }
+                    .onDelete { offsets in
+                        for index in offsets {
+                            restore(filteredExercises[index])
+                        }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
+        .navigationTitle("Hidden Exercises")
+        .searchable(text: $searchText, prompt: "Search hidden exercises")
+    }
+
+    private func restore(_ exercise: ExerciceTemplate) {
+        do {
+            try ExerciseArchiveService.restore(exercise, using: modelContext)
+        } catch {
+            print("Failed to restore exercise: \(error)")
+        }
+    }
 }
 
 private enum ExerciseSortOrder: String, CaseIterable, Identifiable {
