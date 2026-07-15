@@ -59,6 +59,161 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(try context.fetch(FetchDescriptor<ExerciceTemplate>()).count, 1)
     }
 
+    func testOrderedViewsUsePersistedIndicesAcrossTemplateWorkoutAndSets() throws {
+        let context = try makeContext()
+        let first = ExerciceTemplate(name: "First", PrimaryMuscle: [.upperChest])
+        let second = ExerciceTemplate(name: "Second", PrimaryMuscle: [.latissimusDorsi])
+        let third = ExerciceTemplate(name: "Third", PrimaryMuscle: [.quadriceps])
+        let template = WorkoutTemplate(
+            name: "Ordered Template",
+            exercises: [first, second, third],
+            templateExercises: [
+                TemplateExercise(exercise: first, order: 2),
+                TemplateExercise(exercise: second, order: 0),
+                TemplateExercise(exercise: third, order: 1)
+            ]
+        )
+
+        XCTAssertEqual(template.orderedTemplateExercises.map { $0.exercise.name }, ["Second", "Third", "First"])
+        XCTAssertEqual(template.exercises.map(\.name), ["Second", "Third", "First"])
+
+        let workout = Workout(template: template, unitSystem: .metric)
+        XCTAssertEqual(workout.orderedExercises.map { $0.exercice.name }, ["Second", "Third", "First"])
+
+        let entry = try XCTUnwrap(workout.orderedExercises.first)
+        let late = ExerciseSet(repetition: 12, weight: 60, done: true, orderIndex: 2, usedMetric: .metric)
+        let early = ExerciseSet(repetition: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric)
+        let middle = ExerciseSet(repetition: 10, weight: 50, done: true, orderIndex: 1, usedMetric: .metric)
+        entry.sets = [late, early, middle]
+
+        context.insert(first)
+        context.insert(second)
+        context.insert(third)
+        context.insert(template)
+        context.insert(workout)
+        try context.save()
+
+        XCTAssertEqual(entry.orderedSets.map(\.repetition), [8, 10, 12])
+        XCTAssertEqual(entry.orderedSets.map(\.orderIndex), [0, 1, 2])
+    }
+
+    func testAddingCopyingAndDeletingSetsKeepsContiguousOrderIndices() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let entry = ExerciceEntry(exercice: exercise, usedMetric: .metric)
+        entry.sets = [
+            ExerciseSet(repetition: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric),
+            ExerciseSet(repetition: 10, weight: 50, done: true, orderIndex: 1, usedMetric: .metric),
+            ExerciseSet(repetition: 12, weight: 60, done: true, orderIndex: 2, usedMetric: .metric)
+        ]
+        let workout = Workout(nom: "Set Ordering")
+        workout.exercises = [entry]
+        context.insert(exercise)
+        context.insert(workout)
+        try context.save()
+
+        entry.copyLastSet()
+        XCTAssertEqual(entry.orderedSets.map(\.orderIndex), [0, 1, 2, 3])
+        XCTAssertEqual(entry.orderedSets.last?.repetition, 12)
+        XCTAssertFalse(entry.orderedSets.last?.done == true)
+
+        entry.addEmptySet()
+        XCTAssertEqual(entry.orderedSets.map(\.orderIndex), [0, 1, 2, 3, 4])
+
+        let viewModel = WorkoutViewModel()
+        viewModel.activeWorkout = workout
+        let activeViewModel = ActiveWorkoutViewModel(workoutVM: viewModel, modelContext: context)
+        let middle = try XCTUnwrap(entry.orderedSets[1])
+        activeViewModel.removeSet(entry, middle)
+
+        XCTAssertEqual(entry.orderedSets.map(\.orderIndex), [0, 1, 2, 3])
+        XCTAssertEqual(entry.orderedSets.map(\.repetition), [8, 12, 12, 0])
+    }
+
+    func testDuplicateLegacyIndicesNormalizeToUniqueContiguousValues() throws {
+        let exercise = makeExercise()
+        let first = ExerciceEntry(exercice: exercise, orderIndex: 0, usedMetric: .metric)
+        let second = ExerciceEntry(exercice: exercise, orderIndex: 0, usedMetric: .metric)
+        first.sets = [
+            ExerciseSet(repetition: 8, weight: 40, orderIndex: 0, usedMetric: .metric),
+            ExerciseSet(repetition: 10, weight: 50, orderIndex: 0, usedMetric: .metric)
+        ]
+        let workout = Workout(nom: "Legacy Ordering")
+        workout.exercises = [first, second]
+
+        workout.normalizeExerciseOrder()
+
+        XCTAssertEqual(Set(workout.exercises.map(\.orderIndex)), Set([0, 1]))
+        XCTAssertEqual(Set(first.orderedSets.map(\.orderIndex)), Set([0, 1]))
+    }
+
+    func testExerciseAndSetOrderingPersistsAcrossDiskRelaunch() throws {
+        let storeURL = try makeDiskStoreURL()
+        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+
+        try withDiskContext(at: storeURL) { context in
+            let first = ExerciceTemplate(name: "First", PrimaryMuscle: [.upperChest])
+            let second = ExerciceTemplate(name: "Second", PrimaryMuscle: [.latissimusDorsi])
+            let firstEntry = ExerciceEntry(exercice: first, orderIndex: 1, usedMetric: .metric)
+            firstEntry.sets = [
+                ExerciseSet(repetition: 12, weight: 60, done: true, orderIndex: 1, usedMetric: .metric),
+                ExerciseSet(repetition: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric)
+            ]
+            let secondEntry = ExerciceEntry(exercice: second, orderIndex: 0, usedMetric: .metric)
+            let workout = Workout(nom: "Persisted Ordering")
+            workout.exercises = [firstEntry, secondEntry]
+            context.insert(first)
+            context.insert(second)
+            context.insert(workout)
+            workout.normalizeExerciseOrder()
+            try context.save()
+        }
+
+        try withDiskContext(at: storeURL) { context in
+            let workout = try XCTUnwrap(context.fetch(FetchDescriptor<Workout>()).first)
+            XCTAssertEqual(workout.orderedExercises.map { $0.exercice.name }, ["Second", "First"])
+            XCTAssertEqual(workout.orderedExercises.map(\.orderIndex), [0, 1])
+            XCTAssertEqual(workout.orderedExercises[1].orderedSets.map(\.repetition), [8, 12])
+            XCTAssertEqual(workout.orderedExercises[1].orderedSets.map(\.orderIndex), [0, 1])
+        }
+    }
+
+    func testSavingWorkoutAndHistoryUseTheSameOrderedEntriesAndSets() throws {
+        let context = try makeContext()
+        let first = ExerciceTemplate(name: "First", PrimaryMuscle: [.upperChest])
+        let second = ExerciceTemplate(name: "Second", PrimaryMuscle: [.latissimusDorsi])
+        let firstEntry = ExerciceEntry(exercice: first, orderIndex: 1, usedMetric: .metric)
+        firstEntry.sets = [
+            ExerciseSet(repetition: 12, weight: 60, done: true, orderIndex: 1, usedMetric: .metric),
+            ExerciseSet(repetition: 8, weight: 40, done: true, orderIndex: 0, usedMetric: .metric)
+        ]
+        let secondEntry = ExerciceEntry(exercice: second, orderIndex: 0, usedMetric: .metric)
+        secondEntry.sets = [
+            ExerciseSet(repetition: 10, weight: 50, done: true, orderIndex: 0, usedMetric: .metric)
+        ]
+        let workout = Workout(nom: "History Ordering")
+        workout.exercises = [firstEntry, secondEntry]
+        context.insert(first)
+        context.insert(second)
+        context.insert(workout)
+        try context.save()
+
+        let viewModel = WorkoutViewModel()
+        viewModel.activeWorkout = workout
+        XCTAssertTrue(viewModel.saveWorkout(using: context))
+
+        XCTAssertEqual(workout.orderedExercises.map { $0.exercice.name }, ["Second", "First"])
+        let savedFirstEntry = try XCTUnwrap(
+            workout.orderedExercises.first(where: { $0.exercice.name == "First" })
+        )
+        XCTAssertEqual(savedFirstEntry.orderedSets.map(\.repetition), [8, 12])
+
+        let performance = try ExerciseHistoryService(modelContext: context)
+            .mostRecentPerformance(for: first, before: Date(timeIntervalSinceNow: 1))
+        XCTAssertEqual(performance?.sets.map(\.orderIndex), [0, 1])
+        XCTAssertEqual(performance?.sets.map(\.repetitions), [8, 12])
+    }
+
     func testOrphanCleanupDeletesUnownedEntriesAndSets() throws {
         let context = try makeContext()
         let exercise = makeExercise()
