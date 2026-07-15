@@ -389,13 +389,23 @@ final class GymTrackerUITEST: XCTestCase {
 
         let benchPress = app.buttons["exercise-row-Bench Press"]
         XCTAssertTrue(benchPress.waitForExistence(timeout: 5))
-        benchPress.swipeLeft()
+        benchPress.press(forDuration: 1.2)
         tapButton("Hide", in: app)
+
+        let rowRemoved = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: benchPress
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [rowRemoved], timeout: 5), .completed)
+
+        // The context-menu interaction can leave the list scrolled, occluding
+        // the Hidden Exercises row under the top edge. Scroll back first.
+        app.swipeDown()
 
         let hiddenExercises = app.buttons["hidden-exercises"]
         XCTAssertTrue(hiddenExercises.waitForExistence(timeout: 5))
         hiddenExercises.tap()
-        XCTAssertTrue(app.navigationBars["Hidden Exercises"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Hidden Exercises"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["restore-exercise-Bench Press"].exists)
         let historyNote = app.staticTexts.containing(
@@ -410,8 +420,8 @@ final class GymTrackerUITEST: XCTestCase {
         let app = launchFreshApp()
         app.tabBars.buttons.element(boundBy: 1).tap()
         app.buttons["Create library item"].tap()
-        XCTAssertTrue(app.buttons["New Workout Template"].waitForExistence(timeout: 5))
-        app.buttons["New Workout Template"].tap()
+        XCTAssertTrue(app.buttons["New Workout"].waitForExistence(timeout: 5))
+        app.buttons["New Workout"].tap()
 
         let nameField = app.textFields["template-name-field"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
@@ -427,8 +437,8 @@ final class GymTrackerUITEST: XCTestCase {
         app.tabBars.buttons.element(boundBy: 1).tap()
 
         app.buttons["Create library item"].tap()
-        XCTAssertTrue(app.buttons["New Plan"].waitForExistence(timeout: 5))
-        app.buttons["New Plan"].tap()
+        XCTAssertTrue(app.buttons["New Program"].waitForExistence(timeout: 5))
+        app.buttons["New Program"].tap()
 
         let nameField = app.textFields["plan-name-field"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
@@ -917,7 +927,7 @@ final class GymTrackerUITEST: XCTestCase {
     func testCaptureHomeTemplateSheetScreenshot() {
         let templatePicker = launchFreshApp()
         tapButton("start-from-template", in: templatePicker)
-        XCTAssertTrue(templatePicker.navigationBars["Start from template"].waitForExistence(timeout: 5))
+        XCTAssertTrue(templatePicker.navigationBars["Start a saved workout"].waitForExistence(timeout: 5))
         saveScreenshot("overview/01b_Home_Template_Sheet")
     }
 
@@ -934,7 +944,7 @@ final class GymTrackerUITEST: XCTestCase {
     func testCaptureLibrarySecondaryStatesScreenshots() {
         let library = launchFreshApp()
         selectTab(.library, in: library)
-        let templatesBrowser = library.staticTexts["Workout Templates"].firstMatch
+        let templatesBrowser = library.staticTexts["Workouts"].firstMatch
         XCTAssertTrue(templatesBrowser.waitForExistence(timeout: 5))
         templatesBrowser.tap()
         saveScreenshot("overview/02b_Library_Templates")
@@ -986,7 +996,7 @@ final class GymTrackerUITEST: XCTestCase {
         selectTab(.library, in: app)
 
         tapButton("Create library item", in: app)
-        tapButton("New Plan", in: app)
+        tapButton("New Program", in: app)
 
         let planName = app.textFields["plan-name-field"]
         XCTAssertTrue(planName.waitForExistence(timeout: 5))
@@ -1098,7 +1108,7 @@ final class GymTrackerUITEST: XCTestCase {
 
     private func openUpperBodyTemplateEditor(in app: XCUIApplication) {
         selectTab(.library, in: app)
-        let templatesBrowser = app.staticTexts["Workout Templates"].firstMatch
+        let templatesBrowser = app.staticTexts["Workouts"].firstMatch
         XCTAssertTrue(templatesBrowser.waitForExistence(timeout: 5))
         templatesBrowser.tap()
 
@@ -1141,9 +1151,9 @@ final class GymTrackerUITEST: XCTestCase {
 
         app.tabBars.buttons.element(boundBy: 1).tap()
 
-        let collectionsRow = app.staticTexts["Collections"]
-        XCTAssertTrue(collectionsRow.waitForExistence(timeout: 5))
-        collectionsRow.tap()
+        let workoutsRow = app.staticTexts["Workouts"].firstMatch
+        XCTAssertTrue(workoutsRow.waitForExistence(timeout: 5))
+        workoutsRow.tap()
 
         let seededCollection = app.staticTexts["Upper/Lower Program – 4 Days"]
         XCTAssertTrue(seededCollection.waitForExistence(timeout: 5))

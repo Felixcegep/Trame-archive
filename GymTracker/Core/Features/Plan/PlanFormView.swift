@@ -16,7 +16,7 @@ struct PlanFormView: View {
 
     var body: some View {
         Form {
-            Section("Plan") {
+            Section("Program") {
                 TextField("Name", text: $name)
                     .accessibilityIdentifier("plan-name-field")
 
@@ -36,7 +36,7 @@ struct PlanFormView: View {
             }
 
             Section("Weekly schedule") {
-                Text("Choose each training day and the workout template assigned to it.")
+                Text("Choose each training day and the saved workout assigned to it.")
                     .font(AppFont.footnote)
                     .foregroundStyle(.secondary)
 
@@ -64,14 +64,14 @@ struct PlanFormView: View {
                 }
 
                 if availableTemplates.isEmpty {
-                    Text("Create a non-empty workout template before creating a plan.")
+                    Text("Create a non-empty saved workout before creating a program.")
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("New Plan")
+        .navigationTitle("New Program")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }

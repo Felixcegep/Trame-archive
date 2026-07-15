@@ -68,7 +68,7 @@ struct SettingView: View {
             } header: {
                 Text("Development")
             } footer: {
-                Text("Removes all local workouts, templates, plans, and custom exercises, then restores the built-in exercise catalogue.")
+                Text("Removes workout history, saved workouts, programs, and custom exercises, then restores the built-in exercise catalogue.")
             }
             #endif
         }
@@ -249,10 +249,10 @@ struct ImportPreviewView: View {
 
                 Section("Contents to Restore") {
                     LabeledContent("Custom Exercises", value: "\(backup.exercises.filter(\.isCustom).count)")
-                    LabeledContent("Workout Templates", value: "\(backup.templates.count)")
-                    LabeledContent("Collections", value: "\(backup.collections.count)")
-                    LabeledContent("Plans", value: "\(backup.plans.count)")
-                    LabeledContent("Plan Runs", value: "\(backup.planRuns.count)")
+                    LabeledContent("Saved Workouts", value: "\(backup.templates.count)")
+                    LabeledContent("Workout Folders", value: "\(backup.collections.count)")
+                    LabeledContent("Programs", value: "\(backup.plans.count)")
+                    LabeledContent("Program Runs", value: "\(backup.planRuns.count)")
                     LabeledContent("Workout History", value: "\(backup.workouts.count)")
                 }
             }
@@ -283,7 +283,7 @@ struct ImportPreviewView: View {
                 }
                 .accessibilityIdentifier("restore-replace-all-data")
             } message: {
-                Text("This will delete all your current workouts, templates, collections, plans, plan runs, and custom exercises. This cannot be undone.")
+                Text("This will delete your workout history, saved workouts, workout folders, programs, program runs, and custom exercises. This cannot be undone.")
             }
         }
         .accessibilityIdentifier("import-preview")

@@ -117,7 +117,7 @@ struct SetRowView: View {
                     }
                     viewModel.persistChanges()
                 }
-            ), prompt: previousSet.map { Text(Formatters.formatFloat(displayWeight(for: $0))) })
+            ), prompt: Text(previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? "—"))
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
             .font(AppFont.titleSmallSemiboldMonospaced)
@@ -142,9 +142,13 @@ struct SetRowView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.leading, Spacing.xs)
-        .padding(.vertical, Spacing.s)
-        .background(Color.white.opacity(0.7))
+        .frame(minHeight: 44)
+        .background(WorkoutPalette.surface.opacity(0.9))
         .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                .stroke(WorkoutPalette.border, lineWidth: 1)
+        }
         .sheet(isPresented: $isShowingPlateCalculator, onDismiss: {
             viewModel.persistChanges()
         }) {
@@ -326,15 +330,19 @@ struct SetRowView: View {
         focusID: SetInputFocus,
         prompt: String? = nil
     ) -> some View {
-        TextField(title, text: text, prompt: prompt.map(Text.init))
+        TextField(title, text: text, prompt: Text(prompt ?? "—"))
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
             .font(AppFont.titleSmallSemiboldMonospaced)
             .focused(focusedInput, equals: focusID)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, Spacing.s)
-            .background(Color.white.opacity(0.7))
+            .frame(minHeight: 44)
+            .background(WorkoutPalette.surface.opacity(0.9))
             .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                    .stroke(WorkoutPalette.border, lineWidth: 1)
+            }
     }
 
     private func toggleDone() {

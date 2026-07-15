@@ -71,15 +71,20 @@ enum Muscle: String, Codable, CaseIterable {
 }
 
 extension Muscle {
-    var displayName: String {
-        let name = rawValue.reduce("") { result, character in
-            if character.isUppercase {
-                return result + " " + String(character)
+    private static let displayNames: [Muscle: String] = {
+        Dictionary(uniqueKeysWithValues: allCases.map { muscle in
+            let name = muscle.rawValue.reduce("") { result, character in
+                if character.isUppercase {
+                    return result + " " + String(character)
+                }
+                return result + String(character)
             }
-            return result + String(character)
-        }
-        .capitalized
-        return NSLocalizedString(name, comment: "")
+            .capitalized
+            return (muscle, NSLocalizedString(name, comment: ""))
+        })
+    }()
+
+    var displayName: String {
+        Self.displayNames[self] ?? rawValue
     }
 }
-

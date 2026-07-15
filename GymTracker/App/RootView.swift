@@ -19,10 +19,10 @@ struct RootView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Query private var exerciseTemplates: [Exercise]
 
     @State private var workoutVM = WorkoutViewModel()
     @State private var homePath: [HomeRoute] = []
+    @State private var libraryPath: [LibraryRoute] = []
     @State private var activeWorkoutPath: [HomeRoute] = []
     @State private var isShowingActiveWorkout = false
     @State private var shouldDiscardActiveWorkout = false
@@ -48,11 +48,20 @@ struct RootView: View {
             }
             .tag(AppTab.home)
 
-            NavigationStack {
+            NavigationStack(path: $libraryPath) {
                 FolderView(
                     onStartWorkout: startWorkout,
-                    onStartPlannedWorkout: startPlannedWorkout
+                    onStartPlannedWorkout: startPlannedWorkout,
+                    onShowArchivedExercises: {
+                        libraryPath.append(.archivedExercises)
+                    }
                 )
+                .navigationDestination(for: LibraryRoute.self) { route in
+                    switch route {
+                    case .archivedExercises:
+                        ArchivedExercisesView()
+                    }
+                }
             }
             .tabItem {
                 Label("Library", systemImage: "folder.fill")

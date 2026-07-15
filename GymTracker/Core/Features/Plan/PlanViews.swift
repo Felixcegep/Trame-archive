@@ -10,11 +10,11 @@ struct PlansBrowserView: View {
         List {
             if activePlans.isEmpty && archivedPlans.isEmpty {
                 ContentUnavailableView(
-                    "No plans yet",
+                    "No programs yet",
                     systemImage: AppIcon.planAdd,
-                    description: Text("Create a multi-week plan from a workout template in Library."))
+                    description: Text("Create a multi-week program from saved workouts in Library."))
             } else {
-                Section("Plans") {
+                Section("Programs") {
                     ForEach(activePlans) { plan in
                         NavigationLink {
                             PlanDetailView(plan: plan, onStartPlannedWorkout: onStartPlannedWorkout)
@@ -38,7 +38,9 @@ struct PlansBrowserView: View {
                 }
             }
         }
-        .navigationTitle("Plans")
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
+        .navigationTitle("Programs")
     }
 
     private var activePlans: [WorkoutPlan] {
@@ -87,7 +89,7 @@ struct PlanDetailView: View {
                         .font(AppFont.subheadline)
                         .foregroundStyle(.secondary)
                     if pausedRun != nil {
-                        Text("Plan paused")
+                        Text("Program paused")
                             .font(AppFont.subheadlineSemibold)
                             .foregroundStyle(.secondary)
                     } else if let run = activeRun, let progress = nextProgress(in: run) {
@@ -102,7 +104,7 @@ struct PlanDetailView: View {
             }
 
             if let run = activeRun, let progress = nextProgress(in: run) {
-                Section("Current plan") {
+                Section("Current program") {
                     Button {
                         onStartPlannedWorkout(run, progress)
                     } label: {
@@ -115,24 +117,24 @@ struct PlanDetailView: View {
                     }
                     .accessibilityIdentifier("start-planned-workout")
 
-                    Button("Pause Plan") {
+                    Button("Pause Program") {
                         PlanCoordinator.pause(run)
                         saveModelContext(modelContext)
                     }
 
-                    Button("Archive Plan Run", role: .destructive) {
+                    Button("Archive Program Run", role: .destructive) {
                         isShowingArchiveConfirmation = true
                     }
                 }
             } else if let run = pausedRun {
-                Section("Plan paused") {
-                    Button("Resume Plan") {
+                Section("Program paused") {
+                    Button("Resume Program") {
                         PlanCoordinator.resume(run)
                         saveModelContext(modelContext)
                     }
                     .accessibilityIdentifier("resume-plan")
 
-                    Button("Archive Plan Run", role: .destructive) {
+                    Button("Archive Program Run", role: .destructive) {
                         isShowingArchiveConfirmation = true
                     }
                 }
@@ -142,7 +144,7 @@ struct PlanDetailView: View {
                         startDate = .now
                         isShowingStartDate = true
                     } label: {
-                        Label("Start Plan", systemImage: AppIcon.play)
+                        Label("Start Program", systemImage: AppIcon.play)
                     }
                     .accessibilityIdentifier("start-plan")
                     .disabled(plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts).isEmpty)
@@ -187,6 +189,8 @@ struct PlanDetailView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle(plan.name)
         .toolbar {
             if !plan.isArchived {
@@ -203,7 +207,7 @@ struct PlanDetailView: View {
                 Form {
                     DatePicker("Start date", selection: $startDate, displayedComponents: .date)
                 }
-                .navigationTitle("Start Plan")
+                .navigationTitle("Start Program")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { isShowingStartDate = false }
@@ -248,17 +252,17 @@ struct PlanDetailView: View {
             }
         }
         .confirmationDialog(
-            "Archive this plan run?",
+            "Archive this program run?",
             isPresented: $isShowingArchiveConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Archive Plan Run", role: .destructive) {
+            Button("Archive Program Run", role: .destructive) {
                 guard let run = currentRun else { return }
                 PlanCoordinator.archive(run)
                 saveModelContext(modelContext)
             }
         } message: {
-            Text("Your completed workouts remain in History. You can start this plan again later.")
+            Text("Your completed workouts remain in History. You can start this program again later.")
         }
     }
 

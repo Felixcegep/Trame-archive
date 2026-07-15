@@ -18,7 +18,7 @@ struct WorkoutTemplateFormView: View {
 
     var body: some View {
         Form {
-            Section("Template") {
+            Section("Workout") {
                 TextField("Name", text: $name)
                     .accessibilityIdentifier("template-name-field")
             }
@@ -41,7 +41,7 @@ struct WorkoutTemplateFormView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("New Template")
+        .navigationTitle("New Workout")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {

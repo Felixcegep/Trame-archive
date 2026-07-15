@@ -21,7 +21,7 @@ struct WorkoutTemplateDetailView: View {
         List {
             Section("Exercises") {
                 if orderedTemplateExercises.isEmpty {
-                    Text("No exercises in this template")
+                    Text("No exercises in this workout")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(orderedTemplateExercises, id: \.persistentModelID) { templateExercise in
@@ -40,6 +40,8 @@ struct WorkoutTemplateDetailView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle(template.name)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {

@@ -13,10 +13,11 @@ struct FolderView: View {
 
     let onStartWorkout: (WorkoutTemplate) -> Void
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
+    let onShowArchivedExercises: () -> Void
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: Spacing.xxl) {
                 Text("Library")
                     .font(AppFont.displayMedium)
                     .foregroundStyle(FolderPalette.text)
@@ -25,13 +26,12 @@ struct FolderView: View {
 
                 if searchText.isEmpty {
                     browseSection
-                    quickAccessSection
                 } else {
                     globalResults
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.top, Spacing.s)
             .padding(.bottom, 104)
         }
         .folderScreenStyle()
@@ -40,14 +40,14 @@ struct FolderView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button("New Collection", systemImage: "folder.badge.plus") {
+                    Button("New Workout Folder", systemImage: "folder.badge.plus") {
                         activeSheet = .workoutCollection
                     }
-                    Button("New Workout Template", systemImage: "square.stack.3d.up.fill") {
+                    Button("New Workout", systemImage: "square.stack.3d.up.fill") {
                         activeSheet = .workoutTemplate
                     }
                     .accessibilityIdentifier("new-workout-template")
-                    Button("New Plan", systemImage: AppIcon.planAdd) {
+                    Button("New Program", systemImage: AppIcon.planAdd) {
                         activeSheet = .plan
                     }
                     .accessibilityIdentifier("new-plan")
@@ -92,7 +92,7 @@ struct FolderView: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: Spacing.s) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(FolderPalette.mutedText)
             TextField("Search your library", text: $searchText)
@@ -109,7 +109,7 @@ struct FolderView: View {
                 .accessibilityLabel("Clear search")
             }
         }
-        .padding(.horizontal, 13)
+        .padding(.horizontal, Spacing.m)
         .frame(height: 46)
         .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 14))
         .overlay {
@@ -119,29 +119,15 @@ struct FolderView: View {
     }
 
     private var browseSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             LibrarySectionTitle("Browse")
 
             NavigationLink {
-                WorkoutCollectionsBrowserView(onStartWorkout: onStartWorkout)
+                WorkoutsBrowserView(onStartWorkout: onStartWorkout)
             } label: {
                 LibraryCategoryRow(
-                    title: "Collections",
-                    subtitle: "Organize reusable workout templates",
-                    count: workoutCollections.count,
-                    icon: "rectangle.stack",
-                    color: FolderPalette.accent,
-                    surface: FolderPalette.accentSurface
-                )
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                WorkoutTemplatesBrowserView(onStartWorkout: onStartWorkout)
-            } label: {
-                LibraryCategoryRow(
-                    title: "Workout Templates",
-                    subtitle: "Reusable individual workouts",
+                    title: "Workouts",
+                    subtitle: "Saved sessions and workout folders",
                     count: workoutTemplates.count,
                     icon: "list.bullet.rectangle",
                     color: FolderPalette.primary,
@@ -154,8 +140,8 @@ struct FolderView: View {
                 PlansBrowserView(onStartPlannedWorkout: onStartPlannedWorkout)
             } label: {
                 LibraryCategoryRow(
-                    title: "Plans",
-                    subtitle: "Multi-week training schedules",
+                    title: "Programs",
+                    subtitle: "Scheduled multi-week training",
                     count: workoutPlans.filter { !$0.isArchived }.count,
                     icon: AppIcon.plan,
                     color: FolderPalette.accent,
@@ -166,7 +152,7 @@ struct FolderView: View {
             .accessibilityIdentifier("plans-browser")
 
             NavigationLink {
-                ExerciseBrowserView()
+                ExerciseBrowserView(onShowArchivedExercises: onShowArchivedExercises)
             } label: {
                 LibraryCategoryRow(
                     title: "Exercises",
@@ -182,74 +168,6 @@ struct FolderView: View {
     }
 
     @ViewBuilder
-    private var quickAccessSection: some View {
-        let collection = workoutCollections.first
-        let template = workoutTemplates.first
-        let exercise = exerciseTemplates.first
-
-        if collection != nil || template != nil || exercise != nil {
-            VStack(alignment: .leading, spacing: 10) {
-                LibrarySectionTitle("Quick access")
-
-                VStack(spacing: 0) {
-                    if let collection {
-                        NavigationLink {
-                            WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
-                        } label: {
-                            RecentLibraryRow(
-                                title: collection.name,
-                                type: "COLLECTION",
-                                icon: "rectangle.stack",
-                                color: FolderPalette.accent,
-                                surface: FolderPalette.accentSurface
-                            )
-                        }
-                    }
-                    if let template {
-                        if collection != nil { quickAccessDivider }
-                        NavigationLink {
-                            WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
-                        } label: {
-                            RecentLibraryRow(
-                                title: template.name,
-                                type: "TEMPLATE",
-                                icon: "list.bullet.rectangle",
-                                color: FolderPalette.primary,
-                                surface: FolderPalette.primarySurface
-                            )
-                        }
-                    }
-                    if let exercise {
-                        if collection != nil || template != nil { quickAccessDivider }
-                        NavigationLink {
-                            ExerciseView(exercise: exercise)
-                        } label: {
-                            RecentLibraryRow(
-                                title: exercise.name,
-                                type: "EXERCISE",
-                                icon: "dumbbell.fill",
-                                color: FolderPalette.secondary,
-                                surface: FolderPalette.secondarySurface
-                            )
-                        }
-                    }
-                }
-                .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 16))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(FolderPalette.divider, lineWidth: 1)
-                }
-            }
-        }
-    }
-
-    private var quickAccessDivider: some View {
-        Divider()
-            .overlay(FolderPalette.divider)
-            .padding(.leading, 60)
-    }
-
-    @ViewBuilder
     private var globalResults: some View {
         if matchingCollections.isEmpty && matchingTemplates.isEmpty && matchingPlans.isEmpty && matchingExercises.isEmpty {
             ContentUnavailableView.search(text: searchText)
@@ -258,14 +176,14 @@ struct FolderView: View {
         } else {
             VStack(alignment: .leading, spacing: 18) {
             if !matchingCollections.isEmpty {
-                searchResultsCard(title: "Collections") {
+                searchResultsCard(title: "Workout folders") {
                     ForEach(matchingCollections) { collection in
                         NavigationLink {
                             WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
                         } label: {
                             RecentLibraryRow(
                                 title: collection.name,
-                                type: "COLLECTION",
+                                type: "FOLDER",
                                 icon: "rectangle.stack",
                                 color: FolderPalette.accent,
                                 surface: FolderPalette.accentSurface
@@ -275,14 +193,14 @@ struct FolderView: View {
                 }
             }
             if !matchingTemplates.isEmpty {
-                searchResultsCard(title: "Templates") {
+                searchResultsCard(title: "Workouts") {
                     ForEach(matchingTemplates, id: \.self) { template in
                         NavigationLink {
                             WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                         } label: {
                             RecentLibraryRow(
                                 title: template.name,
-                                type: "TEMPLATE",
+                                type: "WORKOUT",
                                 icon: "list.bullet.rectangle",
                                 color: FolderPalette.primary,
                                 surface: FolderPalette.primarySurface
@@ -292,14 +210,14 @@ struct FolderView: View {
                 }
             }
             if !matchingPlans.isEmpty {
-                searchResultsCard(title: "Plans") {
+                searchResultsCard(title: "Programs") {
                     ForEach(matchingPlans) { plan in
                         NavigationLink {
                             PlanDetailView(plan: plan, onStartPlannedWorkout: onStartPlannedWorkout)
                         } label: {
                             RecentLibraryRow(
                                 title: plan.name,
-                                type: "PLAN",
+                                type: "PROGRAM",
                                 icon: AppIcon.plan,
                                 color: FolderPalette.accent,
                                 surface: FolderPalette.accentSurface
@@ -333,16 +251,9 @@ struct FolderView: View {
         title: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             LibrarySectionTitle(title)
-            VStack(spacing: 0) {
-                content()
-            }
-            .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 16))
-            .overlay {
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(FolderPalette.divider, lineWidth: 1)
-            }
+            content()
         }
     }
 
@@ -363,43 +274,31 @@ struct FolderView: View {
     }
 }
 
-private struct WorkoutCollectionsBrowserView: View {
+private struct WorkoutsBrowserView: View {
     @Query private var collections: [WorkoutCollection]
-    @State private var searchText = ""
-
-    let onStartWorkout: (WorkoutTemplate) -> Void
-
-    var body: some View {
-        LibraryBrowserList(title: "Collections", searchText: $searchText) {
-            ForEach(filteredCollections) { collection in
-                NavigationLink {
-                    WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
-                } label: {
-                    LibraryItemRow(
-                        title: collection.name,
-                        subtitle: "\(collection.workoutTemplates.count) templates",
-                        icon: "rectangle.stack",
-                        color: FolderPalette.accent,
-                        surface: FolderPalette.accentSurface
-                    )
-                }
-            }
-        }
-    }
-
-    private var filteredCollections: [WorkoutCollection] {
-        collections.filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
-    }
-}
-
-private struct WorkoutTemplatesBrowserView: View {
     @Query private var templates: [WorkoutTemplate]
     @State private var searchText = ""
 
     let onStartWorkout: (WorkoutTemplate) -> Void
 
     var body: some View {
-        LibraryBrowserList(title: "Workout Templates", searchText: $searchText) {
+        LibraryBrowserList(title: "Workouts", searchText: $searchText) {
+            LibraryListSectionHeader(title: "Folders", count: filteredCollections.count)
+            ForEach(filteredCollections) { collection in
+                NavigationLink {
+                    WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
+                } label: {
+                    LibraryItemRow(
+                        title: collection.name,
+                        subtitle: workoutCountText(collection.workoutTemplates.count),
+                        icon: "rectangle.stack",
+                        color: FolderPalette.accent,
+                        surface: FolderPalette.accentSurface
+                    )
+                }
+            }
+
+            LibraryListSectionHeader(title: "All workouts", count: filteredTemplates.count)
             ForEach(filteredTemplates, id: \.self) { template in
                 NavigationLink {
                     WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
@@ -416,21 +315,54 @@ private struct WorkoutTemplatesBrowserView: View {
         }
     }
 
+    private var filteredCollections: [WorkoutCollection] {
+        collections
+            .filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
     private var filteredTemplates: [WorkoutTemplate] {
-        templates.filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
+        templates
+            .filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private func workoutCountText(_ count: Int) -> String {
+        count == 1 ? "1 workout" : "\(count) workouts"
+    }
+}
+
+enum LibraryRoute: Hashable {
+    case archivedExercises
+}
+
+private struct ExerciseRowSnapshot: Identifiable, Equatable {
+    let id: PersistentIdentifier
+    let name: String
+    let subtitle: String
+    let isCustom: Bool
+    let exercise: Exercise
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+            && lhs.name == rhs.name
+            && lhs.subtitle == rhs.subtitle
+            && lhs.isCustom == rhs.isCustom
     }
 }
 
 private struct ExerciseBrowserView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exercises: [Exercise]
+    let onShowArchivedExercises: () -> Void
     @State private var searchText = ""
     @State private var filter = ExerciseFilterState()
     @State private var sortOrder: ExerciseSortOrder = .nameAscending
+    @State private var rows: [ExerciseRowSnapshot] = []
 
     var body: some View {
         LibraryBrowserList(title: "Exercises", searchText: $searchText) {
-            ExerciseFilterControls(filter: $filter, resultCount: filteredExercises.count)
+            ExerciseFilterControls(filter: $filter, resultCount: rows.count)
 
             Menu {
                 Picker("Sort", selection: $sortOrder) {
@@ -445,60 +377,90 @@ private struct ExerciseBrowserView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            ForEach(filteredExercises, id: \.self) { exercise in
+            Button {
+                onShowArchivedExercises()
+            } label: {
+                LibraryItemRow(
+                    title: "Hidden Exercises",
+                    subtitle: "Restore anything you've hidden",
+                    icon: AppIcon.archive,
+                    color: FolderPalette.accent,
+                    surface: FolderPalette.accentSurface
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("hidden-exercises")
+
+            ForEach(rows) { row in
                 NavigationLink {
-                    ExerciseView(exercise: exercise)
+                    ExerciseView(exercise: row.exercise)
                 } label: {
                     LibraryItemRow(
-                        title: exercise.name,
-                        subtitle: exercise.subtitle,
+                        title: row.name,
+                        subtitle: row.subtitle,
                         icon: "dumbbell.fill",
                         color: FolderPalette.secondary,
                         surface: FolderPalette.secondarySurface
                     )
                 }
-                .accessibilityIdentifier("exercise-row-\(exercise.name)")
-                .swipeActions(allowsFullSwipe: true) {
-                    if exercise.isCustom {
+                .accessibilityIdentifier("exercise-row-\(row.name)")
+                .contextMenu {
+                    if row.isCustom {
                         Button(role: .destructive) {
-                            deleteExercise(exercise)
+                            deleteExercise(row.exercise)
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
                     } else {
                         Button {
-                            hideExercise(exercise)
+                            hideExercise(row.exercise)
                         } label: {
                             Label("Hide", systemImage: AppIcon.archive)
                         }
-                        .tint(FolderPalette.primary)
                     }
                 }
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    ArchivedExercisesView()
-                } label: {
-                    Label("Hidden Exercises", systemImage: AppIcon.archive)
-                }
-                .accessibilityIdentifier("hidden-exercises")
-            }
+        .onAppear {
+            recomputeRows()
+        }
+        .onChange(of: searchText) { _, _ in
+            recomputeRows()
+        }
+        .onChange(of: filter) { _, _ in
+            recomputeRows()
+        }
+        .onChange(of: sortOrder) { _, _ in
+            recomputeRows()
+        }
+        .onChange(of: exercises.count) { _, _ in
+            recomputeRows()
         }
     }
 
-    private var filteredExercises: [Exercise] {
-        exercises.filter { exercise in
-            filter.matches(exercise, searchText: searchText)
-        }
-        .sorted { first, second in
-            switch sortOrder {
-            case .nameAscending:
-                first.name.localizedCaseInsensitiveCompare(second.name) == .orderedAscending
-            case .nameDescending:
-                first.name.localizedCaseInsensitiveCompare(second.name) == .orderedDescending
+    private func recomputeRows() {
+        let nextRows = exercises
+            .filter { filter.matches($0, searchText: searchText) }
+            .sorted { first, second in
+                switch sortOrder {
+                case .nameAscending:
+                    first.name.localizedCaseInsensitiveCompare(second.name) == .orderedAscending
+                case .nameDescending:
+                    first.name.localizedCaseInsensitiveCompare(second.name) == .orderedDescending
+                }
             }
+            .map {
+                ExerciseRowSnapshot(
+                    id: $0.persistentModelID,
+                    name: $0.name,
+                    subtitle: $0.subtitle,
+                    isCustom: $0.isCustom,
+                    exercise: $0
+                )
+            }
+
+        if nextRows != rows {
+            rows = nextRows
         }
     }
 
@@ -532,12 +494,11 @@ struct ArchivedExercisesView: View {
     }
 
     var body: some View {
-        List {
-            Section {
-                Text("Hidden exercises stay out of workout, template, and plan pickers. History remains unchanged.")
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(FolderPalette.mutedText)
-            }
+        LibraryBrowserList(title: "Hidden Exercises", searchText: $searchText) {
+            Text("Hidden exercises stay out of workout and program pickers. History remains unchanged.")
+                .font(AppFont.subheadline)
+                .foregroundStyle(FolderPalette.mutedText)
+                .padding(.horizontal, Spacing.xxs)
 
             if filteredExercises.isEmpty {
                 ContentUnavailableView(
@@ -545,40 +506,35 @@ struct ArchivedExercisesView: View {
                     systemImage: AppIcon.archive,
                     description: Text(searchText.isEmpty ? "Exercises you hide or archive will appear here." : "Try a different search.")
                 )
-                .listRowBackground(Color.clear)
             } else {
-                Section("Hidden Exercises") {
-                    ForEach(filteredExercises, id: \.self) { exercise in
-                        HStack {
-                            LibraryItemRow(
-                                title: exercise.name,
-                                subtitle: exercise.isCustom ? "Custom exercise" : "Built-in exercise",
-                                icon: "dumbbell.fill",
-                                color: FolderPalette.secondary,
-                                surface: FolderPalette.secondarySurface
-                            )
-                            Spacer()
-                            Button("Restore") {
-                                restore(exercise)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                            .accessibilityIdentifier("restore-exercise-\(exercise.name)")
+                LibraryListSectionHeader(title: "Hidden Exercises", count: filteredExercises.count)
+                ForEach(filteredExercises, id: \.self) { exercise in
+                    HStack(spacing: Spacing.m) {
+                        LibraryItemRow(
+                            title: exercise.name,
+                            subtitle: exercise.isCustom ? "Custom exercise" : "Built-in exercise",
+                            icon: "dumbbell.fill",
+                            color: FolderPalette.secondary,
+                            surface: FolderPalette.secondarySurface,
+                            showsCard: false,
+                            showsChevron: false
+                        )
+                        Button("Restore") {
+                            restore(exercise)
                         }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("restore-exercise-\(exercise.name)")
+                        .padding(.trailing, Spacing.l - 2)
                     }
-                    .onDelete { offsets in
-                        for index in offsets {
-                            restore(filteredExercises[index])
-                        }
+                    .background {
+                        RoundedRectangle(cornerRadius: Radius.large)
+                            .fill(FolderPalette.card)
+                            .stroke(FolderPalette.divider, lineWidth: 1)
                     }
                 }
             }
         }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
-        .navigationTitle("Hidden Exercises")
-        .searchable(text: $searchText, prompt: "Search hidden exercises")
     }
 
     private func restore(_ exercise: Exercise) {
@@ -619,26 +575,22 @@ private struct LibraryBrowserList<Content: View>: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 9) {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                HStack(spacing: Spacing.s) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(FolderPalette.mutedText)
                     TextField(String(localized: "Search \(NSLocalizedString(title.lowercased(), comment: ""))"), text: $searchText)
                 }
-                .padding(.horizontal, 13)
-                .frame(height: 44)
+                .padding(.horizontal, Spacing.m)
+                .frame(height: 46)
                 .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 14))
 
-                VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: Spacing.md) {
                     content
                 }
-                .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 16))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(FolderPalette.divider, lineWidth: 1)
-                }
             }
-            .padding(16)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.vertical, Spacing.l)
             .padding(.bottom, 92)
         }
         .folderScreenStyle()
@@ -656,13 +608,13 @@ private struct LibraryCategoryRow: View {
     let surface: Color
 
     var body: some View {
-        HStack(spacing: 13) {
+        HStack(spacing: Spacing.m) {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(color)
                 .frame(width: 42, height: 42)
-                .background(surface, in: RoundedRectangle(cornerRadius: 13))
-            VStack(alignment: .leading, spacing: 3) {
+                .background(surface, in: RoundedRectangle(cornerRadius: Radius.medium))
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title).font(.body.weight(.semibold))
                 Text(subtitle).font(.caption).foregroundStyle(FolderPalette.mutedText)
             }
@@ -674,9 +626,9 @@ private struct LibraryCategoryRow: View {
                 .font(.caption.weight(.bold))
                 .foregroundStyle(FolderPalette.subtleText)
         }
-        .padding(14)
-        .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 16))
-        .overlay { RoundedRectangle(cornerRadius: 16).stroke(FolderPalette.divider, lineWidth: 1) }
+        .padding(Spacing.l - 2)
+        .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: Radius.large))
+        .overlay { RoundedRectangle(cornerRadius: Radius.large).stroke(FolderPalette.divider, lineWidth: 1) }
     }
 }
 
@@ -686,24 +638,60 @@ private struct LibraryItemRow: View {
     let icon: String
     let color: Color
     let surface: Color
+    var showsCard = true
+    var showsChevron = true
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.m) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(color)
                 .frame(width: 34, height: 34)
-                .background(surface, in: RoundedRectangle(cornerRadius: 10))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.body.weight(.medium)).foregroundStyle(FolderPalette.text)
+                .background(surface, in: RoundedRectangle(cornerRadius: Radius.medium))
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(title)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(FolderPalette.text)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(2)
                 Text(subtitle).font(.caption).foregroundStyle(FolderPalette.mutedText).lineLimit(1)
             }
             Spacer()
-            Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(FolderPalette.subtleText)
+            if showsChevron {
+                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(FolderPalette.subtleText)
+            }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        .padding(.horizontal, Spacing.l - 2)
+        .padding(.vertical, showsCard ? Spacing.l - 2 : Spacing.md)
+        .background {
+            if showsCard {
+                RoundedRectangle(cornerRadius: Radius.large)
+                    .fill(FolderPalette.card)
+                    .stroke(FolderPalette.divider, lineWidth: 1)
+            }
+        }
         .contentShape(Rectangle())
+    }
+}
+
+private struct LibraryListSectionHeader: View {
+    let title: String
+    let count: Int
+
+    var body: some View {
+        HStack {
+            Text(title.uppercased())
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(FolderPalette.mutedText)
+            Spacer()
+            Text("\(count)")
+                .font(AppFont.caption)
+                .monospacedDigit()
+                .foregroundStyle(FolderPalette.subtleText)
+        }
+        .padding(.horizontal, Spacing.xxs)
+        .padding(.top, Spacing.m)
     }
 }
 
@@ -742,6 +730,11 @@ private struct RecentLibraryRow: View {
         }
         .padding(.horizontal, Spacing.l - 2)
         .padding(.vertical, Spacing.m)
+        .background {
+            RoundedRectangle(cornerRadius: Radius.large)
+                .fill(FolderPalette.card)
+                .stroke(FolderPalette.divider, lineWidth: 1)
+        }
         .contentShape(Rectangle())
     }
 }

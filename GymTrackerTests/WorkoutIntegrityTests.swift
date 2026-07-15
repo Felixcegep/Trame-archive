@@ -5,6 +5,35 @@ import XCTest
 
 @MainActor
 final class WorkoutIntegrityTests: XCTestCase {
+    func testExerciseFilteringShortCircuitsAndMatchesMuscleCriteria() {
+        let benchPress = Exercise(
+            name: "Bench Press",
+            primaryMuscles: [.middleChest],
+            equipmentType: .barbell,
+            movementPattern: .horizontalPush
+        )
+        let row = Exercise(
+            name: "Cable Row",
+            primaryMuscles: [.latissimusDorsi],
+            equipmentType: .cable,
+            movementPattern: .horizontalPull
+        )
+
+        var scalarFilter = ExerciseFilterState()
+        scalarFilter.equipment = .barbell
+        XCTAssertTrue(scalarFilter.matches(benchPress, searchText: ""))
+        XCTAssertFalse(scalarFilter.matches(row, searchText: ""))
+
+        var muscleFilter = ExerciseFilterState()
+        muscleFilter.bodyAreas = [.chest]
+        XCTAssertTrue(muscleFilter.matches(benchPress, searchText: ""))
+        XCTAssertFalse(muscleFilter.matches(row, searchText: ""))
+
+        muscleFilter.bodyAreas = []
+        XCTAssertTrue(muscleFilter.matches(benchPress, searchText: "chest"))
+        XCTAssertFalse(muscleFilter.matches(row, searchText: "chest"))
+    }
+
     func testExerciseArchiveServiceHidesBuiltInAndRestoresIt() throws {
         let context = try makeContext()
         let exercise = Exercise(name: "Built In", primaryMuscles: [.upperChest])

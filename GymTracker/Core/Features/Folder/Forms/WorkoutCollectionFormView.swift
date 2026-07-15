@@ -18,13 +18,13 @@ struct WorkoutCollectionFormView: View {
 
     var body: some View {
         Form {
-            Section("Collection") {
+            Section("Workout folder") {
                 TextField("Name", text: $name)
             }
 
-            Section("Templates") {
+            Section("Workouts") {
                 if availableTemplates.isEmpty {
-                    Text("Create a workout template first")
+                    Text("Create a saved workout first")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(availableTemplates, id: \.self) { template in
@@ -40,7 +40,7 @@ struct WorkoutCollectionFormView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("New Collection")
+        .navigationTitle("New Workout Folder")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {

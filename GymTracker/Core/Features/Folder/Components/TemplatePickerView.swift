@@ -18,7 +18,7 @@ struct TemplatePickerView: View {
     var body: some View {
         List {
             if templates.isEmpty {
-                Text("No templates to add")
+                Text("No workouts to add")
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(templates, id: \.self) { template in
@@ -52,7 +52,7 @@ struct TemplatePickerView: View {
                 }
             }
         }
-        .navigationTitle("Add Template")
+        .navigationTitle("Add Workouts")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Done") {

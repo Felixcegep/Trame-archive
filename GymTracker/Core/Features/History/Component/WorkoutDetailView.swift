@@ -92,7 +92,7 @@ struct HistoryWorkoutView: View {
             .padding(.horizontal, Spacing.m)
             .padding(.vertical, Spacing.s)
             .background(Color.gymAccentSurface, in: Capsule())
-            .accessibilityLabel("Source template: \(sourceName)")
+            .accessibilityLabel("Source workout: \(sourceName)")
     }
 
     private var sourceName: String? {

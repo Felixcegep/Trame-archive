@@ -20,7 +20,7 @@ struct PlanEditorView: View {
 
     var body: some View {
         Form {
-            Section("Plan overview") {
+            Section("Program overview") {
                 TextField("Name", text: $draft.name)
                 Picker("Goal", selection: $draft.goal) {
                     ForEach(PlanGoal.allCases, id: \.self) { goal in
@@ -63,7 +63,7 @@ struct PlanEditorView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Edit Plan")
+        .navigationTitle("Edit Program")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
@@ -121,7 +121,7 @@ private struct PlanReviewView: View {
             }
 
             Section("Schedule summary") {
-                LabeledContent("Plan", value: draft.name)
+                LabeledContent("Program", value: draft.name)
                 LabeledContent("Weeks", value: "\(draft.weeks.count)")
                 LabeledContent("Training days", value: trainingDaysText)
             }
@@ -150,7 +150,7 @@ private struct PlanReviewView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Review Plan")
+        .navigationTitle("Review Program")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Back") { dismiss() }

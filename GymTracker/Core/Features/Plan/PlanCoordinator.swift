@@ -47,7 +47,7 @@ enum PlanCoordinator {
 
         plan.blocks = [
             PlanBlock(
-                name: "Plan",
+                name: "Program",
                 phaseType: .accumulation,
                 orderIndex: 0,
                 weeks: weeks

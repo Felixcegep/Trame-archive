@@ -7,7 +7,7 @@ struct PerformanceComparisonView: View {
         if comparison.hasTargets {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 HStack {
-                    Text("Plan vs performed")
+                    Text("Program vs performed")
                         .font(AppFont.subheadlineSemibold)
                         .foregroundStyle(Color.gymText)
                     Spacer()
@@ -87,6 +87,6 @@ struct PerformanceComparisonView: View {
         let dimensions = comparison.dimensions
             .map { "\($0.name): \($0.status.title)" }
             .joined(separator: ", ")
-        return "Plan versus performed: \(comparison.overall.title). Planned: \(comparison.plannedSummary). Performed: \(comparison.performedSummary). \(dimensions)"
+        return "Program versus performed: \(comparison.overall.title). Planned: \(comparison.plannedSummary). Performed: \(comparison.performedSummary). \(dimensions)"
     }
 }

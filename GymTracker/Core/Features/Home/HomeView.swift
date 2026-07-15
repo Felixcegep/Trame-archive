@@ -149,11 +149,7 @@ struct HomeView: View {
                         endPoint: .bottomTrailing
                     )
                 } else {
-                    LinearGradient(
-                        colors: [WorkoutPalette.surface, Color.gymPrimarySurface.opacity(0.55)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+                    WorkoutPalette.surface
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -185,8 +181,8 @@ struct HomeView: View {
                         quickActionRow(
                             icon: "rectangle.stack",
                             iconColor: WorkoutPalette.primary,
-                            title: "Use a Template",
-                            detail: "Follow a saved structure"
+                            title: "Use a Saved Workout",
+                            detail: "Follow a reusable session"
                         )
                     }
                     .buttonStyle(.plain)
@@ -250,7 +246,7 @@ struct HomeView: View {
                         .font(AppFont.headline)
                         .frame(width: 38, height: 38)
                         .foregroundStyle(WorkoutPalette.accent)
-                        .background(WorkoutPalette.surface)
+                        .background(WorkoutPalette.accent.opacity(0.12))
                         .clipShape(Circle())
 
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -263,10 +259,10 @@ struct HomeView: View {
                 }
                 .padding(Spacing.m)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(WorkoutPalette.accentSurface)
+                .background(WorkoutPalette.surface)
                 .overlay {
                     RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                        .stroke(WorkoutPalette.accent.opacity(0.14), lineWidth: 1)
+                        .stroke(WorkoutPalette.border, lineWidth: 1)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                 .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)
@@ -407,7 +403,7 @@ struct HomeView: View {
 
     private var primaryCardHint: String {
         if workoutVM.hasActiveWorkout { return "Returns to your active workout." }
-        if activePlanProgress != nil { return "Starts the next workout in your active plan." }
+        if activePlanProgress != nil { return "Starts the next workout in your active program." }
         return "Starts a blank workout."
     }
 
@@ -428,9 +424,9 @@ private struct SavedWorkoutTemplatePicker: View {
         List {
             if templates.isEmpty {
                 ContentUnavailableView(
-                    "No saved templates",
+                    "No saved workouts",
                     systemImage: "rectangle.stack.badge.plus",
-                    description: Text("Create a workout template in Library, then start it from here.")
+                    description: Text("Create a saved workout in Library, then start it from here.")
                 )
                 .listRowBackground(Color.clear)
             } else {
@@ -443,9 +439,10 @@ private struct SavedWorkoutTemplatePicker: View {
                             VStack(alignment: .leading, spacing: Spacing.xs) {
                                 Text(template.name)
                                     .font(AppFont.subheadlineBold)
+                                    .foregroundStyle(Color.gymText)
                                 Text("\(template.exercises.count) exercises")
                                     .font(AppFont.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(WorkoutPalette.subduedText)
                             }
 
                             Spacer()
@@ -457,11 +454,14 @@ private struct SavedWorkoutTemplatePicker: View {
                     }
                     .disabled(template.exercises.isEmpty)
                     .accessibilityIdentifier("workout-template-\(template.name)")
-                    .accessibilityHint(template.exercises.isEmpty ? "Add an exercise before starting this template." : "Starts a new workout using this template.")
+                    .accessibilityHint(template.exercises.isEmpty ? "Add an exercise before starting this workout." : "Starts a new session from this saved workout.")
+                    .listRowBackground(Color.gymCard)
                 }
             }
         }
-        .navigationTitle("Start from template")
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
+        .navigationTitle("Start a saved workout")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {

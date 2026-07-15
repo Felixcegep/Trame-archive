@@ -58,7 +58,7 @@ struct HistoryMuscleBalanceView: View {
 
                         summariesSection
                     }
-                    .padding(.horizontal, Spacing.l)
+                    .padding(.horizontal, Spacing.xl)
                     .padding(.top, Spacing.l)
                     .padding(.bottom, Spacing.xxxl)
                 }

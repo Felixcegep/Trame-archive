@@ -85,21 +85,28 @@ struct ExerciseFilterState: Equatable {
 
     func matches(_ exercise: Exercise, searchText: String) -> Bool {
         let normalizedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let matchesSearch = normalizedSearch.isEmpty || searchTerms(for: exercise)
-            .contains { $0.localizedCaseInsensitiveContains(normalizedSearch) }
-        let matchesFocus = focus.map { matches($0, exercise: exercise) } ?? true
-        let matchesBodyArea = bodyAreas.isEmpty || bodyAreas.contains { $0.matches(exercise.allMuscles) }
-        let matchesMovement = movementPatterns.isEmpty || movementPatterns.contains(exercise.movementPattern ?? .other)
-        let matchesEquipment = equipment == nil || exercise.equipmentType == equipment
-        let matchesCategory = category == nil || exercise.displayCategory == category
-        let matchesDifficulty = difficulty == nil || exercise.displayDifficulty == difficulty
-        let matchesTracking = tracking == nil || exercise.trackingType == tracking
-        let matchesFavorites = !favoritesOnly || exercise.isFavorite
+        if let equipment, exercise.equipmentType != equipment { return false }
+        if let category, exercise.displayCategory != category { return false }
+        if let difficulty, exercise.displayDifficulty != difficulty { return false }
+        if let tracking, exercise.trackingType != tracking { return false }
+        if favoritesOnly && !exercise.isFavorite { return false }
 
-        return matchesSearch && matchesFocus && matchesBodyArea && matchesMovement && matchesEquipment && matchesCategory && matchesDifficulty && matchesTracking && matchesFavorites
+        let needsMuscles = !normalizedSearch.isEmpty || focus != nil || !bodyAreas.isEmpty
+        let allMuscles = needsMuscles ? exercise.allMuscles : []
+
+        if !normalizedSearch.isEmpty,
+           !searchTerms(for: exercise, allMuscles: allMuscles)
+            .contains(where: { $0.localizedCaseInsensitiveContains(normalizedSearch) }) {
+            return false
+        }
+        if let focus, !matches(focus, exercise: exercise, allMuscles: allMuscles) { return false }
+        if !bodyAreas.isEmpty && !bodyAreas.contains(where: { $0.matches(allMuscles) }) { return false }
+        if !movementPatterns.isEmpty && !movementPatterns.contains(exercise.movementPattern ?? .other) { return false }
+
+        return true
     }
 
-    private func searchTerms(for exercise: Exercise) -> [String] {
+    private func searchTerms(for exercise: Exercise, allMuscles: [Muscle]) -> [String] {
         [
             exercise.name,
             exercise.displayCategory.rawValue,
@@ -108,29 +115,29 @@ struct ExerciseFilterState: Equatable {
             exercise.movementPattern?.rawValue ?? ""
         ]
         + exercise.tags
-        + exercise.allMuscles.map(\.displayName)
+        + allMuscles.map(\.displayName)
     }
 
-    private func matches(_ focus: ExerciseFocus, exercise: Exercise) -> Bool {
+    private func matches(_ focus: ExerciseFocus, exercise: Exercise, allMuscles: [Muscle]) -> Bool {
         switch focus {
         case .push:
             return matchesPattern(exercise, [.horizontalPush, .verticalPush])
-                || ExerciseBodyArea.chest.matches(exercise.allMuscles)
-                || ExerciseBodyArea.shoulders.matches(exercise.allMuscles)
-                || exercise.allMuscles.contains(where: { [.tricepLongHead, .tricepLateralHead, .tricepMedialHead].contains($0) })
+                || ExerciseBodyArea.chest.matches(allMuscles)
+                || ExerciseBodyArea.shoulders.matches(allMuscles)
+                || allMuscles.contains(where: { [.tricepLongHead, .tricepLateralHead, .tricepMedialHead].contains($0) })
         case .pull:
             return matchesPattern(exercise, [.horizontalPull, .verticalPull])
-                || ExerciseBodyArea.back.matches(exercise.allMuscles)
-                || exercise.allMuscles.contains(where: { [.rearDeltoid, .bicep, .brachialis, .brachioradialis, .forearms].contains($0) })
+                || ExerciseBodyArea.back.matches(allMuscles)
+                || allMuscles.contains(where: { [.rearDeltoid, .bicep, .brachialis, .brachioradialis, .forearms].contains($0) })
         case .legs:
             return matchesPattern(exercise, [.squat, .hinge, .lunge])
-                || ExerciseBodyArea.glutes.matches(exercise.allMuscles)
-                || ExerciseBodyArea.quadriceps.matches(exercise.allMuscles)
-                || ExerciseBodyArea.hamstrings.matches(exercise.allMuscles)
-                || ExerciseBodyArea.calves.matches(exercise.allMuscles)
-                || ExerciseBodyArea.hips.matches(exercise.allMuscles)
+                || ExerciseBodyArea.glutes.matches(allMuscles)
+                || ExerciseBodyArea.quadriceps.matches(allMuscles)
+                || ExerciseBodyArea.hamstrings.matches(allMuscles)
+                || ExerciseBodyArea.calves.matches(allMuscles)
+                || ExerciseBodyArea.hips.matches(allMuscles)
         case .core:
-            return matchesPattern(exercise, [.rotation, .antiRotation]) || ExerciseBodyArea.core.matches(exercise.allMuscles)
+            return matchesPattern(exercise, [.rotation, .antiRotation]) || ExerciseBodyArea.core.matches(allMuscles)
         case .cardio:
             return exercise.displayCategory == .cardio
         }

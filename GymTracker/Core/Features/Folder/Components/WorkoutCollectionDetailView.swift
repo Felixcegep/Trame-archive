@@ -19,9 +19,9 @@ struct WorkoutCollectionDetailView: View {
 
     var body: some View {
         List {
-            Section("Templates") {
+            Section("Workouts") {
                 if collection.workoutTemplates.isEmpty {
-                    Text("No templates in this collection")
+                    Text("No workouts in this folder")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(collection.workoutTemplates, id: \.self) { template in
@@ -39,6 +39,8 @@ struct WorkoutCollectionDetailView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle(collection.name)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

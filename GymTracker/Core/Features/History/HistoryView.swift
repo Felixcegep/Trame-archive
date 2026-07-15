@@ -21,7 +21,6 @@ struct HistoryView: View {
             if completedWorkouts.isEmpty {
                 ContentUnavailableView {
                     Label("No Workout History", systemImage: AppIcon.history)
-                        .foregroundStyle(Color.gymAccent)
                 } description: {
                     Text("Completed workouts will appear here.")
                 } actions: {
@@ -40,7 +39,7 @@ struct HistoryView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .padding(.horizontal, Spacing.l)
+                    .padding(.horizontal, Spacing.xl)
                     .padding(.vertical, Spacing.m)
 
                     switch selectedTab {
@@ -275,7 +274,7 @@ private struct HistoryProgressView: View {
                     }
                 }
             }
-            .padding(.horizontal, Spacing.l)
+            .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.l)
         }
         .background(Color.gymBackground)
@@ -510,7 +509,7 @@ private struct HistoryRecordsView: View {
                     }
                 }
             }
-            .padding(.horizontal, Spacing.l)
+            .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.l)
         }
         .background(Color.gymBackground)
