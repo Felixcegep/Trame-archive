@@ -1396,4 +1396,214 @@ final class WorkoutIntegrityTests: XCTestCase {
             setType: .normal
         )
     }
+
+    func testBackupExportKeysRemainUnchanged() throws {
+        let exercise = ExerciseTemplateDTO(
+            name: "Bench Press",
+            primaryMuscles: ["chest"],
+            secondaryMuscles: ["triceps"],
+            category: "strength",
+            trackingType: "weight",
+            equipmentType: "barbell",
+            resistanceType: nil,
+            movementPattern: nil,
+            difficulty: "intermediate",
+            tags: ["heavy"],
+            isFavorite: true,
+            isPlateLoaded: true,
+            isCustom: true,
+            isArchived: false
+        )
+        let set = ExerciseSetDTO(
+            orderIndex: 0,
+            weightType: "kg",
+            distanceType: "km",
+            repetition: 8,
+            weight: 100,
+            duration: 60.0,
+            distance: nil,
+            done: true,
+            rpe: 8,
+            setType: "normal",
+            usedMetric: "metric"
+        )
+        let entry = ExerciseEntryDTO(
+            orderIndex: 0,
+            comment: "good set",
+            exerciseName: "Bench Press",
+            usedMetric: "metric",
+            sets: [set],
+            prescribedSets: 3,
+            prescribedRepRangeMinimum: 6,
+            prescribedRepRangeMaximum: 8,
+            prescribedRestSeconds: 90,
+            prescribedRPE: 8.0,
+            prescribedRIR: nil,
+            prescriptionNotes: "heavy",
+            sourcePlannedExerciseID: nil,
+            prescribedRole: "main",
+            isPrescribedOptional: false,
+            prescribedSuggestedLoad: nil,
+            prescribedSuggestedLoadType: nil,
+            prescribedProgressionRule: "doubleProgression",
+            recommendedDecision: "increase",
+            recommendedLoad: 102.5,
+            recommendedUnit: "kg",
+            recommendationPriorLoad: 100.0,
+            recommendationRequiredSets: 3,
+            recommendationRepCeiling: 8,
+            recommendationCompletedSets: 3,
+            recommendationPriorWorkoutDate: Date(),
+            accumulatedActiveDuration: 120.0,
+            activeDurationStartedAt: Date()
+        )
+        let workout = WorkoutDTO(
+            id: UUID().uuidString,
+            status: "completed",
+            name: "My Workout",
+            notes: "heavy day",
+            startTime: Date(),
+            endTime: Date(),
+            restEndDate: nil,
+            pausedRemainingTime: nil,
+            sourceTemplateName: "My Template",
+            sourcePlanID: nil,
+            sourcePlanRunID: nil,
+            sourcePlanBlockID: nil,
+            sourcePlanWeekID: nil,
+            sourcePlannedWorkoutID: nil,
+            sourcePlanName: nil,
+            exercises: [entry]
+        )
+        let backup = BackupDTO(
+            version: 2,
+            preferences: PreferencesDTO(darkMode: true, restTimer: 90, unitSystem: "metric"),
+            exercises: [exercise],
+            templates: [
+                WorkoutTemplateDTO(
+                    name: "My Template",
+                    templateExercises: [
+                        TemplateExerciseDTO(
+                            exerciseName: "Bench Press",
+                            orderIndex: 0,
+                            targetSets: 3,
+                            repRangeMinimum: 6,
+                            repRangeMaximum: 8,
+                            restSeconds: 90,
+                            targetRPE: 8.0,
+                            targetRIR: nil,
+                            notes: "Focus",
+                            progressionRule: "doubleProgression"
+                        )
+                    ]
+                )
+            ],
+            collections: [
+                WorkoutCollectionDTO(
+                    name: "My Collection",
+                    templateNames: ["My Template"]
+                )
+            ],
+            workouts: [workout]
+        )
+
+        let encoded = try JSONEncoder().encode(backup)
+        let jsonObject = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+
+        // Verify root keys
+        XCTAssertEqual(jsonObject["version"] as? Int, 2)
+        let preferences = try XCTUnwrap(jsonObject["preferences"] as? [String: Any])
+        XCTAssertEqual(preferences["darkMode"] as? Bool, true)
+        XCTAssertEqual(preferences["restTimer"] as? Int, 90)
+        XCTAssertEqual(preferences["unitSystem"] as? String, "metric")
+
+        // Verify exercises
+        let exercises = try XCTUnwrap(jsonObject["exercises"] as? [[String: Any]])
+        let firstEx = try XCTUnwrap(exercises.first)
+        XCTAssertEqual(firstEx["name"] as? String, "Bench Press")
+        XCTAssertEqual(firstEx["primaryMuscles"] as? [String], ["chest"])
+        XCTAssertEqual(firstEx["secondaryMuscles"] as? [String], ["triceps"])
+        XCTAssertEqual(firstEx["isPlateLoaded"] as? Bool, true)
+
+        // Verify templates
+        let templates = try XCTUnwrap(jsonObject["templates"] as? [[String: Any]])
+        let firstTemp = try XCTUnwrap(templates.first)
+        XCTAssertEqual(firstTemp["name"] as? String, "My Template")
+        let tempExs = try XCTUnwrap(firstTemp["templateExercises"] as? [[String: Any]])
+        let firstTempEx = try XCTUnwrap(tempExs.first)
+        XCTAssertEqual(firstTempEx["exerciseName"] as? String, "Bench Press")
+        XCTAssertEqual(firstTempEx["progressionRule"] as? String, "doubleProgression")
+
+        // Verify collections
+        let collections = try XCTUnwrap(jsonObject["collections"] as? [[String: Any]])
+        let firstColl = try XCTUnwrap(collections.first)
+        XCTAssertEqual(firstColl["name"] as? String, "My Collection")
+        XCTAssertEqual(firstColl["templateNames"] as? [String], ["My Template"])
+
+        // Verify workouts
+        let workouts = try XCTUnwrap(jsonObject["workouts"] as? [[String: Any]])
+        let firstWorkout = try XCTUnwrap(workouts.first)
+        XCTAssertEqual(firstWorkout["name"] as? String, "My Workout")
+        let workoutExs = try XCTUnwrap(firstWorkout["exercises"] as? [[String: Any]])
+        let firstWorkoutEx = try XCTUnwrap(workoutExs.first)
+        XCTAssertEqual(firstWorkoutEx["exerciseName"] as? String, "Bench Press")
+        XCTAssertEqual(firstWorkoutEx["comment"] as? String, "good set")
+        let workoutSets = try XCTUnwrap(firstWorkoutEx["sets"] as? [[String: Any]])
+        let firstWorkoutSet = try XCTUnwrap(workoutSets.first)
+        XCTAssertEqual(firstWorkoutSet["repetition"] as? Float, 8)
+        XCTAssertEqual(firstWorkoutSet["weight"] as? Float, 100)
+    }
+
+    func testWorkoutTemplateSeedingAndCollectionCreation() throws {
+        let context = try makeContext()
+        let exercises = ExerciseSeedData.templates()
+        for exercise in exercises {
+            context.insert(exercise)
+        }
+        try context.save()
+
+        let seededTemplates = WorkoutTemplateSeedData.templates(using: exercises)
+        XCTAssertEqual(seededTemplates.count, 4)
+
+        let expectedNames = [
+            "Jour 1 - Bas du Corps (Squat/Genoux)",
+            "Jour 2 - Haut du Corps (Poussée/Tirage)",
+            "Jour 3 - Bas du Corps (Chaîne Postérieure)",
+            "Jour 4 - Haut du Corps (Poussée Verticale/Tirage)"
+        ]
+        XCTAssertEqual(seededTemplates.map(\.name), expectedNames)
+
+        for template in seededTemplates {
+            context.insert(template)
+        }
+        try context.save()
+
+        let templates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
+        let programTemplates = templates.filter { $0.name.starts(with: "Jour ") }
+        XCTAssertEqual(programTemplates.count, 4)
+
+        let sortedTemplates = programTemplates.sorted { $0.name < $1.name }
+        let collection = WorkoutCollection(name: "Programme Haut/Bas - 4 Jours", workoutTemplates: sortedTemplates)
+        context.insert(collection)
+        try context.save()
+
+        let fetchedCollections = try context.fetch(FetchDescriptor<WorkoutCollection>())
+        XCTAssertEqual(fetchedCollections.count, 1)
+        let firstCollection = try XCTUnwrap(fetchedCollections.first)
+        XCTAssertEqual(firstCollection.name, "Programme Haut/Bas - 4 Jours")
+        XCTAssertEqual(Set(firstCollection.workoutTemplates.map(\.name)), Set(expectedNames))
+
+        let existingTemplates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
+        let existingNames = Set(existingTemplates.map(\.name))
+
+        for template in WorkoutTemplateSeedData.templates(using: exercises) where !existingNames.contains(template.name) {
+            context.insert(template)
+        }
+        try context.save()
+
+        let afterReSeedTemplates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
+        XCTAssertEqual(afterReSeedTemplates.count, 4)
+    }
 }
