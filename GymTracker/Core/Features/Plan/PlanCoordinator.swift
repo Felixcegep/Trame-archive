@@ -113,7 +113,7 @@ enum PlanCoordinator {
             progress.status = .upcoming
         }
 
-        if let next = unfinished.first {
+        if let next = unfinished.sorted(by: isOrderedByAvailability).first {
             next.status = .available
             run.currentWeekIndex = next.weekIndex
             run.currentWorkoutIndex = next.workoutIndex
@@ -129,6 +129,35 @@ enum PlanCoordinator {
             .first(where: { $0.weekIndex == progress.weekIndex })?
             .orderedPlannedWorkouts
             .first(where: { $0.id == progress.plannedWorkoutID })
+    }
+
+    static func nextProgress(in run: PlanRun) -> PlanWorkoutProgress? {
+        run.orderedWorkoutProgress.first { $0.status == .available || $0.status == .inProgress }
+    }
+
+    /// Moves an available or upcoming session to a new scheduled day and
+    /// recomputes which session is next. Completed, skipped, and in-progress
+    /// sessions are locked because they no longer represent future work.
+    @discardableResult
+    static func reschedule(_ progress: PlanWorkoutProgress, to date: Date, in run: PlanRun) -> Bool {
+        guard progress.status == .available || progress.status == .upcoming else { return false }
+        progress.scheduledDate = Calendar.current.startOfDay(for: date)
+        refreshAvailability(for: run)
+        return true
+    }
+
+    /// Orders sessions by scheduled date first so rescheduling can promote or
+    /// demote a session; sessions sharing a date fall back to plan order.
+    private static func isOrderedByAvailability(_ lhs: PlanWorkoutProgress, _ rhs: PlanWorkoutProgress) -> Bool {
+        let lhsDate = lhs.scheduledDate ?? .distantFuture
+        let rhsDate = rhs.scheduledDate ?? .distantFuture
+        if lhsDate != rhsDate {
+            return lhsDate < rhsDate
+        }
+        if lhs.weekIndex != rhs.weekIndex {
+            return lhs.weekIndex < rhs.weekIndex
+        }
+        return lhs.workoutIndex < rhs.workoutIndex
     }
 
     static func markCompleted(_ progress: PlanWorkoutProgress, with workout: Workout, in run: PlanRun) {

@@ -76,6 +76,8 @@ struct PlanDetailView: View {
     @State private var isShowingArchiveConfirmation = false
     @State private var isShowingEditor = false
     @State private var startDate = Date.now
+    @State private var reschedulingProgress: PlanWorkoutProgress?
+    @State private var rescheduleDate = Date.now
 
     var body: some View {
         List {
@@ -150,6 +152,7 @@ struct PlanDetailView: View {
             ForEach(plan.orderedWeeks) { week in
                 Section("Week \(week.weekIndex + 1)") {
                     ForEach(week.orderedPlannedWorkouts) { workout in
+                        let progress = progress(for: workout)
                         HStack(spacing: Spacing.s) {
                             VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text(workout.name)
@@ -157,10 +160,27 @@ struct PlanDetailView: View {
                                 Text("Day \(workout.dayOffset + 1) · \(workout.orderedPlannedExercises.count) exercises")
                                     .font(AppFont.caption)
                                     .foregroundStyle(.secondary)
+                                if let scheduledDate = progress?.scheduledDate {
+                                    Text(scheduledDate.formatted(date: .abbreviated, time: .omitted))
+                                        .font(AppFont.caption)
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityIdentifier("planned-workout-date-\(workout.id)")
+                                }
                             }
                             Spacer()
-                            if let progress = progress(for: workout) {
+                            if let progress {
                                 planWorkoutStatus(progress)
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            if let progress, canReschedule(progress) {
+                                Button {
+                                    beginReschedule(progress)
+                                } label: {
+                                    Label("Reschedule", systemImage: AppIcon.reschedule)
+                                }
+                                .tint(Color.gymAccent)
+                                .accessibilityIdentifier("reschedule-planned-workout-\(workout.id)")
                             }
                         }
                     }
@@ -205,6 +225,28 @@ struct PlanDetailView: View {
                 PlanEditorView(plan: plan)
             }
         }
+        .sheet(item: $reschedulingProgress) { progress in
+            NavigationStack {
+                Form {
+                    DatePicker("Scheduled date", selection: $rescheduleDate, displayedComponents: .date)
+                }
+                .navigationTitle("Reschedule")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { reschedulingProgress = nil }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            guard let run = currentRun else { return }
+                            PlanCoordinator.reschedule(progress, to: rescheduleDate, in: run)
+                            saveModelContext(modelContext)
+                            reschedulingProgress = nil
+                        }
+                        .accessibilityIdentifier("confirm-reschedule")
+                    }
+                }
+            }
+        }
         .confirmationDialog(
             "Archive this plan run?",
             isPresented: $isShowingArchiveConfirmation,
@@ -233,7 +275,16 @@ struct PlanDetailView: View {
     }
 
     private func nextProgress(in run: PlanRun) -> PlanWorkoutProgress? {
-        run.orderedWorkoutProgress.first { $0.status == .available || $0.status == .inProgress }
+        PlanCoordinator.nextProgress(in: run)
+    }
+
+    private func canReschedule(_ progress: PlanWorkoutProgress) -> Bool {
+        progress.status == .available || progress.status == .upcoming
+    }
+
+    private func beginReschedule(_ progress: PlanWorkoutProgress) {
+        rescheduleDate = progress.scheduledDate ?? .now
+        reschedulingProgress = progress
     }
 
     @ViewBuilder
