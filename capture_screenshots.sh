@@ -43,6 +43,9 @@ Scenes:
   performance            Planned-versus-performed save and history feedback
   template-progression   Template progression controls
   plan-review            Per-day assignments and plan change review
+  hidden                 Hidden and archived exercise management
+  exercise-insights      Per-exercise history and progression insights
+  muscle-balance        Estimated weekly muscle-group balance
 
 Options:
   list                   Print every scene and its screenshot paths
@@ -67,6 +70,9 @@ tests_for_scene() {
     performance) echo "testCapturePerformanceComparisonScreenshots" ;;
     template-progression) echo "testCaptureTemplateProgressionScreenshot" ;;
     plan-review) echo "testCapturePlanReviewScreenshot testCaptureActivePlanRunScreenshot" ;;
+    hidden) echo "testCaptureHiddenExercisesScreenshot" ;;
+    exercise-insights) echo "testCaptureExerciseDetailInsightsScreenshot" ;;
+    muscle-balance) echo "testCaptureMuscleBalanceScreenshot" ;;
     *) return 1 ;;
   esac
 }
@@ -82,11 +88,14 @@ files_for_scene() {
     performance) echo "review/14_Save_Performance_Comparison.png history/15_History_Performance_Comparison.png" ;;
     template-progression) echo "templates/12_Template_Progression.png" ;;
     plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13_Plan_Review.png plans/13b_Plan_Active_Run.png" ;;
+    hidden) echo "exercises/16_Hidden_Exercises.png" ;;
+    exercise-insights) echo "exercises/17_Exercise_Insights.png" ;;
+    muscle-balance) echo "history/16_Muscle_Balance.png" ;;
     *) return 1 ;;
   esac
 }
 
-ALL_SCENES="overview pages active rest history recommendation performance template-progression plan-review"
+ALL_SCENES="overview pages active rest history recommendation performance template-progression plan-review hidden exercise-insights muscle-balance"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 

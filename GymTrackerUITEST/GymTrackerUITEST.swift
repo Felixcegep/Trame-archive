@@ -376,6 +376,33 @@ final class GymTrackerUITEST: XCTestCase {
         assertLibrarySearchResult("Cable Chest Press", in: app)
     }
 
+    func testCaptureHiddenExercisesScreenshot() {
+        let app = launchFreshApp()
+        selectTab(.library, in: app)
+
+        let exercises = app.staticTexts["Exercises"].firstMatch
+        XCTAssertTrue(exercises.waitForExistence(timeout: 5))
+        exercises.tap()
+
+        let benchPress = app.buttons["exercise-row-Bench Press"]
+        XCTAssertTrue(benchPress.waitForExistence(timeout: 5))
+        benchPress.swipeLeft()
+        tapButton("Hide", in: app)
+
+        let hiddenExercises = app.buttons["hidden-exercises"]
+        XCTAssertTrue(hiddenExercises.waitForExistence(timeout: 5))
+        hiddenExercises.tap()
+        XCTAssertTrue(app.navigationBars["Hidden Exercises"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["restore-exercise-Bench Press"].exists)
+        let historyNote = app.staticTexts.containing(
+            NSPredicate(format: "label CONTAINS %@", "History remains unchanged")
+        ).firstMatch
+        XCTAssertTrue(historyNote.exists)
+
+        saveScreenshot("exercises/16_Hidden_Exercises")
+    }
+
     func testCreatesWorkoutTemplate() {
         let app = launchFreshApp()
         app.tabBars.buttons.element(boundBy: 1).tap()
@@ -789,6 +816,37 @@ final class GymTrackerUITEST: XCTestCase {
         saveScreenshot("history/10_History_With_Workout")
         app.buttons["history-workout-row"].firstMatch.tap()
         saveScreenshot("history/11_History_Detail")
+    }
+
+    func testCaptureExerciseDetailInsightsScreenshot() {
+        let app = launchFixture("exercise-insights", expectsActiveWorkout: false)
+
+        selectTab(.library, in: app)
+        let exercisesBrowser = app.staticTexts["Exercises"].firstMatch
+        XCTAssertTrue(exercisesBrowser.waitForExistence(timeout: 5))
+        exercisesBrowser.tap()
+
+        tapButton("exercise-row-Bench Press", in: app)
+        tapButton("exercise-stats", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-content"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-last-session"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-volume"].exists)
+
+        saveScreenshot("exercises/17_Exercise_Insights")
+    }
+
+    func testCaptureMuscleBalanceScreenshot() {
+        let app = launchFixture("muscle-balance", expectsActiveWorkout: false)
+        selectTab(.history, in: app)
+
+        let balanceTab = app.buttons["Balance"]
+        XCTAssertTrue(balanceTab.waitForExistence(timeout: 5))
+        balanceTab.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["muscle-balance-content"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["muscle-balance-chart"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["muscle-balance-callouts"].exists)
+
+        saveScreenshot("history/16_Muscle_Balance")
     }
 
     func testCaptureIncreaseRecommendationScreenshots() {

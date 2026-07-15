@@ -390,9 +390,7 @@ struct HomeView: View {
 
     private var activePlanProgress: PlanWorkoutProgress? {
         guard let activePlanRun else { return nil }
-        return activePlanRun.orderedWorkoutProgress.first {
-            $0.status == .available || $0.status == .inProgress
-        }
+        return PlanCoordinator.nextProgress(in: activePlanRun)
     }
 
     private var primaryCardLabel: LocalizedStringKey {

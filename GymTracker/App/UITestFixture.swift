@@ -14,6 +14,8 @@ enum UITestFixture: String {
     case activeRestPaused = "active-rest-paused"
     case activeRestReady = "active-rest-ready"
     case historyBench = "history-bench"
+    case exerciseInsights = "exercise-insights"
+    case muscleBalance = "muscle-balance"
     case progressionIncrease = "progression-increase"
     case progressionHold = "progression-hold"
     case progressionInsufficientHistory = "progression-insufficient-history"
@@ -37,7 +39,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .homeActiveConflict, .planActiveRun, .backupImportTarget:
+        case .historyBench, .exerciseInsights, .muscleBalance, .homeActiveConflict, .planActiveRun, .backupImportTarget:
             false
         default:
             true
@@ -70,6 +72,10 @@ enum UITestFixture: String {
             try makeRestWorkout(state: .ready, using: context)
         case .historyBench:
             try makeCompletedBenchHistory(using: context)
+        case .exerciseInsights:
+            try makeExerciseInsightsHistory(using: context)
+        case .muscleBalance:
+            try makeMuscleBalanceHistory(using: context)
         case .progressionIncrease:
             try makeProgressionWorkout(decision: .increase, using: context)
         case .progressionHold:
@@ -145,6 +151,65 @@ enum UITestFixture: String {
         workout.startTime = Date.now.addingTimeInterval(-7_200)
         workout.exercises = [entry]
         context.insert(workout)
+        try context.save()
+    }
+
+    private static func makeExerciseInsightsHistory(using context: ModelContext) throws {
+        let olderDate = Date.now.addingTimeInterval(-14 * 86_400)
+        let recentDate = Date.now.addingTimeInterval(-3 * 86_400)
+
+        let olderEntry = try completedExerciseEntry(named: "Bench Press", using: context)
+        olderEntry.Comment = "Paused the last rep and kept the bar path steady."
+        for (index, set) in olderEntry.orderedSets.enumerated() {
+            set.weight = 45
+            set.repetition = Float(8 + min(index, 1))
+        }
+        let olderWorkout = Workout(nom: "Older Bench Session", endTime: olderDate.addingTimeInterval(3_600))
+        olderWorkout.startTime = olderDate
+        olderWorkout.exercises = [olderEntry]
+
+        let recentEntry = try completedExerciseEntry(named: "Bench Press", using: context)
+        recentEntry.Comment = "Add a small amount next time if all sets reach 10 reps."
+        for (index, set) in recentEntry.orderedSets.enumerated() {
+            set.weight = 50
+            set.repetition = Float(8 - min(index, 1))
+        }
+        let recentWorkout = Workout(nom: "Recent Bench Session", endTime: recentDate.addingTimeInterval(3_600))
+        recentWorkout.startTime = recentDate
+        recentWorkout.exercises = [recentEntry]
+
+        context.insert(olderWorkout)
+        context.insert(recentWorkout)
+        try context.save()
+    }
+
+    private static func makeMuscleBalanceHistory(using context: ModelContext) throws {
+        let olderWorkout = Workout(nom: "Lower Balance", endTime: Date.now.addingTimeInterval(-70 * 86_400))
+        olderWorkout.startTime = Date.now.addingTimeInterval(-71 * 86_400)
+        olderWorkout.exercises = [
+            try completedExerciseEntry(named: "Deadlift", using: context),
+            try completedExerciseEntry(named: "Bench Press", using: context)
+        ]
+
+        let previousWorkout = Workout(nom: "Lower Balance", endTime: Date.now.addingTimeInterval(-63 * 86_400))
+        previousWorkout.startTime = Date.now.addingTimeInterval(-64 * 86_400)
+        previousWorkout.exercises = [try completedExerciseEntry(named: "Deadlift", using: context)]
+
+        let recentWorkout = Workout(nom: "Upper Balance", endTime: Date.now.addingTimeInterval(-14 * 86_400))
+        recentWorkout.startTime = Date.now.addingTimeInterval(-15 * 86_400)
+        recentWorkout.exercises = [
+            try completedExerciseEntry(named: "Bench Press", using: context),
+            try completedExerciseEntry(named: "Back Squat", using: context)
+        ]
+
+        let latestWorkout = Workout(nom: "Upper Balance", endTime: Date.now.addingTimeInterval(-3 * 86_400))
+        latestWorkout.startTime = Date.now.addingTimeInterval(-4 * 86_400)
+        latestWorkout.exercises = [try completedExerciseEntry(named: "Bench Press", using: context)]
+
+        context.insert(olderWorkout)
+        context.insert(previousWorkout)
+        context.insert(recentWorkout)
+        context.insert(latestWorkout)
         try context.save()
     }
 
