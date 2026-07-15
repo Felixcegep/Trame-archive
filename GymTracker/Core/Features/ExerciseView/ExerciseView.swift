@@ -1,5 +1,5 @@
 //
-//  ExerciceView.swift
+//  ExerciseView.swift
 //  GymTracker
 //
 //  Created by Felix Lachapelle on 2026-07-03.
@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 import SwiftData
 
-struct ExerciceDetailSnapshot {
+struct ExerciseDetailSnapshot {
     let name: String
     let primaryMuscles: [Muscle]
     let secondaryMuscles: [Muscle]
@@ -35,12 +35,12 @@ struct ExerciceDetailSnapshot {
     }
 }
 
-struct ExerciceView : View {
+struct ExerciseView : View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     private let editableExercise: Exercise?
-    private let snapshot: ExerciceDetailSnapshot?
+    private let snapshot: ExerciseDetailSnapshot?
     @State private var isShowingEditor = false
     @State private var isShowingInsights = false
 
@@ -49,14 +49,14 @@ struct ExerciceView : View {
         snapshot = nil
     }
 
-    init(exercise: ExerciceDetailSnapshot) {
+    init(exercise: ExerciseDetailSnapshot) {
         editableExercise = nil
         snapshot = exercise
     }
 
-    private var exercise: ExerciceDetailSnapshot {
+    private var exercise: ExerciseDetailSnapshot {
         if let editableExercise {
-            return ExerciceDetailSnapshot(exercise: editableExercise)
+            return ExerciseDetailSnapshot(exercise: editableExercise)
         }
         return snapshot!
     }

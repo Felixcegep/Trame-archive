@@ -1,5 +1,5 @@
 //
-//  ExerciceLibrairyView.swift
+//  ExerciseLibraryView.swift
 //  GymTracker
 //
 //  Created by Felix Lachapelle on 2026-07-02.
@@ -8,7 +8,7 @@
 import SwiftUI
 import SwiftData
 
-struct ExerciceLibrairyView : View {
+struct ExerciseLibraryView : View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     
@@ -149,7 +149,7 @@ private struct ExerciseLibrarySelectionRow: View {
             .accessibilityValue(isSelected ? "Selected" : "Not selected")
         }
         .navigationDestination(isPresented: $isShowingDetails) {
-            ExerciceView(exercise: exercise)
+            ExerciseView(exercise: exercise)
         }
     }
 }

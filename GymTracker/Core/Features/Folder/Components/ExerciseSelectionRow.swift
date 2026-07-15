@@ -11,19 +11,19 @@ struct ExerciseSelectionRow: View {
     let exercise: Exercise
     let isSelected: Bool
     let onSelect: () -> Void
-    private let exerciseDetail: ExerciceDetailSnapshot
+    private let exerciseDetail: ExerciseDetailSnapshot
 
     init(exercise: Exercise, isSelected: Bool, onSelect: @escaping () -> Void) {
         self.exercise = exercise
         self.isSelected = isSelected
         self.onSelect = onSelect
-        self.exerciseDetail = ExerciceDetailSnapshot(exercise: exercise)
+        self.exerciseDetail = ExerciseDetailSnapshot(exercise: exercise)
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.s) {
             NavigationLink {
-                ExerciceView(exercise: exerciseDetail)
+                ExerciseView(exercise: exerciseDetail)
             } label: {
                 HStack(alignment: .top, spacing: Spacing.m) {
                     VStack(alignment: .leading, spacing: Spacing.xs) {

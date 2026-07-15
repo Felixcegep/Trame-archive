@@ -90,7 +90,7 @@ struct ActiveWorkoutView: View {
         }
         .sheet(isPresented: $isShowingExercisePicker) {
             NavigationStack {
-                ExerciceLibrairyView(
+                ExerciseLibraryView(
                     isSelectingExercise: true,
                     availableExercises: exerciseTemplates,
                     selectedExerciseNames: Set(viewModel.activeWorkout?.orderedExercises.map(\.exercise.name) ?? []),

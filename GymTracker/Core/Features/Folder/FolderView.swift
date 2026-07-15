@@ -222,7 +222,7 @@ struct FolderView: View {
                     if let exercise {
                         if collection != nil || template != nil { quickAccessDivider }
                         NavigationLink {
-                            ExerciceView(exercise: exercise)
+                            ExerciseView(exercise: exercise)
                         } label: {
                             RecentLibraryRow(
                                 title: exercise.name,
@@ -312,7 +312,7 @@ struct FolderView: View {
                 searchResultsCard(title: "Exercises") {
                     ForEach(matchingExercises, id: \.self) { exercise in
                         NavigationLink {
-                            ExerciceView(exercise: exercise)
+                            ExerciseView(exercise: exercise)
                         } label: {
                             RecentLibraryRow(
                                 title: exercise.name,
@@ -447,7 +447,7 @@ private struct ExerciseBrowserView: View {
 
             ForEach(filteredExercises, id: \.self) { exercise in
                 NavigationLink {
-                    ExerciceView(exercise: exercise)
+                    ExerciseView(exercise: exercise)
                 } label: {
                     LibraryItemRow(
                         title: exercise.name,
