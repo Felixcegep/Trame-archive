@@ -62,7 +62,6 @@ struct HistoryMuscleBalanceView: View {
                     .padding(.top, Spacing.l)
                     .padding(.bottom, Spacing.xxxl)
                 }
-                .accessibilityIdentifier("muscle-balance-content")
             }
         }
         .background(Color.gymBackground.ignoresSafeArea())
@@ -78,6 +77,9 @@ struct HistoryMuscleBalanceView: View {
                 .foregroundStyle(Color.gymText)
         }
         .accessibilityIdentifier("muscle-balance-explanation")
+        .overlay(alignment: .topLeading) {
+            screenshotStateMarker("muscle-balance-content", label: "Muscle balance content")
+        }
     }
 
     private var weeklyChart: some View {
@@ -115,7 +117,9 @@ struct HistoryMuscleBalanceView: View {
                 .accessibilityValue(chartAccessibilityValue)
             }
         }
-        .accessibilityIdentifier("muscle-balance-chart")
+        .overlay(alignment: .topLeading) {
+            screenshotStateMarker("muscle-balance-chart", label: "Muscle balance chart")
+        }
     }
 
     private var calloutsSection: some View {
@@ -136,7 +140,9 @@ struct HistoryMuscleBalanceView: View {
                     }
                 }
             }
-            .accessibilityIdentifier("muscle-balance-callouts")
+            .overlay(alignment: .topLeading) {
+                screenshotStateMarker("muscle-balance-callouts", label: "Muscle balance callouts")
+            }
         }
     }
 

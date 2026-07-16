@@ -619,6 +619,115 @@ final class WorkoutIntegrityTests: XCTestCase {
         }
     }
 
+    func testPlanCreationBuildsAnOrderedScheduledDeloadBlock() {
+        let exercise = makeExercise()
+        let template = WorkoutTemplate(
+            name: "Full Body",
+            exercises: [exercise],
+            templateExercises: [TemplateExercise(exercise: exercise, order: 0)]
+        )
+
+        let plan = PlanCoordinator.createPlan(
+            name: "Four Week Plan",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 4,
+            dayAssignments: [.init(dayOffset: 0, template: template)],
+            deload: .init(
+                weekIndex: 2,
+                volumeReductionPercent: 50,
+                intensityReductionPercent: 10
+            )
+        )
+
+        XCTAssertEqual(plan.orderedBlocks.map(\.phaseType), [.accumulation, .deload, .accumulation])
+        XCTAssertEqual(plan.orderedBlocks.map { $0.orderedWeeks.map(\.weekIndex) }, [[0, 1], [2], [3]])
+        XCTAssertEqual(plan.orderedWeeks.map(\.weekIndex), [0, 1, 2, 3])
+
+        let deload = plan.orderedBlocks[1]
+        XCTAssertEqual(deload.effectiveDeloadVolumeReductionPercent, 50)
+        XCTAssertEqual(deload.effectiveDeloadIntensityReductionPercent, 10)
+    }
+
+    func testScheduledDeloadAdjustsOnlyTheNewWorkoutSnapshot() throws {
+        let exercise = makeExercise()
+        let template = WorkoutTemplate(
+            name: "Full Body",
+            exercises: [exercise],
+            templateExercises: [
+                TemplateExercise(
+                    exercise: exercise,
+                    order: 0,
+                    targetSets: 3,
+                    repRangeMinimum: 6,
+                    repRangeMaximum: 8
+                )
+            ]
+        )
+        let plan = PlanCoordinator.createPlan(
+            name: "Deload Plan",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            dayAssignments: [.init(dayOffset: 0, template: template)],
+            deload: .init(
+                weekIndex: 0,
+                volumeReductionPercent: 50,
+                intensityReductionPercent: 10
+            )
+        )
+        let plannedWorkout = try XCTUnwrap(plan.orderedWeeks.first?.orderedPlannedWorkouts.first)
+        let plannedExercise = try XCTUnwrap(plannedWorkout.orderedPlannedExercises.first)
+        plannedExercise.suggestedLoad = 100
+        plannedExercise.suggestedLoadType = .kg
+
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
+        let entry = try XCTUnwrap(workout.orderedExercises.first)
+
+        XCTAssertEqual(entry.prescribedSets, 2)
+        XCTAssertEqual(entry.sets.count, 2)
+        XCTAssertEqual(entry.prescribedSuggestedLoad, 90)
+        XCTAssertTrue(entry.sets.allSatisfy { $0.weight == 90 })
+        XCTAssertEqual(plannedExercise.targetSets, 3)
+        XCTAssertEqual(plannedExercise.suggestedLoad, 100)
+    }
+
+    func testPlanEquipmentRequirementsAreNormalizedAtCreationAndEditing() throws {
+        let context = try makeContext()
+        let exercise = Exercise(
+            name: "Barbell Row",
+            primaryMuscles: [.latissimusDorsi],
+            equipmentType: .barbell
+        )
+        let template = WorkoutTemplate(
+            name: "Pull",
+            exercises: [exercise],
+            templateExercises: [TemplateExercise(exercise: exercise, order: 0)]
+        )
+        let plan = PlanCoordinator.createPlan(
+            name: "Equipment Plan",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            requiredEquipment: [.dumbbell, .barbell, .dumbbell],
+            durationWeeks: 1,
+            dayAssignments: [.init(dayOffset: 0, template: template)]
+        )
+
+        context.insert(exercise)
+        context.insert(template)
+        context.insert(plan)
+        try context.save()
+
+        XCTAssertEqual(plan.requiredEquipment, [.barbell, .dumbbell])
+
+        var draft = PlanEditorDraft(plan: plan)
+        draft.requiredEquipment = [.cable, .barbell, .cable]
+        draft.apply(to: plan, using: context)
+
+        XCTAssertEqual(plan.requiredEquipment, [.barbell, .cable])
+    }
+
     func testPlannedVersusPerformedComparisonReportsMetAboveBelowAndNoTarget() {
         let exercise = makeExercise()
         let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)

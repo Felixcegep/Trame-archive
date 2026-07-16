@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct SetRowView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let index: Int
     @Bindable var exerciseSet: ExerciseSet
     let exerciseEntry: ExerciseEntry
@@ -78,6 +79,10 @@ struct SetRowView: View {
         .padding(.vertical, 7)
         .background(rowSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .animation(reduceMotion ? nil : AppMotion.compact, value: exerciseSet.done)
+        .sensoryFeedback(.success, trigger: exerciseSet.done) { _, newValue in
+            newValue
+        }
         .confirmationDialog(
             "Mark this set incomplete?",
             isPresented: $isShowingIncompleteConfirmation,
@@ -199,6 +204,7 @@ struct SetRowView: View {
                 .clipShape(Circle())
         }
         .buttonStyle(.borderless)
+        .contentTransition(.symbolEffect(.replace))
         .accessibilityLabel(exerciseSet.done ? "Completed set" : "Complete set")
         .accessibilityHint(exerciseSet.done ? "Opens confirmation before marking this set incomplete." : "Marks this set complete.")
         .accessibilityIdentifier("complete-set-\(exerciseEntry.exercise.name)-\(index)")

@@ -50,13 +50,7 @@ final class GymTrackerUITEST: XCTestCase {
     }
 
     func testResumesPersistedRestTimerAfterRelaunch() {
-        let app = launchFreshApp()
-
-        app.buttons["start-free-workout"].tap()
-        addExercise("Bench Press", in: app)
-        enterValidValues(for: "Bench Press", set: 0, in: app)
-        app.buttons["complete-set-Bench Press-0"].tap()
-        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+        let app = launchFixture("active-rest-running")
 
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
@@ -113,10 +107,7 @@ final class GymTrackerUITEST: XCTestCase {
     }
 
     func testPersistsDraftSetValuesAfterTermination() {
-        let app = launchFreshApp()
-
-        tapButton("start-free-workout", in: app)
-        addExercise("Bench Press", in: app)
+        let app = launchFixture("active-draft")
 
         let reps = app.textFields["reps-field-Bench Press-0"]
         XCTAssertTrue(reps.waitForExistence(timeout: 5))
@@ -138,14 +129,7 @@ final class GymTrackerUITEST: XCTestCase {
     }
 
     func testResumesPausedRestTimerAfterRelaunch() {
-        let app = launchFreshApp()
-
-        tapButton("start-free-workout", in: app)
-        addExercise("Bench Press", in: app)
-        enterValidValues(for: "Bench Press", set: 0, in: app)
-        completeSet("Bench Press", index: 0, dismissRest: false, in: app)
-        tapButton("Pause rest", in: app)
-        XCTAssertTrue(app.staticTexts["Rest paused."].waitForExistence(timeout: 5))
+        let app = launchFixture("active-rest-paused")
 
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
@@ -197,29 +181,22 @@ final class GymTrackerUITEST: XCTestCase {
     }
 
     func testPlateCalculatorMatchesExerciseLoadingStyle() {
-        let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
-
-        app.buttons["start-free-workout"].tap()
-
-        addExercise("Bench Press", in: app)
+        let app = launchFixture("active-loading-styles")
         XCTAssertTrue(app.buttons["Open plate calculator"].waitForExistence(timeout: 5))
 
-        addExercise("Dumbbell Bench Press", in: app)
+        let dumbbellExercise = app.staticTexts["active-exercise-Dumbbell Bench Press"]
+        XCTAssertTrue(dumbbellExercise.waitForExistence(timeout: 5))
+        dumbbellExercise.tap()
         XCTAssertFalse(app.buttons["Open plate calculator"].exists)
 
-        addExercise("Leg Press", in: app)
+        let legPressExercise = app.staticTexts["active-exercise-Leg Press"]
+        XCTAssertTrue(legPressExercise.waitForExistence(timeout: 5))
+        legPressExercise.tap()
         XCTAssertTrue(app.buttons["Open plate calculator"].waitForExistence(timeout: 5))
     }
 
     func testKeyboardOffersCopyLastSetValuesForFocusedSet() {
-        let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
-
-        app.buttons["start-free-workout"].tap()
-        addExercise("Bench Press", in: app)
+        let app = launchFixture("active-in-progress")
 
         let secondWeightField = app.textFields["weight-field-Bench Press-1"]
         XCTAssertTrue(secondWeightField.waitForExistence(timeout: 5))
@@ -232,9 +209,7 @@ final class GymTrackerUITEST: XCTestCase {
     }
 
     func testActiveWorkoutSetMutationsAndRestTimer() {
-        let app = launchFreshApp()
-        app.buttons["start-free-workout"].tap()
-        addExercise("Bench Press", in: app)
+        let app = launchFixture("active-in-progress")
 
         let addSet = app.buttons["add-set-Bench Press"]
         XCTAssertTrue(addSet.waitForExistence(timeout: 5))
@@ -265,12 +240,7 @@ final class GymTrackerUITEST: XCTestCase {
     }
 
     func testCompletedSetRequiresExplicitEditingAction() {
-        let app = launchFreshApp()
-        tapButton("start-free-workout", in: app)
-        addExercise("Bench Press", in: app)
-
-        enterValidValues(for: "Bench Press", set: 0, in: app)
-        completeSet("Bench Press", index: 0, dismissRest: true, in: app)
+        let app = launchFixture("active-completed-set")
 
         let weightField = app.textFields["weight-field-Bench Press-0"]
         XCTAssertTrue(weightField.waitForExistence(timeout: 5))
@@ -290,13 +260,7 @@ final class GymTrackerUITEST: XCTestCase {
     }
 
     func testSavesCompletedWorkoutToHistory() {
-        let app = launchFreshApp()
-        app.buttons["start-free-workout"].tap()
-        addExercise("Bench Press", in: app)
-        enterValidValues(for: "Bench Press", set: 0, in: app)
-        app.buttons["complete-set-Bench Press-0"].tap()
-
-        app.buttons["Done"].tap()
+        let app = launchFixture("active-partial-save")
 
         let finishButton = app.buttons["Review Workout"]
         XCTAssertTrue(finishButton.waitForExistence(timeout: 5))
@@ -348,9 +312,7 @@ final class GymTrackerUITEST: XCTestCase {
     }
 
     func testDiscardsActiveWorkout() {
-        let app = launchFreshApp()
-        app.buttons["start-free-workout"].tap()
-        addExercise("Bench Press", in: app)
+        let app = launchFixture("active-in-progress")
 
         app.buttons["active-workout-menu"].tap()
         // The toolbar trash button and the dialog action share the
@@ -418,8 +380,8 @@ final class GymTrackerUITEST: XCTestCase {
 
     func testCreatesWorkoutTemplate() {
         let app = launchFreshApp()
-        app.tabBars.buttons.element(boundBy: 1).tap()
-        app.buttons["Create library item"].tap()
+        selectTab(.library, in: app)
+        tapButton("Create library item", in: app)
         XCTAssertTrue(app.buttons["New Workout"].waitForExistence(timeout: 5))
         app.buttons["New Workout"].tap()
 
@@ -595,9 +557,9 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(value.localizedCaseInsensitiveContains(expected), "Expected units to contain '\(expected)', got '\(value)'")
     }
 
-    private func launchFreshApp() -> XCUIApplication {
+    private func launchFreshApp(additionalArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing", "-reset-data"]
+        app.launchArguments = ["-ui-testing", "-reset-data"] + additionalArguments
         app.launch()
         XCTAssertEqual(app.state, .runningForeground)
 
@@ -624,11 +586,9 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
 
         let preparing = app.descendants(matching: .any)["app-preparing"]
-        if preparing.exists {
-            XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
-        }
+        XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
         if expectsActiveWorkout {
-            XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 15))
+            XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 30))
         } else {
             XCTAssertTrue(app.buttons[expectedHomeControl].waitForExistence(timeout: 15))
         }
@@ -643,10 +603,20 @@ final class GymTrackerUITEST: XCTestCase {
         app.launchArguments = launchArguments
         app.launch()
         XCTAssertEqual(app.state, .runningForeground)
+
+        let preparing = app.descendants(matching: .any)["app-preparing"]
+        XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
     }
 
     private func resumeActiveWorkout(in app: XCUIApplication) {
-        tapButton("resume-active-workout", in: app)
+        let resumeButton = app.buttons["resume-active-workout"]
+        XCTAssertTrue(resumeButton.waitForExistence(timeout: 15))
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isHittable == true"),
+            object: resumeButton
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 10), .completed)
+        resumeButton.tap()
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
     }
 
@@ -761,14 +731,20 @@ final class GymTrackerUITEST: XCTestCase {
     func testCaptureActiveToolScreenshots() {
         let inProgress = launchFixture("active-in-progress")
         tapButton("add-active-exercise", in: inProgress)
+        XCTAssertTrue(inProgress.descendants(matching: .any)["exercise-picker-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(inProgress.navigationBars["Add Exercise"].exists)
         saveScreenshot("active-workout/06_Add_Exercise_Sheet")
         tapButton("close-exercise-picker", in: inProgress)
+        XCTAssertFalse(inProgress.descendants(matching: .any)["exercise-picker-screen"].waitForExistence(timeout: 2))
         tapButton("plate-calculator-Bench Press", in: inProgress)
+        XCTAssertTrue(inProgress.descendants(matching: .any)["plate-calculator-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(inProgress.navigationBars["Plate calculator"].exists)
         saveScreenshot("active-workout/07_Plate_Calculator")
         tapFirstAvailableButton(["Done", "Terminé"], in: inProgress)
         tapButton("set-menu-Bench Press-0", in: inProgress)
         tapButton("Set details", in: inProgress)
-        XCTAssertTrue(inProgress.buttons["close-set-details"].waitForExistence(timeout: 5))
+        XCTAssertTrue(inProgress.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(inProgress.staticTexts["Set 1"].exists)
         saveScreenshot("active-workout/07b_Set_Details")
     }
 
@@ -841,6 +817,8 @@ final class GymTrackerUITEST: XCTestCase {
 
         tapButton("exercise-row-Bench Press", in: app)
         tapButton("exercise-stats", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-screen"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["exercise-insights-back"].isHittable)
         XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-content"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-last-session"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-volume"].exists)
@@ -992,7 +970,7 @@ final class GymTrackerUITEST: XCTestCase {
     }
 
     func testCapturePlanReviewScreenshot() {
-        let app = launchFreshApp()
+        let app = launchFreshApp(additionalArguments: ["-ui-testing-plan-deload"])
         selectTab(.library, in: app)
 
         tapButton("Create library item", in: app)
@@ -1004,6 +982,21 @@ final class GymTrackerUITEST: XCTestCase {
         planName.typeText("Screenshot Plan")
         planName.typeText("\n")
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+
+        let equipmentPicker = app.buttons["plan-equipment-picker"]
+        scrollToElement(equipmentPicker, in: app)
+        tapButton("plan-equipment-picker", in: app)
+        tapButton("plan-equipment-barbell", in: app)
+        saveScreenshot("plans/13c_Program_Equipment")
+        let back = app.navigationBars.buttons.firstMatch
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        back.tap()
+
+        let deloadIntensity = app.steppers["plan-deload-intensity-reduction"]
+        scrollToElement(deloadIntensity, in: app)
+        XCTAssertTrue(deloadIntensity.waitForExistence(timeout: 5))
+        saveScreenshot("plans/13d_Plan_Deload_Schedule")
+
         let mondayTemplate = app.buttons["plan-day-template-0"]
         scrollToElement(mondayTemplate, in: app)
         saveScreenshot("plans/13_Plan_Day_Assignments")
@@ -1024,11 +1017,88 @@ final class GymTrackerUITEST: XCTestCase {
             expectsActiveWorkout: false,
             expectedHomeControl: "start-planned-workout"
         )
+        XCTAssertTrue(activeRun.descendants(matching: .any)["active-plan-badge"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/01d_Home_Active_Plan")
+
         selectTab(.library, in: activeRun)
         tapButton("plans-browser", in: activeRun)
         tapButton("plan-row-Screenshot Plan Run", in: activeRun)
         XCTAssertTrue(activeRun.buttons["start-planned-workout"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13b_Plan_Active_Run")
+    }
+
+    func testPlanCalendarShowsDerivedStatesAndKeepsCompletedSessionsLocked() {
+        let app = launchFixture(
+            "plan-calendar",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+        selectTab(.library, in: app)
+        tapButton("plans-browser", in: app)
+        tapButton("plan-row-Calendar Fixture Plan", in: app)
+        tapButton("view-plan-schedule", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-completed"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-skipped"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-missed"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-in-progress"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-available"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-state-upcoming"].exists)
+
+        let dayRows = app.buttons.matching(identifier: "plan-calendar-day")
+        XCTAssertEqual(dayRows.count, 6)
+        dayRows.element(boundBy: 2).tap()
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-day-screen"].waitForExistence(timeout: 5))
+        let rescheduleButtons = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "calendar-reschedule-")
+        )
+        XCTAssertEqual(rescheduleButtons.count, 1)
+        rescheduleButtons.firstMatch.tap()
+        XCTAssertTrue(app.buttons["calendar-confirm-reschedule"].waitForExistence(timeout: 5))
+        app.buttons["calendar-confirm-reschedule"].tap()
+
+        app.navigationBars.buttons.firstMatch.tap()
+        dayRows.element(boundBy: 0).tap()
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-day-screen"].waitForExistence(timeout: 5))
+        XCTAssertEqual(
+            app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "calendar-reschedule-")).count,
+            0
+        )
+    }
+
+    func testRelaunchRefreshesHomeWithTheSessionScheduledForToday() {
+        let app = launchFixture(
+            "plan-relaunch-schedule",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+        XCTAssertTrue(app.staticTexts["Tomorrow Fixture Workout"].waitForExistence(timeout: 10))
+
+        relaunchPreservingData(app)
+
+        XCTAssertTrue(app.buttons["start-planned-workout"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Today Fixture Workout"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Tomorrow Fixture Workout"].exists)
+    }
+
+    func testCapturePlanCalendarScreenshots() {
+        let app = launchFixture(
+            "plan-calendar",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+        selectTab(.library, in: app)
+        tapButton("plans-browser", in: app)
+        tapButton("plan-row-Calendar Fixture Plan", in: app)
+        tapButton("view-plan-schedule", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-screen"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13e_Plan_Calendar")
+
+        let dayRows = app.buttons.matching(identifier: "plan-calendar-day")
+        XCTAssertGreaterThan(dayRows.count, 2)
+        dayRows.element(boundBy: 2).tap()
+        XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-day-screen"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13f_Plan_Calendar_Day")
     }
 
     private func selectTab(_ tab: AppTab, in app: XCUIApplication) {

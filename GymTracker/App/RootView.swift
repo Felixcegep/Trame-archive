@@ -184,6 +184,9 @@ struct RootView: View {
             seedWorkoutTemplatesIfNeeded()
             seedWorkoutCollectionsIfNeeded()
             normalizePersistedWorkoutData()
+            if fixture == nil || fixture?.refreshesPlanRunAvailability == true {
+                refreshActivePlanRuns()
+            }
             if CommandLine.arguments.contains("-ui-testing-import-valid") {
                 do {
                     let backup = try BackupDTO.create(
@@ -402,6 +405,21 @@ struct RootView: View {
             }
         } catch {
             print("Failed to normalize persisted workout data: \(error)")
+        }
+    }
+
+    /// Re-evaluates active run availability after a cold launch. A session can
+    /// be rescheduled while the app is not running, so persisted `.available`
+    /// flags must not outrank a newly due session after relaunch.
+    private func refreshActivePlanRuns() {
+        do {
+            let runs = try modelContext.fetch(FetchDescriptor<PlanRun>())
+                .filter { $0.status == .active }
+            runs.forEach { PlanCoordinator.refreshAvailability(for: $0) }
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            print("Failed to refresh plan-run availability: \(error)")
         }
     }
 }

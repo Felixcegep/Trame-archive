@@ -2,6 +2,7 @@ import Charts
 import SwiftUI
 
 struct ExerciseDetailInsightsView: View {
+    @Environment(\.dismiss) private var dismiss
     let model: ExerciseDetailInsightsModel
 
     var body: some View {
@@ -15,6 +16,22 @@ struct ExerciseDetailInsightsView: View {
         .background(Color.gymBackground.ignoresSafeArea())
         .navigationTitle(model.exerciseName)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
+                        .labelStyle(.iconOnly)
+                }
+                .accessibilityLabel("Back")
+                .accessibilityIdentifier("exercise-insights-back")
+            }
+        }
+        .overlay(alignment: .topLeading) {
+            screenshotStateMarker("exercise-insights-screen", label: "Exercise insights")
+        }
     }
 
     private var emptyState: some View {
@@ -29,8 +46,6 @@ struct ExerciseDetailInsightsView: View {
     private var insightsContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xxl) {
-                header
-
                 if model.hasInsufficientHistory {
                     insufficientHistoryCard
                 }
@@ -66,22 +81,9 @@ struct ExerciseDetailInsightsView: View {
             }
             .padding(.horizontal, Spacing.l)
             .padding(.top, Spacing.l)
-            .padding(.bottom, Spacing.xxxl)
+            .padding(.bottom, 112)
         }
         .accessibilityIdentifier("exercise-insights-content")
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text(model.exerciseName)
-                .font(AppFont.titleMedium)
-                .foregroundStyle(Color.gymText)
-            Text(model.subtitle)
-                .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymText.opacity(0.68))
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("exercise-insights-header")
     }
 
     private var insufficientHistoryCard: some View {

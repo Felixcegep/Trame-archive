@@ -53,6 +53,9 @@ struct ExerciseLibraryView : View {
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
         .navigationTitle("Add Exercise")
+        .overlay(alignment: .topLeading) {
+            screenshotStateMarker("exercise-picker-screen", label: "Exercise picker")
+        }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") {

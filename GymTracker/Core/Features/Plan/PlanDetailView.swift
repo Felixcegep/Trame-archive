@@ -1,73 +1,6 @@
 import SwiftData
 import SwiftUI
 
-struct PlansBrowserView: View {
-    @Query private var plans: [WorkoutPlan]
-
-    let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
-
-    var body: some View {
-        List {
-            if activePlans.isEmpty && archivedPlans.isEmpty {
-                ContentUnavailableView(
-                    "No programs yet",
-                    systemImage: AppIcon.planAdd,
-                    description: Text("Create a multi-week program from saved workouts in Library."))
-            } else {
-                Section("Programs") {
-                    ForEach(activePlans) { plan in
-                        NavigationLink {
-                            PlanDetailView(plan: plan, onStartPlannedWorkout: onStartPlannedWorkout)
-                        } label: {
-                            planRow(plan)
-                        }
-                        .accessibilityIdentifier("plan-row-\(plan.name)")
-                    }
-                }
-
-                if !archivedPlans.isEmpty {
-                    Section("Archived") {
-                        ForEach(archivedPlans) { plan in
-                            NavigationLink {
-                                PlanDetailView(plan: plan, onStartPlannedWorkout: onStartPlannedWorkout)
-                            } label: {
-                                planRow(plan)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
-        .navigationTitle("Programs")
-    }
-
-    private var activePlans: [WorkoutPlan] {
-        plans.filter { !$0.isArchived }.sorted { $0.updatedAt > $1.updatedAt }
-    }
-
-    private var archivedPlans: [WorkoutPlan] {
-        plans.filter(\.isArchived).sorted { $0.updatedAt > $1.updatedAt }
-    }
-
-    private func planRow(_ plan: WorkoutPlan) -> some View {
-        HStack(spacing: Spacing.m) {
-            Image(systemName: AppIcon.plan)
-                .foregroundStyle(Color.gymAccent)
-                .frame(width: 32, height: 32)
-                .background(Color.gymAccentSurface, in: Circle())
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(plan.name)
-                    .font(AppFont.subheadlineSemibold)
-                Text("\(plan.durationWeeks) weeks · \(plan.daysPerWeek) days per week")
-                    .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-}
-
 struct PlanDetailView: View {
     @Environment(\.modelContext) private var modelContext
 
@@ -105,6 +38,13 @@ struct PlanDetailView: View {
 
             if let run = activeRun, let progress = nextProgress(in: run) {
                 Section("Current program") {
+                    NavigationLink {
+                        PlanCalendarView(run: run)
+                    } label: {
+                        Label("View Schedule", systemImage: AppIcon.plan)
+                    }
+                    .accessibilityIdentifier("view-plan-schedule")
+
                     Button {
                         onStartPlannedWorkout(run, progress)
                     } label: {
@@ -128,6 +68,13 @@ struct PlanDetailView: View {
                 }
             } else if let run = pausedRun {
                 Section("Program paused") {
+                    NavigationLink {
+                        PlanCalendarView(run: run)
+                    } label: {
+                        Label("View Schedule", systemImage: AppIcon.plan)
+                    }
+                    .accessibilityIdentifier("view-plan-schedule")
+
                     Button("Resume Program") {
                         PlanCoordinator.resume(run)
                         saveModelContext(modelContext)
@@ -175,7 +122,9 @@ struct PlanDetailView: View {
                             }
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            if let progress, canReschedule(progress) {
+                            if let progress,
+                               let run = currentRun,
+                               canReschedule(progress, in: run) {
                                 Button {
                                     beginReschedule(progress)
                                 } label: {
@@ -242,8 +191,12 @@ struct PlanDetailView: View {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Save") {
                             guard let run = currentRun else { return }
-                            PlanCoordinator.reschedule(progress, to: rescheduleDate, in: run)
-                            saveModelContext(modelContext)
+                            _ = PlanCoordinator.reschedule(
+                                progress,
+                                to: rescheduleDate,
+                                in: run,
+                                using: modelContext
+                            )
                             reschedulingProgress = nil
                         }
                         .accessibilityIdentifier("confirm-reschedule")
@@ -282,8 +235,8 @@ struct PlanDetailView: View {
         PlanCoordinator.nextProgress(in: run)
     }
 
-    private func canReschedule(_ progress: PlanWorkoutProgress) -> Bool {
-        progress.status == .available || progress.status == .upcoming
+    private func canReschedule(_ progress: PlanWorkoutProgress, in run: PlanRun) -> Bool {
+        PlanCoordinator.canEditSchedule(progress, in: run)
     }
 
     private func beginReschedule(_ progress: PlanWorkoutProgress) {
@@ -296,9 +249,8 @@ struct PlanDetailView: View {
         switch progress.status {
         case .available:
             Button("Skip") {
-                guard let run = activeRun else { return }
-                PlanCoordinator.skip(progress, in: run)
-                saveModelContext(modelContext)
+                guard let run = currentRun else { return }
+                _ = PlanCoordinator.skip(progress, in: run, using: modelContext)
             }
             .font(AppFont.caption)
             .foregroundStyle(.secondary)

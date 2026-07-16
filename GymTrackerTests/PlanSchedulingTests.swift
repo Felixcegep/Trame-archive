@@ -75,6 +75,143 @@ final class PlanSchedulingTests: XCTestCase {
         XCTAssertEqual(sessions[0].scheduledDate, originalDate)
     }
 
+    func testSkippingAvailableSessionAdvancesExactlyOnceAndPreservesPlanDefinition() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        context.insert(run)
+        try context.save()
+
+        let sessions = run.orderedWorkoutProgress
+        let first = try XCTUnwrap(sessions.first)
+        let firstWorkout = try XCTUnwrap(PlanCoordinator.plannedWorkout(for: first, in: run))
+        let originalDayOffset = firstWorkout.dayOffset
+        let originalName = firstWorkout.name
+
+        XCTAssertTrue(PlanCoordinator.skip(first, in: run, using: context))
+        XCTAssertEqual(first.status, .skipped)
+        XCTAssertNotNil(first.completedAt)
+        XCTAssertEqual(PlanCoordinator.nextProgress(in: run)?.plannedWorkoutID, sessions[1].plannedWorkoutID)
+        XCTAssertEqual(firstWorkout.dayOffset, originalDayOffset)
+        XCTAssertEqual(firstWorkout.name, originalName)
+
+        XCTAssertFalse(PlanCoordinator.skip(first, in: run, using: context))
+        XCTAssertEqual(
+            try context.fetch(FetchDescriptor<PlanWorkoutProgress>()).filter { $0.status == .skipped }.count,
+            1
+        )
+    }
+
+    func testPausedRunsCanEditScheduleButCompletedAndArchivedRunsAreLocked() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        context.insert(run)
+        try context.save()
+
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let originalDate = try XCTUnwrap(progress.scheduledDate)
+        let pausedDate = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 5, to: originalDate))
+        run.status = .paused
+
+        XCTAssertTrue(PlanCoordinator.canEditSchedule(run))
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: pausedDate, in: run, using: context))
+        XCTAssertEqual(progress.scheduledDate, Calendar.current.startOfDay(for: pausedDate))
+
+        let plannedWorkout = try XCTUnwrap(PlanCoordinator.plannedWorkout(for: progress, in: run))
+        // The other session remains earlier in the paused run, so availability
+        // may move to it after the reschedule. Set this progress to an
+        // otherwise-valid available state to isolate the start guard below.
+        progress.status = .available
+        let viewModel = WorkoutViewModel()
+        XCTAssertFalse(
+            viewModel.startWorkout(
+                from: plannedWorkout,
+                progress: progress,
+                in: run,
+                using: context
+            )
+        )
+        XCTAssertEqual(progress.status, .available)
+
+        for terminalStatus in [PlanRunStatus.completed, .archived] {
+            run.status = terminalStatus
+            let terminalDate = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 2, to: pausedDate))
+            XCTAssertFalse(PlanCoordinator.canEditSchedule(run))
+            XCTAssertFalse(PlanCoordinator.reschedule(progress, to: terminalDate, in: run, using: context))
+            XCTAssertEqual(progress.scheduledDate, Calendar.current.startOfDay(for: pausedDate))
+            XCTAssertFalse(PlanCoordinator.skip(progress, in: run, using: context))
+            XCTAssertEqual(progress.status, .available)
+        }
+    }
+
+    func testRescheduleNormalizesCalendarDayAcrossDSTBoundary() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        context.insert(run)
+        try context.save()
+
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        var calendar = Calendar.current
+        calendar.timeZone = TimeZone(identifier: "America/Toronto") ?? calendar.timeZone
+        let transitionDay = try XCTUnwrap(
+            calendar.date(from: DateComponents(year: 2026, month: 3, day: 8))
+        )
+        let dayBefore = try XCTUnwrap(calendar.date(byAdding: .day, value: -1, to: transitionDay))
+        let target = try XCTUnwrap(calendar.date(byAdding: .hour, value: 30, to: dayBefore))
+
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: target, in: run, using: context))
+        XCTAssertEqual(progress.scheduledDate, Calendar.current.startOfDay(for: target))
+        XCTAssertEqual(calendar.component(.day, from: target), 8)
+    }
+
+    func testRelaunchRefreshPromotesSessionScheduledForToday() throws {
+        let storeURL = try makeDiskStoreURL()
+        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+
+        let today = Calendar.current.startOfDay(for: .now)
+        let tomorrow = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 1, to: today))
+        var runID = UUID()
+        var todayWorkoutID = UUID()
+        var tomorrowWorkoutID = UUID()
+
+        try withDiskContext(at: storeURL) { context in
+            let plan = try self.makeScheduledPlan(in: context)
+            let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, startDate: today))
+            context.insert(run)
+            try context.save()
+
+            let sessions = run.orderedWorkoutProgress
+            let originallyAvailable = sessions[0]
+            let originallyUpcoming = sessions[1]
+            originallyAvailable.scheduledDate = tomorrow
+            originallyAvailable.status = .available
+            originallyUpcoming.scheduledDate = today
+            originallyUpcoming.status = .upcoming
+            try context.save()
+
+            runID = run.id
+            todayWorkoutID = originallyUpcoming.plannedWorkoutID
+            tomorrowWorkoutID = originallyAvailable.plannedWorkoutID
+        }
+
+        try withDiskContext(at: storeURL) { context in
+            let run = try XCTUnwrap(
+                context.fetch(FetchDescriptor<PlanRun>()).first { $0.id == runID }
+            )
+            PlanCoordinator.refreshAvailability(for: run)
+
+            let next = try XCTUnwrap(PlanCoordinator.nextProgress(in: run))
+            XCTAssertEqual(next.plannedWorkoutID, todayWorkoutID)
+            XCTAssertEqual(next.status, .available)
+            XCTAssertEqual(
+                run.orderedWorkoutProgress.first { $0.plannedWorkoutID == tomorrowWorkoutID }?.status,
+                .upcoming
+            )
+        }
+    }
+
     func testRescheduleSurvivesRelaunch() throws {
         let storeURL = try makeDiskStoreURL()
         defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }

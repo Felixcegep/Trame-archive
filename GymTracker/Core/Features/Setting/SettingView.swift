@@ -113,19 +113,19 @@ struct SettingView: View {
             didHandleUITestImport = true
 
             if CommandLine.arguments.contains("-ui-testing-import-error") {
-                showImportError("Invalid backup file: The selected file is not a GymTracker backup.")
+                showImportError("This file is not a valid GymTracker backup. Choose a backup exported from GymTracker.")
             } else if CommandLine.arguments.contains("-ui-testing-import-corrupt") {
                 do {
                     _ = try BackupImportService.decodeAndValidate(Data("not-json".utf8))
                 } catch {
-                    showImportError("Invalid backup file: \(error.localizedDescription)")
+                    showImportError("This backup could not be read. \(error.localizedDescription)")
                 }
             } else if CommandLine.arguments.contains("-ui-testing-import-valid"),
                       let data = UITestFixture.UITestImportPayload.validData {
                 do {
                     importBackup = try BackupImportService.decodeAndValidate(data)
                 } catch {
-                    showImportError("Invalid backup file: \(error.localizedDescription)")
+                    showImportError("This backup could not be read. \(error.localizedDescription)")
                 }
             }
         }
@@ -206,7 +206,7 @@ struct SettingView: View {
             let data = try Data(contentsOf: url)
             self.importBackup = try BackupImportService.decodeAndValidate(data)
         } catch {
-            showImportError("Invalid backup file: \(error.localizedDescription)")
+            showImportError("This backup could not be read. \(error.localizedDescription)")
         }
     }
 
@@ -256,6 +256,8 @@ struct ImportPreviewView: View {
                     LabeledContent("Workout History", value: "\(backup.workouts.count)")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.gymBackground)
             .navigationTitle("Import Preview")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

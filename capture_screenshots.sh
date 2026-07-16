@@ -2,6 +2,7 @@
 set -euo pipefail
 
 WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$WORKSPACE_DIR/ui_test_simulator_lock.sh"
 SCREENSHOT_DIR="$WORKSPACE_DIR/Screenshots"
 # Override per process to allow independent scene groups to run on separate simulators.
 # The default remains the established screenshot simulator for local, single-device capture.
@@ -43,6 +44,7 @@ Scenes:
   performance            Planned-versus-performed save and history feedback
   template-progression   Template progression controls
   plan-review            Per-day assignments and plan change review
+  plan-calendar          Active program agenda and a scheduled-day detail
   hidden                 Hidden and archived exercise management
   exercise-insights      Per-exercise history and progression insights
   muscle-balance        Estimated weekly muscle-group balance
@@ -62,7 +64,7 @@ EOF
 tests_for_scene() {
   case "$1" in
     overview) echo "testCaptureOverviewScreenshots" ;;
-    pages) echo "testCaptureHomeTemplateSheetScreenshot testCaptureHomeConflictScreenshot testCaptureLibrarySecondaryStatesScreenshots testCaptureSettingsImportErrorScreenshot" ;;
+    pages) echo "testCaptureHomeTemplateSheetScreenshot testCaptureHomeConflictScreenshot testCaptureLibrarySecondaryStatesScreenshots testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot" ;;
     active) echo "testCaptureActiveEmptyAndResumeScreenshots testCaptureActiveToolScreenshots testCaptureCompletedSetScreenshot testCaptureCompletedExerciseCollapsedScreenshot testCapturePartialSaveScreenshots testCaptureDiscardWorkoutScreenshot" ;;
     rest) echo "testCaptureRunningRestScreenshot testCapturePausedRestScreenshot testCaptureReadyRestScreenshot" ;;
     history) echo "testCaptureHistoryScreenshots" ;;
@@ -70,6 +72,7 @@ tests_for_scene() {
     performance) echo "testCapturePerformanceComparisonScreenshots" ;;
     template-progression) echo "testCaptureTemplateProgressionScreenshot" ;;
     plan-review) echo "testCapturePlanReviewScreenshot testCaptureActivePlanRunScreenshot" ;;
+    plan-calendar) echo "testCapturePlanCalendarScreenshots" ;;
     hidden) echo "testCaptureHiddenExercisesScreenshot" ;;
     exercise-insights) echo "testCaptureExerciseDetailInsightsScreenshot" ;;
     muscle-balance) echo "testCaptureMuscleBalanceScreenshot" ;;
@@ -80,14 +83,15 @@ tests_for_scene() {
 files_for_scene() {
   case "$1" in
     overview) echo "overview/01_Home.png overview/02_Library.png overview/03_History_Empty.png overview/04_Settings.png" ;;
-    pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/02b_Library_Templates.png overview/02c_Library_Plans.png overview/02d_Library_Empty_Search.png overview/04b_Settings_Import_Error.png" ;;
+    pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/02b_Library_Templates.png overview/02c_Library_Plans.png overview/02d_Library_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png" ;;
     active) echo "active-workout/05_Active_Workout_Empty.png overview/05_Home_With_Active_Workout.png active-workout/06_Add_Exercise_Sheet.png active-workout/07_Plate_Calculator.png active-workout/07b_Set_Details.png active-workout/08_Active_Workout_With_Set.png active-workout/08d_Completed_Exercise_Collapsed.png active-workout/08e_Discard_Workout.png review/09_Save_Workout.png review/09b_Partial_Save_Confirmation.png" ;;
     rest) echo "active-workout/08_Rest_Countdown.png active-workout/08b_Rest_Paused.png active-workout/08c_Rest_Ready.png" ;;
     history) echo "history/10_History_With_Workout.png history/11_History_Detail.png" ;;
     recommendation) echo "progression/10_Previous_Performance.png progression/10b_Progression_Hold.png progression/10c_Progression_Starting_Weight.png progression/10d_Progression_Manual_Edit.png progression/10e_Progression_Applied_Weight.png progression/10f_Progression_With_Rest_Running.png progression/10g_Progression_With_Rest_Paused.png" ;;
     performance) echo "review/14_Save_Performance_Comparison.png history/15_History_Performance_Comparison.png" ;;
     template-progression) echo "templates/12_Template_Progression.png" ;;
-    plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13_Plan_Review.png plans/13b_Plan_Active_Run.png" ;;
+    plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13c_Program_Equipment.png plans/13d_Plan_Deload_Schedule.png plans/13_Plan_Review.png plans/13b_Plan_Active_Run.png overview/01d_Home_Active_Plan.png" ;;
+    plan-calendar) echo "plans/13e_Plan_Calendar.png plans/13f_Plan_Calendar_Day.png" ;;
     hidden) echo "exercises/16_Hidden_Exercises.png" ;;
     exercise-insights) echo "exercises/17_Exercise_Insights.png" ;;
     muscle-balance) echo "history/16_Muscle_Balance.png" ;;
@@ -95,9 +99,40 @@ files_for_scene() {
   esac
 }
 
-ALL_SCENES="overview pages active rest history recommendation performance template-progression plan-review hidden exercise-insights muscle-balance"
+ALL_SCENES="overview pages active rest history recommendation performance template-progression plan-review plan-calendar hidden exercise-insights muscle-balance"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
+
+validate_catalog() {
+  local catalog="$WORKSPACE_DIR/ScreenshotCoverage.md"
+  local runner_files=""
+
+  for scene in $ALL_SCENES; do
+    runner_files="${runner_files:+$runner_files }$(files_for_scene "$scene")"
+  done
+
+  for filename in $runner_files; do
+    local basename="${filename##*/}"
+    if ! grep -Fq "\`$basename\`" "$catalog"; then
+      echo "Screenshot runner path is missing from ScreenshotCoverage.md: $filename"
+      exit 1
+    fi
+  done
+
+  while IFS= read -r basename; do
+    local found=false
+    for filename in $runner_files; do
+      if [[ "${filename##*/}" == "$basename" ]]; then
+        found=true
+        break
+      fi
+    done
+    if [[ "$found" == false ]]; then
+      echo "ScreenshotCoverage.md entry is missing from the runner: $basename"
+      exit 1
+    fi
+  done < <(sed -n 's/.*`\([^`]*\.png\)`.*/\1/p' "$catalog")
+}
 
 for argument in "$@"; do
   case "$argument" in
@@ -113,6 +148,7 @@ for argument in "$@"; do
         echo "'list' cannot be combined with other arguments."
         exit 2
       fi
+      validate_catalog
       for scene in $ALL_SCENES; do
         echo "$scene"
         for filename in $(files_for_scene "$scene"); do
@@ -147,6 +183,16 @@ done
 if [[ -z "$SELECTED_SCENES" ]]; then
   SELECTED_SCENES="$ALL_SCENES"
 fi
+
+validate_catalog
+
+acquire_ui_test_simulator_lock "$SIMULATOR_ID" "capture_screenshots.sh"
+if [[ "$USE_PARALLEL" == true ]]; then
+  acquire_ui_test_simulator_lock "$SIMULATOR_ID_2" "capture_screenshots.sh"
+fi
+trap release_ui_test_simulator_locks EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 echo "=== Booting screenshot simulator 1: $SIMULATOR_ID ==="
 xcrun simctl boot "$SIMULATOR_ID" 2>/dev/null || true

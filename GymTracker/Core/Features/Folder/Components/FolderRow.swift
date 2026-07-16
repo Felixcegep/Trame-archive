@@ -38,6 +38,6 @@ struct FolderRow: View {
                     .foregroundStyle(FolderPalette.mutedText)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.m)
     }
 }

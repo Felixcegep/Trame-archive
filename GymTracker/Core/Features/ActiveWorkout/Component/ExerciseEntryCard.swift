@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct ExerciceEntryCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var exerciseEntry: ExerciseEntry
 
     let viewModel: ActiveWorkoutViewModel
@@ -14,7 +15,6 @@ struct ExerciceEntryCard: View {
     let onExerciseCompleted: () -> Void
 
     @State private var horizontalOffset: CGFloat = 0
-    @State private var cardWidth: CGFloat = 0
 
     private let swipeTriggerDistance: CGFloat = 70
 
@@ -26,15 +26,7 @@ struct ExerciceEntryCard: View {
                 .offset(x: horizontalOffset)
                 .gesture(swipeGesture)
         }
-        .animation(.snappy, value: exerciseIsDone)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .background {
-            GeometryReader { proxy in
-                Color.clear
-                    .onAppear { cardWidth = proxy.size.width }
-                    .onChange(of: proxy.size.width) { _, width in cardWidth = width }
-            }
-        }
     }
 
     private var activeExerciseCard: some View {
@@ -220,14 +212,20 @@ struct ExerciceEntryCard: View {
         DragGesture(minimumDistance: 18)
             .onChanged { value in
                 guard value.translation.width < 0, abs(value.translation.width) > abs(value.translation.height) else { return }
-                horizontalOffset = max(value.translation.width, -fullSlideDistance)
+                guard !reduceMotion else { return }
+                let travel = abs(value.translation.width)
+                let resistedTravel = travel <= swipeTriggerDistance
+                    ? travel
+                    : swipeTriggerDistance + ((travel - swipeTriggerDistance) * 0.2)
+                horizontalOffset = -resistedTravel
             }
             .onEnded { value in
-                guard value.translation.width <= -swipeTriggerDistance,
+                let projectedTravel = min(value.translation.width, value.predictedEndTranslation.width)
+                guard projectedTravel <= -swipeTriggerDistance,
                       let exerciseSet = viewModel.getNextSet(in: exerciseEntry),
                       viewModel.canComplete(exerciseSet, for: exerciseEntry)
                 else {
-                    withAnimation(.snappy(duration: 0.2)) { horizontalOffset = 0 }
+                    withAnimation(reduceMotion ? nil : AppMotion.gesture) { horizontalOffset = 0 }
                     return
                 }
 
@@ -235,13 +233,7 @@ struct ExerciceEntryCard: View {
                 onButtonPress()
                 handleSetCompletion()
 
-                withAnimation(.snappy(duration: 0.22)) { horizontalOffset = -fullSlideDistance }
-                Task {
-                    try? await Task.sleep(for: .seconds(0.24))
-                    await MainActor.run {
-                        withAnimation(.snappy(duration: 0.2)) { horizontalOffset = 0 }
-                    }
-                }
+                withAnimation(reduceMotion ? nil : AppMotion.gesture) { horizontalOffset = 0 }
             }
     }
 
@@ -255,10 +247,6 @@ struct ExerciceEntryCard: View {
 
     private var isCurrentExercise: Bool {
         expandedExerciseID == exerciseEntry.persistentModelID
-    }
-
-    private var fullSlideDistance: CGFloat {
-        max(cardWidth, swipeTriggerDistance)
     }
 
     private var exerciseSummaryText: String {

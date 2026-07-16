@@ -11,6 +11,7 @@ struct ActiveWorkoutView: View {
     let onDiscardRequested: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel: ActiveWorkoutViewModel
     @State private var expandedExerciseID: PersistentIdentifier?
     @State private var isShowingDiscardConfirmation = false
@@ -364,7 +365,8 @@ struct ActiveWorkoutView: View {
                         item: exercise,
                         workout: workout,
                         viewModel: viewModel,
-                        draggedItem: $draggedExercise
+                        draggedItem: $draggedExercise,
+                        reduceMotion: reduceMotion
                     ))
                 }
             }
@@ -452,7 +454,7 @@ struct ActiveWorkoutView: View {
             $0.orderedSets.contains(where: { !$0.done })
         })
 
-        withAnimation(.snappy) {
+        withAnimation(reduceMotion ? nil : AppMotion.layout) {
             expandedExerciseID = nextExercise?.persistentModelID
         }
     }
@@ -515,6 +517,7 @@ struct ExerciseDragDelegate: DropDelegate {
     let workout: Workout
     let viewModel: ActiveWorkoutViewModel
     @Binding var draggedItem: ExerciseEntry?
+    let reduceMotion: Bool
 
     func performDrop(info: DropInfo) -> Bool {
         draggedItem = nil
@@ -530,7 +533,7 @@ struct ExerciseDragDelegate: DropDelegate {
             return
         }
 
-        withAnimation(.snappy) {
+        withAnimation(reduceMotion ? nil : AppMotion.layout) {
             var ordered = exercises
             ordered.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
             for (index, ex) in ordered.enumerated() {

@@ -155,6 +155,8 @@ struct PlanBlockDTO: Codable {
     let phaseType: String
     let goal: String?
     let notes: String?
+    let deloadVolumeReductionPercent: Int?
+    let deloadIntensityReductionPercent: Int?
     let orderIndex: Int
     let weeks: [PlanWeekDTO]
 }
@@ -451,6 +453,8 @@ extension BackupDTO {
                         phaseType: block.phaseType.rawValue,
                         goal: block.goal,
                         notes: block.notes,
+                        deloadVolumeReductionPercent: block.deloadVolumeReductionPercent,
+                        deloadIntensityReductionPercent: block.deloadIntensityReductionPercent,
                         orderIndex: block.orderIndex,
                         weeks: block.orderedWeeks.map { week in
                             PlanWeekDTO(
@@ -697,6 +701,8 @@ extension BackupDTO {
                         orderIndex: blockDTO.orderIndex,
                         goal: blockDTO.goal,
                         notes: blockDTO.notes,
+                        deloadVolumeReductionPercent: blockDTO.deloadVolumeReductionPercent,
+                        deloadIntensityReductionPercent: blockDTO.deloadIntensityReductionPercent,
                         weeks: weeks
                     )
                     block.id = try requiredUUID(blockDTO.id, named: "plan block")
@@ -940,6 +946,12 @@ extension BackupDTO {
             for block in plan.blocks {
                 guard PlanPhaseType(rawValue: block.phaseType) != nil else {
                     throw BackupValidationError.invalidIdentifier("plan block phase")
+                }
+                guard
+                    block.deloadVolumeReductionPercent.map({ (0...90).contains($0) }) ?? true,
+                    block.deloadIntensityReductionPercent.map({ (0...90).contains($0) }) ?? true
+                else {
+                    throw BackupValidationError.invalidIdentifier("plan deload configuration")
                 }
                 blockIDs.append(block.id)
 

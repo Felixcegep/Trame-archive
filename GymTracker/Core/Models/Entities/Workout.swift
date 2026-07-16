@@ -78,7 +78,9 @@ class Workout {
 
         self.exercises = []
         for (index, plannedExercise) in plannedWorkout.orderedPlannedExercises.enumerated() {
-            exercises.append(ExerciseEntry(from: plannedExercise, orderIndex: index, usedMetric: unitSystem))
+            let entry = ExerciseEntry(from: plannedExercise, orderIndex: index, usedMetric: unitSystem)
+            PlanDeloadService.apply(to: entry, for: plannedWorkout.week?.block)
+            exercises.append(entry)
         }
     }
 

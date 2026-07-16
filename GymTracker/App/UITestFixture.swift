@@ -13,6 +13,8 @@ enum UITestFixture: String {
     case activeRestRunning = "active-rest-running"
     case activeRestPaused = "active-rest-paused"
     case activeRestReady = "active-rest-ready"
+    case activeDraft = "active-draft"
+    case activeLoadingStyles = "active-loading-styles"
     case historyBench = "history-bench"
     case exerciseInsights = "exercise-insights"
     case muscleBalance = "muscle-balance"
@@ -24,6 +26,8 @@ enum UITestFixture: String {
     case performanceComparison = "performance-comparison"
     case homeActiveConflict = "home-active-conflict"
     case planActiveRun = "plan-active-run"
+    case planCalendar = "plan-calendar"
+    case planRelaunchSchedule = "plan-relaunch-schedule"
     case planPartialSave = "plan-partial-save"
     case backupImportTarget = "backup-import-target"
 
@@ -39,7 +43,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .homeActiveConflict, .planActiveRun, .backupImportTarget:
+        case .historyBench, .exerciseInsights, .muscleBalance, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .backupImportTarget:
             false
         default:
             true
@@ -48,6 +52,10 @@ enum UITestFixture: String {
 
     var showsActiveWorkoutConflict: Bool {
         self == .homeActiveConflict
+    }
+
+    var refreshesPlanRunAvailability: Bool {
+        self == .planRelaunchSchedule
     }
 
     static func apply(_ fixture: UITestFixture, using context: ModelContext) throws {
@@ -70,6 +78,10 @@ enum UITestFixture: String {
             try makeRestWorkout(state: .paused, using: context)
         case .activeRestReady:
             try makeRestWorkout(state: .ready, using: context)
+        case .activeDraft:
+            try makeActiveDraftWorkout(using: context)
+        case .activeLoadingStyles:
+            try makeLoadingStyleWorkout(using: context)
         case .historyBench:
             try makeCompletedBenchHistory(using: context)
         case .exerciseInsights:
@@ -92,6 +104,10 @@ enum UITestFixture: String {
             try makeActiveWorkout(exercises: [inProgressEntry(named: "Bench Press", using: context)], using: context)
         case .planActiveRun:
             try makeActivePlanRun(using: context)
+        case .planCalendar:
+            try makePlanCalendarRun(using: context)
+        case .planRelaunchSchedule:
+            try makePlanRelaunchSchedule(using: context)
         case .planPartialSave:
             try makePartialPlannedWorkout(using: context)
         case .backupImportTarget:
@@ -145,6 +161,21 @@ enum UITestFixture: String {
         try context.save()
     }
 
+    private static func makeLoadingStyleWorkout(using context: ModelContext) throws {
+        let entries = [
+            try inProgressEntry(named: "Bench Press", orderIndex: 0, using: context),
+            try inProgressEntry(named: "Dumbbell Bench Press", orderIndex: 1, using: context),
+            try inProgressEntry(named: "Leg Press", orderIndex: 2, using: context)
+        ]
+        try makeActiveWorkout(exercises: entries, using: context)
+    }
+
+    private static func makeActiveDraftWorkout(using context: ModelContext) throws {
+        let exercise = try exercise(named: "Bench Press", using: context)
+        let entry = ExerciseEntry(from: exercise, orderIndex: 0, usedMetric: .metric)
+        try makeActiveWorkout(exercises: [entry], using: context)
+    }
+
     private static func makeCompletedBenchHistory(using context: ModelContext) throws {
         let entry = try completedExerciseEntry(named: "Bench Press", using: context)
         let workout = Workout(name: "Upper Body", endTime: Date.now.addingTimeInterval(-3_600))
@@ -184,16 +215,15 @@ enum UITestFixture: String {
     }
 
     private static func makeMuscleBalanceHistory(using context: ModelContext) throws {
-        let olderWorkout = Workout(name: "Lower Balance", endTime: Date.now.addingTimeInterval(-70 * 86_400))
-        olderWorkout.startTime = Date.now.addingTimeInterval(-71 * 86_400)
-        olderWorkout.exercises = [
-            try completedExerciseEntry(named: "Deadlift", using: context),
-            try completedExerciseEntry(named: "Bench Press", using: context)
-        ]
-
-        let previousWorkout = Workout(name: "Lower Balance", endTime: Date.now.addingTimeInterval(-63 * 86_400))
-        previousWorkout.startTime = Date.now.addingTimeInterval(-64 * 86_400)
-        previousWorkout.exercises = [try completedExerciseEntry(named: "Deadlift", using: context)]
+        let previousWorkouts = [-48, -41, -34, -27].map { dayOffset in
+            let startTime = Date.now.addingTimeInterval(TimeInterval(dayOffset) * 86_400)
+            let workout = Workout(name: "Lower Balance", endTime: startTime.addingTimeInterval(3_600))
+            workout.startTime = startTime
+            return workout
+        }
+        for workout in previousWorkouts {
+            workout.exercises = [try completedExerciseEntry(named: "Deadlift", using: context)]
+        }
 
         let recentWorkout = Workout(name: "Upper Balance", endTime: Date.now.addingTimeInterval(-14 * 86_400))
         recentWorkout.startTime = Date.now.addingTimeInterval(-15 * 86_400)
@@ -206,8 +236,7 @@ enum UITestFixture: String {
         latestWorkout.startTime = Date.now.addingTimeInterval(-4 * 86_400)
         latestWorkout.exercises = [try completedExerciseEntry(named: "Bench Press", using: context)]
 
-        context.insert(olderWorkout)
-        context.insert(previousWorkout)
+        previousWorkouts.forEach(context.insert)
         context.insert(recentWorkout)
         context.insert(latestWorkout)
         try context.save()
@@ -271,6 +300,75 @@ enum UITestFixture: String {
         guard let run = PlanCoordinator.startRun(for: plan) else {
             throw FixtureError.invalidPlan
         }
+        context.insert(run)
+        try context.save()
+    }
+
+    private static func makePlanCalendarRun(using context: ModelContext) throws {
+        let template = try workoutTemplate(named: "Day 1 – Lower Body (Squat Focus)", using: context)
+        let plan = PlanCoordinator.createRepeatedPlan(
+            name: "Calendar Fixture Plan",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 3,
+            template: template,
+            dayOffsets: [0, 3]
+        )
+        context.insert(plan)
+
+        let startDate = Calendar.current.date(byAdding: .day, value: -10, to: .now) ?? .now
+        guard let run = PlanCoordinator.startRun(for: plan, startDate: startDate) else {
+            throw FixtureError.invalidPlan
+        }
+
+        // This fixture intentionally sets states after run creation so the
+        // agenda can show every display outcome together. A normal run always
+        // promotes the earliest unfinished session instead.
+        let progress = run.orderedWorkoutProgress
+        guard progress.count == 6 else { throw FixtureError.invalidPlan }
+        progress[0].status = .completed
+        progress[1].status = .skipped
+        progress[2].status = .upcoming
+        progress[3].status = .inProgress
+        progress[4].status = .available
+        progress[5].status = .upcoming
+
+        context.insert(run)
+        try context.save()
+    }
+
+    private static func makePlanRelaunchSchedule(using context: ModelContext) throws {
+        let template = try workoutTemplate(named: "Day 1 – Lower Body (Squat Focus)", using: context)
+        let plan = PlanCoordinator.createRepeatedPlan(
+            name: "Relaunch Schedule Plan",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            template: template,
+            dayOffsets: [0, 2]
+        )
+        let plannedWorkouts = plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts)
+        guard plannedWorkouts.count == 2 else { throw FixtureError.invalidPlan }
+        plannedWorkouts[0].name = "Tomorrow Fixture Workout"
+        plannedWorkouts[1].name = "Today Fixture Workout"
+        context.insert(plan)
+
+        let today = Calendar.current.startOfDay(for: .now)
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)
+        guard let tomorrow else { throw FixtureError.invalidPlan }
+        guard let run = PlanCoordinator.startRun(for: plan, startDate: today) else {
+            throw FixtureError.invalidPlan
+        }
+        let progress = run.orderedWorkoutProgress
+        guard progress.count == 2 else { throw FixtureError.invalidPlan }
+
+        // Persist a deliberately stale availability assignment. A normal app
+        // launch must recompute this and promote today's session.
+        progress[0].scheduledDate = tomorrow
+        progress[0].status = .available
+        progress[1].scheduledDate = today
+        progress[1].status = .upcoming
+
         context.insert(run)
         try context.save()
     }

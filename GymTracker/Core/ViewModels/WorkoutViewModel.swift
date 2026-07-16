@@ -131,6 +131,7 @@ class WorkoutViewModel {
         using modelContext: ModelContext
     ) -> Bool {
         guard !restoreActiveWorkout(using: modelContext) else { return false }
+        guard planRun.status == .active else { return false }
         guard progress.status == .available || progress.status == .upcoming else { return false }
 
         let newWorkout = Workout(plannedWorkout: plannedWorkout, planRun: planRun, unitSystem: unitSystem)

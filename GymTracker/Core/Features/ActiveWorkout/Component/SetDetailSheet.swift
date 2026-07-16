@@ -49,6 +49,7 @@ extension SetType {
 }
 
 struct SetDetailSheet: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let index: Int
     @Bindable var exerciseSet: ExerciseSet
     let exerciseName: String
@@ -70,6 +71,9 @@ struct SetDetailSheet: View {
         .padding(.bottom, Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.gymBackground)
+        .overlay(alignment: .topLeading) {
+            screenshotStateMarker("set-details-screen", label: "Set details open")
+        }
     }
 
     private var header: some View {
@@ -163,7 +167,7 @@ struct SetDetailSheet: View {
                     .font(AppFont.subheadline)
                     .foregroundStyle(WorkoutPalette.subduedText)
             }
-            .animation(.snappy, value: exerciseSet.rpe)
+            .animation(reduceMotion ? nil : AppMotion.compact, value: exerciseSet.rpe)
 
             Slider(
                 value: Binding(

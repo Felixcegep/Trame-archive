@@ -47,6 +47,8 @@ final class WorkoutPlan {
     }
 
     var orderedWeeks: [PlanWeek] {
-        orderedBlocks.flatMap(\.orderedWeeks)
+        orderedBlocks
+            .flatMap(\.orderedWeeks)
+            .sorted { $0.weekIndex < $1.weekIndex }
     }
 }

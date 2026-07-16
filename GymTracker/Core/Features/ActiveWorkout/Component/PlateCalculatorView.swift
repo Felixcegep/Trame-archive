@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PlateCalculatorView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var exerciseSet: ExerciseSet
     let usesBarbell: Bool
     @State private var selectedBarID = BarKind.mensOlympic.id
@@ -44,6 +45,9 @@ struct PlateCalculatorView: View {
             .background(WorkoutPalette.background)
             .navigationTitle("Plate calculator")
             .navigationBarTitleDisplayMode(.inline)
+            .overlay(alignment: .topLeading) {
+                screenshotStateMarker("plate-calculator-screen", label: "Plate calculator open")
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -70,8 +74,11 @@ struct PlateCalculatorView: View {
                     barSegment(width: 40)
                     collarSegment(height: 30, width: 8)
 
-                    ForEach(Array(calculation.plates.enumerated()), id: \.offset) { _, plate in
-                        diagramPlate(plate)
+                    ForEach(diagramPlates) { item in
+                        diagramPlate(item.weight)
+                            .transition(reduceMotion
+                                ? .opacity
+                                : .scale(scale: 0.94).combined(with: .opacity))
                     }
 
                     collarSegment(height: 24, width: 6)
@@ -80,7 +87,7 @@ struct PlateCalculatorView: View {
                 .padding(.vertical, Spacing.s)
                 .padding(.horizontal, Spacing.l)
                 .frame(minHeight: 108)
-                .animation(.snappy, value: calculation.plates)
+                .animation(reduceMotion ? nil : AppMotion.compact, value: diagramPlates)
             }
             .defaultScrollAnchor(.center)
 
@@ -96,6 +103,15 @@ struct PlateCalculatorView: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Bar load diagram, one side shown")
+    }
+
+    private var diagramPlates: [DiagramPlate] {
+        var occurrences: [Float: Int] = [:]
+        return calculation.plates.map { weight in
+            let occurrence = occurrences[weight, default: 0]
+            occurrences[weight] = occurrence + 1
+            return DiagramPlate(weight: weight, occurrence: occurrence)
+        }
     }
 
     private var barChip: some View {
@@ -390,6 +406,13 @@ struct PlateCalculatorView: View {
     private func formatted(_ value: Float) -> String {
         Formatters.formatFloat(value)
     }
+}
+
+private struct DiagramPlate: Identifiable, Equatable {
+    let weight: Float
+    let occurrence: Int
+
+    var id: String { "\(weight)-\(occurrence)" }
 }
 
 private struct PlateEquipment {

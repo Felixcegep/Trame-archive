@@ -5,7 +5,7 @@
 //  Created by Felix Lachapelle on 2026-07-06.
 //
 
-enum EquipmentType: String, Codable, CaseIterable {
+enum EquipmentType: String, Codable, CaseIterable, Hashable {
     case barbell = "Barbell"
     case dumbbell = "Dumbbell"
     case kettlebell = "Kettlebell"

@@ -7,12 +7,30 @@ enum PlanCoordinator {
         let template: WorkoutTemplate
     }
 
+    struct DeloadConfiguration {
+        let weekIndex: Int
+        let volumeReductionPercent: Int
+        let intensityReductionPercent: Int
+
+        init(
+            weekIndex: Int,
+            volumeReductionPercent: Int = 50,
+            intensityReductionPercent: Int = 10
+        ) {
+            self.weekIndex = weekIndex
+            self.volumeReductionPercent = min(90, max(0, volumeReductionPercent))
+            self.intensityReductionPercent = min(90, max(0, intensityReductionPercent))
+        }
+    }
+
     static func createPlan(
         name: String,
         goal: PlanGoal,
         experienceLevel: PlanExperienceLevel,
+        requiredEquipment: [EquipmentType] = [],
         durationWeeks: Int,
-        dayAssignments: [DayAssignment]
+        dayAssignments: [DayAssignment],
+        deload: DeloadConfiguration? = nil
     ) -> WorkoutPlan {
         let assignments = dayAssignments
             .filter { (0...6).contains($0.dayOffset) && !$0.template.orderedTemplateExercises.isEmpty }
@@ -26,6 +44,7 @@ enum PlanCoordinator {
             name: name,
             goal: goal,
             experienceLevel: experienceLevel,
+            requiredEquipment: normalizedEquipment(requiredEquipment),
             daysPerWeek: assignments.count,
             durationWeeks: durationWeeks
         )
@@ -45,14 +64,7 @@ enum PlanCoordinator {
             )
         }
 
-        plan.blocks = [
-            PlanBlock(
-                name: "Program",
-                phaseType: .accumulation,
-                orderIndex: 0,
-                weeks: weeks
-            )
-        ]
+        plan.blocks = blocks(from: weeks, deload: deload)
         return plan
     }
 
@@ -68,6 +80,7 @@ enum PlanCoordinator {
             name: name,
             goal: goal,
             experienceLevel: experienceLevel,
+            requiredEquipment: [],
             durationWeeks: durationWeeks,
             dayAssignments: dayOffsets.map {
                 DayAssignment(dayOffset: $0, template: template)
@@ -105,6 +118,8 @@ enum PlanCoordinator {
     }
 
     static func refreshAvailability(for run: PlanRun) {
+        guard run.status == .active || run.status == .paused else { return }
+
         let unfinished = run.orderedWorkoutProgress.filter {
             $0.status != .completed && $0.status != .skipped && $0.status != .inProgress
         }
@@ -117,11 +132,24 @@ enum PlanCoordinator {
             next.status = .available
             run.currentWeekIndex = next.weekIndex
             run.currentWorkoutIndex = next.workoutIndex
-        } else if !run.orderedWorkoutProgress.contains(where: { $0.status == .inProgress }) {
+        } else if run.status == .active,
+                  !run.orderedWorkoutProgress.contains(where: { $0.status == .inProgress }) {
             run.status = .completed
             run.endDate = .now
         }
         run.updatedAt = .now
+    }
+
+    /// Scheduling edits are allowed while a run is active or paused. Terminal
+    /// runs remain immutable so their schedule cannot be changed after the run
+    /// is completed or archived.
+    static func canEditSchedule(_ run: PlanRun) -> Bool {
+        run.status == .active || run.status == .paused
+    }
+
+    static func canEditSchedule(_ progress: PlanWorkoutProgress, in run: PlanRun) -> Bool {
+        canEditSchedule(run)
+            && (progress.status == .available || progress.status == .upcoming)
     }
 
     static func plannedWorkout(for progress: PlanWorkoutProgress, in run: PlanRun) -> PlannedWorkout? {
@@ -140,17 +168,37 @@ enum PlanCoordinator {
     /// sessions are locked because they no longer represent future work.
     @discardableResult
     static func reschedule(_ progress: PlanWorkoutProgress, to date: Date, in run: PlanRun) -> Bool {
-        guard progress.status == .available || progress.status == .upcoming else { return false }
+        guard canEditSchedule(progress, in: run) else { return false }
         progress.scheduledDate = Calendar.current.startOfDay(for: date)
         refreshAvailability(for: run)
         return true
     }
 
+    /// Applies and persists a schedule edit as one transaction. A failed save
+    /// must not leave run progress or availability changes in memory.
+    @discardableResult
+    static func reschedule(
+        _ progress: PlanWorkoutProgress,
+        to date: Date,
+        in run: PlanRun,
+        using modelContext: ModelContext
+    ) -> Bool {
+        guard reschedule(progress, to: date, in: run) else { return false }
+        do {
+            try modelContext.save()
+            return true
+        } catch {
+            modelContext.rollback()
+            return false
+        }
+    }
+
     /// Orders sessions by scheduled date first so rescheduling can promote or
     /// demote a session; sessions sharing a date fall back to plan order.
     private static func isOrderedByAvailability(_ lhs: PlanWorkoutProgress, _ rhs: PlanWorkoutProgress) -> Bool {
-        let lhsDate = lhs.scheduledDate ?? .distantFuture
-        let rhsDate = rhs.scheduledDate ?? .distantFuture
+        let calendar = Calendar.current
+        let lhsDate = lhs.scheduledDate.map(calendar.startOfDay(for:)) ?? .distantFuture
+        let rhsDate = rhs.scheduledDate.map(calendar.startOfDay(for:)) ?? .distantFuture
         if lhsDate != rhsDate {
             return lhsDate < rhsDate
         }
@@ -174,10 +222,29 @@ enum PlanCoordinator {
     }
 
     static func skip(_ progress: PlanWorkoutProgress, in run: PlanRun) {
-        guard progress.status == .available || progress.status == .upcoming else { return }
+        guard canEditSchedule(progress, in: run) else { return }
         progress.status = .skipped
         progress.completedAt = .now
         refreshAvailability(for: run)
+    }
+
+    /// Applies and persists a skip as one transaction, mirroring the rollback
+    /// boundary used by active-workout save and discard.
+    @discardableResult
+    static func skip(
+        _ progress: PlanWorkoutProgress,
+        in run: PlanRun,
+        using modelContext: ModelContext
+    ) -> Bool {
+        guard canEditSchedule(progress, in: run) else { return false }
+        skip(progress, in: run)
+        do {
+            try modelContext.save()
+            return true
+        } catch {
+            modelContext.rollback()
+            return false
+        }
     }
 
     static func pause(_ run: PlanRun) {
@@ -214,5 +281,68 @@ enum PlanCoordinator {
                 progressionRule: templateExercise.progressionRule
             )
         }
+    }
+
+    private static func normalizedEquipment(_ equipment: [EquipmentType]) -> [EquipmentType] {
+        Array(Set(equipment)).sorted { $0.rawValue < $1.rawValue }
+    }
+
+    private static func blocks(
+        from weeks: [PlanWeek],
+        deload: DeloadConfiguration?
+    ) -> [PlanBlock] {
+        guard
+            let deload,
+            weeks.indices.contains(deload.weekIndex)
+        else {
+            return [
+                PlanBlock(
+                    name: "Program",
+                    phaseType: .accumulation,
+                    orderIndex: 0,
+                    weeks: weeks
+                )
+            ]
+        }
+
+        let before = weeks.filter { $0.weekIndex < deload.weekIndex }
+        let deloadWeek = weeks.filter { $0.weekIndex == deload.weekIndex }
+        let after = weeks.filter { $0.weekIndex > deload.weekIndex }
+        var blocks: [PlanBlock] = []
+
+        if !before.isEmpty {
+            blocks.append(
+                PlanBlock(
+                    name: "Build",
+                    phaseType: .accumulation,
+                    orderIndex: blocks.count,
+                    weeks: before
+                )
+            )
+        }
+
+        blocks.append(
+            PlanBlock(
+                name: "Deload",
+                phaseType: .deload,
+                orderIndex: blocks.count,
+                deloadVolumeReductionPercent: deload.volumeReductionPercent,
+                deloadIntensityReductionPercent: deload.intensityReductionPercent,
+                weeks: deloadWeek
+            )
+        )
+
+        if !after.isEmpty {
+            blocks.append(
+                PlanBlock(
+                    name: "Build",
+                    phaseType: .accumulation,
+                    orderIndex: blocks.count,
+                    weeks: after
+                )
+            )
+        }
+
+        return blocks
     }
 }

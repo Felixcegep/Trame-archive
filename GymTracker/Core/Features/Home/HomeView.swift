@@ -72,9 +72,17 @@ struct HomeView: View {
 
     private var welcomeHeader: some View {
         VStack(alignment: .leading, spacing: Spacing.xs + 2) {
-            Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                .font(AppFont.subheadlineMediumMonospaced)
-                .foregroundStyle(WorkoutPalette.accent)
+            HStack(alignment: .top, spacing: Spacing.s) {
+                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                    .font(AppFont.subheadlineMediumMonospaced)
+                    .foregroundStyle(WorkoutPalette.accent)
+
+                Spacer(minLength: Spacing.s)
+
+                if let activePlanRun {
+                    activePlanBadge(for: activePlanRun)
+                }
+            }
 
             Text(workoutVM.hasActiveWorkout ? "Your workout is ready." : "Ready when you are.")
                 .font(AppFont.displayMedium)
@@ -85,6 +93,29 @@ struct HomeView: View {
                 .font(AppFont.subheadline)
                 .foregroundStyle(WorkoutPalette.subduedText)
         }
+    }
+
+    private func activePlanBadge(for run: PlanRun) -> some View {
+        HStack(spacing: Spacing.xs) {
+            Image(systemName: AppIcon.plan)
+                .font(AppFont.captionBold)
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(run.sourcePlanName)
+                    .font(AppFont.captionBold)
+                    .lineLimit(1)
+                Text("Week \(run.currentWeekIndex + 1)")
+                    .font(AppFont.caption2)
+                    .foregroundStyle(WorkoutPalette.accent.opacity(0.76))
+            }
+        }
+        .foregroundStyle(WorkoutPalette.accent)
+        .padding(.horizontal, Spacing.s)
+        .padding(.vertical, Spacing.xs)
+        .background(WorkoutPalette.accentSurface, in: Capsule())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Active program: \(run.sourcePlanName), week \(run.currentWeekIndex + 1)")
+        .accessibilityIdentifier("active-plan-badge")
     }
 
     private var primaryWorkoutCard: some View {
@@ -127,7 +158,7 @@ struct HomeView: View {
 
                 if !workoutVM.hasActiveWorkout {
                     HStack(spacing: Spacing.s) {
-                        Text("Start now")
+                        Text("Start workout")
                             .font(AppFont.subheadlineBold)
                         Image(systemName: "arrow.right")
                             .font(AppFont.captionBold)
@@ -161,7 +192,7 @@ struct HomeView: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.gymPress)
         .accessibilityHint(primaryCardHint)
         .accessibilityIdentifier(primaryCardAccessibilityIdentifier)
     }
@@ -185,7 +216,7 @@ struct HomeView: View {
                             detail: "Follow a reusable session"
                         )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.gymPress)
                     .accessibilityIdentifier("start-from-template")
                 }
             }
@@ -252,7 +283,7 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text("No workouts yet")
                             .font(AppFont.subheadlineSemibold)
-                        Text("Finish your first workout and it will show up here.")
+                        Text("Finish a workout to unlock performance and progression history.")
                             .font(AppFont.caption)
                             .foregroundStyle(WorkoutPalette.subduedText)
                     }
@@ -305,7 +336,7 @@ struct HomeView: View {
                             .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                             .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.gymPress)
                     }
                 }
             }
@@ -322,7 +353,7 @@ struct HomeView: View {
         if let progress = activePlanProgress {
             return LocalizedStringKey(progress.plannedWorkoutName)
         }
-        return "Start Workout"
+        return "Free Workout"
     }
 
     private var primaryCardSubtitle: LocalizedStringKey {

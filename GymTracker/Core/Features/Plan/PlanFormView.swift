@@ -13,6 +13,11 @@ struct PlanFormView: View {
     @State private var experienceLevel: PlanExperienceLevel = .beginner
     @State private var selectedDayOffsets: Set<Int> = [0, 2, 4]
     @State private var templateIDByDay: [Int: PersistentIdentifier] = [:]
+    @State private var requiredEquipment: [EquipmentType] = []
+    @State private var includesDeload = false
+    @State private var deloadWeekIndex = 3
+    @State private var deloadVolumeReductionPercent = 50
+    @State private var deloadIntensityReductionPercent = 10
 
     var body: some View {
         Form {
@@ -33,6 +38,52 @@ struct PlanFormView: View {
                 }
 
                 Stepper("\(durationWeeks) weeks", value: $durationWeeks, in: 1...52)
+            }
+
+            Section("Program equipment") {
+                NavigationLink {
+                    PlanEquipmentPickerView(selectedEquipment: $requiredEquipment)
+                } label: {
+                    LabeledContent("Equipment", value: equipmentSummary)
+                }
+                .accessibilityIdentifier("plan-equipment-picker")
+
+                Text("This records the equipment this program needs. It does not change your saved workouts or completed history.")
+                    .font(AppFont.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Recovery") {
+                Toggle("Schedule a deload week", isOn: $includesDeload)
+                    .accessibilityIdentifier("plan-deload-toggle")
+
+                if includesDeload {
+                    Picker("Deload week", selection: $deloadWeekIndex) {
+                        ForEach(0..<durationWeeks, id: \.self) { weekIndex in
+                            Text("Week \(weekIndex + 1)").tag(weekIndex)
+                        }
+                    }
+                    .accessibilityIdentifier("plan-deload-week")
+
+                    Stepper(
+                        "Reduce sets by \(deloadVolumeReductionPercent)%",
+                        value: $deloadVolumeReductionPercent,
+                        in: 0...90
+                    )
+                    .accessibilityIdentifier("plan-deload-volume-reduction")
+
+                    Stepper(
+                        "Reduce load by \(deloadIntensityReductionPercent)%",
+                        value: $deloadIntensityReductionPercent,
+                        in: 0...90
+                    )
+                    .accessibilityIdentifier("plan-deload-intensity-reduction")
+
+                    Text("The deload changes only the prescription snapshot for that future week's workouts. Your completed workouts stay unchanged.")
+                        .font(AppFont.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("plan-deload-description")
+                }
             }
 
             Section("Weekly schedule") {
@@ -83,8 +134,10 @@ struct PlanFormView: View {
                             name: trimmedName,
                             goal: goal,
                             experienceLevel: experienceLevel,
+                            requiredEquipment: requiredEquipment,
                             durationWeeks: durationWeeks,
-                            dayAssignments: selectedDayAssignments
+                            dayAssignments: selectedDayAssignments,
+                            deload: deloadConfiguration
                         )
                     )
                     dismiss()
@@ -99,6 +152,15 @@ struct PlanFormView: View {
                     templateIDByDay[dayOffset] = firstTemplateID
                 }
             }
+            if requiredEquipment.isEmpty {
+                requiredEquipment = suggestedEquipment
+            }
+            if CommandLine.arguments.contains("-ui-testing-plan-deload") {
+                includesDeload = true
+            }
+        }
+        .onChange(of: durationWeeks) { _, newDuration in
+            deloadWeekIndex = min(deloadWeekIndex, max(0, newDuration - 1))
         }
     }
 
@@ -128,6 +190,34 @@ struct PlanFormView: View {
         !trimmedName.isEmpty
             && !selectedDayOffsets.isEmpty
             && selectedDayAssignments.count == selectedDayOffsets.count
+    }
+
+    private var deloadConfiguration: PlanCoordinator.DeloadConfiguration? {
+        guard includesDeload else { return nil }
+        return PlanCoordinator.DeloadConfiguration(
+            weekIndex: deloadWeekIndex,
+            volumeReductionPercent: deloadVolumeReductionPercent,
+            intensityReductionPercent: deloadIntensityReductionPercent
+        )
+    }
+
+    private var equipmentSummary: String {
+        requiredEquipment.isEmpty
+            ? "None selected"
+            : requiredEquipment.map(\.rawValue).joined(separator: ", ")
+    }
+
+    private var suggestedEquipment: [EquipmentType] {
+        Array(
+            Set(
+                selectedDayAssignments.compactMap { assignment in
+                    assignment.template.orderedTemplateExercises
+                        .compactMap { $0.exercise.equipmentType }
+                }
+                .flatMap { $0 }
+            )
+        )
+        .sorted { $0.rawValue < $1.rawValue }
     }
 
     private func binding(for dayOffset: Int) -> Binding<Bool> {
