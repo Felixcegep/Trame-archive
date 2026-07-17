@@ -21,9 +21,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var workoutVM = WorkoutViewModel()
-    @State private var homePath: [HomeRoute] = []
     @State private var libraryPath: [LibraryRoute] = []
-    @State private var activeWorkoutPath: [HomeRoute] = []
+    @State private var activeWorkoutPath: [ActiveWorkoutRoute] = []
     @State private var isShowingActiveWorkout = false
     @State private var shouldDiscardActiveWorkout = false
     @State private var selectedTab: AppTab = .home
@@ -34,10 +33,9 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            NavigationStack(path: $homePath) {
+            NavigationStack {
                 HomeView(
                     workoutVM: workoutVM,
-                    navigationPath: $homePath,
                     isShowingActiveWorkout: $isShowingActiveWorkout,
                     onStartPlannedWorkout: startPlannedWorkout
                 )
@@ -125,10 +123,8 @@ struct RootView: View {
                     modelContext: modelContext,
                     onDiscardRequested: requestDiscardActiveWorkout
                 )
-                .navigationDestination(for: HomeRoute.self) { route in
+                .navigationDestination(for: ActiveWorkoutRoute.self) { route in
                     switch route {
-                    case .activeWorkout:
-                        EmptyView()
                     case .saveWorkout:
                         WorkoutSaveView(
                             workoutVM: workoutVM,
@@ -235,7 +231,6 @@ struct RootView: View {
             await PlanNotificationScheduler.shared.reconcile(using: modelContext)
         }
         .onReceive(NotificationCenter.default.publisher(for: .gymDataRestored)) { _ in
-            homePath = []
             templateToStart = nil
             plannedWorkoutToStart = nil
             isShowingActiveWorkout = false
@@ -395,7 +390,6 @@ struct RootView: View {
     private func resetDataForUITesting() {
         isShowingActiveWorkout = false
         shouldDiscardActiveWorkout = false
-        homePath.removeAll()
         activeWorkoutPath.removeAll()
         templateToStart = nil
         plannedWorkoutToStart = nil

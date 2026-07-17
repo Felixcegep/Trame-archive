@@ -5,7 +5,7 @@ struct WorkoutSaveView: View {
     @Environment(\.modelContext) private var modelContext
 
     let workoutVM: WorkoutViewModel
-    @Binding var navigationPath: [HomeRoute]
+    @Binding var navigationPath: [ActiveWorkoutRoute]
     @Binding var isPresented: Bool
     let onDiscardRequested: () -> Void
 

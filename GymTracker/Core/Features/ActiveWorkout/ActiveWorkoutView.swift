@@ -6,7 +6,7 @@ struct ActiveWorkoutView: View {
     @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
 
     let workoutVM: WorkoutViewModel
-    @Binding var navigationPath: [HomeRoute]
+    @Binding var navigationPath: [ActiveWorkoutRoute]
     let modelContext: ModelContext
     let onDiscardRequested: () -> Void
 
@@ -27,7 +27,7 @@ struct ActiveWorkoutView: View {
 
     init(
         workoutVM: WorkoutViewModel,
-        navigationPath: Binding<[HomeRoute]>,
+        navigationPath: Binding<[ActiveWorkoutRoute]>,
         modelContext: ModelContext,
         onDiscardRequested: @escaping () -> Void
     ) {

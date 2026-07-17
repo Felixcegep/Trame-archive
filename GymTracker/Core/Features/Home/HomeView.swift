@@ -4,7 +4,6 @@ import SwiftData
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     let workoutVM: WorkoutViewModel
-    @Binding var navigationPath: [HomeRoute]
     @Binding var isShowingActiveWorkout: Bool
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
 
