@@ -10,6 +10,7 @@ struct AppIcon {
     static let planAdd = "calendar.badge.plus"
     static let reschedule = "calendar.badge.clock"
     static let minimize = "chevron.down"
+    static let chevronLeft = "chevron.left"
     static let chevronRight = "chevron.right"
     static let picker = "chevron.up.chevron.down"
     
@@ -25,6 +26,7 @@ struct AppIcon {
     static let filters = "line.3.horizontal.decrease.circle"
     static let play = "play.fill"
     static let pause = "pause.fill"
+    static let reset = "arrow.counterclockwise"
     static let archive = "archivebox"
     static let export = "square.and.arrow.up"
     static let `import` = "square.and.arrow.down"

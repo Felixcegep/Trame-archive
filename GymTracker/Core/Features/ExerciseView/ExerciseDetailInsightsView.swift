@@ -4,6 +4,7 @@ import SwiftUI
 
 struct ExerciseDetailInsightsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     let model: ExerciseDetailInsightsModel
 
     var body: some View {
@@ -17,6 +18,18 @@ struct ExerciseDetailInsightsView: View {
         .background(Color.gymBackground.ignoresSafeArea())
         .navigationTitle(model.exerciseName)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden()
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: AppIcon.chevronLeft)
+                }
+                .accessibilityLabel("Back")
+                .accessibilityIdentifier("exercise-insights-back")
+            }
+        }
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("exercise-insights-screen", label: "Exercise insights")
         }

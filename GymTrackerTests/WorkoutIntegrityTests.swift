@@ -88,6 +88,22 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(try context.fetch(FetchDescriptor<Exercise>()).count, 1)
     }
 
+    func testClearAllGymDataRemovesActiveWorkoutGraphInOneTransaction() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let workout = makeWorkout(with: exercise)
+        context.insert(exercise)
+        context.insert(workout)
+        try context.save()
+
+        try context.clearAllGymData()
+
+        XCTAssertTrue(try context.fetch(FetchDescriptor<Workout>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<ExerciseEntry>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<ExerciseSet>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<Exercise>()).isEmpty)
+    }
+
     func testOrderedViewsUsePersistedIndicesAcrossTemplateWorkoutAndSets() throws {
         let context = try makeContext()
         let first = Exercise(name: "First", primaryMuscles: [.upperChest])

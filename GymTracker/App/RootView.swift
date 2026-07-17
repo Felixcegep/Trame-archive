@@ -404,6 +404,8 @@ struct RootView: View {
 
         do {
             try modelContext.clearAllGymData()
+            workoutVM.activeWorkout = nil
+            workoutVM.workout = nil
         } catch {
             print("Failed to reset UI test data: \(error)")
         }

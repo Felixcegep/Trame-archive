@@ -7,9 +7,6 @@ extension ModelContext {
         for workout in workouts {
             workout.sourceTemplate = nil
         }
-        if saveChanges {
-            try save()
-        }
 
         // Delete graph roots, never relationship children by batch request. This
         // lets SwiftData apply the same cascade and nullification rules that the
@@ -22,7 +19,24 @@ extension ModelContext {
         for exercise in try fetch(FetchDescriptor<Exercise>()) { delete(exercise) }
         if saveChanges {
             try save()
+            processPendingChanges()
             _ = try DataMaintenanceService.cleanupOrphans(using: self)
+
+            // UI-test resets must not proceed while a stale active workout is
+            // still visible to the next launch. Fetch after SwiftData has
+            // processed the deletion transaction so callers can trust that the
+            // store is actually empty.
+            if try fetch(FetchDescriptor<Workout>()).isEmpty == false {
+                throw GymDataResetError.workoutsRemain
+            }
         }
+    }
+}
+
+enum GymDataResetError: LocalizedError {
+    case workoutsRemain
+
+    var errorDescription: String? {
+        "GymTracker reset completed without removing every workout."
     }
 }

@@ -182,17 +182,25 @@ final class GymTrackerUITEST: XCTestCase {
 
     func testPlateCalculatorMatchesExerciseLoadingStyle() {
         let app = launchFixture("active-loading-styles")
-        XCTAssertTrue(app.buttons["Open plate calculator"].waitForExistence(timeout: 5))
+
+        tapButton("set-menu-Bench Press-0", in: app)
+        tapButton("plate-calculator-Bench Press", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["plate-calculator-screen"].waitForExistence(timeout: 5))
+        tapButton("Done", in: app)
 
         let dumbbellExercise = app.staticTexts["active-exercise-Dumbbell Bench Press"]
         XCTAssertTrue(dumbbellExercise.waitForExistence(timeout: 5))
         dumbbellExercise.tap()
-        XCTAssertFalse(app.buttons["Open plate calculator"].exists)
+        tapButton("set-menu-Dumbbell Bench Press-0", in: app)
+        XCTAssertFalse(app.buttons["plate-calculator-Dumbbell Bench Press"].exists)
+        tapButton("Set details", in: app)
+        tapButton("close-set-details", in: app)
 
         let legPressExercise = app.staticTexts["active-exercise-Leg Press"]
         XCTAssertTrue(legPressExercise.waitForExistence(timeout: 5))
         legPressExercise.tap()
-        XCTAssertTrue(app.buttons["Open plate calculator"].waitForExistence(timeout: 5))
+        tapButton("set-menu-Leg Press-0", in: app)
+        XCTAssertTrue(app.buttons["plate-calculator-Leg Press"].waitForExistence(timeout: 5))
     }
 
     func testKeyboardOffersCopyLastSetValuesForFocusedSet() {
@@ -246,7 +254,6 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(weightField.waitForExistence(timeout: 5))
         XCTAssertFalse(weightField.isEnabled)
 
-        tapButton("set-menu-Bench Press-0", in: app)
         tapButton("edit-completed-set-Bench Press-0", in: app)
         XCTAssertTrue(weightField.isEnabled)
     }
@@ -774,6 +781,59 @@ final class GymTrackerUITEST: XCTestCase {
         tapButton("active-workout-menu", in: discard)
         XCTAssertTrue(discard.buttons["Discard workout"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08e_Discard_Workout")
+    }
+
+    func testCaptureDurationTimerScreenshots() {
+        let app = launchFreshApp()
+        let startWorkout = app.buttons["start-free-workout"]
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isHittable == true"),
+            object: startWorkout
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 10), .completed)
+        startWorkout.tap()
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
+        addExercise("Plank", in: app)
+
+        // Starting without seconds keeps the timer idle and asks for input.
+        let start = app.buttons["start-countdown-Plank-0"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        start.tap()
+        XCTAssertTrue(app.staticTexts["Enter seconds before starting the timer."].waitForExistence(timeout: 3))
+
+        let duration = app.textFields["duration-field-Plank-0"]
+        XCTAssertTrue(duration.waitForExistence(timeout: 5))
+        duration.tap()
+        duration.typeText("45")
+        app.buttons["Done"].tap()
+        XCTAssertTrue(
+            app.staticTexts["Enter seconds before starting the timer."].waitForNonExistence(timeout: 3)
+        )
+        saveScreenshot("active-workout/08f_Duration_Timer_Idle")
+
+        start.tap()
+        let pause = app.buttons["Pause timer"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 3))
+        saveScreenshot("active-workout/08g_Duration_Timer_Running")
+
+        pause.tap()
+        XCTAssertTrue(app.buttons["Resume timer"].waitForExistence(timeout: 3))
+        saveScreenshot("active-workout/08h_Duration_Timer_Paused")
+
+        // Reset, shorten the target, and let the countdown finish.
+        app.buttons["Reset timer"].tap()
+        XCTAssertTrue(start.waitForExistence(timeout: 3))
+        duration.tap()
+        duration.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 2))
+        duration.typeText("2")
+        app.buttons["Done"].tap()
+        start.tap()
+        XCTAssertTrue(app.staticTexts["Time complete"].waitForExistence(timeout: 8))
+        saveScreenshot("active-workout/08i_Duration_Timer_Complete")
+
+        // Restarting from the completed state runs the countdown again.
+        app.buttons["Restart timer"].tap()
+        XCTAssertTrue(app.buttons["Pause timer"].waitForExistence(timeout: 3))
     }
 
     func testCaptureRunningRestScreenshot() {

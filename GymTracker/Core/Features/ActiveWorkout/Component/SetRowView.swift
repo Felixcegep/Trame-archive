@@ -183,6 +183,9 @@ struct SetRowView: View {
                 },
             set: {
                 exerciseSet.duration = $0.isEmpty ? nil : TimeInterval($0)
+                if (exerciseSet.duration ?? 0) > 0 {
+                    completionValidationMessage = nil
+                }
                 viewModel.persistChanges()
             }
         ), focusID: setFocus, prompt: previousSet?.duration.map { String(Int($0)) })
@@ -191,55 +194,127 @@ struct SetRowView: View {
     }
 
     private var durationCountdownControls: some View {
-        HStack(spacing: Spacing.s) {
-            Label("Set timer", systemImage: AppIcon.timer)
-                .font(AppFont.captionBold)
-                .foregroundStyle(WorkoutPalette.subduedText)
-
-            Spacer(minLength: 0)
-
+        Group {
             if countdownFinished {
-                Text("Time complete")
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(WorkoutPalette.secondary)
+                countdownStrip(surface: WorkoutPalette.mutedSurface) {
+                    Image(systemName: AppIcon.checkmarkCircle)
+                        .font(AppFont.subheadlineBold)
+                        .foregroundStyle(WorkoutPalette.secondary)
 
-                Button("Reset", action: resetCountdown)
-                    .buttonStyle(.borderless)
-            } else if let countdownEndDate {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(countdownText(at: context.date, endDate: countdownEndDate))
-                        .font(AppFont.subheadlineSemiboldMonospaced)
-                        .foregroundStyle(WorkoutPalette.primary)
-                        .contentTransition(.numericText())
+                    Text("Time complete")
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(WorkoutPalette.secondary)
+
+                    Spacer(minLength: 0)
+
+                    countdownControlButton(
+                        AppIcon.reset,
+                        label: "Restart timer",
+                        tint: WorkoutPalette.secondary,
+                        action: startCountdown
+                    )
                 }
+            } else if let countdownEndDate {
+                countdownStrip(surface: WorkoutPalette.primarySurface) {
+                    Image(systemName: AppIcon.timer)
+                        .font(AppFont.subheadlineBold)
+                        .foregroundStyle(WorkoutPalette.primary)
 
-                Button("Pause", action: pauseCountdown)
-                    .buttonStyle(.borderless)
-                Button("Reset", action: resetCountdown)
-                    .buttonStyle(.borderless)
+                    Text(timerInterval: Date.now...max(Date.now, countdownEndDate), countsDown: true)
+                        .font(AppFont.headlineMonospaced)
+                        .foregroundStyle(WorkoutPalette.primary)
+
+                    Spacer(minLength: 0)
+
+                    countdownControlButton(
+                        AppIcon.pause,
+                        label: "Pause timer",
+                        tint: WorkoutPalette.primary,
+                        action: pauseCountdown
+                    )
+                    countdownControlButton(
+                        AppIcon.reset,
+                        label: "Reset timer",
+                        tint: WorkoutPalette.primary,
+                        action: resetCountdown
+                    )
+                }
             } else if let pausedCountdownRemaining, pausedCountdownRemaining > 0 {
-                Text(formatCountdown(pausedCountdownRemaining))
-                    .font(AppFont.subheadlineSemiboldMonospaced)
-                    .foregroundStyle(WorkoutPalette.accent)
+                countdownStrip(surface: WorkoutPalette.accentSurface) {
+                    Image(systemName: AppIcon.timer)
+                        .font(AppFont.subheadlineBold)
+                        .foregroundStyle(WorkoutPalette.accent)
 
-                Button("Resume", action: resumeCountdown)
-                    .buttonStyle(.borderless)
-                Button("Reset", action: resetCountdown)
-                    .buttonStyle(.borderless)
+                    Text(formatCountdown(pausedCountdownRemaining))
+                        .font(AppFont.headlineMonospaced)
+                        .foregroundStyle(WorkoutPalette.accent)
+
+                    Text("Paused")
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(WorkoutPalette.subduedText)
+
+                    Spacer(minLength: 0)
+
+                    countdownControlButton(
+                        AppIcon.play,
+                        label: "Resume timer",
+                        tint: WorkoutPalette.accent,
+                        action: resumeCountdown
+                    )
+                    countdownControlButton(
+                        AppIcon.reset,
+                        label: "Reset timer",
+                        tint: WorkoutPalette.accent,
+                        action: resetCountdown
+                    )
+                }
             } else {
-                Button {
-                    startCountdown()
-                } label: {
-                    Label("Start \(countdownTargetSeconds) sec", systemImage: AppIcon.play)
+                Button(action: startCountdown) {
+                    Label(
+                        countdownTargetSeconds > 0 ? "Start \(countdownTargetSeconds) sec timer" : "Start timer",
+                        systemImage: AppIcon.play
+                    )
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(WorkoutPalette.primary)
+                    .padding(.horizontal, Spacing.m)
+                    .padding(.vertical, Spacing.s)
+                    .background(WorkoutPalette.primarySurface, in: Capsule())
+                    .contentShape(Capsule())
                 }
                 .buttonStyle(.borderless)
-                .disabled(countdownTargetSeconds <= 0)
                 .accessibilityIdentifier("start-countdown-\(exerciseEntry.exercise.name)-\(index)")
             }
         }
-        .font(AppFont.captionBold)
         .padding(.leading, 45)
         .accessibilityElement(children: .contain)
+    }
+
+    private func countdownStrip(surface: Color, @ViewBuilder content: () -> some View) -> some View {
+        HStack(spacing: Spacing.s) {
+            content()
+        }
+        .padding(.horizontal, Spacing.m)
+        .padding(.vertical, Spacing.xs + Spacing.xxs)
+        .background(surface)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+    }
+
+    private func countdownControlButton(
+        _ icon: String,
+        label: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(AppFont.captionBold)
+                .foregroundStyle(tint)
+                .frame(width: 30, height: 30)
+                .background(WorkoutPalette.surface, in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(label)
     }
 
     private var distanceField: some View {
@@ -505,10 +580,6 @@ struct SetRowView: View {
         countdownEndDate = nil
         pausedCountdownRemaining = nil
         countdownFinished = false
-    }
-
-    private func countdownText(at date: Date, endDate: Date) -> String {
-        formatCountdown(max(0, endDate.timeIntervalSince(date)))
     }
 
     private func formatCountdown(_ seconds: TimeInterval) -> String {
