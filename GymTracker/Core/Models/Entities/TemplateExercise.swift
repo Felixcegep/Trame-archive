@@ -3,6 +3,8 @@ import SwiftData
 
 @Model
 final class TemplateExercise {
+    /// Stable identity for an exercise exposure copied into future plans.
+    var progressionKey: String
     var orderIndex: Int = 0
     /// Membership in a contiguous superset. This identifier belongs to this
     /// prescription only; each workout snapshot receives fresh identifiers.
@@ -29,8 +31,10 @@ final class TemplateExercise {
         targetRIR: Int? = nil,
         notes: String? = nil,
         progressionRule: ProgressionRule = .doubleProgression,
-        supersetGroupID: UUID? = nil
+        supersetGroupID: UUID? = nil,
+        progressionKey: String? = nil
     ) {
+        self.progressionKey = progressionKey ?? UUID().uuidString
         self.exercise = exercise
         self.orderIndex = order
         self.targetSets = targetSets

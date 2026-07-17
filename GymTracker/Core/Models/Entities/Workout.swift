@@ -27,6 +27,8 @@ class Workout {
     var sourcePlanWeekID: UUID?
     var sourcePlannedWorkoutID: UUID?
     var sourcePlanName: String?
+    var sourceProgramDefinitionID: UUID?
+    var sourceProgramDefinitionVersion: Int?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseEntry.workout)
     var exercises: [ExerciseEntry] = []
     
@@ -45,6 +47,8 @@ class Workout {
         self.sourcePlanWeekID = nil
         self.sourcePlannedWorkoutID = nil
         self.sourcePlanName = nil
+        self.sourceProgramDefinitionID = nil
+        self.sourceProgramDefinitionVersion = nil
     }
     init(template : WorkoutTemplate, unitSystem : UnitSystem){
         self.status = .active
@@ -60,6 +64,8 @@ class Workout {
         self.sourcePlanWeekID = nil
         self.sourcePlannedWorkoutID = nil
         self.sourcePlanName = nil
+        self.sourceProgramDefinitionID = nil
+        self.sourceProgramDefinitionVersion = nil
         self.exercises = []
         var snapshotGroupIDs: [UUID: UUID] = [:]
         for (index, templateExercise) in template.orderedTemplateExercises.enumerated() {
@@ -95,6 +101,8 @@ class Workout {
         self.sourcePlanWeekID = plannedWorkout.week?.id
         self.sourcePlannedWorkoutID = plannedWorkout.id
         self.sourcePlanName = planRun.sourcePlanName
+        self.sourceProgramDefinitionID = plannedWorkout.week?.block?.plan?.sourceProgramDefinitionID
+        self.sourceProgramDefinitionVersion = plannedWorkout.week?.block?.plan?.sourceProgramDefinitionVersion
 
         self.exercises = []
         var snapshotGroupIDs: [UUID: UUID] = [:]

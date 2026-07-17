@@ -17,6 +17,8 @@ final class PlannedSet {
     var targetRIR: Int?
     var isOptional: Bool
     var notes: String?
+    /// Encoded universal set prescription when this set came from a program definition.
+    var definitionData: Data?
     var plannedExercise: PlannedExercise?
 
     init(
@@ -31,7 +33,8 @@ final class PlannedSet {
         targetRPE: Double? = nil,
         targetRIR: Int? = nil,
         isOptional: Bool = false,
-        notes: String? = nil
+        notes: String? = nil,
+        definitionData: Data? = nil
     ) {
         self.orderIndex = orderIndex
         self.setType = setType
@@ -45,5 +48,6 @@ final class PlannedSet {
         self.targetRIR = targetRIR
         self.isOptional = isOptional
         self.notes = notes
+        self.definitionData = definitionData
     }
 }

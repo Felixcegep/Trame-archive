@@ -31,6 +31,8 @@ final class ExerciseEntry{
     var prescribedSuggestedLoad: Double?
     var prescribedSuggestedLoadType: WeightType?
     var prescribedProgressionRule: ProgressionRule?
+    var prescriptionDefinitionData: Data?
+    var prescriptionRulesData: Data?
     // Evidence captured at workout start so recommendations remain explainable
     // even when their source template or prior workout later changes.
     var recommendedDecision: DoubleProgressionDecision?
@@ -89,6 +91,8 @@ final class ExerciseEntry{
         self.prescribedSuggestedLoad = nil
         self.prescribedSuggestedLoadType = nil
         self.prescribedProgressionRule = nil
+        self.prescriptionDefinitionData = nil
+        self.prescriptionRulesData = nil
         self.recommendedDecision = nil
         self.recommendedLoad = nil
         self.recommendedUnit = nil
@@ -155,8 +159,15 @@ final class ExerciseEntry{
         prescribedSuggestedLoad = plannedExercise.suggestedLoad
         prescribedSuggestedLoadType = plannedExercise.suggestedLoadType
         prescribedProgressionRule = plannedExercise.progressionRule
+        prescriptionRulesData = plannedExercise.progressionRulesData
 
         let plannedSets = plannedExercise.orderedPlannedSets
+        if let plannedSetData = plannedSets.first?.definitionData {
+            prescriptionDefinitionData = plannedSetData
+        } else {
+            prescriptionDefinitionData = nil
+        }
+
         if plannedSets.isEmpty {
             let reps = Float(plannedExercise.repRangeMaximum)
             let weight = Float(plannedExercise.suggestedLoad ?? 0)
@@ -187,6 +198,7 @@ final class ExerciseEntry{
             setObj.prescribedRIR = plannedSet.targetRIR
             setObj.isPrescribedOptional = plannedSet.isOptional
             setObj.prescriptionNotes = plannedSet.notes
+            setObj.prescriptionDefinitionData = plannedSet.definitionData
             if exercise.trackingType.usesReps {
                 setObj.repetitions = Float(plannedSet.repetitions ?? plannedSet.repRangeMaximum ?? plannedExercise.repRangeMaximum)
             }

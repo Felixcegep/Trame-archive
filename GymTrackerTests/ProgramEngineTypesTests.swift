@@ -118,6 +118,69 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(ProgramDefinitionValidator.validate(definition).contains { $0.code == .formulaCycle })
     }
 
+    func testCompilerCreatesNormalPlanAndRunStatePerExposure() throws {
+        let squat = Exercise(name: "Back Squat", primaryMuscles: [.quadriceps])
+        let definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: squat.id,
+                exposureKey: "squat-strength",
+                orderIndex: 0,
+                plannedSets: [
+                    SetPrescriptionDefinition(
+                        orderIndex: 0,
+                        role: .working,
+                        repetitions: .fixed(5),
+                        load: LoadPrescription(
+                            reference: LoadReference(kind: .fixedLoad),
+                            fixedValue: 100,
+                            rounding: .nearestIncrement(2.5)
+                        )
+                    ),
+                    SetPrescriptionDefinition(
+                        orderIndex: 1,
+                        role: .working,
+                        repetitions: .fixed(5),
+                        load: LoadPrescription(
+                            reference: LoadReference(kind: .fixedLoad),
+                            fixedValue: 100,
+                            rounding: .nearestIncrement(2.5)
+                        )
+                    )
+                ]
+            )
+        ])
+
+        let plan = try ProgramDefinitionCompiler.compile(definition, exercisesByID: [squat.id: squat])
+        let plannedExercise = try XCTUnwrap(plan.orderedWeeks.first?.orderedPlannedWorkouts.first?.orderedPlannedExercises.first)
+        XCTAssertEqual(plan.sourceProgramDefinitionID, definition.id)
+        XCTAssertEqual(plan.sourceProgramDefinitionVersion, definition.templateVersion)
+        XCTAssertEqual(plannedExercise.progressionKey, "squat-strength")
+        XCTAssertEqual(plannedExercise.orderedPlannedSets.count, 2)
+        XCTAssertEqual(plannedExercise.orderedPlannedSets.first?.suggestedLoad, 100)
+        XCTAssertNotNil(plannedExercise.orderedPlannedSets.first?.definitionData)
+
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        XCTAssertEqual(run.orderedProgressionStates.map(\.progressionKey), ["squat-strength"])
+        XCTAssertEqual(run.orderedProgressionStates.first?.currentVariationExerciseID, squat.id)
+    }
+
+    func testDefinitionRecordStoresVersionedPayloadMetadata() throws {
+        let definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "row",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(10))]
+            )
+        ])
+        let record = try ProgramDefinitionRecord(payload: definition, isBuiltIn: true)
+
+        XCTAssertEqual(record.id, definition.id)
+        XCTAssertEqual(record.templateVersion, definition.templateVersion)
+        XCTAssertTrue(record.isBuiltIn)
+        XCTAssertEqual(try record.payload(), definition)
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,

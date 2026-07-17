@@ -4,6 +4,8 @@ import SwiftData
 @Model
 final class PlannedExercise {
     var id = UUID()
+    /// Stable identity for this exposure across repeated plan weeks.
+    var progressionKey: String
     var orderIndex: Int
     /// Membership in a contiguous superset within this planned workout.
     var supersetGroupID: UUID?
@@ -19,6 +21,8 @@ final class PlannedExercise {
     var targetRIR: Int?
     var notes: String?
     var progressionRule: ProgressionRule
+    /// Encoded composable progression rules for generated program plans.
+    var progressionRulesData: Data?
     // Optional for compatibility with plans persisted before stimulus was added.
     // Callers should use resolvedStimulus when a concrete value is required.
     var stimulus: TrainingStimulus?
@@ -47,8 +51,11 @@ final class PlannedExercise {
         stimulus: TrainingStimulus = .strength,
         alternatives: [PlannedExerciseAlternative] = [],
         plannedSets: [PlannedSet] = [],
-        supersetGroupID: UUID? = nil
+        supersetGroupID: UUID? = nil,
+        progressionKey: String? = nil,
+        progressionRulesData: Data? = nil
     ) {
+        self.progressionKey = progressionKey ?? UUID().uuidString
         self.exercise = exercise
         self.orderIndex = orderIndex
         self.role = role
@@ -63,6 +70,7 @@ final class PlannedExercise {
         self.targetRIR = targetRIR
         self.notes = notes
         self.progressionRule = progressionRule
+        self.progressionRulesData = progressionRulesData
         self.stimulus = stimulus
         self.alternatives = alternatives
         self.plannedSets = plannedSets

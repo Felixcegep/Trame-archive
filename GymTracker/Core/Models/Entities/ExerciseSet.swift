@@ -35,6 +35,7 @@ final class ExerciseSet {
     var prescribedRIR: Int?
     var isPrescribedOptional: Bool?
     var prescriptionNotes: String?
+    var prescriptionDefinitionData: Data?
     var usedMetric : UnitSystem
     var exerciseEntry: ExerciseEntry?
     init(
@@ -71,6 +72,7 @@ final class ExerciseSet {
         self.prescribedRIR = nil
         self.isPrescribedOptional = nil
         self.prescriptionNotes = nil
+        self.prescriptionDefinitionData = nil
         self.usedMetric = usedMetric
     }
 

@@ -28,6 +28,8 @@ enum GymTrackerModelContainer {
         PlannedSet.self,
         PlannedExerciseAlternative.self,
         PlanRun.self,
-        PlanWorkoutProgress.self
+        PlanWorkoutProgress.self,
+        PlanExerciseProgressionState.self,
+        ProgramDefinitionRecord.self
     ])
 }

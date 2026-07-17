@@ -17,6 +17,8 @@ final class PlanRun {
     var plan: WorkoutPlan?
     @Relationship(deleteRule: .cascade, inverse: \PlanWorkoutProgress.planRun)
     var workoutProgress: [PlanWorkoutProgress] = []
+    @Relationship(deleteRule: .cascade, inverse: \PlanExerciseProgressionState.planRun)
+    var progressionStates: [PlanExerciseProgressionState] = []
 
     convenience init(plan: WorkoutPlan, startDate: Date = .now) {
         self.init(
@@ -50,5 +52,9 @@ final class PlanRun {
                 ? $0.workoutIndex < $1.workoutIndex
                 : $0.weekIndex < $1.weekIndex
         }
+    }
+
+    var orderedProgressionStates: [PlanExerciseProgressionState] {
+        progressionStates.sorted { $0.progressionKey < $1.progressionKey }
     }
 }

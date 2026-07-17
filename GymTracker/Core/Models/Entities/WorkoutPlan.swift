@@ -14,6 +14,8 @@ final class WorkoutPlan {
     var createdAt: Date
     var updatedAt: Date
     var isArchived: Bool
+    var sourceProgramDefinitionID: UUID?
+    var sourceProgramDefinitionVersion: Int?
     @Relationship(deleteRule: .cascade, inverse: \PlanBlock.plan)
     var blocks: [PlanBlock] = []
     @Relationship(deleteRule: .nullify, inverse: \PlanRun.plan)
@@ -27,7 +29,9 @@ final class WorkoutPlan {
         daysPerWeek: Int,
         durationWeeks: Int,
         notes: String? = nil,
-        blocks: [PlanBlock] = []
+        blocks: [PlanBlock] = [],
+        sourceProgramDefinitionID: UUID? = nil,
+        sourceProgramDefinitionVersion: Int? = nil
     ) {
         self.name = name
         self.goal = goal
@@ -39,6 +43,8 @@ final class WorkoutPlan {
         self.createdAt = .now
         self.updatedAt = .now
         self.isArchived = false
+        self.sourceProgramDefinitionID = sourceProgramDefinitionID
+        self.sourceProgramDefinitionVersion = sourceProgramDefinitionVersion
         self.blocks = blocks
     }
 

@@ -159,6 +159,7 @@ struct PlanWorkoutDraft: Identifiable {
 struct PlanExerciseDraft: Identifiable {
     let id: UUID
     let existingID: UUID?
+    var progressionKey: String
     var supersetGroupID: UUID?
     var exercise: Exercise
     var role: ExerciseRole
@@ -176,10 +177,12 @@ struct PlanExerciseDraft: Identifiable {
     var stimulus: TrainingStimulus
     var alternatives: [Exercise]
     var plannedSets: [PlanSetDraft]
+    var progressionRulesData: Data?
 
     init(exercise: Exercise, orderIndex: Int) {
         id = UUID()
         existingID = nil
+        progressionKey = UUID().uuidString
         supersetGroupID = nil
         self.exercise = exercise
         role = .main
@@ -200,11 +203,13 @@ struct PlanExerciseDraft: Identifiable {
         stimulus = exercise.defaultTrainingStimulus
         alternatives = []
         plannedSets = []
+        progressionRulesData = nil
     }
 
     init(plannedExercise: PlannedExercise) {
         id = plannedExercise.id
         existingID = plannedExercise.id
+        progressionKey = plannedExercise.progressionKey
         supersetGroupID = plannedExercise.supersetGroupID
         exercise = plannedExercise.exercise
         role = plannedExercise.role
@@ -224,6 +229,7 @@ struct PlanExerciseDraft: Identifiable {
             .sorted { $0.orderIndex < $1.orderIndex }
             .map(\.exercise)
         plannedSets = plannedExercise.orderedPlannedSets.map(PlanSetDraft.init)
+        progressionRulesData = plannedExercise.progressionRulesData
     }
 
     var summary: String {
@@ -263,7 +269,9 @@ struct PlanExerciseDraft: Identifiable {
             plannedSets: plannedSets.enumerated().map { index, set in
                 set.makeModel(orderIndex: index)
             },
-            supersetGroupID: supersetGroupID
+            supersetGroupID: supersetGroupID,
+            progressionKey: progressionKey,
+            progressionRulesData: progressionRulesData
         )
     }
 
@@ -283,6 +291,8 @@ struct PlanExerciseDraft: Identifiable {
         model.notes = notes.isEmpty ? nil : notes
         model.progressionRule = progressionRule
         model.stimulus = stimulus
+        model.progressionKey = progressionKey
+        model.progressionRulesData = progressionRulesData
         model.supersetGroupID = supersetGroupID
         for alternative in model.alternatives {
             context.delete(alternative)
@@ -342,6 +352,7 @@ struct PlanSetDraft: Identifiable {
     var targetRIRText: String
     var isOptional: Bool
     var notes: String
+    var definitionData: Data?
 
     init(
         setType: SetType,
@@ -366,6 +377,7 @@ struct PlanSetDraft: Identifiable {
         targetRIRText = targetRIR.map { String($0) } ?? ""
         isOptional = false
         notes = ""
+        definitionData = nil
     }
 
     init(plannedSet: PlannedSet) {
@@ -381,6 +393,7 @@ struct PlanSetDraft: Identifiable {
         targetRIRText = plannedSet.targetRIR.map { String($0) } ?? ""
         isOptional = plannedSet.isOptional
         notes = plannedSet.notes ?? ""
+        definitionData = plannedSet.definitionData
     }
 
     var summary: String {
@@ -414,7 +427,8 @@ struct PlanSetDraft: Identifiable {
             targetRPE: Double(targetRPEText),
             targetRIR: Int(targetRIRText),
             isOptional: isOptional,
-            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes,
+            definitionData: definitionData
         )
     }
 }

@@ -72,6 +72,7 @@ enum LoadRoundingRule: Codable, Hashable {
 
 struct LoadPrescription: Codable, Hashable {
     var reference: LoadReference
+    var fixedValue: Double?
     var percentage: Double?
     var absoluteOffset: Double
     var percentageOffset: Double?
@@ -81,6 +82,7 @@ struct LoadPrescription: Codable, Hashable {
 
     init(
         reference: LoadReference = LoadReference(kind: .manual),
+        fixedValue: Double? = nil,
         percentage: Double? = nil,
         absoluteOffset: Double = 0,
         percentageOffset: Double? = nil,
@@ -89,6 +91,7 @@ struct LoadPrescription: Codable, Hashable {
         rounding: LoadRoundingRule = .none
     ) {
         self.reference = reference
+        self.fixedValue = fixedValue
         self.percentage = percentage
         self.absoluteOffset = absoluteOffset
         self.percentageOffset = percentageOffset

@@ -113,6 +113,19 @@ enum PlanCoordinator {
             }
         }
 
+        var stateKeys = Set<String>()
+        for plannedExercise in plan.orderedWeeks
+            .flatMap(\.orderedPlannedWorkouts)
+            .flatMap(\.orderedPlannedExercises)
+            where stateKeys.insert(plannedExercise.progressionKey).inserted {
+            run.progressionStates.append(
+                PlanExerciseProgressionState(
+                    progressionKey: plannedExercise.progressionKey,
+                    currentVariationExerciseID: plannedExercise.exercise.id
+                )
+            )
+        }
+
         refreshAvailability(for: run)
         return run
     }
@@ -380,7 +393,8 @@ enum PlanCoordinator {
                 targetRIR: templateExercise.targetRIR,
                 notes: templateExercise.notes,
                 progressionRule: templateExercise.progressionRule,
-                supersetGroupID: groupID
+                supersetGroupID: groupID,
+                progressionKey: templateExercise.progressionKey
             )
         }
     }

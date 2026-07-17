@@ -10,6 +10,8 @@ import SwiftData
 
 @Model
 final class Exercise {
+    /// Stable external identity for program definitions and backup links.
+    var id = UUID()
     var name: String
     var primaryMuscles: [Muscle]
     var secondaryMuscles: [Muscle]?
@@ -65,8 +67,10 @@ final class Exercise {
         laterality: Laterality = .bilateral,
         repCountingStyle: RepCountingStyle = .total,
         weightEntryStyle: WeightEntryStyle = .totalLoad,
-        loadUnitCount: Int = 1
+        loadUnitCount: Int = 1,
+        id: UUID = UUID()
     ) {
+        self.id = id
         self.name = name
         self.primaryMuscles = primaryMuscles
         self.secondaryMuscles = secondaryMuscles
