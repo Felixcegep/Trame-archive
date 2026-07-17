@@ -22,6 +22,19 @@ final class ExerciseSet {
     var done: Bool = false
     var rpe: Int?
     var setType: SetType = SetType.normal
+    /// Immutable-at-start prescription evidence. Performed values above remain
+    /// authoritative and are never overwritten from these fields.
+    var prescribedSetType: SetType?
+    var prescribedRepetitions: Int?
+    var prescribedRepRangeMinimum: Int?
+    var prescribedRepRangeMaximum: Int?
+    var prescribedSuggestedLoad: Double?
+    var prescribedSuggestedLoadType: WeightType?
+    var prescribedRestSeconds: Int?
+    var prescribedRPE: Double?
+    var prescribedRIR: Int?
+    var isPrescribedOptional: Bool?
+    var prescriptionNotes: String?
     var usedMetric : UnitSystem
     var exerciseEntry: ExerciseEntry?
     init(
@@ -47,6 +60,17 @@ final class ExerciseSet {
         self.done = done
         self.rpe = rpe
         self.setType = setType
+        self.prescribedSetType = nil
+        self.prescribedRepetitions = nil
+        self.prescribedRepRangeMinimum = nil
+        self.prescribedRepRangeMaximum = nil
+        self.prescribedSuggestedLoad = nil
+        self.prescribedSuggestedLoadType = nil
+        self.prescribedRestSeconds = nil
+        self.prescribedRPE = nil
+        self.prescribedRIR = nil
+        self.isPrescribedOptional = nil
+        self.prescriptionNotes = nil
         self.usedMetric = usedMetric
     }
 
