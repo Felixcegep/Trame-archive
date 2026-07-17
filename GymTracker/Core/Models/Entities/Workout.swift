@@ -61,8 +61,28 @@ class Workout {
         self.sourcePlannedWorkoutID = nil
         self.sourcePlanName = nil
         self.exercises = []
+        var snapshotGroupIDs: [UUID: UUID] = [:]
         for (index, templateExercise) in template.orderedTemplateExercises.enumerated() {
-            exercises.append(ExerciseEntry(from: templateExercise, orderIndex: index, usedMetric: unitSystem))
+            let groupID: UUID?
+            if let sourceID = templateExercise.supersetGroupID {
+                if let existingID = snapshotGroupIDs[sourceID] {
+                    groupID = existingID
+                } else {
+                    let freshID = UUID()
+                    snapshotGroupIDs[sourceID] = freshID
+                    groupID = freshID
+                }
+            } else {
+                groupID = nil
+            }
+            exercises.append(
+                ExerciseEntry(
+                    from: templateExercise,
+                    orderIndex: index,
+                    usedMetric: unitSystem,
+                    supersetGroupID: groupID
+                )
+            )
         }
     }
 
@@ -77,8 +97,26 @@ class Workout {
         self.sourcePlanName = planRun.sourcePlanName
 
         self.exercises = []
+        var snapshotGroupIDs: [UUID: UUID] = [:]
         for (index, plannedExercise) in plannedWorkout.orderedPlannedExercises.enumerated() {
-            let entry = ExerciseEntry(from: plannedExercise, orderIndex: index, usedMetric: unitSystem)
+            let groupID: UUID?
+            if let sourceID = plannedExercise.supersetGroupID {
+                if let existingID = snapshotGroupIDs[sourceID] {
+                    groupID = existingID
+                } else {
+                    let freshID = UUID()
+                    snapshotGroupIDs[sourceID] = freshID
+                    groupID = freshID
+                }
+            } else {
+                groupID = nil
+            }
+            let entry = ExerciseEntry(
+                from: plannedExercise,
+                orderIndex: index,
+                usedMetric: unitSystem,
+                supersetGroupID: groupID
+            )
             PlanDeloadService.apply(to: entry, for: plannedWorkout.week?.block)
             exercises.append(entry)
         }
@@ -117,6 +155,7 @@ class Workout {
             exercise.orderIndex = index
             exercise.normalizeSetOrder()
         }
+        SupersetGrouping.dissolveInvalidGroups(in: orderedExercises)
     }
 
     var completedSetCount: Int {

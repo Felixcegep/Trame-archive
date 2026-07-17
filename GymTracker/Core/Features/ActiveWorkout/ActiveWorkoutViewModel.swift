@@ -43,15 +43,9 @@ class ActiveWorkoutViewModel {
             return nil
         }
 
-        for exercise in workout.orderedExercises {
-            for set in exercise.orderedSets {
-                if !set.done {
-                    return (exercise, set)
-                }
-            }
+        return WorkoutSetSelector.nextIncompleteSet(in: workout).map {
+            (exercise: $0.entry, set: $0.set)
         }
-
-        return nil
     }
     
     func addExercise(_ template: Exercise) {
@@ -258,11 +252,26 @@ class ActiveWorkoutViewModel {
    
     
     func startTime(after exercise: ExerciseEntry? = nil) {
-        let duration = TimeInterval(exercise?.prescribedRestSeconds ?? Int(restDuration))
-        let timerEndDate = Date.now.addingTimeInterval(duration)
+        guard let workout = workoutVM.activeWorkout else { return }
+        let restSeconds = exercise.flatMap {
+            WorkoutSetSelector.restSeconds(
+                afterCompleting: $0,
+                in: workout,
+                defaultSeconds: Int(restDuration)
+            )
+        }
 
-        workoutVM.activeWorkout?.restEndDate = timerEndDate
-        workoutVM.activeWorkout?.pausedRemainingTime = nil
+        guard let restSeconds else {
+            workout.restEndDate = nil
+            workout.pausedRemainingTime = nil
+            persistChanges()
+            workoutVM.reconcileLiveActivity()
+            return
+        }
+        let timerEndDate = Date.now.addingTimeInterval(TimeInterval(restSeconds))
+
+        workout.restEndDate = timerEndDate
+        workout.pausedRemainingTime = nil
         persistChanges()
         runRestCountdown(until: timerEndDate)
     }

@@ -29,10 +29,7 @@ struct LiveActivityProjection: Hashable, Sendable {
 
     @MainActor
     init(workout: Workout, now: Date = .now) {
-        let next = workout.orderedExercises.lazy.compactMap { exercise -> (ExerciseEntry, ExerciseSet)? in
-            guard let set = exercise.orderedSets.first(where: { !$0.done }) else { return nil }
-            return (exercise, set)
-        }.first
+        let next = WorkoutSetSelector.nextIncompleteSet(in: workout)
 
         self.workoutID = workout.id
         self.startTime = workout.startTime

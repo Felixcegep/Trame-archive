@@ -502,20 +502,14 @@ struct ActiveWorkoutView: View {
 
     private func selectInitialDisclosure(in workout: Workout) {
         guard expandedExerciseID == nil else { return }
-        expandedExerciseID = workout.orderedExercises.first(where: { $0.orderedSets.contains(where: { !$0.done }) })?.persistentModelID
+        expandedExerciseID = WorkoutSetSelector.nextIncompleteSet(in: workout)?.entry.persistentModelID
     }
 
     private func advanceDisclosure(after completedExercise: ExerciseEntry, in workout: Workout) {
-        let orderedExercises = workout.orderedExercises
-        guard let completedIndex = orderedExercises.firstIndex(where: {
-            $0.persistentModelID == completedExercise.persistentModelID
-        }) else {
-            return
-        }
-
-        let nextExercise = orderedExercises.dropFirst(completedIndex + 1).first(where: {
-            $0.orderedSets.contains(where: { !$0.done })
-        })
+        let nextExercise = WorkoutSetSelector.nextEntry(
+            afterCompleting: completedExercise,
+            in: workout
+        )
 
         withAnimation(reduceMotion ? nil : AppMotion.layout) {
             expandedExerciseID = nextExercise?.persistentModelID

@@ -12,6 +12,9 @@ import SwiftData
 @Model
 final class ExerciseEntry{
     var orderIndex: Int = 0
+    /// Snapshot-local membership in a contiguous superset. It must never reuse
+    /// a template or planned-workout identifier.
+    var supersetGroupID: UUID?
     var comment: String?
     var exercise: Exercise
     var usedMetric : UnitSystem
@@ -58,9 +61,11 @@ final class ExerciseEntry{
         exercise: Exercise,
         sets: [ExerciseSet] = [],
         orderIndex: Int = 0,
-        usedMetric: UnitSystem
+        usedMetric: UnitSystem,
+        supersetGroupID: UUID? = nil
     ) {
         self.orderIndex = orderIndex
+        self.supersetGroupID = supersetGroupID
         self.comment = comment
         self.exercise = exercise
         self.sets = sets
@@ -102,8 +107,18 @@ final class ExerciseEntry{
         addDefaultSets()
     }
 
-    convenience init(from templateExercise: TemplateExercise, orderIndex: Int, usedMetric: UnitSystem) {
-        self.init(exercise: templateExercise.exercise, orderIndex: orderIndex, usedMetric: usedMetric)
+    convenience init(
+        from templateExercise: TemplateExercise,
+        orderIndex: Int,
+        usedMetric: UnitSystem,
+        supersetGroupID: UUID? = nil
+    ) {
+        self.init(
+            exercise: templateExercise.exercise,
+            orderIndex: orderIndex,
+            usedMetric: usedMetric,
+            supersetGroupID: supersetGroupID
+        )
         prescribedSets = templateExercise.targetSets
         prescribedRepRangeMinimum = templateExercise.repRangeMinimum
         prescribedRepRangeMaximum = templateExercise.repRangeMaximum
@@ -115,8 +130,18 @@ final class ExerciseEntry{
         addDefaultSets(count: templateExercise.targetSets)
     }
 
-    convenience init(from plannedExercise: PlannedExercise, orderIndex: Int, usedMetric: UnitSystem) {
-        self.init(exercise: plannedExercise.exercise, orderIndex: orderIndex, usedMetric: usedMetric)
+    convenience init(
+        from plannedExercise: PlannedExercise,
+        orderIndex: Int,
+        usedMetric: UnitSystem,
+        supersetGroupID: UUID? = nil
+    ) {
+        self.init(
+            exercise: plannedExercise.exercise,
+            orderIndex: orderIndex,
+            usedMetric: usedMetric,
+            supersetGroupID: supersetGroupID
+        )
         prescribedSets = plannedExercise.targetSets
         prescribedRepRangeMinimum = plannedExercise.repRangeMinimum
         prescribedRepRangeMaximum = plannedExercise.repRangeMaximum

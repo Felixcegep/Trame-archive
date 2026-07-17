@@ -52,6 +52,7 @@ struct TemplateExerciseDTO: Codable {
     let targetRIR: Int?
     let notes: String?
     let progressionRule: String?
+    var supersetGroupID: String? = nil
 }
 
 struct WorkoutTemplateDTO: Codable {
@@ -108,6 +109,7 @@ struct ExerciseEntryDTO: Codable {
     let recommendationPriorWorkoutDate: Date?
     let accumulatedActiveDuration: Double?
     let activeDurationStartedAt: Date?
+    var supersetGroupID: String? = nil
 }
 
 struct WorkoutDTO: Codable {
@@ -147,6 +149,7 @@ struct PlannedExerciseDTO: Codable {
     let progressionRule: String
     var stimulus: String? = nil
     var alternativeExerciseNames: [String]? = nil
+    var supersetGroupID: String? = nil
 }
 
 struct PlannedWorkoutDTO: Codable {
@@ -337,7 +340,8 @@ enum BackupValidationError: LocalizedError {
 }
 
 extension BackupDTO {
-    static let currentVersion = 2
+    static let currentVersion = 3
+    static let planVersion = 2
     static let legacyVersion = 1
 
     static func create(from context: ModelContext, restTimer: Int, darkMode: Bool, unitSystem: UnitSystem) throws -> BackupDTO {
@@ -398,7 +402,8 @@ extension BackupDTO {
                         targetRPE: te.targetRPE,
                         targetRIR: te.targetRIR,
                         notes: te.notes,
-                        progressionRule: te.progressionRule.rawValue
+                        progressionRule: te.progressionRule.rawValue,
+                        supersetGroupID: te.supersetGroupID?.uuidString
                     )
                 }
             )
@@ -474,7 +479,8 @@ extension BackupDTO {
                         recommendationCompletedSets: exercise.recommendationCompletedSets,
                         recommendationPriorWorkoutDate: exercise.recommendationPriorWorkoutDate,
                         accumulatedActiveDuration: exercise.accumulatedActiveDuration,
-                        activeDurationStartedAt: exercise.activeDurationStartedAt
+                        activeDurationStartedAt: exercise.activeDurationStartedAt,
+                        supersetGroupID: exercise.supersetGroupID?.uuidString
                     )
                 }
             )
@@ -539,7 +545,8 @@ extension BackupDTO {
                                                 stimulus: plannedExercise.resolvedStimulus.rawValue,
                                                 alternativeExerciseNames: plannedExercise.alternatives
                                                     .sorted { $0.orderIndex < $1.orderIndex }
-                                                    .map { $0.exercise.name }
+                                                    .map { $0.exercise.name },
+                                                supersetGroupID: plannedExercise.supersetGroupID?.uuidString
                                             )
                                         }
                                     )
@@ -710,7 +717,8 @@ extension BackupDTO {
                     targetRPE: teDTO.targetRPE,
                     targetRIR: teDTO.targetRIR,
                     notes: teDTO.notes,
-                    progressionRule: ProgressionRule(rawValue: teDTO.progressionRule ?? "") ?? .doubleProgression
+                    progressionRule: ProgressionRule(rawValue: teDTO.progressionRule ?? "") ?? .doubleProgression,
+                    supersetGroupID: teDTO.supersetGroupID.flatMap(UUID.init(uuidString:))
                 )
                 te.orderIndex = teDTO.orderIndex
                 templateExercises.append(te)
@@ -765,7 +773,8 @@ extension BackupDTO {
                                     stimulus: plannedExerciseDTO.stimulus.flatMap(TrainingStimulus.init(rawValue:)) ?? .strength,
                                     alternatives: alternativeExercises.enumerated().map {
                                         PlannedExerciseAlternative(exercise: $0.element, orderIndex: $0.offset)
-                                    }
+                                    },
+                                    supersetGroupID: plannedExerciseDTO.supersetGroupID.flatMap(UUID.init(uuidString:))
                                 )
                                 plannedExercise.id = try requiredUUID(plannedExerciseDTO.id, named: "planned exercise")
                                 return plannedExercise
@@ -864,7 +873,8 @@ extension BackupDTO {
                     comment: entryDTO.comment,
                     exercise: exerciseTemplate,
                     orderIndex: entryDTO.orderIndex,
-                    usedMetric: usedMetric
+                    usedMetric: usedMetric,
+                    supersetGroupID: entryDTO.supersetGroupID.flatMap(UUID.init(uuidString:))
                 )
                 entry.prescribedSets = entryDTO.prescribedSets
                 entry.prescribedRepRangeMinimum = entryDTO.prescribedRepRangeMinimum
@@ -979,7 +989,7 @@ extension BackupDTO {
     }
 
     func validate() throws {
-        guard version == Self.legacyVersion || version == Self.currentVersion else {
+        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
 
@@ -1032,7 +1042,7 @@ extension BackupDTO {
             }
         }
 
-        guard version == Self.currentVersion else { return }
+        guard version != Self.legacyVersion else { return }
 
         try validateUniqueIdentifiers(plans.map(\.id), named: "plan")
         try validateUniqueIdentifiers(workouts.compactMap(\.id), named: "workout")

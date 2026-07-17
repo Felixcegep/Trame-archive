@@ -36,4 +36,11 @@ final class PlannedWorkout {
     var orderedPlannedExercises: [PlannedExercise] {
         plannedExercises.sorted { $0.orderIndex < $1.orderIndex }
     }
+
+    func normalizePlannedExerciseOrder() {
+        for (index, exercise) in orderedPlannedExercises.enumerated() {
+            exercise.orderIndex = index
+        }
+        SupersetGrouping.dissolveInvalidGroups(in: orderedPlannedExercises)
+    }
 }

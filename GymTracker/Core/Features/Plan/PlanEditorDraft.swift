@@ -58,6 +58,7 @@ struct PlanEditorDraft {
                     }
                     return draft.makeModel(orderIndex: index)
                 }
+                workout.normalizePlannedExerciseOrder()
             }
         }
     }
@@ -158,6 +159,7 @@ struct PlanWorkoutDraft: Identifiable {
 struct PlanExerciseDraft: Identifiable {
     let id: UUID
     let existingID: UUID?
+    var supersetGroupID: UUID?
     var exercise: Exercise
     var role: ExerciseRole
     var isOptional: Bool
@@ -177,6 +179,7 @@ struct PlanExerciseDraft: Identifiable {
     init(exercise: Exercise, orderIndex: Int) {
         id = UUID()
         existingID = nil
+        supersetGroupID = nil
         self.exercise = exercise
         role = .main
         isOptional = false
@@ -200,6 +203,7 @@ struct PlanExerciseDraft: Identifiable {
     init(plannedExercise: PlannedExercise) {
         id = plannedExercise.id
         existingID = plannedExercise.id
+        supersetGroupID = plannedExercise.supersetGroupID
         exercise = plannedExercise.exercise
         role = plannedExercise.role
         isOptional = plannedExercise.isOptional
@@ -252,7 +256,8 @@ struct PlanExerciseDraft: Identifiable {
             stimulus: stimulus,
             alternatives: alternatives.enumerated().map {
                 PlannedExerciseAlternative(exercise: $0.element, orderIndex: $0.offset)
-            }
+            },
+            supersetGroupID: supersetGroupID
         )
     }
 
@@ -272,6 +277,7 @@ struct PlanExerciseDraft: Identifiable {
         model.notes = notes.isEmpty ? nil : notes
         model.progressionRule = progressionRule
         model.stimulus = stimulus
+        model.supersetGroupID = supersetGroupID
         for alternative in model.alternatives {
             context.delete(alternative)
         }

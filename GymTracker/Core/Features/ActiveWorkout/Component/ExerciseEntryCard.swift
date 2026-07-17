@@ -400,7 +400,6 @@ struct ExerciceEntryCard: View {
     }
 
     private func handleSetCompletion() {
-        guard exerciseIsDone else { return }
         onExerciseCompleted()
     }
 }

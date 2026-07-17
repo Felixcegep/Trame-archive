@@ -355,8 +355,21 @@ enum PlanCoordinator {
     }
 
     private static func copiedExercises(from template: WorkoutTemplate) -> [PlannedExercise] {
-        template.orderedTemplateExercises.enumerated().map { index, templateExercise in
-            PlannedExercise(
+        var copiedGroupIDs: [UUID: UUID] = [:]
+        return template.orderedTemplateExercises.enumerated().map { index, templateExercise in
+            let groupID: UUID?
+            if let sourceID = templateExercise.supersetGroupID {
+                if let existingID = copiedGroupIDs[sourceID] {
+                    groupID = existingID
+                } else {
+                    let freshID = UUID()
+                    copiedGroupIDs[sourceID] = freshID
+                    groupID = freshID
+                }
+            } else {
+                groupID = nil
+            }
+            return PlannedExercise(
                 exercise: templateExercise.exercise,
                 orderIndex: index,
                 targetSets: templateExercise.targetSets,
@@ -366,7 +379,8 @@ enum PlanCoordinator {
                 targetRPE: templateExercise.targetRPE,
                 targetRIR: templateExercise.targetRIR,
                 notes: templateExercise.notes,
-                progressionRule: templateExercise.progressionRule
+                progressionRule: templateExercise.progressionRule,
+                supersetGroupID: groupID
             )
         }
     }

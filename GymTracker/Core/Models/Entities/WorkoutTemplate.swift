@@ -43,5 +43,6 @@ class WorkoutTemplate {
         for (index, templateExercise) in orderedTemplateExercises.enumerated() {
             templateExercise.orderIndex = index
         }
+        SupersetGrouping.dissolveInvalidGroups(in: orderedTemplateExercises)
     }
 }

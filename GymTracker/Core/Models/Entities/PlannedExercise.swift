@@ -5,6 +5,8 @@ import SwiftData
 final class PlannedExercise {
     var id = UUID()
     var orderIndex: Int
+    /// Membership in a contiguous superset within this planned workout.
+    var supersetGroupID: UUID?
     var role: ExerciseRole
     var isOptional: Bool
     var targetSets: Int
@@ -41,7 +43,8 @@ final class PlannedExercise {
         notes: String? = nil,
         progressionRule: ProgressionRule = .none,
         stimulus: TrainingStimulus = .strength,
-        alternatives: [PlannedExerciseAlternative] = []
+        alternatives: [PlannedExerciseAlternative] = [],
+        supersetGroupID: UUID? = nil
     ) {
         self.exercise = exercise
         self.orderIndex = orderIndex
@@ -59,6 +62,7 @@ final class PlannedExercise {
         self.progressionRule = progressionRule
         self.stimulus = stimulus
         self.alternatives = alternatives
+        self.supersetGroupID = supersetGroupID
     }
 
     var resolvedStimulus: TrainingStimulus {

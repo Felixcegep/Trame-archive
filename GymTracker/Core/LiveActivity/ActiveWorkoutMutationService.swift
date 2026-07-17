@@ -53,10 +53,14 @@ struct ActiveWorkoutMutationService {
         }
 
         current.set.done = true
-        let restSeconds = max(0, current.exercise.prescribedRestSeconds ?? defaultRestSeconds)
-        workout.restEndDate = restSeconds > 0
-            ? now.addingTimeInterval(TimeInterval(restSeconds))
-            : nil
+        let restSeconds = WorkoutSetSelector.restSeconds(
+            afterCompleting: current.exercise,
+            in: workout,
+            defaultSeconds: defaultRestSeconds
+        )
+        workout.restEndDate = restSeconds.map {
+            now.addingTimeInterval(TimeInterval($0))
+        }
         workout.pausedRemainingTime = nil
 
         return saveAndProject(workout, now: now)
@@ -146,12 +150,9 @@ struct ActiveWorkoutMutationService {
     }
 
     private func currentSet(in workout: Workout) -> (exercise: ExerciseEntry, set: ExerciseSet)? {
-        for exercise in workout.orderedExercises {
-            if let set = exercise.orderedSets.first(where: { !$0.done }) {
-                return (exercise, set)
-            }
+        WorkoutSetSelector.nextIncompleteSet(in: workout).map {
+            (exercise: $0.entry, set: $0.set)
         }
-        return nil
     }
 
     private func saveAndProject(_ workout: Workout, now: Date) -> Result {

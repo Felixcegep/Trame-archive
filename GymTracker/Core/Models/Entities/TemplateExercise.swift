@@ -4,6 +4,9 @@ import SwiftData
 @Model
 final class TemplateExercise {
     var orderIndex: Int = 0
+    /// Membership in a contiguous superset. This identifier belongs to this
+    /// prescription only; each workout snapshot receives fresh identifiers.
+    var supersetGroupID: UUID?
     var targetSets: Int
     var repRangeMinimum: Int
     var repRangeMaximum: Int
@@ -25,7 +28,8 @@ final class TemplateExercise {
         targetRPE: Double? = nil,
         targetRIR: Int? = nil,
         notes: String? = nil,
-        progressionRule: ProgressionRule = .doubleProgression
+        progressionRule: ProgressionRule = .doubleProgression,
+        supersetGroupID: UUID? = nil
     ) {
         self.exercise = exercise
         self.orderIndex = order
@@ -37,5 +41,6 @@ final class TemplateExercise {
         self.targetRIR = targetRIR
         self.notes = notes
         self.progressionRule = progressionRule
+        self.supersetGroupID = supersetGroupID
     }
 }
