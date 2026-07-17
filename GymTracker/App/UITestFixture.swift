@@ -15,6 +15,7 @@ enum UITestFixture: String {
     case activeRestReady = "active-rest-ready"
     case activeDraft = "active-draft"
     case activeLoadingStyles = "active-loading-styles"
+    case activeSuperset = "active-superset"
     case historyBench = "history-bench"
     case exerciseInsights = "exercise-insights"
     case muscleBalance = "muscle-balance"
@@ -83,6 +84,8 @@ enum UITestFixture: String {
             try makeActiveDraftWorkout(using: context)
         case .activeLoadingStyles:
             try makeLoadingStyleWorkout(using: context)
+        case .activeSuperset:
+            try makeSupersetWorkout(using: context)
         case .historyBench:
             try makeCompletedBenchHistory(using: context)
         case .exerciseInsights:
@@ -171,6 +174,16 @@ enum UITestFixture: String {
             try inProgressEntry(named: "Leg Press", orderIndex: 2, using: context)
         ]
         try makeActiveWorkout(exercises: entries, using: context)
+    }
+
+    private static func makeSupersetWorkout(using context: ModelContext) throws {
+        let groupID = UUID()
+        let bench = try inProgressEntry(named: "Bench Press", orderIndex: 0, using: context)
+        let row = try inProgressEntry(named: "Barbell Row", orderIndex: 1, using: context)
+        bench.supersetGroupID = groupID
+        row.supersetGroupID = groupID
+        row.prescribedRestSeconds = 90
+        try makeActiveWorkout(exercises: [bench, row], using: context)
     }
 
     private static func makeActiveDraftWorkout(using context: ModelContext) throws {
