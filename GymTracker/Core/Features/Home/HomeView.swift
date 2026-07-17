@@ -28,11 +28,11 @@ struct HomeView: View {
             .padding(.bottom, Spacing.xxxl)
         }
         .scrollIndicators(.hidden)
-        .foregroundStyle(WorkoutPalette.text)
-        .background(WorkoutPalette.background)
-        .tint(WorkoutPalette.primary)
+        .foregroundStyle(Color.gymText)
+        .background(Color.gymBackground)
+        .tint(Color.gymPrimary)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(WorkoutPalette.background, for: .navigationBar, .tabBar)
+        .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
         .sheet(isPresented: $isShowingTemplatePicker) {
@@ -74,7 +74,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: Spacing.xs + 2) {
             Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
                 .font(AppFont.subheadlineMediumMonospaced)
-                .foregroundStyle(WorkoutPalette.accent)
+                .foregroundStyle(Color.gymAccent)
 
             if let activePlanRun {
                 activePlanContext(for: activePlanRun)
@@ -88,7 +88,7 @@ struct HomeView: View {
                  ? "Your session is still running."
                  : "Track your training today.")
                 .font(AppFont.subheadline)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
         }
     }
 
@@ -108,13 +108,13 @@ struct HomeView: View {
                 .font(AppFont.caption2Bold)
                 .padding(.horizontal, Spacing.s)
                 .padding(.vertical, Spacing.xxs)
-                .background(WorkoutPalette.surface.opacity(0.72), in: Capsule())
+                .background(Color.gymCard.opacity(0.72), in: Capsule())
         }
-        .foregroundStyle(WorkoutPalette.accent)
+        .foregroundStyle(Color.gymAccent)
         .padding(.horizontal, Spacing.m)
         .padding(.vertical, Spacing.s)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(WorkoutPalette.accentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Active program: \(run.sourcePlanName), week \(run.currentWeekIndex + 1)")
         .accessibilityIdentifier("active-plan-badge")
@@ -143,13 +143,13 @@ struct HomeView: View {
 
                 Text(primaryCardTitle)
                     .font(AppFont.titleMedium)
-                    .foregroundStyle(workoutVM.hasActiveWorkout ? .white : WorkoutPalette.text)
+                    .foregroundStyle(workoutVM.hasActiveWorkout ? .white : Color.gymText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(primaryCardSubtitle)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(workoutVM.hasActiveWorkout ? .white.opacity(0.86) : WorkoutPalette.subduedText)
+                    .foregroundStyle(workoutVM.hasActiveWorkout ? .white.opacity(0.86) : Color.gymSubduedText)
 
                 if let workout = workoutVM.activeWorkout, workout.totalSetCount > 0 {
                     ProgressView(
@@ -184,7 +184,7 @@ struct HomeView: View {
                         endPoint: .bottomTrailing
                     )
                 } else {
-                    WorkoutPalette.surface
+                    Color.gymCard
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -208,14 +208,14 @@ struct HomeView: View {
                     Text("QUICK ACTIONS")
                         .font(AppFont.captionBold)
                         .tracking(0.8)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
 
                     Button {
                         isShowingTemplatePicker = true
                     } label: {
                         quickActionRow(
                             icon: "rectangle.stack",
-                            iconColor: WorkoutPalette.primary,
+                            iconColor: Color.gymPrimary,
                             title: "Use a Saved Workout",
                             detail: "Follow a reusable session"
                         )
@@ -247,20 +247,20 @@ struct HomeView: View {
                     .font(AppFont.subheadlineSemibold)
                 Text(detail)
                     .font(AppFont.caption)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             Spacer()
 
             Image(systemName: isInformational ? "info.circle" : "chevron.right")
                 .font(AppFont.captionBold)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
         }
         .padding(Spacing.m)
-        .background(WorkoutPalette.surface)
+        .background(Color.gymCard)
         .overlay {
             RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                .stroke(WorkoutPalette.border, lineWidth: 1)
+                .stroke(Color.gymBorder, lineWidth: 1)
         }
         .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
         .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)
@@ -273,15 +273,15 @@ struct HomeView: View {
             Text("HISTORY")
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
 
             if completedWorkouts.isEmpty {
                 HStack(spacing: Spacing.m) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(AppFont.headline)
                         .frame(width: 38, height: 38)
-                        .foregroundStyle(WorkoutPalette.accent)
-                        .background(WorkoutPalette.accent.opacity(0.12))
+                        .foregroundStyle(Color.gymAccent)
+                        .background(Color.gymAccent.opacity(0.12))
                         .clipShape(Circle())
 
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -289,15 +289,15 @@ struct HomeView: View {
                             .font(AppFont.subheadlineSemibold)
                         Text("Finish a workout to unlock performance and progression history.")
                             .font(AppFont.caption)
-                            .foregroundStyle(WorkoutPalette.subduedText)
+                            .foregroundStyle(Color.gymSubduedText)
                     }
                 }
                 .padding(Spacing.m)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(WorkoutPalette.surface)
+                .background(Color.gymCard)
                 .overlay {
                     RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                        .stroke(WorkoutPalette.border, lineWidth: 1)
+                        .stroke(Color.gymBorder, lineWidth: 1)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                 .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)
@@ -309,8 +309,8 @@ struct HomeView: View {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(AppFont.headline)
                                     .frame(width: 38, height: 38)
-                                    .foregroundStyle(WorkoutPalette.secondary)
-                                    .background(WorkoutPalette.secondary.opacity(0.12))
+                                    .foregroundStyle(Color.gymSecondary)
+                                    .background(Color.gymSecondary.opacity(0.12))
                                     .clipShape(Circle())
 
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -318,24 +318,24 @@ struct HomeView: View {
                                         .font(AppFont.subheadlineSemibold)
                                     Text(workout.startTime, style: .date)
                                         .font(AppFont.caption)
-                                        .foregroundStyle(WorkoutPalette.subduedText)
+                                        .foregroundStyle(Color.gymSubduedText)
                                 }
 
                                 Spacer()
 
                                 Text("^[\(workout.exercises.count) exercise](inflect: true)")
                                     .font(AppFont.caption)
-                                    .foregroundStyle(WorkoutPalette.subduedText)
+                                    .foregroundStyle(Color.gymSubduedText)
 
                                 Image(systemName: "chevron.right")
                                     .font(AppFont.captionBold)
-                                    .foregroundStyle(WorkoutPalette.subduedText)
+                                    .foregroundStyle(Color.gymSubduedText)
                             }
                             .padding(Spacing.m)
-                            .background(WorkoutPalette.surface)
+                            .background(Color.gymCard)
                             .overlay {
                                 RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                                    .stroke(WorkoutPalette.border, lineWidth: 1)
+                                    .stroke(Color.gymBorder, lineWidth: 1)
                             }
                             .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                             .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)
@@ -477,7 +477,7 @@ private struct SavedWorkoutTemplatePicker: View {
                                     .foregroundStyle(Color.gymText)
                                 Text("\(template.exercises.count) exercises")
                                     .font(AppFont.caption)
-                                    .foregroundStyle(WorkoutPalette.subduedText)
+                                    .foregroundStyle(Color.gymSubduedText)
                             }
 
                             Spacer()

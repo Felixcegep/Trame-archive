@@ -19,8 +19,8 @@ struct WorkoutsBrowserView: View {
                         title: collection.name,
                         subtitle: workoutCountText(collection.workoutTemplates.count),
                         icon: "rectangle.stack",
-                        color: FolderPalette.accent,
-                        surface: FolderPalette.accentSurface
+                        color: Color.gymAccent,
+                        surface: Color.gymAccentSurface
                     )
                 }
             }
@@ -34,8 +34,8 @@ struct WorkoutsBrowserView: View {
                         title: template.name,
                         subtitle: "\(template.exercises.count) exercises",
                         icon: "list.bullet.rectangle",
-                        color: FolderPalette.primary,
-                        surface: FolderPalette.primarySurface
+                        color: Color.gymPrimary,
+                        surface: Color.gymPrimarySurface
                     )
                 }
             }

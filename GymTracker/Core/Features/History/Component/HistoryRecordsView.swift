@@ -12,7 +12,7 @@ struct HistoryRecordsView: View {
                         .font(AppFont.displayMedium)
                     Text("Personal bests from completed workouts.")
                         .font(AppFont.subheadline)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
 
                 if bestLoadRecords.isEmpty && bestRepRecords.isEmpty && notableSessions.isEmpty {
@@ -60,7 +60,7 @@ struct HistoryRecordsView: View {
                             .font(AppFont.bodyMedium)
                         Text(session.date.formatted(.dateTime.month(.abbreviated).day().year()))
                             .font(AppFont.caption)
-                            .foregroundStyle(WorkoutPalette.subduedText)
+                            .foregroundStyle(Color.gymSubduedText)
                     }
                     Spacer()
                     Text("\(Formatters.formatFloat(session.volume)) volume")
@@ -80,7 +80,7 @@ struct HistoryRecordsView: View {
                     .font(AppFont.bodyMedium)
                 Text(record.date.formatted(.dateTime.month(.abbreviated).day().year()))
                     .font(AppFont.caption)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
             Spacer()
             Text(record.valueText)

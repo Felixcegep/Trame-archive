@@ -45,15 +45,15 @@ struct ExerciceEntryCard: View {
         .padding(isCurrentExercise ? Spacing.l : Spacing.m)
         .background(
             exerciseIsDone && !isCurrentExercise
-                ? WorkoutPalette.completedSurface
-                : (isCurrentExercise ? WorkoutPalette.primarySurface : WorkoutPalette.surface)
+                ? Color.gymSecondarySurface
+                : (isCurrentExercise ? Color.gymPrimarySurface : Color.gymCard)
         )
         .overlay {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(
                     expandedExerciseID == exerciseEntry.persistentModelID
-                        ? WorkoutPalette.primary.opacity(0.42)
-                        : WorkoutPalette.border,
+                        ? Color.gymPrimary.opacity(0.42)
+                        : Color.gymBorder,
                     lineWidth: 1
                 )
         }
@@ -73,7 +73,7 @@ struct ExerciceEntryCard: View {
         HStack(spacing: Spacing.m) {
             if exerciseIsDone {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(WorkoutPalette.secondary)
+                    .foregroundStyle(Color.gymSecondary)
                     .font(.title3)
             }
 
@@ -82,18 +82,18 @@ struct ExerciceEntryCard: View {
                     Label("CURRENT EXERCISE", systemImage: AppIcon.circleFill)
                         .font(AppFont.caption2Bold)
                         .tracking(0.55)
-                        .foregroundStyle(WorkoutPalette.primary)
+                        .foregroundStyle(Color.gymPrimary)
                 }
 
                 Text(exerciseEntry.exercise.name)
                     .font(isCurrentExercise ? AppFont.titleSmall : AppFont.headlineSemibold)
-                    .foregroundStyle(WorkoutPalette.text)
+                    .foregroundStyle(Color.gymText)
                     .accessibilityIdentifier("active-exercise-\(exerciseEntry.exercise.name)")
 
                 if let prescription = prescriptionSummary {
                     Text(prescription)
                         .font(AppFont.captionSemiboldMonospaced)
-                        .foregroundStyle(WorkoutPalette.primary)
+                        .foregroundStyle(Color.gymPrimary)
                         .lineLimit(1)
                         .accessibilityIdentifier("prescription-summary-\(exerciseEntry.exercise.name)")
                 }
@@ -105,7 +105,7 @@ struct ExerciceEntryCard: View {
                 if let previousPerformance {
                     Text(previousPerformanceSummary(previousPerformance))
                         .font(AppFont.caption)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                         .lineLimit(1)
                         .accessibilityIdentifier("previous-performance-\(exerciseEntry.exercise.name)")
                 }
@@ -120,7 +120,7 @@ struct ExerciceEntryCard: View {
                     }
                 }
                 .font(AppFont.caption)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
                 .lineLimit(1)
             }
 
@@ -136,9 +136,9 @@ struct ExerciceEntryCard: View {
             } label: {
                 Image(systemName: AppIcon.ellipsis)
                     .font(AppFont.subheadlineBold)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .frame(width: 30, height: 30)
-                    .background(WorkoutPalette.text.opacity(0.06))
+                    .background(Color.gymText.opacity(0.06))
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
@@ -161,7 +161,7 @@ struct ExerciceEntryCard: View {
         }
         .font(AppFont.caption2Bold)
         .tracking(0.55)
-        .foregroundStyle(WorkoutPalette.subduedText)
+        .foregroundStyle(Color.gymSubduedText)
         .padding(.horizontal, 4)
     }
 
@@ -192,7 +192,7 @@ struct ExerciceEntryCard: View {
         }
         .accessibilityIdentifier("add-set-\(exerciseEntry.exercise.name)")
         .font(AppFont.subheadlineSemibold)
-        .foregroundStyle(WorkoutPalette.primary)
+        .foregroundStyle(Color.gymPrimary)
         .buttonStyle(.borderless)
     }
 
@@ -205,7 +205,7 @@ struct ExerciceEntryCard: View {
                 .padding(.trailing, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(WorkoutPalette.secondary)
+        .background(Color.gymSecondary)
     }
 
     private var swipeGesture: some Gesture {
@@ -291,8 +291,8 @@ struct ExerciceEntryCard: View {
                 .font(AppFont.caption)
                 .foregroundStyle(
                     presentation.decision == .increase
-                        ? WorkoutPalette.primary
-                        : WorkoutPalette.subduedText
+                        ? Color.gymPrimary
+                        : Color.gymSubduedText
                 )
                 .lineLimit(2)
                 .accessibilityIdentifier("recommendation-\(exerciseEntry.exercise.name)")

@@ -43,7 +43,7 @@ struct PlateCalculatorView: View {
                 }
                 .padding(Spacing.xl)
             }
-            .background(WorkoutPalette.background)
+            .background(Color.gymBackground)
             .navigationTitle("Plate calculator")
             .navigationBarTitleDisplayMode(.inline)
             .overlay(alignment: .topLeading) {
@@ -69,7 +69,7 @@ struct PlateCalculatorView: View {
                 Text("BAR LOAD")
                     .font(AppFont.captionBold)
                     .tracking(0.8)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
 
                 Spacer()
 
@@ -102,11 +102,11 @@ struct PlateCalculatorView: View {
                  ? "Bare \(selectedBar.title) bar · \(formatted(equipment.barWeight)) \(equipment.unitLabel)."
                  : "One side shown · Add or remove plates below.")
                 .font(AppFont.caption)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(WorkoutPalette.surface)
+        .background(Color.gymCard)
         .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Bar load diagram, one side shown")
@@ -124,7 +124,7 @@ struct PlateCalculatorView: View {
     private var selectedBarSummary: some View {
         Text("\(selectedBar.title) · \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
             .font(AppFont.captionSemiboldMonospaced)
-            .foregroundStyle(WorkoutPalette.primary)
+            .foregroundStyle(Color.gymPrimary)
             .lineLimit(1)
         .accessibilityLabel("Bar type: \(selectedBar.title), \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
     }
@@ -180,7 +180,7 @@ struct PlateCalculatorView: View {
             Text("BAR TYPE")
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Spacing.s) {
@@ -193,16 +193,16 @@ struct PlateCalculatorView: View {
                                     .font(AppFont.captionSemiboldMonospaced)
                                 Text("\(formatted(bar.weight(for: preferredUnitSystem))) \(equipment.unitLabel)")
                                     .font(AppFont.captionSemiboldMonospaced)
-                                    .foregroundStyle(selectedBarID == bar.id ? WorkoutPalette.primary : WorkoutPalette.subduedText)
+                                    .foregroundStyle(selectedBarID == bar.id ? Color.gymPrimary : Color.gymSubduedText)
                             }
                             .frame(minWidth: 104, alignment: .leading)
                             .padding(.horizontal, Spacing.m)
                             .padding(.vertical, Spacing.s)
-                            .background(selectedBarID == bar.id ? WorkoutPalette.primarySurface : WorkoutPalette.surface)
+                            .background(selectedBarID == bar.id ? Color.gymPrimarySurface : Color.gymCard)
                             .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
                             .overlay {
                                 RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                                    .stroke(selectedBarID == bar.id ? WorkoutPalette.primary : .clear, lineWidth: 1)
+                                    .stroke(selectedBarID == bar.id ? Color.gymPrimary : .clear, lineWidth: 1)
                             }
                         }
                         .buttonStyle(.plain)
@@ -219,7 +219,7 @@ struct PlateCalculatorView: View {
             Text("TARGET WEIGHT")
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
             Text("\(formatted(exerciseSet.weight)) \(equipment.unitLabel)")
                 .font(AppFont.displayLarge)
         }
@@ -249,17 +249,17 @@ struct PlateCalculatorView: View {
                     .font(AppFont.headline)
                 Text(calculation.plates.isEmpty ? "No plates" : calculation.plates.map { "\(formatted($0)) \(equipment.unitLabel) each side" }.joined(separator: " + "))
                     .font(AppFont.titleSmallSemiboldMonospaced)
-                    .foregroundStyle(WorkoutPalette.primary)
+                    .foregroundStyle(Color.gymPrimary)
                 if usesBarbell {
                     Text("On the \(selectedBar.title) bar · \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
                         .font(AppFont.caption)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
                 loadingSummary(label: "Total load")
             }
             .padding(Spacing.l)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(WorkoutPalette.surface)
+            .background(Color.gymCard)
             .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
         }
     }
@@ -269,7 +269,7 @@ struct PlateCalculatorView: View {
             Text("PLATE KEYBOARD")
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
 
             HStack(spacing: Spacing.md) {
                 if usesBarbell {
@@ -305,11 +305,11 @@ struct PlateCalculatorView: View {
                         }
                     Text("\(formatted(plate)) \(equipment.unitLabel)")
                         .font(AppFont.headlineMonospaced)
-                        .foregroundStyle(WorkoutPalette.text)
+                        .foregroundStyle(Color.gymText)
                 }
                 Text(loadedCount > 0 ? "×\(loadedCount) per side" : "per side")
                     .font(AppFont.caption)
-                    .foregroundStyle(loadedCount > 0 ? WorkoutPalette.primary : WorkoutPalette.subduedText)
+                    .foregroundStyle(loadedCount > 0 ? Color.gymPrimary : Color.gymSubduedText)
             }
 
             HStack(spacing: 0) {
@@ -335,11 +335,11 @@ struct PlateCalculatorView: View {
                 .accessibilityLabel("Add \(formatted(plate)) \(equipment.unitLabel) each side")
             }
             .buttonStyle(.borderless)
-            .foregroundStyle(WorkoutPalette.primary)
+            .foregroundStyle(Color.gymPrimary)
         }
         .padding(.vertical, Spacing.s)
         .padding(.horizontal, Spacing.xs)
-        .background(WorkoutPalette.surface)
+        .background(Color.gymCard)
         .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
         .accessibilityElement(children: .contain)
     }
@@ -382,10 +382,10 @@ struct PlateCalculatorView: View {
     private func calculatorMessage(_ message: LocalizedStringKey, icon: String) -> some View {
         Label(message, systemImage: icon)
             .font(AppFont.subheadline)
-            .foregroundStyle(WorkoutPalette.accent)
+            .foregroundStyle(Color.gymAccent)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.l)
-            .background(WorkoutPalette.accentSurface)
+            .background(Color.gymAccentSurface)
             .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
     }
 
@@ -394,7 +394,7 @@ struct PlateCalculatorView: View {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(label)
                     .font(AppFont.caption)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
                 Text("\(formatted(calculation.totalWeight)) \(equipment.unitLabel)")
                     .font(AppFont.headlineMonospaced)
             }
@@ -404,13 +404,13 @@ struct PlateCalculatorView: View {
             VStack(alignment: .trailing, spacing: Spacing.xs) {
                 Text(usesBarbell ? "Per side · incl. ½ bar" : "Per side")
                     .font(AppFont.caption)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
                 Text("\(formatted(calculation.perSideWeight)) \(equipment.unitLabel)")
                     .font(AppFont.headlineMonospaced)
             }
         }
         .padding(Spacing.m)
-        .background(WorkoutPalette.mutedSurface)
+        .background(Color.gymMutedSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
     }
 

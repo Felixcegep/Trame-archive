@@ -40,10 +40,10 @@ extension SetType {
     var accentColor: Color? {
         switch self {
         case .normal: nil
-        case .warmup: WorkoutPalette.accent
-        case .dropSet: WorkoutPalette.primary
+        case .warmup: Color.gymAccent
+        case .dropSet: Color.gymPrimary
         case .failure: Color.gymDestructive
-        case .backoff: WorkoutPalette.secondary
+        case .backoff: Color.gymSecondary
         }
     }
 }
@@ -84,7 +84,7 @@ struct SetDetailSheet: View {
                     .foregroundStyle(Color.gymText)
                 Text(exerciseName)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             Spacer()
@@ -93,7 +93,7 @@ struct SetDetailSheet: View {
                 dismiss()
             }
             .font(AppFont.subheadlineSemibold)
-            .foregroundStyle(WorkoutPalette.primary)
+            .foregroundStyle(Color.gymPrimary)
             .accessibilityIdentifier("close-set-details")
         }
     }
@@ -116,7 +116,7 @@ struct SetDetailSheet: View {
 
     private func setTypeChip(_ type: SetType) -> some View {
         let isSelected = exerciseSet.setType == type
-        let accent = type.accentColor ?? WorkoutPalette.primary
+        let accent = type.accentColor ?? Color.gymPrimary
 
         return Button {
             exerciseSet.setType = type
@@ -125,7 +125,7 @@ struct SetDetailSheet: View {
             Label(type.title, systemImage: type.icon)
                 .font(AppFont.footnoteMedium)
                 .lineLimit(1)
-                .foregroundStyle(isSelected ? accent : WorkoutPalette.subduedText)
+                .foregroundStyle(isSelected ? accent : Color.gymSubduedText)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .background(isSelected ? accent.opacity(0.14) : Color.gymCard)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
@@ -150,7 +150,7 @@ struct SetDetailSheet: View {
                         onPersist()
                     }
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(WorkoutPalette.primary)
+                    .foregroundStyle(Color.gymPrimary)
                     .accessibilityLabel("Clear RPE")
                     .accessibilityIdentifier("clear-rpe")
                 }
@@ -160,12 +160,12 @@ struct SetDetailSheet: View {
                 Text(exerciseSet.rpe.map { "\($0)" } ?? "—")
                     .font(AppFont.displayMedium)
                     .monospacedDigit()
-                    .foregroundStyle(exerciseSet.rpe == nil ? WorkoutPalette.subduedText : Color.gymText)
+                    .foregroundStyle(exerciseSet.rpe == nil ? Color.gymSubduedText : Color.gymText)
                     .contentTransition(.numericText())
 
                 Text(rpeMeaning)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
             .animation(reduceMotion ? nil : AppMotion.compact, value: exerciseSet.rpe)
 
@@ -186,7 +186,7 @@ struct SetDetailSheet: View {
             } maximumValueLabel: {
                 sliderBound("10")
             }
-            .tint(WorkoutPalette.primary)
+            .tint(Color.gymPrimary)
             .accessibilityIdentifier("rpe-slider")
         }
         .padding(Spacing.l)
@@ -203,7 +203,7 @@ struct SetDetailSheet: View {
     private func sliderBound(_ text: String) -> some View {
         Text(text)
             .font(AppFont.captionSemiboldMonospaced)
-            .foregroundStyle(WorkoutPalette.subduedText)
+            .foregroundStyle(Color.gymSubduedText)
     }
 
     private var deleteButton: some View {
@@ -225,6 +225,6 @@ struct SetDetailSheet: View {
             .font(AppFont.caption2Bold)
             .textCase(.uppercase)
             .tracking(0.55)
-            .foregroundStyle(WorkoutPalette.subduedText)
+            .foregroundStyle(Color.gymSubduedText)
     }
 }

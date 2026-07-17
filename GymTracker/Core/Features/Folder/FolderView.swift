@@ -20,7 +20,7 @@ struct FolderView: View {
             VStack(alignment: .leading, spacing: Spacing.xxl) {
                 Text("Library")
                     .font(AppFont.displayMedium)
-                    .foregroundStyle(FolderPalette.text)
+                    .foregroundStyle(Color.gymText)
 
                 searchField
 
@@ -94,7 +94,7 @@ struct FolderView: View {
     private var searchField: some View {
         HStack(spacing: Spacing.s) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(FolderPalette.mutedText)
+                .foregroundStyle(Color.gymSubduedText)
             TextField("Search your library", text: $searchText)
                 .textInputAutocapitalization(.never)
                 .accessibilityIdentifier("library-search")
@@ -104,17 +104,17 @@ struct FolderView: View {
                     searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(FolderPalette.subtleText)
+                        .foregroundStyle(Color.gymSubtleText)
                 }
                 .accessibilityLabel("Clear search")
             }
         }
         .padding(.horizontal, Spacing.m)
         .frame(height: 46)
-        .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: 14))
         .overlay {
             RoundedRectangle(cornerRadius: 14)
-                .stroke(FolderPalette.divider, lineWidth: 1)
+                .stroke(Color.gymBorder, lineWidth: 1)
         }
     }
 
@@ -130,8 +130,8 @@ struct FolderView: View {
                     subtitle: "Saved sessions and workout folders",
                     count: workoutTemplates.count,
                     icon: "list.bullet.rectangle",
-                    color: FolderPalette.primary,
-                    surface: FolderPalette.primarySurface
+                    color: Color.gymPrimary,
+                    surface: Color.gymPrimarySurface
                 )
             }
             .buttonStyle(.plain)
@@ -147,8 +147,8 @@ struct FolderView: View {
                     subtitle: "Scheduled multi-week training",
                     count: workoutPlans.filter { !$0.isArchived }.count,
                     icon: AppIcon.plan,
-                    color: FolderPalette.accent,
-                    surface: FolderPalette.accentSurface
+                    color: Color.gymAccent,
+                    surface: Color.gymAccentSurface
                 )
             }
             .buttonStyle(.plain)
@@ -162,8 +162,8 @@ struct FolderView: View {
                     subtitle: "Your complete exercise catalogue",
                     count: exerciseTemplates.count,
                     icon: "dumbbell.fill",
-                    color: FolderPalette.secondary,
-                    surface: FolderPalette.secondarySurface
+                    color: Color.gymSecondary,
+                    surface: Color.gymSecondarySurface
                 )
             }
             .buttonStyle(.plain)
@@ -188,8 +188,8 @@ struct FolderView: View {
                                     title: collection.name,
                                     type: "FOLDER",
                                     icon: "rectangle.stack",
-                                    color: FolderPalette.accent,
-                                    surface: FolderPalette.accentSurface
+                                    color: Color.gymAccent,
+                                    surface: Color.gymAccentSurface
                                 )
                             }
                         }
@@ -205,8 +205,8 @@ struct FolderView: View {
                                     title: template.name,
                                     type: "WORKOUT",
                                     icon: "list.bullet.rectangle",
-                                    color: FolderPalette.primary,
-                                    surface: FolderPalette.primarySurface
+                                    color: Color.gymPrimary,
+                                    surface: Color.gymPrimarySurface
                                 )
                             }
                         }
@@ -222,8 +222,8 @@ struct FolderView: View {
                                     title: plan.name,
                                     type: "PROGRAM",
                                     icon: AppIcon.plan,
-                                    color: FolderPalette.accent,
-                                    surface: FolderPalette.accentSurface
+                                    color: Color.gymAccent,
+                                    surface: Color.gymAccentSurface
                                 )
                             }
                         }
@@ -239,8 +239,8 @@ struct FolderView: View {
                                     title: exercise.name,
                                     type: "EXERCISE",
                                     icon: "dumbbell.fill",
-                                    color: FolderPalette.secondary,
-                                    surface: FolderPalette.secondarySurface
+                                    color: Color.gymSecondary,
+                                    surface: Color.gymSecondarySurface
                                 )
                             }
                         }

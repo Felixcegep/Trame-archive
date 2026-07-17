@@ -17,12 +17,12 @@ struct LibraryBrowserList<Content: View>: View {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(spacing: Spacing.s) {
                     Image(systemName: "magnifyingglass")
-                        .foregroundStyle(FolderPalette.mutedText)
+                        .foregroundStyle(Color.gymSubduedText)
                     TextField(String(localized: "Search \(NSLocalizedString(title.lowercased(), comment: ""))"), text: $searchText)
                 }
                 .padding(.horizontal, Spacing.m)
                 .frame(height: 46)
-                .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: 14))
+                .background(Color.gymCard, in: RoundedRectangle(cornerRadius: 14))
 
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     content
@@ -55,19 +55,19 @@ struct LibraryCategoryRow: View {
                 .background(surface, in: RoundedRectangle(cornerRadius: Radius.medium))
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title).font(.body.weight(.semibold))
-                Text(subtitle).font(.caption).foregroundStyle(FolderPalette.mutedText)
+                Text(subtitle).font(.caption).foregroundStyle(Color.gymSubduedText)
             }
             Spacer()
             Text("\(count)")
                 .font(.subheadline.monospacedDigit())
-                .foregroundStyle(FolderPalette.mutedText)
+                .foregroundStyle(Color.gymSubduedText)
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundStyle(FolderPalette.subtleText)
+                .foregroundStyle(Color.gymSubtleText)
         }
         .padding(Spacing.l - 2)
-        .background(FolderPalette.card, in: RoundedRectangle(cornerRadius: Radius.large))
-        .overlay { RoundedRectangle(cornerRadius: Radius.large).stroke(FolderPalette.divider, lineWidth: 1) }
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large))
+        .overlay { RoundedRectangle(cornerRadius: Radius.large).stroke(Color.gymBorder, lineWidth: 1) }
     }
 }
 
@@ -90,14 +90,14 @@ struct LibraryItemRow: View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
                     .font(.body.weight(.medium))
-                    .foregroundStyle(FolderPalette.text)
+                    .foregroundStyle(Color.gymText)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
-                Text(subtitle).font(.caption).foregroundStyle(FolderPalette.mutedText).lineLimit(1)
+                Text(subtitle).font(.caption).foregroundStyle(Color.gymSubduedText).lineLimit(1)
             }
             Spacer()
             if showsChevron {
-                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(FolderPalette.subtleText)
+                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(Color.gymSubtleText)
             }
         }
         .padding(.horizontal, Spacing.l - 2)
@@ -105,8 +105,8 @@ struct LibraryItemRow: View {
         .background {
             if showsCard {
                 RoundedRectangle(cornerRadius: Radius.large)
-                    .fill(FolderPalette.card)
-                    .stroke(FolderPalette.divider, lineWidth: 1)
+                    .fill(Color.gymCard)
+                    .stroke(Color.gymBorder, lineWidth: 1)
             }
         }
         .contentShape(Rectangle())
@@ -122,12 +122,12 @@ struct LibraryListSectionHeader: View {
             Text(title.uppercased())
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(FolderPalette.mutedText)
+                .foregroundStyle(Color.gymSubduedText)
             Spacer()
             Text("\(count)")
                 .font(AppFont.caption)
                 .monospacedDigit()
-                .foregroundStyle(FolderPalette.subtleText)
+                .foregroundStyle(Color.gymSubtleText)
         }
         .padding(.horizontal, Spacing.xxs)
         .padding(.top, Spacing.m)
@@ -152,7 +152,7 @@ struct RecentLibraryRow: View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
                     .font(AppFont.bodyMedium)
-                    .foregroundStyle(FolderPalette.text)
+                    .foregroundStyle(Color.gymText)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
                 Text(type)
@@ -165,14 +165,14 @@ struct RecentLibraryRow: View {
 
             Image(systemName: "chevron.right")
                 .font(AppFont.captionBold)
-                .foregroundStyle(FolderPalette.subtleText)
+                .foregroundStyle(Color.gymSubtleText)
         }
         .padding(.horizontal, Spacing.l - 2)
         .padding(.vertical, Spacing.m)
         .background {
             RoundedRectangle(cornerRadius: Radius.large)
-                .fill(FolderPalette.card)
-                .stroke(FolderPalette.divider, lineWidth: 1)
+                .fill(Color.gymCard)
+                .stroke(Color.gymBorder, lineWidth: 1)
         }
         .contentShape(Rectangle())
     }
@@ -186,6 +186,6 @@ struct LibrarySectionTitle: View {
         Text(title.uppercased())
             .font(AppFont.captionBold)
             .tracking(0.8)
-            .foregroundStyle(FolderPalette.mutedText)
+            .foregroundStyle(Color.gymSubduedText)
     }
 }

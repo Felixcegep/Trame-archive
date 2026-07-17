@@ -16,7 +16,7 @@ struct HistoryWorkoutRow: View {
 
                 Text(workoutDate)
                     .font(AppFont.caption)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .lineLimit(1)
             }
 
@@ -41,7 +41,7 @@ struct HistoryWorkoutRow: View {
     private func metadataItem(_ title: String, icon: String) -> some View {
         Label(title, systemImage: icon)
             .font(AppFont.caption)
-            .foregroundStyle(WorkoutPalette.subduedText)
+            .foregroundStyle(Color.gymSubduedText)
             .lineLimit(1)
     }
 

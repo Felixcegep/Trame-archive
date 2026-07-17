@@ -25,12 +25,12 @@ struct WorkoutSaveView: View {
                 )
             }
         }
-        .foregroundStyle(WorkoutPalette.text)
-        .background(WorkoutPalette.background.ignoresSafeArea())
-        .tint(WorkoutPalette.primary)
+        .foregroundStyle(Color.gymText)
+        .background(Color.gymBackground.ignoresSafeArea())
+        .tint(Color.gymPrimary)
         .navigationTitle("Review workout")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(WorkoutPalette.background, for: .navigationBar, .tabBar)
+        .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
         .toolbar {
@@ -58,7 +58,7 @@ struct WorkoutSaveView: View {
             
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(WorkoutPalette.accent)
+                .foregroundStyle(Color.gymAccent)
                 
             VStack(spacing: Spacing.s) {
                 Text("Empty Session")
@@ -66,7 +66,7 @@ struct WorkoutSaveView: View {
                     .multilineTextAlignment(.center)
                 Text("No sets have been completed. Add exercises and complete sets to log your training.")
                     .font(AppFont.subheadline)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Spacing.l)
             }
@@ -82,7 +82,7 @@ struct WorkoutSaveView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 17)
                         .foregroundStyle(.white)
-                        .background(WorkoutPalette.primary)
+                        .background(Color.gymPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -116,21 +116,21 @@ struct WorkoutSaveView: View {
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Image(systemName: hasIncomplete ? "square.and.pencil" : AppIcon.checkmarkCircle)
                         .font(AppFont.title)
-                        .foregroundStyle(hasIncomplete ? WorkoutPalette.primary : WorkoutPalette.secondary)
+                        .foregroundStyle(hasIncomplete ? Color.gymPrimary : Color.gymSecondary)
                     Text(hasIncomplete ? "Ready to save?" : "Nice work.")
                         .font(AppFont.displayMedium)
                     Text(hasIncomplete 
                          ? "Only completed sets will be saved to History. Incomplete sets will be excluded."
                          : "Give this session a name, then save it to your history.")
                         .font(AppFont.subheadline)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
 
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Text("WORKOUT NAME")
                         .font(AppFont.captionBold)
                         .tracking(0.8)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                     TextField(
                         workout.displayTitle,
                         text: Binding(
@@ -140,7 +140,7 @@ struct WorkoutSaveView: View {
                     )
                     .font(AppFont.titleSmallSemibold)
                     .padding(Spacing.l)
-                    .background(WorkoutPalette.surface)
+                    .background(Color.gymCard)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                 }
 
@@ -148,7 +148,7 @@ struct WorkoutSaveView: View {
                     Text("NOTES")
                         .font(AppFont.captionBold)
                         .tracking(0.8)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
 
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: Binding(
@@ -162,17 +162,17 @@ struct WorkoutSaveView: View {
                         if !hasNotes(for: workout) {
                             Text("Add a note…")
                                 .font(AppFont.body)
-                                .foregroundStyle(WorkoutPalette.subduedText)
+                                .foregroundStyle(Color.gymSubduedText)
                                 .padding(.horizontal, Spacing.l + Spacing.md)
                                 .padding(.vertical, Spacing.l)
                                 .allowsHitTesting(false)
                         }
                     }
-                    .background(WorkoutPalette.surface)
+                    .background(Color.gymCard)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                            .stroke(WorkoutPalette.border, lineWidth: 1)
+                            .stroke(Color.gymBorder, lineWidth: 1)
                     }
                 }
 
@@ -184,7 +184,7 @@ struct WorkoutSaveView: View {
         }
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .background(WorkoutPalette.background)
+        .background(Color.gymBackground)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: Spacing.md) {
                 if workout.incompleteSetCount > 0 {
@@ -193,7 +193,7 @@ struct WorkoutSaveView: View {
                         systemImage: AppIcon.warningCircle
                     )
                     .font(AppFont.footnote)
-                    .foregroundStyle(WorkoutPalette.accent)
+                    .foregroundStyle(Color.gymAccent)
                     .accessibilityLabel("^[\(saveableSetCount(for: workout)) completed set](inflect: true) will be saved. ^[\(workout.incompleteSetCount) incomplete set](inflect: true) will be excluded from History.")
                 }
 
@@ -203,7 +203,7 @@ struct WorkoutSaveView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 17)
                         .foregroundStyle(.white)
-                        .background(WorkoutPalette.primary)
+                        .background(Color.gymPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -257,7 +257,7 @@ struct WorkoutSaveView: View {
             summaryMetric(value: "\(saveableSetCount(for: workout))", label: "Sets saved")
         }
         .padding(.vertical, Spacing.xl - 2)
-        .background(WorkoutPalette.mutedSurface)
+        .background(Color.gymMutedSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
     }
 
@@ -267,7 +267,7 @@ struct WorkoutSaveView: View {
                 .font(AppFont.headlineMonospaced)
             Text(label)
                 .font(AppFont.caption)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
         }
         .frame(maxWidth: .infinity)
     }
@@ -277,7 +277,7 @@ struct WorkoutSaveView: View {
             Text("SESSION SUMMARY")
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
 
             ForEach(workout.orderedExercises.filter { $0.orderedSets.contains(where: \.done) }, id: \.persistentModelID) { exercise in
                 let savedSets = exercise.orderedSets.filter(\.done)
@@ -286,7 +286,7 @@ struct WorkoutSaveView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: Spacing.m) {
                         Image(systemName: AppIcon.checkmarkCircle)
-                            .foregroundStyle(WorkoutPalette.secondary)
+                            .foregroundStyle(Color.gymSecondary)
 
                         Text(exercise.exercise.name)
                             .font(AppFont.subheadlineSemibold)
@@ -295,7 +295,7 @@ struct WorkoutSaveView: View {
 
                         Text("\(savedSets.count) saved")
                             .font(AppFont.subheadlineMonospaced)
-                            .foregroundStyle(WorkoutPalette.subduedText)
+                            .foregroundStyle(Color.gymSubduedText)
                     }
                     .padding(Spacing.m)
 
@@ -314,7 +314,7 @@ struct WorkoutSaveView: View {
                             HStack(spacing: Spacing.s) {
                                 Text("Set \(index + 1)")
                                     .font(AppFont.caption)
-                                    .foregroundStyle(WorkoutPalette.subduedText)
+                                    .foregroundStyle(Color.gymSubduedText)
 
                                 Spacer()
 
@@ -323,7 +323,7 @@ struct WorkoutSaveView: View {
 
                                 Image(systemName: AppIcon.checkmark)
                                     .font(.caption2.bold())
-                                    .foregroundStyle(WorkoutPalette.secondary)
+                                    .foregroundStyle(Color.gymSecondary)
                             }
                             .padding(.horizontal, Spacing.m + 2)
                             .padding(.vertical, Spacing.xxs)
@@ -334,16 +334,16 @@ struct WorkoutSaveView: View {
                     if incompleteCount > 0 {
                         Label("\(incompleteCount) incomplete • excluded from History", systemImage: AppIcon.warningCircle)
                             .font(AppFont.caption)
-                            .foregroundStyle(WorkoutPalette.accent)
+                            .foregroundStyle(Color.gymAccent)
                             .padding(.horizontal, Spacing.m + 2)
                             .padding(.bottom, Spacing.m)
                     }
                 }
-                .background(WorkoutPalette.surface)
+                .background(Color.gymCard)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .stroke(WorkoutPalette.border, lineWidth: 1)
+                        .stroke(Color.gymBorder, lineWidth: 1)
                 }
             }
         }

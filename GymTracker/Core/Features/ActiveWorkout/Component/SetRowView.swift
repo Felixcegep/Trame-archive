@@ -48,7 +48,7 @@ struct SetRowView: View {
             if let completionValidationMessage {
                 Text(completionValidationMessage)
                     .font(AppFont.caption)
-                    .foregroundStyle(WorkoutPalette.accent)
+                    .foregroundStyle(Color.gymAccent)
                     .padding(.leading, 45)
                     .accessibilityLabel(completionValidationMessage)
             }
@@ -59,7 +59,7 @@ struct SetRowView: View {
                 } label: {
                     Text("Use last time: \(previousSetText(previousSet))")
                         .font(AppFont.caption)
-                        .foregroundStyle(WorkoutPalette.primary)
+                        .foregroundStyle(Color.gymPrimary)
                 }
                 .buttonStyle(.borderless)
                 .padding(.leading, 45)
@@ -73,7 +73,7 @@ struct SetRowView: View {
                 } label: {
                     Text("RPE \(rpe) · \(RPEScale.meaning(for: rpe))")
                         .font(AppFont.caption)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
                 .buttonStyle(.borderless)
                 .padding(.leading, 45)
@@ -157,11 +157,11 @@ struct SetRowView: View {
         .frame(maxWidth: .infinity)
         .padding(.leading, Spacing.xs)
         .frame(minHeight: 44)
-        .background(WorkoutPalette.surface.opacity(0.9))
+        .background(Color.gymCard.opacity(0.9))
         .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                .stroke(WorkoutPalette.border, lineWidth: 1)
+                .stroke(Color.gymBorder, lineWidth: 1)
         }
         .sheet(isPresented: $isShowingPlateCalculator, onDismiss: {
             viewModel.persistChanges()
@@ -196,75 +196,75 @@ struct SetRowView: View {
     private var durationCountdownControls: some View {
         Group {
             if countdownFinished {
-                countdownStrip(surface: WorkoutPalette.mutedSurface) {
+                countdownStrip(surface: Color.gymMutedSurface) {
                     Image(systemName: AppIcon.checkmarkCircle)
                         .font(AppFont.subheadlineBold)
-                        .foregroundStyle(WorkoutPalette.secondary)
+                        .foregroundStyle(Color.gymSecondary)
 
                     Text("Time complete")
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(WorkoutPalette.secondary)
+                        .foregroundStyle(Color.gymSecondary)
 
                     Spacer(minLength: 0)
 
                     countdownControlButton(
                         AppIcon.reset,
                         label: "Restart timer",
-                        tint: WorkoutPalette.secondary,
+                        tint: Color.gymSecondary,
                         action: startCountdown
                     )
                 }
             } else if let countdownEndDate {
-                countdownStrip(surface: WorkoutPalette.primarySurface) {
+                countdownStrip(surface: Color.gymPrimarySurface) {
                     Image(systemName: AppIcon.timer)
                         .font(AppFont.subheadlineBold)
-                        .foregroundStyle(WorkoutPalette.primary)
+                        .foregroundStyle(Color.gymPrimary)
 
                     Text(timerInterval: Date.now...max(Date.now, countdownEndDate), countsDown: true)
                         .font(AppFont.headlineMonospaced)
-                        .foregroundStyle(WorkoutPalette.primary)
+                        .foregroundStyle(Color.gymPrimary)
 
                     Spacer(minLength: 0)
 
                     countdownControlButton(
                         AppIcon.pause,
                         label: "Pause timer",
-                        tint: WorkoutPalette.primary,
+                        tint: Color.gymPrimary,
                         action: pauseCountdown
                     )
                     countdownControlButton(
                         AppIcon.reset,
                         label: "Reset timer",
-                        tint: WorkoutPalette.primary,
+                        tint: Color.gymPrimary,
                         action: resetCountdown
                     )
                 }
             } else if let pausedCountdownRemaining, pausedCountdownRemaining > 0 {
-                countdownStrip(surface: WorkoutPalette.accentSurface) {
+                countdownStrip(surface: Color.gymAccentSurface) {
                     Image(systemName: AppIcon.timer)
                         .font(AppFont.subheadlineBold)
-                        .foregroundStyle(WorkoutPalette.accent)
+                        .foregroundStyle(Color.gymAccent)
 
                     Text(formatCountdown(pausedCountdownRemaining))
                         .font(AppFont.headlineMonospaced)
-                        .foregroundStyle(WorkoutPalette.accent)
+                        .foregroundStyle(Color.gymAccent)
 
                     Text("Paused")
                         .font(AppFont.captionBold)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
 
                     Spacer(minLength: 0)
 
                     countdownControlButton(
                         AppIcon.play,
                         label: "Resume timer",
-                        tint: WorkoutPalette.accent,
+                        tint: Color.gymAccent,
                         action: resumeCountdown
                     )
                     countdownControlButton(
                         AppIcon.reset,
                         label: "Reset timer",
-                        tint: WorkoutPalette.accent,
+                        tint: Color.gymAccent,
                         action: resetCountdown
                     )
                 }
@@ -275,10 +275,10 @@ struct SetRowView: View {
                         systemImage: AppIcon.play
                     )
                     .font(AppFont.captionBold)
-                    .foregroundStyle(WorkoutPalette.primary)
+                    .foregroundStyle(Color.gymPrimary)
                     .padding(.horizontal, Spacing.m)
                     .padding(.vertical, Spacing.s)
-                    .background(WorkoutPalette.primarySurface, in: Capsule())
+                    .background(Color.gymPrimarySurface, in: Capsule())
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.borderless)
@@ -310,7 +310,7 @@ struct SetRowView: View {
                 .font(AppFont.captionBold)
                 .foregroundStyle(tint)
                 .frame(width: 30, height: 30)
-                .background(WorkoutPalette.surface, in: Circle())
+                .background(Color.gymCard, in: Circle())
                 .contentShape(Circle())
         }
         .buttonStyle(.borderless)
@@ -335,9 +335,9 @@ struct SetRowView: View {
         Button(action: handleCompletionButton) {
             Image(systemName: exerciseSet.done ? AppIcon.checkmark : AppIcon.circle)
                 .font(AppFont.subheadlineBold)
-                .foregroundStyle(exerciseSet.done ? .white : WorkoutPalette.primary)
+                .foregroundStyle(exerciseSet.done ? .white : Color.gymPrimary)
                 .frame(width: 28, height: 28)
-                .background(exerciseSet.done ? WorkoutPalette.secondary : WorkoutPalette.primary.opacity(0.14))
+                .background(exerciseSet.done ? Color.gymSecondary : Color.gymPrimary.opacity(0.14))
                 .clipShape(Circle())
         }
         .buttonStyle(.borderless)
@@ -353,10 +353,10 @@ struct SetRowView: View {
 
     private var rowSurface: Color {
         if exerciseSet.done {
-            return WorkoutPalette.completedSurface
+            return Color.gymSecondarySurface
         }
 
-        return isCurrentSet ? WorkoutPalette.currentSetSurface : WorkoutPalette.rowSurface
+        return isCurrentSet ? Color.gymCurrentSetSurface : Color.gymRowSurface
     }
 
     private var setTypeChip: some View {
@@ -390,7 +390,7 @@ struct SetRowView: View {
 
     private var chipForeground: Color {
         if let accent = exerciseSet.setType.accentColor { return accent }
-        return exerciseSet.done ? WorkoutPalette.secondary : WorkoutPalette.text
+        return exerciseSet.done ? Color.gymSecondary : Color.gymText
     }
 
     private var chipBackground: Color {
@@ -405,10 +405,10 @@ struct SetRowView: View {
                 } label: {
                     Image(systemName: isCompletedAndLocked ? AppIcon.edit : AppIcon.checkmark)
                     .font(AppFont.subheadlineBold)
-                    .foregroundStyle(isCompletedAndLocked ? WorkoutPalette.primary : WorkoutPalette.secondary)
+                    .foregroundStyle(isCompletedAndLocked ? Color.gymPrimary : Color.gymSecondary)
                     .frame(width: 32, height: 32)
                     .background(
-                        (isCompletedAndLocked ? WorkoutPalette.primary : WorkoutPalette.secondary).opacity(0.1),
+                        (isCompletedAndLocked ? Color.gymPrimary : Color.gymSecondary).opacity(0.1),
                         in: Circle()
                     )
                     .contentShape(Rectangle())
@@ -436,7 +436,7 @@ struct SetRowView: View {
                 } label: {
                     Image(systemName: AppIcon.ellipsis)
                         .font(AppFont.captionBold)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                         .frame(width: 20, height: 28)
                         .contentShape(Rectangle())
                 }
@@ -498,11 +498,11 @@ struct SetRowView: View {
             .focused(focusedInput, equals: focusID)
             .frame(maxWidth: .infinity)
             .frame(minHeight: 44)
-            .background(WorkoutPalette.surface.opacity(0.9))
+            .background(Color.gymCard.opacity(0.9))
             .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                    .stroke(WorkoutPalette.border, lineWidth: 1)
+                    .stroke(Color.gymBorder, lineWidth: 1)
             }
     }
 
@@ -522,17 +522,17 @@ struct SetRowView: View {
 
             Text(unit)
                 .font(AppFont.captionBold)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
                 .accessibilityHidden(true)
         }
         .padding(.horizontal, Spacing.xs)
         .frame(maxWidth: .infinity)
         .frame(minHeight: 44)
-        .background(WorkoutPalette.surface.opacity(0.9))
+        .background(Color.gymCard.opacity(0.9))
         .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                .stroke(WorkoutPalette.border, lineWidth: 1)
+                .stroke(Color.gymBorder, lineWidth: 1)
         }
     }
 

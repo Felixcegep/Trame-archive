@@ -13,7 +13,7 @@ struct HistoryProgressView: View {
                         .font(AppFont.displayMedium)
                     Text("Trends from completed workouts only.")
                         .font(AppFont.subheadline)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
 
                 frequencyCard
@@ -49,7 +49,7 @@ struct HistoryProgressView: View {
                 Spacer()
                 Text("Last 8 weeks")
                     .font(AppFont.caption)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             Chart(frequencyPoints) { point in
@@ -153,7 +153,7 @@ struct HistoryExerciseProgressCard: View {
             if series.points(for: metric).isEmpty {
                 Text("Not enough data for this metric yet.")
                     .font(AppFont.footnote)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
             } else {
                 Chart(series.points(for: metric)) { point in
                     LineMark(

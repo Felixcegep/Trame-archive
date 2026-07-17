@@ -16,7 +16,7 @@ struct ArchivedExercisesView: View {
         LibraryBrowserList(title: "Hidden Exercises", searchText: $searchText) {
             Text("Hidden exercises stay out of workout and program pickers. History remains unchanged.")
                 .font(AppFont.subheadline)
-                .foregroundStyle(FolderPalette.mutedText)
+                .foregroundStyle(Color.gymSubduedText)
                 .padding(.horizontal, Spacing.xxs)
 
             if filteredExercises.isEmpty {
@@ -33,8 +33,8 @@ struct ArchivedExercisesView: View {
                             title: exercise.name,
                             subtitle: exercise.isCustom ? "Custom exercise" : "Built-in exercise",
                             icon: "dumbbell.fill",
-                            color: FolderPalette.secondary,
-                            surface: FolderPalette.secondarySurface,
+                            color: Color.gymSecondary,
+                            surface: Color.gymSecondarySurface,
                             showsCard: false,
                             showsChevron: false
                         )
@@ -42,7 +42,7 @@ struct ArchivedExercisesView: View {
                             restore(exercise)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(FolderPalette.primary)
+                        .tint(Color.gymPrimary)
                         .foregroundStyle(.white)
                         .controlSize(.small)
                         .accessibilityIdentifier("restore-exercise-\(exercise.name)")
@@ -50,8 +50,8 @@ struct ArchivedExercisesView: View {
                     }
                     .background {
                         RoundedRectangle(cornerRadius: Radius.large)
-                            .fill(FolderPalette.card)
-                            .stroke(FolderPalette.divider, lineWidth: 1)
+                            .fill(Color.gymCard)
+                            .stroke(Color.gymBorder, lineWidth: 1)
                     }
                 }
             }

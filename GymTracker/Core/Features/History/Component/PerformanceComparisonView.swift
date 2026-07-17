@@ -30,7 +30,7 @@ struct PerformanceComparisonView: View {
                 }
             }
             .padding(Spacing.m)
-            .background(WorkoutPalette.mutedSurface, in: RoundedRectangle(cornerRadius: Radius.medium))
+            .background(Color.gymMutedSurface, in: RoundedRectangle(cornerRadius: Radius.medium))
             .accessibilityElement(children: .combine)
             .accessibilityLabel(accessibilitySummary)
             .accessibilityIdentifier("performance-comparison")
@@ -50,7 +50,7 @@ struct PerformanceComparisonView: View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
             Text(label)
                 .font(AppFont.caption)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
                 .frame(width: 96, alignment: .leading)
             Text(value)
                 .font(AppFont.captionSemiboldMonospaced)
@@ -79,7 +79,7 @@ struct PerformanceComparisonView: View {
         case .below: return Color.gymAccent
         case .met: return Color.gymSuccess
         case .above: return Color.gymPrimary
-        case .noTarget: return WorkoutPalette.subduedText
+        case .noTarget: return Color.gymSubduedText
         }
     }
 

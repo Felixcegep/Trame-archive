@@ -15,4 +15,10 @@ extension Color {
     static let gymAccentSurface = Color(red: 0xF2 / 255.0, green: 0xE9 / 255.0, blue: 0xDD / 255.0)
     static let gymRowSurface = Color(red: 0xF2 / 255.0, green: 0xF1 / 255.0, blue: 0xEF / 255.0)
     static let gymCurrentSetSurface = Color(red: 225 / 255.0, green: 229 / 255.0, blue: 239 / 255.0)
+    
+    // Semantic opacity-derived design system tokens
+    static let gymMutedSurface = gymSecondary.opacity(0.12)
+    static let gymBorder = gymText.opacity(0.09)
+    static let gymSubduedText = gymText.opacity(0.58)
+    static let gymSubtleText = gymText.opacity(0.42)
 }

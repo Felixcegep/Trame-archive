@@ -128,7 +128,7 @@ private struct ExerciseLibrarySelectionRow: View {
                             .multilineTextAlignment(.leading)
                         Text(exercise.subtitle)
                             .font(AppFont.caption)
-                            .foregroundStyle(WorkoutPalette.subduedText)
+                            .foregroundStyle(Color.gymSubduedText)
                             .multilineTextAlignment(.leading)
                     }
                     .layoutPriority(1)

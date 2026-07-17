@@ -23,19 +23,19 @@ struct FolderRow: View {
             if let systemImage {
                 Image(systemName: systemImage)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(FolderPalette.primary)
+                    .foregroundStyle(Color.gymPrimary)
                     .frame(width: 30, height: 30)
-                    .background(FolderPalette.primarySurface, in: RoundedRectangle(cornerRadius: 9))
+                    .background(Color.gymPrimarySurface, in: RoundedRectangle(cornerRadius: 9))
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.body)
                     .fontWeight(.medium)
-                    .foregroundStyle(FolderPalette.text)
+                    .foregroundStyle(Color.gymText)
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(FolderPalette.mutedText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
         .padding(.vertical, Spacing.m)

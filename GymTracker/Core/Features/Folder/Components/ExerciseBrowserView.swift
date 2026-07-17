@@ -54,7 +54,7 @@ struct ExerciseBrowserView: View {
             } label: {
                 Label("Sort", systemImage: "arrow.up.arrow.down")
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(FolderPalette.primary)
+                    .foregroundStyle(Color.gymPrimary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -65,8 +65,8 @@ struct ExerciseBrowserView: View {
                     title: "Hidden Exercises",
                     subtitle: "Restore anything you've hidden",
                     icon: AppIcon.archive,
-                    color: FolderPalette.accent,
-                    surface: FolderPalette.accentSurface
+                    color: Color.gymAccent,
+                    surface: Color.gymAccentSurface
                 )
             }
             .buttonStyle(.plain)
@@ -80,8 +80,8 @@ struct ExerciseBrowserView: View {
                         title: row.name,
                         subtitle: row.subtitle,
                         icon: "dumbbell.fill",
-                        color: FolderPalette.secondary,
-                        surface: FolderPalette.secondarySurface
+                        color: Color.gymSecondary,
+                        surface: Color.gymSecondarySurface
                     )
                 }
                 .accessibilityIdentifier("exercise-row-\(row.name)")

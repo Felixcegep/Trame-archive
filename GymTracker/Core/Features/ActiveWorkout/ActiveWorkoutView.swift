@@ -50,11 +50,11 @@ struct ActiveWorkoutView: View {
                 )
             }
         }
-        .foregroundStyle(WorkoutPalette.text)
-        .background(WorkoutPalette.background.ignoresSafeArea())
-        .tint(WorkoutPalette.primary)
+        .foregroundStyle(Color.gymText)
+        .background(Color.gymBackground.ignoresSafeArea())
+        .tint(Color.gymPrimary)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(WorkoutPalette.background, for: .navigationBar, .tabBar)
+        .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
         .toolbar(.hidden, for: .tabBar)
@@ -157,7 +157,7 @@ struct ActiveWorkoutView: View {
             .padding(.bottom, 110)
         }
         .scrollIndicators(.hidden)
-        .background(WorkoutPalette.background)
+        .background(Color.gymBackground)
         .safeAreaInset(edge: .bottom) {
             if focusedInput == nil {
                 finishButton(for: workout)
@@ -181,35 +181,35 @@ struct ActiveWorkoutView: View {
 
                 Text(workout.startTime, style: .timer)
                     .font(.title3.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(WorkoutPalette.text)
+                    .foregroundStyle(Color.gymText)
             }
 
             HStack {
                 if workout.totalSetCount == 0 {
                     Text("No exercises yet.")
                         .font(.footnote.weight(.medium))
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                 } else {
                     Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
                         .font(.footnote.weight(.medium))
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
                 Spacer()
                 if !workout.exercises.isEmpty {
                     Text("^[\(workout.exercises.count) exercise](inflect: true)")
                         .font(.footnote.weight(.medium))
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
             }
 
             ProgressView(value: Double(workout.completedSetCount), total: Double(max(workout.totalSetCount, 1)))
-                .tint(WorkoutPalette.secondary)
+                .tint(Color.gymSecondary)
         }
         .padding(Spacing.m + 2)
-        .background(WorkoutPalette.accentSurface)
+        .background(Color.gymAccentSurface)
         .overlay {
             RoundedRectangle(cornerRadius: Radius.section, style: .continuous)
-                .stroke(WorkoutPalette.border, lineWidth: 1)
+                .stroke(Color.gymBorder, lineWidth: 1)
         }
         .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
     }
@@ -220,8 +220,8 @@ struct ActiveWorkoutView: View {
                 Image(systemName: AppIcon.timer)
                     .font(.headline.weight(.semibold))
                     .frame(width: 42, height: 42)
-                    .foregroundStyle(WorkoutPalette.accent)
-                    .background(WorkoutPalette.accentSurface)
+                    .foregroundStyle(Color.gymAccent)
+                    .background(Color.gymAccentSurface)
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -229,7 +229,7 @@ struct ActiveWorkoutView: View {
                         .font(.subheadline.weight(.semibold))
                     Text(restStatusMessage)
                         .font(.caption)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
 
                 Spacer(minLength: 0)
@@ -237,15 +237,15 @@ struct ActiveWorkoutView: View {
                 if viewModel.isRestReady {
                     Text("Ready")
                         .font(.headline.weight(.semibold))
-                        .foregroundStyle(WorkoutPalette.secondary)
+                        .foregroundStyle(Color.gymSecondary)
                 } else if viewModel.isTimerPaused {
                     Text(formatRemainingTime(viewModel.pausedTimeRemaining))
                         .font(.headline.monospacedDigit())
-                        .foregroundStyle(WorkoutPalette.accent)
+                        .foregroundStyle(Color.gymAccent)
                 } else {
                     Text(timerInterval: Date.now...endDate, countsDown: true)
                         .font(.headline.monospacedDigit())
-                        .foregroundStyle(WorkoutPalette.accent)
+                        .foregroundStyle(Color.gymAccent)
                 }
             }
 
@@ -254,7 +254,7 @@ struct ActiveWorkoutView: View {
                     viewModel.cancelTimer()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(WorkoutPalette.primary)
+                .tint(Color.gymPrimary)
                 .frame(maxWidth: .infinity)
             } else {
                 HStack(spacing: Spacing.s) {
@@ -287,11 +287,11 @@ struct ActiveWorkoutView: View {
                     .accessibilityLabel("Skip rest")
                 }
                 .buttonStyle(.bordered)
-                .tint(WorkoutPalette.accent)
+                .tint(Color.gymAccent)
             }
         }
         .padding(Spacing.m + 2)
-        .background(WorkoutPalette.accentSurface)
+        .background(Color.gymAccentSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
         .accessibilityIdentifier(restAccessibilityIdentifier)
     }
@@ -323,7 +323,7 @@ struct ActiveWorkoutView: View {
                 Text("SESSION")
                     .font(.caption.weight(.bold))
                     .tracking(0.8)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
 
                 Spacer()
 
@@ -333,7 +333,7 @@ struct ActiveWorkoutView: View {
                     } label: {
                         Label("Add", systemImage: AppIcon.plus)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(WorkoutPalette.primary)
+                            .foregroundStyle(Color.gymPrimary)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("add-active-exercise")
@@ -371,17 +371,17 @@ struct ActiveWorkoutView: View {
         HStack(spacing: Spacing.s) {
             Image(systemName: icon)
                 .font(AppFont.captionBold)
-                .foregroundStyle(WorkoutPalette.secondary)
+                .foregroundStyle(Color.gymSecondary)
 
             Text(title)
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
 
             if let detail {
                 Text(detail)
                     .font(AppFont.caption)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
         .accessibilityElement(children: .combine)
@@ -421,10 +421,10 @@ struct ActiveWorkoutView: View {
         VStack(spacing: Spacing.m) {
             Image(systemName: AppIcon.workout)
                 .font(.largeTitle)
-                .foregroundStyle(WorkoutPalette.secondary)
+                .foregroundStyle(Color.gymSecondary)
             Text("Add your first exercise.")
                 .font(.headline)
-                .foregroundStyle(WorkoutPalette.text)
+                .foregroundStyle(Color.gymText)
             Button {
                 isShowingExercisePicker = true
             } label: {
@@ -433,7 +433,7 @@ struct ActiveWorkoutView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, Spacing.m)
                     .padding(.vertical, Spacing.s)
-                    .background(WorkoutPalette.primary)
+                    .background(Color.gymPrimary)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -441,7 +441,7 @@ struct ActiveWorkoutView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.xxxl + 2)
-        .background(WorkoutPalette.mutedSurface)
+        .background(Color.gymMutedSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
@@ -460,7 +460,7 @@ struct ActiveWorkoutView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 17)
                         .foregroundStyle(.white)
-                        .background(WorkoutPalette.primary)
+                        .background(Color.gymPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -470,10 +470,10 @@ struct ActiveWorkoutView: View {
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.m)
-            .background(WorkoutPalette.background)
+            .background(Color.gymBackground)
             .overlay(alignment: .top) {
                 Rectangle()
-                    .fill(WorkoutPalette.border)
+                    .fill(Color.gymBorder)
                     .frame(height: 1)
             }
         }

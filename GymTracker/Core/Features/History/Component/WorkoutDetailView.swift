@@ -48,7 +48,7 @@ struct HistoryWorkoutView: View {
 
             Text(workout.startTime, format: .dateTime.weekday(.wide).month(.wide).day().year())
                 .font(AppFont.subheadline)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
 
             HStack(spacing: Spacing.m) {
                 summaryItem(workoutDuration, icon: AppIcon.timer)
@@ -66,7 +66,7 @@ struct HistoryWorkoutView: View {
     private func summaryItem(_ title: String, icon: String) -> some View {
         Label(title, systemImage: icon)
             .font(AppFont.caption)
-            .foregroundStyle(WorkoutPalette.subduedText)
+            .foregroundStyle(Color.gymSubduedText)
             .lineLimit(1)
     }
 
@@ -77,7 +77,7 @@ struct HistoryWorkoutView: View {
                 .foregroundStyle(Color.gymText)
             Text(notes)
                 .font(AppFont.body)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -135,7 +135,7 @@ struct WorkoutDetailView: View {
             if let note = exercise.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
                 Text(note)
                     .font(AppFont.footnote)
-                    .foregroundStyle(WorkoutPalette.subduedText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             let comparison = WorkoutPerformanceComparison(exercise: exercise)
@@ -156,7 +156,7 @@ struct WorkoutDetailView: View {
                 ForEach(tableColumns, id: \.self) { column in
                     Text(column)
                         .font(AppFont.captionBold)
-                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .foregroundStyle(Color.gymSubduedText)
                         .frame(maxWidth: .infinity, alignment: column == "Set" ? .leading : .trailing)
                 }
             }

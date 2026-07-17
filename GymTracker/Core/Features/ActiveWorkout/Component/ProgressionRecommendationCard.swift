@@ -99,7 +99,7 @@ struct ProgressionRecommendationCard: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Text("No recommendation yet. Complete this workout to establish your progression history.")
                 .font(AppFont.subheadline)
-                .foregroundStyle(WorkoutPalette.subduedText)
+                .foregroundStyle(Color.gymSubduedText)
                 .fixedSize(horizontal: false, vertical: true)
 
             Button {
