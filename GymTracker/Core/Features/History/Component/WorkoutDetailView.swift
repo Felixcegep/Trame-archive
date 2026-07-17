@@ -128,6 +128,12 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
+            if exercise.supersetGroupID != nil {
+                Label("Superset", systemImage: "link")
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymPrimary)
+                    .accessibilityLabel("Superset exercise")
+            }
             Text(exercise.nameSnapshot)
                 .font(AppFont.titleSmallSemibold)
                 .foregroundStyle(Color.gymText)

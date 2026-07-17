@@ -144,6 +144,11 @@ struct PlanReviewExerciseRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
+            if exercise.supersetGroupID != nil {
+                Label("Superset", systemImage: "link")
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymPrimary)
+            }
             Text(exercise.displayName)
                 .font(AppFont.captionBold)
             Text(exercise.summary)

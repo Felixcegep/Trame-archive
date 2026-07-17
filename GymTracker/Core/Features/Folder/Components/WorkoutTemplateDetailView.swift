@@ -16,6 +16,7 @@ struct WorkoutTemplateDetailView: View {
     let onStartWorkout: (WorkoutTemplate) -> Void
 
     @State private var isShowingExercisePicker = false
+    @State private var groupingExercise: TemplateExercise?
 
     var body: some View {
         List {
@@ -35,6 +36,19 @@ struct WorkoutTemplateDetailView: View {
                             )
                         }
                         .accessibilityIdentifier("template-exercise-editor-\(templateExercise.exercise.name)")
+                        .contextMenu {
+                            if templateExercise.supersetGroupID == nil {
+                                Button("Superset with…") {
+                                    groupingExercise = templateExercise
+                                }
+                            } else {
+                                Button("Remove from superset") {
+                                    templateExercise.supersetGroupID = nil
+                                    template.normalizeTemplateExerciseOrder()
+                                    saveModelContext(modelContext)
+                                }
+                            }
+                        }
                     }
                     .onDelete(perform: removeExercises)
                 }
@@ -63,6 +77,24 @@ struct WorkoutTemplateDetailView: View {
             NavigationStack {
                 ExercisePickerView(exercises: exercisesToAdd) { exercise in
                     addExercise(exercise)
+                }
+            }
+        }
+        .confirmationDialog(
+            "Superset with…",
+            isPresented: Binding(
+                get: { groupingExercise != nil },
+                set: { if !$0 { groupingExercise = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let source = groupingExercise {
+                ForEach(orderedTemplateExercises.filter {
+                    $0.persistentModelID != source.persistentModelID && $0.supersetGroupID == nil
+                }, id: \.persistentModelID) { candidate in
+                    Button(candidate.exercise.name) {
+                        createSuperset(source, with: candidate)
+                    }
                 }
             }
         }
@@ -101,6 +133,24 @@ struct WorkoutTemplateDetailView: View {
         }
         template.normalizeTemplateExerciseOrder()
         saveModelContext(modelContext)
+    }
+
+    private func createSuperset(_ first: TemplateExercise, with second: TemplateExercise) {
+        let groupID = UUID()
+        first.supersetGroupID = groupID
+        second.supersetGroupID = groupID
+        var ordered = orderedTemplateExercises
+        ordered.removeAll { $0.persistentModelID == second.persistentModelID }
+        guard let firstIndex = ordered.firstIndex(where: { $0.persistentModelID == first.persistentModelID }) else {
+            return
+        }
+        ordered.insert(second, at: firstIndex + 1)
+        for (index, exercise) in ordered.enumerated() {
+            exercise.orderIndex = index
+        }
+        template.normalizeTemplateExerciseOrder()
+        saveModelContext(modelContext)
+        groupingExercise = nil
     }
 
     private var orderedTemplateExercises: [TemplateExercise] {
