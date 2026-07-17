@@ -8,6 +8,7 @@ struct PlanWorkoutEditorView: View {
     @State private var selectedExerciseIndex: Int?
     @State private var isShowingExerciseEditor = false
     @State private var isShowingExercisePicker = false
+    @State private var groupingExerciseID: UUID?
 
     var body: some View {
         Form {
@@ -36,6 +37,18 @@ struct PlanWorkoutEditorView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("plan-workout-exercise")
+                        .contextMenu {
+                            if exercise.supersetGroupID == nil {
+                                Button("Superset with…") {
+                                    groupingExerciseID = exercise.id
+                                }
+                            } else {
+                                Button("Remove from superset") {
+                                    exercise.supersetGroupID = nil
+                                    normalizeSupersetGroups()
+                                }
+                            }
+                        }
                     }
                     .onDelete { workout.exercises.remove(atOffsets: $0) }
                     .onMove { workout.exercises.move(fromOffsets: $0, toOffset: $1) }
@@ -72,6 +85,49 @@ struct PlanWorkoutEditorView: View {
                 PlanExercisePickerView(exercises: exercises) { exercise in
                     workout.exercises.append(PlanExerciseDraft(exercise: exercise, orderIndex: workout.exercises.count))
                     isShowingExercisePicker = false
+                }
+            }
+        }
+        .confirmationDialog(
+            "Superset with…",
+            isPresented: Binding(
+                get: { groupingExerciseID != nil },
+                set: { if !$0 { groupingExerciseID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let sourceID = groupingExerciseID {
+                ForEach(workout.exercises.filter { $0.id != sourceID && $0.supersetGroupID == nil }) { candidate in
+                    Button(candidate.displayName) {
+                        createSuperset(sourceID: sourceID, candidateID: candidate.id)
+                    }
+                }
+            }
+        }
+    }
+
+    private func createSuperset(sourceID: UUID, candidateID: UUID) {
+        guard
+            let sourceIndex = workout.exercises.firstIndex(where: { $0.id == sourceID }),
+            let candidateIndex = workout.exercises.firstIndex(where: { $0.id == candidateID })
+        else { return }
+        let groupID = UUID()
+        workout.exercises[sourceIndex].supersetGroupID = groupID
+        workout.exercises[candidateIndex].supersetGroupID = groupID
+        let candidate = workout.exercises.remove(at: candidateIndex)
+        let adjustedSourceIndex = candidateIndex < sourceIndex ? sourceIndex - 1 : sourceIndex
+        workout.exercises.insert(candidate, at: adjustedSourceIndex + 1)
+        groupingExerciseID = nil
+    }
+
+    private func normalizeSupersetGroups() {
+        let groups = Dictionary(grouping: workout.exercises.compactMap { draft in
+            draft.supersetGroupID.map { ($0, draft.id) }
+        }, by: \.0)
+        for (_, members) in groups where members.count < 2 {
+            for member in members {
+                if let index = workout.exercises.firstIndex(where: { $0.id == member.1 }) {
+                    workout.exercises[index].supersetGroupID = nil
                 }
             }
         }
