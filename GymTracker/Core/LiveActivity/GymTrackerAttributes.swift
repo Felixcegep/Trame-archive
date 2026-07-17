@@ -21,14 +21,3 @@ struct GymTrackerAttributes: ActivityAttributes {
         var RestTime : Date?
     }
 }
-
-struct WorkoutEntryUser: Codable, Hashable, Sendable {
-    var name: String? = nil
-    var startTime: Date? = nil
-    var comment: String? = nil
-    var exerciseNames: String? = nil
-    var exerciseSeries: Int? = nil
-    var currentSerie: Int? = nil
-    var restTimeActive: Bool?
-    var RestTime : Date?
-}

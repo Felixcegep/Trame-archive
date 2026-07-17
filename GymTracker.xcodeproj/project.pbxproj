@@ -64,6 +64,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Localizable.xcstrings,
+				Core/LiveActivity/GymTrackerAttributes.swift,
 			);
 			target = 44E0076B2FFAEB0600BF7D2B /* GymTrackerExtensionExtension */;
 		};

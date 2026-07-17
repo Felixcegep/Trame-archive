@@ -2,19 +2,6 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
-struct GymTrackerAttributes: ActivityAttributes {
-    let workoutID: UUID
-    let startTime: Date
-
-    struct ContentState: Codable, Hashable, Sendable {
-        var currentExerciseName: String?
-        var currentSerie: Int?
-        var totalSeries: Int?
-        var restTimeActive: Bool
-        var RestTime: Date?
-    }
-}
-
 struct GymTrackerExtensionLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: GymTrackerAttributes.self) { context in
@@ -131,8 +118,8 @@ struct GymTrackerExtensionLiveActivity: Widget {
 }
 
 private enum LiveActivityPalette {
-    static let secondary = Color(red: 108 / 255, green: 154 / 255, blue: 139 / 255)
-    static let accent = Color(red: 161 / 255, green: 104 / 255, blue: 58 / 255)
+    static let secondary = Color(red: 0x48 / 255.0, green: 0x7A / 255.0, blue: 0x6C / 255.0)
+    static let accent = Color(red: 0xA1 / 255.0, green: 0x68 / 255.0, blue: 0x3A / 255.0)
 }
 
 extension GymTrackerAttributes {
