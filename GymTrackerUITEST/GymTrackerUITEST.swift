@@ -773,6 +773,17 @@ final class GymTrackerUITEST: XCTestCase {
         saveScreenshot("active-workout/08_Active_Workout_With_Set")
     }
 
+    func testSupersetCompletionAdvancesWithoutRest() {
+        let app = launchFixture("active-superset")
+        XCTAssertTrue(app.staticTexts["superset-label-Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["superset-label-Barbell Row"].exists)
+
+        tapButton("complete-set-Bench Press-0", in: app)
+
+        XCTAssertTrue(app.buttons["complete-set-Barbell Row-0"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Rest between sets"].exists)
+    }
+
     func testCaptureCompletedExerciseCollapsedScreenshot() {
         let collapsed = launchFixture("active-completed-exercise")
         XCTAssertTrue(collapsed.buttons["complete-set-Barbell Row-0"].waitForExistence(timeout: 5))
