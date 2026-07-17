@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$WORKSPACE_DIR/ui_test_simulator_lock.sh"
+WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$WORKSPACE_DIR/Scripts/ui_test_simulator_lock.sh"
 SIMULATOR_ID="${SIMULATOR_ID:-11536E2C-BBE1-411D-AF6C-DF4ADCD332D1}"
 
 acquire_ui_test_simulator_lock "$SIMULATOR_ID" "verify_reboot_rest_timer.sh"

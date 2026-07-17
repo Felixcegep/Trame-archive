@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$WORKSPACE_DIR/ui_test_simulator_lock.sh"
+WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$WORKSPACE_DIR/Scripts/ui_test_simulator_lock.sh"
 SCREENSHOT_DIR="$WORKSPACE_DIR/Screenshots"
 # Override per process to allow independent scene groups to run on separate simulators.
 # The default remains the established screenshot simulator for local, single-device capture.

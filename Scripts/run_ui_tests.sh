@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$WORKSPACE_DIR/ui_test_simulator_lock.sh"
+WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$WORKSPACE_DIR/Scripts/ui_test_simulator_lock.sh"
 SIMULATOR_ID="${SIMULATOR_ID:-11536E2C-BBE1-411D-AF6C-DF4ADCD332D1}"
 DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-/private/tmp/GymTrackerUITestDerivedData/$SIMULATOR_ID}"
 RESULTS_ROOT="${RESULTS_ROOT:-/private/tmp/GymTrackerUITestResults/$SIMULATOR_ID}"
@@ -190,12 +190,12 @@ run_fast() {
 
 run_screenshots() {
   echo "=== Running screenshot UI lane ==="
-  SIMULATOR_ID="$SIMULATOR_ID" ./capture_screenshots.sh all
+  SIMULATOR_ID="$SIMULATOR_ID" "$WORKSPACE_DIR/Scripts/capture_screenshots.sh" all
 }
 
 run_reboot() {
   echo "=== Running simulator-reboot UI lane ==="
-  SIMULATOR_ID="$SIMULATOR_ID" ./verify_reboot_rest_timer.sh
+  SIMULATOR_ID="$SIMULATOR_ID" "$WORKSPACE_DIR/Scripts/verify_reboot_rest_timer.sh"
 }
 
 case "$LANE" in
