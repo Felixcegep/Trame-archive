@@ -799,6 +799,70 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(entry.recommendedUnit, .lbs)
     }
 
+    func testPlannedSetsSnapshotTheirIndependentPrescription() throws {
+        let exercise = makeExercise()
+        let plannedExercise = PlannedExercise(
+            exercise: exercise,
+            orderIndex: 0,
+            targetSets: 3,
+            repRangeMinimum: 8,
+            repRangeMaximum: 12,
+            suggestedLoad: 60,
+            suggestedLoadType: .kg,
+            restSeconds: 120,
+            plannedSets: [
+                PlannedSet(
+                    orderIndex: 0,
+                    setType: .warmup,
+                    repetitions: 10,
+                    suggestedLoad: 20,
+                    suggestedLoadType: .kg,
+                    restSeconds: 45,
+                    notes: "Prime movement"
+                ),
+                PlannedSet(
+                    orderIndex: 1,
+                    setType: .normal,
+                    repRangeMinimum: 6,
+                    repRangeMaximum: 8,
+                    suggestedLoad: 60,
+                    suggestedLoadType: .kg,
+                    restSeconds: 120,
+                    targetRPE: 8,
+                    targetRIR: 2
+                ),
+                PlannedSet(
+                    orderIndex: 2,
+                    setType: .dropSet,
+                    repetitions: 12,
+                    suggestedLoad: 40,
+                    suggestedLoadType: .kg,
+                    isOptional: true
+                )
+            ]
+        )
+        let plannedWorkout = PlannedWorkout(
+            name: "Per-set prescription",
+            orderIndex: 0,
+            dayOffset: 0,
+            plannedExercises: [plannedExercise]
+        )
+        let run = PlanRun(sourcePlanID: UUID(), sourcePlanName: "Per-set plan", startDate: .now)
+
+        let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
+        let sets = try XCTUnwrap(workout.orderedExercises.first?.orderedSets)
+
+        XCTAssertEqual(sets.map(\.setType), [.warmup, .normal, .dropSet])
+        XCTAssertEqual(sets.map(\.repetitions), [10, 8, 12])
+        XCTAssertEqual(sets.map(\.weight), [20, 60, 40])
+        XCTAssertEqual(sets[0].prescribedRepetitions, 10)
+        XCTAssertEqual(sets[0].prescriptionNotes, "Prime movement")
+        XCTAssertEqual(sets[1].prescribedRepRangeMinimum, 6)
+        XCTAssertEqual(sets[1].prescribedRPE, 8)
+        XCTAssertEqual(sets[1].prescribedRIR, 2)
+        XCTAssertEqual(sets[2].isPrescribedOptional, true)
+    }
+
     func testPlanCreationAssignsDifferentTemplatesPerTrainingDay() throws {
         let lowerExercise = Exercise(name: "Back Squat", primaryMuscles: [.quadriceps])
         let upperExercise = makeExercise()
@@ -1345,6 +1409,27 @@ final class WorkoutIntegrityTests: XCTestCase {
         )
         plannedExercise.stimulus = .hypertrophy
         plannedExercise.alternatives = [PlannedExerciseAlternative(exercise: alternative, orderIndex: 0)]
+        plannedExercise.plannedSets = [
+            PlannedSet(
+                orderIndex: 0,
+                setType: .warmup,
+                repetitions: 10,
+                suggestedLoad: 20,
+                suggestedLoadType: .kg,
+                restSeconds: 45
+            ),
+            PlannedSet(
+                orderIndex: 1,
+                setType: .normal,
+                repRangeMinimum: 6,
+                repRangeMaximum: 8,
+                suggestedLoad: 50,
+                suggestedLoadType: .kg,
+                targetRPE: 8,
+                targetRIR: 2,
+                notes: "Working set"
+            )
+        ]
         let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000)))
         let firstProgress = try XCTUnwrap(run.orderedWorkoutProgress.first)
         let firstPlannedWorkout = try XCTUnwrap(PlanCoordinator.plannedWorkout(for: firstProgress, in: run))
@@ -1409,6 +1494,13 @@ final class WorkoutIntegrityTests: XCTestCase {
         )
         XCTAssertEqual(restoredPlannedExercise.stimulus, .hypertrophy)
         XCTAssertEqual(restoredPlannedExercise.alternatives.first?.exercise.name, "Dumbbell Bench Press")
+        XCTAssertEqual(restoredPlannedExercise.orderedPlannedSets.map(\.setType), [.warmup, .normal])
+        XCTAssertEqual(restoredPlannedExercise.orderedPlannedSets.last?.targetRPE, 8)
+        XCTAssertEqual(restoredPlannedExercise.orderedPlannedSets.last?.notes, "Working set")
+        let restoredSet = try XCTUnwrap(restoredWorkout.orderedExercises.first?.orderedSets.first)
+        XCTAssertEqual(restoredSet.prescribedSetType, .warmup)
+        XCTAssertEqual(restoredSet.prescribedRepetitions, 10)
+        XCTAssertEqual(restoredSet.prescribedRestSeconds, 45)
     }
 
     func testBackupDefaultsMissingPlannedExerciseStimulus() throws {
@@ -1773,6 +1865,7 @@ final class WorkoutIntegrityTests: XCTestCase {
             PlannedWorkout.self,
             PlannedExercise.self,
             PlannedExerciseAlternative.self,
+            PlannedSet.self,
             configurations: configuration
         )
         return ModelContext(container)
@@ -1807,6 +1900,7 @@ final class WorkoutIntegrityTests: XCTestCase {
             PlannedWorkout.self,
             PlannedExercise.self,
             PlannedExerciseAlternative.self,
+            PlannedSet.self,
             configurations: configuration
         )
         return try body(ModelContext(container))

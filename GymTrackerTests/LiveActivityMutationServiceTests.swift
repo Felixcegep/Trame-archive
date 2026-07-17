@@ -119,6 +119,7 @@ final class LiveActivityMutationServiceTests: XCTestCase {
             PlannedWorkout.self,
             PlannedExercise.self,
             PlannedExerciseAlternative.self,
+            PlannedSet.self,
             PlanRun.self,
             PlanWorkoutProgress.self,
             configurations: configuration

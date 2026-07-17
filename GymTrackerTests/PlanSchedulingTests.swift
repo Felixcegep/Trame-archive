@@ -341,6 +341,7 @@ final class PlanSchedulingTests: XCTestCase {
             PlannedWorkout.self,
             PlannedExercise.self,
             PlannedExerciseAlternative.self,
+            PlannedSet.self,
             configurations: configuration
         )
         return ModelContext(container)
@@ -375,6 +376,7 @@ final class PlanSchedulingTests: XCTestCase {
             PlannedWorkout.self,
             PlannedExercise.self,
             PlannedExerciseAlternative.self,
+            PlannedSet.self,
             configurations: configuration
         )
         return try body(ModelContext(container))

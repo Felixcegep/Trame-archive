@@ -77,6 +77,17 @@ struct ExerciseSetDTO: Codable {
     let rpe: Int?
     let setType: String
     let usedMetric: String
+    var prescribedSetType: String? = nil
+    var prescribedRepetitions: Int? = nil
+    var prescribedRepRangeMinimum: Int? = nil
+    var prescribedRepRangeMaximum: Int? = nil
+    var prescribedSuggestedLoad: Double? = nil
+    var prescribedSuggestedLoadType: String? = nil
+    var prescribedRestSeconds: Int? = nil
+    var prescribedRPE: Double? = nil
+    var prescribedRIR: Int? = nil
+    var isPrescribedOptional: Bool? = nil
+    var prescriptionNotes: String? = nil
 }
 
 struct ExerciseEntryDTO: Codable {
@@ -150,6 +161,22 @@ struct PlannedExerciseDTO: Codable {
     var stimulus: String? = nil
     var alternativeExerciseNames: [String]? = nil
     var supersetGroupID: String? = nil
+    var plannedSets: [PlannedSetDTO]? = nil
+}
+
+struct PlannedSetDTO: Codable {
+    let orderIndex: Int
+    let setType: String
+    let repetitions: Int?
+    let repRangeMinimum: Int?
+    let repRangeMaximum: Int?
+    let suggestedLoad: Double?
+    let suggestedLoadType: String?
+    let restSeconds: Int?
+    let targetRPE: Double?
+    let targetRIR: Int?
+    let isOptional: Bool
+    let notes: String?
 }
 
 struct PlannedWorkoutDTO: Codable {
@@ -340,7 +367,8 @@ enum BackupValidationError: LocalizedError {
 }
 
 extension BackupDTO {
-    static let currentVersion = 3
+    static let currentVersion = 4
+    static let supersetVersion = 3
     static let planVersion = 2
     static let legacyVersion = 1
 
@@ -448,7 +476,18 @@ extension BackupDTO {
                             done: set.done,
                             rpe: set.rpe,
                             setType: set.setType.rawValue,
-                            usedMetric: set.usedMetric.rawValue
+                            usedMetric: set.usedMetric.rawValue,
+                            prescribedSetType: set.prescribedSetType?.rawValue,
+                            prescribedRepetitions: set.prescribedRepetitions,
+                            prescribedRepRangeMinimum: set.prescribedRepRangeMinimum,
+                            prescribedRepRangeMaximum: set.prescribedRepRangeMaximum,
+                            prescribedSuggestedLoad: set.prescribedSuggestedLoad,
+                            prescribedSuggestedLoadType: set.prescribedSuggestedLoadType?.rawValue,
+                            prescribedRestSeconds: set.prescribedRestSeconds,
+                            prescribedRPE: set.prescribedRPE,
+                            prescribedRIR: set.prescribedRIR,
+                            isPrescribedOptional: set.isPrescribedOptional,
+                            prescriptionNotes: set.prescriptionNotes
                         )
                     }
                     return ExerciseEntryDTO(
@@ -546,7 +585,23 @@ extension BackupDTO {
                                                 alternativeExerciseNames: plannedExercise.alternatives
                                                     .sorted { $0.orderIndex < $1.orderIndex }
                                                     .map { $0.exercise.name },
-                                                supersetGroupID: plannedExercise.supersetGroupID?.uuidString
+                                                supersetGroupID: plannedExercise.supersetGroupID?.uuidString,
+                                                plannedSets: plannedExercise.orderedPlannedSets.map { plannedSet in
+                                                    PlannedSetDTO(
+                                                        orderIndex: plannedSet.orderIndex,
+                                                        setType: plannedSet.setType.rawValue,
+                                                        repetitions: plannedSet.repetitions,
+                                                        repRangeMinimum: plannedSet.repRangeMinimum,
+                                                        repRangeMaximum: plannedSet.repRangeMaximum,
+                                                        suggestedLoad: plannedSet.suggestedLoad,
+                                                        suggestedLoadType: plannedSet.suggestedLoadType?.rawValue,
+                                                        restSeconds: plannedSet.restSeconds,
+                                                        targetRPE: plannedSet.targetRPE,
+                                                        targetRIR: plannedSet.targetRIR,
+                                                        isOptional: plannedSet.isOptional,
+                                                        notes: plannedSet.notes
+                                                    )
+                                                }
                                             )
                                         }
                                     )
@@ -774,6 +829,22 @@ extension BackupDTO {
                                     alternatives: alternativeExercises.enumerated().map {
                                         PlannedExerciseAlternative(exercise: $0.element, orderIndex: $0.offset)
                                     },
+                                    plannedSets: (plannedExerciseDTO.plannedSets ?? []).map { plannedSetDTO in
+                                        PlannedSet(
+                                            orderIndex: plannedSetDTO.orderIndex,
+                                            setType: SetType(rawValue: plannedSetDTO.setType) ?? .normal,
+                                            repetitions: plannedSetDTO.repetitions,
+                                            repRangeMinimum: plannedSetDTO.repRangeMinimum,
+                                            repRangeMaximum: plannedSetDTO.repRangeMaximum,
+                                            suggestedLoad: plannedSetDTO.suggestedLoad,
+                                            suggestedLoadType: plannedSetDTO.suggestedLoadType.flatMap(WeightType.init(rawValue:)),
+                                            restSeconds: plannedSetDTO.restSeconds,
+                                            targetRPE: plannedSetDTO.targetRPE,
+                                            targetRIR: plannedSetDTO.targetRIR,
+                                            isOptional: plannedSetDTO.isOptional,
+                                            notes: plannedSetDTO.notes
+                                        )
+                                    },
                                     supersetGroupID: plannedExerciseDTO.supersetGroupID.flatMap(UUID.init(uuidString:))
                                 )
                                 plannedExercise.id = try requiredUUID(plannedExerciseDTO.id, named: "planned exercise")
@@ -932,6 +1003,17 @@ extension BackupDTO {
                     )
                     setObj.weightType = weightType
                     setObj.distanceType = distanceType
+                    setObj.prescribedSetType = setDTO.prescribedSetType.flatMap(SetType.init(rawValue:))
+                    setObj.prescribedRepetitions = setDTO.prescribedRepetitions
+                    setObj.prescribedRepRangeMinimum = setDTO.prescribedRepRangeMinimum
+                    setObj.prescribedRepRangeMaximum = setDTO.prescribedRepRangeMaximum
+                    setObj.prescribedSuggestedLoad = setDTO.prescribedSuggestedLoad
+                    setObj.prescribedSuggestedLoadType = setDTO.prescribedSuggestedLoadType.flatMap(WeightType.init(rawValue:))
+                    setObj.prescribedRestSeconds = setDTO.prescribedRestSeconds
+                    setObj.prescribedRPE = setDTO.prescribedRPE
+                    setObj.prescribedRIR = setDTO.prescribedRIR
+                    setObj.isPrescribedOptional = setDTO.isPrescribedOptional
+                    setObj.prescriptionNotes = setDTO.prescriptionNotes
                     sets.append(setObj)
                 }
                 entry.sets = sets
@@ -989,7 +1071,7 @@ extension BackupDTO {
     }
 
     func validate() throws {
-        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.currentVersion else {
+        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
 
