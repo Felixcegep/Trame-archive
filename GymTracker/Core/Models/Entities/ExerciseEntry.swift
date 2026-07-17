@@ -156,17 +156,44 @@ final class ExerciseEntry{
         prescribedSuggestedLoadType = plannedExercise.suggestedLoadType
         prescribedProgressionRule = plannedExercise.progressionRule
 
-        let reps = Float(plannedExercise.repRangeMaximum)
-        let weight = Float(plannedExercise.suggestedLoad ?? 0)
-        let count = plannedExercise.targetSets
-        for i in 0..<count {
-            let setObj = createEmptySet(orderIndex: i)
+        let plannedSets = plannedExercise.orderedPlannedSets
+        if plannedSets.isEmpty {
+            let reps = Float(plannedExercise.repRangeMaximum)
+            let weight = Float(plannedExercise.suggestedLoad ?? 0)
+            for i in 0..<plannedExercise.targetSets {
+                let setObj = createEmptySet(orderIndex: i)
+                if exercise.trackingType.usesReps { setObj.repetitions = reps }
+                if exercise.trackingType.usesWeight {
+                    setObj.weight = weight
+                    setObj.weightType = plannedExercise.suggestedLoadType
+                        ?? (usedMetric == .metric ? .kg : .lbs)
+                }
+                sets.append(setObj)
+            }
+            return
+        }
+
+        for plannedSet in plannedSets {
+            let setObj = createEmptySet(orderIndex: plannedSet.orderIndex)
+            setObj.setType = plannedSet.setType
+            setObj.prescribedSetType = plannedSet.setType
+            setObj.prescribedRepetitions = plannedSet.repetitions
+            setObj.prescribedRepRangeMinimum = plannedSet.repRangeMinimum
+            setObj.prescribedRepRangeMaximum = plannedSet.repRangeMaximum
+            setObj.prescribedSuggestedLoad = plannedSet.suggestedLoad
+            setObj.prescribedSuggestedLoadType = plannedSet.suggestedLoadType
+            setObj.prescribedRestSeconds = plannedSet.restSeconds
+            setObj.prescribedRPE = plannedSet.targetRPE
+            setObj.prescribedRIR = plannedSet.targetRIR
+            setObj.isPrescribedOptional = plannedSet.isOptional
+            setObj.prescriptionNotes = plannedSet.notes
             if exercise.trackingType.usesReps {
-                setObj.repetitions = reps
+                setObj.repetitions = Float(plannedSet.repetitions ?? plannedSet.repRangeMaximum ?? plannedExercise.repRangeMaximum)
             }
             if exercise.trackingType.usesWeight {
-                setObj.weight = weight
-                setObj.weightType = plannedExercise.suggestedLoadType
+                setObj.weight = Float(plannedSet.suggestedLoad ?? plannedExercise.suggestedLoad ?? 0)
+                setObj.weightType = plannedSet.suggestedLoadType
+                    ?? plannedExercise.suggestedLoadType
                     ?? (usedMetric == .metric ? .kg : .lbs)
             }
             sets.append(setObj)
