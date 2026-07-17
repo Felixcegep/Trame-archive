@@ -19,11 +19,17 @@ struct ExerciseFormView: View {
     @State private var trackingType: TrackingType
     @State private var resistanceType: ResistanceType?
     @State private var movementPattern: MovementPattern?
+    @State private var forceType: ForceType?
+    @State private var mechanics: ExerciseMechanics?
     @State private var primaryMuscles: Set<Muscle>
     @State private var secondaryMuscles: Set<Muscle>
     @State private var difficulty: Difficulty
     @State private var tagsText: String
     @State private var isPlateLoaded: Bool
+    @State private var laterality: Laterality
+    @State private var repCountingStyle: RepCountingStyle
+    @State private var weightEntryStyle: WeightEntryStyle
+    @State private var loadUnitCount: Int
 
     init(exercise: Exercise? = nil, onSave: @escaping (Exercise) -> Void) {
         self.exercise = exercise
@@ -34,11 +40,17 @@ struct ExerciseFormView: View {
         _trackingType = State(initialValue: exercise?.trackingType ?? .weightAndReps)
         _resistanceType = State(initialValue: exercise?.resistanceType)
         _movementPattern = State(initialValue: exercise?.movementPattern)
+        _forceType = State(initialValue: exercise?.forceType)
+        _mechanics = State(initialValue: exercise?.mechanics)
         _primaryMuscles = State(initialValue: Set(exercise?.primaryMuscles ?? [.middleChest]))
         _secondaryMuscles = State(initialValue: Set(exercise?.secondaryMuscles ?? []))
         _difficulty = State(initialValue: exercise?.displayDifficulty ?? .beginner)
         _tagsText = State(initialValue: exercise?.tags.joined(separator: ", ") ?? "")
         _isPlateLoaded = State(initialValue: exercise?.isPlateLoaded ?? false)
+        _laterality = State(initialValue: exercise?.laterality ?? .bilateral)
+        _repCountingStyle = State(initialValue: exercise?.repCountingStyle ?? .total)
+        _weightEntryStyle = State(initialValue: exercise?.weightEntryStyle ?? .totalLoad)
+        _loadUnitCount = State(initialValue: exercise?.loadUnitCount ?? 1)
     }
 
     var body: some View {
@@ -72,7 +84,7 @@ struct ExerciseFormView: View {
                 }
             }
 
-            Section("Movement") {
+            Section("Advanced — Classification") {
                 Picker("Resistance", selection: $resistanceType) {
                     Text("None").tag(ResistanceType?.none)
                     ForEach(ResistanceType.allCases, id: \.self) { resistance in
@@ -84,6 +96,49 @@ struct ExerciseFormView: View {
                     Text("None").tag(MovementPattern?.none)
                     ForEach(MovementPattern.allCases, id: \.self) { movement in
                         Text(LocalizedStringKey(movement.rawValue)).tag(Optional(movement))
+                    }
+                }
+
+                Picker("Mechanics", selection: $mechanics) {
+                    Text("None").tag(ExerciseMechanics?.none)
+                    ForEach(ExerciseMechanics.allCases, id: \.self) { mechanics in
+                        Text(LocalizedStringKey(mechanics.rawValue)).tag(Optional(mechanics))
+                    }
+                }
+
+                Picker("Force", selection: $forceType) {
+                    Text("None").tag(ForceType?.none)
+                    ForEach(ForceType.allCases, id: \.self) { forceType in
+                        Text(LocalizedStringKey(forceType.rawValue)).tag(Optional(forceType))
+                    }
+                }
+            }
+
+            Section("Advanced — Logging") {
+                Picker("Laterality", selection: $laterality) {
+                    ForEach(Laterality.allCases, id: \.self) { laterality in
+                        Text(LocalizedStringKey(laterality.rawValue)).tag(laterality)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                if laterality == .unilateral {
+                    Picker("Rep Counting", selection: $repCountingStyle) {
+                        ForEach(RepCountingStyle.allCases, id: \.self) { style in
+                            Text(LocalizedStringKey(style.rawValue)).tag(style)
+                        }
+                    }
+                }
+
+                if trackingType.usesWeight {
+                    Picker("Weight Entry", selection: $weightEntryStyle) {
+                        ForEach(WeightEntryStyle.allCases, id: \.self) { style in
+                            Text(LocalizedStringKey(style.rawValue)).tag(style)
+                        }
+                    }
+
+                    if weightEntryStyle == .perLoadUnit {
+                        Stepper("Load Units: \(loadUnitCount)", value: $loadUnitCount, in: 1...4)
                     }
                 }
             }
@@ -137,6 +192,17 @@ struct ExerciseFormView: View {
         .onChange(of: trackingType) { _, tracking in
             if !tracking.usesWeight {
                 isPlateLoaded = false
+                weightEntryStyle = .totalLoad
+            }
+        }
+        .onChange(of: laterality) { _, laterality in
+            if laterality == .bilateral {
+                repCountingStyle = .total
+            }
+        }
+        .onChange(of: weightEntryStyle) { _, style in
+            if style == .totalLoad {
+                loadUnitCount = 1
             }
         }
         .toolbar {
@@ -174,9 +240,15 @@ struct ExerciseFormView: View {
             exercise.trackingType = trackingType
             exercise.resistanceType = resistanceType
             exercise.movementPattern = movementPattern
+            exercise.forceType = forceType
+            exercise.mechanics = mechanics
             exercise.difficulty = difficulty
             exercise.tags = tags
             exercise.isPlateLoaded = equipmentType == .barbell || isPlateLoaded
+            exercise.laterality = laterality
+            exercise.repCountingStyle = repCountingStyle
+            exercise.weightEntryStyle = weightEntryStyle
+            exercise.loadUnitCount = loadUnitCount
             return exercise
         }
 
@@ -189,9 +261,15 @@ struct ExerciseFormView: View {
             equipmentType: equipmentType,
             resistanceType: resistanceType,
             movementPattern: movementPattern,
+            forceType: forceType,
+            mechanics: mechanics,
             difficulty: difficulty,
             tags: tags,
-            isPlateLoaded: equipmentType == .barbell || isPlateLoaded
+            isPlateLoaded: equipmentType == .barbell || isPlateLoaded,
+            laterality: laterality,
+            repCountingStyle: repCountingStyle,
+            weightEntryStyle: weightEntryStyle,
+            loadUnitCount: loadUnitCount
         )
     }
 

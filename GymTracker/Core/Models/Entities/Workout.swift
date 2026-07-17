@@ -91,7 +91,7 @@ class Workout {
         let explicitName = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard explicitName.isEmpty else { return explicitName }
 
-        let exerciseNames = orderedExercises.map(\.exercise.name)
+        let exerciseNames = orderedExercises.map(\.nameSnapshot)
         switch exerciseNames.count {
         case 0:
             return String(localized: "Workout")

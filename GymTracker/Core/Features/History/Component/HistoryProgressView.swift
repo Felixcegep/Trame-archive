@@ -83,21 +83,29 @@ struct HistoryProgressView: View {
         for workout in workouts.sorted(by: { $0.startTime < $1.startTime }) {
             for exercise in workout.orderedExercises {
                 let completedSets = exercise.orderedSets.filter(\.done)
-                let weightedSets = completedSets.filter { _ in exercise.exercise.trackingType.usesWeight }
+                let trackingType = exercise.trackingTypeSnapshot
+                let weightedSets = completedSets.filter { _ in trackingType.usesWeight }
                 let load = weightedSets
                     .map { UnitConversion.weight($0.weight, from: $0.weightType, to: displayWeightType) }
                     .max()
-                let volume = completedSets.reduce(Float.zero) { total, set in
-                    guard exercise.exercise.trackingType.usesWeight, exercise.exercise.trackingType.usesReps else { return total }
-                    let displayWeight = UnitConversion.weight(set.weight, from: set.weightType, to: displayWeightType)
-                    return total + (displayWeight * set.repetitions)
-                }
-                let reps = completedSets.reduce(Float.zero) { $0 + (exercise.exercise.trackingType.usesReps ? $1.repetitions : 0) }
+                let semantics = exercise.loggingSemanticsSnapshot
+                let volume = trackingType.usesWeight && trackingType.usesReps
+                    ? completedSets.reduce(Float.zero) { total, set in
+                        total + VolumeCalculator.setVolume(
+                            weight: set.weight,
+                            weightType: set.weightType,
+                            repetitions: set.repetitions,
+                            semantics: semantics,
+                            in: displayWeightType
+                        )
+                    }
+                    : 0
+                let reps = completedSets.reduce(Float.zero) { $0 + (trackingType.usesReps ? $1.repetitions : 0) }
 
                 guard load != nil || volume > 0 || reps > 0 else { continue }
-                var series = byName[exercise.exercise.name] ?? HistoryExerciseSeries(
-                    name: exercise.exercise.name,
-                    unit: exercise.exercise.trackingType.usesWeight ? displayWeightType.rawValue : ""
+                var series = byName[exercise.nameSnapshot] ?? HistoryExerciseSeries(
+                    name: exercise.nameSnapshot,
+                    unit: trackingType.usesWeight ? displayWeightType.rawValue : ""
                 )
                 if let load {
                     series.loadPoints.append(HistoryMetricPoint(date: workout.startTime, value: load))
@@ -108,7 +116,7 @@ struct HistoryProgressView: View {
                 if reps > 0 {
                     series.repsPoints.append(HistoryMetricPoint(date: workout.startTime, value: reps))
                 }
-                byName[exercise.exercise.name] = series
+                byName[exercise.nameSnapshot] = series
             }
         }
 

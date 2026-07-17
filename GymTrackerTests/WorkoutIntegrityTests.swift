@@ -34,6 +34,48 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertFalse(muscleFilter.matches(row, searchText: "chest"))
     }
 
+    func testExerciseFilteringMatchesMechanicsForceTypeAndLaterality() {
+        let benchPress = Exercise(
+            name: "Bench Press",
+            primaryMuscles: [.middleChest],
+            equipmentType: .barbell,
+            movementPattern: .horizontalPush,
+            forceType: .push,
+            mechanics: .compound
+        )
+        let lateralRaise = Exercise(
+            name: "Lateral Raise",
+            primaryMuscles: [.lateralDeltoid],
+            equipmentType: .dumbbell,
+            forceType: .push,
+            mechanics: .isolation
+        )
+        let splitSquat = Exercise(
+            name: "Bulgarian Split Squat",
+            primaryMuscles: [.quadriceps],
+            equipmentType: .dumbbell,
+            movementPattern: .squat,
+            forceType: .push,
+            mechanics: .compound,
+            laterality: .unilateral
+        )
+
+        var mechanicsFilter = ExerciseFilterState()
+        mechanicsFilter.mechanics = [.compound]
+        XCTAssertTrue(mechanicsFilter.matches(benchPress, searchText: ""))
+        XCTAssertFalse(mechanicsFilter.matches(lateralRaise, searchText: ""))
+
+        var forceFilter = ExerciseFilterState()
+        forceFilter.forceTypes = [.push]
+        XCTAssertTrue(forceFilter.matches(benchPress, searchText: ""))
+        XCTAssertTrue(forceFilter.matches(lateralRaise, searchText: ""))
+
+        var lateralityFilter = ExerciseFilterState()
+        lateralityFilter.laterality = [.unilateral]
+        XCTAssertTrue(lateralityFilter.matches(splitSquat, searchText: ""))
+        XCTAssertFalse(lateralityFilter.matches(benchPress, searchText: ""))
+    }
+
     func testExerciseArchiveServiceHidesBuiltInAndRestoresIt() throws {
         let context = try makeContext()
         let exercise = Exercise(name: "Built In", primaryMuscles: [.upperChest])

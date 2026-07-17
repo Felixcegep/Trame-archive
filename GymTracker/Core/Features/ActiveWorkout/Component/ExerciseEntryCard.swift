@@ -90,6 +90,13 @@ struct ExerciceEntryCard: View {
                     .foregroundStyle(Color.gymText)
                     .accessibilityIdentifier("active-exercise-\(exerciseEntry.exercise.name)")
 
+                if let loggingSemanticsCaption {
+                    Text(loggingSemanticsCaption)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .lineLimit(1)
+                }
+
                 if let prescription = prescriptionSummary {
                     Text(prescription)
                         .font(AppFont.captionSemiboldMonospaced)
@@ -277,7 +284,22 @@ struct ExerciceEntryCard: View {
     }
 
     private var trackingType: TrackingType {
-        exerciseEntry.exercise.trackingType
+        exerciseEntry.trackingTypeSnapshot
+    }
+
+    private var loggingSemantics: LoggingSemantics {
+        exerciseEntry.loggingSemanticsSnapshot
+    }
+
+    private var loggingSemanticsCaption: String? {
+        var parts: [String] = []
+        if loggingSemantics.laterality == .unilateral && loggingSemantics.repCountingStyle == .perSide {
+            parts.append("Logged per side")
+        }
+        if loggingSemantics.weightEntryStyle == .perLoadUnit {
+            parts.append("Weight per unit (×\(loggingSemantics.loadUnitCount))")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private var recommendationPresentation: RecommendationPresentation? {
@@ -328,9 +350,14 @@ struct ExerciceEntryCard: View {
 
     private var inputTitles: [String] {
         var titles: [String] = []
-        if trackingType.usesReps { titles.append("Reps") }
+        if trackingType.usesReps {
+            let isPerSide = loggingSemantics.laterality == .unilateral && loggingSemantics.repCountingStyle == .perSide
+            titles.append(isPerSide ? "Reps / side" : "Reps")
+        }
         if trackingType.usesWeight {
-            titles.append(unitSystem == .metric ? "Weight (kg)" : "Weight (lbs)")
+            let unitLabel = unitSystem == .metric ? "kg" : "lbs"
+            let isPerUnit = loggingSemantics.weightEntryStyle == .perLoadUnit
+            titles.append(isPerUnit ? "Weight (\(unitLabel) each)" : "Weight (\(unitLabel))")
         }
         if trackingType.usesDuration { titles.append("Seconds") }
         if trackingType.usesDistance { titles.append("Distance") }

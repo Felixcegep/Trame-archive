@@ -40,6 +40,15 @@ final class ExerciseEntry{
     var recommendationPriorWorkoutDate: Date?
     var accumulatedActiveDuration: TimeInterval = 0
     var activeDurationStartedAt: Date?
+    // Captured from the exercise at entry-creation time so a completed set's
+    // interpretation (name, tracking, per-side/per-unit logging) stays fixed
+    // even if the library exercise is edited afterward.
+    var nameSnapshot: String = ""
+    var trackingTypeSnapshot: TrackingType = TrackingType.weightAndReps
+    var lateralitySnapshot: Laterality = Laterality.bilateral
+    var repCountingStyleSnapshot: RepCountingStyle = RepCountingStyle.total
+    var weightEntryStyleSnapshot: WeightEntryStyle = WeightEntryStyle.totalLoad
+    var loadUnitCountSnapshot: Int = 1
     var workout: Workout?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseSet.exerciseEntry)
     var sets: [ExerciseSet]
@@ -56,6 +65,12 @@ final class ExerciseEntry{
         self.exercise = exercise
         self.sets = sets
         self.usedMetric = usedMetric
+        self.nameSnapshot = exercise.name
+        self.trackingTypeSnapshot = exercise.trackingType
+        self.lateralitySnapshot = exercise.laterality
+        self.repCountingStyleSnapshot = exercise.repCountingStyle
+        self.weightEntryStyleSnapshot = exercise.weightEntryStyle
+        self.loadUnitCountSnapshot = exercise.loadUnitCount
         self.prescribedSets = nil
         self.prescribedRepRangeMinimum = nil
         self.prescribedRepRangeMaximum = nil
@@ -154,6 +169,15 @@ final class ExerciseEntry{
         sets.append(copiedSet)
     }
 
+    var loggingSemanticsSnapshot: LoggingSemantics {
+        LoggingSemantics(
+            laterality: lateralitySnapshot,
+            repCountingStyle: repCountingStyleSnapshot,
+            weightEntryStyle: weightEntryStyleSnapshot,
+            loadUnitCount: loadUnitCountSnapshot
+        )
+    }
+
     var orderedSets: [ExerciseSet] {
         sets.sorted { lhs, rhs in
             lhs.orderIndex == rhs.orderIndex
@@ -188,7 +212,7 @@ final class ExerciseEntry{
     }
 
     private func createEmptySet(orderIndex: Int) -> ExerciseSet {
-        switch exercise.trackingType {
+        switch trackingTypeSnapshot {
         case .weightAndReps, .weightedBodyweight, .assistedBodyweight:
             return ExerciseSet(repetitions: 0, weight: 0, orderIndex: orderIndex, usedMetric: usedMetric)
 

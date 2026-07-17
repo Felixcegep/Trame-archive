@@ -58,6 +58,9 @@ struct ExerciseFilterState: Equatable {
     var focus: ExerciseFocus?
     var bodyAreas: Set<ExerciseBodyArea> = []
     var movementPatterns: Set<MovementPattern> = []
+    var mechanics: Set<ExerciseMechanics> = []
+    var forceTypes: Set<ForceType> = []
+    var laterality: Set<Laterality> = []
     var equipment: EquipmentType?
     var category: ExerciseCategory?
     var difficulty: Difficulty?
@@ -69,6 +72,9 @@ struct ExerciseFilterState: Equatable {
             focus != nil,
             !bodyAreas.isEmpty,
             !movementPatterns.isEmpty,
+            !mechanics.isEmpty,
+            !forceTypes.isEmpty,
+            !laterality.isEmpty,
             equipment != nil,
             category != nil,
             difficulty != nil,
@@ -102,6 +108,11 @@ struct ExerciseFilterState: Equatable {
         if let focus, !matches(focus, exercise: exercise, allMuscles: allMuscles) { return false }
         if !bodyAreas.isEmpty && !bodyAreas.contains(where: { $0.matches(allMuscles) }) { return false }
         if !movementPatterns.isEmpty && !movementPatterns.contains(exercise.movementPattern ?? .other) { return false }
+        if !mechanics.isEmpty, let exerciseMechanics = exercise.mechanics, !mechanics.contains(exerciseMechanics) { return false }
+        if !mechanics.isEmpty && exercise.mechanics == nil { return false }
+        if !forceTypes.isEmpty, let exerciseForceType = exercise.forceType, !forceTypes.contains(exerciseForceType) { return false }
+        if !forceTypes.isEmpty && exercise.forceType == nil { return false }
+        if !laterality.isEmpty && !laterality.contains(exercise.laterality) { return false }
 
         return true
     }
@@ -112,7 +123,10 @@ struct ExerciseFilterState: Equatable {
             exercise.displayCategory.rawValue,
             exercise.equipmentType?.rawValue ?? "",
             exercise.trackingType.rawValue,
-            exercise.movementPattern?.rawValue ?? ""
+            exercise.movementPattern?.rawValue ?? "",
+            exercise.mechanics?.rawValue ?? "",
+            exercise.forceType?.rawValue ?? "",
+            exercise.laterality.rawValue
         ]
         + exercise.tags
         + allMuscles.map(\.displayName)
@@ -263,6 +277,24 @@ private struct ExerciseFiltersSheet: View {
                 DisclosureGroup("Choose movement patterns") {
                     ForEach(MovementPattern.allCases, id: \.self) { pattern in
                         Toggle(LocalizedStringKey(pattern.rawValue), isOn: selectionBinding(for: pattern, keyPath: \.movementPatterns))
+                    }
+                }
+
+                DisclosureGroup("Choose mechanics") {
+                    ForEach(ExerciseMechanics.allCases, id: \.self) { mechanics in
+                        Toggle(LocalizedStringKey(mechanics.rawValue), isOn: selectionBinding(for: mechanics, keyPath: \.mechanics))
+                    }
+                }
+
+                DisclosureGroup("Choose force type") {
+                    ForEach(ForceType.allCases, id: \.self) { forceType in
+                        Toggle(LocalizedStringKey(forceType.rawValue), isOn: selectionBinding(for: forceType, keyPath: \.forceTypes))
+                    }
+                }
+
+                DisclosureGroup("Choose laterality") {
+                    ForEach(Laterality.allCases, id: \.self) { laterality in
+                        Toggle(LocalizedStringKey(laterality.rawValue), isOn: selectionBinding(for: laterality, keyPath: \.laterality))
                     }
                 }
             }

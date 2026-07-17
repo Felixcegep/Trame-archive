@@ -15,11 +15,13 @@ struct ExerciseSession: Equatable, Sendable {
     let workoutID: UUID?
     let workoutDate: Date
     let sets: [ExerciseSessionSet]
+    let semantics: LoggingSemantics
 
-    init(workoutID: UUID? = nil, workoutDate: Date, sets: [ExerciseSessionSet]) {
+    init(workoutID: UUID? = nil, workoutDate: Date, sets: [ExerciseSessionSet], semantics: LoggingSemantics = .default) {
         self.workoutID = workoutID
         self.workoutDate = workoutDate
         self.sets = sets
+        self.semantics = semantics
     }
 
     /// Sets that count toward strength metrics; a warm-up never does.
@@ -195,7 +197,12 @@ struct ExerciseDetailAnalyticsService {
                     )
                 }
             guard !sets.isEmpty else { return nil }
-            return ExerciseSession(workoutID: workout.id, workoutDate: workout.startTime, sets: sets)
+            return ExerciseSession(
+                workoutID: workout.id,
+                workoutDate: workout.startTime,
+                sets: sets,
+                semantics: entry.loggingSemanticsSnapshot
+            )
         }
     }
 
@@ -219,9 +226,15 @@ struct ExerciseDetailAnalyticsService {
         trackingType == .weightAndReps || trackingType == .weightedBodyweight
     }
 
-    private func volume(of sets: [ExerciseSessionSet], in unit: WeightType) -> Float {
+    private func volume(of sets: [ExerciseSessionSet], semantics: LoggingSemantics, in unit: WeightType) -> Float {
         sets.reduce(Float(0)) { partial, set in
-            partial + set.repetitions * UnitConversion.weight(set.weight, from: set.weightType, to: unit)
+            partial + VolumeCalculator.setVolume(
+                weight: set.weight,
+                weightType: set.weightType,
+                repetitions: set.repetitions,
+                semantics: semantics,
+                in: unit
+            )
         }
     }
 
@@ -236,8 +249,8 @@ struct ExerciseDetailAnalyticsService {
         latest: ExerciseSession,
         unit: WeightType
     ) -> SessionComparison {
-        let previousVolume = volume(of: previous.workingSets, in: unit)
-        let latestVolume = volume(of: latest.workingSets, in: unit)
+        let previousVolume = volume(of: previous.workingSets, semantics: previous.semantics, in: unit)
+        let latestVolume = volume(of: latest.workingSets, semantics: latest.semantics, in: unit)
         let previousBestLoad = previous.workingSets
             .map { UnitConversion.weight($0.weight, from: $0.weightType, to: unit) }
             .max() ?? 0
@@ -375,7 +388,7 @@ struct ExerciseDetailAnalyticsService {
 
             let totalVolume = sessions
                 .filter { interval.contains($0.workoutDate) }
-                .reduce(Float(0)) { $0 + volume(of: $1.workingSets, in: unit) }
+                .reduce(Float(0)) { $0 + volume(of: $1.workingSets, semantics: $1.semantics, in: unit) }
             return ExerciseVolumeWeek(weekStart: weekStart, totalVolume: totalVolume)
         }
     }

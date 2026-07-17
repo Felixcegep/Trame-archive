@@ -95,10 +95,10 @@ struct HistoryRecordsView: View {
     private var bestLoadRecords: [HistoryRecord] {
         var best: [String: HistoryRecord] = [:]
         for workout in workouts {
-            for exercise in workout.orderedExercises where exercise.exercise.trackingType.usesWeight {
+            for exercise in workout.orderedExercises where exercise.trackingTypeSnapshot.usesWeight {
                 for set in exercise.orderedSets where set.done && set.weight > 0 {
-                    let candidate = HistoryRecord(exercise: exercise.exercise.name, value: set.weight, unit: set.weightType.rawValue, date: workout.startTime, kind: "load")
-                    if candidate.value > (best[exercise.exercise.name]?.value ?? 0) { best[exercise.exercise.name] = candidate }
+                    let candidate = HistoryRecord(exercise: exercise.nameSnapshot, value: set.weight, unit: set.weightType.rawValue, date: workout.startTime, kind: "load")
+                    if candidate.value > (best[exercise.nameSnapshot]?.value ?? 0) { best[exercise.nameSnapshot] = candidate }
                 }
             }
         }
@@ -108,10 +108,10 @@ struct HistoryRecordsView: View {
     private var bestRepRecords: [HistoryRecord] {
         var best: [String: HistoryRecord] = [:]
         for workout in workouts {
-            for exercise in workout.orderedExercises where exercise.exercise.trackingType.usesReps {
+            for exercise in workout.orderedExercises where exercise.trackingTypeSnapshot.usesReps {
                 for set in exercise.orderedSets where set.done && set.repetitions > 0 {
-                    let candidate = HistoryRecord(exercise: exercise.exercise.name, value: set.repetitions, unit: "reps", date: workout.startTime, kind: "reps")
-                    if candidate.value > (best[exercise.exercise.name]?.value ?? 0) { best[exercise.exercise.name] = candidate }
+                    let candidate = HistoryRecord(exercise: exercise.nameSnapshot, value: set.repetitions, unit: "reps", date: workout.startTime, kind: "reps")
+                    if candidate.value > (best[exercise.nameSnapshot]?.value ?? 0) { best[exercise.nameSnapshot] = candidate }
                 }
             }
         }
@@ -121,8 +121,16 @@ struct HistoryRecordsView: View {
     private var notableSessions: [HistorySessionRecord] {
         workouts.map { workout in
             let volume = workout.orderedExercises.reduce(Float.zero) { total, exercise in
-                total + exercise.orderedSets.filter(\.done).reduce(Float.zero) { subtotal, set in
-                    subtotal + (exercise.exercise.trackingType.usesWeight && exercise.exercise.trackingType.usesReps ? set.weight * set.repetitions : 0)
+                let trackingType = exercise.trackingTypeSnapshot
+                guard trackingType.usesWeight && trackingType.usesReps else { return total }
+                return total + exercise.orderedSets.filter(\.done).reduce(Float.zero) { subtotal, set in
+                    subtotal + VolumeCalculator.setVolume(
+                        weight: set.weight,
+                        weightType: set.weightType,
+                        repetitions: set.repetitions,
+                        semantics: exercise.loggingSemanticsSnapshot,
+                        in: set.weightType
+                    )
                 }
             }
             return HistorySessionRecord(title: workout.displayTitle, volume: volume, date: workout.startTime)

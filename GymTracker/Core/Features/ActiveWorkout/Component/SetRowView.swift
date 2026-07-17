@@ -23,7 +23,7 @@ struct SetRowView: View {
     @State private var countdownFinished = false
 
     private var trackingType: TrackingType {
-        exerciseEntry.exercise.trackingType
+        exerciseEntry.trackingTypeSnapshot
     }
 
     var body: some View {

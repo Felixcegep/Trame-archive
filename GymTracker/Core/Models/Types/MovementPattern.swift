@@ -16,6 +16,8 @@ enum MovementPattern: String, Codable, CaseIterable {
     case carry = "Carry"
     case rotation = "Rotation"
     case antiRotation = "Anti-Rotation"
-    case isolation = "Isolation"
+    case antiExtension = "Anti-Extension"
+    case antiLateralFlexion = "Anti-Lateral Flexion"
+    case locomotion = "Locomotion"
     case other = "Other"
 }

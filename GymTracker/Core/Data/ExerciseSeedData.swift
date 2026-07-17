@@ -16,6 +16,8 @@ enum ExerciseSeedData {
                 equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .horizontalPush,
+                forceType: .push,
+                mechanics: .compound,
                 difficulty: .intermediate
             ),
 
@@ -26,6 +28,8 @@ enum ExerciseSeedData {
                 equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .horizontalPush,
+                forceType: .push,
+                mechanics: .compound,
                 difficulty: .intermediate
             ),
 
@@ -36,6 +40,8 @@ enum ExerciseSeedData {
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
                 movementPattern: .squat,
+                forceType: .push,
+                mechanics: .compound,
                 difficulty: .beginner,
                 tags: ["front-loaded", "heels-elevated"]
             ),
@@ -47,8 +53,14 @@ enum ExerciseSeedData {
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
                 movementPattern: .squat,
+                forceType: .push,
+                mechanics: .compound,
                 difficulty: .intermediate,
-                tags: ["unilateral"]
+                tags: ["unilateral"],
+                laterality: .unilateral,
+                repCountingStyle: .perSide,
+                weightEntryStyle: .perLoadUnit,
+                loadUnitCount: 2
             ),
 
             Exercise(
@@ -58,6 +70,8 @@ enum ExerciseSeedData {
                 equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .hinge,
+                forceType: .pull,
+                mechanics: .compound,
                 difficulty: .advanced
             ),
 
@@ -68,6 +82,8 @@ enum ExerciseSeedData {
                 equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .squat,
+                forceType: .push,
+                mechanics: .compound,
                 difficulty: .intermediate
             ),
 
@@ -78,6 +94,8 @@ enum ExerciseSeedData {
                 equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .verticalPush,
+                forceType: .push,
+                mechanics: .compound,
                 difficulty: .intermediate
             ),
 
@@ -88,6 +106,8 @@ enum ExerciseSeedData {
                 equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .horizontalPull,
+                forceType: .pull,
+                mechanics: .compound,
                 difficulty: .intermediate
             ),
 
@@ -98,7 +118,11 @@ enum ExerciseSeedData {
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
                 movementPattern: .horizontalPush,
-                difficulty: .intermediate
+                forceType: .push,
+                mechanics: .compound,
+                difficulty: .intermediate,
+                weightEntryStyle: .perLoadUnit,
+                loadUnitCount: 2
             ),
 
             Exercise(
@@ -108,6 +132,8 @@ enum ExerciseSeedData {
                 equipmentType: .cable,
                 resistanceType: .machine,
                 movementPattern: .horizontalPull,
+                forceType: .pull,
+                mechanics: .isolation,
                 difficulty: .beginner,
                 tags: ["shoulder-health"]
             ),
@@ -120,6 +146,8 @@ enum ExerciseSeedData {
                 equipmentType: .bodyweight,
                 resistanceType: .weightedBodyweight,
                 movementPattern: .verticalPull,
+                forceType: .pull,
+                mechanics: .compound,
                 difficulty: .intermediate
             ),
 
@@ -131,6 +159,8 @@ enum ExerciseSeedData {
                 equipmentType: .machine,
                 resistanceType: .assistedBodyweight,
                 movementPattern: .verticalPull,
+                forceType: .pull,
+                mechanics: .compound,
                 difficulty: .beginner
             ),
 
@@ -141,6 +171,8 @@ enum ExerciseSeedData {
                 equipmentType: .machine,
                 resistanceType: .machine,
                 movementPattern: .verticalPull,
+                forceType: .pull,
+                mechanics: .compound,
                 difficulty: .beginner
             ),
 
@@ -151,6 +183,8 @@ enum ExerciseSeedData {
                 equipmentType: .cable,
                 resistanceType: .machine,
                 movementPattern: .horizontalPull,
+                forceType: .pull,
+                mechanics: .compound,
                 difficulty: .beginner
             ),
 
@@ -160,7 +194,8 @@ enum ExerciseSeedData {
                 secondaryMuscles: [.brachialis, .brachioradialis],
                 equipmentType: .barbell,
                 resistanceType: .externalWeight,
-                movementPattern: .isolation,
+                forceType: .pull,
+                mechanics: .isolation,
                 difficulty: .beginner
             ),
 
@@ -170,8 +205,11 @@ enum ExerciseSeedData {
                 secondaryMuscles: [.bicep, .brachioradialis],
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
-                movementPattern: .isolation,
-                difficulty: .beginner
+                forceType: .pull,
+                mechanics: .isolation,
+                difficulty: .beginner,
+                weightEntryStyle: .perLoadUnit,
+                loadUnitCount: 2
             ),
 
             Exercise(
@@ -180,7 +218,8 @@ enum ExerciseSeedData {
                 secondaryMuscles: [.tricepLongHead],
                 equipmentType: .cable,
                 resistanceType: .machine,
-                movementPattern: .isolation,
+                forceType: .push,
+                mechanics: .isolation,
                 difficulty: .beginner
             ),
 
@@ -189,8 +228,11 @@ enum ExerciseSeedData {
                 primaryMuscles: [.lateralDeltoid],
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
-                movementPattern: .isolation,
-                difficulty: .beginner
+                forceType: .push,
+                mechanics: .isolation,
+                difficulty: .beginner,
+                weightEntryStyle: .perLoadUnit,
+                loadUnitCount: 2
             ),
 
             Exercise(
@@ -199,8 +241,11 @@ enum ExerciseSeedData {
                 secondaryMuscles: [.rhomboids],
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
-                movementPattern: .isolation,
-                difficulty: .beginner
+                forceType: .pull,
+                mechanics: .isolation,
+                difficulty: .beginner,
+                weightEntryStyle: .perLoadUnit,
+                loadUnitCount: 2
             ),
 
             Exercise(
@@ -210,6 +255,8 @@ enum ExerciseSeedData {
                 equipmentType: .machine,
                 resistanceType: .machine,
                 movementPattern: .squat,
+                forceType: .push,
+                mechanics: .compound,
                 difficulty: .beginner,
                 isPlateLoaded: true
             ),
@@ -221,6 +268,8 @@ enum ExerciseSeedData {
                 equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .hinge,
+                forceType: .pull,
+                mechanics: .compound,
                 difficulty: .intermediate
             ),
 
@@ -231,8 +280,14 @@ enum ExerciseSeedData {
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
                 movementPattern: .hinge,
+                forceType: .pull,
+                mechanics: .compound,
                 difficulty: .intermediate,
-                tags: ["unilateral", "kickstand"]
+                tags: ["unilateral", "kickstand"],
+                laterality: .unilateral,
+                repCountingStyle: .perSide,
+                weightEntryStyle: .perLoadUnit,
+                loadUnitCount: 2
             ),
 
             Exercise(
@@ -242,6 +297,8 @@ enum ExerciseSeedData {
                 equipmentType: .other,
                 resistanceType: .bodyweight,
                 movementPattern: .hinge,
+                forceType: .pull,
+                mechanics: .compound,
                 difficulty: .beginner,
                 tags: ["rehabilitation", "high-rep"]
             ),
@@ -251,7 +308,8 @@ enum ExerciseSeedData {
                 primaryMuscles: [.quadriceps],
                 equipmentType: .machine,
                 resistanceType: .machine,
-                movementPattern: .isolation,
+                forceType: .push,
+                mechanics: .isolation,
                 difficulty: .beginner
             ),
 
@@ -260,7 +318,8 @@ enum ExerciseSeedData {
                 primaryMuscles: [.hamstrings],
                 equipmentType: .machine,
                 resistanceType: .machine,
-                movementPattern: .isolation,
+                forceType: .pull,
+                mechanics: .isolation,
                 difficulty: .beginner
             ),
 
@@ -271,7 +330,9 @@ enum ExerciseSeedData {
                 trackingType: .duration,
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
-                movementPattern: .antiRotation,
+                movementPattern: .antiLateralFlexion,
+                forceType: .staticHold,
+                mechanics: .compound,
                 difficulty: .intermediate,
                 tags: ["hip-health"]
             ),
@@ -281,7 +342,8 @@ enum ExerciseSeedData {
                 primaryMuscles: [.calves],
                 equipmentType: .machine,
                 resistanceType: .externalWeight,
-                movementPattern: .isolation,
+                forceType: .push,
+                mechanics: .isolation,
                 difficulty: .beginner
             ),
 
@@ -291,7 +353,8 @@ enum ExerciseSeedData {
                 trackingType: .repsOnly,
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
-                movementPattern: .isolation,
+                forceType: .pull,
+                mechanics: .isolation,
                 difficulty: .beginner
             ),
 
@@ -302,7 +365,11 @@ enum ExerciseSeedData {
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
                 movementPattern: .horizontalPush,
-                difficulty: .beginner
+                forceType: .push,
+                mechanics: .compound,
+                difficulty: .beginner,
+                weightEntryStyle: .perLoadUnit,
+                loadUnitCount: 2
             ),
 
             Exercise(
@@ -312,6 +379,8 @@ enum ExerciseSeedData {
                 equipmentType: .barbell,
                 resistanceType: .externalWeight,
                 movementPattern: .verticalPush,
+                forceType: .push,
+                mechanics: .compound,
                 difficulty: .intermediate
             ),
 
@@ -322,7 +391,11 @@ enum ExerciseSeedData {
                 equipmentType: .dumbbell,
                 resistanceType: .externalWeight,
                 movementPattern: .horizontalPull,
-                difficulty: .beginner
+                forceType: .pull,
+                mechanics: .compound,
+                difficulty: .beginner,
+                weightEntryStyle: .perLoadUnit,
+                loadUnitCount: 2
             ),
 
             Exercise(
@@ -332,7 +405,9 @@ enum ExerciseSeedData {
                 trackingType: .duration,
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
-                movementPattern: .antiRotation,
+                movementPattern: .antiExtension,
+                forceType: .staticHold,
+                mechanics: .compound,
                 difficulty: .beginner
             ),
 
@@ -343,7 +418,9 @@ enum ExerciseSeedData {
                 trackingType: .duration,
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
-                movementPattern: .antiRotation,
+                movementPattern: .antiLateralFlexion,
+                forceType: .staticHold,
+                mechanics: .compound,
                 difficulty: .beginner,
                 tags: ["pelvic-stability", "rehabilitation"]
             ),
@@ -354,7 +431,7 @@ enum ExerciseSeedData {
                 trackingType: .repsOnly,
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
-                movementPattern: .isolation,
+                mechanics: .isolation,
                 difficulty: .beginner,
                 tags: ["hip-stability", "rehabilitation"]
             ),
@@ -367,6 +444,7 @@ enum ExerciseSeedData {
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
                 movementPattern: .antiRotation,
+                mechanics: .isolation,
                 difficulty: .beginner,
                 tags: ["mobility", "rehabilitation"]
             ),
@@ -379,6 +457,7 @@ enum ExerciseSeedData {
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
                 movementPattern: .antiRotation,
+                mechanics: .compound,
                 difficulty: .beginner,
                 tags: ["pelvic-stability", "rehabilitation"]
             ),
@@ -390,6 +469,8 @@ enum ExerciseSeedData {
                 equipmentType: .bodyweight,
                 resistanceType: .bodyweight,
                 movementPattern: .hinge,
+                forceType: .pull,
+                mechanics: .compound,
                 difficulty: .beginner,
                 tags: ["bilateral", "rehabilitation"]
             ),
@@ -399,7 +480,8 @@ enum ExerciseSeedData {
                 primaryMuscles: [.calves],
                 equipmentType: .machine,
                 resistanceType: .machine,
-                movementPattern: .isolation,
+                forceType: .push,
+                mechanics: .isolation,
                 difficulty: .beginner
             ),
 
@@ -410,6 +492,8 @@ enum ExerciseSeedData {
                 category: .cardio,
                 trackingType: .durationAndDistance,
                 equipmentType: .cardioMachine,
+                movementPattern: .locomotion,
+                mechanics: .compound,
                 difficulty: .beginner,
                 tags: ["cardio"]
             )

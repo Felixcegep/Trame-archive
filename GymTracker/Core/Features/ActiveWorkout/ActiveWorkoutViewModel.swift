@@ -143,20 +143,20 @@ class ActiveWorkoutViewModel {
             return
         }
 
-        if exercise.exercise.trackingType.usesReps {
+        if exercise.trackingTypeSnapshot.usesReps {
             set.repetitions = previousSet.repetitions
         }
-        if exercise.exercise.trackingType.usesWeight {
+        if exercise.trackingTypeSnapshot.usesWeight {
             set.weight = UnitConversion.weight(
                 previousSet.weight,
                 from: previousSet.weightType,
                 to: set.weightType
             )
         }
-        if exercise.exercise.trackingType.usesDuration {
+        if exercise.trackingTypeSnapshot.usesDuration {
             set.duration = previousSet.duration
         }
-        if exercise.exercise.trackingType.usesDistance, let distance = previousSet.distance {
+        if exercise.trackingTypeSnapshot.usesDistance, let distance = previousSet.distance {
             set.distance = UnitConversion.distance(
                 distance,
                 from: previousSet.distanceType,
@@ -171,7 +171,7 @@ class ActiveWorkoutViewModel {
     /// never rewritten.
     func applyRecommendation(to exercise: ExerciseEntry) {
         guard
-            exercise.exercise.trackingType.usesWeight,
+            exercise.trackingTypeSnapshot.usesWeight,
             exercise.recommendedDecision != nil,
             let load = exercise.recommendedLoad,
             let unit = exercise.recommendedUnit
@@ -190,7 +190,7 @@ class ActiveWorkoutViewModel {
     /// recommendation card changes load only and leaves reps explicit.
     func applyPriorRecommendationLoad(to exercise: ExerciseEntry) {
         guard
-            exercise.exercise.trackingType.usesWeight,
+            exercise.trackingTypeSnapshot.usesWeight,
             let load = exercise.recommendationPriorLoad,
             let unit = exercise.recommendedUnit
         else {
@@ -230,7 +230,7 @@ class ActiveWorkoutViewModel {
     }
 
     func canComplete(_ set: ExerciseSet, for exercise: ExerciseEntry) -> Bool {
-        let trackingType = exercise.exercise.trackingType
+        let trackingType = exercise.trackingTypeSnapshot
 
         if trackingType.usesReps, set.repetitions <= 0 {
             return false

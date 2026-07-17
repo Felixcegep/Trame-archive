@@ -18,6 +18,9 @@ struct ExerciseDetailSnapshot {
     let equipmentType: EquipmentType
     let resistanceType: ResistanceType?
     let movementPattern: MovementPattern?
+    let forceType: ForceType?
+    let mechanics: ExerciseMechanics?
+    let laterality: Laterality
     let difficulty: Difficulty
     let usesWeightPlates: Bool
 
@@ -30,6 +33,9 @@ struct ExerciseDetailSnapshot {
         equipmentType = exercise.equipmentType ?? .other
         resistanceType = exercise.resistanceType
         movementPattern = exercise.movementPattern
+        forceType = exercise.forceType
+        mechanics = exercise.mechanics
+        laterality = exercise.laterality
         difficulty = exercise.displayDifficulty
         usesWeightPlates = exercise.supportsPlateCalculator
     }
@@ -70,6 +76,9 @@ struct ExerciseView : View {
                 LabeledContent("Equipment") { Text(LocalizedStringKey(exercise.equipmentType.rawValue)) }
                 LabeledContent("Resistance") { Text(LocalizedStringKey(exercise.resistanceType?.rawValue ?? "None")) }
                 LabeledContent("Movement") { Text(LocalizedStringKey(exercise.movementPattern?.rawValue ?? "None")) }
+                LabeledContent("Mechanics") { Text(LocalizedStringKey(exercise.mechanics?.rawValue ?? "None")) }
+                LabeledContent("Force") { Text(LocalizedStringKey(exercise.forceType?.rawValue ?? "None")) }
+                LabeledContent("Laterality") { Text(LocalizedStringKey(exercise.laterality.rawValue)) }
                 LabeledContent("Difficulty") { Text(LocalizedStringKey(exercise.difficulty.rawValue)) }
                 if exercise.trackingType.usesWeight {
                     LabeledContent("Weight entry") {

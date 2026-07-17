@@ -158,12 +158,12 @@ struct WorkoutPerformanceComparison {
     ) -> String {
         guard !completedSets.isEmpty else { return String(localized: "No completed sets") }
         var components = [String(localized: "\(completedSets.count) sets")]
-        if exercise.exercise.trackingType.usesReps {
+        if exercise.trackingTypeSnapshot.usesReps {
             let reps = completedSets.map { Int($0.repetitions.rounded()) }
             let range = reps.min() == reps.max() ? "\(reps.first ?? 0) reps" : "\(reps.min() ?? 0)–\(reps.max() ?? 0) reps"
             components.append(range)
         }
-        if exercise.exercise.trackingType.usesWeight,
+        if exercise.trackingTypeSnapshot.usesWeight,
            let first = completedSets.first {
             let loads = completedSets.map {
                 UnitConversion.weight($0.weight, from: $0.weightType, to: first.weightType)

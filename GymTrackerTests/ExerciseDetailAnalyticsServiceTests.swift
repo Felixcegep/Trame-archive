@@ -261,6 +261,36 @@ final class ExerciseDetailAnalyticsServiceTests: XCTestCase {
         XCTAssertEqual(analytics.weeklyVolume.dropLast().reduce(Float(0)) { $0 + $1.totalVolume }, 0)
     }
 
+    func testPerLoadUnitExerciseDoublesVolumeButNotEstimatedOneRepMax() throws {
+        let context = try makeContext()
+        let exercise = Exercise(
+            name: "Dumbbell Bench Press",
+            primaryMuscles: [.middleChest],
+            equipmentType: .dumbbell,
+            weightEntryStyle: .perLoadUnit,
+            loadUnitCount: 2
+        )
+        context.insert(exercise)
+        insertCompletedWorkout(
+            exercise: exercise,
+            date: referenceDate.addingTimeInterval(-3_600),
+            sets: [(10, 50, .kg, .normal)],
+            in: context
+        )
+        try context.save()
+
+        let analytics = try ExerciseDetailAnalyticsService(modelContext: context)
+            .analytics(for: exercise, referenceDate: referenceDate, weekCount: 8)
+
+        // 10 reps × 50 kg per dumbbell × 2 dumbbells = 1,000 total volume.
+        let lastWeekVolume = try XCTUnwrap(analytics.weeklyVolume.last?.totalVolume)
+        XCTAssertEqual(lastWeekVolume, 1_000, accuracy: 0.01)
+
+        // A load PR / estimated 1RM stays the per-hand number, not doubled.
+        XCTAssertEqual(analytics.bestLoadSet?.weight, 50)
+        XCTAssertEqual(analytics.estimatedOneRepMax?.sourceWeight, 50)
+    }
+
     // MARK: - Fixtures
 
     private let referenceDate = Date(timeIntervalSince1970: 1_700_000_000)

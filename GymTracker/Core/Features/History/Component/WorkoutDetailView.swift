@@ -128,7 +128,7 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            Text(exercise.exercise.name)
+            Text(exercise.nameSnapshot)
                 .font(AppFont.titleSmallSemibold)
                 .foregroundStyle(Color.gymText)
 
@@ -166,16 +166,16 @@ struct WorkoutDetailView: View {
             ForEach(Array(exercise.orderedSets.enumerated()), id: \.element.persistentModelID) { index, set in
                 GridRow {
                     tableValue(setLabel(for: set, index: index), alignment: .leading)
-                    if exercise.exercise.trackingType.usesWeight {
+                    if exercise.trackingTypeSnapshot.usesWeight {
                         tableValue(weightText(for: set))
                     }
-                    if exercise.exercise.trackingType.usesReps {
+                    if exercise.trackingTypeSnapshot.usesReps {
                         tableValue("\(Formatters.formatFloat(set.repetitions))")
                     }
-                    if exercise.exercise.trackingType.usesDuration {
+                    if exercise.trackingTypeSnapshot.usesDuration {
                         tableValue(durationText(for: set))
                     }
-                    if exercise.exercise.trackingType.usesDistance {
+                    if exercise.trackingTypeSnapshot.usesDistance {
                         tableValue(distanceText(for: set))
                     }
                     if showsRPE {
@@ -194,10 +194,10 @@ struct WorkoutDetailView: View {
 
     private var tableColumns: [String] {
         var columns = ["Set"]
-        if exercise.exercise.trackingType.usesWeight { columns.append("Weight") }
-        if exercise.exercise.trackingType.usesReps { columns.append("Reps") }
-        if exercise.exercise.trackingType.usesDuration { columns.append("Time") }
-        if exercise.exercise.trackingType.usesDistance { columns.append("Distance") }
+        if exercise.trackingTypeSnapshot.usesWeight { columns.append("Weight") }
+        if exercise.trackingTypeSnapshot.usesReps { columns.append("Reps") }
+        if exercise.trackingTypeSnapshot.usesDuration { columns.append("Time") }
+        if exercise.trackingTypeSnapshot.usesDistance { columns.append("Distance") }
         if showsRPE { columns.append("RPE") }
         return columns
     }
@@ -231,10 +231,10 @@ struct WorkoutDetailView: View {
 
     private func accessibilityDescription(for set: ExerciseSet, index: Int) -> String {
         var values = ["Set \(setLabel(for: set, index: index))"]
-        if exercise.exercise.trackingType.usesWeight { values.append("\(weightText(for: set))") }
-        if exercise.exercise.trackingType.usesReps { values.append("\(Formatters.formatFloat(set.repetitions)) reps") }
-        if exercise.exercise.trackingType.usesDuration { values.append(durationText(for: set)) }
-        if exercise.exercise.trackingType.usesDistance { values.append(distanceText(for: set)) }
+        if exercise.trackingTypeSnapshot.usesWeight { values.append("\(weightText(for: set))") }
+        if exercise.trackingTypeSnapshot.usesReps { values.append("\(Formatters.formatFloat(set.repetitions)) reps") }
+        if exercise.trackingTypeSnapshot.usesDuration { values.append(durationText(for: set)) }
+        if exercise.trackingTypeSnapshot.usesDistance { values.append(distanceText(for: set)) }
         if let rpe = set.rpe { values.append("RPE \(rpe)") }
         return values.joined(separator: ", ")
     }
