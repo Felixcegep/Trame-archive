@@ -181,6 +181,52 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(try record.payload(), definition)
     }
 
+    func testProgramDefinitionBackupDTORoundTripsAndValidates() throws {
+        let definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "bench-strength",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))]
+            )
+        ])
+        let definitionData = try JSONEncoder().encode(definition)
+        let definitionDTO = ProgramDefinitionDTO(
+            id: definition.id.uuidString,
+            schemaVersion: definition.schemaVersion,
+            templateVersion: definition.templateVersion,
+            name: definition.name,
+            summary: definition.description,
+            goal: definition.goal.rawValue,
+            experienceLevel: definition.experienceLevel.rawValue,
+            durationWeeks: definition.durationWeeks,
+            supportedDaysPerWeek: definition.supportedDaysPerWeek,
+            isBuiltIn: false,
+            isArchived: false,
+            createdAt: .now,
+            updatedAt: .now,
+            definitionData: definitionData
+        )
+        let backup = BackupDTO(
+            version: BackupDTO.currentVersion,
+            preferences: PreferencesDTO(darkMode: false, restTimer: 90, unitSystem: UnitSystem.metric.rawValue),
+            exercises: [],
+            templates: [],
+            collections: [],
+            workouts: [],
+            programDefinitions: [definitionDTO]
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BackupDTO.self, from: encoder.encode(backup))
+
+        XCTAssertEqual(decoded.programDefinitions.count, 1)
+        XCTAssertNoThrow(try decoded.validate())
+        XCTAssertEqual(decoded.programDefinitions.first?.definitionData, definitionData)
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,

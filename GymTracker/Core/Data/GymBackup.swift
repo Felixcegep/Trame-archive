@@ -8,6 +8,7 @@ struct PreferencesDTO: Codable {
 }
 
 struct ExerciseTemplateDTO: Codable {
+    var id: String? = nil
     let name: String
     let primaryMuscles: [String]
     let secondaryMuscles: [String]?
@@ -53,6 +54,7 @@ struct TemplateExerciseDTO: Codable {
     let notes: String?
     let progressionRule: String?
     var supersetGroupID: String? = nil
+    var progressionKey: String? = nil
 }
 
 struct WorkoutTemplateDTO: Codable {
@@ -88,6 +90,7 @@ struct ExerciseSetDTO: Codable {
     var prescribedRIR: Int? = nil
     var isPrescribedOptional: Bool? = nil
     var prescriptionNotes: String? = nil
+    var prescriptionDefinitionData: Data? = nil
 }
 
 struct ExerciseEntryDTO: Codable {
@@ -121,6 +124,8 @@ struct ExerciseEntryDTO: Codable {
     let accumulatedActiveDuration: Double?
     let activeDurationStartedAt: Date?
     var supersetGroupID: String? = nil
+    var prescriptionDefinitionData: Data? = nil
+    var prescriptionRulesData: Data? = nil
 }
 
 struct WorkoutDTO: Codable {
@@ -139,6 +144,8 @@ struct WorkoutDTO: Codable {
     let sourcePlanWeekID: String?
     let sourcePlannedWorkoutID: String?
     let sourcePlanName: String?
+    var sourceProgramDefinitionID: String? = nil
+    var sourceProgramDefinitionVersion: Int? = nil
     let exercises: [ExerciseEntryDTO]
 }
 
@@ -162,6 +169,8 @@ struct PlannedExerciseDTO: Codable {
     var alternativeExerciseNames: [String]? = nil
     var supersetGroupID: String? = nil
     var plannedSets: [PlannedSetDTO]? = nil
+    var progressionKey: String? = nil
+    var progressionRulesData: Data? = nil
 }
 
 struct PlannedSetDTO: Codable {
@@ -177,6 +186,29 @@ struct PlannedSetDTO: Codable {
     let targetRIR: Int?
     let isOptional: Bool
     let notes: String?
+    var definitionData: Data? = nil
+}
+
+struct ProgressionStateDTO: Codable {
+    let id: String
+    let progressionKey: String
+    let currentLoad: Double?
+    let currentLoadType: String?
+    let currentStageID: String?
+    let currentVariationExerciseID: String?
+    let trainingMax: Double?
+    let estimatedOneRepMax: Double?
+    let failureCount: Int
+    let successCount: Int
+    let currentWaveIndex: Int?
+    let currentBlockIndex: Int?
+    let previousAMRAPRepetitions: Int?
+    let previousActualRPE: Double?
+    let previousActualRIR: Double?
+    let lastCompletedOccurrence: Date?
+    let lastSuccessfulLoad: Double?
+    let isDeloading: Bool
+    let lastAppliedOutcomeID: String?
 }
 
 struct PlannedWorkoutDTO: Codable {
@@ -222,6 +254,8 @@ struct WorkoutPlanDTO: Codable {
     let createdAt: Date
     let updatedAt: Date
     let isArchived: Bool
+    var sourceProgramDefinitionID: String? = nil
+    var sourceProgramDefinitionVersion: Int? = nil
     let blocks: [PlanBlockDTO]
 }
 
@@ -252,6 +286,24 @@ struct PlanRunDTO: Codable {
     let createdAt: Date
     let updatedAt: Date
     let workoutProgress: [PlanWorkoutProgressDTO]
+    var progressionStates: [ProgressionStateDTO] = []
+}
+
+struct ProgramDefinitionDTO: Codable {
+    let id: String
+    let schemaVersion: Int
+    let templateVersion: Int
+    let name: String
+    let summary: String?
+    let goal: String
+    let experienceLevel: String
+    let durationWeeks: Int
+    let supportedDaysPerWeek: [Int]
+    let isBuiltIn: Bool
+    let isArchived: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    let definitionData: Data
 }
 
 struct BackupDTO: Codable, Identifiable {
@@ -265,6 +317,7 @@ struct BackupDTO: Codable, Identifiable {
     let plans: [WorkoutPlanDTO]
     let planRuns: [PlanRunDTO]
     let exerciseRelationships: [ExerciseRelationshipDTO]
+    let programDefinitions: [ProgramDefinitionDTO]
 
     init(
         version: Int,
@@ -275,7 +328,8 @@ struct BackupDTO: Codable, Identifiable {
         workouts: [WorkoutDTO],
         plans: [WorkoutPlanDTO] = [],
         planRuns: [PlanRunDTO] = [],
-        exerciseRelationships: [ExerciseRelationshipDTO] = []
+        exerciseRelationships: [ExerciseRelationshipDTO] = [],
+        programDefinitions: [ProgramDefinitionDTO] = []
     ) {
         self.version = version
         self.preferences = preferences
@@ -286,10 +340,11 @@ struct BackupDTO: Codable, Identifiable {
         self.plans = plans
         self.planRuns = planRuns
         self.exerciseRelationships = exerciseRelationships
+        self.programDefinitions = programDefinitions
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions
     }
 
     init(from decoder: Decoder) throws {
@@ -303,6 +358,7 @@ struct BackupDTO: Codable, Identifiable {
         plans = try container.decodeIfPresent([WorkoutPlanDTO].self, forKey: .plans) ?? []
         planRuns = try container.decodeIfPresent([PlanRunDTO].self, forKey: .planRuns) ?? []
         exerciseRelationships = try container.decodeIfPresent([ExerciseRelationshipDTO].self, forKey: .exerciseRelationships) ?? []
+        programDefinitions = try container.decodeIfPresent([ProgramDefinitionDTO].self, forKey: .programDefinitions) ?? []
     }
 }
 
@@ -337,6 +393,7 @@ enum BackupValidationError: LocalizedError {
     case missingPlannedWorkout(String)
     case missingWorkout(String)
     case invalidExerciseRelationship
+    case invalidProgramDefinition(String)
 
     var errorDescription: String? {
         switch self {
@@ -362,12 +419,15 @@ enum BackupValidationError: LocalizedError {
             return "The backup references a workout that is missing: \(identifier)."
         case .invalidExerciseRelationship:
             return "The backup contains an invalid exercise relationship."
+        case .invalidProgramDefinition(let message):
+            return "The backup contains an invalid program definition: (message)"
         }
     }
 }
 
 extension BackupDTO {
-    static let currentVersion = 4
+    static let currentVersion = 5
+    static let programVersion = 5
     static let supersetVersion = 3
     static let planVersion = 2
     static let legacyVersion = 1
@@ -376,6 +436,7 @@ extension BackupDTO {
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
         let exerciseDTOs = exercises.map { exercise in
             ExerciseTemplateDTO(
+                id: exercise.id.uuidString,
                 name: exercise.name,
                 primaryMuscles: exercise.primaryMuscles.map(\.rawValue),
                 secondaryMuscles: exercise.secondaryMuscles?.map(\.rawValue),
@@ -431,7 +492,8 @@ extension BackupDTO {
                         targetRIR: te.targetRIR,
                         notes: te.notes,
                         progressionRule: te.progressionRule.rawValue,
-                        supersetGroupID: te.supersetGroupID?.uuidString
+                        supersetGroupID: te.supersetGroupID?.uuidString,
+                        progressionKey: te.progressionKey
                     )
                 }
             )
@@ -463,6 +525,8 @@ extension BackupDTO {
                 sourcePlanWeekID: workout.sourcePlanWeekID?.uuidString,
                 sourcePlannedWorkoutID: workout.sourcePlannedWorkoutID?.uuidString,
                 sourcePlanName: workout.sourcePlanName,
+                sourceProgramDefinitionID: workout.sourceProgramDefinitionID?.uuidString,
+                sourceProgramDefinitionVersion: workout.sourceProgramDefinitionVersion,
                 exercises: workout.exercises.map { exercise in
                     let setsDTO = exercise.sets.map { set in
                         ExerciseSetDTO(
@@ -487,7 +551,8 @@ extension BackupDTO {
                             prescribedRPE: set.prescribedRPE,
                             prescribedRIR: set.prescribedRIR,
                             isPrescribedOptional: set.isPrescribedOptional,
-                            prescriptionNotes: set.prescriptionNotes
+                            prescriptionNotes: set.prescriptionNotes,
+                            prescriptionDefinitionData: set.prescriptionDefinitionData
                         )
                     }
                     return ExerciseEntryDTO(
@@ -519,7 +584,9 @@ extension BackupDTO {
                         recommendationPriorWorkoutDate: exercise.recommendationPriorWorkoutDate,
                         accumulatedActiveDuration: exercise.accumulatedActiveDuration,
                         activeDurationStartedAt: exercise.activeDurationStartedAt,
-                        supersetGroupID: exercise.supersetGroupID?.uuidString
+                        supersetGroupID: exercise.supersetGroupID?.uuidString,
+                        prescriptionDefinitionData: exercise.prescriptionDefinitionData,
+                        prescriptionRulesData: exercise.prescriptionRulesData
                     )
                 }
             )
@@ -539,6 +606,8 @@ extension BackupDTO {
                 createdAt: plan.createdAt,
                 updatedAt: plan.updatedAt,
                 isArchived: plan.isArchived,
+                sourceProgramDefinitionID: plan.sourceProgramDefinitionID?.uuidString,
+                sourceProgramDefinitionVersion: plan.sourceProgramDefinitionVersion,
                 blocks: plan.orderedBlocks.map { block in
                     PlanBlockDTO(
                         id: block.id.uuidString,
@@ -586,6 +655,8 @@ extension BackupDTO {
                                                     .sorted { $0.orderIndex < $1.orderIndex }
                                                     .map { $0.exercise.name },
                                                 supersetGroupID: plannedExercise.supersetGroupID?.uuidString,
+                                                progressionKey: plannedExercise.progressionKey,
+                                                progressionRulesData: plannedExercise.progressionRulesData,
                                                 plannedSets: plannedExercise.orderedPlannedSets.map { plannedSet in
                                                     PlannedSetDTO(
                                                         orderIndex: plannedSet.orderIndex,
@@ -599,7 +670,8 @@ extension BackupDTO {
                                                         targetRPE: plannedSet.targetRPE,
                                                         targetRIR: plannedSet.targetRIR,
                                                         isOptional: plannedSet.isOptional,
-                                                        notes: plannedSet.notes
+                                                        notes: plannedSet.notes,
+                                                        definitionData: plannedSet.definitionData
                                                     )
                                                 }
                                             )
@@ -641,7 +713,49 @@ extension BackupDTO {
                         skipReason: progress.skipReason,
                         completedWorkoutID: progress.completedWorkout?.id.uuidString
                     )
+                },
+                progressionStates: run.orderedProgressionStates.map { state in
+                    ProgressionStateDTO(
+                        id: state.id.uuidString,
+                        progressionKey: state.progressionKey,
+                        currentLoad: state.currentLoad,
+                        currentLoadType: state.currentLoadType?.rawValue,
+                        currentStageID: state.currentStageID,
+                        currentVariationExerciseID: state.currentVariationExerciseID?.uuidString,
+                        trainingMax: state.trainingMax,
+                        estimatedOneRepMax: state.estimatedOneRepMax,
+                        failureCount: state.failureCount,
+                        successCount: state.successCount,
+                        currentWaveIndex: state.currentWaveIndex,
+                        currentBlockIndex: state.currentBlockIndex,
+                        previousAMRAPRepetitions: state.previousAMRAPRepetitions,
+                        previousActualRPE: state.previousActualRPE,
+                        previousActualRIR: state.previousActualRIR,
+                        lastCompletedOccurrence: state.lastCompletedOccurrence,
+                        lastSuccessfulLoad: state.lastSuccessfulLoad,
+                        isDeloading: state.isDeloading,
+                        lastAppliedOutcomeID: state.lastAppliedOutcomeID
+                    )
                 }
+            )
+        }
+
+        let programDefinitionDTOs = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>()).map { record in
+            ProgramDefinitionDTO(
+                id: record.id.uuidString,
+                schemaVersion: record.schemaVersion,
+                templateVersion: record.templateVersion,
+                name: record.name,
+                summary: record.summary,
+                goal: record.goal.rawValue,
+                experienceLevel: record.experienceLevel.rawValue,
+                durationWeeks: record.durationWeeks,
+                supportedDaysPerWeek: record.supportedDaysPerWeek,
+                isBuiltIn: record.isBuiltIn,
+                isArchived: record.isArchived,
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt,
+                definitionData: record.definitionData
             )
         }
 
@@ -658,7 +772,8 @@ extension BackupDTO {
             workouts: workoutDTOs,
             plans: planDTOs,
             planRuns: planRunDTOs,
-            exerciseRelationships: relationshipDTOs
+            exerciseRelationships: relationshipDTOs,
+            programDefinitions: programDefinitionDTOs
         )
     }
 
@@ -704,11 +819,15 @@ extension BackupDTO {
             let difficulty = exerciseDTO.difficulty.flatMap { Difficulty(rawValue: $0) } ?? .beginner
 
             if let existing = exerciseMap[exerciseDTO.name] {
+                if let id = exerciseDTO.id.flatMap(UUID.init(uuidString:)) {
+                    existing.id = id
+                }
                 existing.isFavorite = exerciseDTO.isFavorite
                 existing.isArchived = exerciseDTO.isArchived
                 existing.isPlateLoaded = exerciseDTO.isPlateLoaded
             } else {
                 let newExercise = Exercise(
+                    id: exerciseDTO.id.flatMap(UUID.init(uuidString:)) ?? UUID(),
                     name: exerciseDTO.name,
                     primaryMuscles: primaryMuscles,
                     secondaryMuscles: secondaryMuscles,
@@ -773,7 +892,8 @@ extension BackupDTO {
                     targetRIR: teDTO.targetRIR,
                     notes: teDTO.notes,
                     progressionRule: ProgressionRule(rawValue: teDTO.progressionRule ?? "") ?? .doubleProgression,
-                    supersetGroupID: teDTO.supersetGroupID.flatMap(UUID.init(uuidString:))
+                    supersetGroupID: teDTO.supersetGroupID.flatMap(UUID.init(uuidString:)),
+                    progressionKey: teDTO.progressionKey
                 )
                 te.orderIndex = teDTO.orderIndex
                 templateExercises.append(te)
@@ -796,6 +916,33 @@ extension BackupDTO {
                 workoutTemplates: templates
             )
             context.insert(newCollection)
+            }
+
+            for definitionDTO in programDefinitions {
+                let decoder = JSONDecoder()
+                guard let payload = try? decoder.decode(ProgramDefinitionPayload.self, from: definitionDTO.definitionData) else {
+                    throw BackupValidationError.invalidProgramDefinition(definitionDTO.name)
+                }
+                let record: ProgramDefinitionRecord
+                do {
+                    record = try ProgramDefinitionRecord(payload: payload, isBuiltIn: definitionDTO.isBuiltIn)
+                } catch {
+                    throw BackupValidationError.invalidProgramDefinition(definitionDTO.name)
+                }
+                record.id = try requiredUUID(definitionDTO.id, named: "program definition")
+                record.schemaVersion = definitionDTO.schemaVersion
+                record.templateVersion = definitionDTO.templateVersion
+                record.name = definitionDTO.name
+                record.summary = definitionDTO.summary
+                record.goal = PlanGoal(rawValue: definitionDTO.goal) ?? payload.goal
+                record.experienceLevel = PlanExperienceLevel(rawValue: definitionDTO.experienceLevel) ?? payload.experienceLevel
+                record.durationWeeks = definitionDTO.durationWeeks
+                record.supportedDaysPerWeek = definitionDTO.supportedDaysPerWeek
+                record.isArchived = definitionDTO.isArchived
+                record.createdAt = definitionDTO.createdAt
+                record.updatedAt = definitionDTO.updatedAt
+                record.definitionData = definitionDTO.definitionData
+                context.insert(record)
             }
 
             var planMap: [String: WorkoutPlan] = [:]
@@ -842,10 +989,13 @@ extension BackupDTO {
                                             targetRPE: plannedSetDTO.targetRPE,
                                             targetRIR: plannedSetDTO.targetRIR,
                                             isOptional: plannedSetDTO.isOptional,
-                                            notes: plannedSetDTO.notes
+                                            notes: plannedSetDTO.notes,
+                                            definitionData: plannedSetDTO.definitionData
                                         )
                                     },
-                                    supersetGroupID: plannedExerciseDTO.supersetGroupID.flatMap(UUID.init(uuidString:))
+                                    supersetGroupID: plannedExerciseDTO.supersetGroupID.flatMap(UUID.init(uuidString:)),
+                                    progressionKey: plannedExerciseDTO.progressionKey,
+                                    progressionRulesData: plannedExerciseDTO.progressionRulesData
                                 )
                                 plannedExercise.id = try requiredUUID(plannedExerciseDTO.id, named: "planned exercise")
                                 return plannedExercise
@@ -892,7 +1042,9 @@ extension BackupDTO {
                     daysPerWeek: planDTO.daysPerWeek,
                     durationWeeks: planDTO.durationWeeks,
                     notes: planDTO.notes,
-                    blocks: blocks
+                    blocks: blocks,
+                    sourceProgramDefinitionID: planDTO.sourceProgramDefinitionID.flatMap(UUID.init(uuidString:)),
+                    sourceProgramDefinitionVersion: planDTO.sourceProgramDefinitionVersion
                 )
                 plan.id = try requiredUUID(planDTO.id, named: "plan")
                 plan.createdAt = planDTO.createdAt
@@ -934,6 +1086,10 @@ extension BackupDTO {
                 newWorkout.sourcePlannedWorkoutID = uuid
             }
             newWorkout.sourcePlanName = workoutDTO.sourcePlanName
+            if let programID = workoutDTO.sourceProgramDefinitionID {
+                newWorkout.sourceProgramDefinitionID = UUID(uuidString: programID)
+            }
+            newWorkout.sourceProgramDefinitionVersion = workoutDTO.sourceProgramDefinitionVersion
 
             var exercises: [ExerciseEntry] = []
             for entryDTO in workoutDTO.exercises {
@@ -982,6 +1138,8 @@ extension BackupDTO {
                 entry.recommendationPriorWorkoutDate = entryDTO.recommendationPriorWorkoutDate
                 entry.accumulatedActiveDuration = entryDTO.accumulatedActiveDuration ?? 0
                 entry.activeDurationStartedAt = entryDTO.activeDurationStartedAt
+                entry.prescriptionDefinitionData = entryDTO.prescriptionDefinitionData
+                entry.prescriptionRulesData = entryDTO.prescriptionRulesData
 
                 var sets: [ExerciseSet] = []
                 for setDTO in entryDTO.sets {
@@ -1014,6 +1172,7 @@ extension BackupDTO {
                     setObj.prescribedRIR = setDTO.prescribedRIR
                     setObj.isPrescribedOptional = setDTO.isPrescribedOptional
                     setObj.prescriptionNotes = setDTO.prescriptionNotes
+                    setObj.prescriptionDefinitionData = setDTO.prescriptionDefinitionData
                     sets.append(setObj)
                 }
                 entry.sets = sets
@@ -1059,6 +1218,30 @@ extension BackupDTO {
                         progress.completedWorkout = workoutMap[workoutID]
                     }
                     run.workoutProgress.append(progress)
+                }
+                for stateDTO in runDTO.progressionStates {
+                    let state = PlanExerciseProgressionState(
+                        progressionKey: stateDTO.progressionKey,
+                        currentLoad: stateDTO.currentLoad,
+                        currentLoadType: stateDTO.currentLoadType.flatMap(WeightType.init(rawValue:)),
+                        currentStageID: stateDTO.currentStageID,
+                        currentVariationExerciseID: stateDTO.currentVariationExerciseID.flatMap(UUID.init(uuidString:)),
+                        trainingMax: stateDTO.trainingMax,
+                        estimatedOneRepMax: stateDTO.estimatedOneRepMax,
+                        failureCount: stateDTO.failureCount,
+                        successCount: stateDTO.successCount,
+                        currentWaveIndex: stateDTO.currentWaveIndex,
+                        currentBlockIndex: stateDTO.currentBlockIndex,
+                        previousAMRAPRepetitions: stateDTO.previousAMRAPRepetitions,
+                        previousActualRPE: stateDTO.previousActualRPE,
+                        previousActualRIR: stateDTO.previousActualRIR,
+                        lastCompletedOccurrence: stateDTO.lastCompletedOccurrence,
+                        lastSuccessfulLoad: stateDTO.lastSuccessfulLoad,
+                        isDeloading: stateDTO.isDeloading,
+                        lastAppliedOutcomeID: stateDTO.lastAppliedOutcomeID.flatMap(UUID.init(uuidString:))
+                    )
+                    state.id = try requiredUUID(stateDTO.id, named: "progression state")
+                    run.progressionStates.append(state)
                 }
                 context.insert(run)
             }
@@ -1121,6 +1304,29 @@ extension BackupDTO {
             let key = "\(relationship.sourceExerciseName)|\(relationship.targetExerciseName)|\(relationship.type)"
             guard relationshipKeys.insert(key).inserted else {
                 throw BackupValidationError.invalidExerciseRelationship
+            }
+        }
+
+        if version >= Self.programVersion {
+            guard exercises.allSatisfy({ $0.id != nil }) else {
+                throw BackupValidationError.invalidIdentifier("exercise")
+            }
+            try validateUniqueIdentifiers(exercises.compactMap(\.id), named: "exercise")
+            try validateUniqueIdentifiers(programDefinitions.map(\.id), named: "program definition")
+            for definition in programDefinitions {
+                guard PlanGoal(rawValue: definition.goal) != nil,
+                      PlanExperienceLevel(rawValue: definition.experienceLevel) != nil,
+                      definition.durationWeeks > 0,
+                      !definition.supportedDaysPerWeek.isEmpty else {
+                    throw BackupValidationError.invalidProgramDefinition(definition.name)
+                }
+                guard let payload = try? JSONDecoder().decode(ProgramDefinitionPayload.self, from: definition.definitionData) else {
+                    throw BackupValidationError.invalidProgramDefinition(definition.name)
+                }
+                let issues = ProgramDefinitionValidator.validate(payload)
+                guard issues.isEmpty else {
+                    throw BackupValidationError.invalidProgramDefinition(issues.map(\.message).joined(separator: " "))
+                }
             }
         }
 
