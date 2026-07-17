@@ -430,6 +430,33 @@ class ActiveWorkoutViewModel {
         }
     }
 
+    /// A replacement is intentionally allowed only before the entry has any
+    /// completed sets. Completed entries are part of the workout's historical
+    /// record and must not be reinterpreted as another exercise.
+    @discardableResult
+    func swapExercise(_ exerciseEntry: ExerciseEntry, with replacement: Exercise) -> Bool {
+        guard
+            let workout = workoutVM.activeWorkout,
+            let storedExercise = workout.exercises.first(where: { $0.id == exerciseEntry.id }),
+            storedExercise.exercise.id != replacement.id,
+            !storedExercise.sets.contains(where: \.done)
+        else {
+            return false
+        }
+
+        let setCount = max(storedExercise.sets.count, 1)
+        for set in storedExercise.sets {
+            modelContext.delete(set)
+        }
+        storedExercise.sets.removeAll()
+        storedExercise.updateExerciseSnapshot(from: replacement)
+        storedExercise.addDefaultSets(count: setCount)
+        previousPerformances.removeValue(forKey: storedExercise.persistentModelID)
+        persistChanges()
+        loadPreviousPerformance(for: storedExercise)
+        return true
+    }
+
     func persistChanges() {
         do {
             try modelContext.save()

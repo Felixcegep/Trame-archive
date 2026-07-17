@@ -20,6 +20,11 @@ final class Exercise {
     var movementPattern: MovementPattern?
     var forceType: ForceType?
     var mechanics: ExerciseMechanics?
+    var gripStyle: GripStyle?
+    var stance: ExerciseStance?
+    var rangeOfMotion: RangeOfMotion?
+    var setupAngleDegrees: Int?
+    var variationFamilyID: String?
     var difficulty: Difficulty?
     var tags: [String] = []
     var isFavorite: Bool = false
@@ -30,6 +35,10 @@ final class Exercise {
     var repCountingStyle: RepCountingStyle = RepCountingStyle.total
     var weightEntryStyle: WeightEntryStyle = WeightEntryStyle.totalLoad
     var loadUnitCount: Int = 1
+    @Relationship(deleteRule: .cascade, inverse: \ExerciseRelationship.sourceExercise)
+    var outgoingRelationships: [ExerciseRelationship] = []
+    @Relationship(deleteRule: .cascade, inverse: \ExerciseRelationship.targetExercise)
+    var incomingRelationships: [ExerciseRelationship] = []
 
     init(
         name: String,
@@ -42,6 +51,11 @@ final class Exercise {
         movementPattern: MovementPattern? = nil,
         forceType: ForceType? = nil,
         mechanics: ExerciseMechanics? = nil,
+        gripStyle: GripStyle? = nil,
+        stance: ExerciseStance? = nil,
+        rangeOfMotion: RangeOfMotion? = nil,
+        setupAngleDegrees: Int? = nil,
+        variationFamilyID: String? = nil,
         difficulty: Difficulty = .beginner,
         tags: [String] = [],
         isFavorite: Bool = false,
@@ -63,6 +77,11 @@ final class Exercise {
         self.movementPattern = movementPattern
         self.forceType = forceType
         self.mechanics = mechanics
+        self.gripStyle = gripStyle
+        self.stance = stance
+        self.rangeOfMotion = rangeOfMotion
+        self.setupAngleDegrees = setupAngleDegrees
+        self.variationFamilyID = variationFamilyID
         self.difficulty = difficulty
         self.tags = tags
         self.isFavorite = isFavorite

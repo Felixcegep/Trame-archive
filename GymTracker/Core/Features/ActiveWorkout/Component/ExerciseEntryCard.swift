@@ -13,6 +13,7 @@ struct ExerciceEntryCard: View {
     @Binding var editingCompletedSetID: PersistentIdentifier?
     let previousPerformance: PreviousExercisePerformance?
     let onExerciseCompleted: () -> Void
+    let onSwapRequested: () -> Void
 
     @State private var horizontalOffset: CGFloat = 0
 
@@ -134,6 +135,15 @@ struct ExerciceEntryCard: View {
             Spacer(minLength: 0)
 
             Menu {
+                if completedSetCount == 0 {
+                    Button {
+                        onSwapRequested()
+                    } label: {
+                        Label("Swap exercise", systemImage: AppIcon.relationship)
+                    }
+                    .accessibilityIdentifier("swap-exercise-\(exerciseEntry.exercise.name)")
+                }
+
                 Button(role: .destructive) {
                     viewModel.removeExercise(exerciseEntry)
                 } label: {

@@ -20,6 +20,7 @@ struct GymTrackerApp: App {
             for : [
                 Workout.self,
                 Exercise.self,
+                ExerciseRelationship.self,
                 WorkoutTemplate.self,
                 TemplateExercise.self,
                 WorkoutCollection.self,
@@ -28,6 +29,7 @@ struct GymTrackerApp: App {
                 PlanWeek.self,
                 PlannedWorkout.self,
                 PlannedExercise.self,
+                PlannedExerciseAlternative.self,
                 PlanRun.self,
                 PlanWorkoutProgress.self
             ]

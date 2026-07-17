@@ -76,6 +76,76 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertFalse(lateralityFilter.matches(benchPress, searchText: ""))
     }
 
+    func testSeededExerciseFamiliesDescribeRelatedVariantsWithoutCollapsingIdentity() throws {
+        let exercises = ExerciseSeedData.templates()
+        let benchPress = try XCTUnwrap(exercises.first { $0.name == "Bench Press" })
+        let dumbbellBenchPress = try XCTUnwrap(exercises.first { $0.name == "Dumbbell Bench Press" })
+        let inclineBenchPress = try XCTUnwrap(exercises.first { $0.name == "Incline Bench Press" })
+
+        XCTAssertEqual(benchPress.variationFamilyID, "bench-press")
+        XCTAssertEqual(dumbbellBenchPress.variationFamilyID, "bench-press")
+        XCTAssertEqual(inclineBenchPress.setupAngleDegrees, 30)
+        XCTAssertEqual(benchPress.setupAngleDegrees, 0)
+        XCTAssertNotEqual(benchPress.name, dumbbellBenchPress.name)
+    }
+
+    func testInitialImportedExerciseCatalogContainsFirstFiftyEntries() throws {
+        let catalog = ExerciseCatalogSeedData.templates()
+        let names = Set(catalog.map(\.name))
+
+        XCTAssertEqual(catalog.count, 50)
+        XCTAssertEqual(names.count, catalog.count)
+        XCTAssertEqual(catalog.first?.name, "Bench Press")
+        XCTAssertEqual(catalog.last?.name, "Single-Arm Lat Pulldown")
+
+        let medicineBallPass = try XCTUnwrap(catalog.first { $0.name == "Medicine Ball Chest Pass" })
+        XCTAssertEqual(medicineBallPass.displayCategory, .sport)
+        XCTAssertEqual(medicineBallPass.trackingType, .weightAndReps)
+
+        let singleArmPulldown = try XCTUnwrap(catalog.first { $0.name == "Single-Arm Lat Pulldown" })
+        XCTAssertEqual(singleArmPulldown.laterality, .unilateral)
+        XCTAssertEqual(singleArmPulldown.repCountingStyle, .perSide)
+        XCTAssertEqual(singleArmPulldown.variationFamilyID, "lat-pulldown")
+
+        let medicineBallPassSemantics = try XCTUnwrap(catalog.first { $0.name == "Medicine Ball Chest Pass" })
+        XCTAssertEqual(medicineBallPassSemantics.weightEntryStyle, .perLoadUnit)
+
+        let singleArmDumbbellPress = try XCTUnwrap(catalog.first { $0.name == "Single-Arm Dumbbell Shoulder Press" })
+        XCTAssertEqual(singleArmDumbbellPress.weightEntryStyle, .perLoadUnit)
+    }
+
+    func testCombinedExerciseSeedDoesNotDuplicateNames() {
+        let exercises = ExerciseSeedData.templates()
+
+        XCTAssertEqual(Set(exercises.map(\.name)).count, exercises.count)
+        XCTAssertTrue(exercises.contains { $0.name == "Close-Grip Bench Press" })
+        XCTAssertTrue(exercises.contains { $0.name == "Single-Arm Lat Pulldown" })
+    }
+
+    func testPlanAlternativeScoringPrefersSameVariationFamily() {
+        let source = Exercise(
+            name: "Bench Press",
+            primaryMuscles: [.middleChest],
+            movementPattern: .horizontalPush,
+            variationFamilyID: "bench-press"
+        )
+        let sameFamily = Exercise(
+            name: "Dumbbell Bench Press",
+            primaryMuscles: [.middleChest],
+            movementPattern: .horizontalPush,
+            variationFamilyID: "bench-press"
+        )
+        let sameMuscle = Exercise(name: "Chest Fly", primaryMuscles: [.middleChest])
+
+        let ranked = PlanExerciseAlternativeScoringService.rankedCandidates(
+            for: source,
+            from: [sameMuscle, sameFamily]
+        )
+
+        XCTAssertEqual(ranked.first?.exercise.name, "Dumbbell Bench Press")
+        XCTAssertEqual(ranked.first?.reason, "Same movement family")
+    }
+
     func testExerciseArchiveServiceHidesBuiltInAndRestoresIt() throws {
         let context = try makeContext()
         let exercise = Exercise(name: "Built In", primaryMuscles: [.upperChest])
@@ -88,6 +158,40 @@ final class WorkoutIntegrityTests: XCTestCase {
 
         try ExerciseArchiveService.restore(exercise, using: context)
         XCTAssertFalse(exercise.isArchived)
+    }
+
+    func testExerciseRelationshipBackupRoundTripAndArchiveProtection() throws {
+        let context = try makeContext()
+        let source = Exercise(name: "Barbell Bench Press", primaryMuscles: [.middleChest], isCustom: true)
+        let target = Exercise(name: "Dumbbell Bench Press", primaryMuscles: [.middleChest], isCustom: true)
+        let relationship = ExerciseRelationship(
+            sourceExercise: source,
+            targetExercise: target,
+            type: .substitution
+        )
+        context.insert(source)
+        context.insert(target)
+        context.insert(relationship)
+        try context.save()
+
+        try ExerciseArchiveService.hideOrDelete(source, using: context)
+        XCTAssertTrue(source.isArchived)
+
+        let backup = try BackupDTO.create(
+            from: context,
+            restTimer: 60,
+            darkMode: false,
+            unitSystem: .metric
+        )
+        XCTAssertEqual(backup.exerciseRelationships.count, 1)
+        XCTAssertEqual(backup.exerciseRelationships.first?.type, ExerciseRelationshipType.substitution.rawValue)
+
+        let restoredContext = try makeContext()
+        try backup.restore(to: restoredContext)
+        let restored = try restoredContext.fetch(FetchDescriptor<ExerciseRelationship>())
+        XCTAssertEqual(restored.count, 1)
+        XCTAssertEqual(restored.first?.sourceExercise?.name, "Barbell Bench Press")
+        XCTAssertEqual(restored.first?.targetExercise?.name, "Dumbbell Bench Press")
     }
 
     func testExerciseArchiveServiceDeletesUnreferencedCustomAndArchivesReferencedCustom() throws {
@@ -215,6 +319,62 @@ final class WorkoutIntegrityTests: XCTestCase {
 
         XCTAssertEqual(entry.orderedSets.map(\.orderIndex), [0, 1, 2, 3])
         XCTAssertEqual(entry.orderedSets.map(\.repetitions), [8, 12, 12, 0])
+    }
+
+    func testSwappingUnstartedExerciseResetsSetsAndRefreshesSnapshots() throws {
+        let context = try makeContext()
+        let source = Exercise(name: "Barbell Bench Press", primaryMuscles: [.middleChest])
+        let replacement = Exercise(
+            name: "Row Ergometer",
+            primaryMuscles: [.latissimusDorsi],
+            trackingType: .durationAndDistance,
+            equipmentType: .cardioMachine
+        )
+        let entry = ExerciseEntry(from: source, usedMetric: .metric)
+        entry.recommendedDecision = .increase
+        entry.recommendedLoad = 80
+        let workout = Workout(name: "Active")
+        workout.exercises = [entry]
+        context.insert(source)
+        context.insert(replacement)
+        context.insert(workout)
+        try context.save()
+
+        let workoutViewModel = WorkoutViewModel()
+        workoutViewModel.activeWorkout = workout
+        let didSwap = ActiveWorkoutViewModel(workoutVM: workoutViewModel, modelContext: context)
+            .swapExercise(entry, with: replacement)
+
+        XCTAssertTrue(didSwap)
+        XCTAssertEqual(entry.exercise.name, "Row Ergometer")
+        XCTAssertEqual(entry.nameSnapshot, "Row Ergometer")
+        XCTAssertEqual(entry.trackingTypeSnapshot, .durationAndDistance)
+        XCTAssertEqual(entry.orderedSets.count, 3)
+        XCTAssertTrue(entry.orderedSets.allSatisfy { $0.duration == 0 && $0.distance == 0 })
+        XCTAssertNil(entry.recommendedDecision)
+        XCTAssertNil(entry.recommendedLoad)
+    }
+
+    func testSwappingCompletedExerciseIsRejected() throws {
+        let context = try makeContext()
+        let source = Exercise(name: "Bench Press", primaryMuscles: [.middleChest])
+        let replacement = Exercise(name: "Dumbbell Bench Press", primaryMuscles: [.middleChest])
+        let entry = ExerciseEntry(from: source, usedMetric: .metric)
+        entry.orderedSets[0].done = true
+        let workout = Workout(name: "Active")
+        workout.exercises = [entry]
+        context.insert(source)
+        context.insert(replacement)
+        context.insert(workout)
+        try context.save()
+
+        let workoutViewModel = WorkoutViewModel()
+        workoutViewModel.activeWorkout = workout
+        let didSwap = ActiveWorkoutViewModel(workoutVM: workoutViewModel, modelContext: context)
+            .swapExercise(entry, with: replacement)
+
+        XCTAssertFalse(didSwap)
+        XCTAssertEqual(entry.exercise.name, "Bench Press")
     }
 
     func testDuplicateLegacyIndicesNormalizeToUniqueContiguousValues() throws {
@@ -1179,6 +1339,12 @@ final class WorkoutIntegrityTests: XCTestCase {
                 .init(dayOffset: 2, template: template)
             ]
         )
+        let alternative = Exercise(name: "Dumbbell Bench Press", primaryMuscles: [.middleChest])
+        let plannedExercise = try XCTUnwrap(
+            plan.orderedWeeks.first?.orderedPlannedWorkouts.first?.orderedPlannedExercises.first
+        )
+        plannedExercise.stimulus = .hypertrophy
+        plannedExercise.alternatives = [PlannedExerciseAlternative(exercise: alternative, orderIndex: 0)]
         let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000)))
         let firstProgress = try XCTUnwrap(run.orderedWorkoutProgress.first)
         let firstPlannedWorkout = try XCTUnwrap(PlanCoordinator.plannedWorkout(for: firstProgress, in: run))
@@ -1191,6 +1357,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         PlanCoordinator.markCompleted(firstProgress, with: completedWorkout, in: run)
 
         source.insert(exercise)
+        source.insert(alternative)
         source.insert(template)
         source.insert(plan)
         source.insert(run)
@@ -1237,6 +1404,11 @@ final class WorkoutIntegrityTests: XCTestCase {
             restoredPlan.orderedWeeks.first?.orderedPlannedWorkouts.first?.orderedPlannedExercises.first?.targetSets,
             1
         )
+        let restoredPlannedExercise = try XCTUnwrap(
+            restoredPlan.orderedWeeks.first?.orderedPlannedWorkouts.first?.orderedPlannedExercises.first
+        )
+        XCTAssertEqual(restoredPlannedExercise.stimulus, .hypertrophy)
+        XCTAssertEqual(restoredPlannedExercise.alternatives.first?.exercise.name, "Dumbbell Bench Press")
     }
 
     func testInvalidPlanRunBackupDoesNotReplaceExistingData() throws {
@@ -1442,6 +1614,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         let container = try ModelContainer(
             for: Workout.self,
             Exercise.self,
+            ExerciseRelationship.self,
             ExerciseEntry.self,
             ExerciseSet.self,
             WorkoutTemplate.self,
@@ -1454,6 +1627,7 @@ final class WorkoutIntegrityTests: XCTestCase {
             PlanWeek.self,
             PlannedWorkout.self,
             PlannedExercise.self,
+            PlannedExerciseAlternative.self,
             configurations: configuration
         )
         return ModelContext(container)
@@ -1474,6 +1648,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         let container = try ModelContainer(
             for: Workout.self,
             Exercise.self,
+            ExerciseRelationship.self,
             ExerciseEntry.self,
             ExerciseSet.self,
             WorkoutTemplate.self,
@@ -1486,6 +1661,7 @@ final class WorkoutIntegrityTests: XCTestCase {
             PlanWeek.self,
             PlannedWorkout.self,
             PlannedExercise.self,
+            PlannedExerciseAlternative.self,
             configurations: configuration
         )
         return try body(ModelContext(container))
@@ -1608,7 +1784,18 @@ final class WorkoutIntegrityTests: XCTestCase {
             isFavorite: true,
             isPlateLoaded: true,
             isCustom: true,
-            isArchived: false
+            isArchived: false,
+            forceType: "Push",
+            mechanics: "Compound",
+            laterality: "Bilateral",
+            repCountingStyle: "Total",
+            weightEntryStyle: "Per Load Unit",
+            loadUnitCount: 2,
+            gripStyle: "Pronated",
+            stance: "Supine",
+            rangeOfMotion: "Full",
+            setupAngleDegrees: 30,
+            variationFamilyID: "bench-press"
         )
         let set = ExerciseSetDTO(
             orderIndex: 0,
@@ -1700,7 +1887,14 @@ final class WorkoutIntegrityTests: XCTestCase {
                     templateNames: ["My Template"]
                 )
             ],
-            workouts: [workout]
+            workouts: [workout],
+            exerciseRelationships: [
+                ExerciseRelationshipDTO(
+                    sourceExerciseName: "Bench Press",
+                    targetExerciseName: "Dumbbell Bench Press",
+                    type: "Substitution"
+                )
+            ]
         )
 
         let encoded = try JSONEncoder().encode(backup)
@@ -1715,6 +1909,10 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(preferences["restTimer"] as? Int, 90)
         XCTAssertEqual(preferences["unitSystem"] as? String, "metric")
 
+        let relationships = try XCTUnwrap(jsonObject["exerciseRelationships"] as? [[String: Any]])
+        XCTAssertEqual(relationships.first?["sourceExerciseName"] as? String, "Bench Press")
+        XCTAssertEqual(relationships.first?["type"] as? String, "Substitution")
+
         // Verify exercises
         let exercises = try XCTUnwrap(jsonObject["exercises"] as? [[String: Any]])
         let firstEx = try XCTUnwrap(exercises.first)
@@ -1722,6 +1920,9 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(firstEx["primaryMuscles"] as? [String], ["chest"])
         XCTAssertEqual(firstEx["secondaryMuscles"] as? [String], ["triceps"])
         XCTAssertEqual(firstEx["isPlateLoaded"] as? Bool, true)
+        XCTAssertEqual(firstEx["variationFamilyID"] as? String, "bench-press")
+        XCTAssertEqual(firstEx["setupAngleDegrees"] as? Int, 30)
+        XCTAssertEqual(firstEx["weightEntryStyle"] as? String, "Per Load Unit")
 
         // Verify templates
         let templates = try XCTUnwrap(jsonObject["templates"] as? [[String: Any]])

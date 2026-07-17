@@ -327,6 +327,7 @@ final class PlanSchedulingTests: XCTestCase {
         let container = try ModelContainer(
             for: Workout.self,
             Exercise.self,
+            ExerciseRelationship.self,
             ExerciseEntry.self,
             ExerciseSet.self,
             WorkoutTemplate.self,
@@ -339,6 +340,7 @@ final class PlanSchedulingTests: XCTestCase {
             PlanWeek.self,
             PlannedWorkout.self,
             PlannedExercise.self,
+            PlannedExerciseAlternative.self,
             configurations: configuration
         )
         return ModelContext(container)
@@ -359,6 +361,7 @@ final class PlanSchedulingTests: XCTestCase {
         let container = try ModelContainer(
             for: Workout.self,
             Exercise.self,
+            ExerciseRelationship.self,
             ExerciseEntry.self,
             ExerciseSet.self,
             WorkoutTemplate.self,
@@ -371,6 +374,7 @@ final class PlanSchedulingTests: XCTestCase {
             PlanWeek.self,
             PlannedWorkout.self,
             PlannedExercise.self,
+            PlannedExerciseAlternative.self,
             configurations: configuration
         )
         return try body(ModelContext(container))

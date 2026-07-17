@@ -158,6 +158,27 @@ final class ExerciseEntry{
         }
     }
 
+    /// Replaces an unstarted entry's library definition while retaining its
+    /// prescription and position in the active workout. Callers must delete
+    /// existing sets before rebuilding them for the replacement tracking type.
+    func updateExerciseSnapshot(from exercise: Exercise) {
+        self.exercise = exercise
+        nameSnapshot = exercise.name
+        trackingTypeSnapshot = exercise.trackingType
+        lateralitySnapshot = exercise.laterality
+        repCountingStyleSnapshot = exercise.repCountingStyle
+        weightEntryStyleSnapshot = exercise.weightEntryStyle
+        loadUnitCountSnapshot = exercise.loadUnitCount
+        recommendedDecision = nil
+        recommendedLoad = nil
+        recommendedUnit = nil
+        recommendationPriorLoad = nil
+        recommendationRequiredSets = nil
+        recommendationRepCeiling = nil
+        recommendationCompletedSets = nil
+        recommendationPriorWorkoutDate = nil
+    }
+
     func copyLastSet() {
         guard let lastSet = orderedSets.last else {
             addEmptySet()

@@ -17,8 +17,11 @@ final class PlannedExercise {
     var targetRIR: Int?
     var notes: String?
     var progressionRule: ProgressionRule
+    var stimulus: TrainingStimulus = TrainingStimulus.strength
     var exercise: Exercise
     var plannedWorkout: PlannedWorkout?
+    @Relationship(deleteRule: .cascade, inverse: \PlannedExerciseAlternative.plannedExercise)
+    var alternatives: [PlannedExerciseAlternative] = []
 
     init(
         exercise: Exercise,
@@ -34,7 +37,9 @@ final class PlannedExercise {
         targetRPE: Double? = nil,
         targetRIR: Int? = nil,
         notes: String? = nil,
-        progressionRule: ProgressionRule = .none
+        progressionRule: ProgressionRule = .none,
+        stimulus: TrainingStimulus = .strength,
+        alternatives: [PlannedExerciseAlternative] = []
     ) {
         self.exercise = exercise
         self.orderIndex = orderIndex
@@ -50,5 +55,7 @@ final class PlannedExercise {
         self.targetRIR = targetRIR
         self.notes = notes
         self.progressionRule = progressionRule
+        self.stimulus = stimulus
+        self.alternatives = alternatives
     }
 }

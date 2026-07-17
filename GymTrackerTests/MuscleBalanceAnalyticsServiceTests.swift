@@ -108,6 +108,7 @@ final class MuscleBalanceAnalyticsServiceTests: XCTestCase {
         let container = try ModelContainer(
             for: Workout.self,
             Exercise.self,
+            ExerciseRelationship.self,
             ExerciseEntry.self,
             ExerciseSet.self,
             configurations: configuration

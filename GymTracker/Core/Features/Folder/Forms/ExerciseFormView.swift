@@ -21,6 +21,11 @@ struct ExerciseFormView: View {
     @State private var movementPattern: MovementPattern?
     @State private var forceType: ForceType?
     @State private var mechanics: ExerciseMechanics?
+    @State private var gripStyle: GripStyle?
+    @State private var stance: ExerciseStance?
+    @State private var rangeOfMotion: RangeOfMotion?
+    @State private var setupAngleDegrees: Int?
+    @State private var variationFamilyID: String
     @State private var primaryMuscles: Set<Muscle>
     @State private var secondaryMuscles: Set<Muscle>
     @State private var difficulty: Difficulty
@@ -42,6 +47,11 @@ struct ExerciseFormView: View {
         _movementPattern = State(initialValue: exercise?.movementPattern)
         _forceType = State(initialValue: exercise?.forceType)
         _mechanics = State(initialValue: exercise?.mechanics)
+        _gripStyle = State(initialValue: exercise?.gripStyle)
+        _stance = State(initialValue: exercise?.stance)
+        _rangeOfMotion = State(initialValue: exercise?.rangeOfMotion)
+        _setupAngleDegrees = State(initialValue: exercise?.setupAngleDegrees)
+        _variationFamilyID = State(initialValue: exercise?.variationFamilyID ?? "")
         _primaryMuscles = State(initialValue: Set(exercise?.primaryMuscles ?? [.middleChest]))
         _secondaryMuscles = State(initialValue: Set(exercise?.secondaryMuscles ?? []))
         _difficulty = State(initialValue: exercise?.displayDifficulty ?? .beginner)
@@ -114,6 +124,8 @@ struct ExerciseFormView: View {
                 }
             }
 
+            variationSection
+
             Section("Advanced — Logging") {
                 Picker("Laterality", selection: $laterality) {
                     ForEach(Laterality.allCases, id: \.self) { laterality in
@@ -183,27 +195,16 @@ struct ExerciseFormView: View {
         .background(Color.gymBackground)
         .navigationTitle(exercise == nil ? "New Exercise" : "Edit Exercise")
         .onChange(of: equipmentType) { previousEquipment, equipment in
-            if previousEquipment == .barbell && equipment != .barbell {
-                isPlateLoaded = false
-            } else if equipment != .machine && equipment != .other && equipment != .barbell {
-                isPlateLoaded = false
-            }
+            handleEquipmentChange(from: previousEquipment, to: equipment)
         }
         .onChange(of: trackingType) { _, tracking in
-            if !tracking.usesWeight {
-                isPlateLoaded = false
-                weightEntryStyle = .totalLoad
-            }
+            handleTrackingChange(tracking)
         }
-        .onChange(of: laterality) { _, laterality in
-            if laterality == .bilateral {
-                repCountingStyle = .total
-            }
+        .onChange(of: laterality) { _, updatedLaterality in
+            handleLateralityChange(updatedLaterality)
         }
-        .onChange(of: weightEntryStyle) { _, style in
-            if style == .totalLoad {
-                loadUnitCount = 1
-            }
+        .onChange(of: weightEntryStyle) { _, updatedWeightEntryStyle in
+            handleWeightEntryStyleChange(updatedWeightEntryStyle)
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -242,6 +243,11 @@ struct ExerciseFormView: View {
             exercise.movementPattern = movementPattern
             exercise.forceType = forceType
             exercise.mechanics = mechanics
+            exercise.gripStyle = gripStyle
+            exercise.stance = stance
+            exercise.rangeOfMotion = rangeOfMotion
+            exercise.setupAngleDegrees = setupAngleDegrees
+            exercise.variationFamilyID = normalizedVariationFamilyID
             exercise.difficulty = difficulty
             exercise.tags = tags
             exercise.isPlateLoaded = equipmentType == .barbell || isPlateLoaded
@@ -263,6 +269,11 @@ struct ExerciseFormView: View {
             movementPattern: movementPattern,
             forceType: forceType,
             mechanics: mechanics,
+            gripStyle: gripStyle,
+            stance: stance,
+            rangeOfMotion: rangeOfMotion,
+            setupAngleDegrees: setupAngleDegrees,
+            variationFamilyID: normalizedVariationFamilyID,
             difficulty: difficulty,
             tags: tags,
             isPlateLoaded: equipmentType == .barbell || isPlateLoaded,
@@ -275,6 +286,79 @@ struct ExerciseFormView: View {
 
     private var canConfigurePlateLoading: Bool {
         trackingType.usesWeight && (equipmentType == .machine || equipmentType == .other)
+    }
+
+    private var normalizedVariationFamilyID: String? {
+        let value = variationFamilyID.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    private var variationSection: some View {
+        Section {
+            Picker("Grip", selection: $gripStyle) {
+                Text("None").tag(GripStyle?.none)
+                ForEach(GripStyle.allCases, id: \.self) { gripStyle in
+                    Text(LocalizedStringKey(gripStyle.rawValue)).tag(Optional(gripStyle))
+                }
+            }
+
+            Picker("Stance", selection: $stance) {
+                Text("None").tag(ExerciseStance?.none)
+                ForEach(ExerciseStance.allCases, id: \.self) { stance in
+                    Text(LocalizedStringKey(stance.rawValue)).tag(Optional(stance))
+                }
+            }
+
+            Picker("Range of Motion", selection: $rangeOfMotion) {
+                Text("None").tag(RangeOfMotion?.none)
+                ForEach(RangeOfMotion.allCases, id: \.self) { rangeOfMotion in
+                    Text(LocalizedStringKey(rangeOfMotion.rawValue)).tag(Optional(rangeOfMotion))
+                }
+            }
+
+            Picker("Setup Angle", selection: $setupAngleDegrees) {
+                Text("None").tag(Int?.none)
+                ForEach(Self.setupAngles, id: \.self) { angle in
+                    Text(String(angle) + "°").tag(Optional(angle))
+                }
+            }
+
+            TextField("Variation family", text: $variationFamilyID)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+        } header: {
+            Text("Advanced — Variation")
+        } footer: {
+            Text("Use a shared family only to help people discover related variants. It does not make exercises interchangeable.")
+        }
+    }
+
+    private static let setupAngles = Array(stride(from: 0, through: 90, by: 5))
+
+    private func handleEquipmentChange(from previous: EquipmentType, to current: EquipmentType) {
+        if previous == .barbell && current != .barbell {
+            isPlateLoaded = false
+        } else if current != .machine && current != .other && current != .barbell {
+            isPlateLoaded = false
+        }
+    }
+
+    private func handleTrackingChange(_ tracking: TrackingType) {
+        guard !tracking.usesWeight else { return }
+        isPlateLoaded = false
+        weightEntryStyle = .totalLoad
+    }
+
+    private func handleLateralityChange(_ laterality: Laterality) {
+        if laterality == .bilateral {
+            repCountingStyle = .total
+        }
+    }
+
+    private func handleWeightEntryStyleChange(_ style: WeightEntryStyle) {
+        if style == .totalLoad {
+            loadUnitCount = 1
+        }
     }
 
     private var tags: [String] {

@@ -29,6 +29,14 @@ enum ExerciseArchiveService {
         if templateExercises.contains(where: { $0.exercise.id == exercise.id }) { return true }
 
         let plannedExercises = try context.fetch(FetchDescriptor<PlannedExercise>())
-        return plannedExercises.contains(where: { $0.exercise.id == exercise.id })
+        if plannedExercises.contains(where: { $0.exercise.id == exercise.id }) { return true }
+
+        let plannedAlternatives = try context.fetch(FetchDescriptor<PlannedExerciseAlternative>())
+        if plannedAlternatives.contains(where: { $0.exercise.id == exercise.id }) { return true }
+
+        let relationships = try context.fetch(FetchDescriptor<ExerciseRelationship>())
+        return relationships.contains {
+            $0.sourceExercise?.id == exercise.id || $0.targetExercise?.id == exercise.id
+        }
     }
 }

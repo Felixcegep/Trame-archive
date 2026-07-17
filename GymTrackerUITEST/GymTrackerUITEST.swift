@@ -755,6 +755,14 @@ final class GymTrackerUITEST: XCTestCase {
         saveScreenshot("active-workout/07b_Set_Details")
     }
 
+    func testCaptureExerciseSwapScreenshot() {
+        let app = launchFixture("active-draft")
+        tapButton("exercise-menu-Bench Press", in: app)
+        tapButton("swap-exercise-Bench Press", in: app)
+        XCTAssertTrue(app.buttons["swap-option-Dumbbell Bench Press"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/08j_Exercise_Swap")
+    }
+
     func testCaptureCompletedSetScreenshot() {
         let completedSet = launchFixture("active-completed-set")
         XCTAssertTrue(completedSet.buttons["complete-set-Bench Press-1"].waitForExistence(timeout: 5))
@@ -876,6 +884,12 @@ final class GymTrackerUITEST: XCTestCase {
         exercisesBrowser.tap()
 
         tapButton("exercise-row-Bench Press", in: app)
+        XCTAssertTrue(app.buttons["exercise-variation-Dumbbell Bench Press"].waitForExistence(timeout: 5))
+        saveScreenshot("exercises/17a_Exercise_Detail_Variations")
+        tapButton("exercise-relationships", in: app)
+        XCTAssertTrue(app.navigationBars["Exercise Relationships"].waitForExistence(timeout: 5))
+        saveScreenshot("exercises/17b_Exercise_Relationships")
+        tapButton("Done", in: app)
         tapButton("exercise-stats", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-screen"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["exercise-insights-back"].isHittable)
@@ -1062,6 +1076,14 @@ final class GymTrackerUITEST: XCTestCase {
         tapButton("plans-browser", in: app)
         tapButton("plan-row-Screenshot Plan", in: app)
         tapButton("edit-plan", in: app)
+        XCTAssertTrue(app.buttons["edit-plan-workout"].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["edit-plan-workout"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["plan-workout-exercise"].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["plan-workout-exercise"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["add-plan-exercise-alternative"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13g_Plan_Exercise_Alternatives")
+        app.buttons["Done"].tap()
+        app.buttons["Done"].tap()
         tapButton("save-plan-edits", in: app)
         XCTAssertTrue(app.buttons["confirm-plan-changes"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13_Plan_Review")

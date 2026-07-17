@@ -149,6 +149,14 @@ struct PlanReviewExerciseRow: View {
             Text(exercise.summary)
                 .font(AppFont.caption)
                 .foregroundStyle(.secondary)
+            Text("\(exercise.stimulus.title) stimulus")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+            if let alternatives = exercise.alternativesSummary {
+                Text("Alternatives: \(alternatives)")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
         }
     }
 }

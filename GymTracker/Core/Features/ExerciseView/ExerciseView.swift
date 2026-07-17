@@ -20,6 +20,10 @@ struct ExerciseDetailSnapshot {
     let movementPattern: MovementPattern?
     let forceType: ForceType?
     let mechanics: ExerciseMechanics?
+    let gripStyle: GripStyle?
+    let stance: ExerciseStance?
+    let rangeOfMotion: RangeOfMotion?
+    let setupAngleDegrees: Int?
     let laterality: Laterality
     let difficulty: Difficulty
     let usesWeightPlates: Bool
@@ -35,6 +39,10 @@ struct ExerciseDetailSnapshot {
         movementPattern = exercise.movementPattern
         forceType = exercise.forceType
         mechanics = exercise.mechanics
+        gripStyle = exercise.gripStyle
+        stance = exercise.stance
+        rangeOfMotion = exercise.rangeOfMotion
+        setupAngleDegrees = exercise.setupAngleDegrees
         laterality = exercise.laterality
         difficulty = exercise.displayDifficulty
         usesWeightPlates = exercise.supportsPlateCalculator
@@ -44,11 +52,13 @@ struct ExerciseDetailSnapshot {
 struct ExerciseView : View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var availableExercises: [Exercise]
 
     private let editableExercise: Exercise?
     private let snapshot: ExerciseDetailSnapshot?
     @State private var isShowingEditor = false
     @State private var isShowingInsights = false
+    @State private var isShowingRelationshipEditor = false
 
     init(exercise: Exercise) {
         editableExercise = exercise
@@ -79,11 +89,41 @@ struct ExerciseView : View {
                 LabeledContent("Mechanics") { Text(LocalizedStringKey(exercise.mechanics?.rawValue ?? "None")) }
                 LabeledContent("Force") { Text(LocalizedStringKey(exercise.forceType?.rawValue ?? "None")) }
                 LabeledContent("Laterality") { Text(LocalizedStringKey(exercise.laterality.rawValue)) }
+                LabeledContent("Grip") { Text(LocalizedStringKey(exercise.gripStyle?.rawValue ?? "None")) }
+                LabeledContent("Stance") { Text(LocalizedStringKey(exercise.stance?.rawValue ?? "None")) }
+                LabeledContent("Range of Motion") { Text(LocalizedStringKey(exercise.rangeOfMotion?.rawValue ?? "None")) }
+                if let setupAngleDegrees = exercise.setupAngleDegrees {
+                    LabeledContent("Setup Angle", value: "\(setupAngleDegrees)°")
+                }
                 LabeledContent("Difficulty") { Text(LocalizedStringKey(exercise.difficulty.rawValue)) }
                 if exercise.trackingType.usesWeight {
                     LabeledContent("Weight entry") {
                         Text(LocalizedStringKey(exercise.usesWeightPlates ? "Plate calculator" : "Direct weight entry"))
                     }
+                }
+            }
+
+            if !variations.isEmpty {
+                Section {
+                    ForEach(variations, id: \.persistentModelID) { variation in
+                        NavigationLink {
+                            ExerciseView(exercise: variation)
+                        } label: {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text(variation.name)
+                                    .font(AppFont.bodyMedium)
+                                    .foregroundStyle(Color.gymText)
+                                Text(variationSubtitle(for: variation))
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.gymSubduedText)
+                            }
+                        }
+                        .accessibilityIdentifier("exercise-variation-\(variation.name)")
+                    }
+                } header: {
+                    Text("Variations")
+                } footer: {
+                    Text("Related variants share a movement family. They are not automatic substitutions.")
                 }
             }
 
@@ -136,6 +176,16 @@ struct ExerciseView : View {
                     }
                 }
 
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isShowingRelationshipEditor = true
+                    } label: {
+                        Image(systemName: AppIcon.relationship)
+                    }
+                    .accessibilityLabel("Manage exercise relationships")
+                    .accessibilityIdentifier("exercise-relationships")
+                }
+
                 if editableExercise?.isCustom == true {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(role: .destructive) {
@@ -155,6 +205,13 @@ struct ExerciseView : View {
                     ExerciseFormView(exercise: editableExercise) { _ in
                         saveModelContext(modelContext)
                     }
+                }
+            }
+        }
+        .sheet(isPresented: $isShowingRelationshipEditor) {
+            if let editableExercise {
+                NavigationStack {
+                    ExerciseRelationshipEditorView(exercise: editableExercise)
                 }
             }
         }
@@ -184,5 +241,28 @@ struct ExerciseView : View {
         } catch {
             print("Failed to delete exercise: \(error)")
         }
+    }
+
+    private var variations: [Exercise] {
+        guard let editableExercise,
+              let familyID = editableExercise.variationFamilyID,
+              !familyID.isEmpty else {
+            return []
+        }
+
+        return availableExercises
+            .filter { $0.persistentModelID != editableExercise.persistentModelID && $0.variationFamilyID == familyID }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private func variationSubtitle(for exercise: Exercise) -> String {
+        [
+            exercise.equipmentType?.rawValue,
+            exercise.gripStyle?.rawValue,
+            exercise.stance?.rawValue,
+            exercise.setupAngleDegrees.map { "\($0)°" }
+        ]
+        .compactMap { $0 }
+        .joined(separator: " · ")
     }
 }

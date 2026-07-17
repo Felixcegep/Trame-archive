@@ -1,5 +1,15 @@
 import Foundation
 
+enum TrainingStimulus: String, Codable, CaseIterable {
+    case strength = "Strength"
+    case hypertrophy = "Hypertrophy"
+    case power = "Power"
+    case endurance = "Endurance"
+    case mobility = "Mobility"
+
+    var title: String { rawValue }
+}
+
 enum PlanGoal: String, Codable, CaseIterable {
     case generalStrength
     case hypertrophy

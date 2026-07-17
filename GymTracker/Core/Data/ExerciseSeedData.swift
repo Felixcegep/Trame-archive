@@ -7,6 +7,15 @@
 
 enum ExerciseSeedData {
     static func templates() -> [Exercise] {
+        let legacyTemplates = legacyTemplates()
+        let existingNames = Set(legacyTemplates.map(\.name))
+        let importedTemplates = ExerciseCatalogSeedData.templates().filter {
+            !existingNames.contains($0.name)
+        }
+        return legacyTemplates + importedTemplates
+    }
+
+    private static func legacyTemplates() -> [Exercise] {
         [
             Exercise(
                 name: "Bench Press",
@@ -18,6 +27,11 @@ enum ExerciseSeedData {
                 movementPattern: .horizontalPush,
                 forceType: .push,
                 mechanics: .compound,
+                gripStyle: .pronated,
+                stance: .supine,
+                rangeOfMotion: .full,
+                setupAngleDegrees: 0,
+                variationFamilyID: "bench-press",
                 difficulty: .intermediate
             ),
 
@@ -30,6 +44,11 @@ enum ExerciseSeedData {
                 movementPattern: .horizontalPush,
                 forceType: .push,
                 mechanics: .compound,
+                gripStyle: .pronated,
+                stance: .supine,
+                rangeOfMotion: .full,
+                setupAngleDegrees: 30,
+                variationFamilyID: "bench-press",
                 difficulty: .intermediate
             ),
 
@@ -55,6 +74,8 @@ enum ExerciseSeedData {
                 movementPattern: .squat,
                 forceType: .push,
                 mechanics: .compound,
+                stance: .split,
+                rangeOfMotion: .full,
                 difficulty: .intermediate,
                 tags: ["unilateral"],
                 laterality: .unilateral,
@@ -72,6 +93,9 @@ enum ExerciseSeedData {
                 movementPattern: .hinge,
                 forceType: .pull,
                 mechanics: .compound,
+                gripStyle: .mixed,
+                stance: .standing,
+                rangeOfMotion: .full,
                 difficulty: .advanced
             ),
 
@@ -84,6 +108,9 @@ enum ExerciseSeedData {
                 movementPattern: .squat,
                 forceType: .push,
                 mechanics: .compound,
+                gripStyle: .pronated,
+                stance: .standing,
+                rangeOfMotion: .full,
                 difficulty: .intermediate
             ),
 
@@ -96,6 +123,9 @@ enum ExerciseSeedData {
                 movementPattern: .verticalPush,
                 forceType: .push,
                 mechanics: .compound,
+                gripStyle: .pronated,
+                stance: .standing,
+                rangeOfMotion: .full,
                 difficulty: .intermediate
             ),
 
@@ -108,6 +138,10 @@ enum ExerciseSeedData {
                 movementPattern: .horizontalPull,
                 forceType: .pull,
                 mechanics: .compound,
+                gripStyle: .pronated,
+                stance: .standing,
+                rangeOfMotion: .full,
+                variationFamilyID: "row",
                 difficulty: .intermediate
             ),
 
@@ -120,6 +154,10 @@ enum ExerciseSeedData {
                 movementPattern: .horizontalPush,
                 forceType: .push,
                 mechanics: .compound,
+                stance: .supine,
+                rangeOfMotion: .full,
+                setupAngleDegrees: 30,
+                variationFamilyID: "bench-press",
                 difficulty: .intermediate,
                 weightEntryStyle: .perLoadUnit,
                 loadUnitCount: 2
@@ -148,6 +186,9 @@ enum ExerciseSeedData {
                 movementPattern: .verticalPull,
                 forceType: .pull,
                 mechanics: .compound,
+                gripStyle: .pronated,
+                rangeOfMotion: .full,
+                variationFamilyID: "pull-up",
                 difficulty: .intermediate
             ),
 
@@ -161,6 +202,9 @@ enum ExerciseSeedData {
                 movementPattern: .verticalPull,
                 forceType: .pull,
                 mechanics: .compound,
+                gripStyle: .pronated,
+                rangeOfMotion: .full,
+                variationFamilyID: "pull-up",
                 difficulty: .beginner
             ),
 
@@ -185,6 +229,10 @@ enum ExerciseSeedData {
                 movementPattern: .horizontalPull,
                 forceType: .pull,
                 mechanics: .compound,
+                gripStyle: .neutral,
+                stance: .seated,
+                rangeOfMotion: .full,
+                variationFamilyID: "row",
                 difficulty: .beginner
             ),
 
@@ -196,6 +244,10 @@ enum ExerciseSeedData {
                 resistanceType: .externalWeight,
                 forceType: .pull,
                 mechanics: .isolation,
+                gripStyle: .supinated,
+                stance: .standing,
+                rangeOfMotion: .full,
+                variationFamilyID: "curl",
                 difficulty: .beginner
             ),
 
@@ -207,6 +259,10 @@ enum ExerciseSeedData {
                 resistanceType: .externalWeight,
                 forceType: .pull,
                 mechanics: .isolation,
+                gripStyle: .neutral,
+                stance: .standing,
+                rangeOfMotion: .full,
+                variationFamilyID: "curl",
                 difficulty: .beginner,
                 weightEntryStyle: .perLoadUnit,
                 loadUnitCount: 2
@@ -270,6 +326,10 @@ enum ExerciseSeedData {
                 movementPattern: .hinge,
                 forceType: .pull,
                 mechanics: .compound,
+                gripStyle: .pronated,
+                stance: .standing,
+                rangeOfMotion: .full,
+                variationFamilyID: "romanian-deadlift",
                 difficulty: .intermediate
             ),
 
@@ -282,6 +342,9 @@ enum ExerciseSeedData {
                 movementPattern: .hinge,
                 forceType: .pull,
                 mechanics: .compound,
+                stance: .staggered,
+                rangeOfMotion: .full,
+                variationFamilyID: "romanian-deadlift",
                 difficulty: .intermediate,
                 tags: ["unilateral", "kickstand"],
                 laterality: .unilateral,
@@ -310,6 +373,9 @@ enum ExerciseSeedData {
                 resistanceType: .machine,
                 forceType: .push,
                 mechanics: .isolation,
+                stance: .standing,
+                rangeOfMotion: .full,
+                variationFamilyID: "calf-raise",
                 difficulty: .beginner
             ),
 
@@ -367,6 +433,10 @@ enum ExerciseSeedData {
                 movementPattern: .horizontalPush,
                 forceType: .push,
                 mechanics: .compound,
+                stance: .supine,
+                rangeOfMotion: .full,
+                setupAngleDegrees: 0,
+                variationFamilyID: "bench-press",
                 difficulty: .beginner,
                 weightEntryStyle: .perLoadUnit,
                 loadUnitCount: 2
@@ -393,6 +463,10 @@ enum ExerciseSeedData {
                 movementPattern: .horizontalPull,
                 forceType: .pull,
                 mechanics: .compound,
+                gripStyle: .neutral,
+                stance: .prone,
+                rangeOfMotion: .full,
+                variationFamilyID: "row",
                 difficulty: .beginner,
                 weightEntryStyle: .perLoadUnit,
                 loadUnitCount: 2
@@ -482,6 +556,9 @@ enum ExerciseSeedData {
                 resistanceType: .machine,
                 forceType: .push,
                 mechanics: .isolation,
+                stance: .seated,
+                rangeOfMotion: .full,
+                variationFamilyID: "calf-raise",
                 difficulty: .beginner
             ),
 

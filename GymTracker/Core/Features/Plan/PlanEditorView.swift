@@ -69,6 +69,7 @@ struct PlanEditorView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("edit-plan-workout")
                     }
                 }
             }

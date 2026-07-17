@@ -174,8 +174,14 @@ enum UITestFixture: String {
     }
 
     private static func makeActiveDraftWorkout(using context: ModelContext) throws {
-        let exercise = try exercise(named: "Bench Press", using: context)
-        let entry = ExerciseEntry(from: exercise, orderIndex: 0, usedMetric: .metric)
+        let benchPress = try exercise(named: "Bench Press", using: context)
+        let alternative = try exercise(named: "Dumbbell Bench Press", using: context)
+        let entry = ExerciseEntry(from: benchPress, orderIndex: 0, usedMetric: .metric)
+        context.insert(ExerciseRelationship(
+            sourceExercise: benchPress,
+            targetExercise: alternative,
+            type: .substitution
+        ))
         try makeActiveWorkout(exercises: [entry], using: context)
     }
 
@@ -211,6 +217,14 @@ enum UITestFixture: String {
         let recentWorkout = Workout(name: "Recent Bench Session", endTime: recentDate.addingTimeInterval(3_600))
         recentWorkout.startTime = recentDate
         recentWorkout.exercises = [recentEntry]
+
+        let benchPress = try exercise(named: "Bench Press", using: context)
+        let dumbbellBenchPress = try exercise(named: "Dumbbell Bench Press", using: context)
+        context.insert(ExerciseRelationship(
+            sourceExercise: benchPress,
+            targetExercise: dumbbellBenchPress,
+            type: .substitution
+        ))
 
         context.insert(olderWorkout)
         context.insert(recentWorkout)

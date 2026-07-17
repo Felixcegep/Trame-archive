@@ -35,6 +35,7 @@ struct PlanWorkoutEditorView: View {
                             }
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("plan-workout-exercise")
                     }
                     .onDelete { workout.exercises.remove(atOffsets: $0) }
                     .onMove { workout.exercises.move(fromOffsets: $0, toOffset: $1) }
@@ -59,7 +60,10 @@ struct PlanWorkoutEditorView: View {
         .sheet(isPresented: $isShowingExerciseEditor) {
             if let index = selectedExerciseIndex {
                 NavigationStack {
-                    PlanExerciseEditorView(exercise: $workout.exercises[index])
+                    PlanExerciseEditorView(
+                        exercise: $workout.exercises[index],
+                        availableExercises: exercises
+                    )
                 }
             }
         }

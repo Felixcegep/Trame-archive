@@ -4,11 +4,14 @@ import SwiftUI
 struct PlanExerciseEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var exercise: PlanExerciseDraft
+    let availableExercises: [Exercise]
+    @State private var isShowingAlternativePicker = false
 
     var body: some View {
         Form {
             exerciseSection
             prescriptionSection
+            alternativesSection
             coachingSection
         }
         .scrollContentBackground(.hidden)
@@ -31,6 +34,60 @@ struct PlanExerciseEditorView: View {
                 }
             }
             Toggle("Optional exercise", isOn: $exercise.isOptional)
+            Picker("Primary stimulus", selection: $exercise.stimulus) {
+                ForEach(TrainingStimulus.allCases, id: \.self) { stimulus in
+                    Text(stimulus.title).tag(stimulus)
+                }
+            }
+        }
+    }
+
+    private var alternativesSection: some View {
+        Section {
+            if exercise.alternatives.isEmpty {
+                Text("No alternatives selected")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            } else {
+                ForEach(exercise.alternatives, id: \.persistentModelID) { alternative in
+                    HStack {
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text(alternative.name)
+                                .font(AppFont.bodyMedium)
+                            Text(alternative.subtitle)
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.gymSubduedText)
+                        }
+                        Spacer()
+                        Button(role: .destructive) {
+                            exercise.alternatives.removeAll { $0.persistentModelID == alternative.persistentModelID }
+                        } label: {
+                            Image(systemName: AppIcon.trash)
+                        }
+                        .accessibilityLabel("Remove \(alternative.name) alternative")
+                    }
+                }
+            }
+
+            Button("Add Alternative", systemImage: AppIcon.plus) {
+                isShowingAlternativePicker = true
+            }
+            .accessibilityIdentifier("add-plan-exercise-alternative")
+        } header: {
+            Text("Alternatives")
+        } footer: {
+            Text("Alternatives are explicit plan options. They never replace this prescription automatically.")
+        }
+        .sheet(isPresented: $isShowingAlternativePicker) {
+            NavigationStack {
+                PlanExerciseAlternativePickerView(
+                    sourceExercise: exercise.exercise,
+                    selectedAlternatives: exercise.alternatives,
+                    availableExercises: availableExercises
+                ) { alternative in
+                    exercise.alternatives.append(alternative)
+                }
+            }
         }
     }
 
@@ -60,6 +117,58 @@ struct PlanExerciseEditorView: View {
             TextField("Target RPE (optional)", text: $exercise.targetRPEText)
                 .keyboardType(.decimalPad)
             Stepper("Target RIR: \(exercise.targetRIR)", value: $exercise.targetRIR, in: 0...10)
+        }
+    }
+}
+
+private struct PlanExerciseAlternativePickerView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let sourceExercise: Exercise
+    let selectedAlternatives: [Exercise]
+    let availableExercises: [Exercise]
+    let onSelect: (Exercise) -> Void
+
+    @State private var searchText = ""
+
+    private var candidates: [PlanExerciseAlternativeCandidate] {
+        let selectedIDs = Set(selectedAlternatives.map(\.persistentModelID))
+        return PlanExerciseAlternativeScoringService
+            .rankedCandidates(
+                for: sourceExercise,
+                from: availableExercises.filter {
+                    $0.persistentModelID != sourceExercise.persistentModelID && !selectedIDs.contains($0.persistentModelID)
+                }
+            )
+            .filter { searchText.isEmpty || $0.exercise.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    var body: some View {
+        List {
+            ForEach(candidates, id: \.exercise.persistentModelID) { candidate in
+                Button {
+                    onSelect(candidate.exercise)
+                    dismiss()
+                } label: {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text(candidate.exercise.name)
+                            .font(AppFont.bodyMedium)
+                            .foregroundStyle(Color.gymText)
+                        Text(candidate.reason)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
+                }
+                .accessibilityIdentifier("plan-alternative-\(candidate.exercise.name)")
+            }
+        }
+        .searchable(text: $searchText, prompt: "Search alternatives")
+        .navigationTitle("Add Alternative")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Cancel") { dismiss() }
+            }
         }
     }
 }

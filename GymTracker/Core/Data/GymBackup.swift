@@ -22,6 +22,23 @@ struct ExerciseTemplateDTO: Codable {
     let isPlateLoaded: Bool
     let isCustom: Bool
     let isArchived: Bool
+    var forceType: String? = nil
+    var mechanics: String? = nil
+    var laterality: String? = nil
+    var repCountingStyle: String? = nil
+    var weightEntryStyle: String? = nil
+    var loadUnitCount: Int? = nil
+    var gripStyle: String? = nil
+    var stance: String? = nil
+    var rangeOfMotion: String? = nil
+    var setupAngleDegrees: Int? = nil
+    var variationFamilyID: String? = nil
+}
+
+struct ExerciseRelationshipDTO: Codable {
+    let sourceExerciseName: String
+    let targetExerciseName: String
+    let type: String
 }
 
 struct TemplateExerciseDTO: Codable {
@@ -128,6 +145,8 @@ struct PlannedExerciseDTO: Codable {
     let targetRIR: Int?
     let notes: String?
     let progressionRule: String
+    var stimulus: String? = nil
+    var alternativeExerciseNames: [String]? = nil
 }
 
 struct PlannedWorkoutDTO: Codable {
@@ -215,6 +234,7 @@ struct BackupDTO: Codable, Identifiable {
     let workouts: [WorkoutDTO]
     let plans: [WorkoutPlanDTO]
     let planRuns: [PlanRunDTO]
+    let exerciseRelationships: [ExerciseRelationshipDTO]
 
     init(
         version: Int,
@@ -224,7 +244,8 @@ struct BackupDTO: Codable, Identifiable {
         collections: [WorkoutCollectionDTO],
         workouts: [WorkoutDTO],
         plans: [WorkoutPlanDTO] = [],
-        planRuns: [PlanRunDTO] = []
+        planRuns: [PlanRunDTO] = [],
+        exerciseRelationships: [ExerciseRelationshipDTO] = []
     ) {
         self.version = version
         self.preferences = preferences
@@ -234,10 +255,11 @@ struct BackupDTO: Codable, Identifiable {
         self.workouts = workouts
         self.plans = plans
         self.planRuns = planRuns
+        self.exerciseRelationships = exerciseRelationships
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships
     }
 
     init(from decoder: Decoder) throws {
@@ -250,6 +272,7 @@ struct BackupDTO: Codable, Identifiable {
         workouts = try container.decode([WorkoutDTO].self, forKey: .workouts)
         plans = try container.decodeIfPresent([WorkoutPlanDTO].self, forKey: .plans) ?? []
         planRuns = try container.decodeIfPresent([PlanRunDTO].self, forKey: .planRuns) ?? []
+        exerciseRelationships = try container.decodeIfPresent([ExerciseRelationshipDTO].self, forKey: .exerciseRelationships) ?? []
     }
 }
 
@@ -283,6 +306,7 @@ enum BackupValidationError: LocalizedError {
     case missingPlan(String)
     case missingPlannedWorkout(String)
     case missingWorkout(String)
+    case invalidExerciseRelationship
 
     var errorDescription: String? {
         switch self {
@@ -306,6 +330,8 @@ enum BackupValidationError: LocalizedError {
             return "The backup references a planned workout that is missing: \(identifier)."
         case .missingWorkout(let identifier):
             return "The backup references a workout that is missing: \(identifier)."
+        case .invalidExerciseRelationship:
+            return "The backup contains an invalid exercise relationship."
         }
     }
 }
@@ -331,7 +357,29 @@ extension BackupDTO {
                 isFavorite: exercise.isFavorite,
                 isPlateLoaded: exercise.isPlateLoaded,
                 isCustom: exercise.isCustom,
-                isArchived: exercise.isArchived
+                isArchived: exercise.isArchived,
+                forceType: exercise.forceType?.rawValue,
+                mechanics: exercise.mechanics?.rawValue,
+                laterality: exercise.laterality.rawValue,
+                repCountingStyle: exercise.repCountingStyle.rawValue,
+                weightEntryStyle: exercise.weightEntryStyle.rawValue,
+                loadUnitCount: exercise.loadUnitCount,
+                gripStyle: exercise.gripStyle?.rawValue,
+                stance: exercise.stance?.rawValue,
+                rangeOfMotion: exercise.rangeOfMotion?.rawValue,
+                setupAngleDegrees: exercise.setupAngleDegrees,
+                variationFamilyID: exercise.variationFamilyID
+            )
+        }
+
+        let relationshipDTOs: [ExerciseRelationshipDTO] = try context.fetch(FetchDescriptor<ExerciseRelationship>()).compactMap { relationship in
+            guard let source = relationship.sourceExercise, let target = relationship.targetExercise else {
+                return nil
+            }
+            return ExerciseRelationshipDTO(
+                sourceExerciseName: source.name,
+                targetExerciseName: target.name,
+                type: relationship.type.rawValue
             )
         }
 
@@ -487,7 +535,11 @@ extension BackupDTO {
                                                 targetRPE: plannedExercise.targetRPE,
                                                 targetRIR: plannedExercise.targetRIR,
                                                 notes: plannedExercise.notes,
-                                                progressionRule: plannedExercise.progressionRule.rawValue
+                                                progressionRule: plannedExercise.progressionRule.rawValue,
+                                                stimulus: plannedExercise.stimulus.rawValue,
+                                                alternativeExerciseNames: plannedExercise.alternatives
+                                                    .sorted { $0.orderIndex < $1.orderIndex }
+                                                    .map { $0.exercise.name }
                                             )
                                         }
                                     )
@@ -543,7 +595,8 @@ extension BackupDTO {
             collections: collectionDTOs,
             workouts: workoutDTOs,
             plans: planDTOs,
-            planRuns: planRunDTOs
+            planRuns: planRunDTOs,
+            exerciseRelationships: relationshipDTOs
         )
     }
 
@@ -577,6 +630,15 @@ extension BackupDTO {
             let equipmentType = exerciseDTO.equipmentType.flatMap { EquipmentType(rawValue: $0) } ?? .other
             let resistanceType = exerciseDTO.resistanceType.flatMap { ResistanceType(rawValue: $0) }
             let movementPattern = exerciseDTO.movementPattern.flatMap { MovementPattern(rawValue: $0) }
+            let forceType = exerciseDTO.forceType.flatMap { ForceType(rawValue: $0) }
+            let mechanics = exerciseDTO.mechanics.flatMap { ExerciseMechanics(rawValue: $0) }
+            let laterality = exerciseDTO.laterality.flatMap { Laterality(rawValue: $0) } ?? .bilateral
+            let repCountingStyle = exerciseDTO.repCountingStyle.flatMap { RepCountingStyle(rawValue: $0) } ?? .total
+            let weightEntryStyle = exerciseDTO.weightEntryStyle.flatMap { WeightEntryStyle(rawValue: $0) } ?? .totalLoad
+            let loadUnitCount = exerciseDTO.loadUnitCount ?? 1
+            let gripStyle = exerciseDTO.gripStyle.flatMap { GripStyle(rawValue: $0) }
+            let stance = exerciseDTO.stance.flatMap { ExerciseStance(rawValue: $0) }
+            let rangeOfMotion = exerciseDTO.rangeOfMotion.flatMap { RangeOfMotion(rawValue: $0) }
             let difficulty = exerciseDTO.difficulty.flatMap { Difficulty(rawValue: $0) } ?? .beginner
 
             if let existing = exerciseMap[exerciseDTO.name] {
@@ -593,16 +655,43 @@ extension BackupDTO {
                     equipmentType: equipmentType,
                     resistanceType: resistanceType,
                     movementPattern: movementPattern,
+                    forceType: forceType,
+                    mechanics: mechanics,
+                    gripStyle: gripStyle,
+                    stance: stance,
+                    rangeOfMotion: rangeOfMotion,
+                    setupAngleDegrees: exerciseDTO.setupAngleDegrees,
+                    variationFamilyID: exerciseDTO.variationFamilyID,
                     difficulty: difficulty,
                     tags: exerciseDTO.tags,
                     isFavorite: exerciseDTO.isFavorite,
                     isPlateLoaded: exerciseDTO.isPlateLoaded,
                     isCustom: exerciseDTO.isCustom,
-                    isArchived: exerciseDTO.isArchived
+                    isArchived: exerciseDTO.isArchived,
+                    laterality: laterality,
+                    repCountingStyle: repCountingStyle,
+                    weightEntryStyle: weightEntryStyle,
+                    loadUnitCount: loadUnitCount
                 )
                 context.insert(newExercise)
                 exerciseMap[newExercise.name] = newExercise
             }
+
+            }
+
+            for relationshipDTO in exerciseRelationships {
+                guard
+                    let source = exerciseMap[relationshipDTO.sourceExerciseName],
+                    let target = exerciseMap[relationshipDTO.targetExerciseName],
+                    let type = ExerciseRelationshipType(rawValue: relationshipDTO.type)
+                else {
+                    throw BackupValidationError.invalidExerciseRelationship
+                }
+                context.insert(ExerciseRelationship(
+                    sourceExercise: source,
+                    targetExercise: target,
+                    type: type
+                ))
             }
 
             var templateMap: [String: WorkoutTemplate] = [:]
@@ -655,6 +744,9 @@ extension BackupDTO {
                                 guard let exercise = exerciseMap[plannedExerciseDTO.exerciseName] else {
                                     throw BackupValidationError.missingExercise(plannedExerciseDTO.exerciseName)
                                 }
+                                let alternativeExercises = (plannedExerciseDTO.alternativeExerciseNames ?? []).compactMap {
+                                    exerciseMap[$0]
+                                }
                                 let plannedExercise = PlannedExercise(
                                     exercise: exercise,
                                     orderIndex: plannedExerciseDTO.orderIndex,
@@ -669,7 +761,11 @@ extension BackupDTO {
                                     targetRPE: plannedExerciseDTO.targetRPE,
                                     targetRIR: plannedExerciseDTO.targetRIR,
                                     notes: plannedExerciseDTO.notes,
-                                    progressionRule: ProgressionRule(rawValue: plannedExerciseDTO.progressionRule) ?? .none
+                                    progressionRule: ProgressionRule(rawValue: plannedExerciseDTO.progressionRule) ?? .none,
+                                    stimulus: plannedExerciseDTO.stimulus.flatMap(TrainingStimulus.init(rawValue:)) ?? .strength,
+                                    alternatives: alternativeExercises.enumerated().map {
+                                        PlannedExerciseAlternative(exercise: $0.element, orderIndex: $0.offset)
+                                    }
                                 )
                                 plannedExercise.id = try requiredUUID(plannedExerciseDTO.id, named: "planned exercise")
                                 return plannedExercise
@@ -919,6 +1015,23 @@ extension BackupDTO {
             }
         }
 
+        var relationshipKeys = Set<String>()
+        for relationship in exerciseRelationships {
+            guard
+                relationship.sourceExerciseName != relationship.targetExerciseName,
+                availableExerciseNames.contains(relationship.sourceExerciseName),
+                availableExerciseNames.contains(relationship.targetExerciseName),
+                ExerciseRelationshipType(rawValue: relationship.type) != nil
+            else {
+                throw BackupValidationError.invalidExerciseRelationship
+            }
+
+            let key = "\(relationship.sourceExerciseName)|\(relationship.targetExerciseName)|\(relationship.type)"
+            guard relationshipKeys.insert(key).inserted else {
+                throw BackupValidationError.invalidExerciseRelationship
+            }
+        }
+
         guard version == Self.currentVersion else { return }
 
         try validateUniqueIdentifiers(plans.map(\.id), named: "plan")
@@ -972,8 +1085,12 @@ extension BackupDTO {
                             guard availableExerciseNames.contains(plannedExercise.exerciseName) else {
                                 throw BackupValidationError.missingExercise(plannedExercise.exerciseName)
                             }
+                            for alternativeName in plannedExercise.alternativeExerciseNames ?? [] where !availableExerciseNames.contains(alternativeName) {
+                                throw BackupValidationError.missingExercise(alternativeName)
+                            }
                             guard ExerciseRole(rawValue: plannedExercise.role) != nil,
                                   ProgressionRule(rawValue: plannedExercise.progressionRule) != nil,
+                                  plannedExercise.stimulus.map({ TrainingStimulus(rawValue: $0) != nil }) ?? true,
                                   plannedExercise.suggestedLoadType.map({ WeightType(rawValue: $0) != nil }) ?? true else {
                                 throw BackupValidationError.invalidIdentifier("planned exercise configuration")
                             }

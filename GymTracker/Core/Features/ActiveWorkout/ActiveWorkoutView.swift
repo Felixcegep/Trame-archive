@@ -20,6 +20,7 @@ struct ActiveWorkoutView: View {
     @State private var draggedExercise: ExerciseEntry? = nil
     @State private var handledRecommendationExerciseIDs: Set<PersistentIdentifier> = []
     @State private var editingCompletedSetID: PersistentIdentifier?
+    @State private var exerciseToSwap: ExerciseEntry?
 
     private var unitSystem: UnitSystem {
         UserDefaults.standard.unitSystem
@@ -97,6 +98,15 @@ struct ActiveWorkoutView: View {
                     selectedExerciseNames: Set(viewModel.activeWorkout?.orderedExercises.map(\.exercise.name) ?? []),
                     onSelect: toggleExerciseFromPicker
                 )
+            }
+        }
+        .sheet(item: $exerciseToSwap) { exerciseEntry in
+            NavigationStack {
+                ExerciseSwapPicker(exerciseEntry: exerciseEntry) { replacement in
+                    guard viewModel.swapExercise(exerciseEntry, with: replacement) else { return }
+                    expandedExerciseID = exerciseEntry.persistentModelID
+                    editingCompletedSetID = nil
+                }
             }
         }
         .onDisappear {
@@ -401,6 +411,9 @@ struct ActiveWorkoutView: View {
                 previousPerformance: viewModel.previousPerformance(for: exercise),
                 onExerciseCompleted: {
                     advanceDisclosure(after: exercise, in: workout)
+                },
+                onSwapRequested: {
+                    exerciseToSwap = exercise
                 }
             )
             .onDrag {

@@ -52,4 +52,5 @@ struct AppIcon {
     static let trophy = "trophy.fill"
     static let plateCalculator = "circle.grid.3x3.fill"
     static let warmup = "flame"
+    static let relationship = "arrow.triangle.branch"
 }

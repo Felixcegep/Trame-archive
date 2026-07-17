@@ -53,7 +53,7 @@ struct PlanEditorDraft {
                 workout.plannedExercises = workoutDraft.exercises.enumerated().map { index, draft in
                     if let existingID = draft.existingID,
                        let existing = workout.plannedExercises.first(where: { $0.id == existingID }) {
-                        draft.apply(to: existing, orderIndex: index)
+                        draft.apply(to: existing, orderIndex: index, using: context)
                         return existing
                     }
                     return draft.makeModel(orderIndex: index)
@@ -171,6 +171,8 @@ struct PlanExerciseDraft: Identifiable {
     var targetRIR: Int
     var notes: String
     var progressionRule: ProgressionRule
+    var stimulus: TrainingStimulus
+    var alternatives: [Exercise]
 
     init(exercise: Exercise, orderIndex: Int) {
         id = UUID()
@@ -191,6 +193,8 @@ struct PlanExerciseDraft: Identifiable {
             && exercise.trackingType != .assistedBodyweight
             ? .doubleProgression
             : .none
+        stimulus = exercise.defaultTrainingStimulus
+        alternatives = []
     }
 
     init(plannedExercise: PlannedExercise) {
@@ -209,6 +213,10 @@ struct PlanExerciseDraft: Identifiable {
         targetRIR = plannedExercise.targetRIR ?? 0
         notes = plannedExercise.notes ?? ""
         progressionRule = plannedExercise.progressionRule
+        stimulus = plannedExercise.stimulus
+        alternatives = plannedExercise.alternatives
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .map(\.exercise)
     }
 
     var summary: String {
@@ -218,6 +226,11 @@ struct PlanExerciseDraft: Identifiable {
 
     var displayName: String {
         exercise.name
+    }
+
+    var alternativesSummary: String? {
+        guard !alternatives.isEmpty else { return nil }
+        return alternatives.map(\.name).joined(separator: ", ")
     }
 
     func makeModel(orderIndex: Int) -> PlannedExercise {
@@ -235,11 +248,15 @@ struct PlanExerciseDraft: Identifiable {
             targetRPE: Double(targetRPEText),
             targetRIR: targetRIR == 0 ? nil : targetRIR,
             notes: notes.isEmpty ? nil : notes,
-            progressionRule: progressionRule
+            progressionRule: progressionRule,
+            stimulus: stimulus,
+            alternatives: alternatives.enumerated().map {
+                PlannedExerciseAlternative(exercise: $0.element, orderIndex: $0.offset)
+            }
         )
     }
 
-    func apply(to model: PlannedExercise, orderIndex: Int) {
+    func apply(to model: PlannedExercise, orderIndex: Int, using context: ModelContext) {
         model.orderIndex = orderIndex
         model.exercise = exercise
         model.role = role
@@ -254,6 +271,13 @@ struct PlanExerciseDraft: Identifiable {
         model.targetRIR = targetRIR == 0 ? nil : targetRIR
         model.notes = notes.isEmpty ? nil : notes
         model.progressionRule = progressionRule
+        model.stimulus = stimulus
+        for alternative in model.alternatives {
+            context.delete(alternative)
+        }
+        model.alternatives = alternatives.enumerated().map {
+            PlannedExerciseAlternative(exercise: $0.element, orderIndex: $0.offset)
+        }
     }
 }
 
@@ -267,6 +291,14 @@ extension PlanExerciseDraft {
     var doubleProgressionEnabled: Bool {
         get { progressionRule == .doubleProgression }
         set { progressionRule = newValue ? .doubleProgression : .none }
+    }
+}
+
+private extension Exercise {
+    var defaultTrainingStimulus: TrainingStimulus {
+        if category == .mobility || category == .flexibility { return .mobility }
+        if trackingType.usesDuration && !trackingType.usesWeight { return .endurance }
+        return .strength
     }
 }
 
