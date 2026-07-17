@@ -67,24 +67,19 @@ struct FolderView: View {
                 switch sheet {
                 case .workoutCollection:
                     WorkoutCollectionFormView(availableTemplates: workoutTemplates) { name, templates in
-                        modelContext.insert(WorkoutCollection(name: name, workoutTemplates: templates))
-                        saveModelContext(modelContext)
+                        LibraryService.createWorkoutCollection(name: name, templates: templates, using: modelContext)
                     }
                 case .workoutTemplate:
                     WorkoutTemplateFormView(availableExercises: exerciseTemplates) { name, exercises in
-                        modelContext.insert(WorkoutTemplate(name: name, exercises: exercises))
-                        saveModelContext(modelContext)
+                        LibraryService.createWorkoutTemplate(name: name, exercises: exercises, using: modelContext)
                     }
                 case .plan:
                     PlanFormView(templates: workoutTemplates) { plan in
-                        modelContext.insert(plan)
-                        saveModelContext(modelContext)
+                        LibraryService.createPlan(plan, using: modelContext)
                     }
                 case .exercise:
                     ExerciseFormView { exercise in
-                        exercise.isCustom = true
-                        modelContext.insert(exercise)
-                        saveModelContext(modelContext)
+                        LibraryService.createCustomExercise(exercise, using: modelContext)
                     }
                 }
             }

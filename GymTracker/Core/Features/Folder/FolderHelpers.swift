@@ -15,10 +15,14 @@ func toggle(_ value: String, in selection: inout Set<String>) {
     }
 }
 
-func saveModelContext(_ modelContext: ModelContext) {
+@discardableResult
+func saveModelContext(_ modelContext: ModelContext) -> Bool {
     do {
         try modelContext.save()
+        return true
     } catch {
+        modelContext.rollback()
         print("Failed to save folder changes: \(error)")
+        return false
     }
 }

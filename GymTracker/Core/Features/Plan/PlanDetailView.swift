@@ -67,9 +67,7 @@ struct PlanDetailView: View {
                     .accessibilityIdentifier("start-planned-workout")
 
                     Button("Pause Program") {
-                        PlanCoordinator.pause(run)
-                        saveModelContext(modelContext)
-                        NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+                        PlanCoordinator.pause(run, using: modelContext)
                     }
 
                     Button("Archive Program Run", role: .destructive) {
@@ -86,9 +84,7 @@ struct PlanDetailView: View {
                     .accessibilityIdentifier("view-plan-schedule")
 
                     Button("Resume Program") {
-                        PlanCoordinator.resume(run)
-                        saveModelContext(modelContext)
-                        NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+                        PlanCoordinator.resume(run, using: modelContext)
                     }
                     .accessibilityIdentifier("resume-plan")
 
@@ -156,10 +152,7 @@ struct PlanDetailView: View {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Start") {
-                            guard let run = PlanCoordinator.startRun(for: plan, startDate: startDate) else { return }
-                            modelContext.insert(run)
-                            saveModelContext(modelContext)
-                            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+                            guard PlanCoordinator.startRun(for: plan, startDate: startDate, using: modelContext) != nil else { return }
                             isShowingStartDate = false
                         }
                         .accessibilityIdentifier("confirm-start-plan")
@@ -205,9 +198,7 @@ struct PlanDetailView: View {
         ) {
             Button("Archive Program Run", role: .destructive) {
                 guard let run = currentRun else { return }
-                PlanCoordinator.archive(run)
-                saveModelContext(modelContext)
-                NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+                PlanCoordinator.archive(run, using: modelContext)
             }
         } message: {
             Text("Your completed workouts remain in History. You can start this program again later.")

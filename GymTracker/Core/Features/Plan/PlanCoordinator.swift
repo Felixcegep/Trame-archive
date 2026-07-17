@@ -192,14 +192,7 @@ enum PlanCoordinator {
         using modelContext: ModelContext
     ) -> Bool {
         guard reschedule(progress, to: date, in: run) else { return false }
-        do {
-            try modelContext.save()
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-            return true
-        } catch {
-            modelContext.rollback()
-            return false
-        }
+        return saveAndNotify(using: modelContext)
     }
 
     /// Removes a future session from the calendar without changing the reusable
@@ -213,14 +206,7 @@ enum PlanCoordinator {
         guard canEditSchedule(progress, in: run) else { return false }
         progress.scheduledDate = nil
         refreshAvailability(for: run)
-        do {
-            try modelContext.save()
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-            return true
-        } catch {
-            modelContext.rollback()
-            return false
-        }
+        return saveAndNotify(using: modelContext)
     }
 
     /// Moves the selected session and every editable session scheduled after it
@@ -254,14 +240,7 @@ enum PlanCoordinator {
             item.scheduledDate = calendar.startOfDay(for: shifted)
         }
         refreshAvailability(for: run)
-        do {
-            try modelContext.save()
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-            return true
-        } catch {
-            modelContext.rollback()
-            return false
-        }
+        return saveAndNotify(using: modelContext)
     }
 
     /// Orders sessions by scheduled date first so rescheduling can promote or
@@ -309,14 +288,7 @@ enum PlanCoordinator {
     ) -> Bool {
         guard canEditSchedule(progress, in: run) else { return false }
         skip(progress, in: run)
-        do {
-            try modelContext.save()
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-            return true
-        } catch {
-            modelContext.rollback()
-            return false
-        }
+        return saveAndNotify(using: modelContext)
     }
 
     static func pause(_ run: PlanRun) {
@@ -325,10 +297,24 @@ enum PlanCoordinator {
         run.updatedAt = .now
     }
 
+    /// Applies and persists a pause as one transaction, mirroring the rollback
+    /// boundary used by reschedule and skip.
+    @discardableResult
+    static func pause(_ run: PlanRun, using modelContext: ModelContext) -> Bool {
+        pause(run)
+        return saveAndNotify(using: modelContext)
+    }
+
     static func resume(_ run: PlanRun) {
         guard run.status == .paused else { return }
         run.status = .active
         refreshAvailability(for: run)
+    }
+
+    @discardableResult
+    static func resume(_ run: PlanRun, using modelContext: ModelContext) -> Bool {
+        resume(run)
+        return saveAndNotify(using: modelContext)
     }
 
     static func archive(_ run: PlanRun) {
@@ -336,6 +322,36 @@ enum PlanCoordinator {
         run.status = .archived
         run.endDate = .now
         run.updatedAt = .now
+    }
+
+    @discardableResult
+    static func archive(_ run: PlanRun, using modelContext: ModelContext) -> Bool {
+        archive(run)
+        return saveAndNotify(using: modelContext)
+    }
+
+    /// Creates and persists a plan run as one transaction, inserting it before
+    /// saving so a failed save leaves nothing partially committed.
+    @discardableResult
+    static func startRun(
+        for plan: WorkoutPlan,
+        startDate: Date = .now,
+        using modelContext: ModelContext
+    ) -> PlanRun? {
+        guard let run = startRun(for: plan, startDate: startDate) else { return nil }
+        modelContext.insert(run)
+        return saveAndNotify(using: modelContext) ? run : nil
+    }
+
+    private static func saveAndNotify(using modelContext: ModelContext) -> Bool {
+        do {
+            try modelContext.save()
+            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+            return true
+        } catch {
+            modelContext.rollback()
+            return false
+        }
     }
 
     private static func copiedExercises(from template: WorkoutTemplate) -> [PlannedExercise] {
