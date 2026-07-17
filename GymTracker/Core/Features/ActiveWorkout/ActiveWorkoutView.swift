@@ -420,6 +420,9 @@ struct ActiveWorkoutView: View {
                 },
                 onSwapRequested: {
                     exerciseToSwap = exercise
+                },
+                supersetCandidates: workout.orderedExercises.filter {
+                    $0.persistentModelID != exercise.persistentModelID && $0.supersetGroupID == nil
                 }
             )
             .onDrag {

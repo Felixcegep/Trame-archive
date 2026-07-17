@@ -14,6 +14,7 @@ struct ExerciceEntryCard: View {
     let previousPerformance: PreviousExercisePerformance?
     let onExerciseCompleted: () -> Void
     let onSwapRequested: () -> Void
+    let supersetCandidates: [ExerciseEntry]
 
     @State private var horizontalOffset: CGFloat = 0
 
@@ -32,6 +33,13 @@ struct ExerciceEntryCard: View {
 
     private var activeExerciseCard: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if exerciseEntry.supersetGroupID != nil {
+                Label("Superset", systemImage: "link")
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymPrimary)
+                    .accessibilityIdentifier("superset-label-\(exerciseEntry.exercise.name)")
+                    .padding(.bottom, Spacing.xs)
+            }
             DisclosureGroup(isExpanded: disclosureBinding) {
                 VStack(alignment: .leading, spacing: Spacing.m) {
                     setHeader
@@ -142,6 +150,21 @@ struct ExerciceEntryCard: View {
                         Label("Swap exercise", systemImage: AppIcon.relationship)
                     }
                     .accessibilityIdentifier("swap-exercise-\(exerciseEntry.exercise.name)")
+                }
+
+                if exerciseEntry.supersetGroupID == nil, !supersetCandidates.isEmpty {
+                    Menu("Superset with…") {
+                        ForEach(supersetCandidates, id: \.persistentModelID) { candidate in
+                            Button(candidate.nameSnapshot) {
+                                viewModel.superset(exerciseEntry, with: candidate)
+                            }
+                        }
+                    }
+                } else if exerciseEntry.supersetGroupID != nil {
+                    Button("Remove from superset") {
+                        viewModel.removeFromSuperset(exerciseEntry)
+                    }
+                    .accessibilityIdentifier("remove-from-superset-\(exerciseEntry.exercise.name)")
                 }
 
                 Button(role: .destructive) {

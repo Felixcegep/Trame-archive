@@ -399,6 +399,35 @@ class ActiveWorkoutViewModel {
         }
     }
 
+    func superset(_ exerciseEntry: ExerciseEntry, with otherEntry: ExerciseEntry) {
+        guard
+            let workout = workoutVM.activeWorkout,
+            exerciseEntry.persistentModelID != otherEntry.persistentModelID,
+            let first = workout.exercises.first(where: { $0.persistentModelID == exerciseEntry.persistentModelID }),
+            let second = workout.exercises.first(where: { $0.persistentModelID == otherEntry.persistentModelID })
+        else {
+            return
+        }
+
+        let groupID = first.supersetGroupID ?? second.supersetGroupID ?? UUID()
+        if let mergingGroupID = second.supersetGroupID {
+            for entry in workout.exercises where entry.supersetGroupID == mergingGroupID {
+                entry.supersetGroupID = groupID
+            }
+        }
+        first.supersetGroupID = groupID
+        second.supersetGroupID = groupID
+        workout.normalizeExerciseOrder()
+        persistChanges()
+    }
+
+    func removeFromSuperset(_ exerciseEntry: ExerciseEntry) {
+        guard let workout = workoutVM.activeWorkout else { return }
+        exerciseEntry.supersetGroupID = nil
+        workout.normalizeExerciseOrder()
+        persistChanges()
+    }
+
     /// A replacement is intentionally allowed only before the entry has any
     /// completed sets. Completed entries are part of the workout's historical
     /// record and must not be reinterpreted as another exercise.

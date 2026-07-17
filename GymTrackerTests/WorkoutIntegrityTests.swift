@@ -1716,6 +1716,21 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertNil(last.supersetGroupID)
     }
 
+    func testRemovingSupersetMemberDissolvesTheRemainingSingleton() {
+        let exercise = makeExercise()
+        let groupID = UUID()
+        let first = ExerciseEntry(exercise: exercise, orderIndex: 0, usedMetric: .metric, supersetGroupID: groupID)
+        let second = ExerciseEntry(exercise: exercise, orderIndex: 1, usedMetric: .metric, supersetGroupID: groupID)
+        let workout = Workout(name: "Superset")
+        workout.exercises = [first, second]
+
+        second.supersetGroupID = nil
+        workout.normalizeExerciseOrder()
+
+        XCTAssertNil(first.supersetGroupID)
+        XCTAssertNil(second.supersetGroupID)
+    }
+
     func testTemplateWorkoutSnapshotUsesFreshSupersetIdentity() throws {
         let exerciseA = makeExercise()
         let exerciseB = Exercise(name: "Cable Row", primaryMuscles: [.latissimusDorsi])
