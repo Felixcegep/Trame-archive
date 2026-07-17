@@ -1104,6 +1104,11 @@ final class GymTrackerUITEST: XCTestCase {
         app.buttons["plan-workout-exercise"].firstMatch.tap()
         XCTAssertTrue(app.buttons["add-plan-exercise-alternative"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13g_Plan_Exercise_Alternatives")
+        let addSet = app.buttons["add-plan-set-prescription"]
+        scrollToElement(addSet, in: app)
+        tapButton("add-plan-set-prescription", in: app)
+        XCTAssertTrue(app.buttons["plan-set-prescription-row"].firstMatch.waitForExistence(timeout: 5))
+        saveScreenshot("plans/13h_Plan_Per_Set_Prescription")
         app.buttons["Done"].tap()
         app.buttons["Done"].tap()
         tapButton("save-plan-edits", in: app)

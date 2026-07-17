@@ -175,6 +175,7 @@ struct PlanExerciseDraft: Identifiable {
     var progressionRule: ProgressionRule
     var stimulus: TrainingStimulus
     var alternatives: [Exercise]
+    var plannedSets: [PlanSetDraft]
 
     init(exercise: Exercise, orderIndex: Int) {
         id = UUID()
@@ -198,6 +199,7 @@ struct PlanExerciseDraft: Identifiable {
             : .none
         stimulus = exercise.defaultTrainingStimulus
         alternatives = []
+        plannedSets = []
     }
 
     init(plannedExercise: PlannedExercise) {
@@ -221,6 +223,7 @@ struct PlanExerciseDraft: Identifiable {
         alternatives = plannedExercise.alternatives
             .sorted { $0.orderIndex < $1.orderIndex }
             .map(\.exercise)
+        plannedSets = plannedExercise.orderedPlannedSets.map(PlanSetDraft.init)
     }
 
     var summary: String {
@@ -257,6 +260,9 @@ struct PlanExerciseDraft: Identifiable {
             alternatives: alternatives.enumerated().map {
                 PlannedExerciseAlternative(exercise: $0.element, orderIndex: $0.offset)
             },
+            plannedSets: plannedSets.enumerated().map { index, set in
+                set.makeModel(orderIndex: index)
+            },
             supersetGroupID: supersetGroupID
         )
     }
@@ -284,6 +290,12 @@ struct PlanExerciseDraft: Identifiable {
         model.alternatives = alternatives.enumerated().map {
             PlannedExerciseAlternative(exercise: $0.element, orderIndex: $0.offset)
         }
+        for plannedSet in model.plannedSets {
+            context.delete(plannedSet)
+        }
+        model.plannedSets = plannedSets.enumerated().map { index, set in
+            set.makeModel(orderIndex: index)
+        }
     }
 }
 
@@ -297,6 +309,113 @@ extension PlanExerciseDraft {
     var doubleProgressionEnabled: Bool {
         get { progressionRule == .doubleProgression }
         set { progressionRule = newValue ? .doubleProgression : .none }
+    }
+
+    mutating func addPlannedSet() {
+        plannedSets.append(
+            PlanSetDraft(
+                setType: .normal,
+                repetitions: nil,
+                repRangeMinimum: repRangeMinimum,
+                repRangeMaximum: repRangeMaximum,
+                suggestedLoad: Double(suggestedLoadText),
+                suggestedLoadType: suggestedLoadType,
+                restSeconds: restSeconds,
+                targetRPE: Double(targetRPEText),
+                targetRIR: targetRIR == 0 ? nil : targetRIR
+            )
+        )
+    }
+}
+
+@MainActor
+struct PlanSetDraft: Identifiable {
+    let id: UUID
+    var setType: SetType
+    var repetitionsText: String
+    var repRangeMinimumText: String
+    var repRangeMaximumText: String
+    var suggestedLoadText: String
+    var suggestedLoadType: WeightType
+    var restSecondsText: String
+    var targetRPEText: String
+    var targetRIRText: String
+    var isOptional: Bool
+    var notes: String
+
+    init(
+        setType: SetType,
+        repetitions: Int?,
+        repRangeMinimum: Int?,
+        repRangeMaximum: Int?,
+        suggestedLoad: Double?,
+        suggestedLoadType: WeightType,
+        restSeconds: Int?,
+        targetRPE: Double?,
+        targetRIR: Int?
+    ) {
+        id = UUID()
+        self.setType = setType
+        repetitionsText = repetitions.map { String($0) } ?? ""
+        repRangeMinimumText = repRangeMinimum.map { String($0) } ?? ""
+        repRangeMaximumText = repRangeMaximum.map { String($0) } ?? ""
+        suggestedLoadText = suggestedLoad.map { String($0) } ?? ""
+        self.suggestedLoadType = suggestedLoadType
+        restSecondsText = restSeconds.map { String($0) } ?? ""
+        targetRPEText = targetRPE.map { String($0) } ?? ""
+        targetRIRText = targetRIR.map { String($0) } ?? ""
+        isOptional = false
+        notes = ""
+    }
+
+    init(plannedSet: PlannedSet) {
+        id = UUID()
+        setType = plannedSet.setType
+        repetitionsText = plannedSet.repetitions.map { String($0) } ?? ""
+        repRangeMinimumText = plannedSet.repRangeMinimum.map { String($0) } ?? ""
+        repRangeMaximumText = plannedSet.repRangeMaximum.map { String($0) } ?? ""
+        suggestedLoadText = plannedSet.suggestedLoad.map { String($0) } ?? ""
+        suggestedLoadType = plannedSet.suggestedLoadType ?? .kg
+        restSecondsText = plannedSet.restSeconds.map { String($0) } ?? ""
+        targetRPEText = plannedSet.targetRPE.map { String($0) } ?? ""
+        targetRIRText = plannedSet.targetRIR.map { String($0) } ?? ""
+        isOptional = plannedSet.isOptional
+        notes = plannedSet.notes ?? ""
+    }
+
+    var summary: String {
+        let repetitions: String
+        if let exact = Int(repetitionsText) {
+            repetitions = "\(exact) reps"
+        } else if let minimum = Int(repRangeMinimumText), let maximum = Int(repRangeMaximumText) {
+            repetitions = "\(minimum)–\(max(minimum, maximum)) reps"
+        } else {
+            repetitions = "No rep target"
+        }
+        let load = suggestedLoadText.isEmpty ? "No load" : "\(suggestedLoadText) \(suggestedLoadType.rawValue)"
+        return "\(setType.title) · \(repetitions) · \(load)"
+    }
+
+    func makeModel(orderIndex: Int) -> PlannedSet {
+        let exactRepetitions = Int(repetitionsText)
+        let minimum = exactRepetitions == nil ? Int(repRangeMinimumText) : nil
+        let maximum = exactRepetitions == nil
+            ? Int(repRangeMaximumText).map { maximum in max(minimum ?? maximum, maximum) }
+            : nil
+        return PlannedSet(
+            orderIndex: orderIndex,
+            setType: setType,
+            repetitions: exactRepetitions,
+            repRangeMinimum: minimum,
+            repRangeMaximum: maximum,
+            suggestedLoad: Double(suggestedLoadText),
+            suggestedLoadType: suggestedLoadText.isEmpty ? nil : suggestedLoadType,
+            restSeconds: Int(restSecondsText),
+            targetRPE: Double(targetRPEText),
+            targetRIR: Int(targetRIRText),
+            isOptional: isOptional,
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes
+        )
     }
 }
 

@@ -11,6 +11,7 @@ struct PlanExerciseEditorView: View {
         Form {
             exerciseSection
             prescriptionSection
+            setPrescriptionsSection
             alternativesSection
             coachingSection
         }
@@ -18,6 +19,9 @@ struct PlanExerciseEditorView: View {
         .background(Color.gymBackground)
         .navigationTitle("Prescription")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                EditButton()
+            }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { dismiss() }
             }
@@ -110,6 +114,43 @@ struct PlanExerciseEditorView: View {
         }
     }
 
+    private var setPrescriptionsSection: some View {
+        Section {
+            if exercise.plannedSets.isEmpty {
+                Text("This exercise currently uses the uniform prescription above for every set.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            } else {
+                ForEach($exercise.plannedSets) { $set in
+                    NavigationLink {
+                        PlanSetEditorView(set: $set)
+                    } label: {
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text(set.wrappedValue.setType.title)
+                                .font(AppFont.bodyMedium)
+                                .foregroundStyle(Color.gymText)
+                            Text(set.wrappedValue.summary)
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.gymSubduedText)
+                        }
+                    }
+                    .accessibilityIdentifier("plan-set-prescription-row")
+                }
+                .onDelete { exercise.plannedSets.remove(atOffsets: $0) }
+                .onMove { exercise.plannedSets.move(fromOffsets: $0, toOffset: $1) }
+            }
+
+            Button("Add set prescription", systemImage: AppIcon.plus) {
+                exercise.addPlannedSet()
+            }
+            .accessibilityIdentifier("add-plan-set-prescription")
+        } header: {
+            Text("Set prescriptions")
+        } footer: {
+            Text("Ordered set prescriptions replace the uniform target when this workout starts. Remove every set here to use the uniform target again.")
+        }
+    }
+
     private var coachingSection: some View {
         Section("Coaching") {
             TextField("Notes", text: $exercise.notes, axis: .vertical)
@@ -117,6 +158,63 @@ struct PlanExerciseEditorView: View {
             TextField("Target RPE (optional)", text: $exercise.targetRPEText)
                 .keyboardType(.decimalPad)
             Stepper("Target RIR: \(exercise.targetRIR)", value: $exercise.targetRIR, in: 0...10)
+        }
+    }
+}
+
+private struct PlanSetEditorView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var set: PlanSetDraft
+
+    var body: some View {
+        Form {
+            Section("Set") {
+                Picker("Set type", selection: $set.setType) {
+                    ForEach(SetType.allCases, id: \.self) { type in
+                        Text(type.title).tag(type)
+                    }
+                }
+                Toggle("Optional set", isOn: $set.isOptional)
+            }
+
+            Section("Repetitions") {
+                TextField("Exact reps (optional)", text: $set.repetitionsText)
+                    .keyboardType(.numberPad)
+                TextField("Minimum reps (optional)", text: $set.repRangeMinimumText)
+                    .keyboardType(.numberPad)
+                TextField("Maximum reps (optional)", text: $set.repRangeMaximumText)
+                    .keyboardType(.numberPad)
+            } footer: {
+                Text("An exact rep target takes precedence over a range.")
+            }
+
+            Section("Load and rest") {
+                TextField("Suggested load (optional)", text: $set.suggestedLoadText)
+                    .keyboardType(.decimalPad)
+                Picker("Load unit", selection: $set.suggestedLoadType) {
+                    Text("Metric (kg)").tag(WeightType.kg)
+                    Text("Imperial (lb)").tag(WeightType.lbs)
+                }
+                TextField("Rest seconds (optional)", text: $set.restSecondsText)
+                    .keyboardType(.numberPad)
+            }
+
+            Section("Coaching") {
+                TextField("Target RPE (optional)", text: $set.targetRPEText)
+                    .keyboardType(.decimalPad)
+                TextField("Target RIR (optional)", text: $set.targetRIRText)
+                    .keyboardType(.numberPad)
+                TextField("Notes", text: $set.notes, axis: .vertical)
+                    .lineLimit(2...5)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
+        .navigationTitle("Set prescription")
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { dismiss() }
+            }
         }
     }
 }

@@ -1010,6 +1010,62 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(plan.requiredEquipment, [.barbell, .cable])
     }
 
+    func testPlanEditorDraftAppliesOrderedSetPrescriptions() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let template = makeTemplate(exercise: exercise, targetSets: 3)
+        let plan = PlanCoordinator.createPlan(
+            name: "Per-set draft plan",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            dayAssignments: [.init(dayOffset: 0, template: template)]
+        )
+        context.insert(exercise)
+        context.insert(template)
+        context.insert(plan)
+        try context.save()
+
+        var warmup = PlanSetDraft(
+            setType: .warmup,
+            repetitions: 10,
+            repRangeMinimum: nil,
+            repRangeMaximum: nil,
+            suggestedLoad: 20,
+            suggestedLoadType: .kg,
+            restSeconds: 45,
+            targetRPE: nil,
+            targetRIR: nil
+        )
+        warmup.notes = "Prime movement"
+        var working = PlanSetDraft(
+            setType: .normal,
+            repetitions: nil,
+            repRangeMinimum: 6,
+            repRangeMaximum: 8,
+            suggestedLoad: 60,
+            suggestedLoadType: .kg,
+            restSeconds: 120,
+            targetRPE: 8,
+            targetRIR: 2
+        )
+        working.isOptional = true
+
+        var draft = PlanEditorDraft(plan: plan)
+        draft.weeks[0].workouts[0].exercises[0].plannedSets = [warmup, working]
+        draft.apply(to: plan, using: context)
+
+        let savedExercise = try XCTUnwrap(
+            plan.orderedWeeks.first?.orderedPlannedWorkouts.first?.orderedPlannedExercises.first
+        )
+        XCTAssertEqual(savedExercise.orderedPlannedSets.map(\.setType), [.warmup, .normal])
+        XCTAssertEqual(savedExercise.orderedPlannedSets.map(\.orderIndex), [0, 1])
+        XCTAssertEqual(savedExercise.orderedPlannedSets.first?.repetitions, 10)
+        XCTAssertEqual(savedExercise.orderedPlannedSets.first?.notes, "Prime movement")
+        XCTAssertEqual(savedExercise.orderedPlannedSets.last?.repRangeMinimum, 6)
+        XCTAssertEqual(savedExercise.orderedPlannedSets.last?.isOptional, true)
+    }
+
     func testPlannedVersusPerformedComparisonReportsMetAboveBelowAndNoTarget() {
         let exercise = makeExercise()
         let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
