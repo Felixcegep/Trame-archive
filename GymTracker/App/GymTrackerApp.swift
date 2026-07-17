@@ -16,23 +16,6 @@ struct GymTrackerApp: App {
         WindowGroup {
                 RootView()
         }
-        .modelContainer(
-            for : [
-                Workout.self,
-                Exercise.self,
-                ExerciseRelationship.self,
-                WorkoutTemplate.self,
-                TemplateExercise.self,
-                WorkoutCollection.self,
-                WorkoutPlan.self,
-                PlanBlock.self,
-                PlanWeek.self,
-                PlannedWorkout.self,
-                PlannedExercise.self,
-                PlannedExerciseAlternative.self,
-                PlanRun.self,
-                PlanWorkoutProgress.self
-            ]
-        )
+        .modelContainer(GymTrackerModelContainer.shared)
     }
 }

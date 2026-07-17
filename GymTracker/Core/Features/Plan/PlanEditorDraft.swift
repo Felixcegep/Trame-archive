@@ -213,7 +213,7 @@ struct PlanExerciseDraft: Identifiable {
         targetRIR = plannedExercise.targetRIR ?? 0
         notes = plannedExercise.notes ?? ""
         progressionRule = plannedExercise.progressionRule
-        stimulus = plannedExercise.stimulus
+        stimulus = plannedExercise.resolvedStimulus
         alternatives = plannedExercise.alternatives
             .sorted { $0.orderIndex < $1.orderIndex }
             .map(\.exercise)

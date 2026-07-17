@@ -743,6 +743,9 @@ final class GymTrackerUITEST: XCTestCase {
         saveScreenshot("active-workout/06_Add_Exercise_Sheet")
         tapButton("close-exercise-picker", in: inProgress)
         XCTAssertFalse(inProgress.descendants(matching: .any)["exercise-picker-screen"].waitForExistence(timeout: 2))
+        // Plate calculator is a child action of the set's native Menu, so it
+        // is not present in the accessibility tree until that menu is open.
+        tapButton("set-menu-Bench Press-0", in: inProgress)
         tapButton("plate-calculator-Bench Press", in: inProgress)
         XCTAssertTrue(inProgress.descendants(matching: .any)["plate-calculator-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(inProgress.navigationBars["Plate calculator"].exists)
@@ -759,6 +762,7 @@ final class GymTrackerUITEST: XCTestCase {
         let app = launchFixture("active-draft")
         tapButton("exercise-menu-Bench Press", in: app)
         tapButton("swap-exercise-Bench Press", in: app)
+        XCTAssertTrue(app.navigationBars["Swap Exercise"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["swap-option-Dumbbell Bench Press"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08j_Exercise_Swap")
     }

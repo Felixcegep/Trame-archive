@@ -1411,6 +1411,40 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(restoredPlannedExercise.alternatives.first?.exercise.name, "Dumbbell Bench Press")
     }
 
+    func testBackupDefaultsMissingPlannedExerciseStimulus() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        let plan = PlanCoordinator.createPlan(
+            name: "Legacy Stimulus Plan",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            dayAssignments: [.init(dayOffset: 0, template: template)]
+        )
+        let plannedExercise = try XCTUnwrap(
+            plan.orderedWeeks.first?.orderedPlannedWorkouts.first?.orderedPlannedExercises.first
+        )
+        plannedExercise.stimulus = nil
+
+        context.insert(exercise)
+        context.insert(template)
+        context.insert(plan)
+        try context.save()
+
+        let backup = try BackupDTO.create(
+            from: context,
+            restTimer: 90,
+            darkMode: false,
+            unitSystem: .metric
+        )
+
+        XCTAssertEqual(
+            backup.plans.first?.blocks.first?.weeks.first?.plannedWorkouts.first?.plannedExercises.first?.stimulus,
+            TrainingStimulus.strength.rawValue
+        )
+    }
+
     func testInvalidPlanRunBackupDoesNotReplaceExistingData() throws {
         let context = try makeContext()
         let sentinel = Exercise(name: "Do Not Delete", primaryMuscles: [.upperChest])

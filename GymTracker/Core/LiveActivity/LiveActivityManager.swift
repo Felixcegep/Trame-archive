@@ -9,67 +9,35 @@ final class LiveActivityManager {
     static let shared = LiveActivityManager()
 
     private var activity: Activity<GymTrackerAttributes>?
-    private var workoutID: UUID?
-    private var currentExerciseName: String?
-    private var currentSet: Int?
-    private var totalSets: Int?
 
     private init() {}
 
-    func startWorkout(workoutID: UUID, startTime: Date) {
+    func startWorkout(_ projection: LiveActivityProjection) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         if let matching = Activity<GymTrackerAttributes>.activities.first(where: {
-            $0.attributes.workoutID == workoutID
+            $0.attributes.workoutID == projection.workoutID
         }) {
             activity = matching
-            self.workoutID = workoutID
             endActivities(except: matching.id)
             return
         }
 
         endActivities(except: nil)
-        let attributes = GymTrackerAttributes(workoutID: workoutID, startTime: startTime)
+        let attributes = GymTrackerAttributes(workoutID: projection.workoutID, startTime: projection.startTime)
         do {
             activity = try Activity.request(
                 attributes: attributes,
-                content: ActivityContent(state: contentState(restEndDate: nil), staleDate: nil)
+                content: ActivityContent(state: contentState(for: projection), staleDate: projection.restEndDate)
             )
-            self.workoutID = workoutID
         } catch {
             activity = nil
-            self.workoutID = nil
         }
     }
 
-    func reconcile(
-        workoutID: UUID,
-        startTime: Date,
-        exerciseName: String?,
-        currentSet: Int?,
-        totalSets: Int?,
-        restEndDate: Date?
-    ) async {
-        self.currentExerciseName = exerciseName
-        self.currentSet = currentSet
-        self.totalSets = totalSets
-        startWorkout(workoutID: workoutID, startTime: startTime)
-        await update(restEndDate: restEndDate)
-    }
-
-    func updateExercise(name: String, currentSet: Int, totalSets: Int) async {
-        currentExerciseName = name
-        self.currentSet = currentSet
-        self.totalSets = totalSets
-        await update(restEndDate: nil)
-    }
-
-    func startPause(timerEndDate: Date) async {
-        await update(restEndDate: timerEndDate)
-    }
-
-    func pausePause() async {
-        await update(restEndDate: nil)
+    func reconcile(_ projection: LiveActivityProjection) async {
+        startWorkout(projection)
+        await update(projection)
     }
 
     func end() async {
@@ -78,29 +46,32 @@ final class LiveActivityManager {
             await item.end(nil, dismissalPolicy: .immediate)
         }
         activity = nil
-        workoutID = nil
-        currentExerciseName = nil
-        currentSet = nil
-        totalSets = nil
     }
 
     func endOrphanedActivities() async {
         await end()
     }
 
-    private func update(restEndDate: Date?) async {
+    private func update(_ projection: LiveActivityProjection) async {
         guard let activity else { return }
-        let state = contentState(restEndDate: restEndDate)
-        await activity.update(ActivityContent(state: state, staleDate: restEndDate))
+        await activity.update(
+            ActivityContent(
+                state: contentState(for: projection),
+                staleDate: projection.restEndDate
+            )
+        )
     }
 
-    private func contentState(restEndDate: Date?) -> GymTrackerAttributes.ContentState {
+    private func contentState(for projection: LiveActivityProjection) -> GymTrackerAttributes.ContentState {
         GymTrackerAttributes.ContentState(
-            currentExerciseName: currentExerciseName,
-            currentSerie: currentSet,
-            totalSeries: totalSets,
-            restTimeActive: restEndDate != nil,
-            RestTime: restEndDate
+            currentExerciseName: projection.currentExerciseName,
+            currentSet: projection.currentSet,
+            totalSeries: projection.totalSets,
+            currentExerciseOrderIndex: projection.currentExerciseOrderIndex,
+            currentSetOrderIndex: projection.currentSetOrderIndex,
+            restPhase: projection.restPhase,
+            restEndDate: projection.restEndDate,
+            pausedRemainingTime: projection.pausedRemainingTime
         )
     }
 

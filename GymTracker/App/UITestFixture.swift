@@ -182,6 +182,12 @@ enum UITestFixture: String {
             targetExercise: alternative,
             type: .substitution
         ))
+        // Persist the relationship before presenting the active workout. The
+        // swap sheet owns an @Query and must observe the relationship as a
+        // committed fixture record, just as it would after a user creates one
+        // in the exercise library.
+        try context.save()
+        context.processPendingChanges()
         try makeActiveWorkout(exercises: [entry], using: context)
     }
 

@@ -17,7 +17,9 @@ final class PlannedExercise {
     var targetRIR: Int?
     var notes: String?
     var progressionRule: ProgressionRule
-    var stimulus: TrainingStimulus = TrainingStimulus.strength
+    // Optional for compatibility with plans persisted before stimulus was added.
+    // Callers should use resolvedStimulus when a concrete value is required.
+    var stimulus: TrainingStimulus?
     var exercise: Exercise
     var plannedWorkout: PlannedWorkout?
     @Relationship(deleteRule: .cascade, inverse: \PlannedExerciseAlternative.plannedExercise)
@@ -57,5 +59,9 @@ final class PlannedExercise {
         self.progressionRule = progressionRule
         self.stimulus = stimulus
         self.alternatives = alternatives
+    }
+
+    var resolvedStimulus: TrainingStimulus {
+        stimulus ?? .strength
     }
 }

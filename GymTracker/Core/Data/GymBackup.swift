@@ -536,7 +536,7 @@ extension BackupDTO {
                                                 targetRIR: plannedExercise.targetRIR,
                                                 notes: plannedExercise.notes,
                                                 progressionRule: plannedExercise.progressionRule.rawValue,
-                                                stimulus: plannedExercise.stimulus.rawValue,
+                                                stimulus: plannedExercise.resolvedStimulus.rawValue,
                                                 alternativeExerciseNames: plannedExercise.alternatives
                                                     .sorted { $0.orderIndex < $1.orderIndex }
                                                     .map { $0.exercise.name }

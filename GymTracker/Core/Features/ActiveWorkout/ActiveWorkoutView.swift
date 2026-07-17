@@ -11,6 +11,7 @@ struct ActiveWorkoutView: View {
     let onDiscardRequested: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel: ActiveWorkoutViewModel
     @State private var expandedExerciseID: PersistentIdentifier?
@@ -118,6 +119,11 @@ struct ActiveWorkoutView: View {
         .onChange(of: expandedExerciseID) { _, identifier in
             editingCompletedSetID = nil
             viewModel.trackActiveExercise(with: identifier)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                viewModel.restorePersistedRestTimer()
+            }
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {

@@ -193,20 +193,10 @@ class WorkoutViewModel {
             Task { await LiveActivityManager.shared.endOrphanedActivities() }
             return
         }
-        let next = workout.orderedExercises.lazy.compactMap { exercise -> (ExerciseEntry, Int)? in
-            guard let index = exercise.orderedSets.firstIndex(where: { !$0.done }) else { return nil }
-            return (exercise, index)
-        }.first
+        let projection = LiveActivityProjection(workout: workout)
 
         Task {
-            await LiveActivityManager.shared.reconcile(
-                workoutID: workout.id,
-                startTime: workout.startTime,
-                exerciseName: next?.0.exercise.name,
-                currentSet: next.map { $0.1 + 1 },
-                totalSets: next?.0.orderedSets.count,
-                restEndDate: workout.restEndDate
-            )
+            await LiveActivityManager.shared.reconcile(projection)
         }
     }
 

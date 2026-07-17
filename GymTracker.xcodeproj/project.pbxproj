@@ -63,7 +63,11 @@
 		4496BE252FFCA57D00D919E7 /* Exceptions for "GymTracker" folder in "GymTrackerExtensionExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				App/GymTrackerModelContainer.swift,
+				Core/LiveActivity/ActiveWorkoutMutationService.swift,
 				Core/LiveActivity/GymTrackerAttributes.swift,
+				Core/LiveActivity/LiveActivityIntents.swift,
+				Core/LiveActivity/LiveActivityManager.swift,
 				Localizable.xcstrings,
 			);
 			target = 44E0076B2FFAEB0600BF7D2B /* GymTrackerExtensionExtension */;

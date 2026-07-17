@@ -4,20 +4,72 @@
 //
 //  Created by Felix Lachapelle on 2026-07-04.
 
-import Foundation
 import ActivityKit
+import Foundation
 
-// to state possible restTime that's a timer and exercise time that the number of rep that user have to do with the exercise
-// to change state en need to send when restTime is finished and restTimeActive and RestTime that his the number of rest that the user choose it can be
-// chosen in the workout 
+enum LiveActivityRestPhase: String, Codable, Hashable, Sendable {
+    case inactive
+    case running
+    case paused
+}
+
+/// A Codable display projection of persisted `Workout` truth. It deliberately
+/// contains no independently mutable workout state.
+struct LiveActivityProjection: Hashable, Sendable {
+    let workoutID: UUID
+    let startTime: Date
+    let currentExerciseName: String?
+    let currentSet: Int?
+    let totalSets: Int?
+    let currentExerciseOrderIndex: Int?
+    let currentSetOrderIndex: Int?
+    let restPhase: LiveActivityRestPhase
+    let restEndDate: Date?
+    let pausedRemainingTime: TimeInterval?
+
+    @MainActor
+    init(workout: Workout, now: Date = .now) {
+        let next = workout.orderedExercises.lazy.compactMap { exercise -> (ExerciseEntry, ExerciseSet)? in
+            guard let set = exercise.orderedSets.first(where: { !$0.done }) else { return nil }
+            return (exercise, set)
+        }.first
+
+        self.workoutID = workout.id
+        self.startTime = workout.startTime
+        self.currentExerciseName = next?.0.nameSnapshot
+        self.currentSet = next.map { $0.1.orderIndex + 1 }
+        self.totalSets = next?.0.orderedSets.count
+        self.currentExerciseOrderIndex = next?.0.orderIndex
+        self.currentSetOrderIndex = next?.1.orderIndex
+
+        if let deadline = workout.restEndDate, deadline > now {
+            self.restPhase = .running
+            self.restEndDate = deadline
+            self.pausedRemainingTime = nil
+        } else if let remaining = workout.pausedRemainingTime, remaining > 0 {
+            self.restPhase = .paused
+            self.restEndDate = nil
+            self.pausedRemainingTime = remaining
+        } else {
+            self.restPhase = .inactive
+            self.restEndDate = nil
+            self.pausedRemainingTime = nil
+        }
+    }
+}
+
 struct GymTrackerAttributes: ActivityAttributes {
     let workoutID: UUID
-    let startTime : Date
+    let startTime: Date
+
     struct ContentState: Codable, Hashable, Sendable {
         var currentExerciseName: String?
-        var currentSerie: Int?
+        var currentSet: Int?
         var totalSeries: Int?
-        var restTimeActive: Bool
-        var RestTime : Date?
+        var currentExerciseOrderIndex: Int?
+        var currentSetOrderIndex: Int?
+        var restPhase: LiveActivityRestPhase
+        var restEndDate: Date?
+        var pausedRemainingTime: TimeInterval?
     }
 }

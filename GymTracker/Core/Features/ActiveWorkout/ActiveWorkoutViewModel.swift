@@ -65,17 +65,7 @@ class ActiveWorkoutViewModel {
         activeWorkout.exercises.append(newExercise)
         persistChanges()
         loadPreviousPerformance(for: newExercise)
-
-        if let nextExercise = getNextExerciseToDo(),
-           let nextSetIndex = nextExercise.exercise.orderedSets.firstIndex(where: { !$0.done }) {
-            Task {
-                await LiveActivityManager.shared.updateExercise(
-                    name: nextExercise.exercise.exercise.name,
-                    currentSet: nextSetIndex + 1,
-                    totalSets: nextExercise.exercise.sets.count
-                )
-            }
-        }
+        workoutVM.reconcileLiveActivity()
     }
 
     func removeSet(_ exerciseEntry: ExerciseEntry, _ set: ExerciseSet) {
@@ -230,21 +220,7 @@ class ActiveWorkoutViewModel {
     }
 
     func canComplete(_ set: ExerciseSet, for exercise: ExerciseEntry) -> Bool {
-        let trackingType = exercise.trackingTypeSnapshot
-
-        if trackingType.usesReps, set.repetitions <= 0 {
-            return false
-        }
-
-        if trackingType.usesDuration, (set.duration ?? 0) <= 0 {
-            return false
-        }
-
-        if trackingType.usesDistance, (set.distance ?? 0) <= 0 {
-            return false
-        }
-
-        return true
+        ActiveWorkoutMutationService.canComplete(set, for: exercise)
     }
 
     func trackActiveExercise(with identifier: PersistentIdentifier?) {
@@ -309,6 +285,7 @@ class ActiveWorkoutViewModel {
                 workoutVM.activeWorkout?.restEndDate = nil
                 persistChanges()
                 restTimer.ready()
+                workoutVM.reconcileLiveActivity()
                 return
             }
             runRestCountdown(until: timerEndDate)
@@ -316,9 +293,7 @@ class ActiveWorkoutViewModel {
             timerTask?.cancel()
             timerTask = nil
             restTimer.restore(endDate: nil, pausedRemaining: pausedRemaining)
-            Task {
-                await LiveActivityManager.shared.pausePause()
-            }
+            workoutVM.reconcileLiveActivity()
         }
     }
 
@@ -334,9 +309,7 @@ class ActiveWorkoutViewModel {
         restTimer.pause(remaining: remaining)
         persistChanges()
 
-        Task {
-            await LiveActivityManager.shared.pausePause()
-        }
+        workoutVM.reconcileLiveActivity()
     }
 
     func resumeTimer() {
@@ -373,9 +346,7 @@ class ActiveWorkoutViewModel {
             workoutVM.activeWorkout?.pausedRemainingTime = nil
             persistChanges()
         }
-        Task {
-            await LiveActivityManager.shared.pausePause()
-        }
+        workoutVM.reconcileLiveActivity()
     }
 
     /// The single countdown path used by a newly started, restored, resumed, or
@@ -385,15 +356,9 @@ class ActiveWorkoutViewModel {
         restTimer.start(until: timerEndDate)
 
         timerTask = Task {
-            if let nextExercise = getNextExerciseToDo(),
-               let nextSetIndex = nextExercise.exercise.orderedSets.firstIndex(where: { !$0.done }) {
-                await LiveActivityManager.shared.updateExercise(
-                    name: nextExercise.exercise.exercise.name,
-                    currentSet: nextSetIndex + 1,
-                    totalSets: nextExercise.exercise.sets.count
-                )
+            await MainActor.run {
+                workoutVM.reconcileLiveActivity()
             }
-            await LiveActivityManager.shared.startPause(timerEndDate: timerEndDate)
 
             do {
                 try await Task.sleep(for: .seconds(max(0, timerEndDate.timeIntervalSinceNow)))
@@ -405,13 +370,8 @@ class ActiveWorkoutViewModel {
                     persistChanges()
                 }
 
-                if let nextExercise = getNextExerciseToDo(),
-                   let nextSetIndex = nextExercise.exercise.orderedSets.firstIndex(where: { !$0.done }) {
-                    await LiveActivityManager.shared.updateExercise(
-                        name: nextExercise.exercise.exercise.name,
-                        currentSet: nextSetIndex + 1,
-                        totalSets: nextExercise.exercise.sets.count
-                    )
+                await MainActor.run {
+                    workoutVM.reconcileLiveActivity()
                 }
             } catch {
                 return
