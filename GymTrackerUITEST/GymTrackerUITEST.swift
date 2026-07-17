@@ -773,6 +773,13 @@ final class GymTrackerUITEST: XCTestCase {
         saveScreenshot("active-workout/08_Active_Workout_With_Set")
     }
 
+    func testCaptureSupersetScreenshot() {
+        let app = launchFixture("active-superset")
+        XCTAssertTrue(app.staticTexts["superset-label-Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["superset-label-Barbell Row"].exists)
+        saveScreenshot("active-workout/08k_Active_Superset")
+    }
+
     func testSupersetCompletionAdvancesWithoutRest() {
         let app = launchFixture("active-superset")
         XCTAssertTrue(app.staticTexts["superset-label-Bench Press"].waitForExistence(timeout: 5))
