@@ -26,6 +26,8 @@ final class PlannedExercise {
     var plannedWorkout: PlannedWorkout?
     @Relationship(deleteRule: .cascade, inverse: \PlannedExerciseAlternative.plannedExercise)
     var alternatives: [PlannedExerciseAlternative] = []
+    @Relationship(deleteRule: .cascade, inverse: \PlannedSet.plannedExercise)
+    var plannedSets: [PlannedSet] = []
 
     init(
         exercise: Exercise,
@@ -44,6 +46,7 @@ final class PlannedExercise {
         progressionRule: ProgressionRule = .none,
         stimulus: TrainingStimulus = .strength,
         alternatives: [PlannedExerciseAlternative] = [],
+        plannedSets: [PlannedSet] = [],
         supersetGroupID: UUID? = nil
     ) {
         self.exercise = exercise
@@ -62,10 +65,15 @@ final class PlannedExercise {
         self.progressionRule = progressionRule
         self.stimulus = stimulus
         self.alternatives = alternatives
+        self.plannedSets = plannedSets
         self.supersetGroupID = supersetGroupID
     }
 
     var resolvedStimulus: TrainingStimulus {
         stimulus ?? .strength
+    }
+
+    var orderedPlannedSets: [PlannedSet] {
+        plannedSets.sorted { $0.orderIndex < $1.orderIndex }
     }
 }

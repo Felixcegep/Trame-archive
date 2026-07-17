@@ -25,6 +25,7 @@ enum GymTrackerModelContainer {
         PlanWeek.self,
         PlannedWorkout.self,
         PlannedExercise.self,
+        PlannedSet.self,
         PlannedExerciseAlternative.self,
         PlanRun.self,
         PlanWorkoutProgress.self
