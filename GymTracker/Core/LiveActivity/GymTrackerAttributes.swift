@@ -11,7 +11,7 @@ import ActivityKit
 // to change state en need to send when restTime is finished and restTimeActive and RestTime that his the number of rest that the user choose it can be
 // chosen in the workout 
 struct GymTrackerAttributes: ActivityAttributes {
-    
+    let workoutID: UUID
     let startTime : Date
     struct ContentState: Codable, Hashable, Sendable {
         var currentExerciseName: String?
@@ -32,4 +32,3 @@ struct WorkoutEntryUser: Codable, Hashable, Sendable {
     var restTimeActive: Bool?
     var RestTime : Date?
 }
-

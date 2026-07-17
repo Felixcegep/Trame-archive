@@ -10,6 +10,7 @@ import SwiftData
 
 @main
 struct GymTrackerApp: App {
+    @UIApplicationDelegateAdaptor(GymTrackerNotificationDelegate.self) private var appDelegate
     
     var body: some Scene {
         WindowGroup {

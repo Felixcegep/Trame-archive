@@ -329,8 +329,10 @@ struct ExerciceEntryCard: View {
     private var inputTitles: [String] {
         var titles: [String] = []
         if trackingType.usesReps { titles.append("Reps") }
-        if trackingType.usesWeight { titles.append("Weight") }
-        if trackingType.usesDuration { titles.append("Time") }
+        if trackingType.usesWeight {
+            titles.append(unitSystem == .metric ? "Weight (kg)" : "Weight (lbs)")
+        }
+        if trackingType.usesDuration { titles.append("Seconds") }
         if trackingType.usesDistance { titles.append("Distance") }
         return titles
     }

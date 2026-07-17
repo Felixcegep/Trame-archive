@@ -120,6 +120,8 @@ enum PlanCoordinator {
     static func refreshAvailability(for run: PlanRun) {
         guard run.status == .active || run.status == .paused else { return }
 
+        let inProgress = run.orderedWorkoutProgress.filter { $0.status == .inProgress }
+
         let unfinished = run.orderedWorkoutProgress.filter {
             $0.status != .completed && $0.status != .skipped && $0.status != .inProgress
         }
@@ -128,12 +130,17 @@ enum PlanCoordinator {
             progress.status = .upcoming
         }
 
-        if let next = unfinished.sorted(by: isOrderedByAvailability).first {
+        if let activeProgress = inProgress.sorted(by: isOrderedByAvailability).first {
+            // An active workout is the current truth. Relaunch and schedule
+            // refreshes must not make a second future session available while
+            // that workout is still in progress.
+            run.currentWeekIndex = activeProgress.weekIndex
+            run.currentWorkoutIndex = activeProgress.workoutIndex
+        } else if let next = unfinished.sorted(by: isOrderedByAvailability).first {
             next.status = .available
             run.currentWeekIndex = next.weekIndex
             run.currentWorkoutIndex = next.workoutIndex
-        } else if run.status == .active,
-                  !run.orderedWorkoutProgress.contains(where: { $0.status == .inProgress }) {
+        } else if run.status == .active {
             run.status = .completed
             run.endDate = .now
         }
@@ -160,7 +167,8 @@ enum PlanCoordinator {
     }
 
     static func nextProgress(in run: PlanRun) -> PlanWorkoutProgress? {
-        run.orderedWorkoutProgress.first { $0.status == .available || $0.status == .inProgress }
+        run.orderedWorkoutProgress.first { $0.status == .inProgress }
+            ?? run.orderedWorkoutProgress.first { $0.status == .available }
     }
 
     /// Moves an available or upcoming session to a new scheduled day and
@@ -186,6 +194,69 @@ enum PlanCoordinator {
         guard reschedule(progress, to: date, in: run) else { return false }
         do {
             try modelContext.save()
+            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+            return true
+        } catch {
+            modelContext.rollback()
+            return false
+        }
+    }
+
+    /// Removes a future session from the calendar without changing the reusable
+    /// plan. It remains available in the run's Unscheduled section.
+    @discardableResult
+    static func unschedule(
+        _ progress: PlanWorkoutProgress,
+        in run: PlanRun,
+        using modelContext: ModelContext
+    ) -> Bool {
+        guard canEditSchedule(progress, in: run) else { return false }
+        progress.scheduledDate = nil
+        refreshAvailability(for: run)
+        do {
+            try modelContext.save()
+            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+            return true
+        } catch {
+            modelContext.rollback()
+            return false
+        }
+    }
+
+    /// Moves the selected session and every editable session scheduled after it
+    /// by the same number of calendar days. Completed truth and active work stay
+    /// fixed in place.
+    @discardableResult
+    static func rescheduleRemaining(
+        from progress: PlanWorkoutProgress,
+        to date: Date,
+        in run: PlanRun,
+        using modelContext: ModelContext
+    ) -> Bool {
+        guard canEditSchedule(progress, in: run), let originalDate = progress.scheduledDate else {
+            return false
+        }
+        let calendar = Calendar.current
+        let originalDay = calendar.startOfDay(for: originalDate)
+        let targetDay = calendar.startOfDay(for: date)
+        guard let dayDelta = calendar.dateComponents([.day], from: originalDay, to: targetDay).day else {
+            return false
+        }
+
+        let editable = run.orderedWorkoutProgress.filter {
+            canEditSchedule($0, in: run)
+                && ($0.scheduledDate.map { calendar.startOfDay(for: $0) >= originalDay } ?? false)
+        }
+        for item in editable {
+            guard let scheduledDate = item.scheduledDate,
+                  let shifted = calendar.date(byAdding: .day, value: dayDelta, to: scheduledDate)
+            else { continue }
+            item.scheduledDate = calendar.startOfDay(for: shifted)
+        }
+        refreshAvailability(for: run)
+        do {
+            try modelContext.save()
+            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
             return true
         } catch {
             modelContext.rollback()
@@ -195,7 +266,7 @@ enum PlanCoordinator {
 
     /// Orders sessions by scheduled date first so rescheduling can promote or
     /// demote a session; sessions sharing a date fall back to plan order.
-    private static func isOrderedByAvailability(_ lhs: PlanWorkoutProgress, _ rhs: PlanWorkoutProgress) -> Bool {
+    nonisolated private static func isOrderedByAvailability(_ lhs: PlanWorkoutProgress, _ rhs: PlanWorkoutProgress) -> Bool {
         let calendar = Calendar.current
         let lhsDate = lhs.scheduledDate.map(calendar.startOfDay(for:)) ?? .distantFuture
         let rhsDate = rhs.scheduledDate.map(calendar.startOfDay(for:)) ?? .distantFuture
@@ -240,6 +311,7 @@ enum PlanCoordinator {
         skip(progress, in: run)
         do {
             try modelContext.save()
+            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
             return true
         } catch {
             modelContext.rollback()

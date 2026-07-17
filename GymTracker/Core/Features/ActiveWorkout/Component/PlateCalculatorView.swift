@@ -3,6 +3,7 @@ import SwiftUI
 struct PlateCalculatorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(DefaultsKey.useMetric) private var preferredUnitSystem: UnitSystem = .metric
     @Bindable var exerciseSet: ExerciseSet
     let usesBarbell: Bool
     @State private var selectedBarID = BarKind.mensOlympic.id
@@ -13,7 +14,7 @@ struct PlateCalculatorView: View {
 
     private var equipment: PlateEquipment {
         PlateEquipment(
-            unitSystem: exerciseSet.usedMetric,
+            unitSystem: preferredUnitSystem,
             selectedBarID: selectedBarID,
             usesBarbell: usesBarbell
         )
@@ -54,6 +55,12 @@ struct PlateCalculatorView: View {
                 }
             }
         }
+        .onAppear {
+            synchronizeUnitsAndMinimumBarWeight()
+        }
+        .onChange(of: preferredUnitSystem) { _, _ in
+            synchronizeUnitsAndMinimumBarWeight()
+        }
     }
 
     private var plateDiagram: some View {
@@ -66,7 +73,7 @@ struct PlateCalculatorView: View {
 
                 Spacer()
 
-                barChip
+                selectedBarSummary
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -75,7 +82,7 @@ struct PlateCalculatorView: View {
                     collarSegment(height: 30, width: 8)
 
                     ForEach(diagramPlates) { item in
-                        diagramPlate(item.weight)
+                        diagramPlateShape(item.weight)
                             .transition(reduceMotion
                                 ? .opacity
                                 : .scale(scale: 0.94).combined(with: .opacity))
@@ -92,8 +99,8 @@ struct PlateCalculatorView: View {
             .defaultScrollAnchor(.center)
 
             Text(calculation.plates.isEmpty
-                 ? "Add plates below to load the bar."
-                 : "One side shown · Tap a plate to remove it.")
+                 ? "Bare \(selectedBar.title) bar · \(formatted(equipment.barWeight)) \(equipment.unitLabel)."
+                 : "One side shown · Add or remove plates below.")
                 .font(AppFont.caption)
                 .foregroundStyle(WorkoutPalette.subduedText)
         }
@@ -114,27 +121,11 @@ struct PlateCalculatorView: View {
         }
     }
 
-    private var barChip: some View {
-        Menu {
-            Picker("Bar type", selection: $selectedBarID) {
-                ForEach(BarKind.allCases) { bar in
-                    Text("\(bar.title) · \(formatted(bar.weight(for: exerciseSet.usedMetric))) \(equipment.unitLabel)")
-                        .tag(bar.id)
-                }
-            }
-        } label: {
-            HStack(spacing: Spacing.xs) {
-                Text("\(selectedBar.title) · \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
-                    .font(AppFont.captionSemiboldMonospaced)
-                Image(systemName: AppIcon.picker)
-                    .font(.caption2)
-            }
+    private var selectedBarSummary: some View {
+        Text("\(selectedBar.title) · \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
+            .font(AppFont.captionSemiboldMonospaced)
             .foregroundStyle(WorkoutPalette.primary)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.xs)
-            .background(WorkoutPalette.primarySurface)
-            .clipShape(Capsule())
-        }
+            .lineLimit(1)
         .accessibilityLabel("Bar type: \(selectedBar.title), \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
     }
 
@@ -150,25 +141,20 @@ struct PlateCalculatorView: View {
             .frame(width: width, height: height)
     }
 
-    private func diagramPlate(_ plate: Float) -> some View {
+    private func diagramPlateShape(_ plate: Float) -> some View {
         let maxPlate = CGFloat(equipment.plates.max() ?? 1)
         let ratio = CGFloat(plate) / maxPlate
         let plateHeight = 34 + ratio * 58
         let plateWidth = 7 + ratio * 11
 
-        return Button {
-            removePlatePair(plate)
-        } label: {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(plateColor(for: plate))
-                .frame(width: plateWidth, height: plateHeight)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .stroke(Color.black.opacity(0.18), lineWidth: 1)
-                }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Remove one \(formatted(plate)) \(equipment.unitLabel) plate from each side")
+        return RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(plateColor(for: plate))
+            .frame(width: plateWidth, height: plateHeight)
+            .overlay {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .stroke(Color.black.opacity(0.18), lineWidth: 1)
+            }
+            .accessibilityHidden(true)
     }
 
     // Real-world competition plate colors (IWF convention); intentionally not
@@ -176,7 +162,7 @@ struct PlateCalculatorView: View {
     private static let barMetalColor = Color(red: 0.62, green: 0.63, blue: 0.66)
 
     private func plateColor(for plate: Float) -> Color {
-        let isMetric = exerciseSet.usedMetric == .metric
+        let isMetric = preferredUnitSystem == .metric
         switch (isMetric, plate) {
         case (true, 25), (false, 55): return Color(red: 0.85, green: 0.16, blue: 0.16)   // red
         case (true, 20), (false, 45): return Color(red: 0.16, green: 0.36, blue: 0.83)   // blue
@@ -200,12 +186,12 @@ struct PlateCalculatorView: View {
                 HStack(spacing: Spacing.s) {
                     ForEach(BarKind.allCases) { bar in
                         Button {
-                            selectedBarID = bar.id
+                            selectBar(bar)
                         } label: {
                             VStack(alignment: .leading, spacing: Spacing.xs) {
                                 Text(LocalizedStringKey(bar.title))
                                     .font(AppFont.captionSemiboldMonospaced)
-                                Text("\(formatted(bar.weight(for: exerciseSet.usedMetric))) \(equipment.unitLabel)")
+                                Text("\(formatted(bar.weight(for: preferredUnitSystem))) \(equipment.unitLabel)")
                                     .font(AppFont.captionSemiboldMonospaced)
                                     .foregroundStyle(selectedBarID == bar.id ? WorkoutPalette.primary : WorkoutPalette.subduedText)
                             }
@@ -221,6 +207,7 @@ struct PlateCalculatorView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityAddTraits(selectedBarID == bar.id ? .isSelected : [])
+                        .accessibilityLabel("\(bar.title), \(formatted(bar.weight(for: preferredUnitSystem))) \(equipment.unitLabel)")
                     }
                 }
             }
@@ -286,12 +273,12 @@ struct PlateCalculatorView: View {
 
             HStack(spacing: Spacing.md) {
                 if usesBarbell {
-                    Button("Bar \(formatted(equipment.barWeight)) \(equipment.unitLabel)") {
+                    Button("Bare bar · \(formatted(equipment.barWeight)) \(equipment.unitLabel)") {
                         exerciseSet.weight = equipment.barWeight
                     }
                 }
-                Button("Clear", role: .destructive) {
-                    exerciseSet.weight = 0
+                Button(usesBarbell ? "Remove plates" : "Clear", role: .destructive) {
+                    exerciseSet.weight = usesBarbell ? equipment.barWeight : 0
                 }
             }
             .buttonStyle(.bordered)
@@ -365,7 +352,31 @@ struct PlateCalculatorView: View {
     }
 
     private func removePlatePair(_ plate: Float) {
-        exerciseSet.weight = max(0, exerciseSet.weight - plate * 2)
+        exerciseSet.weight = max(usesBarbell ? equipment.barWeight : 0, exerciseSet.weight - plate * 2)
+    }
+
+    private func selectBar(_ bar: BarKind) {
+        let previousBarWeight = selectedBar.weight(for: preferredUnitSystem)
+        let plateLoad = max(0, exerciseSet.weight - previousBarWeight)
+        selectedBarID = bar.id
+        exerciseSet.weight = bar.weight(for: preferredUnitSystem) + plateLoad
+    }
+
+    private func synchronizeUnitsAndMinimumBarWeight() {
+        let targetWeightType: WeightType = preferredUnitSystem == .metric ? .kg : .lbs
+        if exerciseSet.weightType != targetWeightType {
+            exerciseSet.weight = UnitConversion.weight(
+                exerciseSet.weight,
+                from: exerciseSet.weightType,
+                to: targetWeightType
+            )
+            exerciseSet.weightType = targetWeightType
+        }
+        exerciseSet.usedMetric = preferredUnitSystem
+
+        if usesBarbell, exerciseSet.weight < equipment.barWeight {
+            exerciseSet.weight = equipment.barWeight
+        }
     }
 
     private func calculatorMessage(_ message: LocalizedStringKey, icon: String) -> some View {
@@ -431,7 +442,7 @@ private struct PlateEquipment {
         case .imperial:
             barWeight = usesBarbell ? selectedBar.imperialWeight : 0
             plates = Constants.Barbell.imperialPlates
-            unitLabel = "lb"
+            unitLabel = "lbs"
         }
     }
 }

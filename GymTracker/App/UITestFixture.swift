@@ -24,6 +24,7 @@ enum UITestFixture: String {
     case progressionRestRunning = "progression-rest-running"
     case progressionRestPaused = "progression-rest-paused"
     case performanceComparison = "performance-comparison"
+    case performanceHistoryComparison = "performance-history-comparison"
     case homeActiveConflict = "home-active-conflict"
     case planActiveRun = "plan-active-run"
     case planCalendar = "plan-calendar"
@@ -43,7 +44,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .backupImportTarget:
+        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .backupImportTarget:
             false
         default:
             true
@@ -100,6 +101,8 @@ enum UITestFixture: String {
             try makeProgressionAndRestWorkout(restState: .paused, using: context)
         case .performanceComparison:
             try makePerformanceComparisonWorkout(using: context)
+        case .performanceHistoryComparison:
+            try makePerformanceComparisonHistory(using: context)
         case .homeActiveConflict:
             try makeActiveWorkout(exercises: [inProgressEntry(named: "Bench Press", using: context)], using: context)
         case .planActiveRun:
@@ -284,6 +287,22 @@ enum UITestFixture: String {
             set.weight = 52.5
         }
         try makeActiveWorkout(exercises: [entry], using: context)
+    }
+
+    private static func makePerformanceComparisonHistory(using context: ModelContext) throws {
+        try makeCompletedBenchHistory(using: context)
+        let entry = try progressionEntry(named: "Bench Press", decision: .increase, orderIndex: 0, using: context)
+        for set in entry.orderedSets {
+            set.done = true
+            set.repetitions = 8
+            set.weight = 52.5
+        }
+
+        let workout = Workout(name: "Upper Body", endTime: Date.now.addingTimeInterval(-900))
+        workout.startTime = Date.now.addingTimeInterval(-2_700)
+        workout.exercises = [entry]
+        context.insert(workout)
+        try context.save()
     }
 
     private static func makeActivePlanRun(using context: ModelContext) throws {

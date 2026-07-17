@@ -69,7 +69,7 @@ tests_for_scene() {
     rest) echo "testCaptureRunningRestScreenshot testCapturePausedRestScreenshot testCaptureReadyRestScreenshot" ;;
     history) echo "testCaptureHistoryScreenshots" ;;
     recommendation) echo "testCaptureIncreaseRecommendationScreenshots testCaptureHoldRecommendationScreenshot testCaptureInsufficientHistoryRecommendationScreenshots testCaptureRecommendationWithRunningRestScreenshot testCaptureRecommendationWithPausedRestScreenshot" ;;
-    performance) echo "testCapturePerformanceComparisonScreenshots" ;;
+    performance) echo "testCapturePerformanceComparisonReviewScreenshot testCapturePerformanceComparisonHistoryScreenshot" ;;
     template-progression) echo "testCaptureTemplateProgressionScreenshot" ;;
     plan-review) echo "testCapturePlanReviewScreenshot testCaptureActivePlanRunScreenshot" ;;
     plan-calendar) echo "testCapturePlanCalendarScreenshots" ;;

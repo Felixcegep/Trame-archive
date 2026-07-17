@@ -81,7 +81,7 @@ struct PlanExercisePickerView: View {
     @State private var searchText = ""
 
     var body: some View {
-        List(filteredExercises) { exercise in
+        List(filteredExercises, id: \.persistentModelID) { exercise in
             Button {
                 onSelect(exercise)
                 dismiss()

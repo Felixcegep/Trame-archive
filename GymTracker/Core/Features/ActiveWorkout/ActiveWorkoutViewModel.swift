@@ -373,6 +373,9 @@ class ActiveWorkoutViewModel {
             workoutVM.activeWorkout?.pausedRemainingTime = nil
             persistChanges()
         }
+        Task {
+            await LiveActivityManager.shared.pausePause()
+        }
     }
 
     /// The single countdown path used by a newly started, restored, resumed, or

@@ -3,6 +3,7 @@ import WidgetKit
 import SwiftUI
 
 struct GymTrackerAttributes: ActivityAttributes {
+    let workoutID: UUID
     let startTime: Date
 
     struct ContentState: Codable, Hashable, Sendable {
@@ -136,7 +137,7 @@ private enum LiveActivityPalette {
 
 extension GymTrackerAttributes {
     fileprivate static var preview: GymTrackerAttributes {
-        GymTrackerAttributes(startTime: .now)
+        GymTrackerAttributes(workoutID: UUID(), startTime: .now)
     }
 }
 

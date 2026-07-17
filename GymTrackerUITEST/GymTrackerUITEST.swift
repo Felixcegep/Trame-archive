@@ -879,7 +879,7 @@ final class GymTrackerUITEST: XCTestCase {
         saveScreenshot("progression/10g_Progression_With_Rest_Paused")
     }
 
-    func testCapturePerformanceComparisonScreenshots() {
+    func testCapturePerformanceComparisonReviewScreenshot() {
         let app = launchFixture("performance-comparison")
 
         tapButton("Review Workout", in: app)
@@ -888,13 +888,10 @@ final class GymTrackerUITEST: XCTestCase {
         app.swipeUp()
         app.swipeUp()
         saveScreenshot("review/14_Save_Performance_Comparison")
+    }
 
-        tapButton("save-workout", in: app)
-        let partialSave = app.buttons["Save completed sets"]
-        if partialSave.waitForExistence(timeout: 2) {
-            partialSave.tap()
-        }
-
+    func testCapturePerformanceComparisonHistoryScreenshot() {
+        let app = launchFixture("performance-history-comparison", expectsActiveWorkout: false)
         selectTab(.history, in: app)
         tapButton("history-workout-row", in: app)
         let historyComparison = app.descendants(matching: .any)["performance-comparison"].firstMatch

@@ -72,16 +72,13 @@ struct HomeView: View {
 
     private var welcomeHeader: some View {
         VStack(alignment: .leading, spacing: Spacing.xs + 2) {
-            HStack(alignment: .top, spacing: Spacing.s) {
-                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                    .font(AppFont.subheadlineMediumMonospaced)
-                    .foregroundStyle(WorkoutPalette.accent)
+            Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                .font(AppFont.subheadlineMediumMonospaced)
+                .foregroundStyle(WorkoutPalette.accent)
 
-                Spacer(minLength: Spacing.s)
-
-                if let activePlanRun {
-                    activePlanBadge(for: activePlanRun)
-                }
+            if let activePlanRun {
+                activePlanContext(for: activePlanRun)
+                    .padding(.bottom, Spacing.xs)
             }
 
             Text(workoutVM.hasActiveWorkout ? "Your workout is ready." : "Ready when you are.")
@@ -95,24 +92,29 @@ struct HomeView: View {
         }
     }
 
-    private func activePlanBadge(for run: PlanRun) -> some View {
+    private func activePlanContext(for run: PlanRun) -> some View {
         HStack(spacing: Spacing.xs) {
             Image(systemName: AppIcon.plan)
                 .font(AppFont.captionBold)
 
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(run.sourcePlanName)
-                    .font(AppFont.captionBold)
-                    .lineLimit(1)
-                Text("Week \(run.currentWeekIndex + 1)")
-                    .font(AppFont.caption2)
-                    .foregroundStyle(WorkoutPalette.accent.opacity(0.76))
-            }
+            Text(run.sourcePlanName)
+                .font(AppFont.captionBold)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: Spacing.s)
+
+            Text("Week \(run.currentWeekIndex + 1)")
+                .font(AppFont.caption2Bold)
+                .padding(.horizontal, Spacing.s)
+                .padding(.vertical, Spacing.xxs)
+                .background(WorkoutPalette.surface.opacity(0.72), in: Capsule())
         }
         .foregroundStyle(WorkoutPalette.accent)
-        .padding(.horizontal, Spacing.s)
-        .padding(.vertical, Spacing.xs)
-        .background(WorkoutPalette.accentSurface, in: Capsule())
+        .padding(.horizontal, Spacing.m)
+        .padding(.vertical, Spacing.s)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(WorkoutPalette.accentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Active program: \(run.sourcePlanName), week \(run.currentWeekIndex + 1)")
         .accessibilityIdentifier("active-plan-badge")
@@ -142,6 +144,8 @@ struct HomeView: View {
                 Text(primaryCardTitle)
                     .font(AppFont.titleMedium)
                     .foregroundStyle(workoutVM.hasActiveWorkout ? .white : WorkoutPalette.text)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(primaryCardSubtitle)
                     .font(AppFont.subheadline)

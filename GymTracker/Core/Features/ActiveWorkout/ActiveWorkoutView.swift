@@ -320,7 +320,7 @@ struct ActiveWorkoutView: View {
     private func exerciseList(for workout: Workout) -> some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             HStack {
-                Text("EXERCISES")
+                Text("SESSION")
                     .font(.caption.weight(.bold))
                     .tracking(0.8)
                     .foregroundStyle(WorkoutPalette.subduedText)
@@ -343,33 +343,77 @@ struct ActiveWorkoutView: View {
             if workout.exercises.isEmpty {
                 emptyExerciseState
             } else {
-                ForEach(workout.orderedExercises, id: \.persistentModelID) { exercise in
-                    ExerciceEntryCard(
-                        exerciseEntry: exercise,
-                        viewModel: viewModel,
-                        onButtonPress: { viewModel.startTime(after: exercise) },
-                        unitSystem: unitSystem,
-                        focusedInput: $focusedInput,
-                        expandedExerciseID: $expandedExerciseID,
-                        editingCompletedSetID: $editingCompletedSetID,
-                        previousPerformance: viewModel.previousPerformance(for: exercise),
-                        onExerciseCompleted: {
-                            advanceDisclosure(after: exercise, in: workout)
-                        }
+                let preparation = workout.orderedExercises.filter { $0.prescribedRole == .preparation }
+                let training = workout.orderedExercises.filter { $0.prescribedRole != .preparation }
+
+                if !preparation.isEmpty {
+                    sessionSectionHeader(
+                        title: "PREPARATION & MOBILITY",
+                        detail: "Complete first · stop if pain appears",
+                        icon: AppIcon.info
                     )
-                    .onDrag {
-                        self.draggedExercise = exercise
-                        return NSItemProvider(object: String(describing: exercise.persistentModelID) as NSString)
-                    }
-                    .onDrop(of: [.text], delegate: ExerciseDragDelegate(
-                        item: exercise,
-                        workout: workout,
-                        viewModel: viewModel,
-                        draggedItem: $draggedExercise,
-                        reduceMotion: reduceMotion
-                    ))
+                    exerciseCards(for: preparation, in: workout)
+                }
+
+                if !training.isEmpty {
+                    sessionSectionHeader(
+                        title: preparation.isEmpty ? "EXERCISES" : "STRENGTH WORK",
+                        detail: preparation.isEmpty ? nil : "After preparation",
+                        icon: AppIcon.workout
+                    )
+                    exerciseCards(for: training, in: workout)
                 }
             }
+        }
+    }
+
+    private func sessionSectionHeader(title: String, detail: String?, icon: String) -> some View {
+        HStack(spacing: Spacing.s) {
+            Image(systemName: icon)
+                .font(AppFont.captionBold)
+                .foregroundStyle(WorkoutPalette.secondary)
+
+            Text(title)
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(WorkoutPalette.subduedText)
+
+            if let detail {
+                Text(detail)
+                    .font(AppFont.caption)
+                    .foregroundStyle(WorkoutPalette.subduedText)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func exerciseCards(for exercises: [ExerciseEntry], in workout: Workout) -> some View {
+        ForEach(exercises, id: \.persistentModelID) { exercise in
+            ExerciceEntryCard(
+                exerciseEntry: exercise,
+                viewModel: viewModel,
+                onButtonPress: { viewModel.startTime(after: exercise) },
+                unitSystem: unitSystem,
+                focusedInput: $focusedInput,
+                expandedExerciseID: $expandedExerciseID,
+                editingCompletedSetID: $editingCompletedSetID,
+                previousPerformance: viewModel.previousPerformance(for: exercise),
+                onExerciseCompleted: {
+                    advanceDisclosure(after: exercise, in: workout)
+                }
+            )
+            .onDrag {
+                self.draggedExercise = exercise
+                return NSItemProvider(object: String(describing: exercise.persistentModelID) as NSString)
+            }
+            .onDrop(of: [.text], delegate: ExerciseDragDelegate(
+                item: exercise,
+                workout: workout,
+                viewModel: viewModel,
+                draggedItem: $draggedExercise,
+                reduceMotion: reduceMotion
+            ))
         }
     }
 

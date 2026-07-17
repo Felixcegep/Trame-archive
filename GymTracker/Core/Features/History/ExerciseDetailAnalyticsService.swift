@@ -12,8 +12,15 @@ struct ExerciseSessionSet: Equatable, Sendable {
 }
 
 struct ExerciseSession: Equatable, Sendable {
+    let workoutID: UUID?
     let workoutDate: Date
     let sets: [ExerciseSessionSet]
+
+    init(workoutID: UUID? = nil, workoutDate: Date, sets: [ExerciseSessionSet]) {
+        self.workoutID = workoutID
+        self.workoutDate = workoutDate
+        self.sets = sets
+    }
 
     /// Sets that count toward strength metrics; a warm-up never does.
     var workingSets: [ExerciseSessionSet] {
@@ -188,7 +195,7 @@ struct ExerciseDetailAnalyticsService {
                     )
                 }
             guard !sets.isEmpty else { return nil }
-            return ExerciseSession(workoutDate: workout.startTime, sets: sets)
+            return ExerciseSession(workoutID: workout.id, workoutDate: workout.startTime, sets: sets)
         }
     }
 

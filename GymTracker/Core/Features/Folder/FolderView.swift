@@ -288,5 +288,5 @@ enum FolderSheet: String, Identifiable {
 
 enum LibraryRoute: Hashable {
     case archivedExercises
+    case plan(UUID)
 }
-

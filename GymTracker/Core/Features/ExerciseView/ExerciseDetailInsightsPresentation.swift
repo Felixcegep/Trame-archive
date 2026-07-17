@@ -23,9 +23,24 @@ struct ExerciseDetailInsightsModel: Equatable {
 
 struct ExerciseDetailSession: Equatable, Identifiable {
     let id: String
+    let workoutID: UUID?
     let date: String
     let summary: String
     let sets: [ExerciseDetailSet]
+
+    init(
+        id: String,
+        workoutID: UUID? = nil,
+        date: String,
+        summary: String,
+        sets: [ExerciseDetailSet]
+    ) {
+        self.id = id
+        self.workoutID = workoutID
+        self.date = date
+        self.summary = summary
+        self.sets = sets
+    }
 }
 
 struct ExerciseDetailSet: Equatable, Identifiable {

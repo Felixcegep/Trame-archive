@@ -337,6 +337,73 @@ enum ExerciseSeedData {
             ),
 
             Exercise(
+                name: "Side Plank",
+                primaryMuscles: [.obliques, .gluteMedius],
+                secondaryMuscles: [.transverseAbdominis],
+                trackingType: .duration,
+                equipmentType: .bodyweight,
+                resistanceType: .bodyweight,
+                movementPattern: .antiRotation,
+                difficulty: .beginner,
+                tags: ["pelvic-stability", "rehabilitation"]
+            ),
+
+            Exercise(
+                name: "Clamshell",
+                primaryMuscles: [.gluteMedius, .abductors],
+                trackingType: .repsOnly,
+                equipmentType: .bodyweight,
+                resistanceType: .bodyweight,
+                movementPattern: .isolation,
+                difficulty: .beginner,
+                tags: ["hip-stability", "rehabilitation"]
+            ),
+
+            Exercise(
+                name: "Pelvic Tilt",
+                primaryMuscles: [.transverseAbdominis],
+                secondaryMuscles: [.gluteMaximus],
+                trackingType: .repsOnly,
+                equipmentType: .bodyweight,
+                resistanceType: .bodyweight,
+                movementPattern: .antiRotation,
+                difficulty: .beginner,
+                tags: ["mobility", "rehabilitation"]
+            ),
+
+            Exercise(
+                name: "Bird Dog",
+                primaryMuscles: [.transverseAbdominis, .gluteMaximus],
+                secondaryMuscles: [.erectorSpinae],
+                trackingType: .repsOnly,
+                equipmentType: .bodyweight,
+                resistanceType: .bodyweight,
+                movementPattern: .antiRotation,
+                difficulty: .beginner,
+                tags: ["pelvic-stability", "rehabilitation"]
+            ),
+
+            Exercise(
+                name: "Glute Bridge",
+                primaryMuscles: [.gluteMaximus],
+                secondaryMuscles: [.hamstrings],
+                equipmentType: .bodyweight,
+                resistanceType: .bodyweight,
+                movementPattern: .hinge,
+                difficulty: .beginner,
+                tags: ["bilateral", "rehabilitation"]
+            ),
+
+            Exercise(
+                name: "Seated Calf Raise",
+                primaryMuscles: [.calves],
+                equipmentType: .machine,
+                resistanceType: .machine,
+                movementPattern: .isolation,
+                difficulty: .beginner
+            ),
+
+            Exercise(
                 name: "Treadmill Run",
                 primaryMuscles: [.quadriceps, .hamstrings, .calves],
                 secondaryMuscles: [.gluteMaximus],

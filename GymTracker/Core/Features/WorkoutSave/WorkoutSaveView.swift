@@ -33,6 +33,15 @@ struct WorkoutSaveView: View {
         .toolbarBackground(WorkoutPalette.background, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    isNotesFocused = false
+                }
+                .accessibilityIdentifier("dismiss-review-notes-keyboard")
+            }
+        }
     }
 
     private func saveReview(for workout: Workout) -> some View {
@@ -174,6 +183,7 @@ struct WorkoutSaveView: View {
             .padding(.bottom, 98)
         }
         .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
         .background(WorkoutPalette.background)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: Spacing.md) {

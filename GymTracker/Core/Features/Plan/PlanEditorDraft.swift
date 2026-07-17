@@ -1,6 +1,7 @@
 import SwiftData
 import SwiftUI
 
+@MainActor
 struct PlanEditorDraft {
     var name: String
     var goal: PlanGoal
@@ -77,6 +78,7 @@ extension PlanEditorDraft {
     }
 }
 
+@MainActor
 struct PlanBlockDraft: Identifiable {
     let id: UUID
     let orderIndex: Int
@@ -124,6 +126,7 @@ struct PlanBlockDraft: Identifiable {
     }
 }
 
+@MainActor
 struct PlanWeekDraft: Identifiable {
     let id: UUID
     let weekIndex: Int
@@ -136,6 +139,7 @@ struct PlanWeekDraft: Identifiable {
     }
 }
 
+@MainActor
 struct PlanWorkoutDraft: Identifiable {
     let id: UUID
     var name: String
@@ -150,6 +154,7 @@ struct PlanWorkoutDraft: Identifiable {
     }
 }
 
+@MainActor
 struct PlanExerciseDraft: Identifiable {
     let id: UUID
     let existingID: UUID?

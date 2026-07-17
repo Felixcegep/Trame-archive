@@ -526,7 +526,7 @@ final class WorkoutIntegrityTests: XCTestCase {
             return XCTFail("Expected an insufficient-history presentation")
         }
 
-        eligible.prescribedProgressionRule = .none
+        eligible.prescribedProgressionRule = ProgressionRule.none
         XCTAssertNil(RecommendationPresentationState(entry: eligible))
     }
 

@@ -8,6 +8,7 @@
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
 struct SettingView: View {
     @Environment(\.modelContext) private var modelContext
@@ -20,6 +21,17 @@ struct SettingView: View {
     @State private var importErrorMessage: String? = nil
     @State private var isShowingImportError = false
     @State private var didHandleUITestImport = false
+    @State private var reminderAuthorization: UNAuthorizationStatus = .notDetermined
+    @State private var reminderErrorMessage: String?
+    @State private var remindersEnabled = UserDefaults.standard.bool(forKey: DefaultsKey.planRemindersEnabled)
+    @State private var reminderTime = Calendar.current.date(
+        bySettingHour: UserDefaults.standard.object(forKey: DefaultsKey.planReminderHour) == nil
+            ? 9
+            : UserDefaults.standard.integer(forKey: DefaultsKey.planReminderHour),
+        minute: UserDefaults.standard.integer(forKey: DefaultsKey.planReminderMinute),
+        second: 0,
+        of: .now
+    ) ?? .now
 
     var body: some View {
         Form {
@@ -41,6 +53,8 @@ struct SettingView: View {
                 }
                 .accessibilityIdentifier("settings-rest-duration")
             }
+
+            workoutRemindersSection
 
             Section("Backup & Restore") {
                 if let url = exportURL() {
@@ -128,6 +142,69 @@ struct SettingView: View {
                     showImportError("This backup could not be read. \(error.localizedDescription)")
                 }
             }
+        }
+        .task {
+            reminderAuthorization = await PlanNotificationScheduler.shared.authorizationStatus()
+        }
+        .alert("Reminder Error", isPresented: Binding(
+            get: { reminderErrorMessage != nil },
+            set: { if !$0 { reminderErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(reminderErrorMessage ?? "Workout reminders could not be enabled.")
+        }
+    }
+
+    @MainActor
+    private func setPlanRemindersEnabled(_ enabled: Bool) async {
+        if enabled {
+            guard await PlanNotificationScheduler.shared.enable() else {
+                remindersEnabled = false
+                reminderAuthorization = await PlanNotificationScheduler.shared.authorizationStatus()
+                reminderErrorMessage = reminderAuthorization == .denied
+                    ? "Allow notifications in System Settings to receive workout reminders."
+                    : "Workout reminders could not be enabled."
+                return
+            }
+            reminderAuthorization = await PlanNotificationScheduler.shared.authorizationStatus()
+            await PlanNotificationScheduler.shared.reconcile(using: modelContext)
+        } else {
+            remindersEnabled = false
+            PlanNotificationScheduler.shared.disable()
+        }
+    }
+
+    private var workoutRemindersSection: some View {
+        Section {
+            Toggle("Scheduled workout reminders", isOn: Binding(
+                get: { remindersEnabled },
+                set: { enabled in
+                    remindersEnabled = enabled
+                    Task { await setPlanRemindersEnabled(enabled) }
+                }
+            ))
+
+            if remindersEnabled {
+                DatePicker("Reminder time", selection: $reminderTime, displayedComponents: .hourAndMinute)
+                    .onChange(of: reminderTime) { _, newValue in
+                        PlanNotificationScheduler.shared.setReminderTime(newValue)
+                    }
+            }
+
+            if reminderAuthorization == .denied {
+                Text("Notifications are disabled in System Settings.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(.secondary)
+                Button("Open System Settings") {
+                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                    UIApplication.shared.open(url)
+                }
+            }
+        } header: {
+            Text("Workout Reminders")
+        } footer: {
+            Text("GymTracker schedules reminders only for future workouts in your active program.")
         }
     }
 

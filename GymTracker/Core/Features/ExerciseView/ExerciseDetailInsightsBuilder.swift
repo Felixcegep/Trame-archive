@@ -102,6 +102,7 @@ enum ExerciseDetailInsightsBuilder {
 
         return ExerciseDetailSession(
             id: id,
+            workoutID: session.workoutID,
             date: session.workoutDate.formatted(date: .abbreviated, time: .omitted),
             summary: "\(session.sets.count) sets · \(Formatters.formatFloat(bestLoad)) \(unit?.rawValue ?? "kg") best",
             sets: session.sets.map {

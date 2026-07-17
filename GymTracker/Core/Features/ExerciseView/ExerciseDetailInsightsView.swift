@@ -1,8 +1,9 @@
 import Charts
+import SwiftData
 import SwiftUI
 
 struct ExerciseDetailInsightsView: View {
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     let model: ExerciseDetailInsightsModel
 
     var body: some View {
@@ -16,19 +17,6 @@ struct ExerciseDetailInsightsView: View {
         .background(Color.gymBackground.ignoresSafeArea())
         .navigationTitle(model.exerciseName)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Label("Back", systemImage: "chevron.left")
-                        .labelStyle(.iconOnly)
-                }
-                .accessibilityLabel("Back")
-                .accessibilityIdentifier("exercise-insights-back")
-            }
-        }
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("exercise-insights-screen", label: "Exercise insights")
         }
@@ -104,7 +92,23 @@ struct ExerciseDetailInsightsView: View {
         identifier: String
     ) -> some View {
         insightSection(title: title, identifier: identifier) {
-            InsightCard {
+            if let workoutID = session.workoutID,
+               let workout = completedWorkout(id: workoutID) {
+                NavigationLink {
+                    HistoryWorkoutView(workout: workout)
+                } label: {
+                    sessionCard(session)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens the completed workout in History")
+            } else {
+                sessionCard(session)
+            }
+        }
+    }
+
+    private func sessionCard(_ session: ExerciseDetailSession) -> some View {
+        InsightCard {
                 HStack(alignment: .firstTextBaseline) {
                     Text(session.date)
                         .font(AppFont.subheadlineSemibold)
@@ -134,6 +138,11 @@ struct ExerciseDetailInsightsView: View {
                     }
                 }
             }
+    }
+
+    private func completedWorkout(id: UUID) -> Workout? {
+        try? modelContext.fetch(FetchDescriptor<Workout>()).first {
+            $0.id == id && $0.status == .completed
         }
     }
 

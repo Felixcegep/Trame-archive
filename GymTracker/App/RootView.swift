@@ -60,6 +60,19 @@ struct RootView: View {
                     switch route {
                     case .archivedExercises:
                         ArchivedExercisesView()
+                    case .plan(let planID):
+                        if let plan = plan(id: planID) {
+                            PlanDetailView(
+                                plan: plan,
+                                onStartPlannedWorkout: startPlannedWorkout
+                            )
+                        } else {
+                            ContentUnavailableView(
+                                "Program unavailable",
+                                systemImage: AppIcon.warning,
+                                description: Text("This program may have been removed or replaced.")
+                            )
+                        }
                     }
                 }
             }
@@ -183,6 +196,7 @@ struct RootView: View {
             seedExerciseTemplatesIfNeeded()
             seedWorkoutTemplatesIfNeeded()
             seedWorkoutCollectionsIfNeeded()
+            seedWorkoutPlansIfNeeded()
             normalizePersistedWorkoutData()
             if fixture == nil || fixture?.refreshesPlanRunAvailability == true {
                 refreshActivePlanRuns()
@@ -218,6 +232,7 @@ struct RootView: View {
                 workoutVM.restoreActiveWorkout(using: modelContext)
             }
             isPreparingApp = false
+            await PlanNotificationScheduler.shared.reconcile(using: modelContext)
         }
         .onReceive(NotificationCenter.default.publisher(for: .gymDataRestored)) { _ in
             homePath = []
@@ -225,6 +240,15 @@ struct RootView: View {
             plannedWorkoutToStart = nil
             isShowingActiveWorkout = false
             workoutVM.restoreActiveWorkout(using: modelContext)
+            Task { await PlanNotificationScheduler.shared.reconcile(using: modelContext) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .planScheduleDidChange)) { _ in
+            Task { await PlanNotificationScheduler.shared.reconcile(using: modelContext) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .planNotificationOpened)) { notification in
+            guard let destination = notification.object as? PlanNotificationDestination else { return }
+            selectedTab = .library
+            libraryPath = [.plan(destination.planID)]
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .background {
@@ -233,8 +257,15 @@ struct RootView: View {
                 } catch {
                     print("Failed to save modelContext on backgrounding: \(error)")
                 }
+            } else if newPhase == .active {
+                workoutVM.reconcileLiveActivity()
+                Task { await PlanNotificationScheduler.shared.reconcile(using: modelContext) }
             }
         }
+    }
+
+    private func plan(id: UUID) -> WorkoutPlan? {
+        try? modelContext.fetch(FetchDescriptor<WorkoutPlan>()).first { $0.id == id }
     }
 
     private func seedExerciseTemplatesIfNeeded() {
@@ -308,6 +339,19 @@ struct RootView: View {
             try modelContext.save()
         } catch {
             print("Failed to seed workout collections: \(error)")
+        }
+    }
+
+    private func seedWorkoutPlansIfNeeded() {
+        do {
+            let plans = try modelContext.fetch(FetchDescriptor<WorkoutPlan>())
+            guard !plans.contains(where: { $0.name == SacroiliacRehabPlanSeedData.planName }) else { return }
+            let exercises = try modelContext.fetch(FetchDescriptor<Exercise>())
+            guard let plan = SacroiliacRehabPlanSeedData.makePlan(using: exercises) else { return }
+            modelContext.insert(plan)
+            try modelContext.save()
+        } catch {
+            print("Failed to seed sacroiliac rehabilitation plan: \(error)")
         }
     }
 

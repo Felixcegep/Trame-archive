@@ -78,25 +78,21 @@ struct ExerciseView : View {
                 }
             }
 
-            Section("Actions") {
-                Button {
-                    showExerciseHistory()
-                } label: {
-                    Label("Exercise History", systemImage: "clock.arrow.circlepath")
+            if editableExercise != nil {
+                Section("Performance") {
+                    Button {
+                        showExerciseStats()
+                    } label: {
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Label("View Performance", systemImage: AppIcon.chart)
+                                .font(AppFont.subheadlineSemibold)
+                            Text("History, estimated 1RM, volume, records, notes, and progression")
+                                .font(AppFont.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .accessibilityIdentifier("exercise-stats")
                 }
-
-                Button {
-                    showOneRepMax()
-                } label: {
-                    Label("1RM", systemImage: "chart.line.uptrend.xyaxis")
-                }
-
-                Button {
-                    showExerciseStats()
-                } label: {
-                    Label("Exercise Stats", systemImage: "chart.bar")
-                }
-                .accessibilityIdentifier("exercise-stats")
             }
 
             Section("Primary Muscles") {
@@ -160,18 +156,10 @@ struct ExerciseView : View {
         }
     }
 
-    private func showExerciseHistory() {
-        // Placeholder for the future exercise-specific history screen.
-    }
-
     private func toggleFavorite() {
         guard let editableExercise else { return }
         editableExercise.isFavorite.toggle()
         saveModelContext(modelContext)
-    }
-
-    private func showOneRepMax() {
-        // Placeholder for the future 1RM screen.
     }
 
     private func showExerciseStats() {

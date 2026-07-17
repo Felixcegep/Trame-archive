@@ -1,7 +1,11 @@
+import SwiftData
 import SwiftUI
 
 struct PlanCalendarView: View {
+    @Environment(\.modelContext) private var modelContext
     let run: PlanRun
+
+    @State private var selectedEntry: PlanCalendarEntry?
 
     private var weeks: [PlanCalendarWeek] {
         PlanCalendarBuilder.weeks(for: run.orderedWorkoutProgress)
@@ -29,7 +33,11 @@ struct PlanCalendarView: View {
                     }
 
                     if !week.unscheduledEntries.isEmpty {
-                        PlanCalendarUnscheduledRow(entries: week.unscheduledEntries)
+                        ForEach(week.unscheduledEntries) { entry in
+                            PlanCalendarUnscheduledRow(entry: entry) {
+                                selectedEntry = entry
+                            }
+                        }
                     }
                 }
             }
@@ -40,6 +48,12 @@ struct PlanCalendarView: View {
         .navigationTitle("Schedule")
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("plan-calendar-screen", label: "Program schedule")
+        }
+        .sheet(item: $selectedEntry) { entry in
+            ScheduleUnscheduledWorkoutSheet(entry: entry) { date in
+                guard let progress = progress(for: entry) else { return false }
+                return PlanCoordinator.reschedule(progress, to: date, in: run, using: modelContext)
+            }
         }
     }
 
@@ -52,6 +66,10 @@ struct PlanCalendarView: View {
             ? first.formatted(date: .abbreviated, time: .omitted)
             : "\(first.formatted(.dateTime.month(.abbreviated).day())) – \(last.formatted(.dateTime.month(.abbreviated).day()))"
         return "Week \(week.weekIndex + 1) · \(range)"
+    }
+
+    private func progress(for entry: PlanCalendarEntry) -> PlanWorkoutProgress? {
+        run.orderedWorkoutProgress.first { $0.id == entry.id }
     }
 }
 
@@ -98,17 +116,56 @@ private struct PlanCalendarDayRow: View {
 }
 
 private struct PlanCalendarUnscheduledRow: View {
-    let entries: [PlanCalendarEntry]
+    let entry: PlanCalendarEntry
+    let onSchedule: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text("Unscheduled")
-                .font(AppFont.subheadlineSemibold)
-            Text(entries.map(\.workoutName).joined(separator: " · "))
-                .font(AppFont.caption)
-                .foregroundStyle(.secondary)
+        Button(action: onSchedule) {
+            HStack {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(entry.workoutName)
+                        .font(AppFont.subheadlineSemibold)
+                    Text("Unscheduled · Tap to choose a date")
+                        .font(AppFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: AppIcon.reschedule)
+                    .foregroundStyle(Color.gymPrimary)
+            }
         }
+        .buttonStyle(.plain)
         .padding(.vertical, Spacing.xs)
+    }
+}
+
+private struct ScheduleUnscheduledWorkoutSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let entry: PlanCalendarEntry
+    let onSave: (Date) -> Bool
+    @State private var date = Date.now
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                DatePicker("Scheduled date", selection: $date, displayedComponents: .date)
+                if let errorMessage {
+                    Text(errorMessage).foregroundStyle(Color.gymDestructive)
+                }
+            }
+            .navigationTitle("Schedule Workout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Schedule") {
+                        if onSave(date) { dismiss() }
+                        else { errorMessage = "The schedule could not be saved. Try again." }
+                    }
+                }
+            }
+        }
     }
 }
 

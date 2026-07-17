@@ -83,6 +83,7 @@ class WorkoutViewModel {
         }
 
         self.activeWorkout = nil
+        NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         Task {
             await LiveActivityManager.shared.end()
         }
@@ -97,6 +98,7 @@ class WorkoutViewModel {
         do {
             try modelContext.save()
             workout = nil
+            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         } catch {
             modelContext.rollback()
             self.activeWorkout = try? modelContext.fetch(FetchDescriptor<Workout>())
@@ -145,6 +147,7 @@ class WorkoutViewModel {
             PlanCoordinator.restoreAvailability(progress, in: planRun)
             return false
         }
+        NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         return true
     }
 
@@ -158,11 +161,12 @@ class WorkoutViewModel {
 
             guard let activeWorkout = activeWorkouts.first else {
                 self.activeWorkout = nil
+                Task { await LiveActivityManager.shared.endOrphanedActivities() }
                 return false
             }
 
             self.activeWorkout = activeWorkout
-            LiveActivityManager.shared.startWorkout(startTime: activeWorkout.startTime)
+            reconcileLiveActivity()
             return true
         } catch {
             print("Failed to restore active workout: \(error)")
@@ -175,12 +179,34 @@ class WorkoutViewModel {
         do {
             try modelContext.save()
             activeWorkout = workout
-            LiveActivityManager.shared.startWorkout(startTime: workout.startTime)
+            reconcileLiveActivity()
             return true
         } catch {
             modelContext.rollback()
             print("Failed to start workout: \(error)")
             return false
+        }
+    }
+
+    func reconcileLiveActivity() {
+        guard let workout = activeWorkout else {
+            Task { await LiveActivityManager.shared.endOrphanedActivities() }
+            return
+        }
+        let next = workout.orderedExercises.lazy.compactMap { exercise -> (ExerciseEntry, Int)? in
+            guard let index = exercise.orderedSets.firstIndex(where: { !$0.done }) else { return nil }
+            return (exercise, index)
+        }.first
+
+        Task {
+            await LiveActivityManager.shared.reconcile(
+                workoutID: workout.id,
+                startTime: workout.startTime,
+                exerciseName: next?.0.exercise.name,
+                currentSet: next.map { $0.1 + 1 },
+                totalSets: next?.0.orderedSets.count,
+                restEndDate: workout.restEndDate
+            )
         }
     }
 

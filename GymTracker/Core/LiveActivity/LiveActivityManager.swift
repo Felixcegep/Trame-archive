@@ -1,132 +1,116 @@
-//
-//  LiveActivityManager.swift
-//  GymTracker
-//
-//  Created by Felix Lachapelle on 2026-07-05.
-//
-
 import ActivityKit
 import Foundation
-final class LiveActivityManager {
 
+/// Owns the one system Live Activity that represents GymTracker's one active
+/// workout. Every operation is idempotent so foregrounding and relaunch can
+/// safely reconcile persisted workout truth with ActivityKit state.
+@MainActor
+final class LiveActivityManager {
     static let shared = LiveActivityManager()
 
-    
     private var activity: Activity<GymTrackerAttributes>?
+    private var workoutID: UUID?
     private var currentExerciseName: String?
-    private var currentSerie: Int?
-    private var totalSeries: Int?
+    private var currentSet: Int?
+    private var totalSets: Int?
 
     private init() {}
 
-    func startWorkout(startTime : Date) {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            print("Live Activities disabled")
+    func startWorkout(workoutID: UUID, startTime: Date) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        if let matching = Activity<GymTrackerAttributes>.activities.first(where: {
+            $0.attributes.workoutID == workoutID
+        }) {
+            activity = matching
+            self.workoutID = workoutID
+            endActivities(except: matching.id)
             return
         }
 
-        // A Live Activity survives process relaunch. Reuse it instead of
-        // requesting another activity for the same resumed workout.
-        if let existingActivity = Activity<GymTrackerAttributes>.activities.first {
-            activity = existingActivity
-            return
-        }
-
-        let attributes = GymTrackerAttributes(startTime: startTime)
-
-        let state = GymTrackerAttributes.ContentState(
-            currentExerciseName: currentExerciseName,
-            currentSerie: currentSerie,
-            totalSeries: totalSeries,
-            restTimeActive: false,
-            RestTime: nil
-        )
-
+        endActivities(except: nil)
+        let attributes = GymTrackerAttributes(workoutID: workoutID, startTime: startTime)
         do {
             activity = try Activity.request(
                 attributes: attributes,
-                content: ActivityContent(state: state, staleDate: nil)
+                content: ActivityContent(state: contentState(restEndDate: nil), staleDate: nil)
             )
-
-            print("Live Activity started")
+            self.workoutID = workoutID
         } catch {
-            print("Failed to start Live Activity:", error)
+            activity = nil
+            self.workoutID = nil
         }
     }
-    func updateExercise(
-        name: String,
-        currentSet: Int,
-        totalSets: Int
+
+    func reconcile(
+        workoutID: UUID,
+        startTime: Date,
+        exerciseName: String?,
+        currentSet: Int?,
+        totalSets: Int?,
+        restEndDate: Date?
     ) async {
-        currentExerciseName = name
-        currentSerie = currentSet
-        totalSeries = totalSets
-
-        let newState = GymTrackerAttributes.ContentState(
-            currentExerciseName: name,
-            currentSerie: currentSet,
-            totalSeries: totalSets,
-            restTimeActive: false,
-            RestTime: nil
-        )
-
-                let newContent = ActivityContent(
-                    state: newState,
-                    staleDate: nil
-                )
-
-        await activity?.update(newContent)
-
-                print("Live Activity updated")
-        
-        
+        self.currentExerciseName = exerciseName
+        self.currentSet = currentSet
+        self.totalSets = totalSets
+        startWorkout(workoutID: workoutID, startTime: startTime)
+        await update(restEndDate: restEndDate)
     }
 
-    func startPause(timerEndDate : Date) async {
-        // show the time left of the pause
-        let newState = GymTrackerAttributes.ContentState(
-            currentExerciseName: currentExerciseName,
-            currentSerie: currentSerie,
-            totalSeries: totalSeries,
-            restTimeActive: true,
-            RestTime: timerEndDate
-        )
+    func updateExercise(name: String, currentSet: Int, totalSets: Int) async {
+        currentExerciseName = name
+        self.currentSet = currentSet
+        self.totalSets = totalSets
+        await update(restEndDate: nil)
+    }
 
-                let newContent = ActivityContent(
-                    state: newState,
-                    staleDate: nil
-                )
-
-        await activity?.update(newContent)
-
-                print("Live Activity updated")
+    func startPause(timerEndDate: Date) async {
+        await update(restEndDate: timerEndDate)
     }
 
     func pausePause() async {
-        let newState = GymTrackerAttributes.ContentState(
-            currentExerciseName: currentExerciseName,
-            currentSerie: currentSerie,
-            totalSeries: totalSeries,
-            restTimeActive: false,
-            RestTime: nil
-        )
-
-        let newContent = ActivityContent(
-            state: newState,
-            staleDate: nil
-        )
-
-        await activity?.update(newContent)
-        print("Live Activity paused")
+        await update(restEndDate: nil)
     }
-    
+
     func end() async {
-        guard let activity = activity else { return }
-        await activity.end(nil, dismissalPolicy: .immediate)
-        self.activity = nil
+        let activities = Activity<GymTrackerAttributes>.activities
+        for item in activities {
+            await item.end(nil, dismissalPolicy: .immediate)
+        }
+        activity = nil
+        workoutID = nil
         currentExerciseName = nil
-        currentSerie = nil
-        totalSeries = nil
-        print("Live Activity ended")
+        currentSet = nil
+        totalSets = nil
+    }
+
+    func endOrphanedActivities() async {
+        await end()
+    }
+
+    private func update(restEndDate: Date?) async {
+        guard let activity else { return }
+        let state = contentState(restEndDate: restEndDate)
+        await activity.update(ActivityContent(state: state, staleDate: restEndDate))
+    }
+
+    private func contentState(restEndDate: Date?) -> GymTrackerAttributes.ContentState {
+        GymTrackerAttributes.ContentState(
+            currentExerciseName: currentExerciseName,
+            currentSerie: currentSet,
+            totalSeries: totalSets,
+            restTimeActive: restEndDate != nil,
+            RestTime: restEndDate
+        )
+    }
+
+    private func endActivities(except keptID: String?) {
+        let stale = Activity<GymTrackerAttributes>.activities.filter { $0.id != keptID }
+        guard !stale.isEmpty else { return }
+        Task {
+            for item in stale {
+                await item.end(nil, dismissalPolicy: .immediate)
+            }
+        }
     }
 }

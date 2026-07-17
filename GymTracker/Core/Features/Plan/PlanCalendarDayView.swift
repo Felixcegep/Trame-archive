@@ -9,6 +9,8 @@ struct PlanCalendarDayView: View {
 
     @State private var reschedulingEntry: PlanCalendarEntry?
     @State private var rescheduleDate = Date.now
+    @State private var entryToSkip: PlanCalendarEntry?
+    @State private var errorMessage: String?
 
     private var entries: [PlanCalendarEntry] {
         let progressIDs = Set(day.entries.map(\.id))
@@ -57,13 +59,23 @@ struct PlanCalendarDayView: View {
                                 .buttonStyle(.bordered)
                                 .accessibilityIdentifier("calendar-reschedule-\(entry.id)")
 
-                                if entry.displayState == .available {
-                                    Button("Skip", role: .destructive) {
-                                        _ = PlanCoordinator.skip(progress, in: run, using: modelContext)
+                                Menu {
+                                    Button("Unschedule", systemImage: "calendar.badge.minus") {
+                                        guard PlanCoordinator.unschedule(progress, in: run, using: modelContext) else {
+                                            errorMessage = "The workout could not be unscheduled. Try again."
+                                            return
+                                        }
                                     }
-                                    .buttonStyle(.bordered)
-                                    .accessibilityIdentifier("calendar-skip-\(entry.id)")
+
+                                    if entry.displayState == .available {
+                                        Button("Skip", systemImage: "forward.end", role: .destructive) {
+                                            entryToSkip = entry
+                                        }
+                                    }
+                                } label: {
+                                    Label("More", systemImage: "ellipsis.circle")
                                 }
+                                    .buttonStyle(.bordered)
                             }
                         }
                     }
@@ -82,11 +94,48 @@ struct PlanCalendarDayView: View {
             RescheduleCalendarWorkoutSheet(
                 entry: entry,
                 date: $rescheduleDate,
-                onSave: { date in
-                    guard let progress = progress(for: entry) else { return }
-                    _ = PlanCoordinator.reschedule(progress, to: date, in: run, using: modelContext)
+                onSave: { date, shiftRemaining in
+                    guard let progress = progress(for: entry) else { return false }
+                    if shiftRemaining {
+                        return PlanCoordinator.rescheduleRemaining(
+                            from: progress,
+                            to: date,
+                            in: run,
+                            using: modelContext
+                        )
+                    }
+                    return PlanCoordinator.reschedule(progress, to: date, in: run, using: modelContext)
                 }
             )
+        }
+        .confirmationDialog(
+            "Skip this workout?",
+            isPresented: Binding(
+                get: { entryToSkip != nil },
+                set: { if !$0 { entryToSkip = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Skip Workout", role: .destructive) {
+                guard let entry = entryToSkip else { return }
+                guard let progress = progress(for: entry),
+                      PlanCoordinator.skip(progress, in: run, using: modelContext)
+                else {
+                    errorMessage = "The workout could not be skipped. Try again."
+                    return
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The workout will remain visible in the program schedule as skipped.")
+        }
+        .alert("Schedule Error", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "The schedule could not be updated.")
         }
     }
 
@@ -108,26 +157,39 @@ private struct RescheduleCalendarWorkoutSheet: View {
 
     let entry: PlanCalendarEntry
     @Binding var date: Date
-    let onSave: (Date) -> Void
+    let onSave: (Date, Bool) -> Bool
+    @State private var shiftRemaining = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     DatePicker("Scheduled date", selection: $date, displayedComponents: .date)
+                    Toggle("Shift remaining workouts", isOn: $shiftRemaining)
                 } header: {
                     Text(entry.workoutName)
                 }
 
                 Section {
                     Button("Save new date") {
-                        onSave(date)
-                        dismiss()
+                        if onSave(date, shiftRemaining) {
+                            dismiss()
+                        } else {
+                            errorMessage = "The schedule could not be saved. Try again."
+                        }
                     }
                     .accessibilityIdentifier("calendar-confirm-reschedule")
 
                     Button("Cancel", role: .cancel) {
                         dismiss()
+                    }
+                }
+
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundStyle(Color.gymDestructive)
                     }
                 }
             }

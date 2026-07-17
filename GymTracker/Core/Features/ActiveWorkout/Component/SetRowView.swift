@@ -18,6 +18,9 @@ struct SetRowView: View {
     @State private var isShowingSetDetails = false
     @State private var completionValidationMessage: String?
     @State private var isShowingIncompleteConfirmation = false
+    @State private var countdownEndDate: Date?
+    @State private var pausedCountdownRemaining: TimeInterval?
+    @State private var countdownFinished = false
 
     private var trackingType: TrackingType {
         exerciseEntry.exercise.trackingType
@@ -36,6 +39,10 @@ struct SetRowView: View {
 
                 doneButton
                 rowMenu
+            }
+
+            if trackingType.usesDuration, !exerciseSet.done {
+                durationCountdownControls
             }
 
             if let completionValidationMessage {
@@ -83,6 +90,9 @@ struct SetRowView: View {
         .sensoryFeedback(.success, trigger: exerciseSet.done) { _, newValue in
             newValue
         }
+        .sensoryFeedback(.success, trigger: countdownFinished) { _, newValue in
+            newValue
+        }
         .confirmationDialog(
             "Mark this set incomplete?",
             isPresented: $isShowingIncompleteConfirmation,
@@ -91,6 +101,19 @@ struct SetRowView: View {
             Button("Mark set incomplete", role: .destructive, action: markIncomplete)
         } message: {
             Text("Its logged values will stay in place and become editable.")
+        }
+        .onAppear {
+            synchronizeIncompleteSetUnits()
+            prefillPrescribedDurationIfNeeded()
+        }
+        .task(id: countdownEndDate) {
+            guard let countdownEndDate else { return }
+            let delay = max(0, countdownEndDate.timeIntervalSinceNow)
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, self.countdownEndDate == countdownEndDate else { return }
+            self.countdownEndDate = nil
+            pausedCountdownRemaining = 0
+            countdownFinished = true
         }
     }
 
@@ -122,7 +145,7 @@ struct SetRowView: View {
                     }
                     viewModel.persistChanges()
                 }
-            ), prompt: Text(previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? "—"))
+            ), prompt: Text(previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? "0"))
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
             .font(AppFont.titleSmallSemiboldMonospaced)
@@ -130,20 +153,6 @@ struct SetRowView: View {
             .accessibilityIdentifier("weight-field-\(exerciseEntry.exercise.name)-\(index)")
             .disabled(isCompletedAndLocked)
 
-            if exerciseEntry.exercise.supportsPlateCalculator {
-                Button {
-                    isShowingPlateCalculator = true
-                } label: {
-                    Image(systemName: AppIcon.plateCalculator)
-                        .font(AppFont.captionBold)
-                        .frame(width: 30, height: 30)
-                }
-                .buttonStyle(.borderless)
-                .foregroundStyle(WorkoutPalette.primary)
-                .accessibilityLabel("Open plate calculator")
-                .accessibilityIdentifier("plate-calculator-\(exerciseEntry.exercise.name)")
-                .disabled(isCompletedAndLocked)
-            }
         }
         .frame(maxWidth: .infinity)
         .padding(.leading, Spacing.xs)
@@ -167,7 +176,7 @@ struct SetRowView: View {
     }
 
     private var durationField: some View {
-        numberField("Seconds", text: Binding(
+        numberFieldWithUnit("Seconds", unit: "sec", text: Binding(
                 get: {
                     if (exerciseSet.duration ?? 0) == 0 { return "" }
                     return exerciseSet.duration.map { String(Int($0)) } ?? ""
@@ -177,7 +186,60 @@ struct SetRowView: View {
                 viewModel.persistChanges()
             }
         ), focusID: setFocus, prompt: previousSet?.duration.map { String(Int($0)) })
-        .disabled(isCompletedAndLocked)
+        .accessibilityIdentifier("duration-field-\(exerciseEntry.exercise.name)-\(index)")
+        .disabled(isCompletedAndLocked || countdownEndDate != nil)
+    }
+
+    private var durationCountdownControls: some View {
+        HStack(spacing: Spacing.s) {
+            Label("Set timer", systemImage: AppIcon.timer)
+                .font(AppFont.captionBold)
+                .foregroundStyle(WorkoutPalette.subduedText)
+
+            Spacer(minLength: 0)
+
+            if countdownFinished {
+                Text("Time complete")
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(WorkoutPalette.secondary)
+
+                Button("Reset", action: resetCountdown)
+                    .buttonStyle(.borderless)
+            } else if let countdownEndDate {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text(countdownText(at: context.date, endDate: countdownEndDate))
+                        .font(AppFont.subheadlineSemiboldMonospaced)
+                        .foregroundStyle(WorkoutPalette.primary)
+                        .contentTransition(.numericText())
+                }
+
+                Button("Pause", action: pauseCountdown)
+                    .buttonStyle(.borderless)
+                Button("Reset", action: resetCountdown)
+                    .buttonStyle(.borderless)
+            } else if let pausedCountdownRemaining, pausedCountdownRemaining > 0 {
+                Text(formatCountdown(pausedCountdownRemaining))
+                    .font(AppFont.subheadlineSemiboldMonospaced)
+                    .foregroundStyle(WorkoutPalette.accent)
+
+                Button("Resume", action: resumeCountdown)
+                    .buttonStyle(.borderless)
+                Button("Reset", action: resetCountdown)
+                    .buttonStyle(.borderless)
+            } else {
+                Button {
+                    startCountdown()
+                } label: {
+                    Label("Start \(countdownTargetSeconds) sec", systemImage: AppIcon.play)
+                }
+                .buttonStyle(.borderless)
+                .disabled(countdownTargetSeconds <= 0)
+                .accessibilityIdentifier("start-countdown-\(exerciseEntry.exercise.name)-\(index)")
+            }
+        }
+        .font(AppFont.captionBold)
+        .padding(.leading, 45)
+        .accessibilityElement(children: .contain)
     }
 
     private var distanceField: some View {
@@ -261,35 +323,53 @@ struct SetRowView: View {
     }
 
     private var rowMenu: some View {
-        Menu {
+        Group {
             if exerciseSet.done {
                 Button {
                     editingCompletedSetID = isCompletedAndLocked ? exerciseSet.persistentModelID : nil
                 } label: {
-                    Label(isCompletedAndLocked ? "Edit completed set" : "Lock completed set", systemImage: isCompletedAndLocked ? AppIcon.edit : AppIcon.lock)
+                    Image(systemName: isCompletedAndLocked ? AppIcon.edit : AppIcon.checkmark)
+                    .font(AppFont.subheadlineBold)
+                    .foregroundStyle(isCompletedAndLocked ? WorkoutPalette.primary : WorkoutPalette.secondary)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        (isCompletedAndLocked ? WorkoutPalette.primary : WorkoutPalette.secondary).opacity(0.1),
+                        in: Circle()
+                    )
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(isCompletedAndLocked ? "Edit completed set" : "Finish editing completed set")
+                .accessibilityHint("The completion checkmark marks this set incomplete")
                 .accessibilityIdentifier("edit-completed-set-\(exerciseEntry.exercise.name)-\(index)")
+            } else {
+                Menu {
+                    if exerciseEntry.exercise.supportsPlateCalculator {
+                        Button {
+                            isShowingPlateCalculator = true
+                        } label: {
+                            Label("Plate calculator", systemImage: AppIcon.plateCalculator)
+                        }
+                        .accessibilityIdentifier("plate-calculator-\(exerciseEntry.exercise.name)")
+                    }
 
-                Button("Mark set incomplete", role: .destructive) {
-                    isShowingIncompleteConfirmation = true
+                    Button {
+                        isShowingSetDetails = true
+                    } label: {
+                        Label("Set details", systemImage: AppIcon.ellipsis)
+                    }
+                } label: {
+                    Image(systemName: AppIcon.ellipsis)
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(WorkoutPalette.subduedText)
+                        .frame(width: 20, height: 28)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Set actions")
+                .accessibilityIdentifier("set-menu-\(exerciseEntry.exercise.name)-\(index)")
             }
-
-            Button {
-                isShowingSetDetails = true
-            } label: {
-                Label("Set details", systemImage: AppIcon.ellipsis)
-            }
-        } label: {
-            Image(systemName: isCompletedAndLocked ? AppIcon.lock : AppIcon.ellipsis)
-                .font(AppFont.captionBold)
-                .foregroundStyle(WorkoutPalette.subduedText)
-                .frame(width: 20, height: 28)
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.borderless)
-        .accessibilityLabel(isCompletedAndLocked ? "Completed set actions, locked" : "Set actions")
-        .accessibilityIdentifier("set-menu-\(exerciseEntry.exercise.name)-\(index)")
         .sheet(isPresented: $isShowingSetDetails, onDismiss: {
             viewModel.persistChanges()
         }) {
@@ -349,6 +429,129 @@ struct SetRowView: View {
                 RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
                     .stroke(WorkoutPalette.border, lineWidth: 1)
             }
+    }
+
+    private func numberFieldWithUnit(
+        _ title: LocalizedStringKey,
+        unit: LocalizedStringKey,
+        text: Binding<String>,
+        focusID: SetInputFocus,
+        prompt: String? = nil
+    ) -> some View {
+        HStack(spacing: Spacing.xxs) {
+            TextField(title, text: text, prompt: Text(prompt ?? "0"))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.center)
+                .font(AppFont.titleSmallSemiboldMonospaced)
+                .focused(focusedInput, equals: focusID)
+
+            Text(unit)
+                .font(AppFont.captionBold)
+                .foregroundStyle(WorkoutPalette.subduedText)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, Spacing.xs)
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 44)
+        .background(WorkoutPalette.surface.opacity(0.9))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                .stroke(WorkoutPalette.border, lineWidth: 1)
+        }
+    }
+
+    private var countdownTargetSeconds: Int {
+        max(0, Int(exerciseSet.duration ?? 0))
+    }
+
+    private func prefillPrescribedDurationIfNeeded() {
+        guard trackingType.usesDuration, (exerciseSet.duration ?? 0) <= 0 else { return }
+        let prescribedSeconds = exerciseEntry.prescribedRepRangeMaximum
+            ?? exerciseEntry.prescribedRepRangeMinimum
+            ?? 0
+        guard prescribedSeconds > 0 else { return }
+        exerciseSet.duration = TimeInterval(prescribedSeconds)
+        viewModel.persistChanges()
+    }
+
+    private func startCountdown() {
+        guard countdownTargetSeconds > 0 else {
+            completionValidationMessage = "Enter seconds before starting the timer."
+            focusedInput.wrappedValue = setFocus
+            return
+        }
+        focusedInput.wrappedValue = nil
+        completionValidationMessage = nil
+        countdownFinished = false
+        pausedCountdownRemaining = nil
+        countdownEndDate = Date.now.addingTimeInterval(TimeInterval(countdownTargetSeconds))
+    }
+
+    private func pauseCountdown() {
+        guard let countdownEndDate else { return }
+        pausedCountdownRemaining = max(0, countdownEndDate.timeIntervalSinceNow)
+        self.countdownEndDate = nil
+    }
+
+    private func resumeCountdown() {
+        guard let pausedCountdownRemaining, pausedCountdownRemaining > 0 else { return }
+        countdownFinished = false
+        countdownEndDate = Date.now.addingTimeInterval(pausedCountdownRemaining)
+        self.pausedCountdownRemaining = nil
+    }
+
+    private func resetCountdown() {
+        countdownEndDate = nil
+        pausedCountdownRemaining = nil
+        countdownFinished = false
+    }
+
+    private func countdownText(at date: Date, endDate: Date) -> String {
+        formatCountdown(max(0, endDate.timeIntervalSince(date)))
+    }
+
+    private func formatCountdown(_ seconds: TimeInterval) -> String {
+        let roundedSeconds = Int(ceil(seconds))
+        return String(format: "%d:%02d", roundedSeconds / 60, roundedSeconds % 60)
+    }
+
+    private func synchronizeIncompleteSetUnits() {
+        let preferredSystem = UserDefaults.standard.unitSystem
+        let preferredWeightType: WeightType = preferredSystem == .metric ? .kg : .lbs
+        let preferredDistanceType: DistanceType = preferredSystem == .metric ? .kilometers : .miles
+        var didChange = false
+
+        if exerciseSet.weightType != preferredWeightType {
+            exerciseSet.weight = UnitConversion.weight(
+                exerciseSet.weight,
+                from: exerciseSet.weightType,
+                to: preferredWeightType
+            )
+            exerciseSet.weightType = preferredWeightType
+            didChange = true
+        }
+
+        if exerciseSet.distanceType != preferredDistanceType {
+            if let distance = exerciseSet.distance {
+                exerciseSet.distance = UnitConversion.distance(
+                    distance,
+                    from: exerciseSet.distanceType,
+                    to: preferredDistanceType
+                )
+            }
+            exerciseSet.distanceType = preferredDistanceType
+            didChange = true
+        }
+
+        if exerciseSet.usedMetric != preferredSystem {
+            exerciseSet.usedMetric = preferredSystem
+            didChange = true
+        }
+
+        if didChange {
+            viewModel.persistChanges()
+        }
     }
 
     private func toggleDone() {

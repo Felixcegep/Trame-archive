@@ -36,6 +36,15 @@ struct PlanDetailView: View {
                 }
             }
 
+            if let notes = plan.notes, !notes.isEmpty {
+                Section("Safety & progression") {
+                    Text(notes)
+                        .font(AppFont.subheadline)
+                        .foregroundStyle(Color.gymText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             if let run = activeRun, let progress = nextProgress(in: run) {
                 Section("Current program") {
                     NavigationLink {
@@ -60,6 +69,7 @@ struct PlanDetailView: View {
                     Button("Pause Program") {
                         PlanCoordinator.pause(run)
                         saveModelContext(modelContext)
+                        NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
                     }
 
                     Button("Archive Program Run", role: .destructive) {
@@ -78,6 +88,7 @@ struct PlanDetailView: View {
                     Button("Resume Program") {
                         PlanCoordinator.resume(run)
                         saveModelContext(modelContext)
+                        NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
                     }
                     .accessibilityIdentifier("resume-plan")
 
@@ -102,25 +113,7 @@ struct PlanDetailView: View {
                 Section("Week \(week.weekIndex + 1)") {
                     ForEach(week.orderedPlannedWorkouts) { workout in
                         let progress = progress(for: workout)
-                        HStack(spacing: Spacing.s) {
-                            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                Text(workout.name)
-                                    .font(AppFont.subheadlineSemibold)
-                                Text("Day \(workout.dayOffset + 1) · \(workout.orderedPlannedExercises.count) exercises")
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(.secondary)
-                                if let scheduledDate = progress?.scheduledDate {
-                                    Text(scheduledDate.formatted(date: .abbreviated, time: .omitted))
-                                        .font(AppFont.caption)
-                                        .foregroundStyle(.secondary)
-                                        .accessibilityIdentifier("planned-workout-date-\(workout.id)")
-                                }
-                            }
-                            Spacer()
-                            if let progress {
-                                planWorkoutStatus(progress)
-                            }
-                        }
+                        planWorkoutRow(workout, progress: progress)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             if let progress,
                                let run = currentRun,
@@ -166,6 +159,7 @@ struct PlanDetailView: View {
                             guard let run = PlanCoordinator.startRun(for: plan, startDate: startDate) else { return }
                             modelContext.insert(run)
                             saveModelContext(modelContext)
+                            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
                             isShowingStartDate = false
                         }
                         .accessibilityIdentifier("confirm-start-plan")
@@ -213,6 +207,7 @@ struct PlanDetailView: View {
                 guard let run = currentRun else { return }
                 PlanCoordinator.archive(run)
                 saveModelContext(modelContext)
+                NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
             }
         } message: {
             Text("Your completed workouts remain in History. You can start this program again later.")
@@ -276,5 +271,52 @@ struct PlanDetailView: View {
 
     private func progress(for workout: PlannedWorkout) -> PlanWorkoutProgress? {
         currentRun?.orderedWorkoutProgress.first { $0.plannedWorkoutID == workout.id }
+    }
+
+    private func planWorkoutRow(
+        _ workout: PlannedWorkout,
+        progress: PlanWorkoutProgress?
+    ) -> some View {
+        let preparation = preparationExercises(in: workout)
+        let summary = "Day \(workout.dayOffset + 1) · \(workout.orderedPlannedExercises.count) exercises"
+
+        return HStack(spacing: Spacing.s) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(workout.name)
+                    .font(AppFont.subheadlineSemibold)
+                Text(summary)
+                    .font(AppFont.caption)
+                    .foregroundStyle(.secondary)
+                if !preparation.isEmpty {
+                    Label("Preparation & mobility required", systemImage: AppIcon.info)
+                        .font(AppFont.caption2Bold)
+                        .foregroundStyle(Color.gymPrimary)
+                    Text(preparation.map { $0.exercise.name }.joined(separator: " · "))
+                        .font(AppFont.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                if let notes = workout.notes, !notes.isEmpty {
+                    Text(notes)
+                        .font(AppFont.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                if let scheduledDate = progress?.scheduledDate {
+                    Text(scheduledDate.formatted(date: .abbreviated, time: .omitted))
+                        .font(AppFont.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("planned-workout-date-\(workout.id)")
+                }
+            }
+            Spacer()
+            if let progress {
+                planWorkoutStatus(progress)
+            }
+        }
+    }
+
+    private func preparationExercises(in workout: PlannedWorkout) -> [PlannedExercise] {
+        workout.orderedPlannedExercises.filter { $0.role == .preparation }
     }
 }

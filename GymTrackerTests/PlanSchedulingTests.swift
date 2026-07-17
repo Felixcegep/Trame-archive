@@ -212,6 +212,43 @@ final class PlanSchedulingTests: XCTestCase {
         }
     }
 
+    func testRelaunchRefreshKeepsInProgressSessionAsTheOnlyCurrentSession() throws {
+        let storeURL = try makeDiskStoreURL()
+        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+
+        var runID = UUID()
+        var inProgressWorkoutID = UUID()
+
+        try withDiskContext(at: storeURL) { context in
+            let plan = try self.makeScheduledPlan(in: context)
+            let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+            context.insert(run)
+
+            let first = try XCTUnwrap(run.orderedWorkoutProgress.first)
+            first.status = .inProgress
+            first.startedAt = .now
+            try context.save()
+
+            runID = run.id
+            inProgressWorkoutID = first.plannedWorkoutID
+        }
+
+        try withDiskContext(at: storeURL) { context in
+            let run = try XCTUnwrap(
+                context.fetch(FetchDescriptor<PlanRun>()).first { $0.id == runID }
+            )
+
+            PlanCoordinator.refreshAvailability(for: run)
+
+            XCTAssertEqual(PlanCoordinator.nextProgress(in: run)?.plannedWorkoutID, inProgressWorkoutID)
+            XCTAssertEqual(
+                run.orderedWorkoutProgress.filter { $0.status == .inProgress }.count,
+                1
+            )
+            XCTAssertFalse(run.orderedWorkoutProgress.contains { $0.status == .available })
+        }
+    }
+
     func testRescheduleSurvivesRelaunch() throws {
         let storeURL = try makeDiskStoreURL()
         defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }

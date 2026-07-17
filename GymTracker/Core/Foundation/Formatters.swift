@@ -9,8 +9,12 @@ struct Formatters {
         return formatter
     }()
     
-    // Unifies the trailing-zero removal logic for floats (weights, distances, reps)
+    // Keep numeric labels compact and stable while avoiding raw Float precision noise.
     static func formatFloat(_ value: Float) -> String {
-        value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(value)
+        value.formatted(
+            .number
+                .grouping(.never)
+                .precision(.fractionLength(0...2))
+        )
     }
 }
