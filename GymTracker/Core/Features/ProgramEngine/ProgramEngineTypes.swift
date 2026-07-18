@@ -565,6 +565,7 @@ struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case duplicateIdentifier
         case duplicateExposureKey
         case formulaCycle
+        case referenceCycle
     }
 
     var id: UUID = UUID()
@@ -594,6 +595,7 @@ enum ProgramDefinitionValidator {
 
         var identifiers = Set<UUID>()
         var formulaSources: [String: Set<String>] = [:]
+        var loadReferenceSources: [String: Set<String>] = [:]
         func checkID(_ id: UUID, _ path: String) {
             if !identifiers.insert(id).inserted { add(path, .duplicateIdentifier, "Identifier is used more than once.") }
         }
@@ -646,6 +648,10 @@ enum ProgramDefinitionValidator {
                             if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
                             if let rir = set.targetRIR, rir < 0 || rir > 10 { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
                             validateLoad(set.load, "\(setPath).load", add)
+                            if set.load.reference.kind == .anotherPlannedExercise,
+                               let dependency = set.load.reference.exposureKey {
+                                loadReferenceSources[exercise.exposureKey, default: []].insert(dependency)
+                            }
                         }
                         if !exercise.waves.isEmpty {
                             var waveOrders = Set<Int>()
@@ -671,6 +677,10 @@ enum ProgramDefinitionValidator {
                                     if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
                                     if let rir = set.targetRIR, rir < 0 || rir > 10 { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
                                     validateLoad(set.load, "\(setPath).load", add)
+                                    if set.load.reference.kind == .anotherPlannedExercise,
+                                       let dependency = set.load.reference.exposureKey {
+                                        loadReferenceSources[exercise.exposureKey, default: []].insert(dependency)
+                                    }
                                 }
                             }
                         }
@@ -689,6 +699,9 @@ enum ProgramDefinitionValidator {
 
         if hasCycle(in: formulaSources) {
             add("progressionRules", .formulaCycle, "Formula references contain a cycle.")
+        }
+        if hasCycle(in: loadReferenceSources) {
+            add("loadReferences", .referenceCycle, "Cross-exercise load references contain a cycle.")
         }
         return issues
     }

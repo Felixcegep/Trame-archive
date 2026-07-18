@@ -138,7 +138,7 @@ struct ExerciseEntryDTO: Codable {
     var originalExerciseNameSnapshot: String? = nil
     var selectedSubstituteExerciseIDSnapshot: String? = nil
     var substitutionReason: String? = nil
-    var substitutionSharesProgressionState: Bool = false
+    var substitutionSharesProgressionState: Bool? = nil
     var prescriptionDefinitionData: Data? = nil
     var prescriptionRulesData: Data? = nil
 }
@@ -204,7 +204,7 @@ struct PlannedSetDTO: Codable {
     let targetRPE: Double?
     let targetRIR: Int?
     var tempo: String? = nil
-    var progressionEligible: Bool = true
+    var progressionEligible: Bool? = nil
     let isOptional: Bool
     let notes: String?
     var definitionData: Data? = nil
@@ -1119,7 +1119,7 @@ extension BackupDTO {
                                             targetRPE: plannedSetDTO.targetRPE,
                                             targetRIR: plannedSetDTO.targetRIR,
                                             tempo: plannedSetDTO.tempo,
-                                            progressionEligible: plannedSetDTO.progressionEligible,
+                                            progressionEligible: plannedSetDTO.progressionEligible ?? true,
                                             isOptional: plannedSetDTO.isOptional,
                                             notes: plannedSetDTO.notes,
                                             definitionData: plannedSetDTO.definitionData
@@ -1281,7 +1281,7 @@ extension BackupDTO {
                 entry.originalExerciseNameSnapshot = entryDTO.originalExerciseNameSnapshot
                 entry.selectedSubstituteExerciseIDSnapshot = entryDTO.selectedSubstituteExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
                 entry.substitutionReason = entryDTO.substitutionReason
-                entry.substitutionSharesProgressionState = entryDTO.substitutionSharesProgressionState
+                entry.substitutionSharesProgressionState = entryDTO.substitutionSharesProgressionState ?? false
                 entry.prescriptionDefinitionData = entryDTO.prescriptionDefinitionData
                 entry.prescriptionRulesData = entryDTO.prescriptionRulesData
 

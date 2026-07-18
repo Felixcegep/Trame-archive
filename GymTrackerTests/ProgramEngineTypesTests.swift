@@ -263,6 +263,35 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(issues.contains { $0.code == .duplicateExposureKey })
     }
 
+    func testValidatorRejectsCrossExerciseLoadReferenceCycles() {
+        let first = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "volume",
+            orderIndex: 0,
+            plannedSets: [
+                SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .fixed(5),
+                    load: LoadPrescription(reference: .init(kind: .anotherPlannedExercise, exposureKey: "intensity"), percentage: 0.8)
+                )
+            ]
+        )
+        let second = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "intensity",
+            orderIndex: 1,
+            plannedSets: [
+                SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .fixed(5),
+                    load: LoadPrescription(reference: .init(kind: .anotherPlannedExercise, exposureKey: "volume"), percentage: 0.8)
+                )
+            ]
+        )
+        let issues = ProgramDefinitionValidator.validate(makeDefinition(exercises: [first, second]))
+        XCTAssertTrue(issues.contains { $0.code == .referenceCycle })
+    }
+
     func testValidatorRejectsInvalidConditioningValuesAndReferences() {
         let exercise = ProgramExerciseDefinition(
             exerciseID: UUID(),
@@ -871,7 +900,7 @@ final class ProgramEngineTypesTests: XCTestCase {
         )
         let decoded = try JSONDecoder().decode(PlannedSetDTO.self, from: JSONEncoder().encode(dto))
         XCTAssertEqual(decoded.tempo, "3-1-1-0")
-        XCTAssertFalse(decoded.progressionEligible)
+        XCTAssertEqual(decoded.progressionEligible, false)
     }
 
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
