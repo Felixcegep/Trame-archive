@@ -209,6 +209,9 @@ class ActiveWorkoutViewModel {
         }
 
         set.done.toggle()
+        #if !GYMTRACKER_EXTENSION
+        ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
+        #endif
         persistChanges()
         return true
     }
@@ -245,6 +248,9 @@ class ActiveWorkoutViewModel {
         }
 
         nextSet.done = true
+        #if !GYMTRACKER_EXTENSION
+        ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
+        #endif
         persistChanges()
     }
     

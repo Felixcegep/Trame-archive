@@ -26,6 +26,9 @@ final class ExerciseEntry{
     var prescribedRIR: Int?
     var prescriptionNotes: String?
     var sourcePlannedExerciseID: UUID?
+    /// Stable program exposure key copied from the planned exercise for
+    /// same-session formula resolution and progression-state lookup.
+    var progressionKey: String?
     var prescribedRole: ExerciseRole?
     var isPrescribedOptional: Bool?
     var prescribedSuggestedLoad: Double?
@@ -86,6 +89,7 @@ final class ExerciseEntry{
         self.prescribedRIR = nil
         self.prescriptionNotes = nil
         self.sourcePlannedExerciseID = nil
+        self.progressionKey = nil
         self.prescribedRole = nil
         self.isPrescribedOptional = nil
         self.prescribedSuggestedLoad = nil
@@ -154,6 +158,7 @@ final class ExerciseEntry{
         prescribedRIR = plannedExercise.targetRIR
         prescriptionNotes = plannedExercise.notes
         sourcePlannedExerciseID = plannedExercise.id
+        progressionKey = plannedExercise.progressionKey
         prescribedRole = plannedExercise.role
         isPrescribedOptional = plannedExercise.isOptional
         prescribedSuggestedLoad = plannedExercise.suggestedLoad

@@ -3,6 +3,42 @@ import Foundation
 #if !GYMTRACKER_EXTENSION
 
 enum ProgramPrescriptionSnapshotService {
+    /// Re-resolves only incomplete derived sets after a source set (for
+    /// example a top set or daily maximum) is completed. Performed values are
+    /// never rewritten.
+    static func refreshDerivedLoads(for workout: Workout) {
+        let decoder = JSONDecoder()
+        var context = LoadResolutionContext()
+        for entry in workout.orderedExercises {
+            guard let key = entry.progressionKey else { continue }
+            for set in entry.orderedSets {
+                guard let data = set.prescriptionDefinitionData,
+                      let definition = try? decoder.decode(SetPrescriptionDefinition.self, from: data) else { continue }
+                if definition.role == .topSet || definition.role == .dailyMaximum, set.done {
+                    context.completedTopSetByExposure[key] = Double(set.weight)
+                    context.dailyMaximumByExposure[key] = Double(set.weight)
+                }
+            }
+        }
+        guard !context.completedTopSetByExposure.isEmpty || !context.dailyMaximumByExposure.isEmpty else { return }
+        for entry in workout.orderedExercises {
+            guard let key = entry.progressionKey else { continue }
+            for set in entry.orderedSets where !set.done {
+                guard let data = set.prescriptionDefinitionData,
+                      let definition = try? decoder.decode(SetPrescriptionDefinition.self, from: data) else { continue }
+                guard let resolution = try? ProgramLoadResolver.resolve(definition.load, context: context),
+                      let load = resolution.prescribedLoad else { continue }
+                let targetType: WeightType = entry.usedMetric == .metric ? .kg : .lbs
+                set.prescribedSuggestedLoad = Double(UnitConversion.weight(Float(load), from: .kg, to: targetType))
+                set.prescribedSuggestedLoadType = targetType
+                if entry.prescribedSuggestedLoad == nil {
+                    entry.prescribedSuggestedLoad = set.prescribedSuggestedLoad
+                    entry.prescribedSuggestedLoadType = targetType
+                }
+            }
+        }
+    }
+
     static func apply(
         to entry: ExerciseEntry,
         plannedExercise: PlannedExercise,

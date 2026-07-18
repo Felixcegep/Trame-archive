@@ -53,6 +53,9 @@ struct ActiveWorkoutMutationService {
         }
 
         current.set.done = true
+        #if !GYMTRACKER_EXTENSION
+        ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
+        #endif
         let restSeconds = WorkoutSetSelector.restSeconds(
             afterCompleting: current.exercise,
             in: workout,

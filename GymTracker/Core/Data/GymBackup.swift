@@ -109,6 +109,7 @@ struct ExerciseEntryDTO: Codable {
     let prescribedRIR: Int?
     let prescriptionNotes: String?
     let sourcePlannedExerciseID: String?
+    var progressionKey: String? = nil
     let prescribedRole: String?
     let isPrescribedOptional: Bool?
     let prescribedSuggestedLoad: Double?
@@ -571,6 +572,7 @@ extension BackupDTO {
                         prescribedRIR: exercise.prescribedRIR,
                         prescriptionNotes: exercise.prescriptionNotes,
                         sourcePlannedExerciseID: exercise.sourcePlannedExerciseID?.uuidString,
+                        progressionKey: exercise.progressionKey,
                         prescribedRole: exercise.prescribedRole?.rawValue,
                         isPrescribedOptional: exercise.isPrescribedOptional,
                         prescribedSuggestedLoad: exercise.prescribedSuggestedLoad,
@@ -1115,6 +1117,7 @@ extension BackupDTO {
                 if let specIDStr = entryDTO.sourcePlannedExerciseID, let uuid = UUID(uuidString: specIDStr) {
                     entry.sourcePlannedExerciseID = uuid
                 }
+                entry.progressionKey = entryDTO.progressionKey
                 if let roleStr = entryDTO.prescribedRole, let role = ExerciseRole(rawValue: roleStr) {
                     entry.prescribedRole = role
                 }
