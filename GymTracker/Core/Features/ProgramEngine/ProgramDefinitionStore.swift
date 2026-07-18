@@ -92,7 +92,13 @@ enum ProgramDefinitionCompiler {
                             guard let exercise = exercisesByID[exerciseDefinition.exerciseID] else {
                                 throw ProgramDefinitionStoreError.missingExercise(exerciseDefinition.exerciseID)
                             }
-                            return try compileExercise(exerciseDefinition, exercise: exercise)
+                            let alternatives = try exerciseDefinition.alternativeExerciseIDs.map { alternativeID in
+                                guard let alternative = exercisesByID[alternativeID] else {
+                                    throw ProgramDefinitionStoreError.missingExercise(alternativeID)
+                                }
+                                return PlannedExerciseAlternative(exercise: alternative, orderIndex: exerciseDefinition.alternativeExerciseIDs.firstIndex(of: alternativeID) ?? 0)
+                            }
+                            return try compileExercise(exerciseDefinition, exercise: exercise, alternatives: alternatives)
                         }
                     return PlannedWorkout(
                         name: workoutDefinition.name,
@@ -133,7 +139,8 @@ enum ProgramDefinitionCompiler {
 
     private static func compileExercise(
         _ definition: ProgramExerciseDefinition,
-        exercise: Exercise
+        exercise: Exercise,
+        alternatives: [PlannedExerciseAlternative]
     ) throws -> PlannedExercise {
         let orderedSets = definition.plannedSets.sorted { $0.orderIndex < $1.orderIndex }
         let plannedSets = try orderedSets.map { prescription in
@@ -171,6 +178,7 @@ enum ProgramDefinitionCompiler {
             targetRPE: first?.targetRPE,
             targetRIR: first?.targetRIR,
             progressionRule: .none,
+            alternatives: alternatives,
             plannedSets: plannedSets,
             progressionKey: definition.exposureKey,
             progressionRulesData: rulesData

@@ -72,6 +72,7 @@
 				Core/Features/ProgramEngine/ProgramEngineTypes.swift,
 				Core/Features/ProgramEngine/ProgramCalculationEngine.swift,
 				Core/Features/ProgramEngine/ProgressionEvaluator.swift,
+				Core/Features/ProgramEngine/ProgramFixtureCatalog.swift,
 				Core/Features/Plan/PlanProgressionEvaluationService.swift,
 				Core/Features/Plan/ProgramPrescriptionSnapshotService.swift,
 				Localizable.xcstrings,

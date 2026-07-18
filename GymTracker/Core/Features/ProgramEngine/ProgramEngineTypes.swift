@@ -503,7 +503,6 @@ enum ProgramDefinitionValidator {
         if definition.blocks.isEmpty { add("blocks", .emptyBlocks, "A program must contain a block.") }
 
         var identifiers = Set<UUID>()
-        var exposures = Set<String>()
         var formulaSources: [String: Set<String>] = [:]
         func checkID(_ id: UUID, _ path: String) {
             if !identifiers.insert(id).inserted { add(path, .duplicateIdentifier, "Identifier is used more than once.") }
@@ -519,6 +518,7 @@ enum ProgramDefinitionValidator {
                 for (workoutIndex, workout) in week.workouts.enumerated() {
                     let workoutPath = "\(weekPath).workouts[\(workoutIndex)]"
                     checkID(workout.id, workoutPath)
+                    var workoutExposures = Set<String>()
                     if workout.dayOffset < 0 || workout.dayOffset > 6 { add("\(workoutPath).dayOffset", .invalidDayOffset, "Day offset must be between zero and six.") }
                     if workout.plannedExercises.isEmpty { add(workoutPath, .emptyWorkout, "A workout must contain an exercise.") }
                     for (exerciseIndex, exercise) in workout.plannedExercises.enumerated() {
@@ -526,7 +526,7 @@ enum ProgramDefinitionValidator {
                         checkID(exercise.id, exercisePath)
                         if exercise.exposureKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             add("\(exercisePath).exposureKey", .emptyExposureKey, "Every planned exposure needs a stable key.")
-                        } else if !exposures.insert(exercise.exposureKey).inserted {
+                        } else if !workoutExposures.insert(exercise.exposureKey).inserted {
                             add("\(exercisePath).exposureKey", .duplicateExposureKey, "Exposure keys must be unique within a program definition.")
                         }
                         if exercise.plannedSets.isEmpty { add(exercisePath, .emptySetPrescription, "An exercise must contain a set prescription.") }

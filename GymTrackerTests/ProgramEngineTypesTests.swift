@@ -351,6 +351,27 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(result.recommendations.contains { $0.action == .addLoad(5) })
     }
 
+    func testRequiredProgramFixturesValidateWithoutProgramSpecificLogic() {
+        let ids = Dictionary(uniqueKeysWithValues: [
+            "squat", "bench", "row", "press", "deadlift", "upper", "assisted", "band", "bodyweight", "weighted",
+            "snatch", "pull", "complex", "clean", "jerk", "plank"
+        ].map { ($0, UUID()) })
+        let fixtures = [
+            ProgramFixtureCatalog.beginnerFiveByFive(exerciseIDs: ids),
+            ProgramFixtureCatalog.doubleProgression(exerciseIDs: ids),
+            ProgramFixtureCatalog.stageProgression(exerciseIDs: ids),
+            ProgramFixtureCatalog.trainingMaxCycle(exerciseIDs: ids),
+            ProgramFixtureCatalog.topSetBackOff(exerciseIDs: ids),
+            ProgramFixtureCatalog.bodyweightVariation(exerciseIDs: ids),
+            ProgramFixtureCatalog.olympicWeightlifting(exerciseIDs: ids),
+            ProgramFixtureCatalog.mixedAcceptance(exerciseIDs: ids)
+        ]
+        for fixture in fixtures {
+            let issues = ProgramDefinitionValidator.validate(fixture)
+            XCTAssertTrue(issues.isEmpty, "\(fixture.name): \(issues.map(\.message).joined(separator: " | "))")
+        }
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,
