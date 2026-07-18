@@ -87,8 +87,23 @@ enum ProgramProgressionEvaluator {
         let orderedRules = rules.filter(\.isEnabled).sorted {
             $0.priority == $1.priority ? $0.id.uuidString < $1.id.uuidString : $0.priority > $1.priority
         }
+        // Failure ladders commonly contain thresholds for stage 1, stage 2,
+        // and deload. Once a higher threshold is reached, lower thresholds
+        // must not also fire in the same occurrence or a later stage would be
+        // overwritten by an earlier one. Rules at the selected threshold can
+        // still compose normally with one another.
+        let highestReachedFailureThreshold = orderedRules.compactMap { rule -> Int? in
+            guard case .failureCountReached(let threshold) = rule.trigger,
+                  state.failureCount >= threshold else { return nil }
+            return threshold
+        }.max()
 
         for rule in orderedRules {
+            if let highestReachedFailureThreshold,
+               case .failureCountReached(let threshold) = rule.trigger,
+               threshold != highestReachedFailureThreshold {
+                continue
+            }
             let triggered = matches(rule.trigger, performance: performance, state: nextState)
             let action: ProgressionAction?
             let reason: String
