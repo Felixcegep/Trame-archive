@@ -365,12 +365,18 @@ nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
     var stages: String?
     var initialStage: String?
     var variationLadder: [String]?
+    var waves: String?
 }
 
 nonisolated struct AuthoringStageDefinition: Codable, Hashable {
     var stageID: String
     var name: String?
     var carriesLoad: Bool?
+    var setGroups: [AuthoringSetGroupDefinition]
+}
+
+nonisolated struct AuthoringWaveDefinition: Codable, Hashable {
+    var name: String?
     var setGroups: [AuthoringSetGroupDefinition]
 }
 
@@ -463,6 +469,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var isExperimental: Bool?
     var rulesLibrary: [String: [AuthoringRuleDefinition]]?
     var stageTemplates: [String: [AuthoringStageDefinition]]?
+    var waveTemplates: [String: [AuthoringWaveDefinition]]?
     var blocks: [AuthoringBlockDefinition]
 
     func expand(exerciseIDsByName: [String: UUID]) throws -> ProgramDefinitionPayload {
@@ -552,6 +559,32 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                     }
                                     return variationID
                                 }
+                                let waves: [ProgramWaveDefinition]
+                                if let waveTemplateName = exercise.waves {
+                                    guard let authoringWaves = waveTemplates?[waveTemplateName] else {
+                                        throw ProgramLibraryImportError.unsupportedRuleConstruct("waveTemplate.\(waveTemplateName)")
+                                    }
+                                    waves = try authoringWaves.enumerated().map { waveIndex, wave in
+                                        let wavePath = "\(exercisePath)/wave/\(waveIndex)"
+                                        var waveSets: [SetPrescriptionDefinition] = []
+                                        for (groupIndex, group) in wave.setGroups.enumerated() {
+                                            waveSets += try group.expand(
+                                                path: "\(wavePath)/g\(groupIndex)",
+                                                startingAt: waveSets.count,
+                                                restSeconds: exercise.restSeconds,
+                                                exposureKey: exercise.exposureKey
+                                            )
+                                        }
+                                        return ProgramWaveDefinition(
+                                            id: ProgramLibraryDeterministicID.uuid(for: wavePath),
+                                            orderIndex: waveIndex,
+                                            name: wave.name,
+                                            plannedSets: waveSets
+                                        )
+                                    }
+                                } else {
+                                    waves = []
+                                }
                                 return ProgramExerciseDefinition(
                                     id: ProgramLibraryDeterministicID.uuid(for: exercisePath),
                                     exerciseID: exerciseID,
@@ -559,6 +592,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                     orderIndex: exerciseIndex,
                                     isOptional: exercise.optional ?? false,
                                     plannedSets: sets,
+                                    waves: waves,
                                     stages: stages,
                                     initialStageID: exercise.initialStage,
                                     progressionRules: progressionRules,
@@ -597,6 +631,18 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             }
         }
 
+        let allExercises = expandedBlocks.flatMap(\.weeks).flatMap(\.workouts).flatMap(\.plannedExercises)
+        var requiredCapabilities: Set<String> = []
+        if allExercises.contains(where: { !$0.stages.isEmpty }) { requiredCapabilities.insert(EngineCapabilities.stages) }
+        if allExercises.contains(where: { !$0.waves.isEmpty }) { requiredCapabilities.insert(EngineCapabilities.waves) }
+        if allExercises.contains(where: { !($0.variationExerciseIDs ?? []).isEmpty }) {
+            requiredCapabilities.insert(EngineCapabilities.variationLadders)
+        }
+        if allExercises.flatMap({ $0.plannedSets + $0.waves.flatMap(\.plannedSets) + $0.stages.flatMap(\.plannedSets) })
+            .contains(where: { if case .amrap = $0.repetitions { return true }; return false }) {
+            requiredCapabilities.insert(EngineCapabilities.amrapRepetitions)
+        }
+
         return ProgramDefinitionPayload(
             id: ProgramLibraryDeterministicID.uuid(for: programKey),
             programKey: programKey,
@@ -611,6 +657,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             prerequisites: prerequisites ?? [],
             warnings: warnings ?? [],
             isExperimental: isExperimental ?? false,
+            requiredCapabilities: requiredCapabilities.sorted(),
             blocks: expandedBlocks
         )
     }

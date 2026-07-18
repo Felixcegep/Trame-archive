@@ -417,8 +417,13 @@ nonisolated enum CompletionPolicy: Codable, Hashable {
 nonisolated enum EngineCapabilities {
     static let compositeTriggers = "compositeTriggers"
     static let stages = "stages"
+    static let waves = "waves"
+    static let variationLadders = "variationLadders"
+    static let amrapRepetitions = "amrapRepetitions"
 
-    static let current: Set<String> = [compositeTriggers, stages]
+    static let current: Set<String> = [
+        compositeTriggers, stages, waves, variationLadders, amrapRepetitions
+    ]
 
     static func missing(from requiredCapabilities: [String]) -> Set<String> {
         Set(requiredCapabilities).subtracting(current)

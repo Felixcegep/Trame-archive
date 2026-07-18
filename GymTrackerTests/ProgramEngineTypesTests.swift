@@ -321,6 +321,37 @@ final class ProgramEngineTypesTests: XCTestCase {
             ids["Assisted Pull-Up"], ids["Pull-Up"], ids["Weighted Pull-Up"]
         ].compactMap { $0 })
     }
+
+    func testWaveTemplateExpandsAndInfersCapabilities() throws {
+        let json = """
+        {
+          "programKey":"wave-data","name":"Wave Data","goal":"generalStrength",
+          "experienceLevel":"intermediate","durationWeeks":3,"supportedDaysPerWeek":[1],
+          "scheduleMode":"fixedWeekdays",
+          "waveTemplates":{"main":[
+            {"name":"Base","setGroups":[{"count":3,"reps":5,"load":{"reference":"trainingMax","of":"$self","percent":0.75}}]},
+            {"name":"Peak","setGroups":[{"count":2,"reps":3},{"count":1,"amrap":[3,null]}]}
+          ]},
+          "blocks":[{"name":"Build","phaseType":"strength","weeks":[{"weekIndex":0,"workouts":[
+            {"name":"Day","dayOffset":0,"exercises":[
+              {"exercise":"Back Squat","exposureKey":"squat","waves":"main"}
+            ]}
+          ]}]}]
+        }
+        """
+        let authoring = try JSONDecoder().decode(AuthoringProgramDefinition.self, from: Data(json.utf8))
+        let payload = try authoring.expand(exerciseIDsByName: ["Back Squat": UUID()])
+        let exercise = try XCTUnwrap(payload.blocks.first?.weeks.first?.workouts.first?.plannedExercises.first)
+
+        XCTAssertEqual(exercise.waves.map(\.name), ["Base", "Peak"])
+        XCTAssertEqual(exercise.waves.map { $0.plannedSets.count }, [3, 3])
+        XCTAssertEqual(exercise.waves[0].plannedSets[0].load.reference.exposureKey, "squat")
+        XCTAssertEqual(payload.requiredCapabilities, [
+            EngineCapabilities.amrapRepetitions,
+            EngineCapabilities.waves
+        ].sorted())
+        XCTAssertTrue(EngineCapabilities.missing(from: payload.requiredCapabilities).isEmpty)
+    }
     func testValidatorRejectsEmptyWarmupScheme() {
         let definition = makeDefinition(exercises: [
             ProgramExerciseDefinition(
