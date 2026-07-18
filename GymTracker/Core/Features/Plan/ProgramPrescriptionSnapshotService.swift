@@ -97,13 +97,13 @@ enum ProgramPrescriptionSnapshotService {
                 set.prescribedRepRangeMinimum = minimum.map { max(0, $0 + offset) }
                 set.prescribedRepRangeMaximum = maximum.map { max(set.prescribedRepRangeMinimum ?? 0, $0 + offset) }
             case .duration(let seconds):
-                set.duration = seconds
+                set.duration = seconds.map { $0 + (state?.durationOffset ?? 0) }
             case .distance(let meters):
-                set.distance = meters.map(Float.init)
+                set.distance = meters.map { Float($0 + (state?.distanceOffset ?? 0)) }
             case .calories, .sequence, .open:
                 break
             }
-            set.prescribedRestSeconds = definition.restSeconds
+            set.prescribedRestSeconds = definition.restSeconds.map { max(0, $0 + (state?.restDurationOffset ?? 0)) }
             set.prescribedRPE = definition.targetRPE
             set.prescribedRIR = definition.targetRIR
             set.isPrescribedOptional = definition.isOptional

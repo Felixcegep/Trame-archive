@@ -45,6 +45,9 @@ enum PlanProgressionEvaluationService {
                 currentLoad: state.currentLoad,
                 repetitionOffset: state.repetitionOffset,
                 setCountOffset: state.setCountOffset,
+                durationOffset: state.durationOffset,
+                distanceOffset: state.distanceOffset,
+                restDurationOffset: state.restDurationOffset,
                 currentStageID: state.currentStageID,
                 currentVariationExerciseID: state.currentVariationExerciseID,
                 currentWaveIndex: state.currentWaveIndex ?? 0,
@@ -68,6 +71,9 @@ enum PlanProgressionEvaluationService {
             state.currentLoad = evaluationState.currentLoad
             state.repetitionOffset = evaluationState.repetitionOffset
             state.setCountOffset = evaluationState.setCountOffset
+            state.durationOffset = evaluationState.durationOffset
+            state.distanceOffset = evaluationState.distanceOffset
+            state.restDurationOffset = evaluationState.restDurationOffset
             state.currentStageID = evaluationState.currentStageID
             state.currentVariationExerciseID = evaluationState.currentVariationExerciseID
             state.currentWaveIndex = evaluationState.currentWaveIndex

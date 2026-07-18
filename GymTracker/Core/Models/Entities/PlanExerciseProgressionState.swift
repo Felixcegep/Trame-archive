@@ -12,6 +12,9 @@ final class PlanExerciseProgressionState {
     var currentLoadType: WeightType?
     var repetitionOffset: Int
     var setCountOffset: Int
+    var durationOffset: TimeInterval
+    var distanceOffset: Double
+    var restDurationOffset: Int
     var currentStageID: String?
     var currentVariationExerciseID: UUID?
     var trainingMax: Double?
@@ -35,6 +38,9 @@ final class PlanExerciseProgressionState {
         currentLoadType: WeightType? = nil,
         repetitionOffset: Int = 0,
         setCountOffset: Int = 0,
+        durationOffset: TimeInterval = 0,
+        distanceOffset: Double = 0,
+        restDurationOffset: Int = 0,
         currentStageID: String? = nil,
         currentVariationExerciseID: UUID? = nil,
         trainingMax: Double? = nil,
@@ -56,6 +62,9 @@ final class PlanExerciseProgressionState {
         self.currentLoadType = currentLoadType
         self.repetitionOffset = repetitionOffset
         self.setCountOffset = setCountOffset
+        self.durationOffset = max(0, durationOffset)
+        self.distanceOffset = max(0, distanceOffset)
+        self.restDurationOffset = max(0, restDurationOffset)
         self.currentStageID = currentStageID
         self.currentVariationExerciseID = currentVariationExerciseID
         self.trainingMax = trainingMax

@@ -373,6 +373,23 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(result.recommendations.first?.action, .advanceExerciseVariation)
     }
 
+    func testProgressionEvaluatorSupportsDurationDistanceAndRestProgression() throws {
+        let rules = [
+            ProgressionRuleDefinition(metric: .duration, trigger: .allRequiredSetsCompleted, successAction: .addDuration(10), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
+            ProgressionRuleDefinition(metric: .distance, trigger: .allRequiredSetsCompleted, successAction: .addDistance(100), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
+            ProgressionRuleDefinition(metric: .restDuration, trigger: .allRequiredSetsCompleted, successAction: .reduceRestDuration(5), cadence: .nextExerciseOccurrence, scope: .exerciseExposure)
+        ]
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: rules,
+            performance: ProgressionPerformance(requiredSets: 1, completedSets: 1),
+            state: ProgressionEvaluationState(durationOffset: 30, distanceOffset: 500, restDurationOffset: 10)
+        )
+
+        XCTAssertEqual(result.state.durationOffset, 40)
+        XCTAssertEqual(result.state.distanceOffset, 600)
+        XCTAssertEqual(result.state.restDurationOffset, 5)
+    }
+
     func testRequiredProgramFixturesValidateWithoutProgramSpecificLogic() {
         let ids = Dictionary(uniqueKeysWithValues: [
             "squat", "bench", "row", "press", "deadlift", "upper", "assisted", "band", "bodyweight", "weighted",

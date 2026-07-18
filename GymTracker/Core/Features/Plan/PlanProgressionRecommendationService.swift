@@ -48,6 +48,9 @@ enum PlanProgressionRecommendationService {
         state.currentVariationExerciseID = recommendation.proposedVariationExerciseID
         state.repetitionOffset = recommendation.proposedRepetitionOffset
         state.setCountOffset = recommendation.proposedSetCountOffset
+        state.durationOffset = recommendation.proposedDurationOffset
+        state.distanceOffset = recommendation.proposedDistanceOffset
+        state.restDurationOffset = recommendation.proposedRestDurationOffset
         state.currentWaveIndex = recommendation.proposedWaveIndex
         state.currentBlockIndex = recommendation.proposedBlockIndex
         state.isDeloading = recommendation.proposedIsDeloading

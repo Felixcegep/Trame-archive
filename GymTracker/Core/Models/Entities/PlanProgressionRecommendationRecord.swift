@@ -21,6 +21,9 @@ final class PlanProgressionRecommendationRecord {
     var proposedVariationExerciseID: UUID?
     var proposedRepetitionOffset: Int
     var proposedSetCountOffset: Int
+    var proposedDurationOffset: TimeInterval
+    var proposedDistanceOffset: Double
+    var proposedRestDurationOffset: Int
     var proposedWaveIndex: Int
     var proposedBlockIndex: Int
     var proposedIsDeloading: Bool
@@ -50,6 +53,9 @@ final class PlanProgressionRecommendationRecord {
         proposedVariationExerciseID = recommendation.proposedState.currentVariationExerciseID
         proposedRepetitionOffset = recommendation.proposedState.repetitionOffset
         proposedSetCountOffset = recommendation.proposedState.setCountOffset
+        proposedDurationOffset = recommendation.proposedState.durationOffset
+        proposedDistanceOffset = recommendation.proposedState.distanceOffset
+        proposedRestDurationOffset = recommendation.proposedState.restDurationOffset
         proposedWaveIndex = recommendation.proposedState.currentWaveIndex
         proposedBlockIndex = recommendation.proposedState.currentBlockIndex
         proposedIsDeloading = recommendation.proposedState.isDeloading

@@ -201,6 +201,9 @@ struct ProgressionStateDTO: Codable {
     let currentLoadType: String?
     var repetitionOffset: Int = 0
     var setCountOffset: Int = 0
+    var durationOffset: TimeInterval = 0
+    var distanceOffset: Double = 0
+    var restDurationOffset: Int = 0
     let currentStageID: String?
     let currentVariationExerciseID: String?
     let trainingMax: Double?
@@ -236,6 +239,9 @@ struct ProgressionRecommendationDTO: Codable {
     let proposedVariationExerciseID: String?
     let proposedRepetitionOffset: Int
     let proposedSetCountOffset: Int
+    var proposedDurationOffset: TimeInterval = 0
+    var proposedDistanceOffset: Double = 0
+    var proposedRestDurationOffset: Int = 0
     var proposedWaveIndex: Int = 0
     var proposedBlockIndex: Int = 0
     var proposedIsDeloading: Bool = false
@@ -764,6 +770,9 @@ extension BackupDTO {
                         currentLoadType: state.currentLoadType?.rawValue,
                         repetitionOffset: state.repetitionOffset,
                         setCountOffset: state.setCountOffset,
+                        durationOffset: state.durationOffset,
+                        distanceOffset: state.distanceOffset,
+                        restDurationOffset: state.restDurationOffset,
                         currentStageID: state.currentStageID,
                         currentVariationExerciseID: state.currentVariationExerciseID?.uuidString,
                         trainingMax: state.trainingMax,
@@ -821,6 +830,9 @@ extension BackupDTO {
                 proposedVariationExerciseID: record.proposedVariationExerciseID?.uuidString,
                 proposedRepetitionOffset: record.proposedRepetitionOffset,
                 proposedSetCountOffset: record.proposedSetCountOffset,
+                proposedDurationOffset: record.proposedDurationOffset,
+                proposedDistanceOffset: record.proposedDistanceOffset,
+                proposedRestDurationOffset: record.proposedRestDurationOffset,
                 proposedWaveIndex: record.proposedWaveIndex,
                 proposedBlockIndex: record.proposedBlockIndex,
                 proposedIsDeloading: record.proposedIsDeloading,
@@ -1303,6 +1315,9 @@ extension BackupDTO {
                         currentLoadType: stateDTO.currentLoadType.flatMap(WeightType.init(rawValue:)),
                         repetitionOffset: stateDTO.repetitionOffset,
                         setCountOffset: stateDTO.setCountOffset,
+                        durationOffset: stateDTO.durationOffset,
+                        distanceOffset: stateDTO.distanceOffset,
+                        restDurationOffset: stateDTO.restDurationOffset,
                         currentStageID: stateDTO.currentStageID,
                         currentVariationExerciseID: stateDTO.currentVariationExerciseID.flatMap(UUID.init(uuidString:)),
                         trainingMax: stateDTO.trainingMax,
@@ -1350,6 +1365,9 @@ extension BackupDTO {
                         currentVariationExerciseID: recommendationDTO.proposedVariationExerciseID.flatMap(UUID.init(uuidString:)),
                         repetitionOffset: recommendationDTO.proposedRepetitionOffset,
                         setCountOffset: recommendationDTO.proposedSetCountOffset,
+                        durationOffset: recommendationDTO.proposedDurationOffset,
+                        distanceOffset: recommendationDTO.proposedDistanceOffset,
+                        restDurationOffset: recommendationDTO.proposedRestDurationOffset,
                         currentWaveIndex: recommendationDTO.proposedWaveIndex,
                         currentBlockIndex: recommendationDTO.proposedBlockIndex,
                         isDeloading: recommendationDTO.proposedIsDeloading

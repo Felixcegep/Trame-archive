@@ -228,6 +228,12 @@ enum ProgressionAction: Codable, Hashable {
     case reduceRepetitions(Int)
     case addSets(Int)
     case reduceSets(Int)
+    case addDuration(TimeInterval)
+    case reduceDuration(TimeInterval)
+    case addDistance(Double)
+    case reduceDistance(Double)
+    case addRestDuration(Int)
+    case reduceRestDuration(Int)
     case updateTrainingMax(ProgressionFormula)
     case updateEstimatedOneRepMax(ProgressionFormula)
     case repeatPrescription

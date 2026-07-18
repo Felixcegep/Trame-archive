@@ -30,6 +30,9 @@ struct ProgressionEvaluationState: Hashable {
     var currentLoad: Double? = nil
     var repetitionOffset: Int = 0
     var setCountOffset: Int = 0
+    var durationOffset: TimeInterval = 0
+    var distanceOffset: Double = 0
+    var restDurationOffset: Int = 0
     var currentStageID: String? = nil
     var currentVariationExerciseID: UUID? = nil
     var currentWaveIndex: Int = 0
@@ -173,6 +176,12 @@ enum ProgramProgressionEvaluator {
         case .reduceRepetitions(let amount): state.repetitionOffset = max(0, state.repetitionOffset - amount)
         case .addSets(let amount): state.setCountOffset += amount
         case .reduceSets(let amount): state.setCountOffset = max(0, state.setCountOffset - amount)
+        case .addDuration(let amount): state.durationOffset += max(0, amount)
+        case .reduceDuration(let amount): state.durationOffset = max(0, state.durationOffset - amount)
+        case .addDistance(let amount): state.distanceOffset += max(0, amount)
+        case .reduceDistance(let amount): state.distanceOffset = max(0, state.distanceOffset - amount)
+        case .addRestDuration(let amount): state.restDurationOffset += max(0, amount)
+        case .reduceRestDuration(let amount): state.restDurationOffset = max(0, state.restDurationOffset - amount)
         case .repeatPrescription, .noChange, .generateRecommendation:
             break
         case .updateTrainingMax(let formula): state.trainingMax = try resolve(formula, context: formulaContext)
