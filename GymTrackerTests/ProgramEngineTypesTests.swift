@@ -77,6 +77,23 @@ final class ProgramEngineTypesTests: XCTestCase {
         }
     }
 
+    func testProgramDefinitionBuilderCreatesAndReordersAValidRecipe() throws {
+        var builder = ProgramDefinitionBuilder(name: "Builder Test", durationWeeks: 1)
+        let block = builder.addBlock(name: "Strength", phaseType: .strength)
+        let week = try builder.addWeek(toBlock: block, name: "Week 1")
+        let workout = try builder.addWorkout(toBlock: block, week: week, name: "Day 1", dayOffset: 0)
+        let first = try builder.addExercise(toBlock: block, week: week, workout: workout, exerciseID: UUID(), exposureKey: "squat")
+        _ = try builder.addExercise(toBlock: block, week: week, workout: workout, exerciseID: UUID(), exposureKey: "bench")
+        try builder.addSet(toBlock: block, week: week, workout: workout, exercise: first, prescription: SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5)))
+        try builder.moveExercise(fromBlock: block, week: week, workout: workout, from: 0, to: 2)
+
+        let definition = try builder.build()
+        let exercises = try XCTUnwrap(definition.blocks.first?.weeks.first?.workouts.first?.plannedExercises)
+        XCTAssertEqual(exercises.map(\.exposureKey), ["bench", "squat"])
+        XCTAssertEqual(exercises.map(\.orderIndex), [0, 1])
+        XCTAssertEqual(exercises.last?.plannedSets.count, 1)
+    }
+
     func testValidatorReportsInvalidPrescriptionAndDuplicateExposure() {
         let first = ProgramExerciseDefinition(
             exerciseID: UUID(),
