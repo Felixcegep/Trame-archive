@@ -141,6 +141,74 @@ final class ProgramEngineTypesTests: XCTestCase {
             XCTAssertEqual(error as? ProgramLibraryImportError, .missingExercise("Unknown Lift"))
         }
     }
+
+    func testNamedRuleLibraryExpandsCompositeTriggerAndActions() throws {
+        let json = """
+        {
+          "programKey": "rules-only-data",
+          "name": "Rules Only Data",
+          "goal": "generalStrength",
+          "experienceLevel": "beginner",
+          "durationWeeks": 1,
+          "supportedDaysPerWeek": [1],
+          "scheduleMode": "fixedWeekdays",
+          "rulesLibrary": {
+            "linear": [{
+              "metric": "load",
+              "trigger": {"type": "allOf", "triggers": [
+                {"type": "allRequiredSetsCompleted"},
+                {"type": "targetRPEMatched", "tolerance": 0.5}
+              ]},
+              "success": {"type": "addLoad", "value": 2.5},
+              "failure": {"type": "repeatPrescription"},
+              "cadence": "nextExerciseOccurrence",
+              "scope": "exerciseExposure",
+              "mode": "automatic",
+              "priority": 2
+            }]
+          },
+          "blocks": [{"name": "Build", "phaseType": "strength", "weeks": [{
+            "weekIndex": 0,
+            "workouts": [{"name": "Day", "dayOffset": 0, "exercises": [{
+              "exercise": "Back Squat",
+              "exposureKey": "squat",
+              "rules": "linear",
+              "setGroups": [{"count": 1, "reps": 5}]
+            }]}]
+          }]}]
+        }
+        """
+        let authoring = try JSONDecoder().decode(AuthoringProgramDefinition.self, from: Data(json.utf8))
+        let payload = try authoring.expand(exerciseIDsByName: ["Back Squat": UUID()])
+        let rule = try XCTUnwrap(payload.blocks.first?.weeks.first?.workouts.first?.plannedExercises.first?.progressionRules.first)
+
+        XCTAssertEqual(rule.trigger, .allOf([
+            .allRequiredSetsCompleted,
+            .targetRPEMatched(tolerance: 0.5)
+        ]))
+        XCTAssertEqual(rule.successAction, .addLoad(2.5))
+        XCTAssertEqual(rule.failureAction, .repeatPrescription)
+        XCTAssertEqual(rule.applicationMode, .automatic)
+        XCTAssertEqual(rule.priority, 2)
+    }
+
+    func testNamedRuleLibraryRejectsMissingAndUnsupportedRules() throws {
+        let trigger = AuthoringTriggerDefinition(type: "futureTrigger")
+        XCTAssertThrowsError(try trigger.expand()) { error in
+            XCTAssertEqual(
+                error as? ProgramLibraryImportError,
+                .unsupportedRuleConstruct("trigger.futureTrigger")
+            )
+        }
+
+        let action = AuthoringActionDefinition(type: "futureAction")
+        XCTAssertThrowsError(try action.expand()) { error in
+            XCTAssertEqual(
+                error as? ProgramLibraryImportError,
+                .unsupportedRuleConstruct("action.futureAction")
+            )
+        }
+    }
     func testValidatorRejectsEmptyWarmupScheme() {
         let definition = makeDefinition(exercises: [
             ProgramExerciseDefinition(

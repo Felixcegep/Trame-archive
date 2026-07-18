@@ -9,6 +9,8 @@ nonisolated enum ProgramLibraryImportError: LocalizedError, Equatable {
     case decodingFailed
     case invalidSetGroup(String)
     case missingExercise(String)
+    case missingRuleSet(String)
+    case unsupportedRuleConstruct(String)
 
     var errorDescription: String? {
         switch self {
@@ -20,7 +22,135 @@ nonisolated enum ProgramLibraryImportError: LocalizedError, Equatable {
             return "The set group at \(path) must define exactly one repetition prescription."
         case .missingExercise(let name):
             return "The program library references missing exercise \(name)."
+        case .missingRuleSet(let name):
+            return "The program library references missing rule set \(name)."
+        case .unsupportedRuleConstruct(let construct):
+            return "The program rule construct \(construct) is not supported by this engine."
         }
+    }
+}
+
+nonisolated enum AuthoringRuleSelection: Codable, Hashable {
+    case named(String)
+    case unsupported
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let name = try? container.decode(String.self) {
+            self = .named(name)
+        } else {
+            self = .unsupported
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .named(let name): try container.encode(name)
+        case .unsupported: try container.encodeNil()
+        }
+    }
+}
+
+nonisolated struct AuthoringTriggerDefinition: Codable, Hashable {
+    var type: String
+    var count: Int?
+    var tolerance: Double?
+    var triggers: [AuthoringTriggerDefinition]?
+
+    init(
+        type: String,
+        count: Int? = nil,
+        tolerance: Double? = nil,
+        triggers: [AuthoringTriggerDefinition]? = nil
+    ) {
+        self.type = type
+        self.count = count
+        self.tolerance = tolerance
+        self.triggers = triggers
+    }
+
+    func expand() throws -> ProgressionTrigger {
+        switch type {
+        case "allRequiredSetsCompleted": return .allRequiredSetsCompleted
+        case "allRequiredRepetitionsCompleted": return .allRequiredRepetitionsCompleted
+        case "allSetsReachedUpperRepBound": return .allSetsReachedUpperRepBound
+        case "firstSetReachedUpperRepBound": return .firstSetReachedUpperRepBound
+        case "workoutCompleted": return .workoutCompleted
+        case "weekCompleted": return .weekCompleted
+        case "waveCompleted": return .waveCompleted
+        case "blockCompleted": return .blockCompleted
+        case "cycleCompleted": return .cycleCompleted
+        case "failureCountReached": return .failureCountReached(count ?? 1)
+        case "totalRepetitionsReached": return .totalRepetitionsReached(count ?? 0)
+        case "amrapResultReached": return .amrapResultReached(count ?? 0)
+        case "targetRPEMatched": return .targetRPEMatched(tolerance: tolerance ?? 0)
+        case "actualRPEBelowTarget": return .actualRPEBelowTarget(tolerance: tolerance ?? 0)
+        case "actualRPEAboveTarget": return .actualRPEAboveTarget(tolerance: tolerance ?? 0)
+        case "targetRIRMatched": return .targetRIRMatched(tolerance: Int(tolerance ?? 0))
+        case "allOf": return .allOf(try (triggers ?? []).map { try $0.expand() })
+        case "anyOf": return .anyOf(try (triggers ?? []).map { try $0.expand() })
+        default: throw ProgramLibraryImportError.unsupportedRuleConstruct("trigger.\(type)")
+        }
+    }
+}
+
+nonisolated struct AuthoringActionDefinition: Codable, Hashable {
+    var type: String
+    var value: Double?
+
+    init(type: String, value: Double? = nil) {
+        self.type = type
+        self.value = value
+    }
+
+    func expand() throws -> ProgressionAction {
+        switch type {
+        case "addLoad": return .addLoad(value ?? 0)
+        case "reduceLoad": return .reduceLoad(value ?? 0)
+        case "addLoadPercentage": return .addLoadPercentage(value ?? 0)
+        case "reduceLoadPercentage": return .reduceLoadPercentage(value ?? 0)
+        case "addRepetitions": return .addRepetitions(Int(value ?? 0))
+        case "reduceRepetitions": return .reduceRepetitions(Int(value ?? 0))
+        case "addSets": return .addSets(Int(value ?? 0))
+        case "reduceSets": return .reduceSets(Int(value ?? 0))
+        case "addDuration": return .addDuration(value ?? 0)
+        case "reduceDuration": return .reduceDuration(value ?? 0)
+        case "repeatPrescription": return .repeatPrescription
+        case "advanceWave": return .advanceWave
+        case "advanceBlock": return .advanceBlock
+        case "resetFailureCount": return .resetFailureCount
+        case "resetProgressionOffsets": return .resetProgressionOffsets
+        case "advanceExerciseVariation": return .advanceExerciseVariation
+        case "regressExerciseVariation": return .regressExerciseVariation
+        case "noChange": return .noChange
+        default: throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type)")
+        }
+    }
+}
+
+nonisolated struct AuthoringRuleDefinition: Codable, Hashable {
+    var metric: ProgressionMetric
+    var trigger: AuthoringTriggerDefinition
+    var success: AuthoringActionDefinition
+    var failure: AuthoringActionDefinition?
+    var cadence: ProgressionCadence
+    var scope: ProgressionScope
+    var mode: ProgressionApplicationMode
+    var priority: Int?
+
+    func expand(path: String) throws -> ProgressionRuleDefinition {
+        ProgressionRuleDefinition(
+            id: ProgramLibraryDeterministicID.uuid(for: path),
+            metric: metric,
+            trigger: try trigger.expand(),
+            successAction: try success.expand(),
+            failureAction: try failure?.expand(),
+            cadence: cadence,
+            scope: scope,
+            priority: priority ?? 0,
+            applicationMode: mode
+        )
     }
 }
 
@@ -170,6 +300,7 @@ nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
     var restSeconds: Int?
     var setGroups: [AuthoringSetGroupDefinition]
     var warmupScheme: [AuthoringWarmupStep]?
+    var rules: AuthoringRuleSelection?
 }
 
 nonisolated struct AuthoringWorkoutDefinition: Codable, Hashable {
@@ -259,6 +390,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var prerequisites: [String]?
     var warnings: [String]?
     var isExperimental: Bool?
+    var rulesLibrary: [String: [AuthoringRuleDefinition]]?
     var blocks: [AuthoringBlockDefinition]
 
     func expand(exerciseIDsByName: [String: UUID]) throws -> ProgramDefinitionPayload {
@@ -297,6 +429,20 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                         )
                                     })
                                 }
+                                let progressionRules: [ProgressionRuleDefinition]
+                                switch exercise.rules {
+                                case .none:
+                                    progressionRules = []
+                                case .named(let ruleSetName):
+                                    guard let authoringRules = rulesLibrary?[ruleSetName] else {
+                                        throw ProgramLibraryImportError.missingRuleSet(ruleSetName)
+                                    }
+                                    progressionRules = try authoringRules.enumerated().map { ruleIndex, rule in
+                                        try rule.expand(path: "\(exercisePath)/rule/\(ruleIndex)")
+                                    }
+                                case .unsupported:
+                                    throw ProgramLibraryImportError.unsupportedRuleConstruct("exercise.rules")
+                                }
                                 return ProgramExerciseDefinition(
                                     id: ProgramLibraryDeterministicID.uuid(for: exercisePath),
                                     exerciseID: exerciseID,
@@ -304,6 +450,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                     orderIndex: exerciseIndex,
                                     isOptional: exercise.optional ?? false,
                                     plannedSets: sets,
+                                    progressionRules: progressionRules,
                                     warmupScheme: warmup
                                 )
                             }
