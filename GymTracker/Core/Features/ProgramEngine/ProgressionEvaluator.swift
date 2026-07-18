@@ -178,13 +178,24 @@ nonisolated enum ProgramProgressionEvaluator {
                 let deferred = deferredStates.last(where: { $0.cadence == rule.cadence }) {
                 proposedState = deferred.state
             }
-            try apply(
-                action,
-                to: &proposedState,
-                formulaContext: formulaContext,
-                variationLadder: variationLadder,
-                stageDefinitions: stageDefinitions
-            )
+            do {
+                try apply(
+                    action,
+                    to: &proposedState,
+                    formulaContext: formulaContext,
+                    variationLadder: variationLadder,
+                    stageDefinitions: stageDefinitions
+                )
+            } catch ProgressionEvaluationError.formula(let error) {
+                guard case .missingSource = error else {
+                    throw ProgressionEvaluationError.formula(error)
+                }
+                // A formula that references data this run does not have yet
+                // (for example a velocity baseline before intake or the first
+                // probe set) must not abort the whole evaluation: the rule
+                // simply cannot fire on this occurrence.
+                continue
+            }
             let recommendation = ProgressionRecommendation(
                 id: UUID(),
                 ruleID: rule.id,

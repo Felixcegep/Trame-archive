@@ -349,10 +349,17 @@ final class ProgramEngineIntegrationTests: XCTestCase {
             .flatMap(\.workouts)
             .flatMap(\.plannedExercises)
             .flatMap(\.progressionRules)
-        XCTAssertTrue(bodyweightRules.contains { rule in
-            if case .technicalQualityReached = rule.trigger { return true }
-            return false
-        })
+        func containsTechnicalQuality(_ trigger: ProgressionTrigger) -> Bool {
+            switch trigger {
+            case .technicalQualityReached:
+                return true
+            case .allOf(let triggers), .anyOf(let triggers):
+                return triggers.contains(where: containsTechnicalQuality)
+            default:
+                return false
+            }
+        }
+        XCTAssertTrue(bodyweightRules.contains { containsTechnicalQuality($0.trigger) })
 
         let waveProgram = try XCTUnwrap(payloads.first { $0.programKey == "wave-builder-base-peak" })
         let waveExercises = waveProgram.blocks
@@ -1611,6 +1618,9 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         let previousEntry = ExerciseEntry(from: plannedExercise, orderIndex: 0, usedMetric: .imperial)
         let previousSet = try XCTUnwrap(previousEntry.orderedSets.first)
         previousSet.weight = 220.4623
+        // The active-workout UI stamps the set with the unit the value was
+        // entered in before storing it; an imperial override is (lb, .lbs).
+        previousSet.weightType = .lbs
         previousSet.done = true
         previousSet.userOverrideAffectsFuture = true
         previousSet.isUserOverridden = true
@@ -1743,7 +1753,11 @@ final class ProgramEngineIntegrationTests: XCTestCase {
                                                 SetPrescriptionDefinition(
                                                     orderIndex: 0,
                                                     repetitions: .fixed(5),
-                                                    load: LoadPrescription(reference: .init(kind: .fixedLoad), fixedValue: 100)
+                                                    // previousOccurrence reads the run state's
+                                                    // current load, so the applied progression
+                                                    // reaches the next snapshot; a fixedLoad
+                                                    // reference resolves to its constant forever.
+                                                    load: LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "squat-progress"))
                                                 )
                                             ],
                                             progressionRules: [rule],
@@ -1906,18 +1920,23 @@ final class ProgramEngineIntegrationTests: XCTestCase {
             scope: .week,
             applicationMode: .automatic
         )
-        let programExercise = ProgramExerciseDefinition(
-            exerciseID: exercise.id,
-            exposureKey: "scoped-squat",
-            orderIndex: 0,
-            plannedSets: [SetPrescriptionDefinition(
+        // Each week needs its own definition instance: identifiers must be
+        // unique across the whole payload, so repeating one struct would be
+        // rejected as duplicateIdentifier.
+        func makeScopedExercise() -> ProgramExerciseDefinition {
+            ProgramExerciseDefinition(
+                exerciseID: exercise.id,
+                exposureKey: "scoped-squat",
                 orderIndex: 0,
-                repetitions: .fixed(5),
-                load: LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "scoped-squat"))
-            )],
-            progressionRules: [rule],
-            initialLoad: 100
-        )
+                plannedSets: [SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .fixed(5),
+                    load: LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "scoped-squat"))
+                )],
+                progressionRules: [rule],
+                initialLoad: 100
+            )
+        }
         let definition = ProgramDefinitionPayload(
             name: "Scoped Week",
             durationWeeks: 2,
@@ -1932,7 +1951,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
                             orderIndex: 0,
                             name: "Week one",
                             dayOffset: 0,
-                            plannedExercises: [programExercise]
+                            plannedExercises: [makeScopedExercise()]
                         )]
                     ),
                     ProgramWeekDefinition(
@@ -1941,7 +1960,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
                             orderIndex: 0,
                             name: "Week two",
                             dayOffset: 0,
-                            plannedExercises: [programExercise]
+                            plannedExercises: [makeScopedExercise()]
                         )]
                     )
                 ]
@@ -2078,7 +2097,9 @@ final class ProgramEngineIntegrationTests: XCTestCase {
 
         let state = try XCTUnwrap(run.progressionStates.first { $0.progressionKey == "weekly-squat" })
         XCTAssertEqual(state.currentLoad ?? 0, 100, accuracy: 0.001)
-        XCTAssertNotNil(state.pendingProgressionData)
+        // weekCompleted has not fired yet, so nothing is pending mid-week;
+        // the rule applies during the week-completing evaluation below.
+        XCTAssertNil(state.pendingProgressionData)
 
         run.currentWeekIndex = 0
         run.currentWorkoutIndex = 1

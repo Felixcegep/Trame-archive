@@ -172,12 +172,12 @@ final class ProgramEngineSimulationTests: XCTestCase {
 
     func testReductionActionsRetainSignedOffsetsForFuturePrescriptions() throws {
         let rules = [
-            ProgressionRuleDefinition(metric: .repetitions, trigger: .allRequiredSetsCompleted, successAction: .reduceRepetitions(2), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
-            ProgressionRuleDefinition(metric: .setCount, trigger: .allRequiredSetsCompleted, successAction: .reduceSets(1), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
-            ProgressionRuleDefinition(metric: .duration, trigger: .allRequiredSetsCompleted, successAction: .reduceDuration(15), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
-            ProgressionRuleDefinition(metric: .distance, trigger: .allRequiredSetsCompleted, successAction: .reduceDistance(50), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
-            ProgressionRuleDefinition(metric: .restDuration, trigger: .allRequiredSetsCompleted, successAction: .reduceRestDuration(10), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
-            ProgressionRuleDefinition(metric: .calories, trigger: .allRequiredSetsCompleted, successAction: .reduceCalories(20), cadence: .nextExerciseOccurrence, scope: .exerciseExposure)
+            ProgressionRuleDefinition(metric: .repetitions, trigger: .allRequiredSetsCompleted, successAction: .reduceRepetitions(2), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .setCount, trigger: .allRequiredSetsCompleted, successAction: .reduceSets(1), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .duration, trigger: .allRequiredSetsCompleted, successAction: .reduceDuration(15), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .distance, trigger: .allRequiredSetsCompleted, successAction: .reduceDistance(50), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .restDuration, trigger: .allRequiredSetsCompleted, successAction: .reduceRestDuration(10), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .calories, trigger: .allRequiredSetsCompleted, successAction: .reduceCalories(20), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic)
         ]
         let result = try ProgramProgressionEvaluator.evaluate(
             rules: rules,
@@ -318,7 +318,10 @@ final class ProgramEngineSimulationTests: XCTestCase {
             automaticCadences: [.nextExerciseOccurrence, .nextWorkout]
         )
         XCTAssertEqual(before.state.currentLoad ?? .nan, 100, accuracy: 0.001)
-        XCTAssertEqual(before.deferredStates.first?.cadence, .nextWeek)
+        // The fixture's rule triggers on weekCompleted, so a mid-week
+        // occurrence produces no deferred state at all; the load only moves
+        // in the evaluation of the workout that completes the week.
+        XCTAssertTrue(before.deferredStates.isEmpty)
 
         let after = try ProgramProgressionEvaluator.evaluate(
             rules: [rule],

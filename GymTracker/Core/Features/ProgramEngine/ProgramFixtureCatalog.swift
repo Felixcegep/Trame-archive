@@ -171,7 +171,7 @@ enum ProgramFixtureCatalog {
     }
 
     static func mixedAcceptance(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
-        let squat = exercise(id: exerciseIDs["squat"]!, key: "mixed-squat", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "mixed-squat"), percentage: 0.8))])
+        let squat = exercise(id: exerciseIDs["squat"]!, key: "mixed-squat", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "mixed-squat"), percentage: 0.8))], rules: [ProgressionRuleDefinition(metric: .load, trigger: .allRequiredSetsCompleted, successAction: .addLoad(2.5), failureAction: .repeatPrescription, cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic)])
         let bench = exercise(id: exerciseIDs["bench"]!, key: "mixed-bench", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .topSet, repetitions: .fixed(5), targetRPE: 8), SetPrescriptionDefinition(orderIndex: 1, role: .backOff, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .topSet, exposureKey: "mixed-bench"), percentage: 0.9), generatesAfterSourceCompletion: true)])
         let row = exercise(id: exerciseIDs["row"]!, key: "mixed-row", sets: fixedSets(3, reps: 8, range: true))
         let plank = exercise(id: exerciseIDs["plank"]!, key: "mixed-plank", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .duration(seconds: 30))])

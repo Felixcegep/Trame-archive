@@ -1055,7 +1055,8 @@ nonisolated enum ProgramDefinitionValidator {
         for reference in formulaReferencePaths where !exposureKeys.contains(reference.dependency) {
             add(reference.path, .invalidFormula, "The formula references exposure '\(reference.dependency)', which does not exist in this program.")
         }
-        for (index, intakeInput) in definition.intakeInputs.enumerated() where !exposureKeys.contains(intakeInput.exposureKey) {
+        for (index, intakeInput) in definition.intakeInputs.enumerated()
+        where intakeInput.exposureKey != "*" && !exposureKeys.contains(intakeInput.exposureKey) {
             add("intakeInputs[\(index)].exposureKey", .invalidIntakeExposure, "The intake input references exposure '\(intakeInput.exposureKey)', which does not exist in this program.")
         }
         return issues

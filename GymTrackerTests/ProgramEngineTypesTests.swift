@@ -810,7 +810,8 @@ final class ProgramEngineTypesTests: XCTestCase {
         let decoded = try JSONDecoder().decode(ProgramDefinitionPayload.self, from: JSONEncoder().encode(definition))
 
         XCTAssertEqual(decoded, definition)
-        XCTAssertEqual(EngineCapabilities.missing(from: decoded.requiredCapabilities), ["velocity"])
+        XCTAssertEqual(EngineCapabilities.missing(from: decoded.requiredCapabilities), [])
+        XCTAssertEqual(EngineCapabilities.missing(from: ["stages", "future-capability"]), ["future-capability"])
     }
 
     func testBuiltInValidationRequiresProgramKeyAndValidIntakeExposure() {
@@ -831,6 +832,9 @@ final class ProgramEngineTypesTests: XCTestCase {
 
         definition.programKey = "squat-cycle"
         definition.intakeInputs = [.init(exposureKey: "squat", kind: .startingLoad)]
+        XCTAssertTrue(ProgramDefinitionValidator.validate(definition, isBuiltIn: true).isEmpty)
+
+        definition.intakeInputs = [.init(exposureKey: "*", kind: .startingLoad)]
         XCTAssertTrue(ProgramDefinitionValidator.validate(definition, isBuiltIn: true).isEmpty)
     }
 
@@ -1132,8 +1136,9 @@ final class ProgramEngineTypesTests: XCTestCase {
         let week = try builder.addWeek(toBlock: block, name: "Week 1")
         let workout = try builder.addWorkout(toBlock: block, week: week, name: "Day 1", dayOffset: 0)
         let first = try builder.addExercise(toBlock: block, week: week, workout: workout, exerciseID: UUID(), exposureKey: "squat")
-        _ = try builder.addExercise(toBlock: block, week: week, workout: workout, exerciseID: UUID(), exposureKey: "bench")
+        let second = try builder.addExercise(toBlock: block, week: week, workout: workout, exerciseID: UUID(), exposureKey: "bench")
         try builder.addSet(toBlock: block, week: week, workout: workout, exercise: first, prescription: SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5)))
+        try builder.addSet(toBlock: block, week: week, workout: workout, exercise: second, prescription: SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(8)))
         try builder.moveExercise(fromBlock: block, week: week, workout: workout, from: 0, to: 2)
 
         let definition = try builder.build()
@@ -1819,7 +1824,8 @@ final class ProgramEngineTypesTests: XCTestCase {
             ),
             context: context
         )
-        XCTAssertEqual(result.prescribedLoad, 132)
+        // 120 × 1.1 = 132.0; the nearest 2.5 increment is 132.5, not 130.
+        XCTAssertEqual(result.prescribedLoad ?? 0, 132.5, accuracy: 0.0001)
     }
 
     func testFormulaResolverSupportsCrossExposureAndSafeDivision() throws {
@@ -1932,8 +1938,8 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(result.state.currentLoad, 30)
         XCTAssertEqual(result.state.currentVariationExerciseID, secondVariation)
         XCTAssertEqual(result.recommendations.count, 2)
-        XCTAssertEqual(result.recommendations.first?.applicationMode, .recommendation)
-        XCTAssertTrue(result.recommendations.contains { $0.action == .addLoad(5) })
+        let loadRecommendation = result.recommendations.first { $0.action == .addLoad(5) }
+        XCTAssertEqual(loadRecommendation?.applicationMode, .recommendation)
     }
 
     func testProgressionEvaluatorSupportsTechnicalQualityRatio() throws {
@@ -1960,10 +1966,10 @@ final class ProgramEngineTypesTests: XCTestCase {
 
     func testProgressionEvaluatorSupportsDurationDistanceAndRestProgression() throws {
         let rules = [
-            ProgressionRuleDefinition(metric: .duration, trigger: .allRequiredSetsCompleted, successAction: .addDuration(10), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
-            ProgressionRuleDefinition(metric: .distance, trigger: .allRequiredSetsCompleted, successAction: .addDistance(100), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
-            ProgressionRuleDefinition(metric: .restDuration, trigger: .allRequiredSetsCompleted, successAction: .reduceRestDuration(5), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
-            ProgressionRuleDefinition(metric: .calories, trigger: .allRequiredSetsCompleted, successAction: .addCalories(25), cadence: .nextExerciseOccurrence, scope: .exerciseExposure)
+            ProgressionRuleDefinition(metric: .duration, trigger: .allRequiredSetsCompleted, successAction: .addDuration(10), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .distance, trigger: .allRequiredSetsCompleted, successAction: .addDistance(100), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .restDuration, trigger: .allRequiredSetsCompleted, successAction: .reduceRestDuration(5), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .calories, trigger: .allRequiredSetsCompleted, successAction: .addCalories(25), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic)
         ]
         let result = try ProgramProgressionEvaluator.evaluate(
             rules: rules,
@@ -1983,7 +1989,8 @@ final class ProgramEngineTypesTests: XCTestCase {
             trigger: .totalCaloriesReached(500),
             successAction: .addCalories(50),
             cadence: .nextWorkout,
-            scope: .exerciseExposure
+            scope: .exerciseExposure,
+            applicationMode: .automatic
         )
         let result = try ProgramProgressionEvaluator.evaluate(
             rules: [rule],
@@ -2056,17 +2063,22 @@ final class ProgramEngineTypesTests: XCTestCase {
     }
 
     func testProgressionEvaluatorAdvancesWaveAndBlockState() throws {
-        let rules = [
-            ProgressionRuleDefinition(metric: .load, trigger: .waveCompleted, successAction: .advanceWave, cadence: .nextWave, scope: .exerciseExposure),
-            ProgressionRuleDefinition(metric: .load, trigger: .blockCompleted, successAction: .advanceBlock, cadence: .nextBlock, scope: .exerciseExposure)
-        ]
-        let result = try ProgramProgressionEvaluator.evaluate(
-            rules: rules,
-            performance: ProgressionPerformance(waveCompleted: true, blockCompleted: true),
+        // Evaluated separately: advanceBlock deliberately resets the wave
+        // index, so a combined evaluation's outcome depends on rule order.
+        let waveResult = try ProgramProgressionEvaluator.evaluate(
+            rules: [ProgressionRuleDefinition(metric: .load, trigger: .waveCompleted, successAction: .advanceWave, cadence: .nextWave, scope: .exerciseExposure, applicationMode: .automatic)],
+            performance: ProgressionPerformance(waveCompleted: true),
             state: ProgressionEvaluationState()
         )
-        XCTAssertEqual(result.state.currentWaveIndex, 1)
-        XCTAssertEqual(result.state.currentBlockIndex, 1)
+        XCTAssertEqual(waveResult.state.currentWaveIndex, 1)
+
+        let blockResult = try ProgramProgressionEvaluator.evaluate(
+            rules: [ProgressionRuleDefinition(metric: .load, trigger: .blockCompleted, successAction: .advanceBlock, cadence: .nextBlock, scope: .exerciseExposure, applicationMode: .automatic)],
+            performance: ProgressionPerformance(blockCompleted: true),
+            state: ProgressionEvaluationState(currentWaveIndex: 2)
+        )
+        XCTAssertEqual(blockResult.state.currentBlockIndex, 1)
+        XCTAssertEqual(blockResult.state.currentWaveIndex, 0)
     }
 
     func testCompiledExposureSeedsItsFirstRunValues() throws {

@@ -65,6 +65,7 @@ enum PlanProgressionEvaluationService {
             if let e1RM = state.estimatedOneRepMax { formulaContext.estimatedOneRepMaxByExposure[state.progressionKey] = e1RM }
             if let actualOneRepMax = state.actualOneRepMax { formulaContext.actualOneRepMaxByExposure[state.progressionKey] = actualOneRepMax }
             if let load = state.currentLoad { formulaContext.valuesByExposure[state.progressionKey] = load }
+            if let baseline = state.velocityBaseline { formulaContext.velocityBaselineByExposure[state.progressionKey] = baseline }
         }
         for progress in run.orderedWorkoutProgress
             .filter({ $0.status == .completed })

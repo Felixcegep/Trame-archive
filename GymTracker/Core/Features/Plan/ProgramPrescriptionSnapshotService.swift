@@ -201,13 +201,13 @@ enum ProgramPrescriptionSnapshotService {
         // so an empty structured prescription must not erase those sets.
         if !prescriptions.isEmpty { entry.prescribedSets = immediatePrescriptions.count }
 
-        // A normal workout start resolves prescriptions before generated
-        // warm-ups are inserted. An active-event refresh happens afterwards,
-        // so it must address only working sets or the first prescription would
-        // be shifted onto a warm-up row.
-        let targetSets = preservingCompletedSets
-            ? entry.orderedSets.filter { $0.prescribedSetType != .warmup && $0.setType != .warmup }
-            : entry.orderedSets
+        // Prescriptions are paired to rows by position, so rows this service
+        // generated itself (warm-up scheme rows) must never be pairing
+        // targets — a repeated apply would shift the first prescription onto
+        // a warm-up. Explicitly prescribed warmup-role rows have to stay:
+        // they are backed by a prescription, and dropping them would shift
+        // every later prescription instead.
+        let targetSets = entry.orderedSets.filter { !isGeneratedWarmup($0) }
         for (index, prescription) in immediatePrescriptions.enumerated() {
             guard index < targetSets.count else { continue }
             let definition = prescription.definition
@@ -379,9 +379,10 @@ enum ProgramPrescriptionSnapshotService {
         targetCount: Int,
         preservingCompletedSets: Bool
     ) {
-        let workingSets = entry.orderedSets.filter {
-            $0.prescribedSetType != .warmup && $0.setType != .warmup
-        }
+        // Count every prescription-backed row, including explicit
+        // warmup-role prescriptions; only rows generated from a warm-up
+        // scheme sit outside the structured count.
+        let workingSets = entry.orderedSets.filter { !isGeneratedWarmup($0) }
         if workingSets.count > targetCount {
             let required = Set(workingSets.prefix(targetCount).map(\.id))
             entry.sets.removeAll { set in
@@ -595,6 +596,12 @@ enum ProgramPrescriptionSnapshotService {
         entry.normalizeSetOrder()
     }
 
+    private static let generatedWarmupNote = "Generated warm-up"
+
+    private static func isGeneratedWarmup(_ set: ExerciseSet) -> Bool {
+        set.prescriptionNotes == generatedWarmupNote
+    }
+
     private static func insertWarmups(
         into entry: ExerciseEntry,
         plannedExercise: PlannedExercise,
@@ -603,7 +610,7 @@ enum ProgramPrescriptionSnapshotService {
         guard let data = plannedExercise.warmupSchemeData,
               let scheme = try? decoder.decode(WarmupSchemeDefinition.self, from: data),
               !scheme.steps.isEmpty,
-              !entry.orderedSets.contains(where: { $0.prescriptionNotes == "Generated warm-up" }),
+              !entry.orderedSets.contains(where: isGeneratedWarmup),
               let workingLoad = entry.orderedSets.first?.prescribedSuggestedLoad ?? entry.prescribedSuggestedLoad
         else { return }
         let warmups = scheme.steps.enumerated().map { index, step in
@@ -630,12 +637,17 @@ enum ProgramPrescriptionSnapshotService {
             )
             set.prescriptionLoadExplanation = "Generated warm-up at \(Int((step.percentage * 100).rounded()))% of the first working load."
             set.prescribedRestSeconds = step.restSeconds
-            set.prescriptionNotes = "Generated warm-up"
+            set.prescriptionNotes = generatedWarmupNote
             return set
         }
-        entry.sets = warmups + entry.orderedSets
-        entry.normalizeSetOrder()
-        entry.prescribedSets = entry.orderedSets.count
+        // Renumber before assigning: the fresh warm-ups and the existing
+        // working sets both start at orderIndex 0, and normalizeSetOrder
+        // iterates orderedSets, whose sort is not stable across that
+        // collision — working sets could land ahead of their warm-ups.
+        let combined = warmups + entry.orderedSets
+        for (index, set) in combined.enumerated() { set.orderIndex = index }
+        entry.sets = combined
+        entry.prescribedSets = combined.count
     }
 
     private static func applyFutureOverride(
