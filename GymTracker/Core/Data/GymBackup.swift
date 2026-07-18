@@ -301,6 +301,8 @@ struct WorkoutPlanDTO: Codable {
     let requiredEquipment: [String]
     let daysPerWeek: Int
     let durationWeeks: Int
+    var scheduleMode: String? = nil
+    var scheduleIntervalDays: Int? = nil
     let notes: String?
     let createdAt: Date
     let updatedAt: Date
@@ -665,6 +667,8 @@ extension BackupDTO {
                 requiredEquipment: plan.requiredEquipment.map(\.rawValue),
                 daysPerWeek: plan.daysPerWeek,
                 durationWeeks: plan.durationWeeks,
+                scheduleMode: plan.scheduleMode.rawValue,
+                scheduleIntervalDays: plan.scheduleIntervalDays,
                 notes: plan.notes,
                 createdAt: plan.createdAt,
                 updatedAt: plan.updatedAt,
@@ -1153,6 +1157,8 @@ extension BackupDTO {
                     requiredEquipment: planDTO.requiredEquipment.compactMap(EquipmentType.init(rawValue:)),
                     daysPerWeek: planDTO.daysPerWeek,
                     durationWeeks: planDTO.durationWeeks,
+                    scheduleMode: planDTO.scheduleMode.flatMap(PlanScheduleMode.init(rawValue:)) ?? .fixedWeekdays,
+                    scheduleIntervalDays: planDTO.scheduleIntervalDays ?? 1,
                     notes: planDTO.notes,
                     blocks: blocks,
                     sourceProgramDefinitionID: planDTO.sourceProgramDefinitionID.flatMap(UUID.init(uuidString:)),

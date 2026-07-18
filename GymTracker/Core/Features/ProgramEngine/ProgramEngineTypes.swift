@@ -340,6 +340,8 @@ struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     var experienceLevel: PlanExperienceLevel
     var durationWeeks: Int
     var supportedDaysPerWeek: [Int]
+    var scheduleMode: PlanScheduleMode
+    var scheduleIntervalDays: Int
     var requiredEquipment: [EquipmentType]
     var blocks: [ProgramBlockDefinition]
 
@@ -353,6 +355,8 @@ struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         experienceLevel: PlanExperienceLevel = .beginner,
         durationWeeks: Int,
         supportedDaysPerWeek: [Int],
+        scheduleMode: PlanScheduleMode = .fixedWeekdays,
+        scheduleIntervalDays: Int = 1,
         requiredEquipment: [EquipmentType] = [],
         blocks: [ProgramBlockDefinition]
     ) {
@@ -365,8 +369,33 @@ struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         self.experienceLevel = experienceLevel
         self.durationWeeks = durationWeeks
         self.supportedDaysPerWeek = supportedDaysPerWeek
+        self.scheduleMode = scheduleMode
+        self.scheduleIntervalDays = max(1, scheduleIntervalDays)
         self.requiredEquipment = requiredEquipment
         self.blocks = blocks
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, schemaVersion, templateVersion, name, description, goal,
+             experienceLevel, durationWeeks, supportedDaysPerWeek,
+             scheduleMode, scheduleIntervalDays, requiredEquipment, blocks
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        templateVersion = try container.decode(Int.self, forKey: .templateVersion)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        goal = try container.decode(PlanGoal.self, forKey: .goal)
+        experienceLevel = try container.decode(PlanExperienceLevel.self, forKey: .experienceLevel)
+        durationWeeks = try container.decode(Int.self, forKey: .durationWeeks)
+        supportedDaysPerWeek = try container.decode([Int].self, forKey: .supportedDaysPerWeek)
+        scheduleMode = try container.decodeIfPresent(PlanScheduleMode.self, forKey: .scheduleMode) ?? .fixedWeekdays
+        scheduleIntervalDays = max(1, try container.decodeIfPresent(Int.self, forKey: .scheduleIntervalDays) ?? 1)
+        requiredEquipment = try container.decodeIfPresent([EquipmentType].self, forKey: .requiredEquipment) ?? []
+        blocks = try container.decode([ProgramBlockDefinition].self, forKey: .blocks)
     }
 }
 
@@ -549,6 +578,9 @@ enum ProgramDefinitionValidator {
         if definition.durationWeeks < 1 { add("durationWeeks", .invalidDuration, "A program must contain at least one week.") }
         if definition.supportedDaysPerWeek.isEmpty || definition.supportedDaysPerWeek.contains(where: { $0 < 1 || $0 > 7 }) {
             add("supportedDaysPerWeek", .invalidSchedule, "Supported days must be between one and seven.")
+        }
+        if definition.scheduleIntervalDays < 1 {
+            add("scheduleIntervalDays", .invalidSchedule, "Schedule interval must be at least one day.")
         }
         if definition.blocks.isEmpty { add("blocks", .emptyBlocks, "A program must contain a block.") }
 

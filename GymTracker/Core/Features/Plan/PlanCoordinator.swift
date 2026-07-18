@@ -30,7 +30,9 @@ enum PlanCoordinator {
         requiredEquipment: [EquipmentType] = [],
         durationWeeks: Int,
         dayAssignments: [DayAssignment],
-        deload: DeloadConfiguration? = nil
+        deload: DeloadConfiguration? = nil,
+        scheduleMode: PlanScheduleMode = .fixedWeekdays,
+        scheduleIntervalDays: Int = 1
     ) -> WorkoutPlan {
         let assignments = dayAssignments
             .filter { (0...6).contains($0.dayOffset) && !$0.template.orderedTemplateExercises.isEmpty }
@@ -46,7 +48,9 @@ enum PlanCoordinator {
             experienceLevel: experienceLevel,
             requiredEquipment: normalizedEquipment(requiredEquipment),
             daysPerWeek: assignments.count,
-            durationWeeks: durationWeeks
+            durationWeeks: durationWeeks,
+            scheduleMode: scheduleMode,
+            scheduleIntervalDays: scheduleIntervalDays
         )
 
         let weeks = (0..<durationWeeks).map { weekIndex in
@@ -98,9 +102,18 @@ enum PlanCoordinator {
         let calendar = Calendar.current
         let firstDay = calendar.startOfDay(for: startDate)
 
+        var sessionIndex = 0
         for week in plan.orderedWeeks {
             for workout in week.orderedPlannedWorkouts {
-                let dayOffset = (week.weekIndex * 7) + workout.dayOffset
+                let dayOffset: Int
+                switch plan.scheduleMode {
+                case .fixedWeekdays:
+                    dayOffset = (week.weekIndex * 7) + workout.dayOffset
+                case .sequential:
+                    dayOffset = sessionIndex
+                case .everyNDays:
+                    dayOffset = sessionIndex * max(1, plan.scheduleIntervalDays)
+                }
                 let scheduledDate = calendar.date(byAdding: .day, value: dayOffset, to: firstDay)
                 run.workoutProgress.append(
                     PlanWorkoutProgress(
@@ -110,6 +123,7 @@ enum PlanCoordinator {
                         scheduledDate: scheduledDate
                     )
                 )
+                sessionIndex += 1
             }
         }
 

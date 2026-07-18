@@ -7,6 +7,8 @@ struct PlanEditorDraft {
     var goal: PlanGoal
     var experienceLevel: PlanExperienceLevel
     var requiredEquipment: [EquipmentType]
+    var scheduleMode: PlanScheduleMode
+    var scheduleIntervalDays: Int
     var blocks: [PlanBlockDraft]
     var weeks: [PlanWeekDraft]
 
@@ -15,6 +17,8 @@ struct PlanEditorDraft {
         goal = plan.goal
         experienceLevel = plan.experienceLevel
         requiredEquipment = plan.requiredEquipment
+        scheduleMode = plan.scheduleMode
+        scheduleIntervalDays = plan.scheduleIntervalDays
         blocks = plan.orderedBlocks.map(PlanBlockDraft.init)
         weeks = plan.orderedWeeks.map(PlanWeekDraft.init)
     }
@@ -24,6 +28,8 @@ struct PlanEditorDraft {
         plan.goal = goal
         plan.experienceLevel = experienceLevel
         plan.requiredEquipment = Array(Set(requiredEquipment)).sorted { $0.rawValue < $1.rawValue }
+        plan.scheduleMode = scheduleMode
+        plan.scheduleIntervalDays = max(1, scheduleIntervalDays)
         plan.updatedAt = .now
 
         for blockDraft in blocks {

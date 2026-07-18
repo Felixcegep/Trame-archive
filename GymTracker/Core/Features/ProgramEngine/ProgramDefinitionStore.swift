@@ -132,6 +132,8 @@ enum ProgramDefinitionCompiler {
             requiredEquipment: definition.requiredEquipment,
             daysPerWeek: definition.supportedDaysPerWeek.first ?? 1,
             durationWeeks: definition.durationWeeks,
+            scheduleMode: definition.scheduleMode,
+            scheduleIntervalDays: definition.scheduleIntervalDays,
             notes: definition.description,
             blocks: blocks,
             sourceProgramDefinitionID: definition.id,

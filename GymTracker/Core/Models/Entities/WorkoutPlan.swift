@@ -10,6 +10,8 @@ final class WorkoutPlan {
     var requiredEquipment: [EquipmentType]
     var daysPerWeek: Int
     var durationWeeks: Int
+    var scheduleMode: PlanScheduleMode
+    var scheduleIntervalDays: Int
     var notes: String?
     var createdAt: Date
     var updatedAt: Date
@@ -28,6 +30,8 @@ final class WorkoutPlan {
         requiredEquipment: [EquipmentType] = [],
         daysPerWeek: Int,
         durationWeeks: Int,
+        scheduleMode: PlanScheduleMode = .fixedWeekdays,
+        scheduleIntervalDays: Int = 1,
         notes: String? = nil,
         blocks: [PlanBlock] = [],
         sourceProgramDefinitionID: UUID? = nil,
@@ -39,6 +43,8 @@ final class WorkoutPlan {
         self.requiredEquipment = requiredEquipment
         self.daysPerWeek = daysPerWeek
         self.durationWeeks = durationWeeks
+        self.scheduleMode = scheduleMode
+        self.scheduleIntervalDays = max(1, scheduleIntervalDays)
         self.notes = notes
         self.createdAt = .now
         self.updatedAt = .now

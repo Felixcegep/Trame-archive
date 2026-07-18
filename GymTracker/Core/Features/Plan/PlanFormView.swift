@@ -12,6 +12,8 @@ struct PlanFormView: View {
     @State private var goal: PlanGoal = .generalStrength
     @State private var experienceLevel: PlanExperienceLevel = .beginner
     @State private var selectedDayOffsets: Set<Int> = [0, 2, 4]
+    @State private var scheduleMode: PlanScheduleMode = .fixedWeekdays
+    @State private var scheduleIntervalDays = 2
     @State private var templateIDByDay: [Int: PersistentIdentifier] = [:]
     @State private var requiredEquipment: [EquipmentType] = []
     @State private var includesDeload = false
@@ -87,7 +89,21 @@ struct PlanFormView: View {
             }
 
             Section("Weekly schedule") {
-                Text("Choose each training day and the saved workout assigned to it.")
+                Picker("Schedule", selection: $scheduleMode) {
+                    ForEach(PlanScheduleMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .accessibilityIdentifier("plan-schedule-mode")
+
+                if scheduleMode == .everyNDays {
+                    Stepper("Every \(scheduleIntervalDays) days", value: $scheduleIntervalDays, in: 1...14)
+                        .accessibilityIdentifier("plan-schedule-interval")
+                }
+
+                Text(scheduleMode == .fixedWeekdays
+                    ? "Choose each training day and the saved workout assigned to it."
+                    : "Choose the session sequence. Calendar dates are derived from session order.")
                     .font(AppFont.footnote)
                     .foregroundStyle(.secondary)
 
@@ -137,7 +153,9 @@ struct PlanFormView: View {
                             requiredEquipment: requiredEquipment,
                             durationWeeks: durationWeeks,
                             dayAssignments: selectedDayAssignments,
-                            deload: deloadConfiguration
+                            deload: deloadConfiguration,
+                            scheduleMode: scheduleMode,
+                            scheduleIntervalDays: scheduleIntervalDays
                         )
                     )
                     dismiss()

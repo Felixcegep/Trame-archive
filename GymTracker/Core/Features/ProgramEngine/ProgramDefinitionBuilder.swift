@@ -18,7 +18,9 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
         goal: PlanGoal = .generalStrength,
         experienceLevel: PlanExperienceLevel = .beginner,
         durationWeeks: Int = 1,
-        supportedDaysPerWeek: [Int] = [1]
+        supportedDaysPerWeek: [Int] = [1],
+        scheduleMode: PlanScheduleMode = .fixedWeekdays,
+        scheduleIntervalDays: Int = 1
     ) {
         definition = ProgramDefinitionPayload(
             name: name,
@@ -26,6 +28,8 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
             experienceLevel: experienceLevel,
             durationWeeks: max(1, durationWeeks),
             supportedDaysPerWeek: supportedDaysPerWeek,
+            scheduleMode: scheduleMode,
+            scheduleIntervalDays: scheduleIntervalDays,
             blocks: []
         )
     }

@@ -5,6 +5,32 @@ import XCTest
 
 @MainActor
 final class PlanSchedulingTests: XCTestCase {
+    func testSequentialScheduleUsesSessionOrderAcrossWeeks() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        plan.scheduleMode = .sequential
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, startDate: start))
+        let dates = try run.orderedWorkoutProgress.map { try XCTUnwrap($0.scheduledDate) }
+        XCTAssertEqual(dates.count, 2)
+        for pair in zip(dates, dates.dropFirst()) {
+            XCTAssertEqual(Calendar.current.dateComponents([.day], from: pair.0, to: pair.1).day, 1)
+        }
+    }
+
+    func testEveryNDaysScheduleUsesConfiguredInterval() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        plan.scheduleMode = .everyNDays
+        plan.scheduleIntervalDays = 3
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000)))
+        let dates = try run.orderedWorkoutProgress.map { try XCTUnwrap($0.scheduledDate) }
+        XCTAssertEqual(dates.count, 2)
+        for pair in zip(dates, dates.dropFirst()) {
+            XCTAssertEqual(Calendar.current.dateComponents([.day], from: pair.0, to: pair.1).day, 3)
+        }
+    }
+
     func testReschedulingPromotesTheEarlierScheduledSessionToAvailable() throws {
         let context = try makeContext()
         let plan = try makeScheduledPlan(in: context)
