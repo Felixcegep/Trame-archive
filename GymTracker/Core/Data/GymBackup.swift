@@ -217,6 +217,27 @@ struct ProgressionStateDTO: Codable {
     let lastAppliedOutcomeID: String?
 }
 
+struct ProgressionRecommendationDTO: Codable {
+    let id: String
+    let planRunID: String
+    let workoutID: String
+    let progressionKey: String
+    let ruleID: String
+    let actionData: Data
+    let cadence: String
+    let scope: String
+    let reason: String
+    let applicationMode: String
+    let proposedLoad: Double?
+    let proposedStageID: String?
+    let proposedVariationExerciseID: String?
+    let proposedRepetitionOffset: Int
+    let proposedSetCountOffset: Int
+    let createdAt: Date
+    let isResolved: Bool
+    let resolvedAt: Date?
+}
+
 struct PlannedWorkoutDTO: Codable {
     let id: String
     let name: String
@@ -324,6 +345,7 @@ struct BackupDTO: Codable, Identifiable {
     let planRuns: [PlanRunDTO]
     let exerciseRelationships: [ExerciseRelationshipDTO]
     let programDefinitions: [ProgramDefinitionDTO]
+    let progressionRecommendations: [ProgressionRecommendationDTO]
 
     init(
         version: Int,
@@ -335,7 +357,8 @@ struct BackupDTO: Codable, Identifiable {
         plans: [WorkoutPlanDTO] = [],
         planRuns: [PlanRunDTO] = [],
         exerciseRelationships: [ExerciseRelationshipDTO] = [],
-        programDefinitions: [ProgramDefinitionDTO] = []
+        programDefinitions: [ProgramDefinitionDTO] = [],
+        progressionRecommendations: [ProgressionRecommendationDTO] = []
     ) {
         self.version = version
         self.preferences = preferences
@@ -347,10 +370,11 @@ struct BackupDTO: Codable, Identifiable {
         self.planRuns = planRuns
         self.exerciseRelationships = exerciseRelationships
         self.programDefinitions = programDefinitions
+        self.progressionRecommendations = progressionRecommendations
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions, progressionRecommendations
     }
 
     init(from decoder: Decoder) throws {
@@ -365,6 +389,7 @@ struct BackupDTO: Codable, Identifiable {
         planRuns = try container.decodeIfPresent([PlanRunDTO].self, forKey: .planRuns) ?? []
         exerciseRelationships = try container.decodeIfPresent([ExerciseRelationshipDTO].self, forKey: .exerciseRelationships) ?? []
         programDefinitions = try container.decodeIfPresent([ProgramDefinitionDTO].self, forKey: .programDefinitions) ?? []
+        progressionRecommendations = try container.decodeIfPresent([ProgressionRecommendationDTO].self, forKey: .progressionRecommendations) ?? []
     }
 }
 
@@ -770,6 +795,28 @@ extension BackupDTO {
                 definitionData: record.definitionData
             )
         }
+        let progressionRecommendationDTOs = try context.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()).map { record in
+            ProgressionRecommendationDTO(
+                id: record.id.uuidString,
+                planRunID: record.planRunID.uuidString,
+                workoutID: record.workoutID.uuidString,
+                progressionKey: record.progressionKey,
+                ruleID: record.ruleID.uuidString,
+                actionData: record.actionData,
+                cadence: record.cadence.rawValue,
+                scope: record.scope.rawValue,
+                reason: record.reason,
+                applicationMode: record.applicationMode.rawValue,
+                proposedLoad: record.proposedLoad,
+                proposedStageID: record.proposedStageID,
+                proposedVariationExerciseID: record.proposedVariationExerciseID?.uuidString,
+                proposedRepetitionOffset: record.proposedRepetitionOffset,
+                proposedSetCountOffset: record.proposedSetCountOffset,
+                createdAt: record.createdAt,
+                isResolved: record.isResolved,
+                resolvedAt: record.resolvedAt
+            )
+        }
 
         return BackupDTO(
             version: currentVersion,
@@ -785,7 +832,8 @@ extension BackupDTO {
             plans: planDTOs,
             planRuns: planRunDTOs,
             exerciseRelationships: relationshipDTOs,
-            programDefinitions: programDefinitionDTOs
+            programDefinitions: programDefinitionDTOs,
+            progressionRecommendations: progressionRecommendationDTOs
         )
     }
 
@@ -1263,6 +1311,44 @@ extension BackupDTO {
                 }
                 context.insert(run)
             }
+
+            for recommendationDTO in progressionRecommendations {
+                guard
+                    let action = try? JSONDecoder().decode(ProgressionAction.self, from: recommendationDTO.actionData),
+                    let cadence = ProgressionCadence(rawValue: recommendationDTO.cadence),
+                    let scope = ProgressionScope(rawValue: recommendationDTO.scope),
+                    let applicationMode = ProgressionApplicationMode(rawValue: recommendationDTO.applicationMode)
+                else {
+                    throw BackupValidationError.invalidIdentifier("progression recommendation")
+                }
+                let recommendation = ProgressionRecommendation(
+                    id: try requiredUUID(recommendationDTO.id, named: "progression recommendation"),
+                    ruleID: try requiredUUID(recommendationDTO.ruleID, named: "progression recommendation rule"),
+                    action: action,
+                    cadence: cadence,
+                    scope: scope,
+                    reason: recommendationDTO.reason,
+                    applicationMode: applicationMode,
+                    proposedState: ProgressionEvaluationState(
+                        currentLoad: recommendationDTO.proposedLoad,
+                        currentStageID: recommendationDTO.proposedStageID,
+                        currentVariationExerciseID: recommendationDTO.proposedVariationExerciseID.flatMap(UUID.init(uuidString:)),
+                        repetitionOffset: recommendationDTO.proposedRepetitionOffset,
+                        setCountOffset: recommendationDTO.proposedSetCountOffset
+                    )
+                )
+                let record = try PlanProgressionRecommendationRecord(
+                    recommendation: recommendation,
+                    planRunID: try requiredUUID(recommendationDTO.planRunID, named: "progression recommendation plan run"),
+                    workoutID: try requiredUUID(recommendationDTO.workoutID, named: "progression recommendation workout")
+                )
+                record.id = recommendation.id
+                record.progressionKey = recommendationDTO.progressionKey
+                record.createdAt = recommendationDTO.createdAt
+                record.isResolved = recommendationDTO.isResolved
+                record.resolvedAt = recommendationDTO.resolvedAt
+                context.insert(record)
+            }
             try beforeCommit?()
             try context.save()
         } catch {
@@ -1344,6 +1430,20 @@ extension BackupDTO {
                 let issues = ProgramDefinitionValidator.validate(payload)
                 guard issues.isEmpty else {
                     throw BackupValidationError.invalidProgramDefinition(issues.map(\.message).joined(separator: " "))
+                }
+            }
+            try validateUniqueIdentifiers(progressionRecommendations.map(\.id), named: "progression recommendation")
+            let runIDs = Set(planRuns.map(\.id))
+            let completedWorkoutIDs = Set(workouts.compactMap(\.id))
+            for recommendation in progressionRecommendations {
+                guard runIDs.contains(recommendation.planRunID),
+                      completedWorkoutIDs.contains(recommendation.workoutID),
+                      UUID(uuidString: recommendation.ruleID) != nil,
+                      ProgressionCadence(rawValue: recommendation.cadence) != nil,
+                      ProgressionScope(rawValue: recommendation.scope) != nil,
+                      ProgressionApplicationMode(rawValue: recommendation.applicationMode) != nil,
+                      (try? JSONDecoder().decode(ProgressionAction.self, from: recommendation.actionData)) != nil else {
+                    throw BackupValidationError.invalidIdentifier("progression recommendation")
                 }
             }
         }

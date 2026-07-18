@@ -438,6 +438,43 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertNil(run.orderedProgressionStates.first?.currentLoad, "No fixed current load should be invented from a percentage prescription")
     }
 
+    func testProgressionRecommendationBackupPreservesExplainableAction() throws {
+        let actionData = try JSONEncoder().encode(ProgressionAction.addLoad(2.5))
+        let dto = ProgressionRecommendationDTO(
+            id: UUID().uuidString,
+            planRunID: UUID().uuidString,
+            workoutID: UUID().uuidString,
+            progressionKey: "bench-strength",
+            ruleID: UUID().uuidString,
+            actionData: actionData,
+            cadence: ProgressionCadence.nextExerciseOccurrence.rawValue,
+            scope: ProgressionScope.exerciseExposure.rawValue,
+            reason: "All required sets reached the upper rep bound.",
+            applicationMode: ProgressionApplicationMode.recommendation.rawValue,
+            proposedLoad: 82.5,
+            proposedStageID: nil,
+            proposedVariationExerciseID: nil,
+            proposedRepetitionOffset: 0,
+            proposedSetCountOffset: 0,
+            createdAt: .now,
+            isResolved: false,
+            resolvedAt: nil
+        )
+        let backup = BackupDTO(
+            version: BackupDTO.currentVersion,
+            preferences: PreferencesDTO(darkMode: false, restTimer: 90, unitSystem: UnitSystem.metric.rawValue),
+            exercises: [],
+            templates: [],
+            collections: [],
+            workouts: [],
+            progressionRecommendations: [dto]
+        )
+        let data = try JSONEncoder().encode(backup)
+        let decoded = try JSONDecoder().decode(BackupDTO.self, from: data)
+        XCTAssertEqual(decoded.progressionRecommendations.first?.actionData, actionData)
+        XCTAssertEqual(try JSONDecoder().decode(ProgressionAction.self, from: decoded.progressionRecommendations[0].actionData), .addLoad(2.5))
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,

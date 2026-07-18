@@ -211,7 +211,7 @@ class WorkoutViewModel {
         }
 
         do {
-            _ = try PlanProgressionEvaluationService.evaluateAndApply(workout: workout, run: run)
+            _ = try PlanProgressionEvaluationService.evaluateAndApply(workout: workout, run: run, modelContext: modelContext)
         } catch {
             // A malformed optional rule must not prevent the performed workout
             // from being saved. The immutable snapshot remains authoritative;

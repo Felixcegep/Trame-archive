@@ -124,6 +124,7 @@ final class LiveActivityMutationServiceTests: XCTestCase {
             PlanWorkoutProgress.self,
             PlanExerciseProgressionState.self,
             ProgramDefinitionRecord.self,
+            PlanProgressionRecommendationRecord.self,
             configurations: configuration
         )
         return ModelContext(container)

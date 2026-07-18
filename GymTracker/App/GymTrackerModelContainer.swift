@@ -34,6 +34,7 @@ enum GymTrackerModelContainer {
         ]
 #if !GYMTRACKER_EXTENSION
         types.append(ProgramDefinitionRecord.self)
+        types.append(PlanProgressionRecommendationRecord.self)
 #endif
         return Schema(types)
     }()

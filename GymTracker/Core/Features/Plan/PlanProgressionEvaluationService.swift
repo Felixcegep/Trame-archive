@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 #if !GYMTRACKER_EXTENSION
 
@@ -12,7 +13,8 @@ enum PlanProgressionEvaluationService {
     /// completed workout stable if its source plan is edited later.
     static func evaluateAndApply(
         workout: Workout,
-        run: PlanRun
+        run: PlanRun,
+        modelContext: ModelContext? = nil
     ) throws -> [PlanExerciseProgressionResult] {
         var results: [PlanExerciseProgressionResult] = []
         let decoder = JSONDecoder()
@@ -84,6 +86,17 @@ enum PlanProgressionEvaluationService {
                 progressionKey: plannedExercise.progressionKey,
                 recommendations: result.recommendations
             ))
+            if let modelContext {
+                for recommendation in result.recommendations {
+                    let record = try PlanProgressionRecommendationRecord(
+                        recommendation: recommendation,
+                        planRunID: run.id,
+                        workoutID: workout.id
+                    )
+                    record.progressionKey = plannedExercise.progressionKey
+                    modelContext.insert(record)
+                }
+            }
         }
         return results
     }
