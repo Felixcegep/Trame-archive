@@ -210,6 +210,14 @@ class WorkoutViewModel {
             return
         }
 
+        do {
+            _ = try PlanProgressionEvaluationService.evaluateAndApply(workout: workout, run: run)
+        } catch {
+            // A malformed optional rule must not prevent the performed workout
+            // from being saved. The immutable snapshot remains authoritative;
+            // the next plan occurrence can be repaired or manually advanced.
+            print("Failed to evaluate program progression: \(error)")
+        }
         PlanCoordinator.markCompleted(progress, with: workout, in: run)
     }
 
