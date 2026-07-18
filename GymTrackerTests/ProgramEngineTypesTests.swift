@@ -449,6 +449,63 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(result.state.velocityBaseline ?? 0, 0.63, accuracy: 0.0001)
     }
 
+    func testVelocityTriggersIgnoreMissingDataWhileFallbackRulesStillApply() throws {
+        let rules = [
+            ProgressionRuleDefinition(
+                metric: .meanVelocity,
+                trigger: .velocityInTargetZone,
+                successAction: .addLoad(2.5),
+                cadence: .nextExerciseOccurrence,
+                scope: .exerciseExposure,
+                applicationMode: .automatic
+            ),
+            ProgressionRuleDefinition(
+                metric: .repetitions,
+                trigger: .allRequiredSetsCompleted,
+                successAction: .addRepetitions(1),
+                cadence: .nextExerciseOccurrence,
+                scope: .exerciseExposure,
+                applicationMode: .automatic
+            )
+        ]
+
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: rules,
+            performance: ProgressionPerformance(requiredSets: 3, completedSets: 3),
+            state: ProgressionEvaluationState(currentLoad: 100)
+        )
+
+        XCTAssertEqual(result.state.currentLoad, 100)
+        XCTAssertEqual(result.state.repetitionOffset, 1)
+        XCTAssertFalse(result.recommendations.contains { $0.action == .addLoad(2.5) })
+    }
+
+    func testComposedTriggerSurvivesDefinitionRoundTripAndStillEvaluates() throws {
+        let definition = ProgressionRuleDefinition(
+            metric: .repetitions,
+            trigger: .allOf([
+                .atStage("volume"),
+                .anyOf([.firstSetReachedUpperRepBound, .manualApproval])
+            ]),
+            successAction: .addRepetitions(1),
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let decoded = try JSONDecoder().decode(
+            ProgressionRuleDefinition.self,
+            from: JSONEncoder().encode(definition)
+        )
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [decoded],
+            performance: ProgressionPerformance(firstSetReachedUpperBound: true),
+            state: ProgressionEvaluationState(currentStageID: "volume")
+        )
+
+        XCTAssertEqual(result.state.repetitionOffset, 1)
+        XCTAssertEqual(result.recommendations.count, 1)
+    }
+
     func testStageTemplateExpandsAndResolvesSelfLoadReference() throws {
         let json = """
         {
