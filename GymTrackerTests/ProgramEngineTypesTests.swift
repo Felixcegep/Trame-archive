@@ -551,6 +551,39 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(ProgressionAction.self, from: decoded.progressionRecommendations[0].actionData), .addLoad(2.5))
     }
 
+    func testProgressionStateBackupPreservesConditioningOffsets() throws {
+        let state = ProgressionStateDTO(
+            id: UUID().uuidString,
+            progressionKey: "conditioning",
+            currentLoad: nil,
+            currentLoadType: nil,
+            repetitionOffset: 0,
+            setCountOffset: 0,
+            durationOffset: 60,
+            distanceOffset: 250,
+            restDurationOffset: 5,
+            currentStageID: nil,
+            currentVariationExerciseID: nil,
+            trainingMax: nil,
+            estimatedOneRepMax: nil,
+            failureCount: 0,
+            successCount: 1,
+            currentWaveIndex: 0,
+            currentBlockIndex: 0,
+            previousAMRAPRepetitions: nil,
+            previousActualRPE: nil,
+            previousActualRIR: nil,
+            lastCompletedOccurrence: nil,
+            lastSuccessfulLoad: nil,
+            isDeloading: false,
+            lastAppliedOutcomeID: nil
+        )
+        let decoded = try JSONDecoder().decode(ProgressionStateDTO.self, from: JSONEncoder().encode(state))
+        XCTAssertEqual(decoded.durationOffset, 60)
+        XCTAssertEqual(decoded.distanceOffset, 250)
+        XCTAssertEqual(decoded.restDurationOffset, 5)
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,
