@@ -108,7 +108,7 @@ final class ProgramEngineTypesTests: XCTestCase {
         let rows = try ProgramDefinitionPreview.rows(for: ProgramFixtureCatalog.waveLoading(exerciseIDs: ["squat": UUID()]))
         XCTAssertEqual(rows.count, 1)
         XCTAssertEqual(rows.first?.waveCount, 2)
-        XCTAssertEqual(rows.first?.setCount, 0)
+        XCTAssertEqual(rows.first?.setCount, 2)
     }
 
     func testValidatorReportsInvalidPrescriptionAndDuplicateExposure() {

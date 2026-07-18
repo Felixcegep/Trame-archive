@@ -33,7 +33,7 @@ enum ProgramDefinitionPreview {
                                 workoutName: workout.name,
                                 exerciseID: exercise.exerciseID,
                                 exposureKey: exercise.exposureKey,
-                                setCount: exercise.plannedSets.count,
+                                setCount: exercise.waves.first?.plannedSets.count ?? exercise.plannedSets.count,
                                 waveCount: exercise.waves.count,
                                 roles: exercise.plannedSets.sorted { $0.orderIndex < $1.orderIndex }.map(\.role),
                                 repPrescriptions: exercise.plannedSets.sorted { $0.orderIndex < $1.orderIndex }.map(\.repetitions),
