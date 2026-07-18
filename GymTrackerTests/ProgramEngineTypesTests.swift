@@ -142,6 +142,20 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(issues.contains { $0.code == .invalidLoadReference })
     }
 
+    func testValidatorRejectsDuplicateSetOrder() {
+        let exercise = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "squat",
+            orderIndex: 0,
+            plannedSets: [
+                SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5)),
+                SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))
+            ]
+        )
+        let issues = ProgramDefinitionValidator.validate(makeDefinition(exercises: [exercise]))
+        XCTAssertTrue(issues.contains { $0.code == .invalidSetOrder })
+    }
+
     func testValidatorRejectsCrossExposureFormulaCycles() {
         let ruleA = ProgressionRuleDefinition(
             metric: .load,

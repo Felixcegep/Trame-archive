@@ -536,13 +536,17 @@ enum ProgramDefinitionValidator {
             let blockPath = "blocks[\(blockIndex)]"
             checkID(block.id, blockPath)
             if block.weeks.isEmpty { add(blockPath, .emptyWeeks, "A block must contain a week.") }
+            var weekOrders = Set<Int>()
             for (weekIndex, week) in block.weeks.enumerated() {
                 let weekPath = "\(blockPath).weeks[\(weekIndex)]"
                 checkID(week.id, weekPath)
+                if !weekOrders.insert(week.weekIndex).inserted { add("\(weekPath).weekIndex", .invalidSetOrder, "Week indices must be unique within a block.") }
                 if week.workouts.isEmpty { add(weekPath, .emptyWorkouts, "A week must contain a workout.") }
+                var workoutOrders = Set<Int>()
                 for (workoutIndex, workout) in week.workouts.enumerated() {
                     let workoutPath = "\(weekPath).workouts[\(workoutIndex)]"
                     checkID(workout.id, workoutPath)
+                    if !workoutOrders.insert(workout.orderIndex).inserted { add("\(workoutPath).orderIndex", .invalidSetOrder, "Workout order indices must be unique within a week.") }
                     var workoutExposures = Set<String>()
                     if workout.dayOffset < 0 || workout.dayOffset > 6 { add("\(workoutPath).dayOffset", .invalidDayOffset, "Day offset must be between zero and six.") }
                     if workout.plannedExercises.isEmpty { add(workoutPath, .emptyWorkout, "A workout must contain an exercise.") }
@@ -555,10 +559,12 @@ enum ProgramDefinitionValidator {
                             add("\(exercisePath).exposureKey", .duplicateExposureKey, "Exposure keys must be unique within a program definition.")
                         }
                         if exercise.plannedSets.isEmpty { add(exercisePath, .emptySetPrescription, "An exercise must contain a set prescription.") }
+                        var setOrders = Set<Int>()
                         for (setIndex, set) in exercise.plannedSets.enumerated() {
                             let setPath = "\(exercisePath).sets[\(setIndex)]"
                             checkID(set.id, setPath)
                             if set.orderIndex < 0 { add("\(setPath).orderIndex", .invalidSetOrder, "Set order must not be negative.") }
+                            if !setOrders.insert(set.orderIndex).inserted { add("\(setPath).orderIndex", .invalidSetOrder, "Set order indices must be unique within an exercise.") }
                             validateRep(set.repetitions, setPath, add)
                             if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
                             if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
