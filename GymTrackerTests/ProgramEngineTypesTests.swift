@@ -311,6 +311,20 @@ final class ProgramEngineTypesTests: XCTestCase {
         }
     }
 
+    func testLoadResolverSupportsActualOneRepMaxReference() throws {
+        var context = LoadResolutionContext()
+        context.actualOneRepMaxByExposure["clean"] = 120
+        let result = try ProgramLoadResolver.resolve(
+            LoadPrescription(
+                reference: .init(kind: .exerciseOneRepMax, exposureKey: "clean"),
+                percentage: 1.1,
+                rounding: .nearestIncrement(2.5)
+            ),
+            context: context
+        )
+        XCTAssertEqual(result.prescribedLoad, 132)
+    }
+
     func testFormulaResolverSupportsCrossExposureAndSafeDivision() throws {
         var context = FormulaResolutionContext()
         context.trainingMaxByExposure["squat"] = 200
@@ -528,7 +542,8 @@ final class ProgramEngineTypesTests: XCTestCase {
                             exposureKey: "seeded-squat",
                             orderIndex: 0,
                             plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "seeded-squat"), percentage: 0.8))],
-                            initialTrainingMax: 200
+                            initialTrainingMax: 200,
+                            initialActualOneRepMax: 220
                         )]
                     )]
                 )]
@@ -537,6 +552,7 @@ final class ProgramEngineTypesTests: XCTestCase {
         let plan = try ProgramDefinitionCompiler.compile(definition, exercisesByID: [squat.id: squat])
         let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
         XCTAssertEqual(run.orderedProgressionStates.first?.trainingMax, 200)
+        XCTAssertEqual(run.orderedProgressionStates.first?.actualOneRepMax, 220)
         XCTAssertNil(run.orderedProgressionStates.first?.currentLoad, "No fixed current load should be invented from a percentage prescription")
     }
 

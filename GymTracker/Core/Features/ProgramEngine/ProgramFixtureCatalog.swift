@@ -95,7 +95,7 @@ enum ProgramFixtureCatalog {
     }
 
     static func olympicWeightlifting(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
-        let snatch = exercise(id: exerciseIDs["snatch"]!, key: "snatch", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .technique, repetitions: .fixed(1), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "snatch"), percentage: 0.75))], initialTrainingMax: 100)
+        let snatch = exercise(id: exerciseIDs["snatch"]!, key: "snatch", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .technique, repetitions: .fixed(1), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "snatch"), percentage: 0.75))], initialTrainingMax: 100, initialActualOneRepMax: 100)
         let pull = exercise(id: exerciseIDs["pull"]!, key: "snatch-pull", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(3), load: LoadPrescription(reference: .init(kind: .exerciseOneRepMax, exerciseID: exerciseIDs["snatch"]!), percentage: 1.05))], initialTrainingMax: 100)
         let complex = exercise(id: exerciseIDs["complex"]!, key: "snatch-complex", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .technique, repetitions: .sequence([RepComponent(exerciseID: exerciseIDs["pull"]!, repetitions: 1), RepComponent(exerciseID: exerciseIDs["snatch"]!, repetitions: 1)]))])
         let max = exercise(id: exerciseIDs["clean"]!, key: "clean-daily-max", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .dailyMaximum, repetitions: .fixed(1))])
@@ -190,8 +190,8 @@ enum ProgramFixtureCatalog {
         ProgramWorkoutDefinition(orderIndex: 0, name: name, dayOffset: 0, plannedExercises: exercises)
     }
 
-    private static func exercise(id: UUID, key: String, sets: [SetPrescriptionDefinition], rules: [ProgressionRuleDefinition] = [], alternatives: [UUID] = [], initialLoad: Double? = nil, initialTrainingMax: Double? = nil, initialEstimatedOneRepMax: Double? = nil) -> ProgramExerciseDefinition {
-        ProgramExerciseDefinition(exerciseID: id, exposureKey: key, orderIndex: 0, plannedSets: sets, progressionRules: rules, alternativeExerciseIDs: alternatives, initialLoad: initialLoad, initialTrainingMax: initialTrainingMax, initialEstimatedOneRepMax: initialEstimatedOneRepMax)
+    private static func exercise(id: UUID, key: String, sets: [SetPrescriptionDefinition], rules: [ProgressionRuleDefinition] = [], alternatives: [UUID] = [], initialLoad: Double? = nil, initialTrainingMax: Double? = nil, initialEstimatedOneRepMax: Double? = nil, initialActualOneRepMax: Double? = nil) -> ProgramExerciseDefinition {
+        ProgramExerciseDefinition(exerciseID: id, exposureKey: key, orderIndex: 0, plannedSets: sets, progressionRules: rules, alternativeExerciseIDs: alternatives, initialLoad: initialLoad, initialTrainingMax: initialTrainingMax, initialEstimatedOneRepMax: initialEstimatedOneRepMax, initialActualOneRepMax: initialActualOneRepMax)
     }
 
     private static func fixedSets(_ count: Int, reps: Int, load: LoadReferenceKind = .manual, exposureKey: String? = nil, range: Bool = false) -> [SetPrescriptionDefinition] {

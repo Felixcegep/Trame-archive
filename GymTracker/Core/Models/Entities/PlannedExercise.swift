@@ -18,6 +18,7 @@ final class PlannedExercise {
     var suggestedLoadType: WeightType?
     var initialTrainingMax: Double?
     var initialEstimatedOneRepMax: Double?
+    var initialActualOneRepMax: Double?
     var restSeconds: Int
     var targetRPE: Double?
     var targetRIR: Int?
@@ -57,7 +58,8 @@ final class PlannedExercise {
         progressionKey: String? = nil,
         progressionRulesData: Data? = nil,
         initialTrainingMax: Double? = nil,
-        initialEstimatedOneRepMax: Double? = nil
+        initialEstimatedOneRepMax: Double? = nil,
+        initialActualOneRepMax: Double? = nil
     ) {
         self.progressionKey = progressionKey ?? UUID().uuidString
         self.exercise = exercise
@@ -71,6 +73,7 @@ final class PlannedExercise {
         self.suggestedLoadType = suggestedLoadType
         self.initialTrainingMax = initialTrainingMax
         self.initialEstimatedOneRepMax = initialEstimatedOneRepMax
+        self.initialActualOneRepMax = initialActualOneRepMax
         self.restSeconds = restSeconds
         self.targetRPE = targetRPE
         self.targetRIR = targetRIR

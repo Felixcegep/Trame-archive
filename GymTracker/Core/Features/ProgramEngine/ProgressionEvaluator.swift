@@ -39,6 +39,7 @@ struct ProgressionEvaluationState: Hashable {
     var currentBlockIndex: Int = 0
     var trainingMax: Double? = nil
     var estimatedOneRepMax: Double? = nil
+    var actualOneRepMax: Double? = nil
     var failureCount: Int = 0
     var successCount: Int = 0
     var previousAMRAPRepetitions: Int?
@@ -186,6 +187,7 @@ enum ProgramProgressionEvaluator {
             break
         case .updateTrainingMax(let formula): state.trainingMax = try resolve(formula, context: formulaContext)
         case .updateEstimatedOneRepMax(let formula): state.estimatedOneRepMax = try resolve(formula, context: formulaContext)
+        case .updateActualOneRepMax(let formula): state.actualOneRepMax = try resolve(formula, context: formulaContext)
         case .changeStage(let stage): state.currentStageID = stage
         case .advanceExerciseVariation:
             guard !variationLadder.isEmpty else { throw ProgressionEvaluationError.invalidAction("Variation ladder is empty.") }

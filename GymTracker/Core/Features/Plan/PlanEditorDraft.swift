@@ -178,6 +178,9 @@ struct PlanExerciseDraft: Identifiable {
     var alternatives: [Exercise]
     var plannedSets: [PlanSetDraft]
     var progressionRulesData: Data?
+    var initialTrainingMax: Double?
+    var initialEstimatedOneRepMax: Double?
+    var initialActualOneRepMax: Double?
 
     init(exercise: Exercise, orderIndex: Int) {
         id = UUID()
@@ -204,6 +207,9 @@ struct PlanExerciseDraft: Identifiable {
         alternatives = []
         plannedSets = []
         progressionRulesData = nil
+        initialTrainingMax = nil
+        initialEstimatedOneRepMax = nil
+        initialActualOneRepMax = nil
     }
 
     init(plannedExercise: PlannedExercise) {
@@ -230,6 +236,9 @@ struct PlanExerciseDraft: Identifiable {
             .map(\.exercise)
         plannedSets = plannedExercise.orderedPlannedSets.map(PlanSetDraft.init)
         progressionRulesData = plannedExercise.progressionRulesData
+        initialTrainingMax = plannedExercise.initialTrainingMax
+        initialEstimatedOneRepMax = plannedExercise.initialEstimatedOneRepMax
+        initialActualOneRepMax = plannedExercise.initialActualOneRepMax
     }
 
     var summary: String {
@@ -271,7 +280,10 @@ struct PlanExerciseDraft: Identifiable {
             },
             supersetGroupID: supersetGroupID,
             progressionKey: progressionKey,
-            progressionRulesData: progressionRulesData
+            progressionRulesData: progressionRulesData,
+            initialTrainingMax: initialTrainingMax,
+            initialEstimatedOneRepMax: initialEstimatedOneRepMax,
+            initialActualOneRepMax: initialActualOneRepMax
         )
     }
 
@@ -293,6 +305,9 @@ struct PlanExerciseDraft: Identifiable {
         model.stimulus = stimulus
         model.progressionKey = progressionKey
         model.progressionRulesData = progressionRulesData
+        model.initialTrainingMax = initialTrainingMax
+        model.initialEstimatedOneRepMax = initialEstimatedOneRepMax
+        model.initialActualOneRepMax = initialActualOneRepMax
         model.supersetGroupID = supersetGroupID
         for alternative in model.alternatives {
             context.delete(alternative)

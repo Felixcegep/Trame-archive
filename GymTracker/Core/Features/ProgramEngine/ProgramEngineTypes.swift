@@ -236,6 +236,7 @@ enum ProgressionAction: Codable, Hashable {
     case reduceRestDuration(Int)
     case updateTrainingMax(ProgressionFormula)
     case updateEstimatedOneRepMax(ProgressionFormula)
+    case updateActualOneRepMax(ProgressionFormula)
     case repeatPrescription
     case changeStage(String)
     case advanceExerciseVariation
@@ -444,6 +445,7 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
     var initialLoad: Double?
     var initialTrainingMax: Double?
     var initialEstimatedOneRepMax: Double?
+    var initialActualOneRepMax: Double?
 
     init(
         id: UUID = UUID(),
@@ -456,7 +458,8 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         alternativeExerciseIDs: [UUID] = [],
         initialLoad: Double? = nil,
         initialTrainingMax: Double? = nil,
-        initialEstimatedOneRepMax: Double? = nil
+        initialEstimatedOneRepMax: Double? = nil,
+        initialActualOneRepMax: Double? = nil
     ) {
         self.id = id
         self.exerciseID = exerciseID
@@ -469,6 +472,7 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         self.initialLoad = initialLoad
         self.initialTrainingMax = initialTrainingMax
         self.initialEstimatedOneRepMax = initialEstimatedOneRepMax
+        self.initialActualOneRepMax = initialActualOneRepMax
     }
 }
 

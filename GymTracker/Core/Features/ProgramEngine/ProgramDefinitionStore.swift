@@ -185,7 +185,8 @@ enum ProgramDefinitionCompiler {
             progressionKey: definition.exposureKey,
             progressionRulesData: rulesData,
             initialTrainingMax: definition.initialTrainingMax,
-            initialEstimatedOneRepMax: definition.initialEstimatedOneRepMax
+            initialEstimatedOneRepMax: definition.initialEstimatedOneRepMax,
+            initialActualOneRepMax: definition.initialActualOneRepMax
         )
     }
 

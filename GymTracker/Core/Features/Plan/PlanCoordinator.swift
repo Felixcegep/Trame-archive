@@ -124,6 +124,7 @@ enum PlanCoordinator {
                     currentLoad: plannedExercise.suggestedLoad,
                     trainingMax: plannedExercise.initialTrainingMax,
                     estimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
+                    actualOneRepMax: plannedExercise.initialActualOneRepMax,
                     currentVariationExerciseID: plannedExercise.exercise.id
                 )
             )

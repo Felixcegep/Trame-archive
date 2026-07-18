@@ -176,6 +176,7 @@ struct PlannedExerciseDTO: Codable {
     var progressionRulesData: Data? = nil
     var initialTrainingMax: Double? = nil
     var initialEstimatedOneRepMax: Double? = nil
+    var initialActualOneRepMax: Double? = nil
 }
 
 struct PlannedSetDTO: Codable {
@@ -204,6 +205,7 @@ struct ProgressionStateDTO: Codable {
     var durationOffset: TimeInterval = 0
     var distanceOffset: Double = 0
     var restDurationOffset: Int = 0
+    var actualOneRepMax: Double? = nil
     let currentStageID: String?
     let currentVariationExerciseID: String?
     let trainingMax: Double?
@@ -235,6 +237,7 @@ struct ProgressionRecommendationDTO: Codable {
     let proposedLoad: Double?
     var proposedTrainingMax: Double? = nil
     var proposedEstimatedOneRepMax: Double? = nil
+    var proposedActualOneRepMax: Double? = nil
     let proposedStageID: String?
     let proposedVariationExerciseID: String?
     let proposedRepetitionOffset: Int
@@ -705,6 +708,7 @@ extension BackupDTO {
                                                 progressionRulesData: plannedExercise.progressionRulesData,
                                                 initialTrainingMax: plannedExercise.initialTrainingMax,
                                                 initialEstimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
+                                                initialActualOneRepMax: plannedExercise.initialActualOneRepMax,
                                                 plannedSets: plannedExercise.orderedPlannedSets.map { plannedSet in
                                                     PlannedSetDTO(
                                                         orderIndex: plannedSet.orderIndex,
@@ -777,6 +781,7 @@ extension BackupDTO {
                         currentVariationExerciseID: state.currentVariationExerciseID?.uuidString,
                         trainingMax: state.trainingMax,
                         estimatedOneRepMax: state.estimatedOneRepMax,
+                        actualOneRepMax: state.actualOneRepMax,
                         failureCount: state.failureCount,
                         successCount: state.successCount,
                         currentWaveIndex: state.currentWaveIndex,
@@ -826,6 +831,7 @@ extension BackupDTO {
                 proposedLoad: record.proposedLoad,
                 proposedTrainingMax: record.proposedTrainingMax,
                 proposedEstimatedOneRepMax: record.proposedEstimatedOneRepMax,
+                proposedActualOneRepMax: record.proposedActualOneRepMax,
                 proposedStageID: record.proposedStageID,
                 proposedVariationExerciseID: record.proposedVariationExerciseID?.uuidString,
                 proposedRepetitionOffset: record.proposedRepetitionOffset,
@@ -1081,7 +1087,8 @@ extension BackupDTO {
                                     progressionKey: plannedExerciseDTO.progressionKey,
                                     progressionRulesData: plannedExerciseDTO.progressionRulesData,
                                     initialTrainingMax: plannedExerciseDTO.initialTrainingMax,
-                                    initialEstimatedOneRepMax: plannedExerciseDTO.initialEstimatedOneRepMax
+                                    initialEstimatedOneRepMax: plannedExerciseDTO.initialEstimatedOneRepMax,
+                                    initialActualOneRepMax: plannedExerciseDTO.initialActualOneRepMax
                                 )
                                 plannedExercise.id = try requiredUUID(plannedExerciseDTO.id, named: "planned exercise")
                                 return plannedExercise
@@ -1322,6 +1329,7 @@ extension BackupDTO {
                         currentVariationExerciseID: stateDTO.currentVariationExerciseID.flatMap(UUID.init(uuidString:)),
                         trainingMax: stateDTO.trainingMax,
                         estimatedOneRepMax: stateDTO.estimatedOneRepMax,
+                        actualOneRepMax: stateDTO.actualOneRepMax,
                         failureCount: stateDTO.failureCount,
                         successCount: stateDTO.successCount,
                         currentWaveIndex: stateDTO.currentWaveIndex,
@@ -1361,6 +1369,7 @@ extension BackupDTO {
                         currentLoad: recommendationDTO.proposedLoad,
                         trainingMax: recommendationDTO.proposedTrainingMax,
                         estimatedOneRepMax: recommendationDTO.proposedEstimatedOneRepMax,
+                        actualOneRepMax: recommendationDTO.proposedActualOneRepMax,
                         currentStageID: recommendationDTO.proposedStageID,
                         currentVariationExerciseID: recommendationDTO.proposedVariationExerciseID.flatMap(UUID.init(uuidString:)),
                         repetitionOffset: recommendationDTO.proposedRepetitionOffset,

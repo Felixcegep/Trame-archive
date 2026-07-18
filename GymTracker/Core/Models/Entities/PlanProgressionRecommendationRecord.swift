@@ -17,6 +17,7 @@ final class PlanProgressionRecommendationRecord {
     var proposedLoad: Double?
     var proposedTrainingMax: Double?
     var proposedEstimatedOneRepMax: Double?
+    var proposedActualOneRepMax: Double?
     var proposedStageID: String?
     var proposedVariationExerciseID: UUID?
     var proposedRepetitionOffset: Int
@@ -49,6 +50,7 @@ final class PlanProgressionRecommendationRecord {
         proposedLoad = recommendation.proposedState.currentLoad
         proposedTrainingMax = recommendation.proposedState.trainingMax
         proposedEstimatedOneRepMax = recommendation.proposedState.estimatedOneRepMax
+        proposedActualOneRepMax = recommendation.proposedState.actualOneRepMax
         proposedStageID = recommendation.proposedState.currentStageID
         proposedVariationExerciseID = recommendation.proposedState.currentVariationExerciseID
         proposedRepetitionOffset = recommendation.proposedState.repetitionOffset

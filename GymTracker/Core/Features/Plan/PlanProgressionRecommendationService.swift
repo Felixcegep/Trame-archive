@@ -44,6 +44,7 @@ enum PlanProgressionRecommendationService {
         state.currentLoad = recommendation.proposedLoad
         state.trainingMax = recommendation.proposedTrainingMax
         state.estimatedOneRepMax = recommendation.proposedEstimatedOneRepMax
+        state.actualOneRepMax = recommendation.proposedActualOneRepMax
         state.currentStageID = recommendation.proposedStageID
         state.currentVariationExerciseID = recommendation.proposedVariationExerciseID
         state.repetitionOffset = recommendation.proposedRepetitionOffset

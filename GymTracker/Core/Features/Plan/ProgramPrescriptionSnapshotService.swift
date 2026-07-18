@@ -51,9 +51,14 @@ enum ProgramPrescriptionSnapshotService {
         for progressionState in run.progressionStates {
             if let value = progressionState.trainingMax { context.trainingMaxByExposure[progressionState.progressionKey] = value }
             if let value = progressionState.estimatedOneRepMax { context.estimatedOneRepMaxByExposure[progressionState.progressionKey] = value }
+            if let value = progressionState.actualOneRepMax { context.actualOneRepMaxByExposure[progressionState.progressionKey] = value }
             if let value = progressionState.currentLoad {
                 context.previousOccurrenceByExposure[progressionState.progressionKey] = value
+                context.previousWorkoutByExposure[progressionState.progressionKey] = value
                 context.anotherPlannedExerciseByExposure[progressionState.progressionKey] = value
+            }
+            if let value = progressionState.lastSuccessfulLoad {
+                context.previousSuccessfulSetByExposure[progressionState.progressionKey] = value
             }
         }
         let allPlannedExercises = run.plan?.orderedWeeks
@@ -61,7 +66,7 @@ enum ProgramPrescriptionSnapshotService {
             .flatMap(\.orderedPlannedExercises) ?? []
         for planned in allPlannedExercises {
             guard let state = run.progressionStates.first(where: { $0.progressionKey == planned.progressionKey }) else { continue }
-            if let value = state.trainingMax ?? state.estimatedOneRepMax ?? state.currentLoad {
+            if let value = state.actualOneRepMax ?? state.trainingMax ?? state.estimatedOneRepMax ?? state.currentLoad {
                 context.exerciseOneRepMaxByID[planned.exercise.id] = value
                 context.referenceValuesByExerciseID[planned.exercise.id] = value
             }

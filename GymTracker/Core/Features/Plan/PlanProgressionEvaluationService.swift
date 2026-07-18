@@ -27,6 +27,7 @@ enum PlanProgressionEvaluationService {
         for state in run.progressionStates {
             if let trainingMax = state.trainingMax { formulaContext.trainingMaxByExposure[state.progressionKey] = trainingMax }
             if let e1RM = state.estimatedOneRepMax { formulaContext.estimatedOneRepMaxByExposure[state.progressionKey] = e1RM }
+            if let actualOneRepMax = state.actualOneRepMax { formulaContext.actualOneRepMaxByExposure[state.progressionKey] = actualOneRepMax }
             if let load = state.currentLoad { formulaContext.valuesByExposure[state.progressionKey] = load }
         }
 
@@ -54,6 +55,7 @@ enum PlanProgressionEvaluationService {
                 currentBlockIndex: state.currentBlockIndex ?? 0,
                 trainingMax: state.trainingMax,
                 estimatedOneRepMax: state.estimatedOneRepMax,
+                actualOneRepMax: state.actualOneRepMax,
                 failureCount: state.failureCount + (performance.didFail ? 1 : 0),
                 successCount: state.successCount + (performance.didFail ? 0 : 1),
                 previousAMRAPRepetitions: performance.amrapRepetitions,
@@ -80,6 +82,7 @@ enum PlanProgressionEvaluationService {
             state.currentBlockIndex = evaluationState.currentBlockIndex
             state.trainingMax = evaluationState.trainingMax
             state.estimatedOneRepMax = evaluationState.estimatedOneRepMax
+            state.actualOneRepMax = evaluationState.actualOneRepMax
             state.failureCount = evaluationState.failureCount
             state.successCount = evaluationState.successCount
             state.previousAMRAPRepetitions = evaluationState.previousAMRAPRepetitions

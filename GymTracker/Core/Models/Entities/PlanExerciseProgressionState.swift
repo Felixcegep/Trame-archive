@@ -19,6 +19,7 @@ final class PlanExerciseProgressionState {
     var currentVariationExerciseID: UUID?
     var trainingMax: Double?
     var estimatedOneRepMax: Double?
+    var actualOneRepMax: Double?
     var failureCount: Int
     var successCount: Int
     var currentWaveIndex: Int?
@@ -45,6 +46,7 @@ final class PlanExerciseProgressionState {
         currentVariationExerciseID: UUID? = nil,
         trainingMax: Double? = nil,
         estimatedOneRepMax: Double? = nil,
+        actualOneRepMax: Double? = nil,
         failureCount: Int = 0,
         successCount: Int = 0,
         currentWaveIndex: Int? = nil,
@@ -69,6 +71,7 @@ final class PlanExerciseProgressionState {
         self.currentVariationExerciseID = currentVariationExerciseID
         self.trainingMax = trainingMax
         self.estimatedOneRepMax = estimatedOneRepMax
+        self.actualOneRepMax = actualOneRepMax
         self.failureCount = max(0, failureCount)
         self.successCount = max(0, successCount)
         self.currentWaveIndex = currentWaveIndex
