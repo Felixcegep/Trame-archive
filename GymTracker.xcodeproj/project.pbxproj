@@ -70,6 +70,9 @@
 				Core/LiveActivity/LiveActivityManager.swift,
 				Core/Features/ProgramEngine/ProgramDefinitionStore.swift,
 				Core/Features/ProgramEngine/ProgramEngineTypes.swift,
+				Core/Features/ProgramEngine/ProgramCalculationEngine.swift,
+				Core/Features/ProgramEngine/ProgressionEvaluator.swift,
+				Core/Features/Plan/PlanProgressionEvaluationService.swift,
 				Localizable.xcstrings,
 			);
 			target = 44E0076B2FFAEB0600BF7D2B /* GymTrackerExtensionExtension */;
