@@ -11,6 +11,7 @@ nonisolated enum ProgramLibraryImportError: LocalizedError, Equatable {
     case missingExercise(String)
     case missingRuleSet(String)
     case unsupportedRuleConstruct(String)
+    case catalogFailures([String])
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +27,8 @@ nonisolated enum ProgramLibraryImportError: LocalizedError, Equatable {
             return "The program library references missing rule set \(name)."
         case .unsupportedRuleConstruct(let construct):
             return "The program rule construct \(construct) is not supported by this engine."
+        case .catalogFailures(let keys):
+            return "The program catalog contains invalid definitions: \(keys.joined(separator: ", "))."
         }
     }
 }
@@ -959,6 +962,34 @@ enum ProgramLibraryImporter {
         decoder: JSONDecoder = JSONDecoder()
     ) throws -> ProgramLibraryImportResult {
         try importDocument(decode(data, decoder: decoder), into: context)
+    }
+}
+
+@MainActor
+enum ProgramLibrarySeedData {
+    static func seedBundledCatalog(in context: ModelContext, bundle: Bundle = .main) throws -> ProgramLibraryImportResult {
+        try seed(AuthoringProgramCatalogDecoder.bundledData(bundle: bundle), in: context)
+    }
+
+    static func seed(_ data: Data, in context: ModelContext) throws -> ProgramLibraryImportResult {
+        let catalog = try AuthoringProgramCatalogDecoder.decode(data)
+        guard catalog.failures.isEmpty else {
+            throw ProgramLibraryImportError.catalogFailures(catalog.failures.map(\.programKey))
+        }
+
+        let exercises = try context.fetch(FetchDescriptor<Exercise>())
+        let exerciseIDsByName = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0.id) })
+        let payloads = try catalog.definitions.map { try $0.expand(exerciseIDsByName: exerciseIDsByName) }
+        for payload in payloads {
+            let issues = ProgramDefinitionValidator.validate(payload, isBuiltIn: true)
+            guard issues.isEmpty else {
+                throw ProgramDefinitionStoreError.invalid(issues)
+            }
+        }
+        return try ProgramLibraryImporter.importDocument(
+            ProgramLibraryDocument(libraryVersion: 1, programDefinitions: payloads),
+            into: context
+        )
     }
 }
 

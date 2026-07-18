@@ -56,6 +56,52 @@ final class ProgramEngineIntegrationTests: XCTestCase {
             )
         }
     }
+
+    func testAuthoringCatalogSeedsIdempotentlyThroughStrictValidation() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Catalog Squat", primaryMuscles: [.quadriceps])
+        context.insert(exercise)
+        let json = """
+        {
+          "schemaVersion":1,
+          "programDefinitions":[{
+            "programKey":"catalog-only","name":"Catalog Only","goal":"generalStrength",
+            "experienceLevel":"beginner","durationWeeks":1,"supportedDaysPerWeek":[1],
+            "scheduleMode":"fixedWeekdays","blocks":[{
+              "name":"Build","phaseType":"strength","weeks":[{"weekIndex":0,"workouts":[{
+                "name":"Day","dayOffset":0,"exercises":[{
+                  "exercise":"Catalog Squat","exposureKey":"squat","setGroups":[{"count":3,"reps":5}]
+                }]
+              }]}]
+            }]
+          }]
+        }
+        """
+
+        let first = try ProgramLibrarySeedData.seed(Data(json.utf8), in: context)
+        let second = try ProgramLibrarySeedData.seed(Data(json.utf8), in: context)
+        let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+
+        XCTAssertEqual(first.importedProgramKeys, ["catalog-only"])
+        XCTAssertEqual(second.importedProgramKeys, ["catalog-only"])
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(try records[0].payload().programKey, "catalog-only")
+    }
+
+    func testAuthoringCatalogSeedingRejectsAnyPlaceholderProgram() throws {
+        let context = try makeContext()
+        let json = """
+        {"schemaVersion":1,"programDefinitions":[{
+          "programKey":"placeholder","name":"Placeholder","blocks":[{
+            "name":"Build","phaseType":"strength","weeks":[{"weekIndex":0,"workouts":"same as prior"}]
+          }]
+        }]}
+        """
+
+        XCTAssertThrowsError(try ProgramLibrarySeedData.seed(Data(json.utf8), in: context)) { error in
+            XCTAssertEqual(error as? ProgramLibraryImportError, .catalogFailures(["placeholder"]))
+        }
+    }
     func testScopedWeekStateAppliesOnlyToTargetWeekAndExposure() {
         let squat = Exercise(name: "Squat", primaryMuscles: [.quadriceps])
         let volume = PlannedExercise(exercise: squat, orderIndex: 0, progressionKey: "squat-volume")
