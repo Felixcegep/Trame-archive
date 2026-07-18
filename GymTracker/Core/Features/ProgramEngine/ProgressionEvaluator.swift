@@ -32,6 +32,8 @@ struct ProgressionEvaluationState: Hashable {
     var setCountOffset: Int = 0
     var currentStageID: String? = nil
     var currentVariationExerciseID: UUID? = nil
+    var currentWaveIndex: Int = 0
+    var currentBlockIndex: Int = 0
     var trainingMax: Double? = nil
     var estimatedOneRepMax: Double? = nil
     var failureCount: Int = 0
@@ -192,7 +194,16 @@ enum ProgramProgressionEvaluator {
                 return
             }
             state.currentVariationExerciseID = variationLadder[max(index - 1, 0)]
-        case .advanceWeek, .repeatWeek, .advanceWave, .advanceBlock, .restartBlock, .endExercise, .endProgram, .startDeload:
+        case .advanceWeek, .repeatWeek, .endExercise, .endProgram:
+            break
+        case .advanceWave:
+            state.currentWaveIndex += 1
+        case .advanceBlock:
+            state.currentBlockIndex += 1
+            state.currentWaveIndex = 0
+        case .restartBlock:
+            state.currentWaveIndex = 0
+        case .startDeload:
             state.isDeloading = action == .startDeload
         }
     }

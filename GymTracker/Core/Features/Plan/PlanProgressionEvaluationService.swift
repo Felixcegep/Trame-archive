@@ -45,6 +45,8 @@ enum PlanProgressionEvaluationService {
                 setCountOffset: state.setCountOffset,
                 currentStageID: state.currentStageID,
                 currentVariationExerciseID: state.currentVariationExerciseID,
+                currentWaveIndex: state.currentWaveIndex ?? 0,
+                currentBlockIndex: state.currentBlockIndex ?? 0,
                 trainingMax: state.trainingMax,
                 estimatedOneRepMax: state.estimatedOneRepMax,
                 failureCount: state.failureCount + (performance.didFail ? 1 : 0),
@@ -66,6 +68,8 @@ enum PlanProgressionEvaluationService {
             state.setCountOffset = evaluationState.setCountOffset
             state.currentStageID = evaluationState.currentStageID
             state.currentVariationExerciseID = evaluationState.currentVariationExerciseID
+            state.currentWaveIndex = evaluationState.currentWaveIndex
+            state.currentBlockIndex = evaluationState.currentBlockIndex
             state.trainingMax = evaluationState.trainingMax
             state.estimatedOneRepMax = evaluationState.estimatedOneRepMax
             state.failureCount = evaluationState.failureCount

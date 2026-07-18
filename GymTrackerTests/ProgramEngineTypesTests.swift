@@ -392,6 +392,20 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(result.state.setCountOffset, 0)
     }
 
+    func testProgressionEvaluatorAdvancesWaveAndBlockState() throws {
+        let rules = [
+            ProgressionRuleDefinition(metric: .load, trigger: .waveCompleted, successAction: .advanceWave, cadence: .nextWave, scope: .exerciseExposure),
+            ProgressionRuleDefinition(metric: .load, trigger: .blockCompleted, successAction: .advanceBlock, cadence: .nextBlock, scope: .exerciseExposure)
+        ]
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: rules,
+            performance: ProgressionPerformance(waveCompleted: true, blockCompleted: true),
+            state: ProgressionEvaluationState()
+        )
+        XCTAssertEqual(result.state.currentWaveIndex, 1)
+        XCTAssertEqual(result.state.currentBlockIndex, 1)
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,
