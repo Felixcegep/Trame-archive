@@ -174,6 +174,7 @@ struct PlannedExerciseDTO: Codable {
     var plannedSets: [PlannedSetDTO]? = nil
     var progressionKey: String? = nil
     var progressionRulesData: Data? = nil
+    var progressionWavesData: Data? = nil
     var initialTrainingMax: Double? = nil
     var initialEstimatedOneRepMax: Double? = nil
     var initialActualOneRepMax: Double? = nil
@@ -706,6 +707,7 @@ extension BackupDTO {
                                                 supersetGroupID: plannedExercise.supersetGroupID?.uuidString,
                                                 progressionKey: plannedExercise.progressionKey,
                                                 progressionRulesData: plannedExercise.progressionRulesData,
+                                                progressionWavesData: plannedExercise.progressionWavesData,
                                                 initialTrainingMax: plannedExercise.initialTrainingMax,
                                                 initialEstimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
                                                 initialActualOneRepMax: plannedExercise.initialActualOneRepMax,
@@ -1086,6 +1088,7 @@ extension BackupDTO {
                                     supersetGroupID: plannedExerciseDTO.supersetGroupID.flatMap(UUID.init(uuidString:)),
                                     progressionKey: plannedExerciseDTO.progressionKey,
                                     progressionRulesData: plannedExerciseDTO.progressionRulesData,
+                                    progressionWavesData: plannedExerciseDTO.progressionWavesData,
                                     initialTrainingMax: plannedExerciseDTO.initialTrainingMax,
                                     initialEstimatedOneRepMax: plannedExerciseDTO.initialEstimatedOneRepMax,
                                     initialActualOneRepMax: plannedExerciseDTO.initialActualOneRepMax

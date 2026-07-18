@@ -26,6 +26,9 @@ final class PlannedExercise {
     var progressionRule: ProgressionRule
     /// Encoded composable progression rules for generated program plans.
     var progressionRulesData: Data?
+    /// Encoded structured wave prescriptions. The first wave remains mirrored
+    /// into `plannedSets` for legacy editors and snapshots.
+    var progressionWavesData: Data?
     // Optional for compatibility with plans persisted before stimulus was added.
     // Callers should use resolvedStimulus when a concrete value is required.
     var stimulus: TrainingStimulus?
@@ -57,6 +60,7 @@ final class PlannedExercise {
         supersetGroupID: UUID? = nil,
         progressionKey: String? = nil,
         progressionRulesData: Data? = nil,
+        progressionWavesData: Data? = nil,
         initialTrainingMax: Double? = nil,
         initialEstimatedOneRepMax: Double? = nil,
         initialActualOneRepMax: Double? = nil
@@ -80,6 +84,7 @@ final class PlannedExercise {
         self.notes = notes
         self.progressionRule = progressionRule
         self.progressionRulesData = progressionRulesData
+        self.progressionWavesData = progressionWavesData
         self.stimulus = stimulus
         self.alternatives = alternatives
         self.plannedSets = plannedSets

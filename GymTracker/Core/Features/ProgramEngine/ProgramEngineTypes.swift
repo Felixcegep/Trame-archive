@@ -433,6 +433,25 @@ struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
     }
 }
 
+struct ProgramWaveDefinition: Codable, Hashable, Identifiable {
+    var id: UUID
+    var orderIndex: Int
+    var name: String?
+    var plannedSets: [SetPrescriptionDefinition]
+
+    init(
+        id: UUID = UUID(),
+        orderIndex: Int,
+        name: String? = nil,
+        plannedSets: [SetPrescriptionDefinition]
+    ) {
+        self.id = id
+        self.orderIndex = orderIndex
+        self.name = name
+        self.plannedSets = plannedSets
+    }
+}
+
 struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
     var id: UUID
     var exerciseID: UUID
@@ -440,6 +459,7 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
     var orderIndex: Int
     var isOptional: Bool
     var plannedSets: [SetPrescriptionDefinition]
+    var waves: [ProgramWaveDefinition]
     var progressionRules: [ProgressionRuleDefinition]
     var alternativeExerciseIDs: [UUID]
     var initialLoad: Double?
@@ -454,6 +474,7 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         orderIndex: Int,
         isOptional: Bool = false,
         plannedSets: [SetPrescriptionDefinition],
+        waves: [ProgramWaveDefinition] = [],
         progressionRules: [ProgressionRuleDefinition] = [],
         alternativeExerciseIDs: [UUID] = [],
         initialLoad: Double? = nil,
@@ -467,6 +488,7 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         self.orderIndex = orderIndex
         self.isOptional = isOptional
         self.plannedSets = plannedSets
+        self.waves = waves
         self.progressionRules = progressionRules
         self.alternativeExerciseIDs = alternativeExerciseIDs
         self.initialLoad = initialLoad
@@ -558,7 +580,7 @@ enum ProgramDefinitionValidator {
                         } else if !workoutExposures.insert(exercise.exposureKey).inserted {
                             add("\(exercisePath).exposureKey", .duplicateExposureKey, "Exposure keys must be unique within a program definition.")
                         }
-                        if exercise.plannedSets.isEmpty { add(exercisePath, .emptySetPrescription, "An exercise must contain a set prescription.") }
+                        if exercise.plannedSets.isEmpty && exercise.waves.isEmpty { add(exercisePath, .emptySetPrescription, "An exercise must contain a set prescription or wave.") }
                         var setOrders = Set<Int>()
                         for (setIndex, set) in exercise.plannedSets.enumerated() {
                             let setPath = "\(exercisePath).sets[\(setIndex)]"
@@ -570,6 +592,33 @@ enum ProgramDefinitionValidator {
                             if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
                             if let rir = set.targetRIR, rir < 0 || rir > 10 { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
                             validateLoad(set.load, "\(setPath).load", add)
+                        }
+                        if !exercise.waves.isEmpty {
+                            var waveOrders = Set<Int>()
+                            var waveSetCount: Int?
+                            for (waveIndex, wave) in exercise.waves.enumerated() {
+                                let wavePath = "\(exercisePath).waves[\(waveIndex)]"
+                                checkID(wave.id, wavePath)
+                                if !waveOrders.insert(wave.orderIndex).inserted { add("\(wavePath).orderIndex", .invalidSetOrder, "Wave order indices must be unique within an exercise.") }
+                                if wave.plannedSets.isEmpty { add(wavePath, .emptySetPrescription, "A wave must contain a set prescription.") }
+                                if let waveSetCount, waveSetCount != wave.plannedSets.count {
+                                    add(wavePath, .invalidSetOrder, "All waves for one exercise must contain the same number of sets.")
+                                } else {
+                                    waveSetCount = wave.plannedSets.count
+                                }
+                                var waveSetOrders = Set<Int>()
+                                for (setIndex, set) in wave.plannedSets.enumerated() {
+                                    let setPath = "\(wavePath).sets[\(setIndex)]"
+                                    checkID(set.id, setPath)
+                                    if set.orderIndex < 0 { add("\(setPath).orderIndex", .invalidSetOrder, "Set order must not be negative.") }
+                                    if !waveSetOrders.insert(set.orderIndex).inserted { add("\(setPath).orderIndex", .invalidSetOrder, "Set order indices must be unique within a wave.") }
+                                    validateRep(set.repetitions, setPath, add)
+                                    if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
+                                    if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
+                                    if let rir = set.targetRIR, rir < 0 || rir > 10 { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
+                                    validateLoad(set.load, "\(setPath).load", add)
+                                }
+                            }
                         }
                         for (ruleIndex, rule) in exercise.progressionRules.enumerated() {
                             if let formula = rule.formula {

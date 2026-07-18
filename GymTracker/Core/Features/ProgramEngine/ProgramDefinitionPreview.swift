@@ -10,6 +10,7 @@ struct ProgramDefinitionPreviewRow: Hashable, Identifiable {
     let exerciseID: UUID
     let exposureKey: String
     let setCount: Int
+    let waveCount: Int
     let roles: [ProgramSetRole]
     let repPrescriptions: [RepPrescription]
     let loadReferences: [LoadReferenceKind]
@@ -33,6 +34,7 @@ enum ProgramDefinitionPreview {
                                 exerciseID: exercise.exerciseID,
                                 exposureKey: exercise.exposureKey,
                                 setCount: exercise.plannedSets.count,
+                                waveCount: exercise.waves.count,
                                 roles: exercise.plannedSets.sorted { $0.orderIndex < $1.orderIndex }.map(\.role),
                                 repPrescriptions: exercise.plannedSets.sorted { $0.orderIndex < $1.orderIndex }.map(\.repetitions),
                                 loadReferences: exercise.plannedSets.sorted { $0.orderIndex < $1.orderIndex }.map { $0.load.reference.kind }

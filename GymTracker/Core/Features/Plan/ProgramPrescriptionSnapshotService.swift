@@ -72,10 +72,31 @@ enum ProgramPrescriptionSnapshotService {
             }
         }
 
-        for (index, plannedSet) in plannedExercise.orderedPlannedSets.enumerated() {
-            guard index < entry.orderedSets.count,
-                  let data = plannedSet.definitionData,
-                  let definition = try? decoder.decode(SetPrescriptionDefinition.self, from: data) else { continue }
+        let waveDefinitions: [ProgramWaveDefinition] = plannedExercise.progressionWavesData
+            .flatMap { try? decoder.decode([ProgramWaveDefinition].self, from: $0) } ?? []
+        let selectedWave = waveDefinitions
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .dropFirst(min(max(0, state?.currentWaveIndex ?? 0), max(0, waveDefinitions.count - 1)))
+            .first
+        let prescriptions: [(definition: SetPrescriptionDefinition, data: Data)]
+        if let selectedWave {
+            prescriptions = selectedWave.plannedSets
+                .sorted { $0.orderIndex < $1.orderIndex }
+                .compactMap { definition in
+                    guard let data = try? JSONEncoder().encode(definition) else { return nil }
+                    return (definition, data)
+                }
+        } else {
+            prescriptions = plannedExercise.orderedPlannedSets.compactMap { plannedSet in
+                guard let data = plannedSet.definitionData,
+                      let definition = try? decoder.decode(SetPrescriptionDefinition.self, from: data) else { return nil }
+                return (definition, data)
+            }
+        }
+        for (index, prescription) in prescriptions.enumerated() {
+            guard index < entry.orderedSets.count else { continue }
+            let definition = prescription.definition
+            let data = prescription.data
             let set = entry.orderedSets[index]
             set.prescriptionDefinitionData = data
             switch definition.role {

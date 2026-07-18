@@ -104,6 +104,13 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(rows.contains { $0.repPrescriptions.contains { if case .sequence = $0 { return true }; return false } })
     }
 
+    func testWaveLoadingFixturePreservesStructuredWavesInPreview() throws {
+        let rows = try ProgramDefinitionPreview.rows(for: ProgramFixtureCatalog.waveLoading(exerciseIDs: ["squat": UUID()]))
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.waveCount, 2)
+        XCTAssertEqual(rows.first?.setCount, 0)
+    }
+
     func testValidatorReportsInvalidPrescriptionAndDuplicateExposure() {
         let first = ProgramExerciseDefinition(
             exerciseID: UUID(),
@@ -521,7 +528,8 @@ final class ProgramEngineTypesTests: XCTestCase {
             ProgramFixtureCatalog.weeklyHeavyLightMedium(exerciseIDs: ids),
             ProgramFixtureCatalog.amrapWave(exerciseIDs: ids),
             ProgramFixtureCatalog.blockPeriodized(exerciseIDs: ids),
-            ProgramFixtureCatalog.conditioningProgression(exerciseIDs: ids)
+            ProgramFixtureCatalog.conditioningProgression(exerciseIDs: ids),
+            ProgramFixtureCatalog.waveLoading(exerciseIDs: ids)
         ]
         for fixture in fixtures {
             let issues = ProgramDefinitionValidator.validate(fixture)

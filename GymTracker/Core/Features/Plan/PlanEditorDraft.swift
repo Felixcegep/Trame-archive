@@ -178,6 +178,7 @@ struct PlanExerciseDraft: Identifiable {
     var alternatives: [Exercise]
     var plannedSets: [PlanSetDraft]
     var progressionRulesData: Data?
+    var progressionWavesData: Data?
     var initialTrainingMax: Double?
     var initialEstimatedOneRepMax: Double?
     var initialActualOneRepMax: Double?
@@ -207,6 +208,7 @@ struct PlanExerciseDraft: Identifiable {
         alternatives = []
         plannedSets = []
         progressionRulesData = nil
+        progressionWavesData = nil
         initialTrainingMax = nil
         initialEstimatedOneRepMax = nil
         initialActualOneRepMax = nil
@@ -236,6 +238,7 @@ struct PlanExerciseDraft: Identifiable {
             .map(\.exercise)
         plannedSets = plannedExercise.orderedPlannedSets.map(PlanSetDraft.init)
         progressionRulesData = plannedExercise.progressionRulesData
+        progressionWavesData = plannedExercise.progressionWavesData
         initialTrainingMax = plannedExercise.initialTrainingMax
         initialEstimatedOneRepMax = plannedExercise.initialEstimatedOneRepMax
         initialActualOneRepMax = plannedExercise.initialActualOneRepMax
@@ -281,6 +284,7 @@ struct PlanExerciseDraft: Identifiable {
             supersetGroupID: supersetGroupID,
             progressionKey: progressionKey,
             progressionRulesData: progressionRulesData,
+            progressionWavesData: progressionWavesData,
             initialTrainingMax: initialTrainingMax,
             initialEstimatedOneRepMax: initialEstimatedOneRepMax,
             initialActualOneRepMax: initialActualOneRepMax
@@ -305,6 +309,7 @@ struct PlanExerciseDraft: Identifiable {
         model.stimulus = stimulus
         model.progressionKey = progressionKey
         model.progressionRulesData = progressionRulesData
+        model.progressionWavesData = progressionWavesData
         model.initialTrainingMax = initialTrainingMax
         model.initialEstimatedOneRepMax = initialEstimatedOneRepMax
         model.initialActualOneRepMax = initialActualOneRepMax

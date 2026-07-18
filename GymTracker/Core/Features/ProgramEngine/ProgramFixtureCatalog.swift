@@ -174,6 +174,30 @@ enum ProgramFixtureCatalog {
         return definition(name: "Conditioning Progression", workouts: [workout("Conditioning", exercises: [plank, carry])])
     }
 
+    static func waveLoading(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
+        let rule = ProgressionRuleDefinition(
+            metric: .load,
+            trigger: .allRequiredSetsCompleted,
+            successAction: .advanceWave,
+            cadence: .nextWave,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let waves = [
+            ProgramWaveDefinition(orderIndex: 0, name: "Wave 1", plannedSets: [
+                SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .fixedLoad), fixedValue: 100, rounding: .nearestIncrement(2.5))),
+                SetPrescriptionDefinition(orderIndex: 1, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .fixedLoad), fixedValue: 100, rounding: .nearestIncrement(2.5)))
+            ]),
+            ProgramWaveDefinition(orderIndex: 1, name: "Wave 2", plannedSets: [
+                SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(3), load: LoadPrescription(reference: .init(kind: .fixedLoad), fixedValue: 110, rounding: .nearestIncrement(2.5))),
+                SetPrescriptionDefinition(orderIndex: 1, repetitions: .fixed(3), load: LoadPrescription(reference: .init(kind: .fixedLoad), fixedValue: 110, rounding: .nearestIncrement(2.5)))
+            ])
+        ]
+        var waveExercise = self.exercise(id: exerciseIDs["squat"]!, key: "wave-squat", sets: [], rules: [rule], initialLoad: 100)
+        waveExercise.waves = waves
+        return definition(name: "Wave Loading", workouts: [workout("Wave", exercises: [waveExercise])])
+    }
+
     private static func definition(name: String, workouts: [ProgramWorkoutDefinition]) -> ProgramDefinitionPayload {
         definition(name: name, weeks: [ProgramWeekDefinition(weekIndex: 0, workouts: workouts)])
     }

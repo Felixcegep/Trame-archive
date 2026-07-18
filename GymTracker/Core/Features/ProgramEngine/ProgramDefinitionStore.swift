@@ -144,7 +144,7 @@ enum ProgramDefinitionCompiler {
         exercise: Exercise,
         alternatives: [PlannedExerciseAlternative]
     ) throws -> PlannedExercise {
-        let orderedSets = definition.plannedSets.sorted { $0.orderIndex < $1.orderIndex }
+        let orderedSets = (definition.waves.first?.plannedSets ?? definition.plannedSets).sorted { $0.orderIndex < $1.orderIndex }
         let plannedSets = try orderedSets.map { prescription in
             let data = try JSONEncoder().encode(prescription)
             let legacy = legacyValues(for: prescription.repetitions)
@@ -184,6 +184,7 @@ enum ProgramDefinitionCompiler {
             plannedSets: plannedSets,
             progressionKey: definition.exposureKey,
             progressionRulesData: rulesData,
+            progressionWavesData: definition.waves.isEmpty ? nil : try? JSONEncoder().encode(definition.waves),
             initialTrainingMax: definition.initialTrainingMax,
             initialEstimatedOneRepMax: definition.initialEstimatedOneRepMax,
             initialActualOneRepMax: definition.initialActualOneRepMax
