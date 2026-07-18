@@ -288,6 +288,7 @@ struct RootView: View {
             if didChangeTemplates {
                 try modelContext.save()
             }
+            _ = try ExerciseRelationshipSeedData.seed(in: modelContext)
         } catch {
             print("Failed to seed exercise templates: \(error)")
         }

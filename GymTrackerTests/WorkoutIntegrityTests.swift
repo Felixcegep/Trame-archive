@@ -89,14 +89,14 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertNotEqual(benchPress.name, dumbbellBenchPress.name)
     }
 
-    func testInitialImportedExerciseCatalogContainsFirstFiftyEntries() throws {
+    func testImportedExerciseCatalogContainsProgramEngineEntries() throws {
         let catalog = ExerciseCatalogSeedData.templates()
         let names = Set(catalog.map(\.name))
 
-        XCTAssertEqual(catalog.count, 50)
+        XCTAssertEqual(catalog.count, 65)
         XCTAssertEqual(names.count, catalog.count)
         XCTAssertEqual(catalog.first?.name, "Bench Press")
-        XCTAssertEqual(catalog.last?.name, "Single-Arm Lat Pulldown")
+        XCTAssertEqual(catalog.last?.name, "Power Clean")
 
         let medicineBallPass = try XCTUnwrap(catalog.first { $0.name == "Medicine Ball Chest Pass" })
         XCTAssertEqual(medicineBallPass.displayCategory, .sport)
@@ -120,6 +120,25 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(Set(exercises.map(\.name)).count, exercises.count)
         XCTAssertTrue(exercises.contains { $0.name == "Close-Grip Bench Press" })
         XCTAssertTrue(exercises.contains { $0.name == "Single-Arm Lat Pulldown" })
+        XCTAssertTrue(exercises.contains { $0.name == "Front Squat" })
+    }
+
+    func testExerciseRelationshipSeedingIsCompleteAndIdempotent() throws {
+        let context = try makeContext()
+        for exercise in ExerciseSeedData.templates() { context.insert(exercise) }
+        try context.save()
+
+        let first = try ExerciseRelationshipSeedData.seed(in: context)
+        let firstCount = try context.fetchCount(FetchDescriptor<ExerciseRelationship>())
+        let second = try ExerciseRelationshipSeedData.seed(in: context)
+        let secondCount = try context.fetchCount(FetchDescriptor<ExerciseRelationship>())
+
+        XCTAssertEqual(first.insertedCount, 25)
+        XCTAssertTrue(first.unresolvedNames.isEmpty)
+        XCTAssertEqual(second.insertedCount, 0)
+        XCTAssertTrue(second.unresolvedNames.isEmpty)
+        XCTAssertEqual(firstCount, 25)
+        XCTAssertEqual(secondCount, firstCount)
     }
 
     func testPlanAlternativeScoringPrefersSameVariationFamily() {
