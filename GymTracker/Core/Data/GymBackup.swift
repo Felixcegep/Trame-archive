@@ -304,6 +304,7 @@ nonisolated struct PlannedWorkoutDTO: Codable {
     let name: String
     let orderIndex: Int
     let dayOffset: Int
+    var isTestDay: Bool = false
     let estimatedDurationSeconds: Int?
     let notes: String?
     let sourceTemplateName: String?
@@ -759,6 +760,7 @@ extension BackupDTO {
                                         name: plannedWorkout.name,
                                         orderIndex: plannedWorkout.orderIndex,
                                         dayOffset: plannedWorkout.dayOffset,
+                                        isTestDay: plannedWorkout.isTestDay,
                                         estimatedDurationSeconds: plannedWorkout.estimatedDurationSeconds,
                                         notes: plannedWorkout.notes,
                                         sourceTemplateName: plannedWorkout.sourceTemplate?.name,
@@ -1209,6 +1211,7 @@ extension BackupDTO {
                                 name: plannedWorkoutDTO.name,
                                 orderIndex: plannedWorkoutDTO.orderIndex,
                                 dayOffset: plannedWorkoutDTO.dayOffset,
+                                isTestDay: plannedWorkoutDTO.isTestDay,
                                 estimatedDurationSeconds: plannedWorkoutDTO.estimatedDurationSeconds,
                                 notes: plannedWorkoutDTO.notes,
                                 sourceTemplate: plannedWorkoutDTO.sourceTemplateName.flatMap { templateMap[$0] },

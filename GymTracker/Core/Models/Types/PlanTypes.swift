@@ -51,6 +51,7 @@ enum PlanScheduleMode: String, Codable, CaseIterable, Hashable {
 enum PlanRunStatus: String, Codable {
     case active
     case paused
+    case testDayAvailable
     case completed
     case archived
 }

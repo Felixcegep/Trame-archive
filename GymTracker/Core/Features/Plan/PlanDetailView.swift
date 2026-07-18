@@ -25,6 +25,10 @@ struct PlanDetailView: View {
                         Text("Program paused")
                             .font(AppFont.subheadlineSemibold)
                             .foregroundStyle(.secondary)
+                    } else if testDayRun != nil {
+                        Text("Test day ready")
+                            .font(AppFont.subheadlineSemibold)
+                            .foregroundStyle(Color.gymPrimary)
                     } else if let run = activeRun, let progress = nextProgress(in: run) {
                         Text(progress.scheduledDate.map { "Next: \($0.formatted(date: .abbreviated, time: .omitted))" } ?? "Next workout ready")
                             .font(AppFont.subheadlineSemibold)
@@ -100,6 +104,19 @@ struct PlanDetailView: View {
                     Button("Archive Program Run", role: .destructive) {
                         isShowingArchiveConfirmation = true
                     }
+                }
+            } else if let run = testDayRun, nextProgress(in: run) != nil {
+                Section("Test day") {
+                    Button {
+                        guard let activatedProgress = ProgramRunLifecycleService.activateTestDay(
+                            for: run,
+                            using: modelContext
+                        ) else { return }
+                        onStartPlannedWorkout(run, activatedProgress)
+                    } label: {
+                        Label("Start Test Day", systemImage: AppIcon.play)
+                    }
+                    .accessibilityIdentifier("start-test-day")
                 }
             } else if !plan.isArchived {
                 Section {
@@ -235,8 +252,12 @@ struct PlanDetailView: View {
         plan.runs.first { $0.status == .paused }
     }
 
+    private var testDayRun: PlanRun? {
+        plan.runs.first { $0.status == .testDayAvailable }
+    }
+
     private var currentRun: PlanRun? {
-        activeRun ?? pausedRun
+        activeRun ?? pausedRun ?? testDayRun
     }
 
     private var completedRun: PlanRun? {

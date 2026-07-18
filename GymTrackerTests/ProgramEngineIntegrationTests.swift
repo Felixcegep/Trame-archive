@@ -707,6 +707,64 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         XCTAssertNotNil(run.endDate)
     }
 
+    func testOfferTestDayLeavesTestSessionAvailableAndCanBeActivated() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Test Squat", primaryMuscles: [.quadriceps])
+        let plannedExercise = PlannedExercise(exercise: exercise, orderIndex: 0)
+        let testWorkout = PlannedWorkout(
+            name: "Test Day",
+            orderIndex: 1,
+            dayOffset: 1,
+            isTestDay: true,
+            plannedExercises: [plannedExercise]
+        )
+        let week = PlanWeek(weekIndex: 0, plannedWorkouts: [testWorkout])
+        let plan = WorkoutPlan(
+            name: "Test-Day Program",
+            daysPerWeek: 1,
+            durationWeeks: 1,
+            blocks: [PlanBlock(name: "Peak", phaseType: .strength, orderIndex: 0, weeks: [week])]
+        )
+        plan.programCompletionPolicy = .offerTestDay
+        let run = PlanRun(plan: plan)
+        let completed = PlanWorkoutProgress(
+            plannedWorkoutID: UUID(),
+            plannedWorkoutName: "Final Training",
+            weekIndex: 0,
+            workoutIndex: 0
+        )
+        completed.status = .completed
+        let testProgress = PlanWorkoutProgress(plannedWorkout: testWorkout, weekIndex: 0, workoutIndex: 1)
+        run.workoutProgress = [completed, testProgress]
+        context.insert(plan)
+        context.insert(run)
+        try context.save()
+
+        let recommendation = ProgressionRecommendation(
+            id: UUID(),
+            ruleID: UUID(),
+            action: .endProgram,
+            cadence: .nextCycle,
+            scope: .programRun,
+            reason: "Training cycle complete.",
+            applicationMode: .automatic,
+            proposedState: ProgressionEvaluationState(),
+            performance: ProgressionPerformance(cycleCompleted: true)
+        )
+        XCTAssertTrue(PlanProgressionTransitionService.applyAutomaticTransitions(
+            [PlanExerciseProgressionResult(progressionKey: "squat", recommendations: [recommendation])],
+            sourceProgress: completed,
+            in: run
+        ))
+        XCTAssertEqual(run.status, .testDayAvailable)
+        XCTAssertEqual(testProgress.status, .available)
+
+        let activated = try XCTUnwrap(ProgramRunLifecycleService.activateTestDay(for: run, using: context))
+        XCTAssertEqual(activated.id, testProgress.id)
+        XCTAssertEqual(run.status, .active)
+        XCTAssertNil(run.endDate)
+    }
+
     func testDeferredStructuralTransitionWaitsForItsCadenceBoundary() throws {
         let run = PlanRun(sourcePlanID: UUID(), sourcePlanName: "Transition", startDate: .now)
         let completed = PlanWorkoutProgress(plannedWorkoutID: UUID(), plannedWorkoutName: "Completed", weekIndex: 0, workoutIndex: 0)

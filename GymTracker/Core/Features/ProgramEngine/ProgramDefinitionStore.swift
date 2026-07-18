@@ -129,6 +129,11 @@ enum ProgramDefinitionCompiler {
                         name: workoutDefinition.name,
                         orderIndex: workoutDefinition.orderIndex,
                         dayOffset: workoutDefinition.dayOffset,
+                        isTestDay: workoutDefinition.plannedExercises.contains { exercise in
+                            exercise.plannedSets.contains { $0.role == .test }
+                                || exercise.waves.flatMap(\.plannedSets).contains { $0.role == .test }
+                                || exercise.stages.flatMap(\.plannedSets).contains { $0.role == .test }
+                        },
                         plannedExercises: exercises
                     )
                 }
@@ -314,6 +319,33 @@ enum ProgramDefinitionCompiler {
 /// Carry-forward copies only progression values; workout markers and pending
 /// cadence events belong to the old run and must not be replayed.
 enum ProgramRunLifecycleService {
+    @discardableResult
+    static func activateTestDay(
+        for run: PlanRun,
+        using modelContext: ModelContext
+    ) -> PlanWorkoutProgress? {
+        guard run.status == .testDayAvailable,
+              let progress = run.orderedWorkoutProgress.first(where: { progress in
+                  progress.status == .available
+                      && run.plan?.orderedWeeks
+                          .flatMap(\.orderedPlannedWorkouts)
+                          .first(where: { $0.id == progress.plannedWorkoutID })?.isTestDay == true
+              })
+        else { return nil }
+
+        run.status = .active
+        run.endDate = nil
+        run.updatedAt = .now
+        PlanCoordinator.refreshAvailability(for: run)
+        do {
+            try modelContext.save()
+            return progress
+        } catch {
+            modelContext.rollback()
+            return nil
+        }
+    }
+
     @discardableResult
     static func restartRun(
         for plan: WorkoutPlan,

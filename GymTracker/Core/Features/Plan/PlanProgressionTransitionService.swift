@@ -174,7 +174,30 @@ enum PlanProgressionTransitionService {
         case .endExercise:
             return endExercise(progressionKey, in: run)
         case .endProgram:
-            let skipped = skipUnfinished(run.orderedWorkoutProgress, reason: "Ended by program rule")
+            let testDayProgress: PlanWorkoutProgress?
+            if run.plan?.programCompletionPolicy == .offerTestDay {
+                testDayProgress = run.orderedWorkoutProgress.first { progress in
+                    progress.status != .completed
+                        && progress.status != .skipped
+                        && run.plan?.orderedWeeks
+                            .flatMap(\.orderedPlannedWorkouts)
+                            .first(where: { $0.id == progress.plannedWorkoutID })?.isTestDay == true
+                }
+            } else {
+                testDayProgress = nil
+            }
+            let skipped = skipUnfinished(
+                run.orderedWorkoutProgress.filter { $0.id != testDayProgress?.id },
+                reason: "Ended by program rule"
+            )
+            if let testDayProgress {
+                testDayProgress.status = .available
+                testDayProgress.skipReason = nil
+                run.status = .testDayAvailable
+                run.endDate = .now
+                run.updatedAt = .now
+                return skipped || testDayProgress.status == .available
+            }
             let changedStatus = run.status != .completed
             run.status = .completed
             run.endDate = .now

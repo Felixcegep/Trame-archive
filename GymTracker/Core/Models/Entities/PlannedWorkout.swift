@@ -7,6 +7,7 @@ final class PlannedWorkout {
     var name: String
     var orderIndex: Int
     var dayOffset: Int
+    var isTestDay: Bool
     var estimatedDurationSeconds: Int?
     var notes: String?
     var week: PlanWeek?
@@ -19,6 +20,7 @@ final class PlannedWorkout {
         name: String,
         orderIndex: Int,
         dayOffset: Int,
+        isTestDay: Bool = false,
         estimatedDurationSeconds: Int? = nil,
         notes: String? = nil,
         sourceTemplate: WorkoutTemplate? = nil,
@@ -27,6 +29,7 @@ final class PlannedWorkout {
         self.name = name
         self.orderIndex = orderIndex
         self.dayOffset = dayOffset
+        self.isTestDay = isTestDay
         self.estimatedDurationSeconds = estimatedDurationSeconds
         self.notes = notes
         self.sourceTemplate = sourceTemplate
