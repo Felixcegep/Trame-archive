@@ -132,6 +132,86 @@ final class ProgramEngineIntegrationTests: XCTestCase {
             _ = try ProgramDefinitionRepository.compile(record, using: context)
         }
     }
+
+    func testEveryBundledProgramStartsSnapshotsAndKeepsCompletedHistoryImmutable() throws {
+        let context = try makeContext()
+        for exercise in ExerciseSeedData.templates() { context.insert(exercise) }
+        try context.save()
+        let data = try AuthoringProgramCatalogDecoder.bundledData()
+        _ = try ProgramLibrarySeedData.seed(data, in: context)
+        let fetchedRecords: [ProgramDefinitionRecord] = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+        let records = fetchedRecords.sorted(by: { lhs, rhs in lhs.name < rhs.name })
+        XCTAssertEqual(records.count, 13)
+
+        for record in records {
+            try XCTContext.runActivity(named: record.name) { _ in
+                let plan = try ProgramDefinitionRepository.compile(record, using: context)
+                context.insert(plan)
+                let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000), using: context))
+                let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+                let plannedWorkout = try XCTUnwrap(plan.orderedWeeks
+                    .flatMap(\.orderedPlannedWorkouts)
+                    .first(where: { $0.id == progress.plannedWorkoutID }))
+                let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
+                context.insert(workout)
+                XCTAssertFalse(workout.orderedExercises.isEmpty)
+                XCTAssertTrue(workout.orderedExercises.allSatisfy { !$0.orderedSets.isEmpty })
+
+                for entry in workout.orderedExercises {
+                    for set in entry.orderedSets {
+                        if let reps = set.prescribedRepetitions ?? set.prescribedRepRangeMinimum {
+                            set.repetitions = Float(max(1, reps))
+                        }
+                        if let load = set.prescribedSuggestedLoad {
+                            set.weight = Float(load)
+                        }
+                        if set.isVelocityProbe || set.prescribedVelocityMinimum != nil {
+                            set.meanVelocity = set.prescribedVelocityMinimum ?? 0.6
+                        }
+                        set.done = true
+                    }
+                }
+                workout.status = .completed
+                workout.endTime = workout.startTime.addingTimeInterval(3_600)
+                progress.status = .completed
+                progress.completedWorkout = workout
+                try context.save()
+                let before = historyDigest(workout)
+
+                for state in run.progressionStates {
+                    state.currentLoad = (state.currentLoad ?? 0) + 2.5
+                    state.repetitionOffset += 1
+                    state.velocityBaseline = (state.velocityBaseline ?? 0.6) + 0.01
+                }
+                try context.save()
+                XCTAssertEqual(historyDigest(workout), before, "Mutable run state rewrote completed history for \(record.name)")
+            }
+        }
+
+        let backup = try BackupDTO.create(from: context, restTimer: 90, darkMode: false, unitSystem: .metric)
+        let restoredContext = try makeContext()
+        let roundTrippedBackup = try JSONDecoder().decode(BackupDTO.self, from: JSONEncoder().encode(backup))
+        try roundTrippedBackup.restore(to: restoredContext)
+        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<ProgramDefinitionRecord>()).count, 13)
+        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<WorkoutPlan>()).count, 13)
+        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<PlanRun>()).count, 13)
+        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<Workout>()).filter { $0.status == .completed }.count, 13)
+        XCTAssertTrue(try restoredContext.fetch(FetchDescriptor<PlanRun>()).allSatisfy { !$0.progressionStates.isEmpty })
+    }
+
+    func testFoundationBarbellRunsEndToEnd() throws { try assertBundledProgramStarts("foundation-barbell-5x5") }
+    func testDoubleProgressionRunsEndToEnd() throws { try assertBundledProgramStarts("double-progression-builder") }
+    func testTieredStageLadderRunsEndToEnd() throws { try assertBundledProgramStarts("tiered-stage-ladder") }
+    func testHeavyLightMediumRunsEndToEnd() throws { try assertBundledProgramStarts("heavy-light-medium-5x5") }
+    func testPercentCycleRunsEndToEnd() throws { try assertBundledProgramStarts("percent-cycle-4-week") }
+    func testWaveBuilderRunsEndToEnd() throws { try assertBundledProgramStarts("wave-builder-base-peak") }
+    func testRPEBridgeRunsEndToEnd() throws { try assertBundledProgramStarts("rpe-bridge-block") }
+    func testUndulatingUpperLowerRunsEndToEnd() throws { try assertBundledProgramStarts("undulating-upper-lower") }
+    func testSixWeekBlockRunsEndToEnd() throws { try assertBundledProgramStarts("six-week-block-strength") }
+    func testBenchSpecializationRunsEndToEnd() throws { try assertBundledProgramStarts("bench-specialization-matrix") }
+    func testBodyweightLadderRunsEndToEnd() throws { try assertBundledProgramStarts("bodyweight-ladder-foundations") }
+    func testAccumulationWaveRunsEndToEnd() throws { try assertBundledProgramStarts("accumulation-wave-upper-lower") }
+    func testVelocityCalibratedRunsEndToEnd() throws { try assertBundledProgramStarts("velocity-calibrated-strength") }
     func testScopedWeekStateAppliesOnlyToTargetWeekAndExposure() {
         let squat = Exercise(name: "Squat", primaryMuscles: [.quadriceps])
         let volume = PlannedExercise(exercise: squat, orderIndex: 0, progressionKey: "squat-volume")
@@ -1786,6 +1866,66 @@ final class ProgramEngineIntegrationTests: XCTestCase {
                 )
             ]
         )
+    }
+
+    private func historyDigest(_ workout: Workout) -> [String] {
+        workout.orderedExercises.flatMap { entry in
+            entry.orderedSets.map { set in
+                [
+                    entry.nameSnapshot,
+                    String(set.orderIndex),
+                    String(set.repetitions),
+                    String(set.weight),
+                    String(describing: set.meanVelocity),
+                    String(set.done),
+                    String(describing: set.prescribedSetType),
+                    String(describing: set.prescribedRepetitions),
+                    String(describing: set.prescribedRepRangeMinimum),
+                    String(describing: set.prescribedRepRangeMaximum),
+                    String(describing: set.prescribedSuggestedLoad),
+                    String(describing: set.prescribedRestSeconds),
+                    String(describing: set.prescribedVelocityMinimum),
+                    String(describing: set.prescribedVelocityMaximum),
+                    String(describing: set.prescribedVelocityLossStopPercent),
+                    String(set.isVelocityProbe)
+                ].joined(separator: "|")
+            }
+        }
+    }
+
+    private func assertBundledProgramStarts(_ programKey: String) throws {
+        let context = try makeContext()
+        let exerciseTemplates = ExerciseSeedData.templates()
+        for exercise in exerciseTemplates { context.insert(exercise) }
+        let catalog = try AuthoringProgramCatalogDecoder.decode(AuthoringProgramCatalogDecoder.bundledData())
+        let authoring = try XCTUnwrap(catalog.definitions.first(where: { $0.programKey == programKey }))
+        let exerciseIDsByName = Dictionary(uniqueKeysWithValues: exerciseTemplates.map { ($0.name, $0.id) })
+        let payload = try authoring.expand(exerciseIDsByName: exerciseIDsByName)
+        XCTAssertTrue(ProgramDefinitionValidator.validate(payload, isBuiltIn: true).isEmpty)
+        let exercisesByID = Dictionary(uniqueKeysWithValues: exerciseTemplates.map { ($0.id, $0) })
+        let plan = try ProgramDefinitionCompiler.compile(payload, exercisesByID: exercisesByID)
+        context.insert(plan)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, using: context))
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let planned = try XCTUnwrap(plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts).first { $0.id == progress.plannedWorkoutID })
+        let workout = Workout(plannedWorkout: planned, planRun: run, unitSystem: .metric)
+        XCTAssertFalse(workout.orderedExercises.isEmpty)
+        XCTAssertTrue(workout.orderedExercises.allSatisfy { !$0.orderedSets.isEmpty })
+        XCTAssertTrue(workout.orderedExercises.allSatisfy { entry in
+            entry.orderedSets.allSatisfy { $0.prescriptionDefinitionData != nil }
+        })
+
+        if payload.requiredCapabilities.contains(EngineCapabilities.velocity) {
+            let velocitySets = plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts)
+                .flatMap(\.orderedPlannedExercises).flatMap(\.orderedPlannedSets)
+                .compactMap { $0.definitionData.flatMap { try? JSONDecoder().decode(SetPrescriptionDefinition.self, from: $0) } }
+                .compactMap(\.velocity)
+            XCTAssertFalse(velocitySets.isEmpty)
+        }
+        if payload.requiredCapabilities.contains(EngineCapabilities.variationLadders) {
+            XCTAssertTrue(plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts)
+                .flatMap(\.orderedPlannedExercises).contains { $0.variationLadderData != nil })
+        }
     }
 
     private func makeContext() throws -> ModelContext {
