@@ -69,6 +69,7 @@
 				Core/LiveActivity/LiveActivityIntents.swift,
 				Core/LiveActivity/LiveActivityManager.swift,
 				Core/Features/ProgramEngine/ProgramDefinitionStore.swift,
+				Core/Features/ProgramEngine/ProgramDefinitionRepository.swift,
 				Core/Features/ProgramEngine/ProgramEngineTypes.swift,
 				Core/Features/ProgramEngine/ProgramCalculationEngine.swift,
 				Core/Features/ProgramEngine/ProgressionEvaluator.swift,

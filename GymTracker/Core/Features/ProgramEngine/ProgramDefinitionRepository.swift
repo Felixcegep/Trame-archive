@@ -1,0 +1,54 @@
+import Foundation
+import SwiftData
+
+#if !GYMTRACKER_EXTENSION
+@MainActor
+enum ProgramDefinitionRepository {
+    static func save(
+        _ payload: ProgramDefinitionPayload,
+        isBuiltIn: Bool = false,
+        in context: ModelContext
+    ) throws -> ProgramDefinitionRecord {
+        let record = try ProgramDefinitionRecord(payload: payload, isBuiltIn: isBuiltIn)
+        if let existing = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>()).first(where: { $0.id == payload.id }) {
+            existing.schemaVersion = record.schemaVersion
+            existing.templateVersion = record.templateVersion
+            existing.name = record.name
+            existing.summary = record.summary
+            existing.goal = record.goal
+            existing.experienceLevel = record.experienceLevel
+            existing.durationWeeks = record.durationWeeks
+            existing.supportedDaysPerWeek = record.supportedDaysPerWeek
+            existing.isBuiltIn = record.isBuiltIn
+            existing.updatedAt = .now
+            existing.definitionData = record.definitionData
+            return existing
+        }
+        context.insert(record)
+        return record
+    }
+
+    static func archive(_ record: ProgramDefinitionRecord, in context: ModelContext) throws {
+        record.isArchived = true
+        record.updatedAt = .now
+        try context.save()
+    }
+
+    static func activeDefinitions(in context: ModelContext) throws -> [ProgramDefinitionRecord] {
+        try context.fetch(FetchDescriptor<ProgramDefinitionRecord>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]))
+            .filter { !$0.isArchived }
+    }
+
+    static func compile(
+        _ record: ProgramDefinitionRecord,
+        using context: ModelContext
+    ) throws -> WorkoutPlan {
+        let payload = try record.payload()
+        let exercises = try context.fetch(FetchDescriptor<Exercise>())
+        return try ProgramDefinitionCompiler.compile(
+            payload,
+            exercisesByID: Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
+        )
+    }
+}
+#endif
