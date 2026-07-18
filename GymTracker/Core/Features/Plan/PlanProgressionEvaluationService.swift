@@ -30,6 +30,34 @@ enum PlanProgressionEvaluationService {
             if let actualOneRepMax = state.actualOneRepMax { formulaContext.actualOneRepMaxByExposure[state.progressionKey] = actualOneRepMax }
             if let load = state.currentLoad { formulaContext.valuesByExposure[state.progressionKey] = load }
         }
+        for progress in run.orderedWorkoutProgress
+            .filter({ $0.status == .completed })
+            .sorted(by: { ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast) }) {
+            guard let completedWorkout = progress.completedWorkout else { continue }
+            for entry in completedWorkout.orderedExercises {
+                guard let key = entry.progressionKey else { continue }
+                let completedSets = entry.orderedSets.filter(\.done)
+                guard !completedSets.isEmpty else { continue }
+                var metrics: [ProgressionMetric: Double] = [:]
+                let repetitions = completedSets.reduce(0) { $0 + Double($1.repetitions) }
+                let volume = completedSets.reduce(0) { $0 + Double($1.repetitions) * Double($1.weight) }
+                metrics[.load] = completedSets.last.map { Double($0.weight) }
+                metrics[.repetitions] = repetitions / Double(completedSets.count)
+                metrics[.setCount] = Double(completedSets.count)
+                metrics[.totalRepetitions] = repetitions
+                metrics[.totalVolume] = volume
+                metrics[.duration] = completedSets.compactMap(\.duration).reduce(0, +)
+                metrics[.distance] = completedSets.compactMap { $0.distance.map(Double.init) }.reduce(0, +)
+                metrics[.calories] = completedSets.compactMap(\.calories).reduce(0, +)
+                if let rpe = completedSets.compactMap(\.rpe).map(Double.init).average { metrics[.rpe] = rpe }
+                if let rir = completedSets.compactMap(\.rir).map(Double.init).average { metrics[.rir] = rir }
+                formulaContext.completedMetricsByExposure[key] = metrics
+                let topSets = completedSets.filter { $0.prescribedSetType == .topSet }
+                let dailyMaximums = completedSets.filter { $0.prescribedSetType == .dailyMaximum }
+                if let top = topSets.last?.weight { formulaContext.completedTopSetByExposure[key] = Double(top) }
+                if let maximum = dailyMaximums.last?.weight { formulaContext.dailyMaximumByExposure[key] = Double(maximum) }
+            }
+        }
 
         for entry in workout.orderedExercises {
             guard
