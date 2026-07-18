@@ -227,6 +227,18 @@ final class ProgramEngineIntegrationTests: XCTestCase {
                 workout.endTime = workout.startTime.addingTimeInterval(3_600)
                 progress.status = .completed
                 progress.completedWorkout = workout
+                let results = try PlanProgressionEvaluationService.evaluateAndApply(
+                    workout: workout,
+                    run: run,
+                    modelContext: context
+                )
+                XCTAssertFalse(results.isEmpty, "No progression exposures were evaluated for \(record.name)")
+                _ = PlanProgressionTransitionService.applyAutomaticTransitions(
+                    results,
+                    sourceProgress: progress,
+                    in: run
+                )
+                _ = PlanProgressionCadenceService.applyDueStates(in: run)
                 try context.save()
                 let before = historyDigest(workout)
 
