@@ -41,6 +41,8 @@ enum PlanProgressionEvaluationService {
             let performance = performance(for: entry)
             var evaluationState = ProgressionEvaluationState(
                 currentLoad: state.currentLoad,
+                repetitionOffset: state.repetitionOffset,
+                setCountOffset: state.setCountOffset,
                 currentStageID: state.currentStageID,
                 currentVariationExerciseID: state.currentVariationExerciseID,
                 trainingMax: state.trainingMax,
@@ -60,6 +62,8 @@ enum PlanProgressionEvaluationService {
             )
             evaluationState = result.state
             state.currentLoad = evaluationState.currentLoad
+            state.repetitionOffset = evaluationState.repetitionOffset
+            state.setCountOffset = evaluationState.setCountOffset
             state.currentStageID = evaluationState.currentStageID
             state.currentVariationExerciseID = evaluationState.currentVariationExerciseID
             state.trainingMax = evaluationState.trainingMax

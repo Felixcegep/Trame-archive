@@ -372,6 +372,26 @@ final class ProgramEngineTypesTests: XCTestCase {
         }
     }
 
+    func testProgressionEvaluatorPersistsRepAndSetVolumeOffsets() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .repetitions,
+            trigger: .weekCompleted,
+            successAction: .addRepetitions(2),
+            failureAction: .addSets(1),
+            cadence: .nextWeek,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let state = ProgressionEvaluationState()
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(weekCompleted: true),
+            state: state
+        )
+        XCTAssertEqual(result.state.repetitionOffset, 2)
+        XCTAssertEqual(result.state.setCountOffset, 0)
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,

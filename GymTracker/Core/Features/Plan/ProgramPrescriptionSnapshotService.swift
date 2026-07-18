@@ -71,13 +71,15 @@ enum ProgramPrescriptionSnapshotService {
             }
             switch definition.repetitions {
             case .fixed(let repetitions):
-                set.prescribedRepetitions = repetitions
+                set.prescribedRepetitions = max(1, repetitions + (state?.repetitionOffset ?? 0))
             case .range(let minimum, let maximum):
-                set.prescribedRepRangeMinimum = minimum
-                set.prescribedRepRangeMaximum = maximum
+                let offset = state?.repetitionOffset ?? 0
+                set.prescribedRepRangeMinimum = max(1, minimum + offset)
+                set.prescribedRepRangeMaximum = max(set.prescribedRepRangeMinimum ?? maximum, maximum + offset)
             case .amrap(let minimum, let maximum):
-                set.prescribedRepRangeMinimum = minimum
-                set.prescribedRepRangeMaximum = maximum
+                let offset = state?.repetitionOffset ?? 0
+                set.prescribedRepRangeMinimum = minimum.map { max(0, $0 + offset) }
+                set.prescribedRepRangeMaximum = maximum.map { max(set.prescribedRepRangeMinimum ?? 0, $0 + offset) }
             case .duration(let seconds):
                 set.duration = seconds
             case .distance(let meters):
@@ -98,6 +100,33 @@ enum ProgramPrescriptionSnapshotService {
                 set.prescribedSuggestedLoad = Double(converted)
                 set.prescribedSuggestedLoadType = targetType
             }
+        }
+        if let countOffset = state?.setCountOffset, countOffset > 0,
+           let source = entry.orderedSets.last {
+            entry.prescribedSets = (entry.prescribedSets ?? entry.orderedSets.count) + countOffset
+            for _ in 0..<countOffset {
+                let extra = ExerciseSet(
+                    repetitions: 0,
+                    weight: source.weight,
+                    setType: source.setType,
+                    orderIndex: entry.orderedSets.count,
+                    usedMetric: source.usedMetric
+                )
+                extra.prescribedSetType = source.prescribedSetType
+                extra.prescribedRepetitions = source.prescribedRepetitions
+                extra.prescribedRepRangeMinimum = source.prescribedRepRangeMinimum
+                extra.prescribedRepRangeMaximum = source.prescribedRepRangeMaximum
+                extra.prescribedSuggestedLoad = source.prescribedSuggestedLoad
+                extra.prescribedSuggestedLoadType = source.prescribedSuggestedLoadType
+                extra.prescribedRestSeconds = source.prescribedRestSeconds
+                extra.prescribedRPE = source.prescribedRPE
+                extra.prescribedRIR = source.prescribedRIR
+                extra.isPrescribedOptional = source.isPrescribedOptional
+                extra.prescriptionNotes = source.prescriptionNotes
+                extra.prescriptionDefinitionData = source.prescriptionDefinitionData
+                entry.sets.append(extra)
+            }
+            entry.normalizeSetOrder()
         }
     }
 }

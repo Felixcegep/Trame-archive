@@ -28,6 +28,8 @@ struct ProgressionPerformance: Hashable {
 
 struct ProgressionEvaluationState: Hashable {
     var currentLoad: Double? = nil
+    var repetitionOffset: Int = 0
+    var setCountOffset: Int = 0
     var currentStageID: String? = nil
     var currentVariationExerciseID: UUID? = nil
     var trainingMax: Double? = nil
@@ -165,7 +167,11 @@ enum ProgramProgressionEvaluator {
         case .reduceLoad(let amount): state.currentLoad = max(0, (state.currentLoad ?? 0) - amount)
         case .addLoadPercentage(let percentage): state.currentLoad = (state.currentLoad ?? 0) * (1 + percentage)
         case .reduceLoadPercentage(let percentage): state.currentLoad = (state.currentLoad ?? 0) * (1 - percentage)
-        case .addRepetitions, .reduceRepetitions, .addSets, .reduceSets, .repeatPrescription, .noChange, .generateRecommendation:
+        case .addRepetitions(let amount): state.repetitionOffset += amount
+        case .reduceRepetitions(let amount): state.repetitionOffset = max(0, state.repetitionOffset - amount)
+        case .addSets(let amount): state.setCountOffset += amount
+        case .reduceSets(let amount): state.setCountOffset = max(0, state.setCountOffset - amount)
+        case .repeatPrescription, .noChange, .generateRecommendation:
             break
         case .updateTrainingMax(let formula): state.trainingMax = try resolve(formula, context: formulaContext)
         case .updateEstimatedOneRepMax(let formula): state.estimatedOneRepMax = try resolve(formula, context: formulaContext)

@@ -196,6 +196,8 @@ struct ProgressionStateDTO: Codable {
     let progressionKey: String
     let currentLoad: Double?
     let currentLoadType: String?
+    var repetitionOffset: Int = 0
+    var setCountOffset: Int = 0
     let currentStageID: String?
     let currentVariationExerciseID: String?
     let trainingMax: Double?
@@ -724,6 +726,8 @@ extension BackupDTO {
                         progressionKey: state.progressionKey,
                         currentLoad: state.currentLoad,
                         currentLoadType: state.currentLoadType?.rawValue,
+                        repetitionOffset: state.repetitionOffset,
+                        setCountOffset: state.setCountOffset,
                         currentStageID: state.currentStageID,
                         currentVariationExerciseID: state.currentVariationExerciseID?.uuidString,
                         trainingMax: state.trainingMax,
@@ -1230,6 +1234,8 @@ extension BackupDTO {
                         progressionKey: stateDTO.progressionKey,
                         currentLoad: stateDTO.currentLoad,
                         currentLoadType: stateDTO.currentLoadType.flatMap(WeightType.init(rawValue:)),
+                        repetitionOffset: stateDTO.repetitionOffset,
+                        setCountOffset: stateDTO.setCountOffset,
                         currentStageID: stateDTO.currentStageID,
                         currentVariationExerciseID: stateDTO.currentVariationExerciseID.flatMap(UUID.init(uuidString:)),
                         trainingMax: stateDTO.trainingMax,
