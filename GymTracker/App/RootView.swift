@@ -190,6 +190,7 @@ struct RootView: View {
             }
             runDataMaintenance()
             seedExerciseTemplatesIfNeeded()
+            seedProgramLibraryIfNeeded()
             seedWorkoutTemplatesIfNeeded()
             seedWorkoutCollectionsIfNeeded()
             seedWorkoutPlansIfNeeded()
@@ -299,6 +300,14 @@ struct RootView: View {
             _ = try DataMaintenanceService.runOrphanCleanupIfNeeded(using: modelContext)
         } catch {
             print("Failed to clean orphaned workout data: \(error)")
+        }
+    }
+
+    private func seedProgramLibraryIfNeeded() {
+        do {
+            _ = try ProgramLibrarySeedData.seedBundledCatalog(in: modelContext)
+        } catch {
+            assertionFailure("Failed to seed bundled program library: \(error.localizedDescription)")
         }
     }
 

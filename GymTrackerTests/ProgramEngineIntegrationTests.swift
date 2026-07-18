@@ -102,6 +102,36 @@ final class ProgramEngineIntegrationTests: XCTestCase {
             XCTAssertEqual(error as? ProgramLibraryImportError, .catalogFailures(["placeholder"]))
         }
     }
+
+    func testBundledCatalogSeedsValidatesPreviewsAndCompilesAllThirteenPrograms() throws {
+        let context = try makeContext()
+        for exercise in ExerciseSeedData.templates() {
+            context.insert(exercise)
+        }
+        try context.save()
+
+        let data = try AuthoringProgramCatalogDecoder.bundledData()
+        let decoded = try AuthoringProgramCatalogDecoder.decode(data)
+        XCTAssertTrue(decoded.failures.isEmpty, decoded.failures.map { "\($0.programKey): \($0.message)" }.joined(separator: "\n"))
+        XCTAssertEqual(decoded.definitions.count, 13)
+
+        let result = try ProgramLibrarySeedData.seed(data, in: context)
+        XCTAssertEqual(Set(result.importedProgramKeys).count, 13)
+        let secondResult = try ProgramLibrarySeedData.seed(data, in: context)
+        XCTAssertEqual(Set(secondResult.importedProgramKeys).count, 13)
+
+        let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+        XCTAssertEqual(records.count, 13)
+        for record in records {
+            let payload = try record.payload()
+            XCTAssertTrue(
+                ProgramDefinitionValidator.validate(payload, isBuiltIn: true).isEmpty,
+                "Validation failed for \(payload.programKey)"
+            )
+            XCTAssertFalse(try ProgramDefinitionPreview.rows(for: payload).isEmpty)
+            _ = try ProgramDefinitionRepository.compile(record, using: context)
+        }
+    }
     func testScopedWeekStateAppliesOnlyToTargetWeekAndExposure() {
         let squat = Exercise(name: "Squat", primaryMuscles: [.quadriceps])
         let volume = PlannedExercise(exercise: squat, orderIndex: 0, progressionKey: "squat-volume")
