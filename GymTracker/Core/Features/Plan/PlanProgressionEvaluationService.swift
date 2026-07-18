@@ -118,6 +118,8 @@ enum PlanProgressionEvaluationService {
         let totalVolume = completedSets.reduce(0) { $0 + Double($1.repetitions) * Double($1.weight) }
         let actualRPE = completedSets.compactMap { $0.rpe }.map(Double.init).average
         let actualRIR = completedSets.compactMap { $0.rir }.map(Double.init).average
+        let qualitySets = completedSets.compactMap(\.liftQuality)
+        let successfulAttemptRatio = qualitySets.isEmpty ? nil : Double(qualitySets.filter { $0 == .excellent || $0 == .acceptable }.count) / Double(qualitySets.count)
         let optionalSets = sets.filter { $0.isPrescribedOptional == true }
         let requiredCompleted = completedSets.count + optionalSets.count >= requiredSets
         return ProgressionPerformance(
@@ -132,6 +134,8 @@ enum PlanProgressionEvaluationService {
             actualRPE: actualRPE,
             targetRIR: entry.prescribedRIR,
             actualRIR: actualRIR,
+            successfulAttemptRatio: successfulAttemptRatio,
+            technicalQualityReached: !qualitySets.isEmpty && qualitySets.allSatisfy { $0 == .excellent || $0 == .acceptable },
             workoutCompleted: entry.workout?.status == .completed,
             didFail: !requiredCompleted
         )

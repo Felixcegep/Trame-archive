@@ -756,6 +756,7 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(inProgress.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(inProgress.staticTexts["Set 1"].exists)
         XCTAssertTrue(inProgress.sliders["rir-slider"].exists)
+        XCTAssertTrue(inProgress.buttons["lift-quality-excellent"].exists)
         saveScreenshot("active-workout/07b_Set_Details")
     }
 

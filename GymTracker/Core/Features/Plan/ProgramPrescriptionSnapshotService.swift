@@ -77,7 +77,13 @@ enum ProgramPrescriptionSnapshotService {
             case .warmup: set.prescribedSetType = .warmup
             case .dropSet: set.prescribedSetType = .dropSet
             case .backOff: set.prescribedSetType = .backoff
-            default: break
+            case .topSet: set.prescribedSetType = .topSet
+            case .amrap: set.prescribedSetType = .amrap
+            case .technique: set.prescribedSetType = .technique
+            case .dailyMaximum: set.prescribedSetType = .dailyMaximum
+            case .test: set.prescribedSetType = .test
+            case .recovery: set.prescribedSetType = .recovery
+            case .working: set.prescribedSetType = .normal
             }
             switch definition.repetitions {
             case .fixed(let repetitions):

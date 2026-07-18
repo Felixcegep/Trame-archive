@@ -351,6 +351,28 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(result.recommendations.contains { $0.action == .addLoad(5) })
     }
 
+    func testProgressionEvaluatorSupportsTechnicalQualityRatio() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .technicalQuality,
+            trigger: .successfulAttemptRatioReached(0.9),
+            successAction: .advanceExerciseVariation,
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let firstVariation = UUID()
+        let secondVariation = UUID()
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(successfulAttemptRatio: 0.9),
+            state: ProgressionEvaluationState(currentVariationExerciseID: firstVariation),
+            variationLadder: [firstVariation, secondVariation]
+        )
+
+        XCTAssertEqual(result.state.currentVariationExerciseID, secondVariation)
+        XCTAssertEqual(result.recommendations.first?.action, .advanceExerciseVariation)
+    }
+
     func testRequiredProgramFixturesValidateWithoutProgramSpecificLogic() {
         let ids = Dictionary(uniqueKeysWithValues: [
             "squat", "bench", "row", "press", "deadlift", "upper", "assisted", "band", "bodyweight", "weighted",

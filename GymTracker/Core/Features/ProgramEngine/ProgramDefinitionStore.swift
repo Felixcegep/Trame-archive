@@ -208,7 +208,12 @@ enum ProgramDefinitionCompiler {
         case .warmup: return .warmup
         case .dropSet: return .dropSet
         case .recovery, .backOff: return .backoff
-        case .working, .topSet, .amrap, .technique, .dailyMaximum, .test: return .normal
+        case .topSet: return .topSet
+        case .amrap: return .amrap
+        case .technique: return .technique
+        case .dailyMaximum: return .dailyMaximum
+        case .test: return .test
+        case .working: return .normal
         }
     }
 }

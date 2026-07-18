@@ -73,8 +73,8 @@ class ActiveWorkoutViewModel {
     }
     
     /// Adds a set pre-filled with the last set's values (reps, weight,
-    /// duration, distance) so lifters rarely retype; RPE, RIR, and set type reset
-    /// because they describe one specific effort.
+    /// duration, distance) so lifters rarely retype; RPE, RIR, lift quality,
+    /// and set type reset because they describe one specific effort.
     func addSet(_ exerciseEntry: ExerciseEntry) {
         guard
             let workout = workoutVM.activeWorkout,
@@ -85,6 +85,7 @@ class ActiveWorkoutViewModel {
             let newSet = lastSet.copy()
             newSet.rpe = nil
             newSet.rir = nil
+            newSet.liftQuality = nil
             newSet.setType = .normal
             newSet.orderIndex = lastSet.orderIndex + 1
             exercise.sets.append(newSet)
@@ -106,6 +107,7 @@ class ActiveWorkoutViewModel {
         currentSet.distance = previousSet.distance
         currentSet.rpe = previousSet.rpe
         currentSet.rir = previousSet.rir
+        currentSet.liftQuality = previousSet.liftQuality
         persistChanges()
     }
 

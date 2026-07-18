@@ -13,6 +13,12 @@ enum SetType: String, Codable, CaseIterable {
     case dropSet
     case failure
     case backoff
+    case topSet
+    case amrap
+    case technique
+    case dailyMaximum
+    case test
+    case recovery
 
     var title: String {
         switch self {
@@ -21,6 +27,12 @@ enum SetType: String, Codable, CaseIterable {
         case .dropSet: String(localized: "Drop set")
         case .failure: String(localized: "Failure")
         case .backoff: String(localized: "Back-off")
+        case .topSet: String(localized: "Top set")
+        case .amrap: String(localized: "AMRAP")
+        case .technique: String(localized: "Technique")
+        case .dailyMaximum: String(localized: "Daily maximum")
+        case .test: String(localized: "Test")
+        case .recovery: String(localized: "Recovery")
         }
     }
 
@@ -33,6 +45,12 @@ enum SetType: String, Codable, CaseIterable {
         case .dropSet: "D"
         case .failure: "F"
         case .backoff: "B"
+        case .topSet: "T"
+        case .amrap: "A"
+        case .technique: "T"
+        case .dailyMaximum: "M"
+        case .test: "X"
+        case .recovery: "R"
         }
     }
 }

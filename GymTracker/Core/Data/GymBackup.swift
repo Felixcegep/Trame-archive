@@ -78,6 +78,7 @@ struct ExerciseSetDTO: Codable {
     let done: Bool
     let rpe: Int?
     var rir: Int? = nil
+    var liftQuality: String? = nil
     let setType: String
     let usedMetric: String
     var prescribedSetType: String? = nil
@@ -576,6 +577,7 @@ extension BackupDTO {
                             done: set.done,
                             rpe: set.rpe,
                             rir: set.rir,
+                            liftQuality: set.liftQuality?.rawValue,
                             setType: set.setType.rawValue,
                             usedMetric: set.usedMetric.rawValue,
                             prescribedSetType: set.prescribedSetType?.rawValue,
@@ -1247,6 +1249,7 @@ extension BackupDTO {
                     setObj.prescriptionNotes = setDTO.prescriptionNotes
                     setObj.prescriptionDefinitionData = setDTO.prescriptionDefinitionData
                     setObj.rir = setDTO.rir
+                    setObj.liftQuality = setDTO.liftQuality.flatMap(LiftQuality.init(rawValue:))
                     sets.append(setObj)
                 }
                 entry.sets = sets

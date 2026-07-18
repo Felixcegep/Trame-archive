@@ -43,6 +43,12 @@ extension SetType {
         case .dropSet: "arrow.down.right"
         case .failure: "bolt.fill"
         case .backoff: "arrow.uturn.down"
+        case .topSet: "arrow.up"
+        case .amrap: "infinity"
+        case .technique: "figure.strengthtraining.traditional"
+        case .dailyMaximum: "crown"
+        case .test: "checkmark.seal"
+        case .recovery: "heart"
         }
     }
 
@@ -55,6 +61,12 @@ extension SetType {
         case .dropSet: Color.gymPrimary
         case .failure: Color.gymDestructive
         case .backoff: Color.gymSecondary
+        case .topSet: Color.gymPrimary
+        case .amrap: Color.gymAccent
+        case .technique: Color.gymSecondary
+        case .dailyMaximum: Color.gymPrimary
+        case .test: Color.gymAccent
+        case .recovery: Color.gymSecondary
         }
     }
 }
@@ -75,6 +87,7 @@ struct SetDetailSheet: View {
             setTypeSection
             rpeSection
             rirSection
+            liftQualitySection
             Spacer(minLength: 0)
             deleteButton
         }
@@ -270,6 +283,49 @@ struct SetDetailSheet: View {
             return String(localized: "Slide to record reps left after this set")
         }
         return RIRScale.meaning(for: rir)
+    }
+
+    private var liftQualitySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack {
+                eyebrow("Lift quality")
+                Spacer()
+                if exerciseSet.liftQuality != nil {
+                    Button("Clear") {
+                        exerciseSet.liftQuality = nil
+                        onPersist()
+                    }
+                    .font(AppFont.footnoteMedium)
+                    .foregroundStyle(Color.gymPrimary)
+                    .accessibilityLabel("Clear lift quality")
+                    .accessibilityIdentifier("clear-lift-quality")
+                }
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: Spacing.s)], spacing: Spacing.s) {
+                ForEach(LiftQuality.allCases, id: \.self) { quality in
+                    Button {
+                        exerciseSet.liftQuality = quality
+                        onPersist()
+                    } label: {
+                        Text(quality.title)
+                            .font(AppFont.footnoteMedium)
+                            .foregroundStyle(exerciseSet.liftQuality == quality ? Color.gymText : Color.gymSubduedText)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(exerciseSet.liftQuality == quality ? Color.gymPrimary.opacity(0.14) : Color.gymCard)
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                                    .strokeBorder(exerciseSet.liftQuality == quality ? Color.gymPrimary.opacity(0.5) : .clear, lineWidth: 1)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(exerciseSet.liftQuality == quality ? .isSelected : [])
+                    .accessibilityIdentifier("lift-quality-\(quality.rawValue)")
+                }
+            }
+        }
+        .padding(Spacing.l)
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
     }
 
     private func sliderBound(_ text: String) -> some View {
