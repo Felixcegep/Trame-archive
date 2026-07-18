@@ -104,6 +104,19 @@ nonisolated struct LoadPrescription: Codable, Hashable {
 }
 
 nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
+    struct VelocityPrescription: Codable, Hashable {
+        var targetMinimum: Double?
+        var targetMaximum: Double?
+        var lossStopPercent: Double?
+        var isProbe: Bool
+
+        init(targetMinimum: Double? = nil, targetMaximum: Double? = nil, lossStopPercent: Double? = nil, isProbe: Bool = false) {
+            self.targetMinimum = targetMinimum
+            self.targetMaximum = targetMaximum
+            self.lossStopPercent = lossStopPercent
+            self.isProbe = isProbe
+        }
+    }
     var id: UUID
     var orderIndex: Int
     var role: ProgramSetRole
@@ -116,6 +129,7 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
     var isOptional: Bool
     var progressionEligible: Bool
     var notes: String?
+    var velocity: VelocityPrescription?
     /// Defers a back-off set until its top-set or daily-maximum load reference
     /// exists in the active workout. Existing explicit back-off sets retain
     /// their current eager snapshot behavior.
@@ -134,6 +148,7 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         isOptional: Bool = false,
         progressionEligible: Bool = true,
         notes: String? = nil,
+        velocity: VelocityPrescription? = nil,
         generatesAfterSourceCompletion: Bool = false
     ) {
         self.id = id
@@ -148,13 +163,14 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         self.isOptional = isOptional
         self.progressionEligible = progressionEligible
         self.notes = notes
+        self.velocity = velocity
         self.generatesAfterSourceCompletion = generatesAfterSourceCompletion
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, orderIndex, role, repetitions, load, targetRPE, targetRIR
         case restSeconds, tempo, isOptional, progressionEligible, notes
-        case generatesAfterSourceCompletion
+        case generatesAfterSourceCompletion, velocity
     }
 
     /// Program definitions predate deferred back-off generation. Decode its
@@ -174,6 +190,7 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         isOptional = try values.decode(Bool.self, forKey: .isOptional)
         progressionEligible = try values.decode(Bool.self, forKey: .progressionEligible)
         notes = try values.decodeIfPresent(String.self, forKey: .notes)
+        velocity = try values.decodeIfPresent(VelocityPrescription.self, forKey: .velocity)
         generatesAfterSourceCompletion = try values.decodeIfPresent(
             Bool.self,
             forKey: .generatesAfterSourceCompletion

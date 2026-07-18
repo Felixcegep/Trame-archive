@@ -1713,7 +1713,11 @@ final class ProgramEngineIntegrationTests: XCTestCase {
             exerciseID: base.id,
             exposureKey: "pull",
             orderIndex: 0,
-            plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))],
+            plannedSets: [SetPrescriptionDefinition(
+                orderIndex: 0,
+                repetitions: .fixed(5),
+                velocity: .init(targetMinimum: 0.5, targetMaximum: 0.7, lossStopPercent: 20, isProbe: true)
+            )],
             variationExerciseIDs: [base.id, selected.id],
             initialVariationExerciseID: selected.id,
             initialVelocityBaseline: 0.62
@@ -1738,6 +1742,11 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
         XCTAssertEqual(workout.orderedExercises.first?.exercise.id, selected.id)
         XCTAssertEqual(workout.orderedExercises.first?.nameSnapshot, selected.name)
+        let snapshottedSet = try XCTUnwrap(workout.orderedExercises.first?.orderedSets.first)
+        XCTAssertEqual(snapshottedSet.prescribedVelocityMinimum, 0.5)
+        XCTAssertEqual(snapshottedSet.prescribedVelocityMaximum, 0.7)
+        XCTAssertEqual(snapshottedSet.prescribedVelocityLossStopPercent, 20)
+        XCTAssertTrue(snapshottedSet.isVelocityProbe)
     }
 
     private func simpleDefinition(exerciseID: UUID) -> ProgramDefinitionPayload {

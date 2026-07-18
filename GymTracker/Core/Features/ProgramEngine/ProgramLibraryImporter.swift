@@ -450,6 +450,20 @@ nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
 }
 
 nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
+    struct Velocity: Codable, Hashable {
+        var zone: [Double]?
+        var lossStopPercent: Double?
+        var probe: Bool?
+
+        var expanded: SetPrescriptionDefinition.VelocityPrescription {
+            .init(
+                targetMinimum: zone?.first,
+                targetMaximum: zone.flatMap { $0.count > 1 ? $0[1] : nil },
+                lossStopPercent: lossStopPercent,
+                isProbe: probe ?? false
+            )
+        }
+    }
     var reps: Int?
     var repRange: [Int]?
     var amrap: [Int?]?
@@ -463,6 +477,7 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
     var progressionEligible: Bool?
     var optional: Bool?
     var deferred: Bool?
+    var velocity: Velocity?
 
     func expand(path: String, orderIndex: Int, defaultRestSeconds: Int?, exposureKey: String) throws -> SetPrescriptionDefinition {
         let group = AuthoringSetGroupDefinition(
@@ -486,6 +501,7 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
         )[0]
         result.isOptional = optional ?? false
         result.generatesAfterSourceCompletion = deferred ?? false
+        result.velocity = velocity?.expanded
         return result
     }
 }

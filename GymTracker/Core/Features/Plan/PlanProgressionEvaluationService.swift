@@ -306,6 +306,14 @@ enum PlanProgressionEvaluationService {
             .map(Double.init)
             .average
             .map { Int($0.rounded()) }
+        let meanVelocity = completedSets.compactMap(\.meanVelocity).average
+        let targetVelocitySets = completedSets.filter { $0.prescribedVelocityMinimum != nil || $0.prescribedVelocityMaximum != nil }
+        let targetVelocityMinimum = targetVelocitySets.compactMap(\.prescribedVelocityMinimum).average
+        let targetVelocityMaximum = targetVelocitySets.compactMap(\.prescribedVelocityMaximum).average
+        let velocityBelowZoneCount = targetVelocitySets.filter { set in
+            guard let velocity = set.meanVelocity, let minimum = set.prescribedVelocityMinimum else { return false }
+            return velocity < minimum
+        }.count
         let qualitySets = completedSets.compactMap(\.liftQuality)
         let successfulAttemptRatio = qualitySets.isEmpty ? nil : Double(qualitySets.filter { $0 == .excellent || $0 == .acceptable }.count) / Double(qualitySets.count)
         let missedAttempt = qualitySets.contains(.missed)
@@ -338,7 +346,11 @@ enum PlanProgressionEvaluationService {
             // A partial event is not a failed workout merely because future
             // prescribed sets are still incomplete. Failure counters remain
             // occurrence-level and are updated at workout completion.
-            didFail: isPartialOccurrence ? missedAttempt : !requiredCompleted || missedAttempt
+            didFail: isPartialOccurrence ? missedAttempt : !requiredCompleted || missedAttempt,
+            meanVelocity: meanVelocity,
+            targetVelocityMinimum: targetVelocityMinimum,
+            targetVelocityMaximum: targetVelocityMaximum,
+            velocityBelowZoneCount: velocityBelowZoneCount
         )
     }
 

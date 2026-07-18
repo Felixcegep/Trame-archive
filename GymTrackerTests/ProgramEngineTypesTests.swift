@@ -142,6 +142,24 @@ final class ProgramEngineTypesTests: XCTestCase {
         }
     }
 
+    func testAuthoringVelocityPrescriptionExpandsWithoutDataLoss() throws {
+        let json = """
+        {
+          "reps": 3,
+          "velocity": {"zone": [0.5, 0.7], "lossStopPercent": 20, "probe": true}
+        }
+        """
+        let authoring = try JSONDecoder().decode(AuthoringDirectSetDefinition.self, from: Data(json.utf8))
+        let set = try authoring.expand(path: "velocity/s0", orderIndex: 0, defaultRestSeconds: 120, exposureKey: "squat")
+
+        XCTAssertEqual(set.velocity?.targetMinimum, 0.5)
+        XCTAssertEqual(set.velocity?.targetMaximum, 0.7)
+        XCTAssertEqual(set.velocity?.lossStopPercent, 20)
+        XCTAssertEqual(set.velocity?.isProbe, true)
+        let decoded = try JSONDecoder().decode(SetPrescriptionDefinition.self, from: JSONEncoder().encode(set))
+        XCTAssertEqual(decoded.velocity, set.velocity)
+    }
+
     func testNamedRuleLibraryExpandsCompositeTriggerAndActions() throws {
         let json = """
         {

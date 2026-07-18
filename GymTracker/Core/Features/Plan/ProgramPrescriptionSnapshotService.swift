@@ -246,7 +246,7 @@ enum ProgramPrescriptionSnapshotService {
                 set.distance = meters.map { Float(max(0.01, $0 + (state?.distanceOffset ?? 0))) }
             case .calories(let calories):
                 set.calories = calories.map { max(0, $0 + (state?.caloriesOffset ?? 0)) }
-                set.prescribedCalories = set.calories
+            set.prescribedCalories = set.calories
             case .sequence(let components):
                 let repetitions = components.reduce(0) { $0 + $1.repetitions }
                 set.prescribedRepetitions = max(1, repetitions + (state?.repetitionOffset ?? 0))
@@ -265,6 +265,7 @@ enum ProgramPrescriptionSnapshotService {
             set.prescribedRIR = definition.targetRIR
             set.prescribedTempo = definition.tempo
             set.prescribedProgressionEligible = definition.progressionEligible
+            applyVelocityPrescription(definition.velocity, to: set)
             set.isPrescribedOptional = definition.isOptional
             if set.prescriptionNotes == nil {
                 set.prescriptionNotes = definition.notes
@@ -529,6 +530,7 @@ enum ProgramPrescriptionSnapshotService {
         set.prescribedRIR = definition.targetRIR
         set.prescribedTempo = definition.tempo
         set.prescribedProgressionEligible = definition.progressionEligible
+        applyVelocityPrescription(definition.velocity, to: set)
         set.isPrescribedOptional = definition.isOptional
         if set.prescriptionNotes == nil { set.prescriptionNotes = definition.notes }
 
@@ -553,6 +555,16 @@ enum ProgramPrescriptionSnapshotService {
         set.prescriptionLoadExplanation = equipmentRounding.map {
             "\(resolution.explanation) Equipment rounding: nearest \($0.increment.formatted(.number.precision(.fractionLength(0...2)))) \(targetType.rawValue)."
         } ?? resolution.explanation
+    }
+
+    private static func applyVelocityPrescription(
+        _ prescription: SetPrescriptionDefinition.VelocityPrescription?,
+        to set: ExerciseSet
+    ) {
+        set.prescribedVelocityMinimum = prescription?.targetMinimum
+        set.prescribedVelocityMaximum = prescription?.targetMaximum
+        set.prescribedVelocityLossStopPercent = prescription?.lossStopPercent
+        set.isVelocityProbe = prescription?.isProbe ?? false
     }
 
     private static func applyAutomaticDeload(to entry: ExerciseEntry, plannedExercise: PlannedExercise) {

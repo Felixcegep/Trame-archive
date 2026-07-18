@@ -1990,6 +1990,18 @@ private struct ProgramDefinitionSetEditor: View {
             TextField("Target RIR", text: rirBinding)
                 .keyboardType(.numberPad)
             TextField("Tempo", text: tempoBinding)
+            Toggle("Velocity prescription", isOn: velocityEnabledBinding)
+            if set.velocity != nil {
+                Toggle("Readiness probe", isOn: velocityProbeBinding)
+                HStack {
+                    TextField("Minimum m/s", text: velocityMinimumBinding)
+                        .keyboardType(.decimalPad)
+                    TextField("Maximum m/s", text: velocityMaximumBinding)
+                        .keyboardType(.decimalPad)
+                }
+                TextField("Velocity-loss stop %", text: velocityLossBinding)
+                    .keyboardType(.decimalPad)
+            }
             Toggle("Eligible for progression", isOn: $set.progressionEligible)
             Toggle("Optional", isOn: $set.isOptional)
         }
@@ -2228,6 +2240,39 @@ private struct ProgramDefinitionSetEditor: View {
     private var tempoBinding: Binding<String> {
         textBinding({ set.tempo ?? "" }, { set.tempo = $0.isEmpty ? nil : $0 })
     }
+
+    private var velocityEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { set.velocity != nil },
+            set: { set.velocity = $0 ? .init() : nil }
+        )
+    }
+
+    private var velocityProbeBinding: Binding<Bool> {
+        Binding(
+            get: { set.velocity?.isProbe ?? false },
+            set: { value in
+                var prescription = set.velocity ?? .init()
+                prescription.isProbe = value
+                set.velocity = prescription
+            }
+        )
+    }
+
+    private func velocityValueBinding(_ keyPath: WritableKeyPath<SetPrescriptionDefinition.VelocityPrescription, Double?>) -> Binding<String> {
+        textBinding(
+            { set.velocity?[keyPath: keyPath].map { String($0) } ?? "" },
+            { value in
+                var prescription = set.velocity ?? .init()
+                prescription[keyPath: keyPath] = value.isEmpty ? nil : Double(value)
+                set.velocity = prescription
+            }
+        )
+    }
+
+    private var velocityMinimumBinding: Binding<String> { velocityValueBinding(\.targetMinimum) }
+    private var velocityMaximumBinding: Binding<String> { velocityValueBinding(\.targetMaximum) }
+    private var velocityLossBinding: Binding<String> { velocityValueBinding(\.lossStopPercent) }
 
     private func componentExerciseBinding(at index: Int) -> Binding<UUID> {
         Binding(

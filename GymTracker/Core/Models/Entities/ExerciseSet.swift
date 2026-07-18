@@ -30,6 +30,7 @@ final class ExerciseSet {
     var rpe: Int?
     var rir: Int?
     var liftQuality: LiftQuality?
+    var meanVelocity: Double?
     var setType: SetType = SetType.normal
     /// For a daily-maximum exposure, the lifter can choose which completed
     /// attempt supplies same-session derived back-off work.
@@ -58,6 +59,10 @@ final class ExerciseSet {
     var prescribedTempo: String?
     var prescribedProgressionEligible: Bool?
     var prescribedCalories: Double?
+    var prescribedVelocityMinimum: Double?
+    var prescribedVelocityMaximum: Double?
+    var prescribedVelocityLossStopPercent: Double?
+    var isVelocityProbe: Bool = false
     var isPrescribedOptional: Bool?
     var prescriptionNotes: String?
     var prescriptionDefinitionData: Data?
@@ -78,6 +83,7 @@ final class ExerciseSet {
         rpe: Int? = nil,
         rir: Int? = nil,
         liftQuality: LiftQuality? = nil,
+        meanVelocity: Double? = nil,
         setType: SetType = .normal,
         orderIndex: Int = 0,
         usedMetric : UnitSystem
@@ -97,6 +103,7 @@ final class ExerciseSet {
         self.rpe = rpe
         self.rir = rir
         self.liftQuality = liftQuality
+        self.meanVelocity = meanVelocity
         self.setType = setType
         self.isSelectedDailyMaximum = false
         self.generatedBackOffDefinitionID = nil
@@ -115,6 +122,10 @@ final class ExerciseSet {
         self.prescribedTempo = nil
         self.prescribedProgressionEligible = nil
         self.prescribedCalories = nil
+        self.prescribedVelocityMinimum = nil
+        self.prescribedVelocityMaximum = nil
+        self.prescribedVelocityLossStopPercent = nil
+        self.isVelocityProbe = false
         self.isPrescribedOptional = nil
         self.prescriptionNotes = nil
         self.prescriptionDefinitionData = nil
@@ -134,6 +145,7 @@ final class ExerciseSet {
             rpe: rpe,
             rir: rir,
             liftQuality: liftQuality,
+            meanVelocity: meanVelocity,
             setType: setType,
             orderIndex: 0,
             usedMetric: usedMetric
@@ -159,6 +171,10 @@ final class ExerciseSet {
         copy.prescribedTempo = prescribedTempo
         copy.prescribedProgressionEligible = prescribedProgressionEligible
         copy.prescribedCalories = prescribedCalories
+        copy.prescribedVelocityMinimum = prescribedVelocityMinimum
+        copy.prescribedVelocityMaximum = prescribedVelocityMaximum
+        copy.prescribedVelocityLossStopPercent = prescribedVelocityLossStopPercent
+        copy.isVelocityProbe = isVelocityProbe
         copy.isPrescribedOptional = isPrescribedOptional
         copy.prescriptionNotes = prescriptionNotes
         copy.prescriptionDefinitionData = prescriptionDefinitionData
@@ -187,6 +203,10 @@ final class ExerciseSet {
         prescribedTempo = nil
         prescribedProgressionEligible = nil
         prescribedCalories = nil
+        prescribedVelocityMinimum = nil
+        prescribedVelocityMaximum = nil
+        prescribedVelocityLossStopPercent = nil
+        isVelocityProbe = false
         isPrescribedOptional = nil
         prescriptionNotes = nil
         prescriptionDefinitionData = nil

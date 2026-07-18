@@ -85,6 +85,7 @@ struct SetDetailSheet: View {
         VStack(alignment: .leading, spacing: Spacing.xl) {
             header
             setTypeSection
+            if showsVelocity { velocitySection }
             rpeSection
             rirSection
             liftQualitySection
@@ -102,6 +103,50 @@ struct SetDetailSheet: View {
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("set-details-screen", label: "Set details open")
         }
+    }
+
+    private var showsVelocity: Bool {
+        exerciseSet.isVelocityProbe
+            || exerciseSet.prescribedVelocityMinimum != nil
+            || exerciseSet.prescribedVelocityMaximum != nil
+            || exerciseSet.meanVelocity != nil
+    }
+
+    private var velocitySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            eyebrow(exerciseSet.isVelocityProbe ? "Readiness probe · Mean velocity" : "Mean velocity")
+            HStack(spacing: Spacing.s) {
+                TextField("0.00", text: velocityBinding)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Mean velocity in metres per second")
+                    .accessibilityIdentifier("set-mean-velocity")
+                Text("m/s")
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+            if let minimum = exerciseSet.prescribedVelocityMinimum,
+               let maximum = exerciseSet.prescribedVelocityMaximum {
+                Text("Target \(minimum.formatted(.number.precision(.fractionLength(2))))–\(maximum.formatted(.number.precision(.fractionLength(2)))) m/s")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+            if let loss = exerciseSet.prescribedVelocityLossStopPercent {
+                Text("Stop the set if velocity loss reaches \(loss.formatted(.number.precision(.fractionLength(0...1))))%.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+        }
+    }
+
+    private var velocityBinding: Binding<String> {
+        Binding(
+            get: { exerciseSet.meanVelocity.map { $0.formatted(.number.precision(.fractionLength(2))) } ?? "" },
+            set: { text in
+                exerciseSet.meanVelocity = Double(text.replacingOccurrences(of: ",", with: "."))
+                onPersist()
+            }
+        )
     }
 
     private var header: some View {

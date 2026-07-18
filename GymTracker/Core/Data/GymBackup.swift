@@ -83,6 +83,7 @@ nonisolated struct ExerciseSetDTO: Codable {
     let rpe: Int?
     var rir: Int? = nil
     var liftQuality: String? = nil
+    var meanVelocity: Double? = nil
     let setType: String
     var isSelectedDailyMaximum: Bool? = nil
     var generatedBackOffDefinitionID: String? = nil
@@ -102,6 +103,10 @@ nonisolated struct ExerciseSetDTO: Codable {
     var prescribedTempo: String? = nil
     var prescribedProgressionEligible: Bool? = nil
     var prescribedCalories: Double? = nil
+    var prescribedVelocityMinimum: Double? = nil
+    var prescribedVelocityMaximum: Double? = nil
+    var prescribedVelocityLossStopPercent: Double? = nil
+    var isVelocityProbe: Bool? = nil
     var isPrescribedOptional: Bool? = nil
     var prescriptionNotes: String? = nil
     var prescriptionDefinitionData: Data? = nil
@@ -634,6 +639,7 @@ extension BackupDTO {
                             rpe: set.rpe,
                             rir: set.rir,
                             liftQuality: set.liftQuality?.rawValue,
+                            meanVelocity: set.meanVelocity,
                             setType: set.setType.rawValue,
                             isSelectedDailyMaximum: set.isSelectedDailyMaximum,
                             generatedBackOffDefinitionID: set.generatedBackOffDefinitionID?.uuidString,
@@ -653,6 +659,10 @@ extension BackupDTO {
                             prescribedTempo: set.prescribedTempo,
                             prescribedProgressionEligible: set.prescribedProgressionEligible,
                             prescribedCalories: set.prescribedCalories,
+                            prescribedVelocityMinimum: set.prescribedVelocityMinimum,
+                            prescribedVelocityMaximum: set.prescribedVelocityMaximum,
+                            prescribedVelocityLossStopPercent: set.prescribedVelocityLossStopPercent,
+                            isVelocityProbe: set.isVelocityProbe,
                             isPrescribedOptional: set.isPrescribedOptional,
                             prescriptionNotes: set.prescriptionNotes,
                             prescriptionDefinitionData: set.prescriptionDefinitionData,
@@ -1357,6 +1367,7 @@ extension BackupDTO {
                         userOverrideReason: setDTO.userOverrideReason,
                         userOverrideAffectsFuture: setDTO.userOverrideAffectsFuture,
                         rpe: setDTO.rpe,
+                        meanVelocity: setDTO.meanVelocity,
                         setType: setType,
                         orderIndex: setDTO.orderIndex,
                         usedMetric: setUsedMetric
@@ -1378,6 +1389,10 @@ extension BackupDTO {
                     setObj.prescribedTempo = setDTO.prescribedTempo
                     setObj.prescribedProgressionEligible = setDTO.prescribedProgressionEligible
                     setObj.prescribedCalories = setDTO.prescribedCalories
+                    setObj.prescribedVelocityMinimum = setDTO.prescribedVelocityMinimum
+                    setObj.prescribedVelocityMaximum = setDTO.prescribedVelocityMaximum
+                    setObj.prescribedVelocityLossStopPercent = setDTO.prescribedVelocityLossStopPercent
+                    setObj.isVelocityProbe = setDTO.isVelocityProbe ?? false
                     setObj.isPrescribedOptional = setDTO.isPrescribedOptional
                     setObj.prescriptionNotes = setDTO.prescriptionNotes
                     setObj.prescriptionDefinitionData = setDTO.prescriptionDefinitionData
