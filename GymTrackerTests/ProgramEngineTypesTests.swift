@@ -259,6 +259,41 @@ final class ProgramEngineTypesTests: XCTestCase {
             ))
         )
     }
+
+    func testStageTemplateExpandsAndResolvesSelfLoadReference() throws {
+        let json = """
+        {
+          "programKey":"stage-data","name":"Stage Data","goal":"generalStrength",
+          "experienceLevel":"intermediate","durationWeeks":1,"supportedDaysPerWeek":[1],
+          "scheduleMode":"fixedWeekdays",
+          "stageTemplates":{"main":[
+            {"stageID":"five","name":"Five","carriesLoad":true,"setGroups":[
+              {"count":2,"reps":5,"load":{"reference":"previousOccurrence","of":"$self","round":2.5}}
+            ]},
+            {"stageID":"three","name":"Three","carriesLoad":true,"setGroups":[
+              {"count":3,"reps":3}
+            ]}
+          ]},
+          "blocks":[{"name":"Build","phaseType":"strength","weeks":[{"weekIndex":0,"workouts":[
+            {"name":"Day","dayOffset":0,"exercises":[
+              {"exercise":"Back Squat","exposureKey":"squat","stages":"main","initialStage":"five"}
+            ]}
+          ]}]}]
+        }
+        """
+        let authoring = try JSONDecoder().decode(AuthoringProgramDefinition.self, from: Data(json.utf8))
+        let payload = try authoring.expand(exerciseIDsByName: ["Back Squat": UUID()])
+        let exercise = try XCTUnwrap(payload.blocks.first?.weeks.first?.workouts.first?.plannedExercises.first)
+
+        XCTAssertEqual(exercise.stages.map(\.stageID), ["five", "three"])
+        XCTAssertEqual(exercise.initialStageID, "five")
+        XCTAssertEqual(exercise.stages[0].plannedSets.count, 2)
+        XCTAssertEqual(
+            exercise.stages[0].plannedSets[0].load.reference,
+            LoadReference(kind: .previousOccurrence, exposureKey: "squat")
+        )
+        XCTAssertTrue(exercise.plannedSets.isEmpty)
+    }
     func testValidatorRejectsEmptyWarmupScheme() {
         let definition = makeDefinition(exercises: [
             ProgramExerciseDefinition(

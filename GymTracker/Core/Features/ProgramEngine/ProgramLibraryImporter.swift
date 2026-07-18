@@ -246,15 +246,16 @@ nonisolated struct AuthoringLoadDefinition: Codable, Hashable {
         self.round = round
     }
 
-    func expand() -> LoadPrescription {
+    func expand(exposureKey: String? = nil) -> LoadPrescription {
         let kind: LoadReferenceKind
         if fixed != nil {
             kind = .fixedLoad
         } else {
             kind = reference ?? .manual
         }
+        let resolvedExposure = of == "$self" ? exposureKey : of
         return LoadPrescription(
-            reference: LoadReference(kind: kind, exposureKey: of),
+            reference: LoadReference(kind: kind, exposureKey: resolvedExposure),
             fixedValue: fixed,
             percentage: percent,
             absoluteOffset: offset ?? 0,
@@ -308,7 +309,8 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
     func expand(
         path: String,
         startingAt orderIndex: Int,
-        restSeconds: Int? = nil
+        restSeconds: Int? = nil,
+        exposureKey: String? = nil
     ) throws -> [SetPrescriptionDefinition] {
         let options = [reps != nil, repRange != nil, amrap != nil, durationSeconds != nil]
         guard options.filter({ $0 }).count == 1 else {
@@ -335,7 +337,7 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
                 orderIndex: orderIndex + offset,
                 role: role ?? (amrap != nil ? .amrap : .working),
                 repetitions: repetitionPrescription,
-                load: load?.expand() ?? LoadPrescription(),
+                load: load?.expand(exposureKey: exposureKey) ?? LoadPrescription(),
                 targetRPE: targetRPE,
                 targetRIR: targetRIR,
                 restSeconds: restSeconds,
@@ -357,9 +359,18 @@ nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
     var exposureKey: String
     var optional: Bool?
     var restSeconds: Int?
-    var setGroups: [AuthoringSetGroupDefinition]
+    var setGroups: [AuthoringSetGroupDefinition]?
     var warmupScheme: [AuthoringWarmupStep]?
     var rules: AuthoringRuleSelection?
+    var stages: String?
+    var initialStage: String?
+}
+
+nonisolated struct AuthoringStageDefinition: Codable, Hashable {
+    var stageID: String
+    var name: String?
+    var carriesLoad: Bool?
+    var setGroups: [AuthoringSetGroupDefinition]
 }
 
 nonisolated struct AuthoringWorkoutDefinition: Codable, Hashable {
@@ -450,6 +461,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var warnings: [String]?
     var isExperimental: Bool?
     var rulesLibrary: [String: [AuthoringRuleDefinition]]?
+    var stageTemplates: [String: [AuthoringStageDefinition]]?
     var blocks: [AuthoringBlockDefinition]
 
     func expand(exerciseIDsByName: [String: UUID]) throws -> ProgramDefinitionPayload {
@@ -471,11 +483,12 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                 }
                                 let exercisePath = "\(workoutPath)/e\(exerciseIndex)"
                                 var sets: [SetPrescriptionDefinition] = []
-                                for (groupIndex, group) in exercise.setGroups.enumerated() {
+                                for (groupIndex, group) in (exercise.setGroups ?? []).enumerated() {
                                     sets += try group.expand(
                                         path: "\(exercisePath)/g\(groupIndex)",
                                         startingAt: sets.count,
-                                        restSeconds: exercise.restSeconds
+                                        restSeconds: exercise.restSeconds,
+                                        exposureKey: exercise.exposureKey
                                     )
                                 }
                                 let warmup = exercise.warmupScheme.map { steps in
@@ -505,6 +518,33 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                 case .unsupported:
                                     throw ProgramLibraryImportError.unsupportedRuleConstruct("exercise.rules")
                                 }
+                                let stages: [ProgramStageDefinition]
+                                if let stageTemplateName = exercise.stages {
+                                    guard let authoringStages = stageTemplates?[stageTemplateName] else {
+                                        throw ProgramLibraryImportError.unsupportedRuleConstruct("stageTemplate.\(stageTemplateName)")
+                                    }
+                                    stages = try authoringStages.enumerated().map { stageIndex, stage in
+                                        let stagePath = "\(exercisePath)/stage/\(stageIndex)"
+                                        var stageSets: [SetPrescriptionDefinition] = []
+                                        for (groupIndex, group) in stage.setGroups.enumerated() {
+                                            stageSets += try group.expand(
+                                                path: "\(stagePath)/g\(groupIndex)",
+                                                startingAt: stageSets.count,
+                                                restSeconds: exercise.restSeconds,
+                                                exposureKey: exercise.exposureKey
+                                            )
+                                        }
+                                        return ProgramStageDefinition(
+                                            id: ProgramLibraryDeterministicID.uuid(for: stagePath),
+                                            stageID: stage.stageID,
+                                            name: stage.name,
+                                            plannedSets: stageSets,
+                                            carriesLoad: stage.carriesLoad ?? true
+                                        )
+                                    }
+                                } else {
+                                    stages = []
+                                }
                                 return ProgramExerciseDefinition(
                                     id: ProgramLibraryDeterministicID.uuid(for: exercisePath),
                                     exerciseID: exerciseID,
@@ -512,6 +552,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                     orderIndex: exerciseIndex,
                                     isOptional: exercise.optional ?? false,
                                     plannedSets: sets,
+                                    stages: stages,
+                                    initialStageID: exercise.initialStage,
                                     progressionRules: progressionRules,
                                     warmupScheme: warmup
                                 )
