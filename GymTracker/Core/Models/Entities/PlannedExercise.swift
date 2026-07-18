@@ -34,6 +34,8 @@ final class PlannedExercise {
     var progressionWavesData: Data?
     /// Encoded stage definitions and initial-stage identity for generated programs.
     var progressionStagesData: Data?
+    /// Ordered exercise identities used by advance/regress variation actions.
+    var variationLadderData: Data?
     // Optional for compatibility with plans persisted before stimulus was added.
     // Callers should use resolvedStimulus when a concrete value is required.
     var stimulus: TrainingStimulus?
@@ -67,6 +69,7 @@ final class PlannedExercise {
         progressionRulesData: Data? = nil,
         progressionWavesData: Data? = nil,
         progressionStagesData: Data? = nil,
+        variationLadderData: Data? = nil,
         initialTrainingMax: Double? = nil,
         initialEstimatedOneRepMax: Double? = nil,
         initialActualOneRepMax: Double? = nil,
@@ -98,6 +101,7 @@ final class PlannedExercise {
         self.progressionRulesData = progressionRulesData
         self.progressionWavesData = progressionWavesData
         self.progressionStagesData = progressionStagesData
+        self.variationLadderData = variationLadderData
         self.stimulus = stimulus
         self.alternatives = alternatives
         self.plannedSets = plannedSets

@@ -364,6 +364,7 @@ nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
     var rules: AuthoringRuleSelection?
     var stages: String?
     var initialStage: String?
+    var variationLadder: [String]?
 }
 
 nonisolated struct AuthoringStageDefinition: Codable, Hashable {
@@ -545,6 +546,12 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                 } else {
                                     stages = []
                                 }
+                                let variationExerciseIDs = try exercise.variationLadder?.map { variationName in
+                                    guard let variationID = exerciseIDsByName[variationName] else {
+                                        throw ProgramLibraryImportError.missingExercise(variationName)
+                                    }
+                                    return variationID
+                                }
                                 return ProgramExerciseDefinition(
                                     id: ProgramLibraryDeterministicID.uuid(for: exercisePath),
                                     exerciseID: exerciseID,
@@ -555,6 +562,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                     stages: stages,
                                     initialStageID: exercise.initialStage,
                                     progressionRules: progressionRules,
+                                    variationExerciseIDs: variationExerciseIDs,
                                     warmupScheme: warmup
                                 )
                             }

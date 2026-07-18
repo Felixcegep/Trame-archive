@@ -294,6 +294,33 @@ final class ProgramEngineTypesTests: XCTestCase {
         )
         XCTAssertTrue(exercise.plannedSets.isEmpty)
     }
+
+    func testAuthoringVariationLadderResolvesAndCompilerPersistsOrderedIDs() throws {
+        let json = """
+        {
+          "programKey":"ladder-data","name":"Ladder Data","goal":"generalStrength",
+          "experienceLevel":"beginner","durationWeeks":1,"supportedDaysPerWeek":[1],
+          "scheduleMode":"fixedWeekdays","blocks":[{"name":"Build","phaseType":"strength",
+          "weeks":[{"weekIndex":0,"workouts":[{"name":"Day","dayOffset":0,"exercises":[{
+            "exercise":"Assisted Pull-Up","exposureKey":"pull",
+            "variationLadder":["Assisted Pull-Up","Pull-Up","Weighted Pull-Up"],
+            "setGroups":[{"count":3,"repRange":[5,8]}]
+          }]}]}]}]
+        }
+        """
+        let ids = [
+            "Assisted Pull-Up": UUID(),
+            "Pull-Up": UUID(),
+            "Weighted Pull-Up": UUID()
+        ]
+        let authoring = try JSONDecoder().decode(AuthoringProgramDefinition.self, from: Data(json.utf8))
+        let payload = try authoring.expand(exerciseIDsByName: ids)
+        let definition = try XCTUnwrap(payload.blocks.first?.weeks.first?.workouts.first?.plannedExercises.first)
+
+        XCTAssertEqual(definition.variationExerciseIDs, [
+            ids["Assisted Pull-Up"], ids["Pull-Up"], ids["Weighted Pull-Up"]
+        ].compactMap { $0 })
+    }
     func testValidatorRejectsEmptyWarmupScheme() {
         let definition = makeDefinition(exercises: [
             ProgramExerciseDefinition(

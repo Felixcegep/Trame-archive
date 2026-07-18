@@ -163,6 +163,9 @@ enum ProgramDefinitionCompiler {
                         for alternativeID in exercise.alternativeExerciseIDs {
                             try requireExercise(alternativeID, in: exercisesByID)
                         }
+                        for variationID in exercise.variationExerciseIDs ?? [] {
+                            try requireExercise(variationID, in: exercisesByID)
+                        }
                         for prescription in exercise.plannedSets + exercise.waves.flatMap(\.plannedSets) {
                             if let referenceID = prescription.load.reference.exerciseID {
                                 try requireExercise(referenceID, in: exercisesByID)
@@ -245,6 +248,7 @@ enum ProgramDefinitionCompiler {
                     initialStageID: definition.initialStageID ?? definition.stages[0].stageID
                 )
             ),
+            variationLadderData: definition.variationExerciseIDs.flatMap { try? JSONEncoder().encode($0) },
             initialTrainingMax: definition.initialTrainingMax,
             initialEstimatedOneRepMax: definition.initialEstimatedOneRepMax,
             initialActualOneRepMax: definition.initialActualOneRepMax,
