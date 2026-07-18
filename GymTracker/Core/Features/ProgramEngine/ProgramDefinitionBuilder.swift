@@ -110,6 +110,49 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
         normalizeBlockOrder()
     }
 
+    mutating func moveBlock(from source: Int, to destination: Int) throws {
+        guard definition.blocks.indices.contains(source), destination >= 0, destination <= definition.blocks.count else {
+            throw ProgramDefinitionBuilderError.invalidIndex
+        }
+        let block = definition.blocks.remove(at: source)
+        definition.blocks.insert(block, at: min(destination, definition.blocks.count))
+        normalizeBlockOrder()
+    }
+
+    mutating func removeWeek(fromBlock blockIndex: Int, at weekIndex: Int) throws {
+        guard definition.blocks.indices.contains(blockIndex), definition.blocks[blockIndex].weeks.indices.contains(weekIndex) else {
+            throw ProgramDefinitionBuilderError.invalidIndex
+        }
+        definition.blocks[blockIndex].weeks.remove(at: weekIndex)
+        normalizeWeekOrder(blockIndex: blockIndex)
+    }
+
+    mutating func moveWeek(fromBlock blockIndex: Int, from source: Int, to destination: Int) throws {
+        guard definition.blocks.indices.contains(blockIndex), definition.blocks[blockIndex].weeks.indices.contains(source), destination >= 0, destination <= definition.blocks[blockIndex].weeks.count else {
+            throw ProgramDefinitionBuilderError.invalidIndex
+        }
+        let week = definition.blocks[blockIndex].weeks.remove(at: source)
+        definition.blocks[blockIndex].weeks.insert(week, at: min(destination, definition.blocks[blockIndex].weeks.count))
+        normalizeWeekOrder(blockIndex: blockIndex)
+    }
+
+    mutating func removeWorkout(fromBlock blockIndex: Int, week weekIndex: Int, at workoutIndex: Int) throws {
+        guard definition.blocks.indices.contains(blockIndex), definition.blocks[blockIndex].weeks.indices.contains(weekIndex), definition.blocks[blockIndex].weeks[weekIndex].workouts.indices.contains(workoutIndex) else {
+            throw ProgramDefinitionBuilderError.invalidIndex
+        }
+        definition.blocks[blockIndex].weeks[weekIndex].workouts.remove(at: workoutIndex)
+        normalizeWorkoutOrder(blockIndex: blockIndex, weekIndex: weekIndex)
+    }
+
+    mutating func moveWorkout(fromBlock blockIndex: Int, week weekIndex: Int, from source: Int, to destination: Int) throws {
+        guard definition.blocks.indices.contains(blockIndex), definition.blocks[blockIndex].weeks.indices.contains(weekIndex), definition.blocks[blockIndex].weeks[weekIndex].workouts.indices.contains(source), destination >= 0, destination <= definition.blocks[blockIndex].weeks[weekIndex].workouts.count else {
+            throw ProgramDefinitionBuilderError.invalidIndex
+        }
+        let workout = definition.blocks[blockIndex].weeks[weekIndex].workouts.remove(at: source)
+        definition.blocks[blockIndex].weeks[weekIndex].workouts.insert(workout, at: min(destination, definition.blocks[blockIndex].weeks[weekIndex].workouts.count))
+        normalizeWorkoutOrder(blockIndex: blockIndex, weekIndex: weekIndex)
+    }
+
     mutating func removeExercise(fromBlock blockIndex: Int, week weekIndex: Int, workout workoutIndex: Int, at exerciseIndex: Int) throws {
         guard definition.blocks.indices.contains(blockIndex),
               definition.blocks[blockIndex].weeks.indices.contains(weekIndex),
@@ -133,6 +176,26 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
         normalizeExerciseOrder(blockIndex: blockIndex, weekIndex: weekIndex, workoutIndex: workoutIndex)
     }
 
+    mutating func removeSet(fromBlock blockIndex: Int, week weekIndex: Int, workout workoutIndex: Int, exercise exerciseIndex: Int, at setIndex: Int) throws {
+        guard definition.blocks.indices.contains(blockIndex), definition.blocks[blockIndex].weeks.indices.contains(weekIndex), definition.blocks[blockIndex].weeks[weekIndex].workouts.indices.contains(workoutIndex), definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises.indices.contains(exerciseIndex), definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises[exerciseIndex].plannedSets.indices.contains(setIndex) else {
+            throw ProgramDefinitionBuilderError.invalidIndex
+        }
+        definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises[exerciseIndex].plannedSets.remove(at: setIndex)
+        normalizeSetOrder(blockIndex: blockIndex, weekIndex: weekIndex, workoutIndex: workoutIndex, exerciseIndex: exerciseIndex)
+    }
+
+    mutating func moveSet(fromBlock blockIndex: Int, week weekIndex: Int, workout workoutIndex: Int, exercise exerciseIndex: Int, from source: Int, to destination: Int) throws {
+        guard definition.blocks.indices.contains(blockIndex), definition.blocks[blockIndex].weeks.indices.contains(weekIndex), definition.blocks[blockIndex].weeks[weekIndex].workouts.indices.contains(workoutIndex), definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises.indices.contains(exerciseIndex) else {
+            throw ProgramDefinitionBuilderError.invalidIndex
+        }
+        var sets = definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises[exerciseIndex].plannedSets
+        guard sets.indices.contains(source), destination >= 0, destination <= sets.count else { throw ProgramDefinitionBuilderError.invalidIndex }
+        let set = sets.remove(at: source)
+        sets.insert(set, at: min(destination, sets.count))
+        definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises[exerciseIndex].plannedSets = sets
+        normalizeSetOrder(blockIndex: blockIndex, weekIndex: weekIndex, workoutIndex: workoutIndex, exerciseIndex: exerciseIndex)
+    }
+
     func build() throws -> ProgramDefinitionPayload {
         let issues = ProgramDefinitionValidator.validate(definition)
         guard issues.isEmpty else { throw ProgramDefinitionBuilderError.validation(issues) }
@@ -143,9 +206,23 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
         for index in definition.blocks.indices { definition.blocks[index].orderIndex = index }
     }
 
+    private mutating func normalizeWeekOrder(blockIndex: Int) {
+        for index in definition.blocks[blockIndex].weeks.indices { definition.blocks[blockIndex].weeks[index].weekIndex = index }
+    }
+
+    private mutating func normalizeWorkoutOrder(blockIndex: Int, weekIndex: Int) {
+        for index in definition.blocks[blockIndex].weeks[weekIndex].workouts.indices { definition.blocks[blockIndex].weeks[weekIndex].workouts[index].orderIndex = index }
+    }
+
     private mutating func normalizeExerciseOrder(blockIndex: Int, weekIndex: Int, workoutIndex: Int) {
         for index in definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises.indices {
             definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises[index].orderIndex = index
+        }
+    }
+
+    private mutating func normalizeSetOrder(blockIndex: Int, weekIndex: Int, workoutIndex: Int, exerciseIndex: Int) {
+        for index in definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises[exerciseIndex].plannedSets.indices {
+            definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises[exerciseIndex].plannedSets[index].orderIndex = index
         }
     }
 }
