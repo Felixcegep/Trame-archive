@@ -200,6 +200,7 @@ enum ProgressionTrigger: Codable, Hashable {
     case allRequiredRepetitionsCompleted
     case allSetsReachedUpperRepBound
     case totalRepetitionsReached(Int)
+    case totalCaloriesReached(Double)
     case totalVolumeReached(Double)
     case amrapResultReached(Int)
     case extraRepetitionsCompleted(Int)
@@ -234,6 +235,8 @@ enum ProgressionAction: Codable, Hashable {
     case reduceDistance(Double)
     case addRestDuration(Int)
     case reduceRestDuration(Int)
+    case addCalories(Double)
+    case reduceCalories(Double)
     case updateTrainingMax(ProgressionFormula)
     case updateEstimatedOneRepMax(ProgressionFormula)
     case updateActualOneRepMax(ProgressionFormula)

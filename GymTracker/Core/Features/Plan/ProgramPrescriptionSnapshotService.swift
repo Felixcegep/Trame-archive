@@ -126,7 +126,10 @@ enum ProgramPrescriptionSnapshotService {
                 set.duration = seconds.map { $0 + (state?.durationOffset ?? 0) }
             case .distance(let meters):
                 set.distance = meters.map { Float($0 + (state?.distanceOffset ?? 0)) }
-            case .calories, .sequence, .open:
+            case .calories(let calories):
+                set.calories = calories.map { $0 + (state?.caloriesOffset ?? 0) }
+                set.prescribedCalories = set.calories
+            case .sequence, .open:
                 break
             }
             set.prescribedRestSeconds = definition.restSeconds.map { max(0, $0 + (state?.restDurationOffset ?? 0)) }

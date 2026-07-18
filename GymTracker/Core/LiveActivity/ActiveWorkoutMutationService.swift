@@ -144,6 +144,9 @@ struct ActiveWorkoutMutationService {
         if trackingType.usesDistance, (set.distance ?? 0) <= 0 {
             return false
         }
+        if trackingType.usesCalories, (set.calories ?? 0) <= 0 {
+            return false
+        }
         return true
     }
 

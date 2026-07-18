@@ -12,12 +12,13 @@ enum TrackingType: String, Codable, CaseIterable {
     case assistedBodyweight = "Assisted Bodyweight"
     case duration = "Duration"
     case durationAndDistance = "Duration & Distance"
+    case calories = "Calories"
 
     var usesWeight: Bool {
         switch self {
         case .weightAndReps, .weightedBodyweight, .assistedBodyweight:
             return true
-        case .repsOnly, .duration, .durationAndDistance:
+        case .repsOnly, .duration, .durationAndDistance, .calories:
             return false
         }
     }
@@ -26,7 +27,7 @@ enum TrackingType: String, Codable, CaseIterable {
         switch self {
         case .weightAndReps, .repsOnly, .weightedBodyweight, .assistedBodyweight:
             return true
-        case .duration, .durationAndDistance:
+        case .duration, .durationAndDistance, .calories:
             return false
         }
     }
@@ -35,12 +36,16 @@ enum TrackingType: String, Codable, CaseIterable {
         switch self {
         case .duration, .durationAndDistance:
             return true
-        case .weightAndReps, .repsOnly, .weightedBodyweight, .assistedBodyweight:
+        case .weightAndReps, .repsOnly, .weightedBodyweight, .assistedBodyweight, .calories:
             return false
         }
     }
 
     var usesDistance: Bool {
         self == .durationAndDistance
+    }
+
+    var usesCalories: Bool {
+        self == .calories
     }
 }

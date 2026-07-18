@@ -75,7 +75,11 @@ struct ExerciseSetDTO: Codable {
     let weight: Float
     let duration: Double?
     let distance: Float?
+    var calories: Double? = nil
     let done: Bool
+    var isUserOverridden: Bool = false
+    var userOverrideReason: String? = nil
+    var userOverrideAffectsFuture: Bool = false
     let rpe: Int?
     var rir: Int? = nil
     var liftQuality: String? = nil
@@ -90,6 +94,7 @@ struct ExerciseSetDTO: Codable {
     var prescribedRestSeconds: Int? = nil
     var prescribedRPE: Double? = nil
     var prescribedRIR: Int? = nil
+    var prescribedCalories: Double? = nil
     var isPrescribedOptional: Bool? = nil
     var prescriptionNotes: String? = nil
     var prescriptionDefinitionData: Data? = nil
@@ -206,6 +211,7 @@ struct ProgressionStateDTO: Codable {
     var durationOffset: TimeInterval = 0
     var distanceOffset: Double = 0
     var restDurationOffset: Int = 0
+    var caloriesOffset: Double = 0
     var actualOneRepMax: Double? = nil
     let currentStageID: String?
     let currentVariationExerciseID: String?
@@ -246,6 +252,7 @@ struct ProgressionRecommendationDTO: Codable {
     var proposedDurationOffset: TimeInterval = 0
     var proposedDistanceOffset: Double = 0
     var proposedRestDurationOffset: Int = 0
+    var proposedCaloriesOffset: Double = 0
     var proposedWaveIndex: Int = 0
     var proposedBlockIndex: Int = 0
     var proposedIsDeloading: Bool = false
@@ -584,7 +591,11 @@ extension BackupDTO {
                             weight: set.weight,
                             duration: set.duration,
                             distance: set.distance,
+                            calories: set.calories,
                             done: set.done,
+                            isUserOverridden: set.isUserOverridden,
+                            userOverrideReason: set.userOverrideReason,
+                            userOverrideAffectsFuture: set.userOverrideAffectsFuture,
                             rpe: set.rpe,
                             rir: set.rir,
                             liftQuality: set.liftQuality?.rawValue,
@@ -599,6 +610,7 @@ extension BackupDTO {
                             prescribedRestSeconds: set.prescribedRestSeconds,
                             prescribedRPE: set.prescribedRPE,
                             prescribedRIR: set.prescribedRIR,
+                            prescribedCalories: set.prescribedCalories,
                             isPrescribedOptional: set.isPrescribedOptional,
                             prescriptionNotes: set.prescriptionNotes,
                             prescriptionDefinitionData: set.prescriptionDefinitionData
@@ -779,6 +791,7 @@ extension BackupDTO {
                         durationOffset: state.durationOffset,
                         distanceOffset: state.distanceOffset,
                         restDurationOffset: state.restDurationOffset,
+                        caloriesOffset: state.caloriesOffset,
                         currentStageID: state.currentStageID,
                         currentVariationExerciseID: state.currentVariationExerciseID?.uuidString,
                         trainingMax: state.trainingMax,
@@ -841,6 +854,7 @@ extension BackupDTO {
                 proposedDurationOffset: record.proposedDurationOffset,
                 proposedDistanceOffset: record.proposedDistanceOffset,
                 proposedRestDurationOffset: record.proposedRestDurationOffset,
+                proposedCaloriesOffset: record.proposedCaloriesOffset,
                 proposedWaveIndex: record.proposedWaveIndex,
                 proposedBlockIndex: record.proposedBlockIndex,
                 proposedIsDeloading: record.proposedIsDeloading,
@@ -1250,7 +1264,11 @@ extension BackupDTO {
                         weight: setDTO.weight,
                         duration: setDTO.duration,
                         distance: setDTO.distance,
+                        calories: setDTO.calories,
                         done: setDTO.done,
+                        isUserOverridden: setDTO.isUserOverridden,
+                        userOverrideReason: setDTO.userOverrideReason,
+                        userOverrideAffectsFuture: setDTO.userOverrideAffectsFuture,
                         rpe: setDTO.rpe,
                         setType: setType,
                         orderIndex: setDTO.orderIndex,
@@ -1267,6 +1285,7 @@ extension BackupDTO {
                     setObj.prescribedRestSeconds = setDTO.prescribedRestSeconds
                     setObj.prescribedRPE = setDTO.prescribedRPE
                     setObj.prescribedRIR = setDTO.prescribedRIR
+                    setObj.prescribedCalories = setDTO.prescribedCalories
                     setObj.isPrescribedOptional = setDTO.isPrescribedOptional
                     setObj.prescriptionNotes = setDTO.prescriptionNotes
                     setObj.prescriptionDefinitionData = setDTO.prescriptionDefinitionData
@@ -1328,6 +1347,7 @@ extension BackupDTO {
                         durationOffset: stateDTO.durationOffset,
                         distanceOffset: stateDTO.distanceOffset,
                         restDurationOffset: stateDTO.restDurationOffset,
+                        caloriesOffset: stateDTO.caloriesOffset,
                         currentStageID: stateDTO.currentStageID,
                         currentVariationExerciseID: stateDTO.currentVariationExerciseID.flatMap(UUID.init(uuidString:)),
                         trainingMax: stateDTO.trainingMax,
@@ -1380,6 +1400,7 @@ extension BackupDTO {
                         durationOffset: recommendationDTO.proposedDurationOffset,
                         distanceOffset: recommendationDTO.proposedDistanceOffset,
                         restDurationOffset: recommendationDTO.proposedRestDurationOffset,
+                        caloriesOffset: recommendationDTO.proposedCaloriesOffset,
                         currentWaveIndex: recommendationDTO.proposedWaveIndex,
                         currentBlockIndex: recommendationDTO.proposedBlockIndex,
                         isDeloading: recommendationDTO.proposedIsDeloading

@@ -105,9 +105,17 @@ class ActiveWorkoutViewModel {
         currentSet.weight = previousSet.weight
         currentSet.duration = previousSet.duration
         currentSet.distance = previousSet.distance
+        currentSet.calories = previousSet.calories
         currentSet.rpe = previousSet.rpe
         currentSet.rir = previousSet.rir
         currentSet.liftQuality = previousSet.liftQuality
+        currentSet.isUserOverridden = currentSet.prescribedSetType != nil
+            || currentSet.prescribedRepetitions != nil
+            || currentSet.prescribedRepRangeMinimum != nil
+            || currentSet.prescribedRepRangeMaximum != nil
+            || currentSet.prescribedSuggestedLoad != nil
+            || currentSet.prescribedCalories != nil
+            || currentSet.prescriptionDefinitionData != nil
         persistChanges()
     }
 
@@ -150,6 +158,18 @@ class ActiveWorkoutViewModel {
                 from: previousSet.distanceType,
                 to: set.distanceType
             )
+        }
+        if exercise.trackingTypeSnapshot.usesCalories {
+            set.calories = previousSet.calories
+        }
+        if set.prescribedSetType != nil
+            || set.prescribedRepetitions != nil
+            || set.prescribedRepRangeMinimum != nil
+            || set.prescribedRepRangeMaximum != nil
+            || set.prescribedSuggestedLoad != nil
+            || set.prescribedCalories != nil
+            || set.prescriptionDefinitionData != nil {
+            set.isUserOverridden = true
         }
         persistChanges()
     }

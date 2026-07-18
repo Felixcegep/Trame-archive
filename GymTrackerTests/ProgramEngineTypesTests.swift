@@ -483,17 +483,35 @@ final class ProgramEngineTypesTests: XCTestCase {
         let rules = [
             ProgressionRuleDefinition(metric: .duration, trigger: .allRequiredSetsCompleted, successAction: .addDuration(10), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
             ProgressionRuleDefinition(metric: .distance, trigger: .allRequiredSetsCompleted, successAction: .addDistance(100), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
-            ProgressionRuleDefinition(metric: .restDuration, trigger: .allRequiredSetsCompleted, successAction: .reduceRestDuration(5), cadence: .nextExerciseOccurrence, scope: .exerciseExposure)
+            ProgressionRuleDefinition(metric: .restDuration, trigger: .allRequiredSetsCompleted, successAction: .reduceRestDuration(5), cadence: .nextExerciseOccurrence, scope: .exerciseExposure),
+            ProgressionRuleDefinition(metric: .calories, trigger: .allRequiredSetsCompleted, successAction: .addCalories(25), cadence: .nextExerciseOccurrence, scope: .exerciseExposure)
         ]
         let result = try ProgramProgressionEvaluator.evaluate(
             rules: rules,
             performance: ProgressionPerformance(requiredSets: 1, completedSets: 1),
-            state: ProgressionEvaluationState(durationOffset: 30, distanceOffset: 500, restDurationOffset: 10)
+            state: ProgressionEvaluationState(durationOffset: 30, distanceOffset: 500, restDurationOffset: 10, caloriesOffset: 100)
         )
 
         XCTAssertEqual(result.state.durationOffset, 40)
         XCTAssertEqual(result.state.distanceOffset, 600)
         XCTAssertEqual(result.state.restDurationOffset, 5)
+        XCTAssertEqual(result.state.caloriesOffset, 125)
+    }
+
+    func testProgressionEvaluatorSupportsCalorieThresholds() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .calories,
+            trigger: .totalCaloriesReached(500),
+            successAction: .addCalories(50),
+            cadence: .nextWorkout,
+            scope: .exerciseExposure
+        )
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(completedCalories: 525),
+            state: ProgressionEvaluationState()
+        )
+        XCTAssertEqual(result.state.caloriesOffset, 50)
     }
 
     func testProgressionEvaluatorResetsFailureAndOffsets() throws {
@@ -504,11 +522,12 @@ final class ProgramEngineTypesTests: XCTestCase {
         let result = try ProgramProgressionEvaluator.evaluate(
             rules: rules,
             performance: ProgressionPerformance(manualApproval: true),
-            state: ProgressionEvaluationState(repetitionOffset: 2, setCountOffset: 1, durationOffset: 30, distanceOffset: 100, restDurationOffset: 5, failureCount: 3)
+            state: ProgressionEvaluationState(repetitionOffset: 2, setCountOffset: 1, durationOffset: 30, distanceOffset: 100, restDurationOffset: 5, caloriesOffset: 100, failureCount: 3)
         )
         XCTAssertEqual(result.state.failureCount, 0)
         XCTAssertEqual(result.state.repetitionOffset, 0)
         XCTAssertEqual(result.state.distanceOffset, 0)
+        XCTAssertEqual(result.state.caloriesOffset, 0)
     }
 
     func testRequiredProgramFixturesValidateWithoutProgramSpecificLogic() {
@@ -653,6 +672,7 @@ final class ProgramEngineTypesTests: XCTestCase {
             durationOffset: 60,
             distanceOffset: 250,
             restDurationOffset: 5,
+            caloriesOffset: 120,
             currentStageID: nil,
             currentVariationExerciseID: nil,
             trainingMax: nil,
@@ -673,6 +693,7 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(decoded.durationOffset, 60)
         XCTAssertEqual(decoded.distanceOffset, 250)
         XCTAssertEqual(decoded.restDurationOffset, 5)
+        XCTAssertEqual(decoded.caloriesOffset, 120)
     }
 
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {

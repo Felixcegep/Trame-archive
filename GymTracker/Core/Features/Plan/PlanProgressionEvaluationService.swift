@@ -49,6 +49,7 @@ enum PlanProgressionEvaluationService {
                 durationOffset: state.durationOffset,
                 distanceOffset: state.distanceOffset,
                 restDurationOffset: state.restDurationOffset,
+                caloriesOffset: state.caloriesOffset,
                 currentStageID: state.currentStageID,
                 currentVariationExerciseID: state.currentVariationExerciseID,
                 currentWaveIndex: state.currentWaveIndex ?? 0,
@@ -76,6 +77,7 @@ enum PlanProgressionEvaluationService {
             state.durationOffset = evaluationState.durationOffset
             state.distanceOffset = evaluationState.distanceOffset
             state.restDurationOffset = evaluationState.restDurationOffset
+            state.caloriesOffset = evaluationState.caloriesOffset
             state.currentStageID = evaluationState.currentStageID
             state.currentVariationExerciseID = evaluationState.currentVariationExerciseID
             state.currentWaveIndex = evaluationState.currentWaveIndex
@@ -125,6 +127,7 @@ enum PlanProgressionEvaluationService {
             return false
         }.count
         let totalVolume = completedSets.reduce(0) { $0 + Double($1.repetitions) * Double($1.weight) }
+        let completedCalories = completedSets.compactMap(\.calories).reduce(0, +)
         let actualRPE = completedSets.compactMap { $0.rpe }.map(Double.init).average
         let actualRIR = completedSets.compactMap { $0.rir }.map(Double.init).average
         let qualitySets = completedSets.compactMap(\.liftQuality)
@@ -139,6 +142,7 @@ enum PlanProgressionEvaluationService {
             completedRepetitions: completedRepetitions,
             upperBoundSets: upperBoundSets,
             totalVolume: totalVolume,
+            completedCalories: completedCalories,
             amrapRepetitions: amrapRepetitions,
             targetRPE: entry.prescribedRPE,
             actualRPE: actualRPE,

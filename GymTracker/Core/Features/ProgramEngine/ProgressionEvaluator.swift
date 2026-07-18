@@ -9,6 +9,7 @@ struct ProgressionPerformance: Hashable {
     var completedRepetitions: Int = 0
     var upperBoundSets: Int = 0
     var totalVolume: Double = 0
+    var completedCalories: Double = 0
     var amrapRepetitions: Int?
     var targetRPE: Double?
     var actualRPE: Double?
@@ -33,6 +34,7 @@ struct ProgressionEvaluationState: Hashable {
     var durationOffset: TimeInterval = 0
     var distanceOffset: Double = 0
     var restDurationOffset: Int = 0
+    var caloriesOffset: Double = 0
     var currentStageID: String? = nil
     var currentVariationExerciseID: UUID? = nil
     var currentWaveIndex: Int = 0
@@ -132,6 +134,7 @@ enum ProgramProgressionEvaluator {
         case .allSetsReachedUpperRepBound:
             return performance.requiredSets > 0 && performance.upperBoundSets >= performance.requiredSets
         case .totalRepetitionsReached(let target): return performance.completedRepetitions >= target
+        case .totalCaloriesReached(let target): return performance.completedCalories >= target
         case .totalVolumeReached(let target): return performance.totalVolume >= target
         case .amrapResultReached(let target): return (performance.amrapRepetitions ?? 0) >= target
         case .extraRepetitionsCompleted(let target):
@@ -183,6 +186,8 @@ enum ProgramProgressionEvaluator {
         case .reduceDistance(let amount): state.distanceOffset = max(0, state.distanceOffset - amount)
         case .addRestDuration(let amount): state.restDurationOffset += max(0, amount)
         case .reduceRestDuration(let amount): state.restDurationOffset = max(0, state.restDurationOffset - amount)
+        case .addCalories(let amount): state.caloriesOffset += max(0, amount)
+        case .reduceCalories(let amount): state.caloriesOffset = max(0, state.caloriesOffset - amount)
         case .repeatPrescription, .noChange, .generateRecommendation:
             break
         case .updateTrainingMax(let formula): state.trainingMax = try resolve(formula, context: formulaContext)
@@ -224,6 +229,7 @@ enum ProgramProgressionEvaluator {
             state.durationOffset = 0
             state.distanceOffset = 0
             state.restDurationOffset = 0
+            state.caloriesOffset = 0
         }
     }
 
@@ -238,6 +244,7 @@ enum ProgramProgressionEvaluator {
         case .allRequiredSetsCompleted: return "All required sets were completed."
         case .allRequiredRepetitionsCompleted: return "All required repetitions were completed."
         case .totalRepetitionsReached(let target): return "The total repetition target of \(target) was reached."
+        case .totalCaloriesReached(let target): return "The total calorie target of \(target) was reached."
         case .amrapResultReached(let target): return "The AMRAP result reached at least \(target) repetitions."
         case .extraRepetitionsCompleted(let target): return "The AMRAP set exceeded its target by \(target) repetitions."
         case .targetRPEMatched: return "Actual RPE matched the target."

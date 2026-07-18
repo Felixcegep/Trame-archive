@@ -184,6 +184,9 @@ struct WorkoutDetailView: View {
                     if exercise.trackingTypeSnapshot.usesDistance {
                         tableValue(distanceText(for: set))
                     }
+                    if exercise.trackingTypeSnapshot.usesCalories {
+                        tableValue(caloriesText(for: set))
+                    }
                     if showsRPE {
                         tableValue(set.rpe.map { "\($0)" } ?? "—")
                     }
@@ -204,6 +207,7 @@ struct WorkoutDetailView: View {
         if exercise.trackingTypeSnapshot.usesReps { columns.append("Reps") }
         if exercise.trackingTypeSnapshot.usesDuration { columns.append("Time") }
         if exercise.trackingTypeSnapshot.usesDistance { columns.append("Distance") }
+        if exercise.trackingTypeSnapshot.usesCalories { columns.append("Calories") }
         if showsRPE { columns.append("RPE") }
         return columns
     }
@@ -235,12 +239,18 @@ struct WorkoutDetailView: View {
         return "\(Formatters.formatFloat(distance)) \(set.distanceType.rawValue)"
     }
 
+    private func caloriesText(for set: ExerciseSet) -> String {
+        guard let calories = set.calories else { return "—" }
+        return "\(Formatters.formatFloat(Float(calories))) cal"
+    }
+
     private func accessibilityDescription(for set: ExerciseSet, index: Int) -> String {
         var values = ["Set \(setLabel(for: set, index: index))"]
         if exercise.trackingTypeSnapshot.usesWeight { values.append("\(weightText(for: set))") }
         if exercise.trackingTypeSnapshot.usesReps { values.append("\(Formatters.formatFloat(set.repetitions)) reps") }
         if exercise.trackingTypeSnapshot.usesDuration { values.append(durationText(for: set)) }
         if exercise.trackingTypeSnapshot.usesDistance { values.append(distanceText(for: set)) }
+        if exercise.trackingTypeSnapshot.usesCalories { values.append(caloriesText(for: set)) }
         if let rpe = set.rpe { values.append("RPE \(rpe)") }
         return values.joined(separator: ", ")
     }

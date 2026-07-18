@@ -36,6 +36,7 @@ struct SetRowView: View {
                 if trackingType.usesWeight { weightField }
                 if trackingType.usesDuration { durationField }
                 if trackingType.usesDistance { distanceField }
+                if trackingType.usesCalories { caloriesField }
 
                 doneButton
                 rowMenu
@@ -123,8 +124,10 @@ struct SetRowView: View {
             set: {
                 if let value = Float($0) {
                     exerciseSet.repetitions = value
+                    markUserOverride()
                 } else if $0.isEmpty {
                     exerciseSet.repetitions = 0
+                    markUserOverride()
                 }
                 viewModel.persistChanges()
             }
@@ -140,8 +143,10 @@ struct SetRowView: View {
                 set: {
                     if let value = Float($0) {
                         exerciseSet.weight = max(value, 0)
+                        markUserOverride()
                     } else if $0.isEmpty {
                         exerciseSet.weight = 0
+                        markUserOverride()
                     }
                     viewModel.persistChanges()
                 }
@@ -183,6 +188,7 @@ struct SetRowView: View {
                 },
             set: {
                 exerciseSet.duration = $0.isEmpty ? nil : TimeInterval($0)
+                markUserOverride()
                 if (exerciseSet.duration ?? 0) > 0 {
                     completionValidationMessage = nil
                 }
@@ -191,6 +197,25 @@ struct SetRowView: View {
         ), focusID: setFocus, prompt: previousSet?.duration.map { String(Int($0)) })
         .accessibilityIdentifier("duration-field-\(exerciseEntry.exercise.name)-\(index)")
         .disabled(isCompletedAndLocked || countdownEndDate != nil)
+    }
+
+    private var caloriesField: some View {
+        numberFieldWithUnit("Calories", unit: "cal", text: Binding(
+            get: {
+                guard let calories = exerciseSet.calories, calories > 0 else { return "" }
+                return Formatters.formatFloat(Float(calories))
+            },
+            set: {
+                exerciseSet.calories = $0.isEmpty ? nil : Double($0)
+                markUserOverride()
+                if (exerciseSet.calories ?? 0) > 0 {
+                    completionValidationMessage = nil
+                }
+                viewModel.persistChanges()
+            }
+        ), focusID: setFocus, prompt: previousSet?.calories.map { Formatters.formatFloat(Float($0)) })
+        .accessibilityIdentifier("calories-field-\(exerciseEntry.exercise.name)-\(index)")
+        .disabled(isCompletedAndLocked)
     }
 
     private var durationCountdownControls: some View {
@@ -325,6 +350,7 @@ struct SetRowView: View {
             },
             set: {
                 exerciseSet.distance = $0.isEmpty ? nil : Float($0)
+                markUserOverride()
                 viewModel.persistChanges()
             }
         ), focusID: setFocus, prompt: previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) })
@@ -661,7 +687,15 @@ struct SetRowView: View {
             return "Enter a duration before completing this set."
         }
 
-        return "Enter a distance before completing this set."
+        if trackingType.usesCalories, (exerciseSet.calories ?? 0) <= 0 {
+            return "Enter calories before completing this set."
+        }
+
+        if trackingType.usesDistance, (exerciseSet.distance ?? 0) <= 0 {
+            return "Enter a distance before completing this set."
+        }
+
+        return "Enter a value before completing this set."
     }
 
     private func previousSetText(_ previousSet: PreviousSetPerformance) -> String {
@@ -671,7 +705,22 @@ struct SetRowView: View {
         if trackingType.usesDuration {
             return "\(Int(previousSet.duration ?? 0)) sec"
         }
+        if trackingType.usesCalories {
+            return "\(Formatters.formatFloat(Float(previousSet.calories ?? 0))) cal"
+        }
         return "\(Formatters.formatFloat(previousSet.repetitions)) reps"
+    }
+
+    private func markUserOverride() {
+        guard exerciseSet.prescribedSetType != nil
+            || exerciseSet.prescribedRepetitions != nil
+            || exerciseSet.prescribedRepRangeMinimum != nil
+            || exerciseSet.prescribedRepRangeMaximum != nil
+            || exerciseSet.prescribedSuggestedLoad != nil
+            || exerciseSet.prescribedCalories != nil
+            || exerciseSet.prescriptionDefinitionData != nil
+        else { return }
+        exerciseSet.isUserOverridden = true
     }
 
     private func displayWeight(for previousSet: PreviousSetPerformance) -> Float {

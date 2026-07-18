@@ -25,6 +25,7 @@ final class PlanProgressionRecommendationRecord {
     var proposedDurationOffset: TimeInterval
     var proposedDistanceOffset: Double
     var proposedRestDurationOffset: Int
+    var proposedCaloriesOffset: Double
     var proposedWaveIndex: Int
     var proposedBlockIndex: Int
     var proposedIsDeloading: Bool
@@ -58,6 +59,7 @@ final class PlanProgressionRecommendationRecord {
         proposedDurationOffset = recommendation.proposedState.durationOffset
         proposedDistanceOffset = recommendation.proposedState.distanceOffset
         proposedRestDurationOffset = recommendation.proposedState.restDurationOffset
+        proposedCaloriesOffset = recommendation.proposedState.caloriesOffset
         proposedWaveIndex = recommendation.proposedState.currentWaveIndex
         proposedBlockIndex = recommendation.proposedState.currentBlockIndex
         proposedIsDeloading = recommendation.proposedState.isDeloading

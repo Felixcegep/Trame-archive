@@ -314,6 +314,9 @@ final class ExerciseEntry{
 
         case .durationAndDistance:
             return ExerciseSet(duration: 0, distance: 0, orderIndex: orderIndex, usedMetric: usedMetric)
+
+        case .calories:
+            return ExerciseSet(calories: 0, orderIndex: orderIndex, usedMetric: usedMetric)
         }
     }
 

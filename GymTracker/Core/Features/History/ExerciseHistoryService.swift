@@ -9,6 +9,7 @@ struct PreviousSetPerformance: Equatable, Sendable {
     let duration: TimeInterval?
     let distance: Float?
     let distanceType: DistanceType
+    let calories: Double? = nil
     let setType: SetType
 }
 
@@ -58,6 +59,7 @@ struct ExerciseHistoryService {
                         duration: $0.duration,
                         distance: $0.distance,
                         distanceType: $0.distanceType,
+                        calories: $0.calories,
                         setType: $0.setType
                     )
                 }

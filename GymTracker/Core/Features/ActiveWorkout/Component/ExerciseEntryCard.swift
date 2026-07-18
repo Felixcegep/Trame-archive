@@ -299,6 +299,12 @@ struct ExerciceEntryCard: View {
     }
 
     private var prescriptionSummary: String? {
+        if trackingType.usesCalories,
+           let setCount = exerciseEntry.prescribedSets,
+           let calories = exerciseEntry.orderedSets.first?.prescribedCalories ?? exerciseEntry.orderedSets.first?.calories {
+            return "\(setCount) × \(Formatters.formatFloat(Float(calories))) cal"
+        }
+
         guard let setCount = exerciseEntry.prescribedSets,
               let minimum = exerciseEntry.prescribedRepRangeMinimum,
               let maximum = exerciseEntry.prescribedRepRangeMaximum
@@ -394,6 +400,7 @@ struct ExerciceEntryCard: View {
         }
         if trackingType.usesDuration { titles.append("Seconds") }
         if trackingType.usesDistance { titles.append("Distance") }
+        if trackingType.usesCalories { titles.append("Calories") }
         return titles
     }
 
@@ -417,6 +424,15 @@ struct ExerciceEntryCard: View {
                 ? Formatters.formatFloat(first.repetitions)
                 : "\(Formatters.formatFloat(sets.map(\.repetitions).min() ?? 0))–\(Formatters.formatFloat(sets.map(\.repetitions).max() ?? 0))"
             return "Last time: \(sets.count) × \(reps) reps · \(date)"
+        }
+
+        if trackingType.usesCalories {
+            let calories = Formatters.formatFloat(Float(first.calories ?? 0))
+            let matchingCalories = sets.allSatisfy { $0.calories == first.calories }
+            if matchingCalories {
+                return "Last time: \(sets.count) × \(calories) cal · \(date)"
+            }
+            return "Last time: \(sets.count) sets · up to \(Formatters.formatFloat(Float(sets.compactMap(\.calories).max() ?? 0))) cal · \(date)"
         }
 
         return "Last time: \(sets.count) sets · \(date)"
