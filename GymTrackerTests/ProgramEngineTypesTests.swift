@@ -192,6 +192,33 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(rule.priority, 2)
     }
 
+    func testDerivedRuleAliasOverridesGenericAddLoadWithoutProgramBranch() throws {
+        let json = """
+        {
+          "programKey":"rule-alias","name":"Rule Alias","goal":"generalStrength",
+          "experienceLevel":"beginner","durationWeeks":1,"supportedDaysPerWeek":[1],
+          "scheduleMode":"fixedWeekdays",
+          "rulesLibrary":{
+            "upper":[{"metric":"load","trigger":{"type":"allRequiredSetsCompleted"},
+              "success":{"type":"addLoad","value":2.5},"cadence":"nextExerciseOccurrence",
+              "scope":"exerciseExposure","mode":"automatic"}],
+            "lower":"upper with addLoad 5"
+          },
+          "blocks":[{"name":"Build","phaseType":"strength","weeks":[{"weekIndex":0,
+            "workouts":[{"name":"Day","dayOffset":0,"exercises":[{
+              "exercise":"Back Squat","exposureKey":"squat","rules":"lower",
+              "setGroups":[{"count":1,"reps":5}]
+            }]}]
+          }]}]
+        }
+        """
+        let authoring = try JSONDecoder().decode(AuthoringProgramDefinition.self, from: Data(json.utf8))
+        let payload = try authoring.expand(exerciseIDsByName: ["Back Squat": UUID()])
+        let action = payload.blocks[0].weeks[0].workouts[0].plannedExercises[0].progressionRules[0].successAction
+
+        XCTAssertEqual(action, .addLoad(5))
+    }
+
     func testNamedRuleLibraryRejectsMissingAndUnsupportedRules() throws {
         let trigger = AuthoringTriggerDefinition(type: "futureTrigger")
         XCTAssertThrowsError(try trigger.expand()) { error in

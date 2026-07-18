@@ -213,6 +213,28 @@ nonisolated struct AuthoringRuleDefinition: Codable, Hashable {
     }
 }
 
+nonisolated enum AuthoringRuleSetDefinition: Codable, Hashable {
+    case rules([AuthoringRuleDefinition])
+    case derived(String)
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let rules = try? container.decode([AuthoringRuleDefinition].self) {
+            self = .rules(rules)
+        } else {
+            self = .derived(try container.decode(String.self))
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .rules(let rules): try container.encode(rules)
+        case .derived(let expression): try container.encode(expression)
+        }
+    }
+}
+
 nonisolated struct AuthoringLoadDefinition: Codable, Hashable {
     var reference: LoadReferenceKind?
     var of: String?
@@ -467,7 +489,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var prerequisites: [String]?
     var warnings: [String]?
     var isExperimental: Bool?
-    var rulesLibrary: [String: [AuthoringRuleDefinition]]?
+    var rulesLibrary: [String: AuthoringRuleSetDefinition]?
     var stageTemplates: [String: [AuthoringStageDefinition]]?
     var waveTemplates: [String: [AuthoringWaveDefinition]]?
     var blocks: [AuthoringBlockDefinition]
@@ -514,9 +536,14 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                 case .none:
                                     progressionRules = []
                                 case .named(let ruleSetName):
-                                    guard let authoringRules = rulesLibrary?[ruleSetName] else {
+                                    guard let ruleSet = rulesLibrary?[ruleSetName] else {
                                         throw ProgramLibraryImportError.missingRuleSet(ruleSetName)
                                     }
+                                    let authoringRules = try resolvedRules(
+                                        ruleSet,
+                                        named: ruleSetName,
+                                        library: rulesLibrary ?? [:]
+                                    )
                                     progressionRules = try authoringRules.enumerated().map { ruleIndex, rule in
                                         try rule.expand(
                                             path: "\(exercisePath)/rule/\(ruleIndex)",
@@ -660,6 +687,42 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             requiredCapabilities: requiredCapabilities.sorted(),
             blocks: expandedBlocks
         )
+    }
+
+    private func resolvedRules(
+        _ ruleSet: AuthoringRuleSetDefinition,
+        named name: String,
+        library: [String: AuthoringRuleSetDefinition],
+        visited: Set<String> = []
+    ) throws -> [AuthoringRuleDefinition] {
+        guard !visited.contains(name) else {
+            throw ProgramLibraryImportError.unsupportedRuleConstruct("ruleAliasCycle.\(name)")
+        }
+        switch ruleSet {
+        case .rules(let rules):
+            return rules
+        case .derived(let expression):
+            let marker = " with addLoad "
+            guard let range = expression.range(of: marker),
+                  let amount = Double(expression[range.upperBound...]) else {
+                throw ProgramLibraryImportError.unsupportedRuleConstruct("ruleAlias.\(expression)")
+            }
+            let baseName = String(expression[..<range.lowerBound])
+            guard let base = library[baseName] else {
+                throw ProgramLibraryImportError.missingRuleSet(baseName)
+            }
+            var rules = try resolvedRules(
+                base,
+                named: baseName,
+                library: library,
+                visited: visited.union([name])
+            )
+            guard let index = rules.firstIndex(where: { $0.success.type == "addLoad" }) else {
+                throw ProgramLibraryImportError.unsupportedRuleConstruct("ruleAlias.\(expression)")
+            }
+            rules[index].success.value = amount
+            return rules
+        }
     }
 }
 
