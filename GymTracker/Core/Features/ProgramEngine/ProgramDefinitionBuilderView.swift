@@ -1204,7 +1204,6 @@ private struct ProgramDefinitionRuleEditor: View {
         case .scheduledDateReached: return .scheduledDateReached
         case .manualApproval: return .manualApproval
         case .successfulAttemptRatioReached: return .successfulAttemptRatioReached
-        default: return .allRequiredSetsCompleted
         }
     }
 
@@ -1998,15 +1997,15 @@ private struct ProgramDefinitionSetEditor: View {
     }
 
     private var durationBinding: Binding<String> {
-        doubleRepBinding({ if case .duration(let value) = set.repetitions { set.repetitions = .duration(seconds: $0) } }, read: { if case .duration(let value) = set.repetitions { return value }; return nil })
+        doubleRepBinding({ if case .duration = set.repetitions { set.repetitions = .duration(seconds: $0) } }, read: { if case .duration(let value) = set.repetitions { return value }; return nil })
     }
 
     private var distanceBinding: Binding<String> {
-        doubleRepBinding({ if case .distance(let value) = set.repetitions { set.repetitions = .distance(meters: $0) } }, read: { if case .distance(let value) = set.repetitions { return value }; return nil })
+        doubleRepBinding({ if case .distance = set.repetitions { set.repetitions = .distance(meters: $0) } }, read: { if case .distance(let value) = set.repetitions { return value }; return nil })
     }
 
     private var caloriesBinding: Binding<String> {
-        doubleRepBinding({ if case .calories(let value) = set.repetitions { set.repetitions = .calories($0) } }, read: { if case .calories(let value) = set.repetitions { return value }; return nil })
+        doubleRepBinding({ if case .calories = set.repetitions { set.repetitions = .calories($0) } }, read: { if case .calories(let value) = set.repetitions { return value }; return nil })
     }
 
     private var fixedLoadBinding: Binding<String> {

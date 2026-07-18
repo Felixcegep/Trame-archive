@@ -2,7 +2,7 @@ import Foundation
 
 #if !GYMTRACKER_EXTENSION
 
-struct ProgressionPerformance: Codable, Hashable {
+nonisolated struct ProgressionPerformance: Codable, Hashable {
     var requiredSets: Int = 0
     var completedSets: Int = 0
     var requiredRepetitions: Int = 0
@@ -27,7 +27,7 @@ struct ProgressionPerformance: Codable, Hashable {
     var didFail: Bool = false
 }
 
-struct ProgressionEvaluationState: Codable, Hashable {
+nonisolated struct ProgressionEvaluationState: Codable, Hashable {
     var currentLoad: Double? = nil
     var repetitionOffset: Int = 0
     var setCountOffset: Int = 0
@@ -50,7 +50,7 @@ struct ProgressionEvaluationState: Codable, Hashable {
     var isDeloading: Bool = false
 }
 
-struct ProgressionRecommendation: Hashable, Identifiable {
+nonisolated struct ProgressionRecommendation: Hashable, Identifiable {
     let id: UUID
     let ruleID: UUID
     let action: ProgressionAction
@@ -67,7 +67,7 @@ struct ProgressionRecommendation: Hashable, Identifiable {
 /// A deterministic future state that is not eligible for the current
 /// occurrence yet. It is encoded onto the mutable run state so a later
 /// snapshot can apply it without re-evaluating completed History.
-struct PendingProgressionState: Codable, Hashable {
+nonisolated struct PendingProgressionState: Codable, Hashable {
     /// The rule and completed workout that produced this state. Optional fields
     /// keep pending state written by earlier app versions decodable.
     var ruleID: UUID? = nil
@@ -85,18 +85,18 @@ struct PendingProgressionState: Codable, Hashable {
     var createdAt: Date
 }
 
-struct ProgressionEvaluationResult: Hashable {
+nonisolated struct ProgressionEvaluationResult: Hashable {
     let state: ProgressionEvaluationState
     let recommendations: [ProgressionRecommendation]
     let deferredStates: [PendingProgressionState]
 }
 
-enum ProgressionEvaluationError: Error, Equatable {
+nonisolated enum ProgressionEvaluationError: Error, Equatable {
     case formula(FormulaResolutionError)
     case invalidAction(String)
 }
 
-enum ProgramProgressionEvaluator {
+nonisolated enum ProgramProgressionEvaluator {
     /// Records the outcome of one completed exposure before its rules are
     /// evaluated. `failureCount` is intentionally consecutive: a successful
     /// occurrence resets the miss streak, so a "third failure" rule means

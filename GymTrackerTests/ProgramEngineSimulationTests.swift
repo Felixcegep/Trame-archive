@@ -21,7 +21,7 @@ final class ProgramEngineSimulationTests: XCTestCase {
             performance: ProgressionPerformance(requiredSets: 5, completedSets: 5),
             state: state
         )
-        XCTAssertEqual(success.state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(success.state.currentLoad ?? .nan, 102.5, accuracy: 0.001)
         state = success.state
 
         for failure in 1...3 {
@@ -33,10 +33,10 @@ final class ProgramEngineSimulationTests: XCTestCase {
             )
             state = result.state
             if failure < 3 {
-                XCTAssertEqual(state.currentLoad, 102.5, accuracy: 0.001)
+                XCTAssertEqual(state.currentLoad ?? .nan, 102.5, accuracy: 0.001)
             }
         }
-        XCTAssertEqual(state.currentLoad, 92.25, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? .nan, 92.25, accuracy: 0.001)
     }
 
     func testSuccessfulOccurrenceResetsConsecutiveFailureCountBeforeDeloadEvaluation() throws {
@@ -65,7 +65,7 @@ final class ProgramEngineSimulationTests: XCTestCase {
             performance: failure,
             state: state
         )
-        XCTAssertEqual(result.state.currentLoad, 100, accuracy: 0.001)
+        XCTAssertEqual(result.state.currentLoad ?? .nan, 100, accuracy: 0.001)
         XCTAssertTrue(result.recommendations.isEmpty)
     }
 
@@ -87,7 +87,7 @@ final class ProgramEngineSimulationTests: XCTestCase {
             performance: ProgressionPerformance(requiredSets: 2, upperBoundSets: 2),
             state: hold.state
         )
-        XCTAssertEqual(increase.state.currentLoad, 32.5, accuracy: 0.001)
+        XCTAssertEqual(increase.state.currentLoad ?? .nan, 32.5, accuracy: 0.001)
         XCTAssertEqual(increase.recommendations.count, 1)
     }
 
@@ -208,14 +208,14 @@ final class ProgramEngineSimulationTests: XCTestCase {
             performance: ProgressionPerformance(successfulAttemptRatio: 1, didFail: false),
             state: ProgressionEvaluationState(currentLoad: 100)
         )
-        XCTAssertEqual(success.state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(success.state.currentLoad ?? .nan, 102.5, accuracy: 0.001)
 
         let miss = try ProgramProgressionEvaluator.evaluate(
             rules: [rule],
             performance: ProgressionPerformance(successfulAttemptRatio: 0.5, didFail: true),
             state: success.state
         )
-        XCTAssertEqual(miss.state.currentLoad, 97.375, accuracy: 0.001)
+        XCTAssertEqual(miss.state.currentLoad ?? .nan, 97.375, accuracy: 0.001)
     }
 
     func testOlympicFixtureUsesDataDrivenConsecutiveMissLadder() throws {
@@ -238,7 +238,7 @@ final class ProgramEngineSimulationTests: XCTestCase {
         state = ProgramProgressionEvaluator.state(afterRecording: missedAttempt, from: result.state)
         result = try ProgramProgressionEvaluator.evaluate(rules: rules, performance: missedAttempt, state: state)
         XCTAssertEqual(result.recommendations.map(\.action), [.reduceLoadPercentage(0.05)])
-        XCTAssertEqual(result.state.currentLoad, 95, accuracy: 0.001)
+        XCTAssertEqual(result.state.currentLoad ?? .nan, 95, accuracy: 0.001)
 
         state = ProgramProgressionEvaluator.state(afterRecording: missedAttempt, from: result.state)
         result = try ProgramProgressionEvaluator.evaluate(rules: rules, performance: missedAttempt, state: state)
@@ -260,8 +260,8 @@ final class ProgramEngineSimulationTests: XCTestCase {
             state: ProgressionEvaluationState(currentLoad: 100),
             automaticCadences: [.nextExerciseOccurrence, .nextWorkout]
         )
-        XCTAssertEqual(beforeWeekEnd.state.currentLoad, 100, accuracy: 0.001)
-        XCTAssertEqual(beforeWeekEnd.deferredStates.first?.state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(beforeWeekEnd.state.currentLoad ?? .nan, 100, accuracy: 0.001)
+        XCTAssertEqual(beforeWeekEnd.deferredStates.first?.state.currentLoad ?? .nan, 102.5, accuracy: 0.001)
 
         let atWeekEnd = try ProgramProgressionEvaluator.evaluate(
             rules: [rule],
@@ -269,7 +269,7 @@ final class ProgramEngineSimulationTests: XCTestCase {
             state: ProgressionEvaluationState(currentLoad: 100),
             automaticCadences: [.nextExerciseOccurrence, .nextWorkout, .nextWeek]
         )
-        XCTAssertEqual(atWeekEnd.state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(atWeekEnd.state.currentLoad ?? .nan, 102.5, accuracy: 0.001)
         XCTAssertTrue(atWeekEnd.deferredStates.isEmpty)
     }
 
@@ -301,7 +301,7 @@ final class ProgramEngineSimulationTests: XCTestCase {
             automaticCadences: [.nextExerciseOccurrence, .nextWorkout]
         )
 
-        XCTAssertEqual(result.state.currentLoad, 100, accuracy: 0.001)
+        XCTAssertEqual(result.state.currentLoad ?? .nan, 100, accuracy: 0.001)
         XCTAssertEqual(result.deferredStates.count, 2)
         XCTAssertEqual(result.deferredStates.map(\.action), [.addLoad(2.5), .addLoad(2.5)])
         XCTAssertEqual(result.deferredStates.compactMap(\.state.currentLoad), [102.5, 105])
@@ -317,7 +317,7 @@ final class ProgramEngineSimulationTests: XCTestCase {
             state: ProgressionEvaluationState(currentLoad: 100),
             automaticCadences: [.nextExerciseOccurrence, .nextWorkout]
         )
-        XCTAssertEqual(before.state.currentLoad, 100, accuracy: 0.001)
+        XCTAssertEqual(before.state.currentLoad ?? .nan, 100, accuracy: 0.001)
         XCTAssertEqual(before.deferredStates.first?.cadence, .nextWeek)
 
         let after = try ProgramProgressionEvaluator.evaluate(
@@ -326,7 +326,7 @@ final class ProgramEngineSimulationTests: XCTestCase {
             state: ProgressionEvaluationState(currentLoad: 100),
             automaticCadences: [.nextExerciseOccurrence, .nextWorkout, .nextWeek]
         )
-        XCTAssertEqual(after.state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(after.state.currentLoad ?? .nan, 102.5, accuracy: 0.001)
     }
 
     func testTrainingMaxCycleUpdatesOnlyAtCycleBoundary() throws {
@@ -352,7 +352,7 @@ final class ProgramEngineSimulationTests: XCTestCase {
             formulaContext: context,
             automaticCadences: [.nextCycle]
         )
-        XCTAssertEqual(result.state.trainingMax, 210, accuracy: 0.001)
+        XCTAssertEqual(result.state.trainingMax ?? .nan, 210, accuracy: 0.001)
         XCTAssertEqual(result.recommendations.first?.scope, .cycle)
     }
 
@@ -385,7 +385,7 @@ final class ProgramEngineSimulationTests: XCTestCase {
             performance: ProgressionPerformance(successfulAttemptRatio: 1),
             state: ProgressionEvaluationState(currentLoad: 100)
         )
-        XCTAssertEqual(success.state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(success.state.currentLoad ?? .nan, 102.5, accuracy: 0.001)
     }
 
     func testMixedFixtureContainsIndependentPrescriptionFamilies() throws {

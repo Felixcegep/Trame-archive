@@ -46,7 +46,7 @@ enum ProgramPrescriptionSnapshotService {
         }
         guard !context.completedTopSetByExposure.isEmpty || !context.dailyMaximumByExposure.isEmpty else { return }
         for entry in workout.orderedExercises {
-            guard let key = entry.progressionKey else { continue }
+            guard entry.progressionKey != nil else { continue }
             for set in entry.orderedSets where !set.done {
                 guard let data = set.prescriptionDefinitionData,
                       let definition = try? decoder.decode(SetPrescriptionDefinition.self, from: data) else { continue }
@@ -94,7 +94,9 @@ enum ProgramPrescriptionSnapshotService {
             for: plannedExercise,
             in: run
         )
-        let state = persistedState.map(PlanProgressionCadenceService.state)
+        let state = persistedState.map { persisted in
+            PlanProgressionCadenceService.state(from: persisted)
+        }
         let inheritedOverrides = latestFutureOverrides(
             for: plannedExercise.progressionKey,
             in: run

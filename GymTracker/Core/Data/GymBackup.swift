@@ -1,13 +1,13 @@
 import Foundation
 import SwiftData
 
-struct PreferencesDTO: Codable {
+nonisolated struct PreferencesDTO: Codable {
     let darkMode: Bool
     let restTimer: Int
     let unitSystem: String
 }
 
-struct ExerciseTemplateDTO: Codable {
+nonisolated struct ExerciseTemplateDTO: Codable {
     var id: String? = nil
     let name: String
     let primaryMuscles: [String]
@@ -36,13 +36,13 @@ struct ExerciseTemplateDTO: Codable {
     var variationFamilyID: String? = nil
 }
 
-struct ExerciseRelationshipDTO: Codable {
+nonisolated struct ExerciseRelationshipDTO: Codable {
     let sourceExerciseName: String
     let targetExerciseName: String
     let type: String
 }
 
-struct TemplateExerciseDTO: Codable {
+nonisolated struct TemplateExerciseDTO: Codable {
     let exerciseName: String
     let orderIndex: Int
     let targetSets: Int
@@ -57,17 +57,17 @@ struct TemplateExerciseDTO: Codable {
     var progressionKey: String? = nil
 }
 
-struct WorkoutTemplateDTO: Codable {
+nonisolated struct WorkoutTemplateDTO: Codable {
     let name: String
     let templateExercises: [TemplateExerciseDTO]
 }
 
-struct WorkoutCollectionDTO: Codable {
+nonisolated struct WorkoutCollectionDTO: Codable {
     let name: String
     let templateNames: [String]
 }
 
-struct ExerciseSetDTO: Codable {
+nonisolated struct ExerciseSetDTO: Codable {
     let orderIndex: Int
     let weightType: String
     let distanceType: String
@@ -107,7 +107,7 @@ struct ExerciseSetDTO: Codable {
     var id: String? = nil
 }
 
-struct ExerciseEntryDTO: Codable {
+nonisolated struct ExerciseEntryDTO: Codable {
     let orderIndex: Int
     let comment: String?
     let exerciseName: String
@@ -149,7 +149,7 @@ struct ExerciseEntryDTO: Codable {
     var deferredBackOffDefinitionsData: Data? = nil
 }
 
-struct WorkoutDTO: Codable {
+nonisolated struct WorkoutDTO: Codable {
     let id: String?
     let status: String
     let name: String?
@@ -170,7 +170,7 @@ struct WorkoutDTO: Codable {
     let exercises: [ExerciseEntryDTO]
 }
 
-struct PlannedExerciseDTO: Codable {
+nonisolated struct PlannedExerciseDTO: Codable {
     let id: String
     let exerciseName: String
     let orderIndex: Int
@@ -201,7 +201,7 @@ struct PlannedExerciseDTO: Codable {
     var warmupSchemeData: Data? = nil
 }
 
-struct PlannedSetDTO: Codable {
+nonisolated struct PlannedSetDTO: Codable {
     let orderIndex: Int
     let setType: String
     let repetitions: Int?
@@ -219,7 +219,7 @@ struct PlannedSetDTO: Codable {
     var definitionData: Data? = nil
 }
 
-struct ProgressionStateDTO: Codable {
+nonisolated struct ProgressionStateDTO: Codable {
     let id: String
     let progressionKey: String
     var scope: String? = nil
@@ -253,7 +253,7 @@ struct ProgressionStateDTO: Codable {
     var pendingProgressionData: Data? = nil
 }
 
-struct ProgressionRecommendationDTO: Codable {
+nonisolated struct ProgressionRecommendationDTO: Codable {
     let id: String
     let planRunID: String
     let workoutID: String
@@ -286,7 +286,7 @@ struct ProgressionRecommendationDTO: Codable {
     let resolvedAt: Date?
 }
 
-struct PlannedWorkoutDTO: Codable {
+nonisolated struct PlannedWorkoutDTO: Codable {
     let id: String
     let name: String
     let orderIndex: Int
@@ -297,7 +297,7 @@ struct PlannedWorkoutDTO: Codable {
     let plannedExercises: [PlannedExerciseDTO]
 }
 
-struct PlanWeekDTO: Codable {
+nonisolated struct PlanWeekDTO: Codable {
     let id: String
     let weekIndex: Int
     let name: String?
@@ -305,7 +305,7 @@ struct PlanWeekDTO: Codable {
     let plannedWorkouts: [PlannedWorkoutDTO]
 }
 
-struct PlanBlockDTO: Codable {
+nonisolated struct PlanBlockDTO: Codable {
     let id: String
     let name: String
     let phaseType: String
@@ -317,7 +317,7 @@ struct PlanBlockDTO: Codable {
     let weeks: [PlanWeekDTO]
 }
 
-struct WorkoutPlanDTO: Codable {
+nonisolated struct WorkoutPlanDTO: Codable {
     let id: String
     let name: String
     let goal: String
@@ -336,7 +336,7 @@ struct WorkoutPlanDTO: Codable {
     let blocks: [PlanBlockDTO]
 }
 
-struct PlanWorkoutProgressDTO: Codable {
+nonisolated struct PlanWorkoutProgressDTO: Codable {
     let id: String
     let plannedWorkoutID: String
     let plannedWorkoutName: String
@@ -351,7 +351,7 @@ struct PlanWorkoutProgressDTO: Codable {
     let completedWorkoutID: String?
 }
 
-struct PlanRunDTO: Codable {
+nonisolated struct PlanRunDTO: Codable {
     let id: String
     let sourcePlanID: String
     let sourcePlanName: String
@@ -368,7 +368,7 @@ struct PlanRunDTO: Codable {
     var progressionStates: [ProgressionStateDTO] = []
 }
 
-struct ProgramDefinitionDTO: Codable {
+nonisolated struct ProgramDefinitionDTO: Codable {
     let id: String
     let schemaVersion: Int
     let templateVersion: Int
@@ -385,7 +385,7 @@ struct ProgramDefinitionDTO: Codable {
     let definitionData: Data
 }
 
-struct BackupDTO: Codable, Identifiable {
+nonisolated struct BackupDTO: Codable, Identifiable {
     var id: UUID { UUID() }
     let version: Int
     let preferences: PreferencesDTO
@@ -503,7 +503,7 @@ enum BackupValidationError: LocalizedError {
         case .invalidExerciseRelationship:
             return "The backup contains an invalid exercise relationship."
         case .invalidProgramDefinition(let message):
-            return "The backup contains an invalid program definition: (message)"
+            return "The backup contains an invalid program definition: \(message)"
         }
     }
 }

@@ -378,7 +378,6 @@ final class ProgramEngineTypesTests: XCTestCase {
                                             exerciseID: squatID,
                                             exposureKey: "squat",
                                             orderIndex: 0,
-                                            initialTrainingMax: 200,
                                             plannedSets: [
                                                 SetPrescriptionDefinition(
                                                     orderIndex: 0,
@@ -391,7 +390,8 @@ final class ProgramEngineTypesTests: XCTestCase {
                                                     ),
                                                     restSeconds: 120
                                                 )
-                                            ]
+                                            ],
+                                            initialTrainingMax: 200
                                         )
                                     ]
                                 )
@@ -409,8 +409,8 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(row.dayOffset, 2)
         XCTAssertEqual(row.deloadVolumeReductionPercent, 40)
         XCTAssertEqual(row.deloadIntensityReductionPercent, 15)
-        XCTAssertEqual(row.sets.first?.unroundedLoad, 160, accuracy: 0.001)
-        XCTAssertEqual(row.sets.first?.prescribedLoad, 160, accuracy: 0.001)
+        XCTAssertEqual(row.sets.first?.unroundedLoad ?? .nan, 160, accuracy: 0.001)
+        XCTAssertEqual(row.sets.first?.prescribedLoad ?? .nan, 160, accuracy: 0.001)
         XCTAssertEqual(row.sets.first?.restSeconds, 120)
     }
 
@@ -469,8 +469,8 @@ final class ProgramEngineTypesTests: XCTestCase {
                     orderIndex: 0,
                     repetitions: .range(minimum: 12, maximum: 8),
                     load: LoadPrescription(percentage: 3.5),
-                    restSeconds: -1,
-                    targetRPE: 11
+                    targetRPE: 11,
+                    restSeconds: -1
                 )
             ]
         )
@@ -1242,9 +1242,9 @@ final class ProgramEngineTypesTests: XCTestCase {
             userOverrideReason: "Adjusted for today's interval",
             userOverrideAffectsFuture: false,
             rpe: nil,
-            prescribedCalories: 450,
             setType: "normal",
-            usedMetric: "metric"
+            usedMetric: "metric",
+            prescribedCalories: 450
         )
         let decoded = try JSONDecoder().decode(ExerciseSetDTO.self, from: JSONEncoder().encode(set))
         XCTAssertEqual(decoded.calories, 420)
