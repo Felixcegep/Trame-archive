@@ -251,6 +251,42 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(result.failures.map(\.programKey), ["placeholder"])
     }
 
+    func testDirectSetsDeferredBackoffExtraGroupsAndStageRulesExpand() throws {
+        let json = """
+        {
+          "programKey":"direct-sets","name":"Direct Sets","goal":"generalStrength",
+          "experienceLevel":"intermediate","durationWeeks":1,"supportedDaysPerWeek":[1],
+          "scheduleMode":"fixedWeekdays",
+          "rulesLibrary":{"stage":[{
+            "metric":"load","trigger":{"type":"atStage","stageID":"base"},
+            "success":{"type":"changeStage","next":"peak"},
+            "cadence":"nextExerciseOccurrence","scope":"exerciseExposure","mode":"automatic"
+          }]},
+          "blocks":[{"name":"Build","phaseType":"strength","weeks":[{"weekIndex":0,"workouts":[{
+            "name":"Day","dayOffset":0,"exercises":[{
+              "exercise":"Bench Press","exposureKey":"bench","rules":"stage","restSeconds":180,
+              "sets":[
+                {"reps":3,"role":"topSet","targetRPE":8},
+                {"reps":5,"role":"backOff","deferred":true,"load":{"reference":"topSet","of":"$self","percent":0.9}}
+              ],
+              "extraSetGroups":[{"count":2,"repRange":[8,12],"optional":true}]
+            }]
+          }]}]}]
+        }
+        """
+        let authoring = try JSONDecoder().decode(AuthoringProgramDefinition.self, from: Data(json.utf8))
+        let payload = try authoring.expand(exerciseIDsByName: ["Bench Press": UUID()])
+        let exercise = payload.blocks[0].weeks[0].workouts[0].plannedExercises[0]
+
+        XCTAssertEqual(exercise.plannedSets.count, 4)
+        XCTAssertEqual(exercise.plannedSets[0].role, .topSet)
+        XCTAssertTrue(exercise.plannedSets[1].generatesAfterSourceCompletion)
+        XCTAssertEqual(exercise.plannedSets[1].load.reference, LoadReference(kind: .topSet, exposureKey: "bench"))
+        XCTAssertEqual(exercise.plannedSets.map(\.restSeconds), [180, 180, 180, 180])
+        XCTAssertEqual(exercise.progressionRules[0].trigger, .atStage("base"))
+        XCTAssertEqual(exercise.progressionRules[0].successAction, .changeStage("peak"))
+    }
+
     func testNamedRuleLibraryRejectsMissingAndUnsupportedRules() throws {
         let trigger = AuthoringTriggerDefinition(type: "futureTrigger")
         XCTAssertThrowsError(try trigger.expand()) { error in

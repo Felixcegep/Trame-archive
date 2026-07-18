@@ -57,17 +57,20 @@ nonisolated struct AuthoringTriggerDefinition: Codable, Hashable {
     var count: Int?
     var tolerance: Double?
     var triggers: [AuthoringTriggerDefinition]?
+    var stageID: String?
 
     init(
         type: String,
         count: Int? = nil,
         tolerance: Double? = nil,
-        triggers: [AuthoringTriggerDefinition]? = nil
+        triggers: [AuthoringTriggerDefinition]? = nil,
+        stageID: String? = nil
     ) {
         self.type = type
         self.count = count
         self.tolerance = tolerance
         self.triggers = triggers
+        self.stageID = stageID
     }
 
     func expand() throws -> ProgressionTrigger {
@@ -88,6 +91,9 @@ nonisolated struct AuthoringTriggerDefinition: Codable, Hashable {
         case "actualRPEBelowTarget": return .actualRPEBelowTarget(tolerance: tolerance ?? 0)
         case "actualRPEAboveTarget": return .actualRPEAboveTarget(tolerance: tolerance ?? 0)
         case "targetRIRMatched": return .targetRIRMatched(tolerance: Int(tolerance ?? 0))
+        case "atStage":
+            guard let stageID else { throw ProgramLibraryImportError.unsupportedRuleConstruct("trigger.atStage.stageID") }
+            return .atStage(stageID)
         case "allOf": return .allOf(try (triggers ?? []).map { try $0.expand() })
         case "anyOf": return .anyOf(try (triggers ?? []).map { try $0.expand() })
         default: throw ProgramLibraryImportError.unsupportedRuleConstruct("trigger.\(type)")
@@ -99,11 +105,21 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
     var type: String
     var value: Double?
     var formula: AuthoringFormulaDefinition?
+    var next: String?
+    var andChangeStage: String?
 
-    init(type: String, value: Double? = nil, formula: AuthoringFormulaDefinition? = nil) {
+    init(
+        type: String,
+        value: Double? = nil,
+        formula: AuthoringFormulaDefinition? = nil,
+        next: String? = nil,
+        andChangeStage: String? = nil
+    ) {
         self.type = type
         self.value = value
         self.formula = formula
+        self.next = next
+        self.andChangeStage = andChangeStage
     }
 
     func expand(exposureKey: String = "") throws -> ProgressionAction {
@@ -125,6 +141,11 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         case "resetProgressionOffsets": return .resetProgressionOffsets
         case "advanceExerciseVariation": return .advanceExerciseVariation
         case "regressExerciseVariation": return .regressExerciseVariation
+        case "changeStage":
+            guard let stageID = next ?? andChangeStage else {
+                throw ProgramLibraryImportError.unsupportedRuleConstruct("action.changeStage.stageID")
+            }
+            return .changeStage(stageID)
         case "updateTrainingMax":
             guard let formula else { throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type).formula") }
             return .updateTrainingMax(try formula.expand(exposureKey: exposureKey))
@@ -382,12 +403,55 @@ nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
     var optional: Bool?
     var restSeconds: Int?
     var setGroups: [AuthoringSetGroupDefinition]?
+    var extraSetGroups: [AuthoringSetGroupDefinition]?
+    var sets: [AuthoringDirectSetDefinition]?
     var warmupScheme: [AuthoringWarmupStep]?
     var rules: AuthoringRuleSelection?
     var stages: String?
     var initialStage: String?
     var variationLadder: [String]?
     var waves: String?
+}
+
+nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
+    var reps: Int?
+    var repRange: [Int]?
+    var amrap: [Int?]?
+    var durationSeconds: Double?
+    var load: AuthoringLoadDefinition?
+    var role: ProgramSetRole?
+    var targetRPE: Double?
+    var targetRIR: Int?
+    var restSeconds: Int?
+    var tempo: String?
+    var progressionEligible: Bool?
+    var optional: Bool?
+    var deferred: Bool?
+
+    func expand(path: String, orderIndex: Int, defaultRestSeconds: Int?, exposureKey: String) throws -> SetPrescriptionDefinition {
+        let group = AuthoringSetGroupDefinition(
+            count: 1,
+            reps: reps,
+            repRange: repRange,
+            amrap: amrap,
+            durationSeconds: durationSeconds,
+            load: load,
+            role: role,
+            targetRPE: targetRPE,
+            targetRIR: targetRIR,
+            tempo: tempo,
+            progressionEligible: progressionEligible
+        )
+        var result = try group.expand(
+            path: path,
+            startingAt: orderIndex,
+            restSeconds: restSeconds ?? defaultRestSeconds,
+            exposureKey: exposureKey
+        )[0]
+        result.isOptional = optional ?? false
+        result.generatesAfterSourceCompletion = deferred ?? false
+        return result
+    }
 }
 
 nonisolated struct AuthoringStageDefinition: Codable, Hashable {
@@ -516,6 +580,22 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                 for (groupIndex, group) in (exercise.setGroups ?? []).enumerated() {
                                     sets += try group.expand(
                                         path: "\(exercisePath)/g\(groupIndex)",
+                                        startingAt: sets.count,
+                                        restSeconds: exercise.restSeconds,
+                                        exposureKey: exercise.exposureKey
+                                    )
+                                }
+                                for (setIndex, set) in (exercise.sets ?? []).enumerated() {
+                                    sets.append(try set.expand(
+                                        path: "\(exercisePath)/direct/\(setIndex)",
+                                        orderIndex: sets.count,
+                                        defaultRestSeconds: exercise.restSeconds,
+                                        exposureKey: exercise.exposureKey
+                                    ))
+                                }
+                                for (groupIndex, group) in (exercise.extraSetGroups ?? []).enumerated() {
+                                    sets += try group.expand(
+                                        path: "\(exercisePath)/extra/\(groupIndex)",
                                         startingAt: sets.count,
                                         restSeconds: exercise.restSeconds,
                                         exposureKey: exercise.exposureKey
