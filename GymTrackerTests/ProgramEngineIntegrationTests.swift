@@ -226,6 +226,57 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         try context.save()
     }
 
+    func testAutomaticDeloadReducesSetCountAndIntensityForNextSnapshot() throws {
+        let context = try makeContext()
+        let squat = Exercise(
+            name: "Deload Squat",
+            primaryMuscles: [.quadriceps],
+            equipmentType: .barbell,
+            resistanceType: .externalWeight,
+            isPlateLoaded: true
+        )
+        context.insert(squat)
+        let plannedExercise = ProgramExerciseDefinition(
+            exerciseID: squat.id,
+            exposureKey: "deload-squat",
+            orderIndex: 0,
+            plannedSets: (0..<4).map { index in
+                SetPrescriptionDefinition(
+                    orderIndex: index,
+                    repetitions: .fixed(5),
+                    load: LoadPrescription(fixedValue: 100)
+                )
+            },
+            automaticDeload: AutomaticDeloadDefinition(
+                volumeReductionPercent: 50,
+                intensityReductionPercent: 10
+            )
+        )
+        let definition = ProgramDefinitionPayload(
+            name: "Automatic Deload",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [1],
+            blocks: [ProgramBlockDefinition(orderIndex: 0, name: "Build", weeks: [
+                ProgramWeekDefinition(weekIndex: 0, workouts: [
+                    ProgramWorkoutDefinition(orderIndex: 0, name: "Day", dayOffset: 0, plannedExercises: [plannedExercise])
+                ])
+            ])]
+        )
+        let plan = try ProgramDefinitionCompiler.compile(definition, exercisesByID: [squat.id: squat])
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, using: context))
+        let state = try XCTUnwrap(run.progressionStates.first)
+        state.isDeloading = true
+
+        let plannedWorkout = try XCTUnwrap(plan.orderedWeeks.first?.orderedPlannedWorkouts.first)
+        let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
+        let entry = try XCTUnwrap(workout.orderedExercises.first)
+
+        XCTAssertEqual(entry.orderedSets.count, 2)
+        XCTAssertEqual(entry.orderedSets.map(\.prescribedSuggestedLoad), [90, 90])
+        XCTAssertEqual(entry.orderedSets.map(\.prescribedUnroundedLoad), [90, 90])
+        XCTAssertFalse(state.isDeloading)
+    }
+
     func testBundledCatalogSeedsValidatesPreviewsAndCompilesAllThirteenPrograms() throws {
         let context = try makeContext()
         for exercise in ExerciseSeedData.templates() {
@@ -2019,6 +2070,8 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
         XCTAssertEqual(workout.orderedExercises.first?.exercise.id, selected.id)
         XCTAssertEqual(workout.orderedExercises.first?.nameSnapshot, selected.name)
+        XCTAssertEqual(workout.orderedExercises.first?.variationSourceExerciseIDSnapshot, base.id)
+        XCTAssertEqual(workout.orderedExercises.first?.variationSelectedExerciseIDSnapshot, selected.id)
         let snapshottedSet = try XCTUnwrap(workout.orderedExercises.first?.orderedSets.first)
         XCTAssertEqual(snapshottedSet.prescribedVelocityMinimum, 0.5)
         XCTAssertEqual(snapshottedSet.prescribedVelocityMaximum, 0.7)

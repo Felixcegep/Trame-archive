@@ -1874,6 +1874,35 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(failure.recommendations.first?.action, .repeatPrescription)
     }
 
+    func testProgressionEvaluatorGeneratesRPERecommendationOnlyWhenAboveTarget() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .rpe,
+            trigger: .actualRPEAboveTarget(tolerance: 1),
+            successAction: .generateRecommendation,
+            failureAction: .noChange,
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .recommendation
+        )
+
+        let aboveTarget = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(targetRPE: 8, actualRPE: 9.5),
+            state: ProgressionEvaluationState(currentLoad: 100)
+        )
+        XCTAssertEqual(aboveTarget.recommendations.count, 1)
+        XCTAssertEqual(aboveTarget.recommendations.first?.action, .generateRecommendation)
+        XCTAssertEqual(aboveTarget.recommendations.first?.applicationMode, .recommendation)
+
+        let withinTolerance = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(targetRPE: 8, actualRPE: 8.5),
+            state: ProgressionEvaluationState(currentLoad: 100)
+        )
+        XCTAssertTrue(withinTolerance.recommendations.isEmpty)
+        XCTAssertEqual(withinTolerance.state.currentLoad, 100)
+    }
+
     func testProgressionEvaluatorSupportsDoubleProgressionRecommendationAndVariationLadder() throws {
         let increaseRule = ProgressionRuleDefinition(
             metric: .repetitions,

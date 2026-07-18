@@ -150,6 +150,8 @@ nonisolated struct ExerciseEntryDTO: Codable {
     var selectedSubstituteExerciseIDSnapshot: String? = nil
     var substitutionReason: String? = nil
     var substitutionSharesProgressionState: Bool? = nil
+    var variationSourceExerciseIDSnapshot: String? = nil
+    var variationSelectedExerciseIDSnapshot: String? = nil
     var prescriptionDefinitionData: Data? = nil
     var prescriptionRulesData: Data? = nil
     var deferredBackOffDefinitionsData: Data? = nil
@@ -706,6 +708,8 @@ extension BackupDTO {
                         selectedSubstituteExerciseIDSnapshot: exercise.selectedSubstituteExerciseIDSnapshot?.uuidString,
                         substitutionReason: exercise.substitutionReason,
                         substitutionSharesProgressionState: exercise.substitutionSharesProgressionState,
+                        variationSourceExerciseIDSnapshot: exercise.variationSourceExerciseIDSnapshot?.uuidString,
+                        variationSelectedExerciseIDSnapshot: exercise.variationSelectedExerciseIDSnapshot?.uuidString,
                         prescriptionDefinitionData: exercise.prescriptionDefinitionData,
                         prescriptionRulesData: exercise.prescriptionRulesData,
                         deferredBackOffDefinitionsData: exercise.deferredBackOffDefinitionsData
@@ -1348,6 +1352,8 @@ extension BackupDTO {
                 entry.selectedSubstituteExerciseIDSnapshot = entryDTO.selectedSubstituteExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
                 entry.substitutionReason = entryDTO.substitutionReason
                 entry.substitutionSharesProgressionState = entryDTO.substitutionSharesProgressionState ?? false
+                entry.variationSourceExerciseIDSnapshot = entryDTO.variationSourceExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
+                entry.variationSelectedExerciseIDSnapshot = entryDTO.variationSelectedExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
                 entry.prescriptionDefinitionData = entryDTO.prescriptionDefinitionData
                 entry.prescriptionRulesData = entryDTO.prescriptionRulesData
                 entry.deferredBackOffDefinitionsData = entryDTO.deferredBackOffDefinitionsData

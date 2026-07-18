@@ -138,6 +138,10 @@ class Workout {
                 usedMetric: unitSystem,
                 supersetGroupID: groupID
             )
+            if snapshotExercise.id != plannedExercise.exercise.id {
+                entry.variationSourceExerciseIDSnapshot = plannedExercise.exercise.id
+                entry.variationSelectedExerciseIDSnapshot = snapshotExercise.id
+            }
             PlanDeloadService.apply(to: entry, for: plannedWorkout.week?.block)
 #if !GYMTRACKER_EXTENSION
             ProgramPrescriptionSnapshotService.apply(

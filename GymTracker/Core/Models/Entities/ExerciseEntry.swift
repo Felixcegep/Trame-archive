@@ -62,6 +62,12 @@ final class ExerciseEntry{
     var selectedSubstituteExerciseIDSnapshot: UUID?
     var substitutionReason: String?
     var substitutionSharesProgressionState: Bool = false
+    /// When a progression variation resolves to a different exercise, retain
+    /// both identities in the performed snapshot. The selected exercise is
+    /// what the user performed; the source identity is what the program
+    /// prescribed, and neither should be inferred from a later plan edit.
+    var variationSourceExerciseIDSnapshot: UUID?
+    var variationSelectedExerciseIDSnapshot: UUID?
     var trackingTypeSnapshot: TrackingType = TrackingType.weightAndReps
     var lateralitySnapshot: Laterality = Laterality.bilateral
     var repCountingStyleSnapshot: RepCountingStyle = RepCountingStyle.total
@@ -123,6 +129,8 @@ final class ExerciseEntry{
         self.selectedSubstituteExerciseIDSnapshot = nil
         self.substitutionReason = nil
         self.substitutionSharesProgressionState = false
+        self.variationSourceExerciseIDSnapshot = nil
+        self.variationSelectedExerciseIDSnapshot = nil
         normalizeSetOrder()
     }
 
