@@ -26,6 +26,10 @@ nonisolated struct ProgressionPerformance: Codable, Hashable {
     var scheduledDateReached: Bool = false
     var manualApproval: Bool = false
     var didFail: Bool = false
+    var meanVelocity: Double?
+    var targetVelocityMinimum: Double?
+    var targetVelocityMaximum: Double?
+    var velocityBelowZoneCount: Int = 0
 }
 
 nonisolated struct ProgressionEvaluationState: Codable, Hashable {
@@ -49,6 +53,7 @@ nonisolated struct ProgressionEvaluationState: Codable, Hashable {
     var previousActualRPE: Double?
     var previousActualRIR: Double?
     var isDeloading: Bool = false
+    var velocityBaseline: Double?
 }
 
 nonisolated struct ProgressionRecommendation: Hashable, Identifiable {
@@ -269,6 +274,19 @@ nonisolated enum ProgramProgressionEvaluator {
         case .cycleCompleted: return performance.cycleCompleted
         case .scheduledDateReached: return performance.scheduledDateReached
         case .manualApproval: return performance.manualApproval
+        case .velocityBelowBaseline(let delta):
+            guard let velocity = performance.meanVelocity, let baseline = state.velocityBaseline else { return false }
+            return velocity <= baseline - delta
+        case .velocityAboveBaseline(let delta):
+            guard let velocity = performance.meanVelocity, let baseline = state.velocityBaseline else { return false }
+            return velocity >= baseline + delta
+        case .velocityInTargetZone:
+            guard let velocity = performance.meanVelocity,
+                  let minimum = performance.targetVelocityMinimum,
+                  let maximum = performance.targetVelocityMaximum else { return false }
+            return velocity >= minimum && velocity <= maximum
+        case .velocityBelowZoneCount(let count):
+            return performance.velocityBelowZoneCount >= count
         }
     }
 
@@ -306,6 +324,7 @@ nonisolated enum ProgramProgressionEvaluator {
         case .updateTrainingMax(let formula): state.trainingMax = try resolve(formula, context: formulaContext)
         case .updateEstimatedOneRepMax(let formula): state.estimatedOneRepMax = try resolve(formula, context: formulaContext)
         case .updateActualOneRepMax(let formula): state.actualOneRepMax = try resolve(formula, context: formulaContext)
+        case .updateVelocityBaseline(let formula): state.velocityBaseline = try resolve(formula, context: formulaContext)
         case .changeStage(let stage):
             if stageDefinitions.first(where: { $0.stageID == stage })?.carriesLoad == false {
                 state.currentLoad = nil
@@ -393,6 +412,10 @@ nonisolated enum ProgramProgressionEvaluator {
         case .cycleCompleted: return "The cycle was completed."
         case .scheduledDateReached: return "The scheduled date was reached."
         case .manualApproval: return "The user approved this progression."
+        case .velocityBelowBaseline(let delta): return "Mean velocity was at least \(delta) m/s below baseline."
+        case .velocityAboveBaseline(let delta): return "Mean velocity was at least \(delta) m/s above baseline."
+        case .velocityInTargetZone: return "Mean velocity was inside the prescribed target zone."
+        case .velocityBelowZoneCount(let count): return "Velocity fell below the target zone for \(count) sets."
         }
     }
 }

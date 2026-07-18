@@ -247,6 +247,7 @@ nonisolated struct ProgressionStateDTO: Codable {
     let previousAMRAPRepetitions: Int?
     let previousActualRPE: Double?
     let previousActualRIR: Double?
+    var velocityBaseline: Double? = nil
     let lastCompletedOccurrence: Date?
     let lastSuccessfulLoad: Double?
     let isDeloading: Bool
@@ -863,6 +864,7 @@ extension BackupDTO {
                         previousAMRAPRepetitions: state.previousAMRAPRepetitions,
                         previousActualRPE: state.previousActualRPE,
                         previousActualRIR: state.previousActualRIR,
+                        velocityBaseline: state.velocityBaseline,
                         lastCompletedOccurrence: state.lastCompletedOccurrence,
                         lastSuccessfulLoad: state.lastSuccessfulLoad,
                         isDeloading: state.isDeloading,
@@ -1453,6 +1455,7 @@ extension BackupDTO {
                         previousAMRAPRepetitions: stateDTO.previousAMRAPRepetitions,
                         previousActualRPE: stateDTO.previousActualRPE,
                         previousActualRIR: stateDTO.previousActualRIR,
+                        velocityBaseline: stateDTO.velocityBaseline,
                         lastCompletedOccurrence: stateDTO.lastCompletedOccurrence,
                         lastSuccessfulLoad: stateDTO.lastSuccessfulLoad,
                         isDeloading: stateDTO.isDeloading,

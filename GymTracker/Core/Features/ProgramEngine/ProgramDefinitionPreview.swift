@@ -173,6 +173,10 @@ nonisolated enum ProgramDefinitionPreview {
         case .cycleCompleted: return "Cycle completed"
         case .scheduledDateReached: return "Scheduled date reached"
         case .manualApproval: return "Manual approval"
+        case .velocityBelowBaseline(let delta): return "Velocity below baseline by \(delta) m/s"
+        case .velocityAboveBaseline(let delta): return "Velocity above baseline by \(delta) m/s"
+        case .velocityInTargetZone: return "Velocity inside target zone"
+        case .velocityBelowZoneCount(let count): return "Velocity below zone for \(count) sets"
         }
     }
 
@@ -199,6 +203,7 @@ nonisolated enum ProgramDefinitionPreview {
         case .updateTrainingMax: return "Update Training Max"
         case .updateEstimatedOneRepMax: return "Update estimated 1RM"
         case .updateActualOneRepMax: return "Update actual 1RM"
+        case .updateVelocityBaseline: return "Update velocity baseline"
         case .repeatPrescription: return "Repeat prescription"
         case .changeStage(let value): return "Change stage to \(value)"
         case .advanceExerciseVariation: return "Advance exercise variation"

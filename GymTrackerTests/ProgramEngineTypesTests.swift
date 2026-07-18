@@ -388,6 +388,49 @@ final class ProgramEngineTypesTests: XCTestCase {
         )
     }
 
+    func testVelocityRulesUpdateBaselineAndReactToTargetZone() throws {
+        let baselineRule = ProgressionRuleDefinition(
+            metric: .meanVelocity,
+            trigger: .workoutCompleted,
+            successAction: .updateVelocityBaseline(.add(
+                .multiply(.source(.velocityBaseline(exposureKey: "squat")), .source(.constant(0.7))),
+                .multiply(
+                    .source(.completedMetric(exposureKey: "squat", metric: .meanVelocity)),
+                    .source(.constant(0.3))
+                )
+            )),
+            cadence: .nextWorkout,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let zoneRule = ProgressionRuleDefinition(
+            metric: .meanVelocity,
+            trigger: .velocityInTargetZone,
+            successAction: .addLoad(2.5),
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        var context = FormulaResolutionContext()
+        context.velocityBaselineByExposure["squat"] = 0.6
+        context.completedMetricsByExposure["squat"] = [.meanVelocity: 0.7]
+
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [baselineRule, zoneRule],
+            performance: ProgressionPerformance(
+                workoutCompleted: true,
+                meanVelocity: 0.7,
+                targetVelocityMinimum: 0.5,
+                targetVelocityMaximum: 0.75
+            ),
+            state: ProgressionEvaluationState(currentLoad: 100, velocityBaseline: 0.6),
+            formulaContext: context
+        )
+
+        XCTAssertEqual(result.state.currentLoad, 102.5)
+        XCTAssertEqual(result.state.velocityBaseline ?? 0, 0.63, accuracy: 0.0001)
+    }
+
     func testStageTemplateExpandsAndResolvesSelfLoadReference() throws {
         let json = """
         {

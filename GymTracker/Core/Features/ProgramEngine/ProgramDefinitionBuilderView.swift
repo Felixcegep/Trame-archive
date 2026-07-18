@@ -1344,6 +1344,8 @@ private struct ProgramDefinitionRuleEditor: View {
         case .scheduledDateReached: return .scheduledDateReached
         case .manualApproval: return .manualApproval
         case .successfulAttemptRatioReached: return .successfulAttemptRatioReached
+        case .velocityBelowBaseline, .velocityAboveBaseline, .velocityInTargetZone, .velocityBelowZoneCount:
+            return .manualApproval
         }
     }
 
@@ -1450,6 +1452,7 @@ private struct ProgramDefinitionRuleEditor: View {
         case .updateTrainingMax: return .updateTrainingMax
         case .updateEstimatedOneRepMax: return .updateEstimatedOneRepMax
         case .updateActualOneRepMax: return .updateActualOneRepMax
+        case .updateVelocityBaseline: return .updateTrainingMax
         case .repeatPrescription: return .repeatPrescription
         case .changeStage: return .changeStage
         case .advanceExerciseVariation: return .advanceExerciseVariation
@@ -1625,6 +1628,7 @@ private struct ProgramDefinitionRuleEditor: View {
         case .updateTrainingMax: return .updateTrainingMax
         case .updateEstimatedOneRepMax: return .updateEstimatedOneRepMax
         case .updateActualOneRepMax: return .updateActualOneRepMax
+        case .updateVelocityBaseline: return .updateTrainingMax
         case .repeatPrescription: return .repeatPrescription
         case .changeStage: return .changeStage
         case .advanceExerciseVariation: return .advanceExerciseVariation
@@ -1751,6 +1755,7 @@ private struct ProgramDefinitionRuleEditor: View {
         case .dailyMaximum: return .dailyMaximum
         case .anotherExposure: return .anotherExposure
         case .completedMetric: return .completedMetric
+        case .velocityBaseline: return .anotherExposure
         }
     }
 
@@ -1799,6 +1804,8 @@ private struct ProgramDefinitionRuleEditor: View {
                         .previousOccurrence(let key), .previousSuccessfulSet(let key), .completedTopSet(let key),
                         .dailyMaximum(let key), .anotherExposure(let key), .completedMetric(let key, _):
                     return key
+                case .velocityBaseline(let key):
+                    return key
                 case .constant:
                     return ""
                 }
@@ -1815,6 +1822,7 @@ private struct ProgramDefinitionRuleEditor: View {
                 case .dailyMaximum: rule.formula = .source(.dailyMaximum(exposureKey: value))
                 case .anotherExposure: rule.formula = .source(.anotherExposure(exposureKey: value))
                 case .completedMetric(_, let metric): rule.formula = .source(.completedMetric(exposureKey: value, metric: metric))
+                case .velocityBaseline: rule.formula = .source(.velocityBaseline(exposureKey: value))
                 case .constant: break
                 }
             }

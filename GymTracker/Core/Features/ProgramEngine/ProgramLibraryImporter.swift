@@ -35,12 +35,15 @@ nonisolated enum ProgramLibraryImportError: LocalizedError, Equatable {
 
 nonisolated enum AuthoringRuleSelection: Codable, Hashable {
     case named(String)
+    case namedMany([String])
     case unsupported
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let name = try? container.decode(String.self) {
             self = .named(name)
+        } else if let names = try? container.decode([String].self) {
+            self = .namedMany(names)
         } else {
             self = .unsupported
         }
@@ -50,6 +53,7 @@ nonisolated enum AuthoringRuleSelection: Codable, Hashable {
         var container = encoder.singleValueContainer()
         switch self {
         case .named(let name): try container.encode(name)
+        case .namedMany(let names): try container.encode(names)
         case .unsupported: try container.encodeNil()
         }
     }
@@ -61,19 +65,22 @@ nonisolated struct AuthoringTriggerDefinition: Codable, Hashable {
     var tolerance: Double?
     var triggers: [AuthoringTriggerDefinition]?
     var stageID: String?
+    var delta: Double?
 
     init(
         type: String,
         count: Int? = nil,
         tolerance: Double? = nil,
         triggers: [AuthoringTriggerDefinition]? = nil,
-        stageID: String? = nil
+        stageID: String? = nil,
+        delta: Double? = nil
     ) {
         self.type = type
         self.count = count
         self.tolerance = tolerance
         self.triggers = triggers
         self.stageID = stageID
+        self.delta = delta
     }
 
     func expand() throws -> ProgressionTrigger {
@@ -99,6 +106,10 @@ nonisolated struct AuthoringTriggerDefinition: Codable, Hashable {
             return .atStage(stageID)
         case "allOf": return .allOf(try (triggers ?? []).map { try $0.expand() })
         case "anyOf": return .anyOf(try (triggers ?? []).map { try $0.expand() })
+        case "velocityBelowBaseline": return .velocityBelowBaseline(delta: delta ?? 0)
+        case "velocityAboveBaseline": return .velocityAboveBaseline(delta: delta ?? 0)
+        case "velocityInTargetZone": return .velocityInTargetZone
+        case "velocityBelowZoneCount": return .velocityBelowZoneCount(count ?? 1)
         default: throw ProgramLibraryImportError.unsupportedRuleConstruct("trigger.\(type)")
         }
     }
@@ -158,6 +169,9 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         case "updateActualOneRepMax":
             guard let formula else { throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type).formula") }
             return .updateActualOneRepMax(try formula.expand(exposureKey: exposureKey))
+        case "updateVelocityBaseline":
+            guard let formula else { throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type).formula") }
+            return .updateVelocityBaseline(try formula.expand(exposureKey: exposureKey))
         case "noChange": return .noChange
         default: throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type)")
         }
@@ -190,6 +204,7 @@ nonisolated struct AuthoringFormulaDefinition: Codable, Hashable {
             case "previousSuccessfulSet": return .source(.previousSuccessfulSet(exposureKey: resolvedExposure))
             case "topSet": return .source(.completedTopSet(exposureKey: resolvedExposure))
             case "dailyMaximum": return .source(.dailyMaximum(exposureKey: resolvedExposure))
+            case "velocityBaseline": return .source(.velocityBaseline(exposureKey: resolvedExposure))
             default: throw ProgramLibraryImportError.unsupportedRuleConstruct("formula.source.\(source)")
             }
         }
@@ -651,6 +666,23 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                             path: "\(exercisePath)/rule/\(ruleIndex)",
                                             exposureKey: exercise.exposureKey
                                         )
+                                    }
+                                case .namedMany(let ruleSetNames):
+                                    progressionRules = try ruleSetNames.enumerated().flatMap { selectionIndex, ruleSetName in
+                                        guard let ruleSet = rulesLibrary?[ruleSetName] else {
+                                            throw ProgramLibraryImportError.missingRuleSet(ruleSetName)
+                                        }
+                                        let authoringRules = try resolvedRules(
+                                            ruleSet,
+                                            named: ruleSetName,
+                                            library: rulesLibrary ?? [:]
+                                        )
+                                        return try authoringRules.enumerated().map { ruleIndex, rule in
+                                            try rule.expand(
+                                                path: "\(exercisePath)/rule/\(selectionIndex)/\(ruleIndex)",
+                                                exposureKey: exercise.exposureKey
+                                            )
+                                        }
                                     }
                                 case .unsupported:
                                     throw ProgramLibraryImportError.unsupportedRuleConstruct("exercise.rules")

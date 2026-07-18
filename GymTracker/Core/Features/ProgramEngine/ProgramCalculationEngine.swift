@@ -154,6 +154,7 @@ nonisolated struct FormulaResolutionContext {
     var completedTopSetByExposure: [String: Double] = [:]
     var dailyMaximumByExposure: [String: Double] = [:]
     var completedMetricsByExposure: [String: [ProgressionMetric: Double]] = [:]
+    var velocityBaselineByExposure: [String: Double] = [:]
 }
 
 nonisolated enum FormulaResolutionError: Error, Equatable {
@@ -199,6 +200,7 @@ nonisolated enum ProgramFormulaResolver {
         case .dailyMaximum(let key): value = context.dailyMaximumByExposure[key]
         case .anotherExposure(let key): value = context.valuesByExposure[key]
         case .completedMetric(let key, let metric): value = context.completedMetricsByExposure[key]?[metric]
+        case .velocityBaseline(let key): value = context.velocityBaselineByExposure[key]
         }
         guard let value else {
             throw FormulaResolutionError.missingSource(String(describing: source))

@@ -70,7 +70,8 @@ enum PlanProgressionCadenceService {
             previousAMRAPRepetitions: persisted.previousAMRAPRepetitions,
             previousActualRPE: persisted.previousActualRPE,
             previousActualRIR: persisted.previousActualRIR,
-            isDeloading: persisted.isDeloading
+            isDeloading: persisted.isDeloading,
+            velocityBaseline: persisted.velocityBaseline
         )
     }
 
@@ -94,6 +95,7 @@ enum PlanProgressionCadenceService {
         persisted.previousAMRAPRepetitions = state.previousAMRAPRepetitions
         persisted.previousActualRPE = state.previousActualRPE
         persisted.previousActualRIR = state.previousActualRIR
+        persisted.velocityBaseline = state.velocityBaseline
         persisted.isDeloading = state.isDeloading
     }
 

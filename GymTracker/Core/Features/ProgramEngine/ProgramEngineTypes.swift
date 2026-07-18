@@ -194,6 +194,7 @@ nonisolated enum FormulaSource: Codable, Hashable {
     case dailyMaximum(exposureKey: String)
     case anotherExposure(exposureKey: String)
     case completedMetric(exposureKey: String, metric: ProgressionMetric)
+    case velocityBaseline(exposureKey: String)
 }
 
 nonisolated indirect enum ProgressionFormula: Codable, Hashable {
@@ -229,6 +230,7 @@ nonisolated enum ProgressionMetric: String, Codable, CaseIterable, Hashable {
     case technicalQuality
     case successfulAttempts
     case amrapRepetitions
+    case meanVelocity
 }
 
 nonisolated indirect enum ProgressionTrigger: Codable, Hashable {
@@ -258,6 +260,10 @@ nonisolated indirect enum ProgressionTrigger: Codable, Hashable {
     case cycleCompleted
     case scheduledDateReached
     case manualApproval
+    case velocityBelowBaseline(delta: Double)
+    case velocityAboveBaseline(delta: Double)
+    case velocityInTargetZone
+    case velocityBelowZoneCount(Int)
 }
 
 nonisolated enum ProgressionAction: Codable, Hashable {
@@ -282,6 +288,7 @@ nonisolated enum ProgressionAction: Codable, Hashable {
     case updateTrainingMax(ProgressionFormula)
     case updateEstimatedOneRepMax(ProgressionFormula)
     case updateActualOneRepMax(ProgressionFormula)
+    case updateVelocityBaseline(ProgressionFormula)
     case repeatPrescription
     case changeStage(String)
     case advanceExerciseVariation
@@ -420,9 +427,10 @@ nonisolated enum EngineCapabilities {
     static let waves = "waves"
     static let variationLadders = "variationLadders"
     static let amrapRepetitions = "amrapRepetitions"
+    static let velocity = "velocity"
 
     static let current: Set<String> = [
-        compositeTriggers, stages, waves, variationLadders, amrapRepetitions
+        compositeTriggers, stages, waves, variationLadders, amrapRepetitions, velocity
     ]
 
     static func missing(from requiredCapabilities: [String]) -> Set<String> {
@@ -1147,7 +1155,8 @@ nonisolated enum ProgramDefinitionValidator {
             switch source {
             case .trainingMax(let key), .estimatedOneRepMax(let key), .actualOneRepMax(let key),
                     .previousOccurrence(let key), .previousSuccessfulSet(let key), .completedTopSet(let key),
-                    .dailyMaximum(let key), .anotherExposure(let key), .completedMetric(let key, _):
+                    .dailyMaximum(let key), .anotherExposure(let key), .completedMetric(let key, _),
+                    .velocityBaseline(let key):
                 sources.insert(key)
             case .constant:
                 break

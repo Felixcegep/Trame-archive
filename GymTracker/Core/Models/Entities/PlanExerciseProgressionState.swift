@@ -33,6 +33,7 @@ final class PlanExerciseProgressionState {
     var previousAMRAPRepetitions: Int?
     var previousActualRPE: Double?
     var previousActualRIR: Double?
+    var velocityBaseline: Double?
     var lastCompletedOccurrence: Date?
     var lastSuccessfulLoad: Double?
     var isDeloading: Bool
@@ -73,6 +74,7 @@ final class PlanExerciseProgressionState {
         previousAMRAPRepetitions: Int? = nil,
         previousActualRPE: Double? = nil,
         previousActualRIR: Double? = nil,
+        velocityBaseline: Double? = nil,
         lastCompletedOccurrence: Date? = nil,
         lastSuccessfulLoad: Double? = nil,
         isDeloading: Bool = false,
@@ -107,6 +109,7 @@ final class PlanExerciseProgressionState {
         self.previousAMRAPRepetitions = previousAMRAPRepetitions
         self.previousActualRPE = previousActualRPE
         self.previousActualRIR = previousActualRIR
+        self.velocityBaseline = velocityBaseline
         self.lastCompletedOccurrence = lastCompletedOccurrence
         self.lastSuccessfulLoad = lastSuccessfulLoad
         self.isDeloading = isDeloading
