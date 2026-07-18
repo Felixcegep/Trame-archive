@@ -56,6 +56,7 @@ struct PlanEditorDraft {
                 guard let workout = week.orderedPlannedWorkouts.first(where: { $0.id == workoutDraft.id }) else { continue }
                 workout.name = workoutDraft.name.trimmingCharacters(in: .whitespacesAndNewlines)
                 workout.dayOffset = workoutDraft.dayOffset
+                workout.isOptional = workoutDraft.isOptional
 
                 let retainedIDs = Set(workoutDraft.exercises.compactMap(\.existingID))
                 for existing in workout.plannedExercises where !retainedIDs.contains(existing.id) {
@@ -157,12 +158,14 @@ struct PlanWorkoutDraft: Identifiable {
     let id: UUID
     var name: String
     var dayOffset: Int
+    var isOptional: Bool
     var exercises: [PlanExerciseDraft]
 
     init(workout: PlannedWorkout) {
         id = workout.id
         name = workout.name
         dayOffset = workout.dayOffset
+        isOptional = workout.isOptional
         exercises = workout.orderedPlannedExercises.map(PlanExerciseDraft.init)
     }
 }

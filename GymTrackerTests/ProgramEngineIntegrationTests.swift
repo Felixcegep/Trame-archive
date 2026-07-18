@@ -367,6 +367,16 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         let velocityProgram = try XCTUnwrap(payloads.first { $0.programKey == "velocity-calibrated-strength" })
         XCTAssertTrue(velocityProgram.requiredCapabilities.contains(EngineCapabilities.velocity))
         XCTAssertTrue(velocityProgram.intakeInputs.contains { $0.kind == .probeVelocity })
+
+        let optionalWorkoutPayload = try XCTUnwrap(payloads.first { payload in
+            payload.blocks.flatMap(\.weeks).flatMap(\.workouts).contains(where: \.isOptional)
+        })
+        let optionalRecord = try XCTUnwrap(records.first { record in
+            guard let payload = try? record.payload() else { return false }
+            return payload.programKey == optionalWorkoutPayload.programKey
+        })
+        let optionalPlan = try ProgramDefinitionRepository.compile(optionalRecord, using: context)
+        XCTAssertTrue(optionalPlan.orderedWeeks.flatMap(\.orderedPlannedWorkouts).contains(where: \.isOptional))
     }
 
     func testEveryBundledProgramStartsSnapshotsAndKeepsCompletedHistoryImmutable() throws {

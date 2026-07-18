@@ -129,6 +129,7 @@ enum ProgramDefinitionCompiler {
                         name: workoutDefinition.name,
                         orderIndex: workoutDefinition.orderIndex,
                         dayOffset: workoutDefinition.dayOffset,
+                        isOptional: workoutDefinition.isOptional,
                         isTestDay: workoutDefinition.plannedExercises.contains { exercise in
                             exercise.plannedSets.contains { $0.role == .test }
                                 || exercise.waves.flatMap(\.plannedSets).contains { $0.role == .test }

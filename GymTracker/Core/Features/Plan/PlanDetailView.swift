@@ -334,6 +334,11 @@ struct PlanDetailView: View {
                 Text(summary)
                     .font(AppFont.caption)
                     .foregroundStyle(.secondary)
+                if workout.isOptional {
+                    Text("Optional session")
+                        .font(AppFont.caption2Bold)
+                        .foregroundStyle(Color.gymPrimary)
+                }
                 if !preparation.isEmpty {
                     Label("Preparation & mobility required", systemImage: AppIcon.info)
                         .font(AppFont.caption2Bold)

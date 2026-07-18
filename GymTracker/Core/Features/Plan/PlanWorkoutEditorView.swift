@@ -15,6 +15,7 @@ struct PlanWorkoutEditorView: View {
             Section("Workout") {
                 TextField("Name", text: $workout.name)
                 Stepper("Day \(workout.dayOffset + 1)", value: $workout.dayOffset, in: 0...6)
+                Toggle("Optional session", isOn: $workout.isOptional)
             }
 
             Section("Exercises") {

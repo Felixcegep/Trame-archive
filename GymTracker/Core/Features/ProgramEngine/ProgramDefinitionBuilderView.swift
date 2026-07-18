@@ -533,6 +533,7 @@ private struct ProgramDefinitionWorkoutEditor: View {
             TextField("Workout name", text: $workout.name)
             Stepper("Day \(workout.dayOffset + 1)", value: $workout.dayOffset, in: 0...6)
             TextField("Role", text: $workout.role)
+            Toggle("Optional session", isOn: $workout.isOptional)
 
             ForEach($workout.plannedExercises) { $exercise in
                 ProgramDefinitionExerciseEditor(
