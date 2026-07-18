@@ -98,13 +98,15 @@ nonisolated struct AuthoringTriggerDefinition: Codable, Hashable {
 nonisolated struct AuthoringActionDefinition: Codable, Hashable {
     var type: String
     var value: Double?
+    var formula: AuthoringFormulaDefinition?
 
-    init(type: String, value: Double? = nil) {
+    init(type: String, value: Double? = nil, formula: AuthoringFormulaDefinition? = nil) {
         self.type = type
         self.value = value
+        self.formula = formula
     }
 
-    func expand() throws -> ProgressionAction {
+    func expand(exposureKey: String = "") throws -> ProgressionAction {
         switch type {
         case "addLoad": return .addLoad(value ?? 0)
         case "reduceLoad": return .reduceLoad(value ?? 0)
@@ -123,8 +125,65 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         case "resetProgressionOffsets": return .resetProgressionOffsets
         case "advanceExerciseVariation": return .advanceExerciseVariation
         case "regressExerciseVariation": return .regressExerciseVariation
+        case "updateTrainingMax":
+            guard let formula else { throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type).formula") }
+            return .updateTrainingMax(try formula.expand(exposureKey: exposureKey))
+        case "updateEstimatedOneRepMax":
+            guard let formula else { throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type).formula") }
+            return .updateEstimatedOneRepMax(try formula.expand(exposureKey: exposureKey))
+        case "updateActualOneRepMax":
+            guard let formula else { throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type).formula") }
+            return .updateActualOneRepMax(try formula.expand(exposureKey: exposureKey))
         case "noChange": return .noChange
         default: throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type)")
+        }
+    }
+}
+
+nonisolated struct AuthoringFormulaDefinition: Codable, Hashable {
+    var constant: Double?
+    var source: String?
+    var metric: ProgressionMetric?
+    var of: String?
+    var op: String?
+    var args: [AuthoringFormulaDefinition]?
+
+    private enum CodingKeys: String, CodingKey {
+        case constant = "const", source, metric, of, op, args
+    }
+
+    func expand(exposureKey: String) throws -> ProgressionFormula {
+        let resolvedExposure = of == "$self" || of == nil ? exposureKey : of!
+        if let constant { return .source(.constant(constant)) }
+        if let source {
+            switch source {
+            case "trainingMax": return .source(.trainingMax(exposureKey: resolvedExposure))
+            case "estimatedOneRepMax": return .source(.estimatedOneRepMax(exposureKey: resolvedExposure))
+            case "actualOneRepMax": return .source(.actualOneRepMax(exposureKey: resolvedExposure))
+            case "previousOccurrence": return .source(.previousOccurrence(exposureKey: resolvedExposure))
+            case "previousSuccessfulSet": return .source(.previousSuccessfulSet(exposureKey: resolvedExposure))
+            case "topSet": return .source(.completedTopSet(exposureKey: resolvedExposure))
+            case "dailyMaximum": return .source(.dailyMaximum(exposureKey: resolvedExposure))
+            default: throw ProgramLibraryImportError.unsupportedRuleConstruct("formula.source.\(source)")
+            }
+        }
+        if let metric {
+            return .source(.completedMetric(exposureKey: resolvedExposure, metric: metric))
+        }
+        guard let op else { throw ProgramLibraryImportError.unsupportedRuleConstruct("formula.empty") }
+        guard let args, args.count == 2 else {
+            throw ProgramLibraryImportError.unsupportedRuleConstruct("formula.\(op).arguments")
+        }
+        let lhs = try args[0].expand(exposureKey: exposureKey)
+        let rhs = try args[1].expand(exposureKey: exposureKey)
+        switch op {
+        case "add": return .add(lhs, rhs)
+        case "subtract": return .subtract(lhs, rhs)
+        case "multiply": return .multiply(lhs, rhs)
+        case "divide": return .divide(lhs, rhs)
+        case "min": return .minimum(lhs, rhs)
+        case "max": return .maximum(lhs, rhs)
+        default: throw ProgramLibraryImportError.unsupportedRuleConstruct("formula.op.\(op)")
         }
     }
 }
@@ -139,13 +198,13 @@ nonisolated struct AuthoringRuleDefinition: Codable, Hashable {
     var mode: ProgressionApplicationMode
     var priority: Int?
 
-    func expand(path: String) throws -> ProgressionRuleDefinition {
+    func expand(path: String, exposureKey: String) throws -> ProgressionRuleDefinition {
         ProgressionRuleDefinition(
             id: ProgramLibraryDeterministicID.uuid(for: path),
             metric: metric,
             trigger: try trigger.expand(),
-            successAction: try success.expand(),
-            failureAction: try failure?.expand(),
+            successAction: try success.expand(exposureKey: exposureKey),
+            failureAction: try failure?.expand(exposureKey: exposureKey),
             cadence: cadence,
             scope: scope,
             priority: priority ?? 0,
@@ -438,7 +497,10 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                         throw ProgramLibraryImportError.missingRuleSet(ruleSetName)
                                     }
                                     progressionRules = try authoringRules.enumerated().map { ruleIndex, rule in
-                                        try rule.expand(path: "\(exercisePath)/rule/\(ruleIndex)")
+                                        try rule.expand(
+                                            path: "\(exercisePath)/rule/\(ruleIndex)",
+                                            exposureKey: exercise.exposureKey
+                                        )
                                     }
                                 case .unsupported:
                                     throw ProgramLibraryImportError.unsupportedRuleConstruct("exercise.rules")

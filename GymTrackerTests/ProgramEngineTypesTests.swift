@@ -209,6 +209,56 @@ final class ProgramEngineTypesTests: XCTestCase {
             )
         }
     }
+
+    func testAuthoringFormulaResolvesSelfAndComposesOperations() throws {
+        let json = """
+        {
+          "op": "multiply",
+          "args": [
+            {"metric": "load", "of": "$self"},
+            {"op": "add", "args": [
+              {"const": 1},
+              {"op": "divide", "args": [
+                {"metric": "repetitions", "of": "$self"},
+                {"const": 30}
+              ]}
+            ]}
+          ]
+        }
+        """
+        let authoring = try JSONDecoder().decode(AuthoringFormulaDefinition.self, from: Data(json.utf8))
+
+        XCTAssertEqual(
+            try authoring.expand(exposureKey: "bench"),
+            .multiply(
+                .source(.completedMetric(exposureKey: "bench", metric: .load)),
+                .add(
+                    .source(.constant(1)),
+                    .divide(
+                        .source(.completedMetric(exposureKey: "bench", metric: .repetitions)),
+                        .source(.constant(30))
+                    )
+                )
+            )
+        )
+    }
+
+    func testFormulaBackedTrainingMaxActionExpands() throws {
+        let json = """
+        {"type":"updateTrainingMax","formula":{"op":"add","args":[
+          {"source":"trainingMax","of":"$self"},{"const":2.5}
+        ]}}
+        """
+        let action = try JSONDecoder().decode(AuthoringActionDefinition.self, from: Data(json.utf8))
+
+        XCTAssertEqual(
+            try action.expand(exposureKey: "deadlift"),
+            .updateTrainingMax(.add(
+                .source(.trainingMax(exposureKey: "deadlift")),
+                .source(.constant(2.5))
+            ))
+        )
+    }
     func testValidatorRejectsEmptyWarmupScheme() {
         let definition = makeDefinition(exercises: [
             ProgramExerciseDefinition(
