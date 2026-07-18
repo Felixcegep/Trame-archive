@@ -7,6 +7,9 @@ final class PlanWorkoutProgress {
     var plannedWorkoutID: UUID
     var plannedWorkoutName: String
     var weekIndex: Int
+    /// The immutable template week used to generate this occurrence. It stays
+    /// stable when a run repeats a week or block and shifts occurrence indices.
+    var sourceWeekIndex: Int?
     var workoutIndex: Int
     var scheduledDate: Date?
     var status: PlanWorkoutStatus
@@ -36,12 +39,14 @@ final class PlanWorkoutProgress {
         plannedWorkoutID: UUID,
         plannedWorkoutName: String,
         weekIndex: Int,
+        sourceWeekIndex: Int? = nil,
         workoutIndex: Int,
         scheduledDate: Date? = nil
     ) {
         self.plannedWorkoutID = plannedWorkoutID
         self.plannedWorkoutName = plannedWorkoutName
         self.weekIndex = weekIndex
+        self.sourceWeekIndex = sourceWeekIndex ?? weekIndex
         self.workoutIndex = workoutIndex
         self.scheduledDate = scheduledDate
         self.status = .upcoming

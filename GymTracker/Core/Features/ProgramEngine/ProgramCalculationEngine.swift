@@ -2,7 +2,7 @@ import Foundation
 
 #if !GYMTRACKER_EXTENSION
 
-struct LoadResolutionContext {
+nonisolated struct LoadResolutionContext {
     var trainingMaxByExposure: [String: Double] = [:]
     var estimatedOneRepMaxByExposure: [String: Double] = [:]
     var actualOneRepMaxByExposure: [String: Double] = [:]
@@ -19,19 +19,19 @@ struct LoadResolutionContext {
     init() {}
 }
 
-struct LoadResolutionResult: Equatable {
+nonisolated struct LoadResolutionResult: Equatable {
     let referenceValue: Double?
     let unroundedLoad: Double?
     let prescribedLoad: Double?
     let explanation: String
 }
 
-enum LoadResolutionError: Error, Equatable {
+nonisolated enum LoadResolutionError: Error, Equatable {
     case missingReference(LoadReferenceKind)
     case invalidValue(String)
 }
 
-enum ProgramLoadResolver {
+nonisolated enum ProgramLoadResolver {
     static func resolve(
         _ prescription: LoadPrescription,
         context: LoadResolutionContext
@@ -144,7 +144,7 @@ enum ProgramLoadResolver {
     }
 }
 
-struct FormulaResolutionContext {
+nonisolated struct FormulaResolutionContext {
     var valuesByExposure: [String: Double] = [:]
     var trainingMaxByExposure: [String: Double] = [:]
     var estimatedOneRepMaxByExposure: [String: Double] = [:]
@@ -156,13 +156,13 @@ struct FormulaResolutionContext {
     var completedMetricsByExposure: [String: [ProgressionMetric: Double]] = [:]
 }
 
-enum FormulaResolutionError: Error, Equatable {
+nonisolated enum FormulaResolutionError: Error, Equatable {
     case missingSource(String)
     case divisionByZero
     case invalidResult
 }
 
-enum ProgramFormulaResolver {
+nonisolated enum ProgramFormulaResolver {
     static func resolve(_ formula: ProgressionFormula, context: FormulaResolutionContext) throws -> Double {
         let value: Double
         switch formula {

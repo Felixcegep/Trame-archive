@@ -36,6 +36,9 @@ final class ExerciseEntry{
     var prescribedProgressionRule: ProgressionRule?
     var prescriptionDefinitionData: Data?
     var prescriptionRulesData: Data?
+    /// Deferred `SetPrescriptionDefinition` records for generated back-off
+    /// work. They are snapshot-local and never require a live plan lookup.
+    var deferredBackOffDefinitionsData: Data?
     // Evidence captured at workout start so recommendations remain explainable
     // even when their source template or prior workout later changes.
     var recommendedDecision: DoubleProgressionDecision?
@@ -104,6 +107,7 @@ final class ExerciseEntry{
         self.prescribedProgressionRule = nil
         self.prescriptionDefinitionData = nil
         self.prescriptionRulesData = nil
+        self.deferredBackOffDefinitionsData = nil
         self.recommendedDecision = nil
         self.recommendedLoad = nil
         self.recommendedUnit = nil

@@ -27,7 +27,7 @@ struct ProgressionPerformance: Codable, Hashable {
     var didFail: Bool = false
 }
 
-struct ProgressionEvaluationState: Hashable {
+struct ProgressionEvaluationState: Codable, Hashable {
     var currentLoad: Double? = nil
     var repetitionOffset: Int = 0
     var setCountOffset: Int = 0
@@ -64,9 +64,31 @@ struct ProgressionRecommendation: Hashable, Identifiable {
     let performance: ProgressionPerformance
 }
 
+/// A deterministic future state that is not eligible for the current
+/// occurrence yet. It is encoded onto the mutable run state so a later
+/// snapshot can apply it without re-evaluating completed History.
+struct PendingProgressionState: Codable, Hashable {
+    /// The rule and completed workout that produced this state. Optional fields
+    /// keep pending state written by earlier app versions decodable.
+    var ruleID: UUID? = nil
+    var sourceWorkoutID: UUID? = nil
+    /// Structural actions (advance/repeat/end) must wait beside their state
+    /// until the same cadence boundary; otherwise a deferred recommendation
+    /// could change the run before its load/state is eligible.
+    var action: ProgressionAction? = nil
+    var cadence: ProgressionCadence
+    var scope: ProgressionScope
+    var state: ProgressionEvaluationState
+    var sourceWeekIndex: Int
+    var sourceWorkoutIndex: Int
+    var sourceBlockIndex: Int
+    var createdAt: Date
+}
+
 struct ProgressionEvaluationResult: Hashable {
     let state: ProgressionEvaluationState
     let recommendations: [ProgressionRecommendation]
+    let deferredStates: [PendingProgressionState]
 }
 
 enum ProgressionEvaluationError: Error, Equatable {
@@ -75,15 +97,39 @@ enum ProgressionEvaluationError: Error, Equatable {
 }
 
 enum ProgramProgressionEvaluator {
+    /// Records the outcome of one completed exposure before its rules are
+    /// evaluated. `failureCount` is intentionally consecutive: a successful
+    /// occurrence resets the miss streak, so a "third failure" rule means
+    /// three failures in a row rather than three failures over the entire
+    /// lifetime of a program run.
+    static func state(
+        afterRecording performance: ProgressionPerformance,
+        from state: ProgressionEvaluationState
+    ) -> ProgressionEvaluationState {
+        var result = state
+        result.failureCount = performance.didFail ? state.failureCount + 1 : 0
+        result.successCount += performance.didFail ? 0 : 1
+        result.previousAMRAPRepetitions = performance.amrapRepetitions
+        result.previousActualRPE = performance.actualRPE
+        result.previousActualRIR = performance.actualRIR.map(Double.init)
+        return result
+    }
+
     static func evaluate(
         rules: [ProgressionRuleDefinition],
         performance: ProgressionPerformance,
         state: ProgressionEvaluationState,
         formulaContext: FormulaResolutionContext = FormulaResolutionContext(),
-        variationLadder: [UUID] = []
+        variationLadder: [UUID] = [],
+        automaticCadences: Set<ProgressionCadence> = Set(ProgressionCadence.allCases)
     ) throws -> ProgressionEvaluationResult {
         var nextState = state
         var recommendations: [ProgressionRecommendation] = []
+        // Keep every deferred rule. Several rules may deliberately share a
+        // cadence (for example add load and advance a week); each action must
+        // survive, while each later rule still sees the state composed by the
+        // earlier one at that same boundary.
+        var deferredStates: [(ruleID: UUID, action: ProgressionAction, cadence: ProgressionCadence, scope: ProgressionScope, state: ProgressionEvaluationState)] = []
         let orderedRules = rules.filter(\.isEnabled).sorted {
             $0.priority == $1.priority ? $0.id.uuidString < $1.id.uuidString : $0.priority > $1.priority
         }
@@ -120,6 +166,11 @@ enum ProgramProgressionEvaluator {
             guard let action else { continue }
 
             var proposedState = nextState
+            if rule.applicationMode == .automatic,
+               !automaticCadences.contains(rule.cadence),
+                let deferred = deferredStates.last(where: { $0.cadence == rule.cadence }) {
+                proposedState = deferred.state
+            }
             try apply(action, to: &proposedState, formulaContext: formulaContext, variationLadder: variationLadder)
             let recommendation = ProgressionRecommendation(
                 id: UUID(),
@@ -134,10 +185,31 @@ enum ProgramProgressionEvaluator {
             )
             recommendations.append(recommendation)
             if rule.applicationMode == .automatic {
-                nextState = proposedState
+                if automaticCadences.contains(rule.cadence) {
+                    nextState = proposedState
+                } else {
+                    deferredStates.append((rule.id, action, rule.cadence, rule.scope, proposedState))
+                }
             }
         }
-        return ProgressionEvaluationResult(state: nextState, recommendations: recommendations)
+        return ProgressionEvaluationResult(
+            state: nextState,
+            recommendations: recommendations,
+            deferredStates: deferredStates.map { value in
+                PendingProgressionState(
+                    ruleID: value.ruleID,
+                    sourceWorkoutID: nil,
+                    action: value.action,
+                    cadence: value.cadence,
+                    scope: value.scope,
+                    state: value.state,
+                    sourceWeekIndex: 0,
+                    sourceWorkoutIndex: 0,
+                    sourceBlockIndex: 0,
+                    createdAt: .now
+                )
+            }
+        )
     }
 
     private static func matches(
@@ -201,17 +273,17 @@ enum ProgramProgressionEvaluator {
         case .addAssistance(let amount): state.currentLoad = (state.currentLoad ?? 0) + max(0, amount)
         case .reduceAssistance(let amount): state.currentLoad = max(0, (state.currentLoad ?? 0) - max(0, amount))
         case .addRepetitions(let amount): state.repetitionOffset += amount
-        case .reduceRepetitions(let amount): state.repetitionOffset = max(0, state.repetitionOffset - amount)
+        case .reduceRepetitions(let amount): state.repetitionOffset -= max(0, amount)
         case .addSets(let amount): state.setCountOffset += amount
-        case .reduceSets(let amount): state.setCountOffset = max(0, state.setCountOffset - amount)
+        case .reduceSets(let amount): state.setCountOffset -= max(0, amount)
         case .addDuration(let amount): state.durationOffset += max(0, amount)
-        case .reduceDuration(let amount): state.durationOffset = max(0, state.durationOffset - amount)
+        case .reduceDuration(let amount): state.durationOffset -= max(0, amount)
         case .addDistance(let amount): state.distanceOffset += max(0, amount)
-        case .reduceDistance(let amount): state.distanceOffset = max(0, state.distanceOffset - amount)
+        case .reduceDistance(let amount): state.distanceOffset -= max(0, amount)
         case .addRestDuration(let amount): state.restDurationOffset += max(0, amount)
-        case .reduceRestDuration(let amount): state.restDurationOffset = max(0, state.restDurationOffset - amount)
+        case .reduceRestDuration(let amount): state.restDurationOffset -= max(0, amount)
         case .addCalories(let amount): state.caloriesOffset += max(0, amount)
-        case .reduceCalories(let amount): state.caloriesOffset = max(0, state.caloriesOffset - amount)
+        case .reduceCalories(let amount): state.caloriesOffset -= max(0, amount)
         case .repeatPrescription, .noChange, .generateRecommendation:
             break
         case .updateTrainingMax(let formula): state.trainingMax = try resolve(formula, context: formulaContext)

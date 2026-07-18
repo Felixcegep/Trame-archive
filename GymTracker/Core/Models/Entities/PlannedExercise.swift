@@ -19,6 +19,9 @@ final class PlannedExercise {
     var initialTrainingMax: Double?
     var initialEstimatedOneRepMax: Double?
     var initialActualOneRepMax: Double?
+    var automaticDeloadVolumeReductionPercent: Int?
+    var automaticDeloadIntensityReductionPercent: Int?
+    var warmupSchemeData: Data?
     var restSeconds: Int
     var targetRPE: Double?
     var targetRIR: Int?
@@ -63,7 +66,10 @@ final class PlannedExercise {
         progressionWavesData: Data? = nil,
         initialTrainingMax: Double? = nil,
         initialEstimatedOneRepMax: Double? = nil,
-        initialActualOneRepMax: Double? = nil
+        initialActualOneRepMax: Double? = nil,
+        automaticDeloadVolumeReductionPercent: Int? = nil,
+        automaticDeloadIntensityReductionPercent: Int? = nil,
+        warmupSchemeData: Data? = nil
     ) {
         self.progressionKey = progressionKey ?? UUID().uuidString
         self.exercise = exercise
@@ -78,6 +84,9 @@ final class PlannedExercise {
         self.initialTrainingMax = initialTrainingMax
         self.initialEstimatedOneRepMax = initialEstimatedOneRepMax
         self.initialActualOneRepMax = initialActualOneRepMax
+        self.automaticDeloadVolumeReductionPercent = automaticDeloadVolumeReductionPercent
+        self.automaticDeloadIntensityReductionPercent = automaticDeloadIntensityReductionPercent
+        self.warmupSchemeData = warmupSchemeData
         self.restSeconds = restSeconds
         self.targetRPE = targetRPE
         self.targetRIR = targetRIR

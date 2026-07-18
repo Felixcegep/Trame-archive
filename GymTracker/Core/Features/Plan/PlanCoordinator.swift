@@ -136,10 +136,10 @@ enum PlanCoordinator {
                 PlanExerciseProgressionState(
                     progressionKey: plannedExercise.progressionKey,
                     currentLoad: plannedExercise.suggestedLoad,
+                    currentVariationExerciseID: plannedExercise.exercise.id,
                     trainingMax: plannedExercise.initialTrainingMax,
                     estimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
-                    actualOneRepMax: plannedExercise.initialActualOneRepMax,
-                    currentVariationExerciseID: plannedExercise.exercise.id
+                    actualOneRepMax: plannedExercise.initialActualOneRepMax
                 )
             )
         }
@@ -192,14 +192,89 @@ enum PlanCoordinator {
 
     static func plannedWorkout(for progress: PlanWorkoutProgress, in run: PlanRun) -> PlannedWorkout? {
         run.plan?.orderedWeeks
-            .first(where: { $0.weekIndex == progress.weekIndex })?
-            .orderedPlannedWorkouts
+            .flatMap(\.orderedPlannedWorkouts)
             .first(where: { $0.id == progress.plannedWorkoutID })
     }
 
     static func nextProgress(in run: PlanRun) -> PlanWorkoutProgress? {
         run.orderedWorkoutProgress.first { $0.status == .inProgress }
             ?? run.orderedWorkoutProgress.first { $0.status == .available }
+    }
+
+    /// Creates new future occurrences from the selected template week. The
+    /// original completed progress stays immutable; later unfinished weeks are
+    /// shifted forward to leave a deterministic slot for the repeat.
+    @discardableResult
+    static func repeatWeek(containing source: PlanWorkoutProgress, in run: PlanRun) -> Bool {
+        guard run.status == .active || run.status == .paused else { return false }
+        let sourceWeek = source.weekIndex
+        let sourceItems = run.orderedWorkoutProgress.filter { $0.weekIndex == sourceWeek }
+        guard !sourceItems.isEmpty else { return false }
+        let insertionWeek = sourceWeek + 1
+        guard !run.orderedWorkoutProgress.contains(where: { $0.weekIndex >= insertionWeek && $0.status == .completed }) else {
+            return false
+        }
+        shiftUnfinishedOccurrences(startingAt: insertionWeek, by: 1, in: run)
+        appendRepeatedOccurrences(sourceItems, atWeekIndex: insertionWeek, in: run)
+        refreshAvailability(for: run)
+        return true
+    }
+
+    /// Repeats the template block containing the source occurrence. All of the
+    /// block's workouts are appended as new future progress records; completed
+    /// workout snapshots are never reassigned or edited.
+    @discardableResult
+    static func restartBlock(containing source: PlanWorkoutProgress, in run: PlanRun) -> Bool {
+        guard run.status == .active || run.status == .paused,
+              let block = run.plan?.orderedBlocks.first(where: {
+                  $0.orderedWeeks.contains { $0.weekIndex == (source.sourceWeekIndex ?? source.weekIndex) }
+              }) else { return false }
+        let sourceWeekIndices = Set(block.orderedWeeks.map(\.weekIndex))
+        let sourceItems = run.orderedWorkoutProgress.filter {
+            sourceWeekIndices.contains($0.sourceWeekIndex ?? $0.weekIndex)
+        }
+        guard !sourceItems.isEmpty else { return false }
+        let insertionWeek = source.weekIndex + 1
+        guard !run.orderedWorkoutProgress.contains(where: { $0.weekIndex >= insertionWeek && $0.status == .completed }) else {
+            return false
+        }
+        let distinctWeeks = Set(sourceItems.map(\.weekIndex)).count
+        shiftUnfinishedOccurrences(startingAt: insertionWeek, by: distinctWeeks, in: run)
+        let grouped = Dictionary(grouping: sourceItems, by: \.weekIndex)
+        for (offset, occurrenceWeek) in grouped.keys.sorted().enumerated() {
+            appendRepeatedOccurrences(grouped[occurrenceWeek] ?? [], atWeekIndex: insertionWeek + offset, in: run)
+        }
+        refreshAvailability(for: run)
+        return true
+    }
+
+    private static func shiftUnfinishedOccurrences(startingAt weekIndex: Int, by amount: Int, in run: PlanRun) {
+        let calendar = Calendar.current
+        for progress in run.workoutProgress where progress.weekIndex >= weekIndex && progress.status != .completed {
+            progress.weekIndex += amount
+            if let date = progress.scheduledDate {
+                progress.scheduledDate = calendar.date(byAdding: .day, value: amount * 7, to: date)
+            }
+        }
+    }
+
+    private static func appendRepeatedOccurrences(
+        _ source: [PlanWorkoutProgress],
+        atWeekIndex weekIndex: Int,
+        in run: PlanRun
+    ) {
+        let calendar = Calendar.current
+        for item in source.sorted(by: { $0.workoutIndex < $1.workoutIndex }) {
+            let copy = PlanWorkoutProgress(
+                plannedWorkoutID: item.plannedWorkoutID,
+                plannedWorkoutName: item.plannedWorkoutName,
+                weekIndex: weekIndex,
+                sourceWeekIndex: item.sourceWeekIndex ?? item.weekIndex,
+                workoutIndex: item.workoutIndex,
+                scheduledDate: item.scheduledDate.flatMap { calendar.date(byAdding: .day, value: 7, to: $0) }
+            )
+            run.workoutProgress.append(copy)
+        }
     }
 
     /// Moves an available or upcoming session to a new scheduled day and

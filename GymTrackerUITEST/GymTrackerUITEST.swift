@@ -188,16 +188,19 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["plate-calculator-screen"].waitForExistence(timeout: 5))
         tapButton("Done", in: app)
 
-        let dumbbellExercise = app.staticTexts["active-exercise-Dumbbell Bench Press"]
-        XCTAssertTrue(dumbbellExercise.waitForExistence(timeout: 5))
+        let dumbbellExercise = activeExerciseCard("Dumbbell Bench Press", in: app)
+        scrollToElement(dumbbellExercise, in: app)
         dumbbellExercise.tap()
         tapButton("set-menu-Dumbbell Bench Press-0", in: app)
         XCTAssertFalse(app.buttons["plate-calculator-Dumbbell Bench Press"].exists)
-        tapButton("Set details", in: app)
-        tapButton("close-set-details", in: app)
 
-        let legPressExercise = app.staticTexts["active-exercise-Leg Press"]
-        XCTAssertTrue(legPressExercise.waitForExistence(timeout: 5))
+        // Relaunch the deterministic fixture so the open context menu and
+        // disclosure scroll position cannot obscure the final style check.
+        relaunchPreservingData(app)
+        resumeActiveWorkout(in: app)
+
+        let legPressExercise = activeExerciseCard("Leg Press", in: app)
+        scrollToElement(legPressExercise, in: app)
         legPressExercise.tap()
         tapButton("set-menu-Leg Press-0", in: app)
         XCTAssertTrue(app.buttons["plate-calculator-Leg Press"].waitForExistence(timeout: 5))
@@ -588,7 +591,7 @@ final class GymTrackerUITEST: XCTestCase {
         expectedHomeControl: String = "start-free-workout"
     ) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing", "-ui-test-fixture", fixture] + additionalArguments
+        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-test-fixture", fixture] + additionalArguments
         app.launch()
         XCTAssertEqual(app.state, .runningForeground)
 
@@ -1117,6 +1120,27 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(app.buttons["confirm-plan-changes"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13_Plan_Review")
 
+        tapButton("confirm-plan-changes", in: app)
+        XCTAssertTrue(app.buttons["view-program-prescription-preview"].waitForExistence(timeout: 5))
+        tapButton("view-program-prescription-preview", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-preview-summary"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13i_Program_Prescription_Preview")
+
+    }
+
+    func testCaptureProgramDefinitionBuilderScreenshot() {
+        let app = launchFreshApp()
+        selectTab(.library, in: app)
+        tapButton("Create library item", in: app)
+        tapButton("new-program-definition", in: app)
+
+        let name = app.textFields["definition-name-field"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Custom Strength Recipe")
+        name.typeText("\n")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        saveScreenshot("plans/13j_Program_Definition_Builder")
     }
 
     func testCaptureActivePlanRunScreenshot() {

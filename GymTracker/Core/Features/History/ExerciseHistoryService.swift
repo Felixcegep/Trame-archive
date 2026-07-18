@@ -9,8 +9,30 @@ struct PreviousSetPerformance: Equatable, Sendable {
     let duration: TimeInterval?
     let distance: Float?
     let distanceType: DistanceType
-    let calories: Double? = nil
+    let calories: Double?
     let setType: SetType
+
+    init(
+        orderIndex: Int,
+        repetitions: Float,
+        weight: Float,
+        weightType: WeightType,
+        duration: TimeInterval?,
+        distance: Float?,
+        distanceType: DistanceType,
+        calories: Double? = nil,
+        setType: SetType
+    ) {
+        self.orderIndex = orderIndex
+        self.repetitions = repetitions
+        self.weight = weight
+        self.weightType = weightType
+        self.duration = duration
+        self.distance = distance
+        self.distanceType = distanceType
+        self.calories = calories
+        self.setType = setType
+    }
 }
 
 struct PreviousExercisePerformance: Equatable, Sendable {

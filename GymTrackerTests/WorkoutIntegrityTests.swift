@@ -1010,6 +1010,29 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(plan.requiredEquipment, [.barbell, .cable])
     }
 
+    func testPlanEditorDraftPersistsPhaseOrderIndex() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let template = makeTemplate(exercise: exercise, targetSets: 2)
+        let plan = PlanCoordinator.createPlan(
+            name: "Phase order plan",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            dayAssignments: [.init(dayOffset: 0, template: template)]
+        )
+        context.insert(exercise)
+        context.insert(template)
+        context.insert(plan)
+        try context.save()
+
+        var draft = PlanEditorDraft(plan: plan)
+        draft.blocks[0].orderIndex = 4
+        draft.apply(to: plan, using: context)
+
+        XCTAssertEqual(plan.orderedBlocks.first?.orderIndex, 4)
+    }
+
     func testPlanEditorDraftAppliesOrderedSetPrescriptions() throws {
         let context = try makeContext()
         let exercise = makeExercise()
@@ -1444,6 +1467,126 @@ final class WorkoutIntegrityTests: XCTestCase {
         )
     }
 
+    func testBackupRoundTripsDeferredBackOffSnapshotWithoutDuplicatingGeneratedWork() throws {
+        let source = try makeContext()
+        let exercise = Exercise(name: "Clean", primaryMuscles: [.quadriceps])
+        let dailyMaximum = ExerciseSet(
+            repetitions: 1,
+            weight: 100,
+            done: true,
+            setType: .dailyMaximum,
+            orderIndex: 0,
+            usedMetric: .metric
+        )
+        dailyMaximum.prescribedSetType = .dailyMaximum
+        dailyMaximum.isSelectedDailyMaximum = true
+        let entry = ExerciseEntry(exercise: exercise, sets: [dailyMaximum], usedMetric: .metric)
+        entry.progressionKey = "clean"
+        let deferredBackOff = SetPrescriptionDefinition(
+            orderIndex: 1,
+            role: .backOff,
+            repetitions: .fixed(2),
+            load: LoadPrescription(
+                reference: .init(kind: .dailyMaximum, exposureKey: "clean"),
+                percentage: 0.85
+            ),
+            generatesAfterSourceCompletion: true
+        )
+        entry.deferredBackOffDefinitionsData = try JSONEncoder().encode([deferredBackOff])
+        let workout = Workout(name: "Clean day", exercises: [entry])
+        source.insert(exercise)
+        source.insert(workout)
+        ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
+        try source.save()
+
+        let backup = try BackupDTO.create(
+            from: source,
+            restTimer: 90,
+            darkMode: false,
+            unitSystem: .metric
+        )
+        let restored = try makeContext()
+        try JSONDecoder().decode(BackupDTO.self, from: JSONEncoder().encode(backup)).restore(to: restored)
+
+        let restoredWorkout = try XCTUnwrap(
+            restored.fetch(FetchDescriptor<Workout>()).first { $0.id == workout.id }
+        )
+        let restoredEntry = try XCTUnwrap(restoredWorkout.orderedExercises.first)
+        let restoredDefinitions = try JSONDecoder().decode(
+            [SetPrescriptionDefinition].self,
+            from: try XCTUnwrap(restoredEntry.deferredBackOffDefinitionsData)
+        )
+        XCTAssertEqual(restoredDefinitions, [deferredBackOff])
+        XCTAssertTrue(restoredEntry.orderedSets.contains { $0.isSelectedDailyMaximum })
+        XCTAssertEqual(
+            restoredEntry.orderedSets.filter {
+                $0.generatedBackOffDefinitionID == deferredBackOff.id
+            }.count,
+            1
+        )
+
+        ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: restoredWorkout)
+
+        let restoredBackOffs = restoredEntry.orderedSets.filter {
+            $0.generatedBackOffDefinitionID == deferredBackOff.id
+        }
+        XCTAssertEqual(restoredBackOffs.count, 1)
+        XCTAssertEqual(restoredBackOffs.first?.prescribedSuggestedLoad, 85, accuracy: 0.001)
+    }
+
+    func testDeferredBackOffSurvivesDiskRelaunchWithoutDuplicateGeneration() throws {
+        let url = try makeDiskStoreURL()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let workoutID = UUID()
+        let deferredBackOffID = UUID()
+
+        try withDiskContext(at: url) { context in
+            let exercise = Exercise(name: "Bench Press", primaryMuscles: [.chest])
+            let topSet = ExerciseSet(
+                repetitions: 5,
+                weight: 100,
+                done: true,
+                setType: .topSet,
+                orderIndex: 0,
+                usedMetric: .metric
+            )
+            topSet.prescribedSetType = .topSet
+            let entry = ExerciseEntry(exercise: exercise, sets: [topSet], usedMetric: .metric)
+            entry.progressionKey = "bench"
+            let deferredBackOff = SetPrescriptionDefinition(
+                id: deferredBackOffID,
+                orderIndex: 1,
+                role: .backOff,
+                repetitions: .fixed(5),
+                load: LoadPrescription(
+                    reference: .init(kind: .topSet, exposureKey: "bench"),
+                    percentage: 0.9
+                ),
+                generatesAfterSourceCompletion: true
+            )
+            entry.deferredBackOffDefinitionsData = try JSONEncoder().encode([deferredBackOff])
+            let workout = Workout(name: "Press", exercises: [entry])
+            workout.id = workoutID
+            context.insert(exercise)
+            context.insert(workout)
+            ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
+            try context.save()
+        }
+
+        try withDiskContext(at: url) { context in
+            let workout = try XCTUnwrap(
+                context.fetch(FetchDescriptor<Workout>()).first { $0.id == workoutID }
+            )
+            ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
+            let entry = try XCTUnwrap(workout.orderedExercises.first)
+            let generated = entry.orderedSets.filter {
+                $0.generatedBackOffDefinitionID == deferredBackOffID
+            }
+            XCTAssertEqual(generated.count, 1)
+            XCTAssertEqual(generated.first?.prescribedSuggestedLoad, 90, accuracy: 0.001)
+        }
+    }
+
     func testBackupRoundTripsPlanRunProgressAndCompletedWorkoutIdentity() throws {
         let source = try makeContext()
         let exercise = makeExercise()
@@ -1487,6 +1630,14 @@ final class WorkoutIntegrityTests: XCTestCase {
             )
         ]
         let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000)))
+        run.progressionStates.append(
+            PlanExerciseProgressionState(
+                progressionKey: plannedExercise.progressionKey,
+                scopeRaw: ProgressionScope.week.rawValue,
+                scopeOwnerKey: "week:1",
+                currentLoad: 55
+            )
+        )
         let firstProgress = try XCTUnwrap(run.orderedWorkoutProgress.first)
         let firstPlannedWorkout = try XCTUnwrap(PlanCoordinator.plannedWorkout(for: firstProgress, in: run))
         let completedWorkout = Workout(plannedWorkout: firstPlannedWorkout, planRun: run, unitSystem: .metric)
@@ -1495,6 +1646,8 @@ final class WorkoutIntegrityTests: XCTestCase {
         completedWorkout.orderedExercises.first?.orderedSets.first?.repetitions = 8
         completedWorkout.orderedExercises.first?.orderedSets.first?.weight = 50
         completedWorkout.orderedExercises.first?.orderedSets.first?.done = true
+        completedWorkout.orderedExercises.first?.orderedSets.first?.prescribedUnroundedLoad = 52.4
+        completedWorkout.orderedExercises.first?.orderedSets.first?.prescriptionLoadExplanation = "Training Max 65.5 × 80% = 52.4 → rounded to 52.5."
         PlanCoordinator.markCompleted(firstProgress, with: completedWorkout, in: run)
 
         source.insert(exercise)
@@ -1536,6 +1689,12 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(restoredRun.plan?.id, plan.id)
         XCTAssertEqual(restoredRun.sourcePlanID, plan.id)
         XCTAssertEqual(restoredRun.status, .active)
+        let restoredScopedState = try XCTUnwrap(restoredRun.progressionStates.first {
+            $0.progressionKey == plannedExercise.progressionKey
+                && $0.scopeRaw == ProgressionScope.week.rawValue
+                && $0.scopeOwnerKey == "week:1"
+        })
+        XCTAssertEqual(restoredScopedState.currentLoad, 55, accuracy: 0.001)
         XCTAssertEqual(restoredProgress.status, .completed)
         XCTAssertEqual(restoredProgress.plannedWorkoutID, firstPlannedWorkout.id)
         XCTAssertEqual(restoredProgress.completedWorkout?.id, completedWorkout.id)
@@ -1557,6 +1716,8 @@ final class WorkoutIntegrityTests: XCTestCase {
         XCTAssertEqual(restoredSet.prescribedSetType, .warmup)
         XCTAssertEqual(restoredSet.prescribedRepetitions, 10)
         XCTAssertEqual(restoredSet.prescribedRestSeconds, 45)
+        XCTAssertEqual(restoredSet.prescribedUnroundedLoad, 52.4)
+        XCTAssertEqual(restoredSet.prescriptionLoadExplanation, "Training Max 65.5 × 80% = 52.4 → rounded to 52.5.")
     }
 
     func testBackupDefaultsMissingPlannedExerciseStimulus() throws {
@@ -1847,6 +2008,46 @@ final class WorkoutIntegrityTests: XCTestCase {
         entryA.orderedSets[2].done = true
         XCTAssertNil(WorkoutSetSelector.nextIncompleteSet(in: workout))
         XCTAssertNil(WorkoutSetSelector.restSeconds(afterCompleting: entryA, in: workout, defaultSeconds: 30))
+    }
+
+    func testActiveWorkoutViewModelOnlyOffersTheSelectorCurrentSupersetSet() throws {
+        let context = try makeContext()
+        let exerciseA = makeExercise()
+        let exerciseB = Exercise(name: "Cable Row", primaryMuscles: [.latissimusDorsi])
+        let groupID = UUID()
+        let entryA = ExerciseEntry(
+            exercise: exerciseA,
+            sets: [ExerciseSet(repetitions: 8, weight: 50, usedMetric: .metric)],
+            orderIndex: 0,
+            usedMetric: .metric,
+            supersetGroupID: groupID
+        )
+        let entryB = ExerciseEntry(
+            exercise: exerciseB,
+            sets: [ExerciseSet(repetitions: 8, weight: 50, usedMetric: .metric)],
+            orderIndex: 1,
+            usedMetric: .metric,
+            supersetGroupID: groupID
+        )
+        let workout = Workout(name: "Superset", exercises: [entryA, entryB])
+        context.insert(exerciseA)
+        context.insert(exerciseB)
+        context.insert(workout)
+        try context.save()
+        let workoutViewModel = WorkoutViewModel()
+        workoutViewModel.activeWorkout = workout
+        let viewModel = ActiveWorkoutViewModel(
+            workoutVM: workoutViewModel,
+            modelContext: context
+        )
+
+        XCTAssertTrue(viewModel.getNextSet(in: entryA) === entryA.orderedSets.first)
+        XCTAssertNil(viewModel.getNextSet(in: entryB))
+
+        entryA.orderedSets.first?.done = true
+
+        XCTAssertNil(viewModel.getNextSet(in: entryA))
+        XCTAssertTrue(viewModel.getNextSet(in: entryB) === entryB.orderedSets.first)
     }
 
     func testSupersetNormalizationDissolvesSingletonAndNonContiguousGroups() {

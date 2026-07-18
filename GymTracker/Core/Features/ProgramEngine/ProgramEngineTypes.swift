@@ -4,7 +4,7 @@ import Foundation
 
 // MARK: - Prescriptions
 
-enum ProgramSetRole: String, Codable, CaseIterable, Hashable {
+nonisolated enum ProgramSetRole: String, Codable, CaseIterable, Hashable {
     case warmup
     case working
     case topSet
@@ -17,12 +17,12 @@ enum ProgramSetRole: String, Codable, CaseIterable, Hashable {
     case recovery
 }
 
-struct RepComponent: Codable, Hashable {
+nonisolated struct RepComponent: Codable, Hashable {
     var exerciseID: UUID
     var repetitions: Int
 }
 
-indirect enum RepPrescription: Codable, Hashable {
+nonisolated indirect enum RepPrescription: Codable, Hashable {
     case fixed(Int)
     case range(minimum: Int, maximum: Int)
     case amrap(minimum: Int?, maximum: Int?)
@@ -33,7 +33,7 @@ indirect enum RepPrescription: Codable, Hashable {
     case open
 }
 
-enum LoadReferenceKind: String, Codable, CaseIterable, Hashable {
+nonisolated enum LoadReferenceKind: String, Codable, CaseIterable, Hashable {
     case manual
     case fixedLoad
     case exerciseOneRepMax
@@ -48,7 +48,7 @@ enum LoadReferenceKind: String, Codable, CaseIterable, Hashable {
     case anotherPlannedExercise
 }
 
-struct LoadReference: Codable, Hashable {
+nonisolated struct LoadReference: Codable, Hashable {
     var kind: LoadReferenceKind
     var exerciseID: UUID?
     var exposureKey: String?
@@ -64,7 +64,7 @@ struct LoadReference: Codable, Hashable {
     }
 }
 
-enum LoadRoundingRule: Codable, Hashable {
+nonisolated enum LoadRoundingRule: Codable, Hashable {
     case none
     case nearestIncrement(Double)
     case floorToIncrement(Double)
@@ -72,7 +72,7 @@ enum LoadRoundingRule: Codable, Hashable {
     case nearestAvailable([Double])
 }
 
-struct LoadPrescription: Codable, Hashable {
+nonisolated struct LoadPrescription: Codable, Hashable {
     var reference: LoadReference
     var fixedValue: Double?
     var percentage: Double?
@@ -103,7 +103,7 @@ struct LoadPrescription: Codable, Hashable {
     }
 }
 
-struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
+nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
     var id: UUID
     var orderIndex: Int
     var role: ProgramSetRole
@@ -116,6 +116,10 @@ struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
     var isOptional: Bool
     var progressionEligible: Bool
     var notes: String?
+    /// Defers a back-off set until its top-set or daily-maximum load reference
+    /// exists in the active workout. Existing explicit back-off sets retain
+    /// their current eager snapshot behavior.
+    var generatesAfterSourceCompletion: Bool
 
     init(
         id: UUID = UUID(),
@@ -129,7 +133,8 @@ struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         tempo: String? = nil,
         isOptional: Bool = false,
         progressionEligible: Bool = true,
-        notes: String? = nil
+        notes: String? = nil,
+        generatesAfterSourceCompletion: Bool = false
     ) {
         self.id = id
         self.orderIndex = orderIndex
@@ -143,12 +148,42 @@ struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         self.isOptional = isOptional
         self.progressionEligible = progressionEligible
         self.notes = notes
+        self.generatesAfterSourceCompletion = generatesAfterSourceCompletion
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, orderIndex, role, repetitions, load, targetRPE, targetRIR
+        case restSeconds, tempo, isOptional, progressionEligible, notes
+        case generatesAfterSourceCompletion
+    }
+
+    /// Program definitions predate deferred back-off generation. Decode its
+    /// opt-in flag defensively so an existing export remains a valid eager
+    /// prescription rather than failing to import.
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        orderIndex = try values.decode(Int.self, forKey: .orderIndex)
+        role = try values.decode(ProgramSetRole.self, forKey: .role)
+        repetitions = try values.decode(RepPrescription.self, forKey: .repetitions)
+        load = try values.decode(LoadPrescription.self, forKey: .load)
+        targetRPE = try values.decodeIfPresent(Double.self, forKey: .targetRPE)
+        targetRIR = try values.decodeIfPresent(Int.self, forKey: .targetRIR)
+        restSeconds = try values.decodeIfPresent(Int.self, forKey: .restSeconds)
+        tempo = try values.decodeIfPresent(String.self, forKey: .tempo)
+        isOptional = try values.decode(Bool.self, forKey: .isOptional)
+        progressionEligible = try values.decode(Bool.self, forKey: .progressionEligible)
+        notes = try values.decodeIfPresent(String.self, forKey: .notes)
+        generatesAfterSourceCompletion = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .generatesAfterSourceCompletion
+        ) ?? false
     }
 }
 
 // MARK: - Formulas and progression rules
 
-enum FormulaSource: Codable, Hashable {
+nonisolated enum FormulaSource: Codable, Hashable {
     case constant(Double)
     case trainingMax(exposureKey: String)
     case estimatedOneRepMax(exposureKey: String)
@@ -161,7 +196,7 @@ enum FormulaSource: Codable, Hashable {
     case completedMetric(exposureKey: String, metric: ProgressionMetric)
 }
 
-indirect enum ProgressionFormula: Codable, Hashable {
+nonisolated indirect enum ProgressionFormula: Codable, Hashable {
     case source(FormulaSource)
     case add(ProgressionFormula, ProgressionFormula)
     case subtract(ProgressionFormula, ProgressionFormula)
@@ -173,7 +208,7 @@ indirect enum ProgressionFormula: Codable, Hashable {
     case round(ProgressionFormula, rule: LoadRoundingRule)
 }
 
-enum ProgressionMetric: String, Codable, CaseIterable, Hashable {
+nonisolated enum ProgressionMetric: String, Codable, CaseIterable, Hashable {
     case load
     case repetitions
     case setCount
@@ -195,7 +230,7 @@ enum ProgressionMetric: String, Codable, CaseIterable, Hashable {
     case successfulAttempts
 }
 
-enum ProgressionTrigger: Codable, Hashable {
+nonisolated enum ProgressionTrigger: Codable, Hashable {
     case allRequiredSetsCompleted
     case allRequiredRepetitionsCompleted
     case allSetsReachedUpperRepBound
@@ -220,7 +255,7 @@ enum ProgressionTrigger: Codable, Hashable {
     case manualApproval
 }
 
-enum ProgressionAction: Codable, Hashable {
+nonisolated enum ProgressionAction: Codable, Hashable {
     case addLoad(Double)
     case reduceLoad(Double)
     case addLoadPercentage(Double)
@@ -260,7 +295,7 @@ enum ProgressionAction: Codable, Hashable {
     case noChange
 }
 
-enum ProgressionCadence: String, Codable, CaseIterable, Hashable {
+nonisolated enum ProgressionCadence: String, Codable, CaseIterable, Hashable {
     case immediately
     case nextSet
     case nextExerciseOccurrence
@@ -271,7 +306,7 @@ enum ProgressionCadence: String, Codable, CaseIterable, Hashable {
     case nextCycle
 }
 
-enum ProgressionScope: String, Codable, CaseIterable, Hashable {
+nonisolated enum ProgressionScope: String, Codable, CaseIterable, Hashable {
     case set
     case plannedExercise
     case exerciseExposure
@@ -282,12 +317,12 @@ enum ProgressionScope: String, Codable, CaseIterable, Hashable {
     case programRun
 }
 
-enum ProgressionApplicationMode: String, Codable, CaseIterable, Hashable {
+nonisolated enum ProgressionApplicationMode: String, Codable, CaseIterable, Hashable {
     case automatic
     case recommendation
 }
 
-struct ProgressionRuleDefinition: Codable, Hashable, Identifiable {
+nonisolated struct ProgressionRuleDefinition: Codable, Hashable, Identifiable {
     var id: UUID
     var version: Int
     var metric: ProgressionMetric
@@ -332,7 +367,7 @@ struct ProgressionRuleDefinition: Codable, Hashable, Identifiable {
 
 // MARK: - Versioned program payload
 
-struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
+nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     var id: UUID
     var schemaVersion: Int
     var templateVersion: Int
@@ -401,7 +436,7 @@ struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     }
 }
 
-struct ProgramBlockDefinition: Codable, Hashable, Identifiable {
+nonisolated struct ProgramBlockDefinition: Codable, Hashable, Identifiable {
     var id: UUID
     var orderIndex: Int
     var name: String
@@ -429,7 +464,7 @@ struct ProgramBlockDefinition: Codable, Hashable, Identifiable {
     }
 }
 
-struct ProgramWeekDefinition: Codable, Hashable, Identifiable {
+nonisolated struct ProgramWeekDefinition: Codable, Hashable, Identifiable {
     var id: UUID
     var weekIndex: Int
     var name: String?
@@ -448,7 +483,7 @@ struct ProgramWeekDefinition: Codable, Hashable, Identifiable {
     }
 }
 
-struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
+nonisolated struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
     var id: UUID
     var orderIndex: Int
     var name: String
@@ -473,7 +508,7 @@ struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
     }
 }
 
-struct ProgramWaveDefinition: Codable, Hashable, Identifiable {
+nonisolated struct ProgramWaveDefinition: Codable, Hashable, Identifiable {
     var id: UUID
     var orderIndex: Int
     var name: String?
@@ -492,7 +527,39 @@ struct ProgramWaveDefinition: Codable, Hashable, Identifiable {
     }
 }
 
-struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
+nonisolated struct AutomaticDeloadDefinition: Codable, Hashable {
+    var volumeReductionPercent: Int
+    var intensityReductionPercent: Int
+
+    init(volumeReductionPercent: Int = 50, intensityReductionPercent: Int = 10) {
+        self.volumeReductionPercent = min(90, max(0, volumeReductionPercent))
+        self.intensityReductionPercent = min(90, max(0, intensityReductionPercent))
+    }
+}
+
+nonisolated struct WarmupStepDefinition: Codable, Hashable, Identifiable {
+    var id: UUID
+    var percentage: Double
+    var repetitions: Int
+    var restSeconds: Int?
+
+    init(id: UUID = UUID(), percentage: Double, repetitions: Int, restSeconds: Int? = nil) {
+        self.id = id
+        self.percentage = min(1, max(0, percentage))
+        self.repetitions = max(1, repetitions)
+        self.restSeconds = restSeconds.map { max(0, $0) }
+    }
+}
+
+nonisolated struct WarmupSchemeDefinition: Codable, Hashable {
+    var steps: [WarmupStepDefinition]
+
+    init(steps: [WarmupStepDefinition]) {
+        self.steps = steps
+    }
+}
+
+nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
     var id: UUID
     var exerciseID: UUID
     var exposureKey: String
@@ -506,6 +573,8 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
     var initialTrainingMax: Double?
     var initialEstimatedOneRepMax: Double?
     var initialActualOneRepMax: Double?
+    var automaticDeload: AutomaticDeloadDefinition?
+    var warmupScheme: WarmupSchemeDefinition?
 
     init(
         id: UUID = UUID(),
@@ -520,7 +589,9 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         initialLoad: Double? = nil,
         initialTrainingMax: Double? = nil,
         initialEstimatedOneRepMax: Double? = nil,
-        initialActualOneRepMax: Double? = nil
+        initialActualOneRepMax: Double? = nil,
+        automaticDeload: AutomaticDeloadDefinition? = nil,
+        warmupScheme: WarmupSchemeDefinition? = nil
     ) {
         self.id = id
         self.exerciseID = exerciseID
@@ -535,12 +606,14 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         self.initialTrainingMax = initialTrainingMax
         self.initialEstimatedOneRepMax = initialEstimatedOneRepMax
         self.initialActualOneRepMax = initialActualOneRepMax
+        self.automaticDeload = automaticDeload
+        self.warmupScheme = warmupScheme
     }
 }
 
 // MARK: - Validation
 
-struct ProgramValidationIssue: Codable, Hashable, Identifiable {
+nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
     enum Code: String, Codable, Hashable {
         case invalidSchemaVersion
         case emptyName
@@ -574,7 +647,7 @@ struct ProgramValidationIssue: Codable, Hashable, Identifiable {
     var message: String
 }
 
-enum ProgramDefinitionValidator {
+nonisolated enum ProgramDefinitionValidator {
     static func validate(_ definition: ProgramDefinitionPayload) -> [ProgramValidationIssue] {
         var issues: [ProgramValidationIssue] = []
         func add(_ path: String, _ code: ProgramValidationIssue.Code, _ message: String) {
@@ -596,6 +669,9 @@ enum ProgramDefinitionValidator {
         var identifiers = Set<UUID>()
         var formulaSources: [String: Set<String>] = [:]
         var loadReferenceSources: [String: Set<String>] = [:]
+        var exposureKeys = Set<String>()
+        var loadReferencePaths: [(dependency: String, path: String)] = []
+        var formulaReferencePaths: [(dependency: String, path: String)] = []
         func checkID(_ id: UUID, _ path: String) {
             if !identifiers.insert(id).inserted { add(path, .duplicateIdentifier, "Identifier is used more than once.") }
         }
@@ -636,7 +712,16 @@ enum ProgramDefinitionValidator {
                         } else if !workoutExposures.insert(exercise.exposureKey).inserted {
                             add("\(exercisePath).exposureKey", .duplicateExposureKey, "Exposure keys must be unique within a program definition.")
                         }
+                        exposureKeys.insert(exercise.exposureKey)
                         if exercise.plannedSets.isEmpty && exercise.waves.isEmpty { add(exercisePath, .emptySetPrescription, "An exercise must contain a set prescription or wave.") }
+                        if let warmup = exercise.warmupScheme {
+                            if warmup.steps.isEmpty {
+                                add("\(exercisePath).warmupScheme", .invalidSetOrder, "A warm-up scheme needs at least one step.")
+                            }
+                            for (stepIndex, step) in warmup.steps.enumerated() where step.percentage < 0 || step.percentage > 1 || step.repetitions < 1 {
+                                add("\(exercisePath).warmupScheme.steps[\(stepIndex)]", .invalidSetOrder, "Warm-up percentages must be 0…1 and repetitions must be positive.")
+                            }
+                        }
                         var setOrders = Set<Int>()
                         for (setIndex, set) in exercise.plannedSets.enumerated() {
                             let setPath = "\(exercisePath).sets[\(setIndex)]"
@@ -648,10 +733,24 @@ enum ProgramDefinitionValidator {
                             if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
                             if let rir = set.targetRIR, rir < 0 || rir > 10 { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
                             validateLoad(set.load, "\(setPath).load", add)
+                            if set.generatesAfterSourceCompletion,
+                               set.role != .backOff {
+                                add("\(setPath).generatesAfterSourceCompletion", .invalidPrescriptionValue, "Only back-off prescriptions can be deferred.")
+                            }
+                            if set.generatesAfterSourceCompletion,
+                               set.load.reference.kind != .topSet,
+                               set.load.reference.kind != .dailyMaximum {
+                                add("\(setPath).load.reference", .invalidLoadReference, "A deferred back-off must reference a top set or daily maximum.")
+                            }
                             if set.load.reference.kind == .anotherPlannedExercise,
                                let dependency = set.load.reference.exposureKey {
                                 loadReferenceSources[exercise.exposureKey, default: []].insert(dependency)
                             }
+                            collectLoadReference(
+                                set.load,
+                                path: "\(setPath).load.reference",
+                                into: &loadReferencePaths
+                            )
                         }
                         if !exercise.waves.isEmpty {
                             var waveOrders = Set<Int>()
@@ -677,10 +776,24 @@ enum ProgramDefinitionValidator {
                                     if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
                                     if let rir = set.targetRIR, rir < 0 || rir > 10 { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
                                     validateLoad(set.load, "\(setPath).load", add)
+                                    if set.generatesAfterSourceCompletion,
+                                       set.role != .backOff {
+                                        add("\(setPath).generatesAfterSourceCompletion", .invalidPrescriptionValue, "Only back-off prescriptions can be deferred.")
+                                    }
+                                    if set.generatesAfterSourceCompletion,
+                                       set.load.reference.kind != .topSet,
+                                       set.load.reference.kind != .dailyMaximum {
+                                        add("\(setPath).load.reference", .invalidLoadReference, "A deferred back-off must reference a top set or daily maximum.")
+                                    }
                                     if set.load.reference.kind == .anotherPlannedExercise,
                                        let dependency = set.load.reference.exposureKey {
                                         loadReferenceSources[exercise.exposureKey, default: []].insert(dependency)
                                     }
+                                    collectLoadReference(
+                                        set.load,
+                                        path: "\(setPath).load.reference",
+                                        into: &loadReferencePaths
+                                    )
                                 }
                             }
                         }
@@ -689,6 +802,23 @@ enum ProgramDefinitionValidator {
                                 var sources = Set<String>()
                                 collectSources(formula, into: &sources)
                                 formulaSources[exercise.exposureKey, default: []].formUnion(sources)
+                                formulaReferencePaths += sources.map {
+                                    (dependency: $0, path: "\(exercisePath).rules[\(ruleIndex)].formula")
+                                }
+                            }
+                            collectActionFormula(rule.successAction, for: exercise.exposureKey, into: &formulaSources)
+                            collectActionFormulaReferences(
+                                rule.successAction,
+                                path: "\(exercisePath).rules[\(ruleIndex)].successAction",
+                                into: &formulaReferencePaths
+                            )
+                            if let failureAction = rule.failureAction {
+                                collectActionFormula(failureAction, for: exercise.exposureKey, into: &formulaSources)
+                                collectActionFormulaReferences(
+                                    failureAction,
+                                    path: "\(exercisePath).rules[\(ruleIndex)].failureAction",
+                                    into: &formulaReferencePaths
+                                )
                             }
                             if rule.version < 1 { add("\(exercisePath).rules[\(ruleIndex)].version", .invalidSchemaVersion, "Rule version must be positive.") }
                         }
@@ -702,6 +832,12 @@ enum ProgramDefinitionValidator {
         }
         if hasCycle(in: loadReferenceSources) {
             add("loadReferences", .referenceCycle, "Cross-exercise load references contain a cycle.")
+        }
+        for reference in loadReferencePaths where !exposureKeys.contains(reference.dependency) {
+            add(reference.path, .invalidLoadReference, "The referenced exposure '\(reference.dependency)' does not exist in this program.")
+        }
+        for reference in formulaReferencePaths where !exposureKeys.contains(reference.dependency) {
+            add(reference.path, .invalidFormula, "The formula references exposure '\(reference.dependency)', which does not exist in this program.")
         }
         return issues
     }
@@ -741,11 +877,11 @@ enum ProgramDefinitionValidator {
         case .trainingMax, .estimatedOneRepMax, .previousWorkout, .previousSuccessfulSet,
                 .previousOccurrence, .topSet, .dailyMaximum, .anotherPlannedExercise:
             if load.reference.exposureKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
-                add("(path).reference", .invalidLoadReference, "This load reference requires an exposure key.")
+                add("\(path).reference", .invalidLoadReference, "This load reference requires an exposure key.")
             }
         case .exerciseOneRepMax, .referenceExercise:
             if load.reference.exerciseID == nil && load.reference.exposureKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
-                add("(path).reference", .invalidLoadReference, "This load reference requires an exercise or exposure key.")
+                add("\(path).reference", .invalidLoadReference, "This load reference requires an exercise or exposure key.")
             }
         case .manual, .fixedLoad:
             break
@@ -767,9 +903,9 @@ enum ProgramDefinitionValidator {
             switch source {
             case .trainingMax(let key), .estimatedOneRepMax(let key), .actualOneRepMax(let key),
                     .previousOccurrence(let key), .previousSuccessfulSet(let key), .completedTopSet(let key),
-                    .dailyMaximum(let key), .anotherExposure(let key):
+                    .dailyMaximum(let key), .anotherExposure(let key), .completedMetric(let key, _):
                 sources.insert(key)
-            case .constant, .completedMetric:
+            case .constant:
                 break
             }
         case .add(let lhs, let rhs), .subtract(let lhs, let rhs), .multiply(let lhs, let rhs),
@@ -781,6 +917,65 @@ enum ProgramDefinitionValidator {
         }
     }
 
+    private static func collectActionFormula(
+        _ action: ProgressionAction,
+        for exposureKey: String,
+        into graph: inout [String: Set<String>]
+    ) {
+        let formula: ProgressionFormula?
+        switch action {
+        case .updateTrainingMax(let value),
+                .updateEstimatedOneRepMax(let value),
+                .updateActualOneRepMax(let value):
+            formula = value
+        default:
+            formula = nil
+        }
+        guard let formula else { return }
+        var sources = Set<String>()
+        collectSources(formula, into: &sources)
+        graph[exposureKey, default: []].formUnion(sources)
+    }
+
+    private static func collectActionFormulaReferences(
+        _ action: ProgressionAction,
+        path: String,
+        into references: inout [(dependency: String, path: String)]
+    ) {
+        let formula: ProgressionFormula?
+        switch action {
+        case .updateTrainingMax(let value),
+                .updateEstimatedOneRepMax(let value),
+                .updateActualOneRepMax(let value):
+            formula = value
+        default:
+            formula = nil
+        }
+        guard let formula else { return }
+        var sources = Set<String>()
+        collectSources(formula, into: &sources)
+        references += sources.map { (dependency: $0, path: path) }
+    }
+
+    private static func collectLoadReference(
+        _ load: LoadPrescription,
+        path: String,
+        into references: inout [(dependency: String, path: String)]
+    ) {
+        guard let key = load.reference.exposureKey,
+              !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return
+        }
+        switch load.reference.kind {
+        case .trainingMax, .estimatedOneRepMax, .exerciseOneRepMax, .previousWorkout,
+                .previousSuccessfulSet, .previousOccurrence, .topSet, .dailyMaximum,
+                .anotherPlannedExercise:
+            references.append((dependency: key, path: path))
+        case .manual, .fixedLoad, .referenceExercise:
+            break
+        }
+    }
+
     private static func hasCycle(in graph: [String: Set<String>]) -> Bool {
         var visiting = Set<String>()
         var visited = Set<String>()
@@ -788,7 +983,10 @@ enum ProgramDefinitionValidator {
             if visiting.contains(node) { return true }
             if visited.contains(node) { return false }
             visiting.insert(node)
-            for dependency in graph[node] ?? [] where graph[dependency] != nil {
+            // Reading the current exposure's own Training Max/e1RM is a
+            // normal update formula, not a cross-exposure cycle. Only a
+            // dependency that leads to another exposure can form a cycle.
+            for dependency in graph[node] ?? [] where dependency != node && graph[dependency] != nil {
                 if visit(dependency) { return true }
             }
             visiting.remove(node)

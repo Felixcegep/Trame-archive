@@ -12,6 +12,7 @@ import SwiftData
 
 @Model
 final class ExerciseSet {
+    var id = UUID()
     var orderIndex: Int = 0
     var weightType: WeightType = WeightType.kg
     var distanceType: DistanceType = DistanceType.kilometers
@@ -30,6 +31,13 @@ final class ExerciseSet {
     var rir: Int?
     var liftQuality: LiftQuality?
     var setType: SetType = SetType.normal
+    /// For a daily-maximum exposure, the lifter can choose which completed
+    /// attempt supplies same-session derived back-off work.
+    var isSelectedDailyMaximum: Bool = false
+    /// Non-nil only for a dynamically generated back-off set. The definition
+    /// UUID lets refreshes update the same incomplete row instead of adding a
+    /// duplicate after repeated source events or relaunch.
+    var generatedBackOffDefinitionID: UUID?
     /// Immutable-at-start prescription evidence. Performed values above remain
     /// authoritative and are never overwritten from these fields.
     var prescribedSetType: SetType?
@@ -38,6 +46,10 @@ final class ExerciseSet {
     var prescribedRepRangeMaximum: Int?
     var prescribedSuggestedLoad: Double?
     var prescribedSuggestedLoadType: WeightType?
+    /// The calculation before equipment rounding, retained with the snapshot
+    /// so History can explain why the displayed prescribed load was chosen.
+    var prescribedUnroundedLoad: Double?
+    var prescriptionLoadExplanation: String?
     var prescribedRestSeconds: Int?
     var prescribedRPE: Double?
     var prescribedRIR: Int?
@@ -84,12 +96,16 @@ final class ExerciseSet {
         self.rir = rir
         self.liftQuality = liftQuality
         self.setType = setType
+        self.isSelectedDailyMaximum = false
+        self.generatedBackOffDefinitionID = nil
         self.prescribedSetType = nil
         self.prescribedRepetitions = nil
         self.prescribedRepRangeMinimum = nil
         self.prescribedRepRangeMaximum = nil
         self.prescribedSuggestedLoad = nil
         self.prescribedSuggestedLoadType = nil
+        self.prescribedUnroundedLoad = nil
+        self.prescriptionLoadExplanation = nil
         self.prescribedRestSeconds = nil
         self.prescribedRPE = nil
         self.prescribedRIR = nil
@@ -103,7 +119,7 @@ final class ExerciseSet {
     }
 
     func copy() -> ExerciseSet {
-        return ExerciseSet(
+        let copy = ExerciseSet(
             repetitions: repetitions,
             weight: weight,
             duration: duration,
@@ -119,6 +135,56 @@ final class ExerciseSet {
             orderIndex: 0,
             usedMetric: usedMetric
         )
+        copy.weightType = weightType
+        copy.distanceType = distanceType
+        // A copied active set is a new performed effort, but it remains part
+        // of the same active prescription. Retain immutable target evidence
+        // so an appended daily-maximum attempt or working set can still feed
+        // same-session formulas and later History explanations.
+        copy.prescribedSetType = prescribedSetType
+        copy.prescribedRepetitions = prescribedRepetitions
+        copy.prescribedRepRangeMinimum = prescribedRepRangeMinimum
+        copy.prescribedRepRangeMaximum = prescribedRepRangeMaximum
+        copy.prescribedSuggestedLoad = prescribedSuggestedLoad
+        copy.prescribedSuggestedLoadType = prescribedSuggestedLoadType
+        copy.prescribedUnroundedLoad = prescribedUnroundedLoad
+        copy.prescriptionLoadExplanation = prescriptionLoadExplanation
+        copy.prescribedRestSeconds = prescribedRestSeconds
+        copy.prescribedRPE = prescribedRPE
+        copy.prescribedRIR = prescribedRIR
+        copy.prescribedTempo = prescribedTempo
+        copy.prescribedProgressionEligible = prescribedProgressionEligible
+        copy.prescribedCalories = prescribedCalories
+        copy.isPrescribedOptional = isPrescribedOptional
+        copy.prescriptionNotes = prescriptionNotes
+        copy.prescriptionDefinitionData = prescriptionDefinitionData
+        // A new attempt must be selected deliberately; copying a prior daily
+        // maximum cannot create two reference attempts.
+        copy.isSelectedDailyMaximum = false
+        copy.generatedBackOffDefinitionID = nil
+        return copy
+    }
+
+    /// Removes prescription evidence when the user intentionally creates a
+    /// new ad-hoc set rather than extending a generated set role.
+    func clearPrescription() {
+        prescribedSetType = nil
+        prescribedRepetitions = nil
+        prescribedRepRangeMinimum = nil
+        prescribedRepRangeMaximum = nil
+        prescribedSuggestedLoad = nil
+        prescribedSuggestedLoadType = nil
+        prescribedUnroundedLoad = nil
+        prescriptionLoadExplanation = nil
+        prescribedRestSeconds = nil
+        prescribedRPE = nil
+        prescribedRIR = nil
+        prescribedTempo = nil
+        prescribedProgressionEligible = nil
+        prescribedCalories = nil
+        isPrescribedOptional = nil
+        prescriptionNotes = nil
+        prescriptionDefinitionData = nil
     }
 
     func displayText() -> String {

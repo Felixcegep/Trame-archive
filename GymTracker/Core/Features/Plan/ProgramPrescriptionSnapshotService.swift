@@ -11,14 +11,38 @@ enum ProgramPrescriptionSnapshotService {
         var context = LoadResolutionContext()
         for entry in workout.orderedExercises {
             guard let key = entry.progressionKey else { continue }
+            let completedDailyMaximums = entry.orderedSets.filter { set in
+                let definition = set.prescriptionDefinitionData.flatMap {
+                    try? decoder.decode(SetPrescriptionDefinition.self, from: $0)
+                }
+                return set.done && (
+                    definition?.role == .dailyMaximum
+                        || set.prescribedSetType == .dailyMaximum
+                        || set.setType == .dailyMaximum
+                )
+            }
+            if let selectedMaximum = completedDailyMaximums.last(where: \.isSelectedDailyMaximum)
+                ?? completedDailyMaximums.last {
+                context.dailyMaximumByExposure[key] = Double(
+                    UnitConversion.weight(
+                        selectedMaximum.weight,
+                        from: selectedMaximum.weightType,
+                        to: .kg
+                    )
+                )
+            }
             for set in entry.orderedSets {
-                guard let data = set.prescriptionDefinitionData,
-                      let definition = try? decoder.decode(SetPrescriptionDefinition.self, from: data) else { continue }
-                if definition.role == .topSet || definition.role == .dailyMaximum, set.done {
-                    context.completedTopSetByExposure[key] = Double(set.weight)
-                    context.dailyMaximumByExposure[key] = Double(set.weight)
+                let definition = set.prescriptionDefinitionData.flatMap { try? decoder.decode(SetPrescriptionDefinition.self, from: $0) }
+                let isTopSet = definition?.role == .topSet || set.prescribedSetType == .topSet || set.setType == .topSet
+                if isTopSet, set.done {
+                    context.completedTopSetByExposure[key] = Double(
+                        UnitConversion.weight(set.weight, from: set.weightType, to: .kg)
+                    )
                 }
             }
+        }
+        for entry in workout.orderedExercises {
+            refreshGeneratedBackOffs(in: entry, context: context, decoder: decoder)
         }
         guard !context.completedTopSetByExposure.isEmpty || !context.dailyMaximumByExposure.isEmpty else { return }
         for entry in workout.orderedExercises {
@@ -29,8 +53,25 @@ enum ProgramPrescriptionSnapshotService {
                 guard let resolution = try? ProgramLoadResolver.resolve(definition.load, context: context),
                       let load = resolution.prescribedLoad else { continue }
                 let targetType: WeightType = entry.usedMetric == .metric ? .kg : .lbs
-                set.prescribedSuggestedLoad = Double(UnitConversion.weight(Float(load), from: .kg, to: targetType))
+                let converted = Double(UnitConversion.weight(Float(load), from: .kg, to: targetType))
+                let unrounded = resolution.unroundedLoad.map {
+                    Double(UnitConversion.weight(Float($0), from: .kg, to: targetType))
+                } ?? converted
+                let equipmentRounding = definition.load.rounding == .none
+                    ? EquipmentLoadRounding.round(
+                        unrounded,
+                        equipment: entry.exercise.equipmentType,
+                        resistance: entry.exercise.resistanceType,
+                        isPlateLoaded: entry.exercise.isPlateLoaded,
+                        unit: targetType
+                    )
+                    : nil
+                set.prescribedSuggestedLoad = equipmentRounding?.prescribedLoad ?? converted
                 set.prescribedSuggestedLoadType = targetType
+                set.prescribedUnroundedLoad = unrounded
+                set.prescriptionLoadExplanation = equipmentRounding.map {
+                    "\(resolution.explanation) Equipment rounding: nearest \($0.increment.formatted(.number.precision(.fractionLength(0...2)))) \(targetType.rawValue)."
+                } ?? resolution.explanation
                 if entry.prescribedSuggestedLoad == nil {
                     entry.prescribedSuggestedLoad = set.prescribedSuggestedLoad
                     entry.prescribedSuggestedLoadType = targetType
@@ -43,20 +84,36 @@ enum ProgramPrescriptionSnapshotService {
         to entry: ExerciseEntry,
         plannedExercise: PlannedExercise,
         run: PlanRun,
-        unitSystem: UnitSystem
+        unitSystem: UnitSystem,
+        preservingCompletedSets: Bool = false
     ) {
         let decoder = JSONDecoder()
-        let state = run.progressionStates.first { $0.progressionKey == plannedExercise.progressionKey }
+        _ = PlanProgressionTransitionService.applyDuePendingTransitions(in: run)
+        _ = PlanProgressionCadenceService.applyDueStates(in: run, decoder: decoder)
+        let persistedState = PlanProgressionStateService.effectiveState(
+            for: plannedExercise,
+            in: run
+        )
+        let state = persistedState.map(PlanProgressionCadenceService.state)
         let inheritedOverrides = latestFutureOverrides(
             for: plannedExercise.progressionKey,
             in: run
         )
         var context = LoadResolutionContext()
-        for progressionState in run.progressionStates {
-            if let value = progressionState.trainingMax { context.trainingMaxByExposure[progressionState.progressionKey] = value }
-            if let value = progressionState.estimatedOneRepMax { context.estimatedOneRepMaxByExposure[progressionState.progressionKey] = value }
-            if let value = progressionState.actualOneRepMax { context.actualOneRepMaxByExposure[progressionState.progressionKey] = value }
-            if let value = progressionState.currentLoad {
+        let allPlannedExercises = run.plan?.orderedWeeks
+            .flatMap(\.orderedPlannedWorkouts)
+            .flatMap(\.orderedPlannedExercises) ?? []
+        let effectiveStates = allPlannedExercises.reduce(into: [String: PlanExerciseProgressionState]()) { result, planned in
+            if let state = PlanProgressionStateService.effectiveState(for: planned, in: run) {
+                result[planned.progressionKey] = state
+            }
+        }
+        for progressionState in effectiveStates.values {
+            let resolvedState = PlanProgressionCadenceService.state(from: progressionState)
+            if let value = resolvedState.trainingMax { context.trainingMaxByExposure[progressionState.progressionKey] = value }
+            if let value = resolvedState.estimatedOneRepMax { context.estimatedOneRepMaxByExposure[progressionState.progressionKey] = value }
+            if let value = resolvedState.actualOneRepMax { context.actualOneRepMaxByExposure[progressionState.progressionKey] = value }
+            if let value = resolvedState.currentLoad {
                 context.previousOccurrenceByExposure[progressionState.progressionKey] = value
                 context.previousWorkoutByExposure[progressionState.progressionKey] = value
                 context.anotherPlannedExerciseByExposure[progressionState.progressionKey] = value
@@ -65,11 +122,9 @@ enum ProgramPrescriptionSnapshotService {
                 context.previousSuccessfulSetByExposure[progressionState.progressionKey] = value
             }
         }
-        let allPlannedExercises = run.plan?.orderedWeeks
-            .flatMap(\.orderedPlannedWorkouts)
-            .flatMap(\.orderedPlannedExercises) ?? []
         for planned in allPlannedExercises {
-            guard let state = run.progressionStates.first(where: { $0.progressionKey == planned.progressionKey }) else { continue }
+            guard let persisted = effectiveStates[planned.progressionKey] else { continue }
+            let state = PlanProgressionCadenceService.state(from: persisted)
             if let value = state.actualOneRepMax ?? state.trainingMax ?? state.estimatedOneRepMax ?? state.currentLoad {
                 context.exerciseOneRepMaxByID[planned.exercise.id] = value
                 context.referenceValuesByExerciseID[planned.exercise.id] = value
@@ -97,11 +152,42 @@ enum ProgramPrescriptionSnapshotService {
                 return (definition, data)
             }
         }
-        for (index, prescription) in prescriptions.enumerated() {
-            guard index < entry.orderedSets.count else { continue }
+        let deferredBackOffs = prescriptions.filter {
+            $0.definition.role == .backOff && $0.definition.generatesAfterSourceCompletion
+        }
+        if !deferredBackOffs.isEmpty {
+            entry.deferredBackOffDefinitionsData = try? JSONEncoder().encode(deferredBackOffs.map(\.definition))
+        } else {
+            entry.deferredBackOffDefinitionsData = nil
+        }
+        let deferredBackOffIDs = Set(deferredBackOffs.map(\.definition.id))
+        let immediatePrescriptions = prescriptions.filter {
+            !deferredBackOffIDs.contains($0.definition.id)
+        }
+        // Legacy plans have no encoded set definitions. Their ExerciseEntry
+        // initializer has already snapshotted targetSets into concrete sets,
+        // so an empty structured prescription must not erase those sets.
+        if !preservingCompletedSets, !prescriptions.isEmpty {
+            entry.sets = Array(entry.orderedSets.prefix(immediatePrescriptions.count))
+            entry.prescribedSets = immediatePrescriptions.count
+            entry.normalizeSetOrder()
+        }
+
+        // A normal workout start resolves prescriptions before generated
+        // warm-ups are inserted. An active-event refresh happens afterwards,
+        // so it must address only working sets or the first prescription would
+        // be shifted onto a warm-up row.
+        let targetSets = preservingCompletedSets
+            ? entry.orderedSets.filter { $0.prescribedSetType != .warmup && $0.setType != .warmup }
+            : entry.orderedSets
+        for (index, prescription) in immediatePrescriptions.enumerated() {
+            guard index < targetSets.count else { continue }
             let definition = prescription.definition
             let data = prescription.data
-            let set = entry.orderedSets[index]
+            let set = targetSets[index]
+            if preservingCompletedSets && set.done {
+                continue
+            }
             set.prescriptionDefinitionData = data
             switch definition.role {
             case .warmup: set.prescribedSetType = .warmup
@@ -127,11 +213,11 @@ enum ProgramPrescriptionSnapshotService {
                 set.prescribedRepRangeMinimum = minimum.map { max(0, $0 + offset) }
                 set.prescribedRepRangeMaximum = maximum.map { max(set.prescribedRepRangeMinimum ?? 0, $0 + offset) }
             case .duration(let seconds):
-                set.duration = seconds.map { $0 + (state?.durationOffset ?? 0) }
+                set.duration = seconds.map { max(1, $0 + (state?.durationOffset ?? 0)) }
             case .distance(let meters):
-                set.distance = meters.map { Float($0 + (state?.distanceOffset ?? 0)) }
+                set.distance = meters.map { Float(max(0.01, $0 + (state?.distanceOffset ?? 0))) }
             case .calories(let calories):
-                set.calories = calories.map { $0 + (state?.caloriesOffset ?? 0) }
+                set.calories = calories.map { max(0, $0 + (state?.caloriesOffset ?? 0)) }
                 set.prescribedCalories = set.calories
             case .sequence(let components):
                 let repetitions = components.reduce(0) { $0 + $1.repetitions }
@@ -157,11 +243,27 @@ enum ProgramPrescriptionSnapshotService {
             }
             if let load = try? ProgramLoadResolver.resolve(definition.load, context: context),
                let value = load.prescribedLoad {
-                let sourceType = state?.currentLoadType ?? .kg
+                let sourceType = persistedState?.currentLoadType ?? .kg
                 let targetType: WeightType = unitSystem == .metric ? .kg : .lbs
-                let converted = UnitConversion.weight(Float(value), from: sourceType, to: targetType)
-                set.prescribedSuggestedLoad = Double(converted)
+                let converted = Double(UnitConversion.weight(Float(value), from: sourceType, to: targetType))
+                let unrounded = load.unroundedLoad.map {
+                    Double(UnitConversion.weight(Float($0), from: sourceType, to: targetType))
+                } ?? converted
+                let equipmentRounding = definition.load.rounding == .none
+                    ? EquipmentLoadRounding.round(
+                        unrounded,
+                        equipment: entry.exercise.equipmentType,
+                        resistance: entry.exercise.resistanceType,
+                        isPlateLoaded: entry.exercise.isPlateLoaded,
+                        unit: targetType
+                    )
+                    : nil
+                set.prescribedSuggestedLoad = equipmentRounding?.prescribedLoad ?? converted
                 set.prescribedSuggestedLoadType = targetType
+                set.prescribedUnroundedLoad = unrounded
+                set.prescriptionLoadExplanation = equipmentRounding.map {
+                    "\(load.explanation) Equipment rounding: nearest \($0.increment.formatted(.number.precision(.fractionLength(0...2)))) \(targetType.rawValue)."
+                } ?? load.explanation
             }
             applyFutureOverride(
                 from: inheritedOverrides[set.orderIndex],
@@ -169,40 +271,56 @@ enum ProgramPrescriptionSnapshotService {
                 trackingType: entry.trackingTypeSnapshot
             )
         }
-        if let countOffset = state?.setCountOffset, countOffset > 0,
-           let source = entry.orderedSets.last {
-            entry.prescribedSets = (entry.prescribedSets ?? entry.orderedSets.count) + countOffset
-            for _ in 0..<countOffset {
-                let extra = ExerciseSet(
-                    repetitions: 0,
-                    weight: source.weight,
-                    calories: source.calories,
-                    setType: source.setType,
-                    orderIndex: entry.orderedSets.count,
-                    usedMetric: source.usedMetric
-                )
-                extra.prescribedSetType = source.prescribedSetType
-                extra.prescribedRepetitions = source.prescribedRepetitions
-                extra.prescribedRepRangeMinimum = source.prescribedRepRangeMinimum
-                extra.prescribedRepRangeMaximum = source.prescribedRepRangeMaximum
-                extra.prescribedSuggestedLoad = source.prescribedSuggestedLoad
-                extra.prescribedSuggestedLoadType = source.prescribedSuggestedLoadType
-                extra.prescribedRestSeconds = source.prescribedRestSeconds
-                extra.prescribedRPE = source.prescribedRPE
-                extra.prescribedRIR = source.prescribedRIR
-                extra.prescribedTempo = source.prescribedTempo
-                extra.prescribedProgressionEligible = source.prescribedProgressionEligible
-                extra.prescribedCalories = source.prescribedCalories
-                extra.isUserOverridden = source.isUserOverridden
-                extra.userOverrideReason = source.userOverrideReason
-                extra.userOverrideAffectsFuture = source.userOverrideAffectsFuture
-                extra.isPrescribedOptional = source.isPrescribedOptional
-                extra.prescriptionNotes = source.prescriptionNotes
-                extra.prescriptionDefinitionData = source.prescriptionDefinitionData
-                entry.sets.append(extra)
+        if !preservingCompletedSets, let countOffset = state?.setCountOffset, countOffset != 0 {
+            let originalCount = entry.orderedSets.count
+            let adjustedCount = max(1, originalCount + countOffset)
+            if adjustedCount < originalCount {
+                entry.sets = Array(entry.orderedSets.prefix(adjustedCount))
+            } else if let source = entry.orderedSets.last {
+                for _ in originalCount..<adjustedCount {
+                    let extra = ExerciseSet(
+                        repetitions: 0,
+                        weight: source.weight,
+                        calories: source.calories,
+                        setType: source.setType,
+                        orderIndex: entry.orderedSets.count,
+                        usedMetric: source.usedMetric
+                    )
+                    extra.prescribedSetType = source.prescribedSetType
+                    extra.prescribedRepetitions = source.prescribedRepetitions
+                    extra.prescribedRepRangeMinimum = source.prescribedRepRangeMinimum
+                    extra.prescribedRepRangeMaximum = source.prescribedRepRangeMaximum
+                    extra.prescribedSuggestedLoad = source.prescribedSuggestedLoad
+                    extra.prescribedSuggestedLoadType = source.prescribedSuggestedLoadType
+                    extra.prescribedUnroundedLoad = source.prescribedUnroundedLoad
+                    extra.prescriptionLoadExplanation = source.prescriptionLoadExplanation
+                    extra.prescribedRestSeconds = source.prescribedRestSeconds
+                    extra.prescribedRPE = source.prescribedRPE
+                    extra.prescribedRIR = source.prescribedRIR
+                    extra.prescribedTempo = source.prescribedTempo
+                    extra.prescribedProgressionEligible = source.prescribedProgressionEligible
+                    extra.prescribedCalories = source.prescribedCalories
+                    extra.isUserOverridden = source.isUserOverridden
+                    extra.userOverrideReason = source.userOverrideReason
+                    extra.userOverrideAffectsFuture = source.userOverrideAffectsFuture
+                    extra.isPrescribedOptional = source.isPrescribedOptional
+                    extra.prescriptionNotes = source.prescriptionNotes
+                    extra.prescriptionDefinitionData = source.prescriptionDefinitionData
+                    entry.sets.append(extra)
+                }
             }
+            entry.prescribedSets = adjustedCount
             entry.normalizeSetOrder()
         }
+        if state?.isDeloading == true {
+            applyAutomaticDeload(to: entry, plannedExercise: plannedExercise)
+            // `startDeload` means the next generated occurrence. Clearing the
+            // mutable run flag after its prescription snapshot is frozen keeps
+            // later occurrences on their normal policy unless another rule
+            // explicitly starts a new deload.
+            persistedState?.isDeloading = false
+        }
+        insertWarmups(into: entry, plannedExercise: plannedExercise, decoder: decoder)
     }
 
     private static func latestFutureOverrides(
@@ -223,6 +341,218 @@ enum ProgramPrescriptionSnapshotService {
                 .filter { $0.userOverrideAffectsFuture }
                 .map { ($0.orderIndex, $0) }
         )
+    }
+
+    private static func refreshGeneratedBackOffs(
+        in entry: ExerciseEntry,
+        context: LoadResolutionContext,
+        decoder: JSONDecoder
+    ) {
+        guard let data = entry.deferredBackOffDefinitionsData,
+              let definitions = try? decoder.decode([SetPrescriptionDefinition].self, from: data) else {
+            return
+        }
+
+        var changed = false
+        for definition in definitions where definition.role == .backOff {
+            let matching = entry.orderedSets.filter { $0.generatedBackOffDefinitionID == definition.id }
+            let completed = matching.filter(\.done)
+            let incomplete = matching.filter { !$0.done }
+
+            // A deferred definition represents one future prescription, not
+            // an open-ended source of duplicate sets. A completed generated
+            // row is immutable evidence, so it wins over any stray unfinished
+            // rows that might have been left by an interrupted refresh or an
+            // older restore. Never delete completed rows here.
+            if !completed.isEmpty {
+                if !incomplete.isEmpty {
+                    entry.sets.removeAll { candidate in
+                        candidate.generatedBackOffDefinitionID == definition.id && !candidate.done
+                    }
+                    changed = true
+                }
+                continue
+            }
+
+            guard let resolution = try? ProgramLoadResolver.resolve(definition.load, context: context),
+                  let prescribedLoad = resolution.prescribedLoad else {
+                if !incomplete.isEmpty {
+                    entry.sets.removeAll { candidate in
+                        candidate.generatedBackOffDefinitionID == definition.id && !candidate.done
+                    }
+                    changed = true
+                }
+                continue
+            }
+
+            if incomplete.isEmpty {
+                let created = ExerciseSet(
+                    repetitions: 0,
+                    weight: 0,
+                    setType: .backoff,
+                    orderIndex: (entry.orderedSets.last?.orderIndex ?? -1) + 1,
+                    usedMetric: entry.usedMetric
+                )
+                created.generatedBackOffDefinitionID = definition.id
+                configureGeneratedBackOff(
+                    created,
+                    definition: definition,
+                    resolution: resolution,
+                    prescribedLoad: prescribedLoad,
+                    entry: entry
+                )
+                entry.sets.append(created)
+                changed = true
+            } else {
+                let canonical = incomplete.first!
+                if incomplete.count > 1 {
+                    entry.sets.removeAll { candidate in
+                        candidate.generatedBackOffDefinitionID == definition.id
+                            && !candidate.done
+                            && candidate.id != canonical.id
+                    }
+                    changed = true
+                }
+                configureGeneratedBackOff(
+                    canonical,
+                    definition: definition,
+                    resolution: resolution,
+                    prescribedLoad: prescribedLoad,
+                    entry: entry
+                )
+                changed = true
+            }
+        }
+        if changed {
+            entry.normalizeSetOrder()
+            entry.prescribedSets = entry.orderedSets.filter {
+                $0.prescribedSetType != .warmup && $0.setType != .warmup
+            }.count
+        }
+    }
+
+    private static func configureGeneratedBackOff(
+        _ set: ExerciseSet,
+        definition: SetPrescriptionDefinition,
+        resolution: LoadResolutionResult,
+        prescribedLoad: Double,
+        entry: ExerciseEntry
+    ) {
+        set.setType = .backoff
+        set.prescribedSetType = .backoff
+        set.prescriptionDefinitionData = try? JSONEncoder().encode(definition)
+        switch definition.repetitions {
+        case .fixed(let repetitions):
+            set.prescribedRepetitions = repetitions
+        case .range(let minimum, let maximum):
+            set.prescribedRepRangeMinimum = minimum
+            set.prescribedRepRangeMaximum = maximum
+        case .amrap(let minimum, let maximum):
+            set.prescribedRepRangeMinimum = minimum
+            set.prescribedRepRangeMaximum = maximum
+        case .sequence(let components):
+            set.prescribedRepetitions = components.reduce(0) { $0 + $1.repetitions }
+            set.prescriptionNotes = "Complex: \(components.map { String($0.repetitions) }.joined(separator: "+"))"
+        case .duration(let seconds):
+            set.duration = seconds
+        case .distance(let meters):
+            set.distance = meters.map { Float($0) }
+        case .calories(let calories):
+            set.calories = calories
+            set.prescribedCalories = calories
+        case .open:
+            break
+        }
+        set.prescribedRestSeconds = definition.restSeconds
+        set.prescribedRPE = definition.targetRPE
+        set.prescribedRIR = definition.targetRIR
+        set.prescribedTempo = definition.tempo
+        set.prescribedProgressionEligible = definition.progressionEligible
+        set.isPrescribedOptional = definition.isOptional
+        if set.prescriptionNotes == nil { set.prescriptionNotes = definition.notes }
+
+        let targetType: WeightType = entry.usedMetric == .metric ? .kg : .lbs
+        let converted = Double(UnitConversion.weight(Float(prescribedLoad), from: .kg, to: targetType))
+        let unrounded = resolution.unroundedLoad.map {
+            Double(UnitConversion.weight(Float($0), from: .kg, to: targetType))
+        } ?? converted
+        let equipmentRounding = definition.load.rounding == .none
+            ? EquipmentLoadRounding.round(
+                unrounded,
+                equipment: entry.exercise.equipmentType,
+                resistance: entry.exercise.resistanceType,
+                isPlateLoaded: entry.exercise.isPlateLoaded,
+                unit: targetType
+            )
+            : nil
+        set.prescribedSuggestedLoad = equipmentRounding?.prescribedLoad ?? converted
+        set.prescribedSuggestedLoadType = targetType
+        set.prescribedUnroundedLoad = unrounded
+        set.prescriptionLoadExplanation = equipmentRounding.map {
+            "\(resolution.explanation) Equipment rounding: nearest \($0.increment.formatted(.number.precision(.fractionLength(0...2)))) \(targetType.rawValue)."
+        } ?? resolution.explanation
+    }
+
+    private static func applyAutomaticDeload(to entry: ExerciseEntry, plannedExercise: PlannedExercise) {
+        let volumeMultiplier = 1 - Double(plannedExercise.automaticDeloadVolumeReductionPercent ?? 50) / 100
+        let intensityMultiplier = 1 - Double(plannedExercise.automaticDeloadIntensityReductionPercent ?? 10) / 100
+        let originalSets = entry.orderedSets
+        guard !originalSets.isEmpty else { return }
+        let adjustedCount = max(1, Int((Double(originalSets.count) * volumeMultiplier).rounded(.up)))
+        entry.sets = Array(originalSets.prefix(adjustedCount))
+        entry.prescribedSets = adjustedCount
+        for set in entry.sets {
+            if let prescribed = set.prescribedSuggestedLoad {
+                set.prescribedSuggestedLoad = prescribed * intensityMultiplier
+            }
+            if let unrounded = set.prescribedUnroundedLoad {
+                set.prescribedUnroundedLoad = unrounded * intensityMultiplier
+            }
+            if let explanation = set.prescriptionLoadExplanation {
+                set.prescriptionLoadExplanation = "\(explanation) Automatic deload applied."
+            }
+            if entry.trackingTypeSnapshot.usesWeight {
+                set.weight *= Float(intensityMultiplier)
+            }
+        }
+        if let prescribed = entry.prescribedSuggestedLoad {
+            entry.prescribedSuggestedLoad = prescribed * intensityMultiplier
+        }
+        entry.normalizeSetOrder()
+    }
+
+    private static func insertWarmups(
+        into entry: ExerciseEntry,
+        plannedExercise: PlannedExercise,
+        decoder: JSONDecoder
+    ) {
+        guard let data = plannedExercise.warmupSchemeData,
+              let scheme = try? decoder.decode(WarmupSchemeDefinition.self, from: data),
+              !scheme.steps.isEmpty,
+              !entry.orderedSets.contains(where: { $0.prescriptionNotes == "Generated warm-up" }),
+              let workingLoad = entry.orderedSets.first?.prescribedSuggestedLoad ?? entry.prescribedSuggestedLoad
+        else { return }
+        let warmups = scheme.steps.enumerated().map { index, step in
+            let set = ExerciseSet(
+                repetitions: Float(step.repetitions),
+                weight: Float(workingLoad * step.percentage),
+                setType: .warmup,
+                orderIndex: index,
+                usedMetric: entry.usedMetric
+            )
+            set.prescribedSetType = .warmup
+            set.prescribedRepetitions = step.repetitions
+            set.prescribedSuggestedLoad = workingLoad * step.percentage
+            set.prescribedSuggestedLoadType = entry.prescribedSuggestedLoadType
+            set.prescribedUnroundedLoad = workingLoad * step.percentage
+            set.prescriptionLoadExplanation = "Generated warm-up at \(Int((step.percentage * 100).rounded()))% of the first working load."
+            set.prescribedRestSeconds = step.restSeconds
+            set.prescriptionNotes = "Generated warm-up"
+            return set
+        }
+        entry.sets = warmups + entry.orderedSets
+        entry.normalizeSetOrder()
+        entry.prescribedSets = entry.orderedSets.count
     }
 
     private static func applyFutureOverride(

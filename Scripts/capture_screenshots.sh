@@ -44,6 +44,7 @@ Scenes:
   performance            Planned-versus-performed save and history feedback
   template-progression   Template progression controls
   plan-review            Per-day assignments and plan change review
+  program-builder        Custom universal program definition builder
   plan-calendar          Active program agenda and a scheduled-day detail
   hidden                 Hidden and archived exercise management
   exercise-insights      Per-exercise history and progression insights
@@ -72,6 +73,7 @@ tests_for_scene() {
     performance) echo "testCapturePerformanceComparisonReviewScreenshot testCapturePerformanceComparisonHistoryScreenshot" ;;
     template-progression) echo "testCaptureTemplateProgressionScreenshot" ;;
     plan-review) echo "testCapturePlanReviewScreenshot testCaptureActivePlanRunScreenshot" ;;
+    program-builder) echo "testCaptureProgramDefinitionBuilderScreenshot" ;;
     plan-calendar) echo "testCapturePlanCalendarScreenshots" ;;
     hidden) echo "testCaptureHiddenExercisesScreenshot" ;;
     exercise-insights) echo "testCaptureExerciseDetailInsightsScreenshot" ;;
@@ -90,7 +92,8 @@ files_for_scene() {
     recommendation) echo "progression/10_Previous_Performance.png progression/10b_Progression_Hold.png progression/10c_Progression_Starting_Weight.png progression/10d_Progression_Manual_Edit.png progression/10e_Progression_Applied_Weight.png progression/10f_Progression_With_Rest_Running.png progression/10g_Progression_With_Rest_Paused.png" ;;
     performance) echo "review/14_Save_Performance_Comparison.png history/15_History_Performance_Comparison.png" ;;
     template-progression) echo "templates/12_Template_Progression.png" ;;
-    plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13c_Program_Equipment.png plans/13d_Plan_Deload_Schedule.png plans/13g_Plan_Exercise_Alternatives.png plans/13h_Plan_Per_Set_Prescription.png plans/13_Plan_Review.png plans/13b_Plan_Active_Run.png overview/01d_Home_Active_Plan.png" ;;
+    plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13c_Program_Equipment.png plans/13d_Plan_Deload_Schedule.png plans/13g_Plan_Exercise_Alternatives.png plans/13h_Plan_Per_Set_Prescription.png plans/13_Plan_Review.png plans/13i_Program_Prescription_Preview.png plans/13b_Plan_Active_Run.png overview/01d_Home_Active_Plan.png" ;;
+    program-builder) echo "plans/13j_Program_Definition_Builder.png" ;;
     plan-calendar) echo "plans/13e_Plan_Calendar.png plans/13f_Plan_Calendar_Day.png" ;;
     hidden) echo "exercises/16_Hidden_Exercises.png" ;;
     exercise-insights) echo "exercises/17a_Exercise_Detail_Variations.png exercises/17b_Exercise_Relationships.png exercises/17_Exercise_Insights.png" ;;
@@ -99,7 +102,7 @@ files_for_scene() {
   esac
 }
 
-ALL_SCENES="overview pages active rest history recommendation performance template-progression plan-review plan-calendar hidden exercise-insights muscle-balance"
+ALL_SCENES="overview pages active rest history recommendation performance template-progression plan-review program-builder plan-calendar hidden exercise-insights muscle-balance"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 

@@ -51,6 +51,25 @@ struct SetRowView: View {
                     .accessibilityLabel(notes)
             }
 
+            if isDailyMaximum, exerciseSet.done {
+                Button {
+                    viewModel.selectDailyMaximum(exerciseSet, in: exerciseEntry)
+                } label: {
+                    Label(
+                        exerciseSet.isSelectedDailyMaximum ? "Daily maximum selected" : "Use as daily maximum",
+                        systemImage: exerciseSet.isSelectedDailyMaximum ? AppIcon.checkmarkCircle : AppIcon.circle
+                    )
+                    .font(AppFont.caption)
+                    .foregroundStyle(exerciseSet.isSelectedDailyMaximum ? Color.gymSecondary : Color.gymPrimary)
+                    .frame(minHeight: 44)
+                }
+                .buttonStyle(.borderless)
+                .padding(.leading, 45)
+                .accessibilityLabel(exerciseSet.isSelectedDailyMaximum ? "Selected daily maximum" : "Use this attempt as the daily maximum")
+                .accessibilityHint("Derived back-off sets use the selected attempt.")
+                .accessibilityIdentifier("select-daily-maximum-\(exerciseEntry.exercise.name)-\(index)")
+            }
+
             if let tempo = exerciseSet.prescribedTempo,
                !tempo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text("Tempo \(tempo)")
@@ -439,6 +458,10 @@ struct SetRowView: View {
 
     private var chipBackground: Color {
         exerciseSet.setType.accentColor?.opacity(0.14) ?? .clear
+    }
+
+    private var isDailyMaximum: Bool {
+        exerciseSet.prescribedSetType == .dailyMaximum || exerciseSet.setType == .dailyMaximum
     }
 
     private var rowMenu: some View {

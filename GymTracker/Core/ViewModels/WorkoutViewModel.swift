@@ -133,6 +133,7 @@ class WorkoutViewModel {
         using modelContext: ModelContext
     ) -> Bool {
         guard !restoreActiveWorkout(using: modelContext) else { return false }
+        _ = PlanProgressionTransitionService.applyDuePendingTransitions(in: planRun)
         guard planRun.status == .active else { return false }
         guard progress.status == .available || progress.status == .upcoming else { return false }
 
@@ -228,8 +229,9 @@ class WorkoutViewModel {
             return
         }
 
+        var progressionResults: [PlanExerciseProgressionResult] = []
         do {
-            _ = try PlanProgressionEvaluationService.evaluateAndApply(workout: workout, run: run, modelContext: modelContext)
+            progressionResults = try PlanProgressionEvaluationService.evaluateAndApply(workout: workout, run: run, modelContext: modelContext)
         } catch {
             // A malformed optional rule must not prevent the performed workout
             // from being saved. The immutable snapshot remains authoritative;
@@ -237,6 +239,19 @@ class WorkoutViewModel {
             print("Failed to evaluate program progression: \(error)")
         }
         PlanCoordinator.markCompleted(progress, with: workout, in: run)
+        _ = PlanProgressionTransitionService.applyAutomaticTransitions(
+            progressionResults,
+            sourceProgress: progress,
+            in: run
+        )
+        _ = PlanProgressionTransitionService.applyDuePendingTransitions(
+            sourceProgress: progress,
+            in: run
+        )
+        // Availability now points at the next occurrence (or completes the
+        // run), which is the authoritative cadence boundary for deferred
+        // automatic progression.
+        _ = PlanProgressionCadenceService.applyDueStates(in: run)
     }
 
     private func restorePlannedWorkoutAvailabilityIfNeeded(_ workout: Workout, using modelContext: ModelContext) {

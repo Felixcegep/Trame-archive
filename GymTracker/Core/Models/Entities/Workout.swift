@@ -106,7 +106,14 @@ class Workout {
 
         self.exercises = []
         var snapshotGroupIDs: [UUID: UUID] = [:]
-        for (index, plannedExercise) in plannedWorkout.orderedPlannedExercises.enumerated() {
+        #if !GYMTRACKER_EXTENSION
+        let futureExercises = plannedWorkout.orderedPlannedExercises.filter {
+            !PlanProgressionTransitionService.isExerciseEnded($0.progressionKey, in: planRun)
+        }
+        #else
+        let futureExercises = plannedWorkout.orderedPlannedExercises
+        #endif
+        for (index, plannedExercise) in futureExercises.enumerated() {
             let groupID: UUID?
             if let sourceID = plannedExercise.supersetGroupID {
                 if let existingID = snapshotGroupIDs[sourceID] {

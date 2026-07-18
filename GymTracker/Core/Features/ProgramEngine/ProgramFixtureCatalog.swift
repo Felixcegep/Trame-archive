@@ -5,6 +5,27 @@ import Foundation
 /// Small, non-branded recipes used by tests and previews. They intentionally
 /// exercise different rule combinations instead of embedding program logic.
 enum ProgramFixtureCatalog {
+    /// Every supported fixture used by simulation and preview acceptance
+    /// tests. A new recipe belongs here before it can be considered catalog
+    /// coverage complete.
+    static func all(exerciseIDs: [String: UUID]) -> [ProgramDefinitionPayload] {
+        [
+            beginnerFiveByFive(exerciseIDs: exerciseIDs),
+            doubleProgression(exerciseIDs: exerciseIDs),
+            stageProgression(exerciseIDs: exerciseIDs),
+            trainingMaxCycle(exerciseIDs: exerciseIDs),
+            topSetBackOff(exerciseIDs: exerciseIDs),
+            bodyweightVariation(exerciseIDs: exerciseIDs),
+            olympicWeightlifting(exerciseIDs: exerciseIDs),
+            weeklyHeavyLightMedium(exerciseIDs: exerciseIDs),
+            amrapWave(exerciseIDs: exerciseIDs),
+            blockPeriodized(exerciseIDs: exerciseIDs),
+            conditioningProgression(exerciseIDs: exerciseIDs),
+            waveLoading(exerciseIDs: exerciseIDs),
+            mixedAcceptance(exerciseIDs: exerciseIDs)
+        ]
+    }
+
     static func beginnerFiveByFive(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
         let rules = [
             ProgressionRuleDefinition(
@@ -66,6 +87,19 @@ enum ProgramFixtureCatalog {
 
     static func trainingMaxCycle(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
         let percentages = [0.65, 0.75, 0.85]
+        let cycleRule = ProgressionRuleDefinition(
+            metric: .trainingMax,
+            trigger: .cycleCompleted,
+            successAction: .updateTrainingMax(
+                .add(
+                    .source(.trainingMax(exposureKey: "tm-squat")),
+                    .source(.constant(5))
+                )
+            ),
+            cadence: .nextCycle,
+            scope: .cycle,
+            applicationMode: .automatic
+        )
         let weeks = percentages.enumerated().map { index, percentage in
             ProgramWeekDefinition(
                 weekIndex: index,
@@ -73,7 +107,7 @@ enum ProgramFixtureCatalog {
                     exercise(id: exerciseIDs["squat"]!, key: "tm-squat", sets: [
                         SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "tm-squat"), percentage: percentage)),
                         SetPrescriptionDefinition(orderIndex: 1, role: .amrap, repetitions: .amrap(minimum: 5, maximum: nil), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "tm-squat"), percentage: percentage))
-                    ], initialTrainingMax: 200)
+                    ], rules: [cycleRule], initialTrainingMax: 200)
                 ])]
             )
         }
@@ -83,7 +117,7 @@ enum ProgramFixtureCatalog {
     static func topSetBackOff(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
         let exercise = self.exercise(id: exerciseIDs["bench"]!, key: "bench-top", sets: [
             SetPrescriptionDefinition(orderIndex: 0, role: .topSet, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "bench-top")), targetRPE: 8),
-            SetPrescriptionDefinition(orderIndex: 1, role: .backOff, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .topSet, exposureKey: "bench-top"), percentage: 0.9, rounding: .nearestIncrement(2.5)))
+            SetPrescriptionDefinition(orderIndex: 1, role: .backOff, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .topSet, exposureKey: "bench-top"), percentage: 0.9, rounding: .nearestIncrement(2.5)), generatesAfterSourceCompletion: true)
         ])
         return definition(name: "Top Set Back-Off", workouts: [workout("Strength", exercises: [exercise])])
     }
@@ -95,7 +129,41 @@ enum ProgramFixtureCatalog {
     }
 
     static func olympicWeightlifting(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
-        let snatch = exercise(id: exerciseIDs["snatch"]!, key: "snatch", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .technique, repetitions: .fixed(1), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "snatch"), percentage: 0.75))], initialTrainingMax: 100, initialActualOneRepMax: 100)
+        let missedAttemptRules = [
+            ProgressionRuleDefinition(
+                metric: .successfulAttempts,
+                trigger: .successfulAttemptRatioReached(0.9),
+                successAction: .addLoad(2.5),
+                cadence: .nextWorkout,
+                scope: .exerciseExposure,
+                applicationMode: .recommendation
+            ),
+            ProgressionRuleDefinition(
+                metric: .load,
+                trigger: .failureCountReached(1),
+                successAction: .repeatPrescription,
+                cadence: .nextWorkout,
+                scope: .exerciseExposure,
+                applicationMode: .automatic
+            ),
+            ProgressionRuleDefinition(
+                metric: .load,
+                trigger: .failureCountReached(2),
+                successAction: .reduceLoadPercentage(0.05),
+                cadence: .nextWorkout,
+                scope: .exerciseExposure,
+                applicationMode: .automatic
+            ),
+            ProgressionRuleDefinition(
+                metric: .load,
+                trigger: .failureCountReached(3),
+                successAction: .endExercise,
+                cadence: .nextWorkout,
+                scope: .exerciseExposure,
+                applicationMode: .automatic
+            )
+        ]
+        let snatch = exercise(id: exerciseIDs["snatch"]!, key: "snatch", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .technique, repetitions: .fixed(1), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "snatch"), percentage: 0.75))], rules: missedAttemptRules, initialTrainingMax: 100, initialActualOneRepMax: 100)
         let pull = exercise(id: exerciseIDs["pull"]!, key: "snatch-pull", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(3), load: LoadPrescription(reference: .init(kind: .exerciseOneRepMax, exerciseID: exerciseIDs["snatch"]!), percentage: 1.05))], initialTrainingMax: 100)
         let complex = exercise(id: exerciseIDs["complex"]!, key: "snatch-complex", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .technique, repetitions: .sequence([RepComponent(exerciseID: exerciseIDs["pull"]!, repetitions: 1), RepComponent(exerciseID: exerciseIDs["snatch"]!, repetitions: 1)]))])
         let max = exercise(id: exerciseIDs["clean"]!, key: "clean-daily-max", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .dailyMaximum, repetitions: .fixed(1))])
@@ -104,7 +172,7 @@ enum ProgramFixtureCatalog {
 
     static func mixedAcceptance(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
         let squat = exercise(id: exerciseIDs["squat"]!, key: "mixed-squat", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "mixed-squat"), percentage: 0.8))])
-        let bench = exercise(id: exerciseIDs["bench"]!, key: "mixed-bench", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .topSet, repetitions: .fixed(5), targetRPE: 8), SetPrescriptionDefinition(orderIndex: 1, role: .backOff, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .topSet, exposureKey: "mixed-bench"), percentage: 0.9))])
+        let bench = exercise(id: exerciseIDs["bench"]!, key: "mixed-bench", sets: [SetPrescriptionDefinition(orderIndex: 0, role: .topSet, repetitions: .fixed(5), targetRPE: 8), SetPrescriptionDefinition(orderIndex: 1, role: .backOff, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .topSet, exposureKey: "mixed-bench"), percentage: 0.9), generatesAfterSourceCompletion: true)])
         let row = exercise(id: exerciseIDs["row"]!, key: "mixed-row", sets: fixedSets(3, reps: 8, range: true))
         let plank = exercise(id: exerciseIDs["plank"]!, key: "mixed-plank", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .duration(seconds: 30))])
         let complex = exercise(id: exerciseIDs["complex"]!, key: "mixed-complex", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .sequence([RepComponent(exerciseID: exerciseIDs["clean"]!, repetitions: 1), RepComponent(exerciseID: exerciseIDs["jerk"]!, repetitions: 1)]))])
@@ -139,19 +207,40 @@ enum ProgramFixtureCatalog {
             scope: .exerciseExposure,
             applicationMode: .automatic
         )
-        let weeks = (0..<3).map { week in
+        let waves = (0..<3).map { week in
             let baseReps = max(1, 5 - week)
-            let exercise = self.exercise(id: exerciseIDs["squat"]!, key: "amrap-wave", sets: [
-                SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(baseReps), load: LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "amrap-wave"), rounding: .nearestIncrement(2.5))),
-                SetPrescriptionDefinition(orderIndex: 1, role: .amrap, repetitions: .amrap(minimum: baseReps, maximum: nil), load: LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "amrap-wave"), rounding: .nearestIncrement(2.5))
-                )
-            ], rules: [waveRule], initialLoad: 100)
-            return ProgramWeekDefinition(weekIndex: week, name: "Wave (week + 1)", workouts: [workout("AMRAP Wave (week + 1)", exercises: [exercise])])
+            let load = LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "amrap-wave"), rounding: .nearestIncrement(2.5))
+            return ProgramWaveDefinition(orderIndex: week, name: "Wave \(week + 1)", plannedSets: [
+                SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(baseReps), load: load),
+                SetPrescriptionDefinition(orderIndex: 1, role: .amrap, repetitions: .amrap(minimum: baseReps, maximum: nil), load: load)
+            ])
+        }
+        let weeks = (0..<3).map { week in
+            var exercise = self.exercise(id: exerciseIDs["squat"]!, key: "amrap-wave", sets: [], rules: [waveRule], initialLoad: 100)
+            exercise.waves = waves.map { wave in
+                var copy = wave
+                copy.id = UUID()
+                copy.plannedSets = wave.plannedSets.map { set in
+                    var setCopy = set
+                    setCopy.id = UUID()
+                    return setCopy
+                }
+                return copy
+            }
+            return ProgramWeekDefinition(weekIndex: week, name: "Wave \(week + 1)", workouts: [workout("AMRAP Wave \(week + 1)", exercises: [exercise])])
         }
         return definition(name: "AMRAP Wave", weeks: weeks)
     }
 
     static func blockPeriodized(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
+        let blockRule = ProgressionRuleDefinition(
+            metric: .load,
+            trigger: .blockCompleted,
+            successAction: .advanceBlock,
+            cadence: .nextBlock,
+            scope: .block,
+            applicationMode: .automatic
+        )
         let phases: [(String, PlanPhaseType, Int, Int)] = [
             ("Hypertrophy", .hypertrophy, 4, 10),
             ("Strength", .strength, 4, 5),
@@ -159,7 +248,7 @@ enum ProgramFixtureCatalog {
             ("Deload", .deload, 1, 3)
         ]
         let blocks = phases.enumerated().map { index, phase in
-            let exercise = self.exercise(id: exerciseIDs["squat"]!, key: "block-(index)-squat", sets: fixedSets(index == 3 ? 2 : 4, reps: phase.3), initialTrainingMax: 200)
+            let exercise = self.exercise(id: exerciseIDs["squat"]!, key: "block-\(index)-squat", sets: fixedSets(index == 3 ? 2 : 4, reps: phase.3), rules: [blockRule], initialTrainingMax: 200)
             let week = ProgramWeekDefinition(weekIndex: index, name: phase.0, workouts: [workout(phase.0, exercises: [exercise])])
             return ProgramBlockDefinition(orderIndex: index, name: phase.0, phaseType: phase.1, weeks: [week])
         }
@@ -199,7 +288,17 @@ enum ProgramFixtureCatalog {
     }
 
     private static func definition(name: String, workouts: [ProgramWorkoutDefinition]) -> ProgramDefinitionPayload {
-        definition(name: name, weeks: [ProgramWeekDefinition(weekIndex: 0, workouts: workouts)])
+        let normalizedWorkouts = workouts.enumerated().map { workoutIndex, workout in
+            var normalized = workout
+            normalized.orderIndex = workoutIndex
+            normalized.plannedExercises = workout.plannedExercises.enumerated().map { exerciseIndex, exercise in
+                var normalizedExercise = exercise
+                normalizedExercise.orderIndex = exerciseIndex
+                return normalizedExercise
+            }
+            return normalized
+        }
+        return definition(name: name, weeks: [ProgramWeekDefinition(weekIndex: 0, workouts: normalizedWorkouts)])
     }
 
     private static func definition(name: String, weeks: [ProgramWeekDefinition]) -> ProgramDefinitionPayload {

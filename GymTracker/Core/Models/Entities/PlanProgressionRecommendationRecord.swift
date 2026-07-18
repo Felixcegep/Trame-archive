@@ -12,6 +12,9 @@ final class PlanProgressionRecommendationRecord {
     var actionData: Data
     var cadence: ProgressionCadence
     var scope: ProgressionScope
+    /// The scoped state owner that produced this recommendation. Empty keeps
+    /// legacy recommendation records bound to their exposure state.
+    var scopeOwnerKey: String = ""
     var reason: String
     var applicationMode: ProgressionApplicationMode
     var performanceData: Data?
@@ -38,6 +41,8 @@ final class PlanProgressionRecommendationRecord {
         recommendation: ProgressionRecommendation,
         planRunID: UUID,
         workoutID: UUID,
+        scopeOwnerKey: String = "",
+        isResolvedOverride: Bool? = nil,
         encoder: JSONEncoder = JSONEncoder()
     ) throws {
         self.planRunID = planRunID
@@ -47,6 +52,7 @@ final class PlanProgressionRecommendationRecord {
         actionData = try encoder.encode(recommendation.action)
         cadence = recommendation.cadence
         scope = recommendation.scope
+        self.scopeOwnerKey = scopeOwnerKey
         reason = recommendation.reason
         applicationMode = recommendation.applicationMode
         performanceData = try encoder.encode(recommendation.performance)
@@ -66,12 +72,16 @@ final class PlanProgressionRecommendationRecord {
         proposedBlockIndex = recommendation.proposedState.currentBlockIndex
         proposedIsDeloading = recommendation.proposedState.isDeloading
         createdAt = .now
-        isResolved = recommendation.applicationMode == .automatic
+        isResolved = isResolvedOverride ?? (recommendation.applicationMode == .automatic)
         resolvedAt = isResolved ? .now : nil
     }
 
     func action(decoder: JSONDecoder = JSONDecoder()) throws -> ProgressionAction {
         try decoder.decode(ProgressionAction.self, from: actionData)
+    }
+
+    func performance(decoder: JSONDecoder = JSONDecoder()) -> ProgressionPerformance? {
+        performanceData.flatMap { try? decoder.decode(ProgressionPerformance.self, from: $0) }
     }
 }
 #endif

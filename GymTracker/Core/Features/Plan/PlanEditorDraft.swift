@@ -32,8 +32,14 @@ struct PlanEditorDraft {
         plan.scheduleIntervalDays = max(1, scheduleIntervalDays)
         plan.updatedAt = .now
 
+        let retainedBlockIDs = Set(blocks.map(\.id))
+        for block in plan.blocks where !retainedBlockIDs.contains(block.id) {
+            context.delete(block)
+        }
+
         for blockDraft in blocks {
             guard let block = plan.orderedBlocks.first(where: { $0.id == blockDraft.id }) else { continue }
+            block.orderIndex = blockDraft.orderIndex
             block.name = blockDraft.normalizedName
             block.phaseType = blockDraft.phaseType
             block.deloadVolumeReductionPercent = blockDraft.phaseType == .deload
@@ -88,7 +94,7 @@ extension PlanEditorDraft {
 @MainActor
 struct PlanBlockDraft: Identifiable {
     let id: UUID
-    let orderIndex: Int
+    var orderIndex: Int
     let weekIndices: [Int]
     var name: String
     var phaseType: PlanPhaseType

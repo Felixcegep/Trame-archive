@@ -126,10 +126,10 @@ struct PlanExerciseEditorView: View {
                         PlanSetEditorView(set: $set)
                     } label: {
                         VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text(set.wrappedValue.setType.title)
+                            Text(set.setType.title)
                                 .font(AppFont.bodyMedium)
                                 .foregroundStyle(Color.gymText)
-                            Text(set.wrappedValue.summary)
+                            Text(set.summary)
                                 .font(AppFont.caption)
                                 .foregroundStyle(Color.gymSubduedText)
                         }
@@ -177,13 +177,15 @@ private struct PlanSetEditorView: View {
                 Toggle("Optional set", isOn: $set.isOptional)
             }
 
-            Section("Repetitions") {
+            Section {
                 TextField("Exact reps (optional)", text: $set.repetitionsText)
                     .keyboardType(.numberPad)
                 TextField("Minimum reps (optional)", text: $set.repRangeMinimumText)
                     .keyboardType(.numberPad)
                 TextField("Maximum reps (optional)", text: $set.repRangeMaximumText)
                     .keyboardType(.numberPad)
+            } header: {
+                Text("Repetitions")
             } footer: {
                 Text("An exact rep target takes precedence over a range.")
             }

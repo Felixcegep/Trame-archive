@@ -84,6 +84,8 @@ struct ExerciseSetDTO: Codable {
     var rir: Int? = nil
     var liftQuality: String? = nil
     let setType: String
+    var isSelectedDailyMaximum: Bool? = nil
+    var generatedBackOffDefinitionID: String? = nil
     let usedMetric: String
     var prescribedSetType: String? = nil
     var prescribedRepetitions: Int? = nil
@@ -91,6 +93,8 @@ struct ExerciseSetDTO: Codable {
     var prescribedRepRangeMaximum: Int? = nil
     var prescribedSuggestedLoad: Double? = nil
     var prescribedSuggestedLoadType: String? = nil
+    var prescribedUnroundedLoad: Double? = nil
+    var prescriptionLoadExplanation: String? = nil
     var prescribedRestSeconds: Int? = nil
     var prescribedRPE: Double? = nil
     var prescribedRIR: Int? = nil
@@ -100,6 +104,7 @@ struct ExerciseSetDTO: Codable {
     var isPrescribedOptional: Bool? = nil
     var prescriptionNotes: String? = nil
     var prescriptionDefinitionData: Data? = nil
+    var id: String? = nil
 }
 
 struct ExerciseEntryDTO: Codable {
@@ -141,6 +146,7 @@ struct ExerciseEntryDTO: Codable {
     var substitutionSharesProgressionState: Bool? = nil
     var prescriptionDefinitionData: Data? = nil
     var prescriptionRulesData: Data? = nil
+    var deferredBackOffDefinitionsData: Data? = nil
 }
 
 struct WorkoutDTO: Codable {
@@ -190,6 +196,9 @@ struct PlannedExerciseDTO: Codable {
     var initialTrainingMax: Double? = nil
     var initialEstimatedOneRepMax: Double? = nil
     var initialActualOneRepMax: Double? = nil
+    var automaticDeloadVolumeReductionPercent: Int? = nil
+    var automaticDeloadIntensityReductionPercent: Int? = nil
+    var warmupSchemeData: Data? = nil
 }
 
 struct PlannedSetDTO: Codable {
@@ -213,6 +222,8 @@ struct PlannedSetDTO: Codable {
 struct ProgressionStateDTO: Codable {
     let id: String
     let progressionKey: String
+    var scope: String? = nil
+    var scopeOwnerKey: String? = nil
     let currentLoad: Double?
     let currentLoadType: String?
     var repetitionOffset: Int = 0
@@ -237,6 +248,9 @@ struct ProgressionStateDTO: Codable {
     let lastSuccessfulLoad: Double?
     let isDeloading: Bool
     let lastAppliedOutcomeID: String?
+    var lastAppliedSetID: String? = nil
+    var appliedProgressionEventsData: Data? = nil
+    var pendingProgressionData: Data? = nil
 }
 
 struct ProgressionRecommendationDTO: Codable {
@@ -248,6 +262,7 @@ struct ProgressionRecommendationDTO: Codable {
     let actionData: Data
     let cadence: String
     let scope: String
+    var scopeOwnerKey: String? = nil
     let reason: String
     let applicationMode: String
     var performanceData: Data? = nil
@@ -326,6 +341,7 @@ struct PlanWorkoutProgressDTO: Codable {
     let plannedWorkoutID: String
     let plannedWorkoutName: String
     let weekIndex: Int
+    var sourceWeekIndex: Int? = nil
     let workoutIndex: Int
     let scheduledDate: Date?
     let status: String
@@ -345,6 +361,7 @@ struct PlanRunDTO: Codable {
     let status: String
     let currentWeekIndex: Int
     let currentWorkoutIndex: Int
+    var endedProgressionKeysData: Data? = nil
     let createdAt: Date
     let updatedAt: Date
     let workoutProgress: [PlanWorkoutProgressDTO]
@@ -612,6 +629,8 @@ extension BackupDTO {
                             rir: set.rir,
                             liftQuality: set.liftQuality?.rawValue,
                             setType: set.setType.rawValue,
+                            isSelectedDailyMaximum: set.isSelectedDailyMaximum,
+                            generatedBackOffDefinitionID: set.generatedBackOffDefinitionID?.uuidString,
                             usedMetric: set.usedMetric.rawValue,
                             prescribedSetType: set.prescribedSetType?.rawValue,
                             prescribedRepetitions: set.prescribedRepetitions,
@@ -619,6 +638,8 @@ extension BackupDTO {
                             prescribedRepRangeMaximum: set.prescribedRepRangeMaximum,
                             prescribedSuggestedLoad: set.prescribedSuggestedLoad,
                             prescribedSuggestedLoadType: set.prescribedSuggestedLoadType?.rawValue,
+                            prescribedUnroundedLoad: set.prescribedUnroundedLoad,
+                            prescriptionLoadExplanation: set.prescriptionLoadExplanation,
                             prescribedRestSeconds: set.prescribedRestSeconds,
                             prescribedRPE: set.prescribedRPE,
                             prescribedRIR: set.prescribedRIR,
@@ -627,7 +648,8 @@ extension BackupDTO {
                             prescribedCalories: set.prescribedCalories,
                             isPrescribedOptional: set.isPrescribedOptional,
                             prescriptionNotes: set.prescriptionNotes,
-                            prescriptionDefinitionData: set.prescriptionDefinitionData
+                            prescriptionDefinitionData: set.prescriptionDefinitionData,
+                            id: set.id.uuidString
                         )
                     }
                     return ExerciseEntryDTO(
@@ -667,7 +689,8 @@ extension BackupDTO {
                         substitutionReason: exercise.substitutionReason,
                         substitutionSharesProgressionState: exercise.substitutionSharesProgressionState,
                         prescriptionDefinitionData: exercise.prescriptionDefinitionData,
-                        prescriptionRulesData: exercise.prescriptionRulesData
+                        prescriptionRulesData: exercise.prescriptionRulesData,
+                        deferredBackOffDefinitionsData: exercise.deferredBackOffDefinitionsData
                     )
                 }
             )
@@ -738,12 +761,6 @@ extension BackupDTO {
                                                     .sorted { $0.orderIndex < $1.orderIndex }
                                                     .map { $0.exercise.name },
                                                 supersetGroupID: plannedExercise.supersetGroupID?.uuidString,
-                                                progressionKey: plannedExercise.progressionKey,
-                                                progressionRulesData: plannedExercise.progressionRulesData,
-                                                progressionWavesData: plannedExercise.progressionWavesData,
-                                                initialTrainingMax: plannedExercise.initialTrainingMax,
-                                                initialEstimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
-                                                initialActualOneRepMax: plannedExercise.initialActualOneRepMax,
                                                 plannedSets: plannedExercise.orderedPlannedSets.map { plannedSet in
                                                     PlannedSetDTO(
                                                         orderIndex: plannedSet.orderIndex,
@@ -762,7 +779,16 @@ extension BackupDTO {
                                                         notes: plannedSet.notes,
                                                         definitionData: plannedSet.definitionData
                                                     )
-                                                }
+                                                },
+                                                progressionKey: plannedExercise.progressionKey,
+                                                progressionRulesData: plannedExercise.progressionRulesData,
+                                                progressionWavesData: plannedExercise.progressionWavesData,
+                                                initialTrainingMax: plannedExercise.initialTrainingMax,
+                                                initialEstimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
+                                                initialActualOneRepMax: plannedExercise.initialActualOneRepMax,
+                                                automaticDeloadVolumeReductionPercent: plannedExercise.automaticDeloadVolumeReductionPercent,
+                                                automaticDeloadIntensityReductionPercent: plannedExercise.automaticDeloadIntensityReductionPercent,
+                                                warmupSchemeData: plannedExercise.warmupSchemeData
                                             )
                                         }
                                     )
@@ -786,6 +812,7 @@ extension BackupDTO {
                 status: run.status.rawValue,
                 currentWeekIndex: run.currentWeekIndex,
                 currentWorkoutIndex: run.currentWorkoutIndex,
+                endedProgressionKeysData: run.endedProgressionKeysData,
                 createdAt: run.createdAt,
                 updatedAt: run.updatedAt,
                 workoutProgress: run.orderedWorkoutProgress.map { progress in
@@ -794,6 +821,7 @@ extension BackupDTO {
                         plannedWorkoutID: progress.plannedWorkoutID.uuidString,
                         plannedWorkoutName: progress.plannedWorkoutName,
                         weekIndex: progress.weekIndex,
+                        sourceWeekIndex: progress.sourceWeekIndex,
                         workoutIndex: progress.workoutIndex,
                         scheduledDate: progress.scheduledDate,
                         status: progress.status.rawValue,
@@ -807,6 +835,8 @@ extension BackupDTO {
                     ProgressionStateDTO(
                         id: state.id.uuidString,
                         progressionKey: state.progressionKey,
+                        scope: state.scopeRaw,
+                        scopeOwnerKey: state.scopeOwnerKey,
                         currentLoad: state.currentLoad,
                         currentLoadType: state.currentLoadType?.rawValue,
                         repetitionOffset: state.repetitionOffset,
@@ -815,11 +845,11 @@ extension BackupDTO {
                         distanceOffset: state.distanceOffset,
                         restDurationOffset: state.restDurationOffset,
                         caloriesOffset: state.caloriesOffset,
+                        actualOneRepMax: state.actualOneRepMax,
                         currentStageID: state.currentStageID,
                         currentVariationExerciseID: state.currentVariationExerciseID?.uuidString,
                         trainingMax: state.trainingMax,
                         estimatedOneRepMax: state.estimatedOneRepMax,
-                        actualOneRepMax: state.actualOneRepMax,
                         failureCount: state.failureCount,
                         successCount: state.successCount,
                         currentWaveIndex: state.currentWaveIndex,
@@ -830,7 +860,10 @@ extension BackupDTO {
                         lastCompletedOccurrence: state.lastCompletedOccurrence,
                         lastSuccessfulLoad: state.lastSuccessfulLoad,
                         isDeloading: state.isDeloading,
-                        lastAppliedOutcomeID: state.lastAppliedOutcomeID
+                        lastAppliedOutcomeID: state.lastAppliedOutcomeID?.uuidString,
+                        lastAppliedSetID: state.lastAppliedSetID?.uuidString,
+                        appliedProgressionEventsData: state.appliedProgressionEventsData,
+                        pendingProgressionData: state.pendingProgressionData
                     )
                 }
             )
@@ -864,6 +897,7 @@ extension BackupDTO {
                 actionData: record.actionData,
                 cadence: record.cadence.rawValue,
                 scope: record.scope.rawValue,
+                scopeOwnerKey: record.scopeOwnerKey,
                 reason: record.reason,
                 applicationMode: record.applicationMode.rawValue,
                 performanceData: record.performanceData,
@@ -957,7 +991,6 @@ extension BackupDTO {
                 existing.isPlateLoaded = exerciseDTO.isPlateLoaded
             } else {
                 let newExercise = Exercise(
-                    id: exerciseDTO.id.flatMap(UUID.init(uuidString:)) ?? UUID(),
                     name: exerciseDTO.name,
                     primaryMuscles: primaryMuscles,
                     secondaryMuscles: secondaryMuscles,
@@ -982,7 +1015,8 @@ extension BackupDTO {
                     laterality: laterality,
                     repCountingStyle: repCountingStyle,
                     weightEntryStyle: weightEntryStyle,
-                    loadUnitCount: loadUnitCount
+                    loadUnitCount: loadUnitCount,
+                    id: exerciseDTO.id.flatMap(UUID.init(uuidString:)) ?? UUID()
                 )
                 context.insert(newExercise)
                 exerciseMap[newExercise.name] = newExercise
@@ -1131,7 +1165,10 @@ extension BackupDTO {
                                     progressionWavesData: plannedExerciseDTO.progressionWavesData,
                                     initialTrainingMax: plannedExerciseDTO.initialTrainingMax,
                                     initialEstimatedOneRepMax: plannedExerciseDTO.initialEstimatedOneRepMax,
-                                    initialActualOneRepMax: plannedExerciseDTO.initialActualOneRepMax
+                                    initialActualOneRepMax: plannedExerciseDTO.initialActualOneRepMax,
+                                    automaticDeloadVolumeReductionPercent: plannedExerciseDTO.automaticDeloadVolumeReductionPercent,
+                                    automaticDeloadIntensityReductionPercent: plannedExerciseDTO.automaticDeloadIntensityReductionPercent,
+                                    warmupSchemeData: plannedExerciseDTO.warmupSchemeData
                                 )
                                 plannedExercise.id = try requiredUUID(plannedExerciseDTO.id, named: "planned exercise")
                                 return plannedExercise
@@ -1284,6 +1321,7 @@ extension BackupDTO {
                 entry.substitutionSharesProgressionState = entryDTO.substitutionSharesProgressionState ?? false
                 entry.prescriptionDefinitionData = entryDTO.prescriptionDefinitionData
                 entry.prescriptionRulesData = entryDTO.prescriptionRulesData
+                entry.deferredBackOffDefinitionsData = entryDTO.deferredBackOffDefinitionsData
 
                 var sets: [ExerciseSet] = []
                 for setDTO in entryDTO.sets {
@@ -1315,6 +1353,8 @@ extension BackupDTO {
                     setObj.prescribedRepRangeMaximum = setDTO.prescribedRepRangeMaximum
                     setObj.prescribedSuggestedLoad = setDTO.prescribedSuggestedLoad
                     setObj.prescribedSuggestedLoadType = setDTO.prescribedSuggestedLoadType.flatMap(WeightType.init(rawValue:))
+                    setObj.prescribedUnroundedLoad = setDTO.prescribedUnroundedLoad
+                    setObj.prescriptionLoadExplanation = setDTO.prescriptionLoadExplanation
                     setObj.prescribedRestSeconds = setDTO.prescribedRestSeconds
                     setObj.prescribedRPE = setDTO.prescribedRPE
                     setObj.prescribedRIR = setDTO.prescribedRIR
@@ -1326,6 +1366,11 @@ extension BackupDTO {
                     setObj.prescriptionDefinitionData = setDTO.prescriptionDefinitionData
                     setObj.rir = setDTO.rir
                     setObj.liftQuality = setDTO.liftQuality.flatMap(LiftQuality.init(rawValue:))
+                    setObj.isSelectedDailyMaximum = setDTO.isSelectedDailyMaximum ?? false
+                    setObj.generatedBackOffDefinitionID = setDTO.generatedBackOffDefinitionID.flatMap(UUID.init(uuidString:))
+                    if let id = setDTO.id.flatMap(UUID.init(uuidString:)) {
+                        setObj.id = id
+                    }
                     sets.append(setObj)
                 }
                 entry.sets = sets
@@ -1351,6 +1396,7 @@ extension BackupDTO {
                 run.status = PlanRunStatus(rawValue: runDTO.status) ?? .active
                 run.currentWeekIndex = runDTO.currentWeekIndex
                 run.currentWorkoutIndex = runDTO.currentWorkoutIndex
+                run.endedProgressionKeysData = runDTO.endedProgressionKeysData
                 run.createdAt = runDTO.createdAt
                 run.updatedAt = runDTO.updatedAt
 
@@ -1359,6 +1405,7 @@ extension BackupDTO {
                         plannedWorkoutID: try requiredUUID(progressDTO.plannedWorkoutID, named: "plan workout progress"),
                         plannedWorkoutName: progressDTO.plannedWorkoutName,
                         weekIndex: progressDTO.weekIndex,
+                        sourceWeekIndex: progressDTO.sourceWeekIndex,
                         workoutIndex: progressDTO.workoutIndex,
                         scheduledDate: progressDTO.scheduledDate
                     )
@@ -1375,6 +1422,8 @@ extension BackupDTO {
                 for stateDTO in runDTO.progressionStates {
                     let state = PlanExerciseProgressionState(
                         progressionKey: stateDTO.progressionKey,
+                        scopeRaw: stateDTO.scope ?? "exerciseExposure",
+                        scopeOwnerKey: stateDTO.scopeOwnerKey,
                         currentLoad: stateDTO.currentLoad,
                         currentLoadType: stateDTO.currentLoadType.flatMap(WeightType.init(rawValue:)),
                         repetitionOffset: stateDTO.repetitionOffset,
@@ -1398,7 +1447,10 @@ extension BackupDTO {
                         lastCompletedOccurrence: stateDTO.lastCompletedOccurrence,
                         lastSuccessfulLoad: stateDTO.lastSuccessfulLoad,
                         isDeloading: stateDTO.isDeloading,
-                        lastAppliedOutcomeID: stateDTO.lastAppliedOutcomeID.flatMap(UUID.init(uuidString:))
+                        lastAppliedOutcomeID: stateDTO.lastAppliedOutcomeID.flatMap(UUID.init(uuidString:)),
+                        lastAppliedSetID: stateDTO.lastAppliedSetID.flatMap(UUID.init(uuidString:)),
+                        appliedProgressionEventsData: stateDTO.appliedProgressionEventsData,
+                        pendingProgressionData: stateDTO.pendingProgressionData
                     )
                     state.id = try requiredUUID(stateDTO.id, named: "progression state")
                     run.progressionStates.append(state)
@@ -1425,19 +1477,19 @@ extension BackupDTO {
                     applicationMode: applicationMode,
                     proposedState: ProgressionEvaluationState(
                         currentLoad: recommendationDTO.proposedLoad,
-                        trainingMax: recommendationDTO.proposedTrainingMax,
-                        estimatedOneRepMax: recommendationDTO.proposedEstimatedOneRepMax,
-                        actualOneRepMax: recommendationDTO.proposedActualOneRepMax,
-                        currentStageID: recommendationDTO.proposedStageID,
-                        currentVariationExerciseID: recommendationDTO.proposedVariationExerciseID.flatMap(UUID.init(uuidString:)),
                         repetitionOffset: recommendationDTO.proposedRepetitionOffset,
                         setCountOffset: recommendationDTO.proposedSetCountOffset,
                         durationOffset: recommendationDTO.proposedDurationOffset,
                         distanceOffset: recommendationDTO.proposedDistanceOffset,
                         restDurationOffset: recommendationDTO.proposedRestDurationOffset,
                         caloriesOffset: recommendationDTO.proposedCaloriesOffset,
+                        currentStageID: recommendationDTO.proposedStageID,
+                        currentVariationExerciseID: recommendationDTO.proposedVariationExerciseID.flatMap(UUID.init(uuidString:)),
                         currentWaveIndex: recommendationDTO.proposedWaveIndex,
                         currentBlockIndex: recommendationDTO.proposedBlockIndex,
+                        trainingMax: recommendationDTO.proposedTrainingMax,
+                        estimatedOneRepMax: recommendationDTO.proposedEstimatedOneRepMax,
+                        actualOneRepMax: recommendationDTO.proposedActualOneRepMax,
                         isDeloading: recommendationDTO.proposedIsDeloading
                     ),
                     performance: (recommendationDTO.performanceData.flatMap {
@@ -1447,7 +1499,8 @@ extension BackupDTO {
                 let record = try PlanProgressionRecommendationRecord(
                     recommendation: recommendation,
                     planRunID: try requiredUUID(recommendationDTO.planRunID, named: "progression recommendation plan run"),
-                    workoutID: try requiredUUID(recommendationDTO.workoutID, named: "progression recommendation workout")
+                    workoutID: try requiredUUID(recommendationDTO.workoutID, named: "progression recommendation workout"),
+                    scopeOwnerKey: recommendationDTO.scopeOwnerKey ?? ""
                 )
                 record.id = recommendation.id
                 record.progressionKey = recommendationDTO.progressionKey

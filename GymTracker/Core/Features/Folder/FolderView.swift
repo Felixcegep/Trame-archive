@@ -51,6 +51,10 @@ struct FolderView: View {
                         activeSheet = .plan
                     }
                     .accessibilityIdentifier("new-plan")
+                    Button("Custom Program", systemImage: AppIcon.progression) {
+                        activeSheet = .programDefinition
+                    }
+                    .accessibilityIdentifier("new-program-definition")
                     Button("New Exercise", systemImage: "dumbbell.fill") {
                         activeSheet = .exercise
                     }
@@ -76,6 +80,10 @@ struct FolderView: View {
                 case .plan:
                     PlanFormView(templates: workoutTemplates) { plan in
                         LibraryService.createPlan(plan, using: modelContext)
+                    }
+                case .programDefinition:
+                    ProgramDefinitionBuilderView(exercises: exerciseTemplates) { payload in
+                        _ = try ProgramDefinitionRepository.saveAndCompile(payload, in: modelContext)
                     }
                 case .exercise:
                     ExerciseFormView { exercise in
@@ -276,6 +284,7 @@ enum FolderSheet: String, Identifiable {
     case workoutCollection
     case workoutTemplate
     case plan
+    case programDefinition
     case exercise
 
     var id: String { rawValue }

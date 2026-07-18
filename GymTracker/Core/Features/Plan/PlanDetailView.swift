@@ -36,6 +36,15 @@ struct PlanDetailView: View {
                 }
             }
 
+            Section("Prescription") {
+                NavigationLink {
+                    PlanPrescriptionPreviewView(plan: plan)
+                } label: {
+                    Label("Preview prescriptions", systemImage: AppIcon.chart)
+                }
+                .accessibilityIdentifier("view-program-prescription-preview")
+            }
+
             if let notes = plan.notes, !notes.isEmpty {
                 Section("Safety & progression") {
                     Text(notes)

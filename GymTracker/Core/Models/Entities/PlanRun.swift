@@ -11,6 +11,9 @@ final class PlanRun {
     var status: PlanRunStatus
     var currentWeekIndex: Int
     var currentWorkoutIndex: Int
+    /// Encoded progression keys that an automatic `endExercise` rule removed
+    /// from future generated workouts. Completed snapshots are unaffected.
+    var endedProgressionKeysData: Data?
     var createdAt: Date
     var updatedAt: Date
     @Relationship(deleteRule: .nullify)
@@ -41,6 +44,7 @@ final class PlanRun {
         self.status = .active
         self.currentWeekIndex = 0
         self.currentWorkoutIndex = 0
+        self.endedProgressionKeysData = nil
         self.createdAt = .now
         self.updatedAt = .now
         self.plan = plan
@@ -55,6 +59,10 @@ final class PlanRun {
     }
 
     var orderedProgressionStates: [PlanExerciseProgressionState] {
-        progressionStates.sorted { $0.progressionKey < $1.progressionKey }
+        progressionStates.sorted {
+            if $0.progressionKey != $1.progressionKey { return $0.progressionKey < $1.progressionKey }
+            if $0.scopeRaw != $1.scopeRaw { return $0.scopeRaw < $1.scopeRaw }
+            return $0.scopeOwnerKey < $1.scopeOwnerKey
+        }
     }
 }

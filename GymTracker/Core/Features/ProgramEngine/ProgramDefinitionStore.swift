@@ -3,11 +3,12 @@ import SwiftData
 
 #if !GYMTRACKER_EXTENSION
 
-enum ProgramDefinitionStoreError: LocalizedError, Equatable {
+nonisolated enum ProgramDefinitionStoreError: LocalizedError, Equatable {
     case invalid([ProgramValidationIssue])
     case missingExercise(UUID)
     case encodingFailed
     case decodingFailed
+    case persistenceFailed
 
     var errorDescription: String? {
         switch self {
@@ -19,6 +20,8 @@ enum ProgramDefinitionStoreError: LocalizedError, Equatable {
             return "The program definition could not be encoded."
         case .decodingFailed:
             return "The stored program definition could not be decoded."
+        case .persistenceFailed:
+            return "The program definition could not be saved."
         }
     }
 }
@@ -83,12 +86,13 @@ enum ProgramDefinitionCompiler {
     ) throws -> WorkoutPlan {
         let issues = ProgramDefinitionValidator.validate(definition)
         guard issues.isEmpty else { throw ProgramDefinitionStoreError.invalid(issues) }
+        try validateCatalogReferences(in: definition, exercisesByID: exercisesByID)
 
         var blocks: [PlanBlock] = []
         for blockDefinition in definition.blocks.sorted(by: { $0.orderIndex < $1.orderIndex }) {
-            let weeks = blockDefinition.weeks.sorted(by: { $0.weekIndex < $1.weekIndex }).map { weekDefinition in
-                let workouts = weekDefinition.workouts.sorted(by: { $0.orderIndex < $1.orderIndex }).map { workoutDefinition in
-                    let exercises = workoutDefinition.plannedExercises
+            let weeks = try blockDefinition.weeks.sorted(by: { $0.weekIndex < $1.weekIndex }).map { weekDefinition in
+                let workouts = try weekDefinition.workouts.sorted(by: { $0.orderIndex < $1.orderIndex }).map { workoutDefinition in
+                    let exercises = try workoutDefinition.plannedExercises
                         .sorted(by: { $0.orderIndex < $1.orderIndex })
                         .map { exerciseDefinition in
                             guard let exercise = exercisesByID[exerciseDefinition.exerciseID] else {
@@ -143,6 +147,47 @@ enum ProgramDefinitionCompiler {
         )
     }
 
+    /// A definition is valid on its own without the local exercise catalog,
+    /// but activation must prove every nested exercise identifier resolves.
+    /// This includes complex components and reference lifts, not just the
+    /// visible exercise row and its substitution options.
+    private static func validateCatalogReferences(
+        in definition: ProgramDefinitionPayload,
+        exercisesByID: [UUID: Exercise]
+    ) throws {
+        for block in definition.blocks {
+            for week in block.weeks {
+                for workout in week.workouts {
+                    for exercise in workout.plannedExercises {
+                        try requireExercise(exercise.exerciseID, in: exercisesByID)
+                        for alternativeID in exercise.alternativeExerciseIDs {
+                            try requireExercise(alternativeID, in: exercisesByID)
+                        }
+                        for prescription in exercise.plannedSets + exercise.waves.flatMap(\.plannedSets) {
+                            if let referenceID = prescription.load.reference.exerciseID {
+                                try requireExercise(referenceID, in: exercisesByID)
+                            }
+                            if case .sequence(let components) = prescription.repetitions {
+                                for component in components {
+                                    try requireExercise(component.exerciseID, in: exercisesByID)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static func requireExercise(
+        _ id: UUID,
+        in exercisesByID: [UUID: Exercise]
+    ) throws {
+        guard exercisesByID[id] != nil else {
+            throw ProgramDefinitionStoreError.missingExercise(id)
+        }
+    }
+
     private static func compileExercise(
         _ definition: ProgramExerciseDefinition,
         exercise: Exercise,
@@ -171,7 +216,8 @@ enum ProgramDefinitionCompiler {
             )
         }
         let first = orderedSets.first
-        let firstLegacy = first.map { legacyValues(for: $0.repetitions) } ?? (nil, 1, 1)
+        let firstLegacy = first.map { legacyValues(for: $0.repetitions) }
+            ?? (exact: nil, minimum: 1, maximum: 1)
         let rulesData = try JSONEncoder().encode(definition.progressionRules)
         return PlannedExercise(
             exercise: exercise,
@@ -193,7 +239,10 @@ enum ProgramDefinitionCompiler {
             progressionWavesData: definition.waves.isEmpty ? nil : try? JSONEncoder().encode(definition.waves),
             initialTrainingMax: definition.initialTrainingMax,
             initialEstimatedOneRepMax: definition.initialEstimatedOneRepMax,
-            initialActualOneRepMax: definition.initialActualOneRepMax
+            initialActualOneRepMax: definition.initialActualOneRepMax,
+            automaticDeloadVolumeReductionPercent: definition.automaticDeload?.volumeReductionPercent,
+            automaticDeloadIntensityReductionPercent: definition.automaticDeload?.intensityReductionPercent,
+            warmupSchemeData: definition.warmupScheme.flatMap { try? JSONEncoder().encode($0) }
         )
     }
 
@@ -223,6 +272,28 @@ enum ProgramDefinitionCompiler {
         case .test: return .test
         case .working: return .normal
         }
+    }
+}
+
+@MainActor
+extension ProgramDefinitionRepository {
+    /// Saves a validated definition, compiles it into the normal plan graph,
+    /// and commits both records together for the custom-program authoring flow.
+    static func saveAndCompile(
+        _ payload: ProgramDefinitionPayload,
+        in context: ModelContext
+    ) throws -> WorkoutPlan {
+        _ = try save(payload, isBuiltIn: false, in: context)
+        let exercises = try context.fetch(FetchDescriptor<Exercise>())
+        let plan = try ProgramDefinitionCompiler.compile(
+            payload,
+            exercisesByID: Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
+        )
+        context.insert(plan)
+        guard saveModelContext(context) else {
+            throw ProgramDefinitionStoreError.persistenceFailed
+        }
+        return plan
     }
 }
 #endif

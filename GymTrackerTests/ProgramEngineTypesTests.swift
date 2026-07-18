@@ -3,6 +3,90 @@ import XCTest
 @testable import GymTracker
 
 final class ProgramEngineTypesTests: XCTestCase {
+    func testValidatorRejectsEmptyWarmupScheme() {
+        let definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(), exposureKey: "squat", orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))],
+                warmupScheme: WarmupSchemeDefinition(steps: [])
+            )
+        ])
+        XCTAssertFalse(ProgramDefinitionValidator.validate(definition).isEmpty)
+    }
+
+    func testAutomaticDeloadPolicyRoundTripsInProgramDefinition() throws {
+        let policy = AutomaticDeloadDefinition(volumeReductionPercent: 40, intensityReductionPercent: 15)
+        let definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "squat",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))],
+                automaticDeload: policy
+            )
+        ])
+        let decoded = try JSONDecoder().decode(
+            ProgramDefinitionPayload.self,
+            from: JSONEncoder().encode(definition)
+        )
+        XCTAssertEqual(
+            decoded.blocks.first?.weeks.first?.workouts.first?.plannedExercises.first?.automaticDeload,
+            policy
+        )
+    }
+
+    func testPlanRunBackupRoundTripsEndedExposureKeysAndLegacyData() throws {
+        let ended = try JSONEncoder().encode(Set(["accessory"]))
+        let dto = PlanRunDTO(
+            id: UUID().uuidString,
+            sourcePlanID: UUID().uuidString,
+            sourcePlanName: "Run",
+            planID: nil,
+            startDate: .now,
+            endDate: nil,
+            status: PlanRunStatus.active.rawValue,
+            currentWeekIndex: 0,
+            currentWorkoutIndex: 0,
+            endedProgressionKeysData: ended,
+            createdAt: .now,
+            updatedAt: .now,
+            workoutProgress: []
+        )
+        XCTAssertEqual(try JSONDecoder().decode(PlanRunDTO.self, from: JSONEncoder().encode(dto)).endedProgressionKeysData, ended)
+
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(dto)) as? [String: Any])
+        legacy.removeValue(forKey: "endedProgressionKeysData")
+        XCTAssertNil(try JSONDecoder().decode(PlanRunDTO.self, from: JSONSerialization.data(withJSONObject: legacy)).endedProgressionKeysData)
+    }
+
+    func testEveryActionCanBeStoredAsAFailurePolicy() throws {
+        let formula = ProgressionFormula.source(.constant(100))
+        let actions: [ProgressionAction] = [
+            .addLoad(2.5), .reduceLoad(2.5), .addLoadPercentage(0.025), .reduceLoadPercentage(0.025),
+            .addAssistance(5), .reduceAssistance(5), .addRepetitions(1), .reduceRepetitions(1),
+            .addSets(1), .reduceSets(1), .addDuration(30), .reduceDuration(30), .addDistance(50),
+            .reduceDistance(50), .addRestDuration(15), .reduceRestDuration(15), .addCalories(10),
+            .reduceCalories(10), .updateTrainingMax(formula), .updateEstimatedOneRepMax(formula),
+            .updateActualOneRepMax(formula), .repeatPrescription, .changeStage("second"),
+            .advanceExerciseVariation, .regressExerciseVariation, .advanceWeek, .repeatWeek,
+            .advanceWave, .advanceBlock, .restartBlock, .startDeload, .resetFailureCount,
+            .resetProgressionOffsets, .endExercise, .endProgram, .generateRecommendation, .noChange
+        ]
+        let rules = actions.enumerated().map { index, action in
+            ProgressionRuleDefinition(
+                metric: .load,
+                trigger: .allRequiredSetsCompleted,
+                successAction: .repeatPrescription,
+                failureAction: action,
+                cadence: .nextExerciseOccurrence,
+                scope: .exerciseExposure,
+                priority: index
+            )
+        }
+        let data = try JSONEncoder().encode(rules)
+        XCTAssertEqual(try JSONDecoder().decode([ProgressionRuleDefinition].self, from: data), rules)
+    }
+
     func testProgramDefinitionRoundTripsComposedFormulaAndRules() throws {
         let exerciseID = UUID()
         let formula = ProgressionFormula.round(
@@ -114,6 +198,104 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(exercises.last?.plannedSets.count, 1)
     }
 
+    func testProgramDefinitionBuilderRetainsADeferredSourceBasedBackOff() throws {
+        var builder = ProgramDefinitionBuilder(name: "Top set builder", durationWeeks: 1)
+        let block = builder.addBlock(name: "Strength", phaseType: .strength)
+        let week = try builder.addWeek(toBlock: block)
+        let workout = try builder.addWorkout(toBlock: block, week: week, name: "Press", dayOffset: 0)
+        let bench = try builder.addExercise(
+            toBlock: block,
+            week: week,
+            workout: workout,
+            exerciseID: UUID(),
+            exposureKey: "bench"
+        )
+        try builder.addSet(
+            toBlock: block,
+            week: week,
+            workout: workout,
+            exercise: bench,
+            prescription: SetPrescriptionDefinition(
+                orderIndex: 0,
+                role: .topSet,
+                repetitions: .fixed(5)
+            )
+        )
+        try builder.addSet(
+            toBlock: block,
+            week: week,
+            workout: workout,
+            exercise: bench,
+            prescription: SetPrescriptionDefinition(
+                orderIndex: 1,
+                role: .backOff,
+                repetitions: .fixed(5),
+                load: LoadPrescription(
+                    reference: .init(kind: .topSet, exposureKey: "bench"),
+                    percentage: 0.9
+                ),
+                generatesAfterSourceCompletion: true
+            )
+        )
+
+        let definition = try builder.build()
+        let sets = try XCTUnwrap(
+            definition.blocks.first?.weeks.first?.workouts.first?.plannedExercises.first?.plannedSets
+        )
+        XCTAssertEqual(sets.count, 2)
+        XCTAssertTrue(sets[1].generatesAfterSourceCompletion)
+    }
+
+    func testPolicyPresetsProduceValidatedDataOnlyRules() {
+        for preset in ProgramPolicyPreset.allCases {
+            let rules = preset.rules()
+            XCTAssertFalse(rules.isEmpty, preset.rawValue)
+            XCTAssertTrue(rules.allSatisfy { $0.version > 0 }, preset.rawValue)
+        }
+    }
+
+    func testWaveAndAlternativeExposureDataRoundTripsAndValidates() throws {
+        let mainID = UUID()
+        let alternativeID = UUID()
+        let waveSets = [
+            SetPrescriptionDefinition(
+                orderIndex: 0,
+                repetitions: .fixed(2),
+                load: LoadPrescription(reference: LoadReference(kind: .fixedLoad), fixedValue: 80)
+            ),
+            SetPrescriptionDefinition(
+                orderIndex: 1,
+                repetitions: .fixed(1),
+                load: LoadPrescription(reference: LoadReference(kind: .fixedLoad), fixedValue: 85)
+            )
+        ]
+        let definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: mainID,
+                exposureKey: "clean-wave",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(3))],
+                waves: [
+                    ProgramWaveDefinition(orderIndex: 0, name: "Wave 1", plannedSets: waveSets),
+                    ProgramWaveDefinition(orderIndex: 1, name: "Wave 2", plannedSets: waveSets.map { set in
+                        var copy = set
+                        copy.id = UUID()
+                        copy.orderIndex += 2
+                        return copy
+                    })
+                ],
+                alternativeExerciseIDs: [alternativeID]
+            )
+        ])
+
+        let data = try JSONEncoder().encode(definition)
+        let decoded = try JSONDecoder().decode(ProgramDefinitionPayload.self, from: data)
+        XCTAssertEqual(decoded, definition)
+        XCTAssertTrue(ProgramDefinitionValidator.validate(decoded).isEmpty)
+        XCTAssertEqual(decoded.blocks.first?.weeks.first?.workouts.first?.plannedExercises.first?.waves.count, 2)
+        XCTAssertEqual(decoded.blocks.first?.weeks.first?.workouts.first?.plannedExercises.first?.alternativeExerciseIDs, [alternativeID])
+    }
+
     func testProgramDefinitionPreviewFlattensEveryPlannedExposure() throws {
         let definition = ProgramFixtureCatalog.mixedAcceptance(exerciseIDs: [
             "squat": UUID(), "bench": UUID(), "row": UUID(), "plank": UUID(), "complex": UUID(), "clean": UUID(), "jerk": UUID()
@@ -121,7 +303,51 @@ final class ProgramEngineTypesTests: XCTestCase {
         let rows = try ProgramDefinitionPreview.rows(for: definition)
         XCTAssertEqual(rows.count, 5)
         XCTAssertTrue(rows.contains { $0.roles.contains(.topSet) && $0.loadReferences.contains(.topSet) })
+        XCTAssertTrue(rows.contains { $0.sets.contains { $0.generatesAfterSourceCompletion } })
         XCTAssertTrue(rows.contains { $0.repPrescriptions.contains { if case .sequence = $0 { return true }; return false } })
+        XCTAssertTrue(rows.contains { !$0.transitions.isEmpty })
+    }
+
+    func testDeferredBackOffValidationRequiresABackOffWithASourceSetReference() {
+        let invalidRole = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "bench",
+                orderIndex: 0,
+                plannedSets: [
+                    SetPrescriptionDefinition(
+                        orderIndex: 0,
+                        role: .working,
+                        repetitions: .fixed(5),
+                        load: LoadPrescription(reference: .init(kind: .topSet, exposureKey: "bench")),
+                        generatesAfterSourceCompletion: true
+                    )
+                ]
+            )
+        ])
+        XCTAssertTrue(ProgramDefinitionValidator.validate(invalidRole).contains {
+            $0.code == .invalidPrescriptionValue
+        })
+
+        let invalidReference = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "bench",
+                orderIndex: 0,
+                plannedSets: [
+                    SetPrescriptionDefinition(
+                        orderIndex: 0,
+                        role: .backOff,
+                        repetitions: .fixed(5),
+                        load: LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "bench")),
+                        generatesAfterSourceCompletion: true
+                    )
+                ]
+            )
+        ])
+        XCTAssertTrue(ProgramDefinitionValidator.validate(invalidReference).contains {
+            $0.code == .invalidLoadReference
+        })
     }
 
     func testProgramDefinitionPreviewResolvesInitialLoadsAndDeloadMetadata() throws {
@@ -310,6 +536,48 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(issues.contains { $0.code == .invalidLoadReference })
     }
 
+    func testValidatorRejectsUnknownExposureReferencesBeforeActivation() {
+        let loadExercise = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "squat",
+            orderIndex: 0,
+            plannedSets: [
+                SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .fixed(5),
+                    load: LoadPrescription(
+                        reference: .init(kind: .anotherPlannedExercise, exposureKey: "missing-bench"),
+                        percentage: 0.8
+                    )
+                )
+            ]
+        )
+        let formulaExercise = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "press",
+            orderIndex: 1,
+            plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))],
+            progressionRules: [
+                ProgressionRuleDefinition(
+                    metric: .trainingMax,
+                    trigger: .cycleCompleted,
+                    successAction: .updateTrainingMax(.add(
+                        .source(.anotherExposure(exposureKey: "missing-squat")),
+                        .source(.completedMetric(exposureKey: "missing-volume", metric: .totalVolume))
+                    )),
+                    cadence: .nextCycle,
+                    scope: .cycle
+                )
+            ]
+        )
+
+        let issues = ProgramDefinitionValidator.validate(makeDefinition(exercises: [loadExercise, formulaExercise]))
+
+        XCTAssertTrue(issues.contains { $0.code == .invalidLoadReference && $0.message.contains("missing-bench") })
+        XCTAssertTrue(issues.contains { $0.code == .invalidFormula && $0.message.contains("missing-squat") })
+        XCTAssertTrue(issues.contains { $0.code == .invalidFormula && $0.message.contains("missing-volume") })
+    }
+
     func testValidatorRejectsDuplicateSetOrder() {
         let exercise = ProgramExerciseDefinition(
             exerciseID: UUID(),
@@ -358,6 +626,36 @@ final class ProgramEngineTypesTests: XCTestCase {
             )
         ])
 
+        XCTAssertTrue(ProgramDefinitionValidator.validate(definition).contains { $0.code == .formulaCycle })
+    }
+
+    func testValidatorChecksFormulaReferencesInsideTrainingMaxActions() {
+        let ruleA = ProgressionRuleDefinition(
+            metric: .trainingMax,
+            trigger: .cycleCompleted,
+            successAction: .updateTrainingMax(.source(.anotherExposure(exposureKey: "b"))),
+            cadence: .nextCycle,
+            scope: .cycle
+        )
+        let ruleB = ProgressionRuleDefinition(
+            metric: .trainingMax,
+            trigger: .cycleCompleted,
+            successAction: .updateTrainingMax(.source(.anotherExposure(exposureKey: "a"))),
+            cadence: .nextCycle,
+            scope: .cycle
+        )
+        let definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(), exposureKey: "a", orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(1))],
+                progressionRules: [ruleA]
+            ),
+            ProgramExerciseDefinition(
+                exerciseID: UUID(), exposureKey: "b", orderIndex: 1,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(1))],
+                progressionRules: [ruleB]
+            )
+        ])
         XCTAssertTrue(ProgramDefinitionValidator.validate(definition).contains { $0.code == .formulaCycle })
     }
 
@@ -487,6 +785,60 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(result.prescribedLoad ?? 0, 92.5, accuracy: 0.0001)
         XCTAssertTrue(result.explanation.contains("85%"))
         XCTAssertTrue(result.explanation.contains("92.5"))
+    }
+
+    func testEquipmentDefaultsRoundInTheWorkoutUnitAndPreserveBodyweight() {
+        XCTAssertEqual(
+            EquipmentLoadRounding.round(
+                91.8,
+                equipment: .barbell,
+                resistance: .externalWeight,
+                isPlateLoaded: true,
+                unit: .kg
+            )?.prescribedLoad ?? 0,
+            92.5,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            EquipmentLoadRounding.round(
+                31.1,
+                equipment: .dumbbell,
+                resistance: .externalWeight,
+                isPlateLoaded: false,
+                unit: .kg
+            )?.prescribedLoad ?? 0,
+            32,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            EquipmentLoadRounding.round(
+                83.2,
+                equipment: .cable,
+                resistance: .machine,
+                isPlateLoaded: false,
+                unit: .lbs
+            )?.prescribedLoad ?? 0,
+            85,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            EquipmentLoadRounding.round(
+                37.4,
+                equipment: .bodyweight,
+                resistance: .assistedBodyweight,
+                isPlateLoaded: false,
+                unit: .kg
+            )?.prescribedLoad ?? 0,
+            37.5,
+            accuracy: 0.001
+        )
+        XCTAssertNil(EquipmentLoadRounding.round(
+            37.4,
+            equipment: .bodyweight,
+            resistance: .bodyweight,
+            isPlateLoaded: false,
+            unit: .kg
+        ))
     }
 
     func testLoadResolverSupportsTopSetBackOffAndMissingReferences() throws {
@@ -821,9 +1173,22 @@ final class ProgramEngineTypesTests: XCTestCase {
     }
 
     func testProgressionStateBackupPreservesConditioningOffsets() throws {
+        let pending = try JSONEncoder().encode([
+            PendingProgressionState(
+                cadence: .nextWeek,
+                scope: .exerciseExposure,
+                state: ProgressionEvaluationState(currentLoad: 102.5),
+                sourceWeekIndex: 0,
+                sourceWorkoutIndex: 2,
+                sourceBlockIndex: 0,
+                createdAt: .now
+            )
+        ])
         let state = ProgressionStateDTO(
             id: UUID().uuidString,
             progressionKey: "conditioning",
+            scope: ProgressionScope.week.rawValue,
+            scopeOwnerKey: "week:3",
             currentLoad: nil,
             currentLoadType: nil,
             repetitionOffset: 0,
@@ -846,13 +1211,20 @@ final class ProgramEngineTypesTests: XCTestCase {
             lastCompletedOccurrence: nil,
             lastSuccessfulLoad: nil,
             isDeloading: false,
-            lastAppliedOutcomeID: nil
+            lastAppliedOutcomeID: nil,
+            pendingProgressionData: pending
         )
         let decoded = try JSONDecoder().decode(ProgressionStateDTO.self, from: JSONEncoder().encode(state))
         XCTAssertEqual(decoded.durationOffset, 60)
         XCTAssertEqual(decoded.distanceOffset, 250)
         XCTAssertEqual(decoded.restDurationOffset, 5)
         XCTAssertEqual(decoded.caloriesOffset, 120)
+        XCTAssertEqual(decoded.scope, ProgressionScope.week.rawValue)
+        XCTAssertEqual(decoded.scopeOwnerKey, "week:3")
+        let restoredPending = try XCTUnwrap(decoded.pendingProgressionData)
+        let pendingStates = try JSONDecoder().decode([PendingProgressionState].self, from: restoredPending)
+        XCTAssertEqual(pendingStates.first?.state.currentLoad, 102.5)
+        XCTAssertEqual(pendingStates.first?.cadence, .nextWeek)
     }
 
     func testConditioningSetBackupPreservesCaloriesAndOverrideEvidence() throws {
@@ -879,6 +1251,24 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(decoded.prescribedCalories, 450)
         XCTAssertTrue(decoded.isUserOverridden)
         XCTAssertEqual(decoded.userOverrideReason, "Adjusted for today's interval")
+    }
+
+    func testLegacySetPrescriptionDefaultsDeferredBackOffFlagToFalse() throws {
+        let definition = SetPrescriptionDefinition(
+            orderIndex: 0,
+            role: .backOff,
+            repetitions: .fixed(5),
+            generatesAfterSourceCompletion: true
+        )
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(definition)) as? [String: Any]
+        )
+        object.removeValue(forKey: "generatesAfterSourceCompletion")
+        let legacyData = try JSONSerialization.data(withJSONObject: object)
+
+        let restored = try JSONDecoder().decode(SetPrescriptionDefinition.self, from: legacyData)
+
+        XCTAssertFalse(restored.generatesAfterSourceCompletion)
     }
 
     func testPlannedSetBackupPreservesTempoAndProgressionEligibility() throws {

@@ -71,6 +71,25 @@ class ActiveWorkoutViewModel {
             persistChanges()
         }
     }
+
+    /// Chooses the completed daily-maximum attempt used by same-session
+    /// back-off formulas. Selection is scoped to one exercise entry.
+    func selectDailyMaximum(_ selectedSet: ExerciseSet, in exerciseEntry: ExerciseEntry) {
+        guard let workout = workoutVM.activeWorkout,
+              let exercise = workout.exercises.first(where: { $0.id == exerciseEntry.id }),
+              let selected = exercise.sets.first(where: { $0 === selectedSet }),
+              selected.done,
+              selected.prescribedSetType == .dailyMaximum || selected.setType == .dailyMaximum
+        else { return }
+
+        for set in exercise.sets where set.prescribedSetType == .dailyMaximum || set.setType == .dailyMaximum {
+            set.isSelectedDailyMaximum = set === selected
+        }
+        #if !GYMTRACKER_EXTENSION
+        ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
+        #endif
+        persistChanges()
+    }
     
     /// Adds a set pre-filled with the last set's values (reps, weight,
     /// duration, distance) so lifters rarely retype; RPE, RIR, lift quality,
@@ -86,7 +105,20 @@ class ActiveWorkoutViewModel {
             newSet.rpe = nil
             newSet.rir = nil
             newSet.liftQuality = nil
-            newSet.setType = .normal
+            // Daily technical maximums are open-ended attempts. Preserve the
+            // role for a newly appended attempt so the last successful one is
+            // available to same-session derived back-off prescriptions.
+            let isDailyMaximum = lastSet.prescribedSetType == .dailyMaximum
+                || lastSet.setType == .dailyMaximum
+            newSet.setType = isDailyMaximum ? .dailyMaximum : .normal
+            if isDailyMaximum {
+                newSet.prescribedSetType = .dailyMaximum
+            } else if lastSet.prescribedSetType != .normal {
+                // Top, back-off, AMRAP, and other generated roles are not
+                // silently duplicated by an ad-hoc set. Daily maximum is the
+                // exception because it represents another open attempt.
+                newSet.clearPrescription()
+            }
             newSet.orderIndex = lastSet.orderIndex + 1
             exercise.sets.append(newSet)
         } else {
@@ -233,7 +265,21 @@ class ActiveWorkoutViewModel {
         }
 
         set.done.toggle()
+        if !set.done {
+            // A selected source must remain a completed performed attempt.
+            // Derived work falls back to the latest remaining completed
+            // maximum until the lifter makes another explicit selection.
+            set.isSelectedDailyMaximum = false
+        }
         #if !GYMTRACKER_EXTENSION
+        if set.done {
+            ActiveWorkoutProgressionService.applyAfterCompleting(
+                set: set,
+                in: exercise,
+                workout: workout,
+                modelContext: modelContext
+            )
+        }
         ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
         #endif
         persistChanges()
@@ -259,23 +305,19 @@ class ActiveWorkoutViewModel {
         }
         persistChanges()
     }
-    func getNextSet(in selectedExercise: ExerciseEntry) -> ExerciseSet?{
-        guard let nextSet = selectedExercise.orderedSets.first(where: { !$0.done }) else {
+    func getNextSet(in selectedExercise: ExerciseEntry) -> ExerciseSet? {
+        guard let workout = workoutVM.activeWorkout,
+              let next = WorkoutSetSelector.nextIncompleteSet(in: workout),
+              next.entry.id == selectedExercise.id
+        else {
             return nil
         }
-        return nextSet
+        return next.set
     }
     
     func markNextSetDone(in selectedExercise: ExerciseEntry) {
-        guard let nextSet = selectedExercise.orderedSets.first(where: { !$0.done }) else {
-            return
-        }
-
-        nextSet.done = true
-        #if !GYMTRACKER_EXTENSION
-        ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
-        #endif
-        persistChanges()
+        guard let nextSet = getNextSet(in: selectedExercise) else { return }
+        _ = switchStateDoneSet(selectedExercise, nextSet)
     }
     
 

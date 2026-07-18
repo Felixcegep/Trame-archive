@@ -13,7 +13,15 @@ struct PlanPhaseEditorView: View {
 
             ForEach($blocks) { $block in
                 Section(block.weekSummary) {
-                    TextField("Phase name", text: $block.name)
+                    HStack {
+                        TextField("Phase name", text: $block.name)
+                        Button(role: .destructive) {
+                            remove(block.id)
+                        } label: {
+                            Image(systemName: AppIcon.trash)
+                        }
+                        .accessibilityLabel("Delete phase")
+                    }
 
                     Picker("Phase", selection: $block.phaseType) {
                         ForEach(PlanPhaseType.allCases, id: \.self) { phase in
@@ -38,9 +46,28 @@ struct PlanPhaseEditorView: View {
                     }
                 }
             }
+            .onMove { source, destination in
+                blocks.move(fromOffsets: source, toOffset: destination)
+                for (index, _) in blocks.enumerated() {
+                    blocks[index].orderIndex = index
+                }
+            }
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
         .navigationTitle("Program Phases")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                EditButton()
+            }
+        }
+    }
+
+    private func remove(_ id: UUID) {
+        guard blocks.count > 1 else { return }
+        blocks.removeAll { $0.id == id }
+        for (index, _) in blocks.enumerated() {
+            blocks[index].orderIndex = index
+        }
     }
 }

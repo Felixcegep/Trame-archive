@@ -8,6 +8,18 @@ struct PlanExerciseProgressionResult {
     let recommendations: [ProgressionRecommendation]
 }
 
+private struct ScopedRuleGroup: Hashable {
+    var scope: ProgressionScope
+    var cadence: ProgressionCadence
+
+    var sortKey: String { "\(scope.rawValue):\(cadence.rawValue)" }
+}
+
+private struct AppliedProgressionEvent: Codable, Hashable {
+    var workoutID: UUID
+    var cadence: ProgressionCadence
+}
+
 enum PlanProgressionEvaluationService {
     /// Evaluates only rules captured on the workout snapshot. This keeps a
     /// completed workout stable if its source plan is edited later.
@@ -16,15 +28,32 @@ enum PlanProgressionEvaluationService {
         run: PlanRun,
         modelContext: ModelContext? = nil
     ) throws -> [PlanExerciseProgressionResult] {
+        // Earlier occurrences may have crossed a cadence boundary while the
+        // app was not running. Promote them before using state as formula
+        // input for this immutable completion event.
+        _ = PlanProgressionCadenceService.applyDueStates(in: run)
         var results: [PlanExerciseProgressionResult] = []
         let decoder = JSONDecoder()
+        let encoder = JSONEncoder()
         let plannedExercises = run.plan?.orderedWeeks
             .flatMap(\.orderedPlannedWorkouts)
             .flatMap(\.orderedPlannedExercises) ?? []
         let plannedByID = Dictionary(uniqueKeysWithValues: plannedExercises.map { ($0.id, $0) })
-        let stateByKey = Dictionary(uniqueKeysWithValues: run.progressionStates.map { ($0.progressionKey, $0) })
+        let sourceProgress = run.orderedWorkoutProgress.first { $0.completedWorkout?.id == workout.id }
+        let occurrenceWeekIndex = sourceProgress?.weekIndex ?? run.currentWeekIndex
+        let sourceWeekIndex = sourceProgress?.sourceWeekIndex ?? occurrenceWeekIndex
+        let sourceWorkoutIndex = sourceProgress?.workoutIndex ?? run.currentWorkoutIndex
+        let sourceBlockIndex = blockIndex(forWeek: sourceWeekIndex, in: run)
+        let weekCompleted = isWeekCompleted(occurrenceWeekIndex, in: run, including: workout)
+        let blockCompleted = isBlockCompleted(sourceBlockIndex, in: run, including: workout)
+        let cycleCompleted = run.orderedWorkoutProgress.allSatisfy { isCompleted($0, including: workout) }
         var formulaContext = FormulaResolutionContext()
-        for state in run.progressionStates {
+        let effectiveStates = plannedExercises.reduce(into: [String: PlanExerciseProgressionState]()) { result, planned in
+            if let state = PlanProgressionStateService.effectiveState(for: planned, in: run) {
+                result[planned.progressionKey] = state
+            }
+        }
+        for state in effectiveStates.values {
             if let trainingMax = state.trainingMax { formulaContext.trainingMaxByExposure[state.progressionKey] = trainingMax }
             if let e1RM = state.estimatedOneRepMax { formulaContext.estimatedOneRepMaxByExposure[state.progressionKey] = e1RM }
             if let actualOneRepMax = state.actualOneRepMax { formulaContext.actualOneRepMaxByExposure[state.progressionKey] = actualOneRepMax }
@@ -65,8 +94,7 @@ enum PlanProgressionEvaluationService {
                 let plannedExercise = plannedByID[plannedID],
                 let rulesData = entry.prescriptionRulesData,
                 let rules = try? decoder.decode([ProgressionRuleDefinition].self, from: rulesData),
-                !rules.isEmpty,
-                let state = stateByKey[plannedExercise.progressionKey]
+                !rules.isEmpty
             else { continue }
             // A substitution is a distinct exposure unless the plan explicitly
             // opts into sharing progression state. Performed history still
@@ -76,68 +104,104 @@ enum PlanProgressionEvaluationService {
                 continue
             }
 
-            let performance = performance(for: entry)
-            var evaluationState = ProgressionEvaluationState(
-                currentLoad: state.currentLoad,
-                repetitionOffset: state.repetitionOffset,
-                setCountOffset: state.setCountOffset,
-                durationOffset: state.durationOffset,
-                distanceOffset: state.distanceOffset,
-                restDurationOffset: state.restDurationOffset,
-                caloriesOffset: state.caloriesOffset,
-                currentStageID: state.currentStageID,
-                currentVariationExerciseID: state.currentVariationExerciseID,
-                currentWaveIndex: state.currentWaveIndex ?? 0,
-                currentBlockIndex: state.currentBlockIndex ?? 0,
-                trainingMax: state.trainingMax,
-                estimatedOneRepMax: state.estimatedOneRepMax,
-                actualOneRepMax: state.actualOneRepMax,
-                failureCount: state.failureCount + (performance.didFail ? 1 : 0),
-                successCount: state.successCount + (performance.didFail ? 0 : 1),
-                previousAMRAPRepetitions: performance.amrapRepetitions,
-                previousActualRPE: performance.actualRPE,
-                previousActualRIR: performance.actualRIR,
-                isDeloading: state.isDeloading
+            let fallbackState = PlanProgressionStateService.effectiveState(
+                for: plannedExercise,
+                in: run
+            ) ?? PlanExerciseProgressionState(progressionKey: plannedExercise.progressionKey)
+            let performance = performance(
+                for: entry,
+                workout: workout,
+                run: run,
+                plannedExercise: plannedExercise,
+                state: fallbackState,
+                weekCompleted: weekCompleted,
+                blockCompleted: blockCompleted,
+                cycleCompleted: cycleCompleted
             )
-            let result = try ProgramProgressionEvaluator.evaluate(
-                rules: rules,
-                performance: performance,
-                state: evaluationState,
-                formulaContext: formulaContext
+            let automaticCadences = eligibleCadences(
+                weekCompleted: weekCompleted,
+                waveCompleted: performance.waveCompleted,
+                blockCompleted: blockCompleted,
+                cycleCompleted: cycleCompleted
             )
-            evaluationState = result.state
-            state.currentLoad = evaluationState.currentLoad
-            state.repetitionOffset = evaluationState.repetitionOffset
-            state.setCountOffset = evaluationState.setCountOffset
-            state.durationOffset = evaluationState.durationOffset
-            state.distanceOffset = evaluationState.distanceOffset
-            state.restDurationOffset = evaluationState.restDurationOffset
-            state.caloriesOffset = evaluationState.caloriesOffset
-            state.currentStageID = evaluationState.currentStageID
-            state.currentVariationExerciseID = evaluationState.currentVariationExerciseID
-            state.currentWaveIndex = evaluationState.currentWaveIndex
-            state.currentBlockIndex = evaluationState.currentBlockIndex
-            state.trainingMax = evaluationState.trainingMax
-            state.estimatedOneRepMax = evaluationState.estimatedOneRepMax
-            state.actualOneRepMax = evaluationState.actualOneRepMax
-            state.failureCount = evaluationState.failureCount
-            state.successCount = evaluationState.successCount
-            state.previousAMRAPRepetitions = evaluationState.previousAMRAPRepetitions
-            state.previousActualRPE = evaluationState.previousActualRPE
-            state.previousActualRIR = evaluationState.previousActualRIR
-            state.lastCompletedOccurrence = workout.endTime ?? Date.now
-            state.lastSuccessfulLoad = performance.didFail ? state.lastSuccessfulLoad : entry.sets.last(where: { $0.done })?.weight.doubleValue
-            state.isDeloading = evaluationState.isDeloading
+            // Same-session cadences are evaluated while the set is completed;
+            // evaluating them again from the completed-workout snapshot would
+            // double-apply an automatic action or duplicate a recommendation.
+            let groupedRules = Dictionary(grouping: rules.filter {
+                $0.isEnabled && $0.cadence != .immediately && $0.cadence != .nextSet
+            }) {
+                ScopedRuleGroup(scope: $0.scope, cadence: $0.cadence)
+            }
+            var entryRecommendations: [ProgressionRecommendation] = []
+            for (group, groupRules) in groupedRules.sorted(by: { $0.key.sortKey < $1.key.sortKey }) {
+                let state = PlanProgressionStateService.stateForEvaluation(
+                    scope: group.scope,
+                    plannedExercise: plannedExercise,
+                    sourceProgress: sourceProgress,
+                    sourceBlockIndex: sourceBlockIndex,
+                    cadence: group.cadence,
+                    in: run
+                )
+                // Completion can be retried after a relaunch or a failed save.
+                // Scoped records each carry their own immutable workout marker.
+                guard !hasApplied(workout.id, cadence: group.cadence, on: state) else { continue }
+                var evaluationState = ProgramProgressionEvaluator.state(
+                    afterRecording: performance,
+                    from: PlanProgressionCadenceService.state(from: state)
+                )
+                let result = try ProgramProgressionEvaluator.evaluate(
+                    rules: groupRules,
+                    performance: performance,
+                    state: evaluationState,
+                    formulaContext: formulaContext,
+                    automaticCadences: automaticCadences
+                )
+                evaluationState = result.state
+                PlanProgressionCadenceService.apply(evaluationState, to: state)
+                state.lastCompletedOccurrence = workout.endTime ?? Date.now
+                state.lastSuccessfulLoad = performance.didFail ? state.lastSuccessfulLoad : entry.sets.last(where: { $0.done })?.weight.doubleValue
+                state.isDeloading = evaluationState.isDeloading
+                state.lastAppliedOutcomeID = workout.id
+                recordApplied(workout.id, cadence: group.cadence, on: state)
+                var pending = result.deferredStates
+                for index in pending.indices {
+                    pending[index].sourceWorkoutID = workout.id
+                    pending[index].sourceWeekIndex = occurrenceWeekIndex
+                    pending[index].sourceWorkoutIndex = sourceWorkoutIndex
+                    pending[index].sourceBlockIndex = sourceBlockIndex
+                }
+                state.pendingProgressionData = try mergedPendingStates(
+                    existingData: state.pendingProgressionData,
+                    additions: pending,
+                    supersededRecommendations: result.recommendations.filter {
+                        $0.applicationMode == .automatic && automaticCadences.contains($0.cadence)
+                    },
+                    decoder: decoder,
+                    encoder: encoder
+                )
+                entryRecommendations.append(contentsOf: result.recommendations)
+            }
             results.append(PlanExerciseProgressionResult(
                 progressionKey: plannedExercise.progressionKey,
-                recommendations: result.recommendations
+                recommendations: entryRecommendations
             ))
             if let modelContext {
-                for recommendation in result.recommendations {
+                for recommendation in entryRecommendations {
+                    let scopedState = PlanProgressionStateService.stateForEvaluation(
+                        scope: recommendation.scope,
+                        plannedExercise: plannedExercise,
+                        sourceProgress: sourceProgress,
+                        sourceBlockIndex: sourceBlockIndex,
+                        cadence: recommendation.cadence,
+                        in: run
+                    )
                     let record = try PlanProgressionRecommendationRecord(
                         recommendation: recommendation,
                         planRunID: run.id,
-                        workoutID: workout.id
+                        workoutID: workout.id,
+                        scopeOwnerKey: scopedState.scopeOwnerKey,
+                        isResolvedOverride: recommendation.applicationMode == .automatic
+                            && !automaticCadences.contains(recommendation.cadence) ? false : nil
                     )
                     record.progressionKey = plannedExercise.progressionKey
                     modelContext.insert(record)
@@ -147,10 +211,77 @@ enum PlanProgressionEvaluationService {
         return results
     }
 
-    private static func performance(for entry: ExerciseEntry) -> ProgressionPerformance {
-        let sets = entry.orderedSets
-        let requiredSets = entry.prescribedSets ?? sets.count
-        let requiredRepetitions = sets.reduce(0) { total, set in
+    private static func mergedPendingStates(
+        existingData: Data?,
+        additions: [PendingProgressionState],
+        supersededRecommendations: [ProgressionRecommendation],
+        decoder: JSONDecoder,
+        encoder: JSONEncoder
+    ) throws -> Data? {
+        let existing = (existingData.flatMap { try? decoder.decode([PendingProgressionState].self, from: $0) } ?? []).filter { candidate in
+            !supersededRecommendations.contains {
+                candidate.ruleID == $0.ruleID
+                    && candidate.cadence == $0.cadence
+                    && candidate.scope == $0.scope
+            }
+        }
+        let merged = (existing + additions).reduce(into: [PendingProgressionState]()) { result, candidate in
+            let duplicate = result.firstIndex {
+                $0.sourceWorkoutID == candidate.sourceWorkoutID
+                    && $0.ruleID == candidate.ruleID
+                    && $0.cadence == candidate.cadence
+                    && $0.scope == candidate.scope
+            }
+            if let duplicate { result[duplicate] = candidate } else { result.append(candidate) }
+        }
+        return merged.isEmpty ? nil : try encoder.encode(merged)
+    }
+
+    private static func hasApplied(
+        _ workoutID: UUID,
+        cadence: ProgressionCadence,
+        on state: PlanExerciseProgressionState
+    ) -> Bool {
+        let events = state.appliedProgressionEventsData.flatMap {
+            try? JSONDecoder().decode(Set<AppliedProgressionEvent>.self, from: $0)
+        } ?? []
+        return events.contains(AppliedProgressionEvent(workoutID: workoutID, cadence: cadence))
+    }
+
+    private static func recordApplied(
+        _ workoutID: UUID,
+        cadence: ProgressionCadence,
+        on state: PlanExerciseProgressionState
+    ) {
+        var events = state.appliedProgressionEventsData.flatMap {
+            try? JSONDecoder().decode(Set<AppliedProgressionEvent>.self, from: $0)
+        } ?? []
+        events.insert(AppliedProgressionEvent(workoutID: workoutID, cadence: cadence))
+        state.appliedProgressionEventsData = try? JSONEncoder().encode(events)
+    }
+
+    static func performance(
+        for entry: ExerciseEntry,
+        workout: Workout,
+        run: PlanRun,
+        plannedExercise: PlannedExercise,
+        state: PlanExerciseProgressionState,
+        weekCompleted: Bool,
+        blockCompleted: Bool,
+        cycleCompleted: Bool,
+        isPartialOccurrence: Bool = false
+    ) -> ProgressionPerformance {
+        // Warm-up and explicitly ineligible sets are preserved in the
+        // workout snapshot, but do not decide whether an exposure progressed.
+        // This mirrors the template progression path and lets an Olympic
+        // attempt program use quality without counting bar-only warm-ups.
+        let sets = entry.orderedSets.filter {
+            $0.prescribedSetType != .warmup
+                && $0.setType != .warmup
+                && $0.prescribedProgressionEligible != false
+        }
+        let requiredSets = sets.filter { $0.isPrescribedOptional != true }.count
+        let requiredRepetitions = sets.filter { $0.isPrescribedOptional != true }.reduce(0) { total, set in
             total + (set.prescribedRepetitions ?? set.prescribedRepRangeMinimum ?? 0)
         }
         let completedSets = sets.filter(\.done)
@@ -164,16 +295,21 @@ enum PlanProgressionEvaluationService {
         let totalVolume = completedSets.reduce(0) { $0 + Double($1.repetitions) * Double($1.weight) }
         let completedCalories = completedSets.compactMap(\.calories).reduce(0, +)
         let actualRPE = completedSets.compactMap { $0.rpe }.map(Double.init).average
-        let actualRIR = completedSets.compactMap { $0.rir }.map(Double.init).average
+        let actualRIR = completedSets.compactMap { $0.rir }
+            .map(Double.init)
+            .average
+            .map { Int($0.rounded()) }
         let qualitySets = completedSets.compactMap(\.liftQuality)
         let successfulAttemptRatio = qualitySets.isEmpty ? nil : Double(qualitySets.filter { $0 == .excellent || $0 == .acceptable }.count) / Double(qualitySets.count)
         let missedAttempt = qualitySets.contains(.missed)
-        let optionalSets = sets.filter { $0.isPrescribedOptional == true }
-        let requiredCompleted = completedSets.count + optionalSets.count >= requiredSets
+        let completedRequiredSets = completedSets.filter { $0.isPrescribedOptional != true }
+        let requiredCompleted = completedRequiredSets.count >= requiredSets
         let amrapRepetitions = completedSets.last(where: { $0.prescribedSetType == .amrap }).map { Int($0.repetitions) }
+        let waveCount = (try? JSONDecoder().decode([ProgramWaveDefinition].self, from: plannedExercise.progressionWavesData ?? Data()))?.count ?? 0
+        let waveCompleted = waveCount > 0 && requiredCompleted
         return ProgressionPerformance(
             requiredSets: requiredSets,
-            completedSets: requiredCompleted ? requiredSets : completedSets.count,
+            completedSets: completedRequiredSets.count,
             requiredRepetitions: requiredRepetitions,
             completedRepetitions: completedRepetitions,
             upperBoundSets: upperBoundSets,
@@ -187,8 +323,57 @@ enum PlanProgressionEvaluationService {
             successfulAttemptRatio: successfulAttemptRatio,
             technicalQualityReached: !qualitySets.isEmpty && qualitySets.allSatisfy { $0 == .excellent || $0 == .acceptable },
             workoutCompleted: entry.workout?.status == .completed,
-            didFail: !requiredCompleted || missedAttempt
+            weekCompleted: weekCompleted,
+            waveCompleted: waveCompleted,
+            blockCompleted: blockCompleted,
+            cycleCompleted: cycleCompleted,
+            scheduledDateReached: run.orderedWorkoutProgress.first(where: { $0.completedWorkout?.id == workout.id })?.scheduledDate.map { Date.now >= $0 } ?? false,
+            // A partial event is not a failed workout merely because future
+            // prescribed sets are still incomplete. Failure counters remain
+            // occurrence-level and are updated at workout completion.
+            didFail: isPartialOccurrence ? missedAttempt : !requiredCompleted || missedAttempt
         )
+    }
+
+    private static func eligibleCadences(
+        weekCompleted: Bool,
+        waveCompleted: Bool,
+        blockCompleted: Bool,
+        cycleCompleted: Bool
+    ) -> Set<ProgressionCadence> {
+        var result: Set<ProgressionCadence> = [
+            .immediately,
+            .nextSet,
+            .nextExerciseOccurrence,
+            .nextWorkout
+        ]
+        if weekCompleted { result.insert(.nextWeek) }
+        if waveCompleted { result.insert(.nextWave) }
+        if blockCompleted { result.insert(.nextBlock) }
+        if cycleCompleted { result.insert(.nextCycle) }
+        return result
+    }
+
+    private static func blockIndex(forWeek weekIndex: Int, in run: PlanRun) -> Int {
+        run.plan?.orderedBlocks.firstIndex(where: { $0.orderedWeeks.contains { $0.weekIndex == weekIndex } }) ?? 0
+    }
+
+    private static func isWeekCompleted(_ weekIndex: Int, in run: PlanRun, including workout: Workout) -> Bool {
+        let progress = run.orderedWorkoutProgress.filter { $0.weekIndex == weekIndex }
+        return !progress.isEmpty && progress.allSatisfy { isCompleted($0, including: workout) }
+    }
+
+    private static func isBlockCompleted(_ blockIndex: Int, in run: PlanRun, including workout: Workout) -> Bool {
+        guard let block = run.plan?.orderedBlocks[safe: blockIndex] else { return false }
+        let weekIndices = Set(block.orderedWeeks.map(\.weekIndex))
+        let progress = run.orderedWorkoutProgress.filter {
+            weekIndices.contains($0.sourceWeekIndex ?? $0.weekIndex)
+        }
+        return !progress.isEmpty && progress.allSatisfy { isCompleted($0, including: workout) }
+    }
+
+    private static func isCompleted(_ progress: PlanWorkoutProgress, including workout: Workout) -> Bool {
+        progress.status == .completed || progress.plannedWorkoutID == workout.sourcePlannedWorkoutID
     }
 }
 
@@ -198,5 +383,11 @@ private extension Array where Element == Double {
 
 private extension Float {
     var doubleValue: Double { Double(self) }
+}
+
+private extension Array {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
 }
 #endif
