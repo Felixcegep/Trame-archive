@@ -331,6 +331,62 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(run.orderedProgressionStates.first?.currentStageID, "volume")
     }
 
+    func testAMRAPMetricFeedsTrainingMaxFormula() throws {
+        var context = FormulaResolutionContext()
+        context.completedMetricsByExposure["squat"] = [.amrapRepetitions: 8]
+        let formula = ProgressionFormula.clamp(
+            value: .add(
+                .source(.trainingMax(exposureKey: "squat")),
+                .multiply(
+                    .source(.completedMetric(exposureKey: "squat", metric: .amrapRepetitions)),
+                    .source(.constant(2.5))
+                )
+            ),
+            minimum: 0,
+            maximum: 120
+        )
+        context.trainingMaxByExposure["squat"] = 100
+
+        XCTAssertEqual(try ProgramFormulaResolver.resolve(formula, context: context), 120)
+        context.completedMetricsByExposure["squat"] = nil
+        XCTAssertThrowsError(try ProgramFormulaResolver.resolve(formula, context: context))
+    }
+
+    func testSnapshotPersistsPrescriptionReferenceValueInKilograms() throws {
+        let squat = Exercise(
+            name: "Reference Squat",
+            primaryMuscles: [.quadriceps],
+            equipmentType: .barbell
+        )
+        let exercise = ProgramExerciseDefinition(
+            exerciseID: squat.id,
+            exposureKey: "reference-squat",
+            orderIndex: 0,
+            plannedSets: [
+                SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .fixed(5),
+                    load: LoadPrescription(
+                        reference: .init(kind: .trainingMax, exposureKey: "reference-squat"),
+                        percentage: 0.8
+                    )
+                )
+            ],
+            initialTrainingMax: 200
+        )
+        let plan = try ProgramDefinitionCompiler.compile(
+            makeDefinition(exercises: [exercise]),
+            exercisesByID: [squat.id: squat]
+        )
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        let plannedWorkout = try XCTUnwrap(plan.orderedWeeks.first?.orderedPlannedWorkouts.first)
+        let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .imperial)
+        let set = try XCTUnwrap(workout.orderedExercises.first?.orderedSets.first)
+
+        XCTAssertEqual(set.prescribedReferenceValue ?? 0, 200, accuracy: 0.001)
+        XCTAssertEqual(set.prescribedSuggestedLoadType, .lbs)
+    }
+
     func testStageTransitionClearsLoadOnlyWhenDestinationDoesNotCarryIt() throws {
         let stages = [
             ProgramStageDefinition(stageID: "volume", plannedSets: [.init(orderIndex: 0, repetitions: .fixed(8))]),

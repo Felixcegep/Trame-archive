@@ -49,6 +49,8 @@ final class ExerciseSet {
     /// The calculation before equipment rounding, retained with the snapshot
     /// so History can explain why the displayed prescribed load was chosen.
     var prescribedUnroundedLoad: Double?
+    /// The source TM/e1RM/top-set value used by the prescription calculation, in kilograms.
+    var prescribedReferenceValue: Double?
     var prescriptionLoadExplanation: String?
     var prescribedRestSeconds: Int?
     var prescribedRPE: Double?
@@ -105,6 +107,7 @@ final class ExerciseSet {
         self.prescribedSuggestedLoad = nil
         self.prescribedSuggestedLoadType = nil
         self.prescribedUnroundedLoad = nil
+        self.prescribedReferenceValue = nil
         self.prescriptionLoadExplanation = nil
         self.prescribedRestSeconds = nil
         self.prescribedRPE = nil
@@ -148,6 +151,7 @@ final class ExerciseSet {
         copy.prescribedSuggestedLoad = prescribedSuggestedLoad
         copy.prescribedSuggestedLoadType = prescribedSuggestedLoadType
         copy.prescribedUnroundedLoad = prescribedUnroundedLoad
+        copy.prescribedReferenceValue = prescribedReferenceValue
         copy.prescriptionLoadExplanation = prescriptionLoadExplanation
         copy.prescribedRestSeconds = prescribedRestSeconds
         copy.prescribedRPE = prescribedRPE
@@ -175,6 +179,7 @@ final class ExerciseSet {
         prescribedSuggestedLoad = nil
         prescribedSuggestedLoadType = nil
         prescribedUnroundedLoad = nil
+        prescribedReferenceValue = nil
         prescriptionLoadExplanation = nil
         prescribedRestSeconds = nil
         prescribedRPE = nil

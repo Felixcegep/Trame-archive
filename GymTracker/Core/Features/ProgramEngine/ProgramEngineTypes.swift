@@ -228,6 +228,7 @@ nonisolated enum ProgressionMetric: String, Codable, CaseIterable, Hashable {
     case exerciseVariation
     case technicalQuality
     case successfulAttempts
+    case amrapRepetitions
 }
 
 nonisolated indirect enum ProgressionTrigger: Codable, Hashable {

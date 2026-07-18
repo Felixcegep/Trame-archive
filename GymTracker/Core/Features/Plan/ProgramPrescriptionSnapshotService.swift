@@ -69,6 +69,7 @@ enum ProgramPrescriptionSnapshotService {
                 set.prescribedSuggestedLoad = equipmentRounding?.prescribedLoad ?? converted
                 set.prescribedSuggestedLoadType = targetType
                 set.prescribedUnroundedLoad = unrounded
+                set.prescribedReferenceValue = resolution.referenceValue
                 set.prescriptionLoadExplanation = equipmentRounding.map {
                     "\(resolution.explanation) Equipment rounding: nearest \($0.increment.formatted(.number.precision(.fractionLength(0...2)))) \(targetType.rawValue)."
                 } ?? resolution.explanation
@@ -278,6 +279,7 @@ enum ProgramPrescriptionSnapshotService {
                 set.prescribedSuggestedLoad = equipmentRounding?.prescribedLoad ?? converted
                 set.prescribedSuggestedLoadType = targetType
                 set.prescribedUnroundedLoad = unrounded
+                set.prescribedReferenceValue = load.referenceValue
                 set.prescriptionLoadExplanation = equipmentRounding.map {
                     "\(load.explanation) Equipment rounding: nearest \($0.increment.formatted(.number.precision(.fractionLength(0...2)))) \(targetType.rawValue)."
                 } ?? load.explanation
@@ -310,6 +312,7 @@ enum ProgramPrescriptionSnapshotService {
                     extra.prescribedSuggestedLoad = source.prescribedSuggestedLoad
                     extra.prescribedSuggestedLoadType = source.prescribedSuggestedLoadType
                     extra.prescribedUnroundedLoad = source.prescribedUnroundedLoad
+                    extra.prescribedReferenceValue = source.prescribedReferenceValue
                     extra.prescriptionLoadExplanation = source.prescriptionLoadExplanation
                     extra.prescribedRestSeconds = source.prescribedRestSeconds
                     extra.prescribedRPE = source.prescribedRPE
@@ -536,6 +539,7 @@ enum ProgramPrescriptionSnapshotService {
         set.prescribedSuggestedLoad = equipmentRounding?.prescribedLoad ?? converted
         set.prescribedSuggestedLoadType = targetType
         set.prescribedUnroundedLoad = unrounded
+        set.prescribedReferenceValue = resolution.referenceValue
         set.prescriptionLoadExplanation = equipmentRounding.map {
             "\(resolution.explanation) Equipment rounding: nearest \($0.increment.formatted(.number.precision(.fractionLength(0...2)))) \(targetType.rawValue)."
         } ?? resolution.explanation
@@ -593,6 +597,15 @@ enum ProgramPrescriptionSnapshotService {
             set.prescribedSuggestedLoad = workingLoad * step.percentage
             set.prescribedSuggestedLoadType = entry.prescribedSuggestedLoadType
             set.prescribedUnroundedLoad = workingLoad * step.percentage
+            set.prescribedReferenceValue = Double(
+                UnitConversion.weight(
+                    Float(workingLoad),
+                    from: entry.orderedSets.first?.prescribedSuggestedLoadType
+                        ?? entry.prescribedSuggestedLoadType
+                        ?? .kg,
+                    to: .kg
+                )
+            )
             set.prescriptionLoadExplanation = "Generated warm-up at \(Int((step.percentage * 100).rounded()))% of the first working load."
             set.prescribedRestSeconds = step.restSeconds
             set.prescriptionNotes = "Generated warm-up"

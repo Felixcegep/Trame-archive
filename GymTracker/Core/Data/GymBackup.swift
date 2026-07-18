@@ -94,6 +94,7 @@ nonisolated struct ExerciseSetDTO: Codable {
     var prescribedSuggestedLoad: Double? = nil
     var prescribedSuggestedLoadType: String? = nil
     var prescribedUnroundedLoad: Double? = nil
+    var prescribedReferenceValue: Double? = nil
     var prescriptionLoadExplanation: String? = nil
     var prescribedRestSeconds: Int? = nil
     var prescribedRPE: Double? = nil
@@ -640,6 +641,7 @@ extension BackupDTO {
                             prescribedSuggestedLoad: set.prescribedSuggestedLoad,
                             prescribedSuggestedLoadType: set.prescribedSuggestedLoadType?.rawValue,
                             prescribedUnroundedLoad: set.prescribedUnroundedLoad,
+                            prescribedReferenceValue: set.prescribedReferenceValue,
                             prescriptionLoadExplanation: set.prescriptionLoadExplanation,
                             prescribedRestSeconds: set.prescribedRestSeconds,
                             prescribedRPE: set.prescribedRPE,
@@ -1357,6 +1359,7 @@ extension BackupDTO {
                     setObj.prescribedSuggestedLoad = setDTO.prescribedSuggestedLoad
                     setObj.prescribedSuggestedLoadType = setDTO.prescribedSuggestedLoadType.flatMap(WeightType.init(rawValue:))
                     setObj.prescribedUnroundedLoad = setDTO.prescribedUnroundedLoad
+                    setObj.prescribedReferenceValue = setDTO.prescribedReferenceValue
                     setObj.prescriptionLoadExplanation = setDTO.prescriptionLoadExplanation
                     setObj.prescribedRestSeconds = setDTO.prescribedRestSeconds
                     setObj.prescribedRPE = setDTO.prescribedRPE

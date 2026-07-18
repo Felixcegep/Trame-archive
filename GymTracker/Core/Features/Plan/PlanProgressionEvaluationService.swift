@@ -75,6 +75,9 @@ enum PlanProgressionEvaluationService {
                 metrics[.setCount] = Double(completedSets.count)
                 metrics[.totalRepetitions] = repetitions
                 metrics[.totalVolume] = volume
+                if let amrap = completedSets.last(where: { $0.prescribedSetType == .amrap }) {
+                    metrics[.amrapRepetitions] = Double(amrap.repetitions)
+                }
                 metrics[.duration] = completedSets.compactMap(\.duration).reduce(0, +)
                 metrics[.distance] = completedSets.compactMap { $0.distance.map(Double.init) }.reduce(0, +)
                 metrics[.calories] = completedSets.compactMap(\.calories).reduce(0, +)
