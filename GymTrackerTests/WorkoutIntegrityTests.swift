@@ -969,7 +969,7 @@ final class WorkoutIntegrityTests: XCTestCase {
 
         XCTAssertEqual(entry.prescribedSets, 2)
         XCTAssertEqual(entry.sets.count, 2)
-        XCTAssertEqual(entry.prescribedSuggestedLoad, 90)
+        XCTAssertEqual(entry.prescribedSuggestedLoad ?? 0, 90)
         XCTAssertTrue(entry.sets.allSatisfy { $0.weight == 90 })
         XCTAssertEqual(plannedExercise.targetSets, 3)
         XCTAssertEqual(plannedExercise.suggestedLoad, 100)
@@ -1493,7 +1493,8 @@ final class WorkoutIntegrityTests: XCTestCase {
             generatesAfterSourceCompletion: true
         )
         entry.deferredBackOffDefinitionsData = try JSONEncoder().encode([deferredBackOff])
-        let workout = Workout(name: "Clean day", exercises: [entry])
+        let workout = Workout(name: "Clean day")
+        workout.exercises = [entry]
         source.insert(exercise)
         source.insert(workout)
         ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
@@ -1531,7 +1532,7 @@ final class WorkoutIntegrityTests: XCTestCase {
             $0.generatedBackOffDefinitionID == deferredBackOff.id
         }
         XCTAssertEqual(restoredBackOffs.count, 1)
-        XCTAssertEqual(restoredBackOffs.first?.prescribedSuggestedLoad, 85, accuracy: 0.001)
+        XCTAssertEqual(restoredBackOffs.first?.prescribedSuggestedLoad ?? 0, 85, accuracy: 0.001)
     }
 
     func testDeferredBackOffSurvivesDiskRelaunchWithoutDuplicateGeneration() throws {
@@ -1541,7 +1542,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         let deferredBackOffID = UUID()
 
         try withDiskContext(at: url) { context in
-            let exercise = Exercise(name: "Bench Press", primaryMuscles: [.chest])
+            let exercise = Exercise(name: "Bench Press", primaryMuscles: [.middleChest])
             let topSet = ExerciseSet(
                 repetitions: 5,
                 weight: 100,
@@ -1565,7 +1566,8 @@ final class WorkoutIntegrityTests: XCTestCase {
                 generatesAfterSourceCompletion: true
             )
             entry.deferredBackOffDefinitionsData = try JSONEncoder().encode([deferredBackOff])
-            let workout = Workout(name: "Press", exercises: [entry])
+            let workout = Workout(name: "Press")
+            workout.exercises = [entry]
             workout.id = workoutID
             context.insert(exercise)
             context.insert(workout)
@@ -1583,7 +1585,7 @@ final class WorkoutIntegrityTests: XCTestCase {
                 $0.generatedBackOffDefinitionID == deferredBackOffID
             }
             XCTAssertEqual(generated.count, 1)
-            XCTAssertEqual(generated.first?.prescribedSuggestedLoad, 90, accuracy: 0.001)
+            XCTAssertEqual(generated.first?.prescribedSuggestedLoad ?? 0, 90, accuracy: 0.001)
         }
     }
 
@@ -1694,7 +1696,7 @@ final class WorkoutIntegrityTests: XCTestCase {
                 && $0.scopeRaw == ProgressionScope.week.rawValue
                 && $0.scopeOwnerKey == "week:1"
         })
-        XCTAssertEqual(restoredScopedState.currentLoad, 55, accuracy: 0.001)
+        XCTAssertEqual(restoredScopedState.currentLoad ?? 0, 55, accuracy: 0.001)
         XCTAssertEqual(restoredProgress.status, .completed)
         XCTAssertEqual(restoredProgress.plannedWorkoutID, firstPlannedWorkout.id)
         XCTAssertEqual(restoredProgress.completedWorkout?.id, completedWorkout.id)
@@ -2029,7 +2031,8 @@ final class WorkoutIntegrityTests: XCTestCase {
             usedMetric: .metric,
             supersetGroupID: groupID
         )
-        let workout = Workout(name: "Superset", exercises: [entryA, entryB])
+        let workout = Workout(name: "Superset")
+        workout.exercises = [entryA, entryB]
         context.insert(exerciseA)
         context.insert(exerciseB)
         context.insert(workout)

@@ -36,19 +36,19 @@ final class ProgramEngineIntegrationTests: XCTestCase {
 
         run.currentWeekIndex = 0
         XCTAssertEqual(
-            PlanProgressionStateService.effectiveState(for: volume, in: run)?.currentLoad,
+            PlanProgressionStateService.effectiveState(for: volume, in: run)?.currentLoad ?? 0,
             100,
             accuracy: 0.001
         )
 
         run.currentWeekIndex = 1
         XCTAssertEqual(
-            PlanProgressionStateService.effectiveState(for: volume, in: run)?.currentLoad,
+            PlanProgressionStateService.effectiveState(for: volume, in: run)?.currentLoad ?? 0,
             105,
             accuracy: 0.001
         )
         XCTAssertEqual(
-            PlanProgressionStateService.effectiveState(for: strength, in: run)?.currentLoad,
+            PlanProgressionStateService.effectiveState(for: strength, in: run)?.currentLoad ?? 0,
             90,
             accuracy: 0.001
         )
@@ -72,7 +72,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
 
         XCTAssertEqual(target.scopeRaw, ProgressionScope.week.rawValue)
         XCTAssertEqual(target.scopeOwnerKey, "week:1")
-        XCTAssertEqual(target.currentLoad, 100, accuracy: 0.001)
+        XCTAssertEqual(target.currentLoad ?? 0, 100, accuracy: 0.001)
         XCTAssertEqual(run.progressionStates.count, 2)
     }
 
@@ -129,14 +129,14 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         try PlanProgressionRecommendationService.accept(record, in: run, context: context)
 
         XCTAssertTrue(record.isResolved)
-        XCTAssertEqual(state.currentLoad, 100, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 100, accuracy: 0.001)
         XCTAssertEqual(skippedAtBoundary.status, .upcoming)
         let pending = try XCTUnwrap(state.pendingProgressionData.flatMap {
             try? JSONDecoder().decode([PendingProgressionState].self, from: $0)
         })
         XCTAssertEqual(pending.count, 1)
         XCTAssertEqual(pending.first?.action, .advanceWeek)
-        XCTAssertEqual(pending.first?.state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(pending.first?.state.currentLoad ?? 0, 102.5, accuracy: 0.001)
 
         run.currentWeekIndex = 1
         run.currentWorkoutIndex = 0
@@ -146,7 +146,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         ))
         XCTAssertEqual(skippedAtBoundary.status, .skipped)
         XCTAssertTrue(PlanProgressionCadenceService.applyDueStates(in: run))
-        XCTAssertEqual(state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
         XCTAssertNil(state.pendingProgressionData)
     }
 
@@ -313,7 +313,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
     }
 
     func testAutomaticEndExerciseOmitsOnlyFutureGeneratedEntries() {
-        let exercise = Exercise(name: "Accessory", primaryMuscles: [.biceps])
+        let exercise = Exercise(name: "Accessory", primaryMuscles: [.bicep])
         let plannedExercise = PlannedExercise(exercise: exercise, orderIndex: 0, progressionKey: "accessory")
         let plannedWorkout = PlannedWorkout(name: "Upper", orderIndex: 0, dayOffset: 0, plannedExercises: [plannedExercise])
         let run = PlanRun(sourcePlanID: UUID(), sourcePlanName: "Transition", startDate: .now)
@@ -390,7 +390,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
 
     func testStructuredComplexPrescriptionCompilesWithoutLosingComponents() throws {
         let clean = Exercise(name: "Clean", primaryMuscles: [.quadriceps])
-        let jerk = Exercise(name: "Jerk", primaryMuscles: [.shoulders])
+        let jerk = Exercise(name: "Jerk", primaryMuscles: [.frontDeltoid])
         let complex = Exercise(name: "Clean + Jerk", primaryMuscles: [.quadriceps])
         let prescription = SetPrescriptionDefinition(
             orderIndex: 0,
@@ -525,10 +525,10 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         run.currentWeekIndex = 1
 
         XCTAssertTrue(PlanProgressionCadenceService.applyDueStates(in: run))
-        XCTAssertEqual(state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
         XCTAssertNil(state.pendingProgressionData)
         XCTAssertFalse(PlanProgressionCadenceService.applyDueStates(in: run))
-        XCTAssertEqual(state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
     }
 
     func testPlannedWorkoutStartupResolvesUniversalPrescriptionIntoSnapshot() throws {
@@ -754,7 +754,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
 
         ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
 
-        XCTAssertEqual(backOff.prescribedSuggestedLoad, 85, accuracy: 0.001)
+        XCTAssertEqual(backOff.prescribedSuggestedLoad ?? 0, 85, accuracy: 0.001)
     }
 
     func testDerivedDailyMaximumLoadUsesAUserAddedTechnicalMaximumAttempt() throws {
@@ -795,17 +795,17 @@ final class ProgramEngineIntegrationTests: XCTestCase {
 
         ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
 
-        XCTAssertEqual(backOff.prescribedSuggestedLoad, 84, accuracy: 0.001)
+        XCTAssertEqual(backOff.prescribedSuggestedLoad ?? 0, 84, accuracy: 0.001)
         XCTAssertEqual(addedMaximum.prescribedSetType, .dailyMaximum)
         XCTAssertNotNil(addedMaximum.prescriptionDefinitionData)
 
         initialMaximum.isSelectedDailyMaximum = true
         ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
-        XCTAssertEqual(backOff.prescribedSuggestedLoad, 80, accuracy: 0.001)
+        XCTAssertEqual(backOff.prescribedSuggestedLoad ?? 0, 80, accuracy: 0.001)
     }
 
     func testDeferredBackOffIsGeneratedFromTopSetAndCompletedValuesRemainFrozen() throws {
-        let exercise = Exercise(name: "Bench Press", primaryMuscles: [.chest])
+        let exercise = Exercise(name: "Bench Press", primaryMuscles: [.middleChest])
         let topSet = ExerciseSet(
             repetitions: 5,
             weight: 100,
@@ -845,7 +845,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         })
         XCTAssertEqual(entry.orderedSets.count, 2)
         XCTAssertEqual(generated.prescribedSetType, .backoff)
-        XCTAssertEqual(generated.prescribedSuggestedLoad, 90, accuracy: 0.001)
+        XCTAssertEqual(generated.prescribedSuggestedLoad ?? 0, 90, accuracy: 0.001)
         XCTAssertEqual(generated.prescribedRepetitions, 5)
 
         topSet.done = false
@@ -858,19 +858,19 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         generated = try XCTUnwrap(entry.orderedSets.first {
             $0.generatedBackOffDefinitionID == backOff.id
         })
-        XCTAssertEqual(generated.prescribedSuggestedLoad, 99, accuracy: 0.001)
+        XCTAssertEqual(generated.prescribedSuggestedLoad ?? 0, 99, accuracy: 0.001)
 
         generated.weight = 99
         generated.done = true
         topSet.weight = 120
         ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
 
-        XCTAssertEqual(generated.prescribedSuggestedLoad, 99, accuracy: 0.001)
+        XCTAssertEqual(generated.prescribedSuggestedLoad ?? 0, 99, accuracy: 0.001)
         XCTAssertEqual(generated.weight, 99, accuracy: 0.001)
     }
 
     func testDeferredBackOffRefreshKeepsOneUnfinishedSetPerDefinition() throws {
-        let exercise = Exercise(name: "Bench Press", primaryMuscles: [.chest])
+        let exercise = Exercise(name: "Bench Press", primaryMuscles: [.middleChest])
         let topSet = ExerciseSet(
             repetitions: 5,
             weight: 100,
@@ -924,7 +924,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         let duplicate = firstGenerated.copy()
         duplicate.generatedBackOffDefinitionID = firstBackOff.id
         duplicate.done = false
-        duplicate.orderIndex = entry.nextSetOrderIndex
+        duplicate.orderIndex = (entry.sets.map(\.orderIndex).max() ?? -1) + 1
         entry.sets.append(duplicate)
 
         ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
@@ -941,7 +941,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         let staleUnfinished = firstGenerated.copy()
         staleUnfinished.generatedBackOffDefinitionID = firstBackOff.id
         staleUnfinished.done = false
-        staleUnfinished.orderIndex = entry.nextSetOrderIndex
+        staleUnfinished.orderIndex = (entry.sets.map(\.orderIndex).max() ?? -1) + 1
         entry.sets.append(staleUnfinished)
 
         ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
@@ -954,7 +954,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
     }
 
     func testSnapshotDefersSourceBasedBackOffUntilItsSourceIsCompleted() throws {
-        let exercise = Exercise(name: "Bench Press", primaryMuscles: [.chest])
+        let exercise = Exercise(name: "Bench Press", primaryMuscles: [.middleChest])
         let topSet = SetPrescriptionDefinition(
             orderIndex: 0,
             role: .topSet,
@@ -997,7 +997,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
     }
 
     func testDeferredTopSetBackOffPreservesTheWorkoutWeightUnit() throws {
-        let exercise = Exercise(name: "Bench Press", primaryMuscles: [.chest])
+        let exercise = Exercise(name: "Bench Press", primaryMuscles: [.middleChest])
         let topSet = ExerciseSet(
             repetitions: 5,
             weight: 225,
@@ -1028,14 +1028,14 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         let generated = try XCTUnwrap(entry.orderedSets.first {
             $0.generatedBackOffDefinitionID == backOff.id
         })
-        XCTAssertEqual(generated.prescribedSuggestedLoad, 202.5, accuracy: 0.001)
+        XCTAssertEqual(generated.prescribedSuggestedLoad ?? 0, 202.5, accuracy: 0.001)
         XCTAssertEqual(generated.prescribedSuggestedLoadType, .lbs)
     }
 
     func testFutureOverrideIsInheritedAndConvertedForTheNextOccurrence() throws {
         let exercise = Exercise(
             name: "Bench Press",
-            primaryMuscles: [.chest],
+            primaryMuscles: [.middleChest],
             trackingType: .weightAndReps,
             equipmentType: .barbell
         )
@@ -1113,7 +1113,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         XCTAssertTrue(targetSet.isUserOverridden)
         XCTAssertTrue(targetSet.userOverrideAffectsFuture)
         XCTAssertEqual(targetSet.userOverrideReason, "Heavier than the generated target")
-        XCTAssertEqual(targetSet.prescribedSuggestedLoad, 100, accuracy: 0.01)
+        XCTAssertEqual(targetSet.prescribedSuggestedLoad ?? 0, 100, accuracy: 0.01)
     }
 
     func testCustomDefinitionSaveAndCompileCreatesVersionedPlan() throws {
@@ -1127,8 +1127,8 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         context.insert(exercise)
 
         let definition = ProgramDefinitionPayload(
-            name: "Custom Recipe",
             templateVersion: 3,
+            name: "Custom Recipe",
             durationWeeks: 1,
             supportedDaysPerWeek: [1],
             blocks: [
@@ -1254,7 +1254,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         _ = try PlanProgressionEvaluationService.evaluateAndApply(workout: workout, run: run, modelContext: context)
 
         let state = try XCTUnwrap(run.progressionStates.first { $0.progressionKey == "squat-progress" })
-        XCTAssertEqual(state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
 
         let nextEntry = ExerciseEntry(from: plannedWorkout.orderedPlannedExercises[0], orderIndex: 0, usedMetric: .metric)
         ProgramPrescriptionSnapshotService.apply(
@@ -1263,12 +1263,12 @@ final class ProgramEngineIntegrationTests: XCTestCase {
             run: run,
             unitSystem: .metric
         )
-        XCTAssertEqual(nextEntry.orderedSets.first?.prescribedSuggestedLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(nextEntry.orderedSets.first?.prescribedSuggestedLoad ?? 0, 102.5, accuracy: 0.001)
 
         // The same completion may be retried after a relaunch. The immutable
         // workout ID makes progression application idempotent.
         _ = try PlanProgressionEvaluationService.evaluateAndApply(workout: workout, run: run, modelContext: context)
-        XCTAssertEqual(state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
         XCTAssertEqual(state.lastAppliedOutcomeID, workout.id)
     }
 
@@ -1342,9 +1342,9 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         )
 
         let state = try XCTUnwrap(run.progressionStates.first { $0.progressionKey == "event-squat" })
-        XCTAssertEqual(state.currentLoad, 102.5, accuracy: 0.001)
-        XCTAssertEqual(first.prescribedSuggestedLoad, 100, accuracy: 0.001)
-        XCTAssertEqual(entry.orderedSets[1].prescribedSuggestedLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
+        XCTAssertEqual(first.prescribedSuggestedLoad ?? 0, 100, accuracy: 0.001)
+        XCTAssertEqual(entry.orderedSets[1].prescribedSuggestedLoad ?? 0, 102.5, accuracy: 0.001)
 
         ActiveWorkoutProgressionService.applyAfterCompleting(
             set: first,
@@ -1352,7 +1352,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
             workout: workout,
             modelContext: context
         )
-        XCTAssertEqual(state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
 
         let second = entry.orderedSets[1]
         second.weight = 102.5
@@ -1363,7 +1363,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         progress.status = .completed
         progress.completedWorkout = workout
         _ = try PlanProgressionEvaluationService.evaluateAndApply(workout: workout, run: run)
-        XCTAssertEqual(state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
     }
 
     func testWeekScopedRuleUpdatesOnlyTheNextWeekSnapshot() throws {
@@ -1448,8 +1448,8 @@ final class ProgramEngineIntegrationTests: XCTestCase {
                 && $0.scopeRaw == ProgressionScope.week.rawValue
                 && $0.scopeOwnerKey == "week:1"
         })
-        XCTAssertEqual(base.currentLoad, 100, accuracy: 0.001)
-        XCTAssertEqual(nextWeek.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(base.currentLoad ?? 0, 100, accuracy: 0.001)
+        XCTAssertEqual(nextWeek.currentLoad ?? 0, 102.5, accuracy: 0.001)
 
         run.currentWeekIndex = 1
         run.currentWorkoutIndex = 0
@@ -1466,7 +1466,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
             run: run,
             unitSystem: .metric
         )
-        XCTAssertEqual(nextEntry.orderedSets.first?.prescribedSuggestedLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(nextEntry.orderedSets.first?.prescribedSuggestedLoad ?? 0, 102.5, accuracy: 0.001)
     }
 
     func testWeeklyCadenceStaysDeferredWithinTheSameWeek() throws {
@@ -1554,7 +1554,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         firstProgress.status = .completed
 
         let state = try XCTUnwrap(run.progressionStates.first { $0.progressionKey == "weekly-squat" })
-        XCTAssertEqual(state.currentLoad, 100, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 100, accuracy: 0.001)
         XCTAssertNotNil(state.pendingProgressionData)
 
         run.currentWeekIndex = 0
@@ -1563,7 +1563,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         let secondPlanned = try XCTUnwrap(PlanCoordinator.plannedWorkout(for: secondProgress, in: run))
         let secondEntry = ExerciseEntry(from: try XCTUnwrap(secondPlanned.orderedPlannedExercises.first), orderIndex: 0, usedMetric: .metric)
         ProgramPrescriptionSnapshotService.apply(to: secondEntry, plannedExercise: try XCTUnwrap(secondPlanned.orderedPlannedExercises.first), run: run, unitSystem: .metric)
-        XCTAssertEqual(secondEntry.orderedSets.first?.prescribedSuggestedLoad, 100, accuracy: 0.001)
+        XCTAssertEqual(secondEntry.orderedSets.first?.prescribedSuggestedLoad ?? 0, 100, accuracy: 0.001)
 
         let secondWorkout = Workout(plannedWorkout: secondPlanned, planRun: run, unitSystem: .metric)
         let secondSet = try XCTUnwrap(secondWorkout.orderedExercises.first?.orderedSets.first)
@@ -1573,7 +1573,7 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         secondWorkout.status = .completed
         secondWorkout.endTime = .now
         _ = try PlanProgressionEvaluationService.evaluateAndApply(workout: secondWorkout, run: run)
-        XCTAssertEqual(state.currentLoad, 102.5, accuracy: 0.001)
+        XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
     }
 
     private func makeContext() throws -> ModelContext {
