@@ -1,5 +1,7 @@
 import Foundation
 
+#if !GYMTRACKER_EXTENSION
+
 struct PlanExerciseProgressionResult {
     let progressionKey: String
     let recommendations: [ProgressionRecommendation]
@@ -121,3 +123,4 @@ private extension Array where Element == Double {
 private extension Float {
     var doubleValue: Double { Double(self) }
 }
+#endif

@@ -1,5 +1,7 @@
 import Foundation
 
+#if !GYMTRACKER_EXTENSION
+
 // MARK: - Prescriptions
 
 enum ProgramSetRole: String, Codable, CaseIterable, Hashable {
@@ -632,3 +634,4 @@ enum ProgramDefinitionValidator {
         return graph.keys.contains(where: visit)
     }
 }
+#endif

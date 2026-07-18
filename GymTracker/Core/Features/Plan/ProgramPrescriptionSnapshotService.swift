@@ -1,5 +1,7 @@
 import Foundation
 
+#if !GYMTRACKER_EXTENSION
+
 enum ProgramPrescriptionSnapshotService {
     static func apply(
         to entry: ExerciseEntry,
@@ -63,3 +65,4 @@ enum ProgramPrescriptionSnapshotService {
         }
     }
 }
+#endif

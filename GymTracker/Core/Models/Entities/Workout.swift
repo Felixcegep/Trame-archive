@@ -126,12 +126,14 @@ class Workout {
                 supersetGroupID: groupID
             )
             PlanDeloadService.apply(to: entry, for: plannedWorkout.week?.block)
+#if !GYMTRACKER_EXTENSION
             ProgramPrescriptionSnapshotService.apply(
                 to: entry,
                 plannedExercise: plannedExercise,
                 run: planRun,
                 unitSystem: unitSystem
             )
+#endif
             exercises.append(entry)
         }
     }

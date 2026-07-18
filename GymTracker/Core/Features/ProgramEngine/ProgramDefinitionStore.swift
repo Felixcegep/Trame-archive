@@ -1,6 +1,8 @@
 import Foundation
 import SwiftData
 
+#if !GYMTRACKER_EXTENSION
+
 enum ProgramDefinitionStoreError: LocalizedError, Equatable {
     case invalid([ProgramValidationIssue])
     case missingExercise(UUID)
@@ -208,3 +210,4 @@ enum ProgramDefinitionCompiler {
         }
     }
 }
+#endif

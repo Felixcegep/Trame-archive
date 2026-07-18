@@ -1,5 +1,7 @@
 import Foundation
 
+#if !GYMTRACKER_EXTENSION
+
 struct ProgressionPerformance: Hashable {
     var requiredSets: Int = 0
     var completedSets: Int = 0
@@ -220,3 +222,4 @@ enum ProgramProgressionEvaluator {
         }
     }
 }
+#endif

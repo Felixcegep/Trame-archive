@@ -1,5 +1,7 @@
 import Foundation
 
+#if !GYMTRACKER_EXTENSION
+
 struct LoadResolutionContext {
     var trainingMaxByExposure: [String: Double] = [:]
     var estimatedOneRepMaxByExposure: [String: Double] = [:]
@@ -215,3 +217,4 @@ enum ProgramFormulaResolver {
         }
     }
 }
+#endif

@@ -13,23 +13,28 @@ enum GymTrackerModelContainer {
         }
     }()
 
-    static let schema = Schema([
-        Workout.self,
-        Exercise.self,
-        ExerciseRelationship.self,
-        WorkoutTemplate.self,
-        TemplateExercise.self,
-        WorkoutCollection.self,
-        WorkoutPlan.self,
-        PlanBlock.self,
-        PlanWeek.self,
-        PlannedWorkout.self,
-        PlannedExercise.self,
-        PlannedSet.self,
-        PlannedExerciseAlternative.self,
-        PlanRun.self,
-        PlanWorkoutProgress.self,
-        PlanExerciseProgressionState.self,
-        ProgramDefinitionRecord.self
-    ])
+    static let schema: Schema = {
+        var types: [any PersistentModel.Type] = [
+            Workout.self,
+            Exercise.self,
+            ExerciseRelationship.self,
+            WorkoutTemplate.self,
+            TemplateExercise.self,
+            WorkoutCollection.self,
+            WorkoutPlan.self,
+            PlanBlock.self,
+            PlanWeek.self,
+            PlannedWorkout.self,
+            PlannedExercise.self,
+            PlannedSet.self,
+            PlannedExerciseAlternative.self,
+            PlanRun.self,
+            PlanWorkoutProgress.self,
+            PlanExerciseProgressionState.self
+        ]
+#if !GYMTRACKER_EXTENSION
+        types.append(ProgramDefinitionRecord.self)
+#endif
+        return Schema(types)
+    }()
 }

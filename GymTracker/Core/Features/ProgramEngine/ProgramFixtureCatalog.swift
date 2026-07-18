@@ -1,5 +1,7 @@
 import Foundation
 
+#if !GYMTRACKER_EXTENSION
+
 /// Small, non-branded recipes used by tests and previews. They intentionally
 /// exercise different rule combinations instead of embedding program logic.
 enum ProgramFixtureCatalog {
@@ -131,3 +133,4 @@ enum ProgramFixtureCatalog {
         }
     }
 }
+#endif
