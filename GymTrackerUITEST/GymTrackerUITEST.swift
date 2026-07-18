@@ -26,6 +26,33 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
     }
 
+    func testBrowsesConfiguresAndActivatesBuiltInProgram() {
+        let app = launchFreshApp()
+        selectTab(.library, in: app)
+        tapButton("program-catalog-browser", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-catalog"].waitForExistence(timeout: 8))
+
+        app.searchFields["Search programs"].tap()
+        app.searchFields["Search programs"].typeText("Double Progression")
+        let program = app.descendants(matching: .any)["program-catalog-Double Progression Builder"]
+        XCTAssertTrue(program.waitForExistence(timeout: 5))
+        program.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["program-catalog-detail"].waitForExistence(timeout: 5))
+
+        let useProgram = app.buttons["use-program"]
+        scrollToElement(useProgram, in: app)
+        useProgram.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["program-intake"].waitForExistence(timeout: 5))
+        let startingLoad = app.textFields["Starting load"]
+        XCTAssertTrue(startingLoad.waitForExistence(timeout: 5))
+        startingLoad.tap()
+        startingLoad.typeText("20")
+        app.buttons["Done"].tap()
+        tapButton("start-program", in: app)
+        XCTAssertTrue(app.buttons["use-program"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["use-program"].label.contains("Program added"))
+    }
+
     func testResumesPersistedActiveWorkoutAfterRelaunch() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
@@ -578,9 +605,9 @@ final class GymTrackerUITEST: XCTestCase {
         // how long a cold simulator needs.
         let preparing = app.descendants(matching: .any)["app-preparing"]
         if preparing.exists {
-            XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
+            XCTAssertTrue(preparing.waitForNonExistence(timeout: 60))
         }
-        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 45))
         return app
     }
 
@@ -1141,6 +1168,26 @@ final class GymTrackerUITEST: XCTestCase {
         name.typeText("\n")
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
         saveScreenshot("plans/13j_Program_Definition_Builder")
+    }
+
+    func testCaptureProgramCatalogScreenshots() {
+        let app = launchFreshApp()
+        selectTab(.library, in: app)
+        tapButton("program-catalog-browser", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-catalog"].waitForExistence(timeout: 8))
+        saveScreenshot("plans/13k_Program_Catalog")
+
+        let program = app.descendants(matching: .any)["program-catalog-Double Progression Builder"]
+        XCTAssertTrue(program.waitForExistence(timeout: 5))
+        program.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["program-catalog-detail"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13l_Program_Catalog_Detail")
+
+        let useProgram = app.buttons["use-program"]
+        scrollToElement(useProgram, in: app)
+        useProgram.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["program-intake"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13m_Program_Intake")
     }
 
     func testCaptureActivePlanRunScreenshot() {

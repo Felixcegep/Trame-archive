@@ -45,6 +45,7 @@ Scenes:
   template-progression   Template progression controls
   plan-review            Per-day assignments and plan change review
   program-builder        Custom universal program definition builder
+  program-catalog        Built-in program browser, detail, and intake
   plan-calendar          Active program agenda and a scheduled-day detail
   hidden                 Hidden and archived exercise management
   exercise-insights      Per-exercise history and progression insights
@@ -74,6 +75,7 @@ tests_for_scene() {
     template-progression) echo "testCaptureTemplateProgressionScreenshot" ;;
     plan-review) echo "testCapturePlanReviewScreenshot testCaptureActivePlanRunScreenshot" ;;
     program-builder) echo "testCaptureProgramDefinitionBuilderScreenshot" ;;
+    program-catalog) echo "testCaptureProgramCatalogScreenshots" ;;
     plan-calendar) echo "testCapturePlanCalendarScreenshots" ;;
     hidden) echo "testCaptureHiddenExercisesScreenshot" ;;
     exercise-insights) echo "testCaptureExerciseDetailInsightsScreenshot" ;;
@@ -94,6 +96,7 @@ files_for_scene() {
     template-progression) echo "templates/12_Template_Progression.png" ;;
     plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13c_Program_Equipment.png plans/13d_Plan_Deload_Schedule.png plans/13g_Plan_Exercise_Alternatives.png plans/13h_Plan_Per_Set_Prescription.png plans/13_Plan_Review.png plans/13i_Program_Prescription_Preview.png plans/13b_Plan_Active_Run.png overview/01d_Home_Active_Plan.png" ;;
     program-builder) echo "plans/13j_Program_Definition_Builder.png" ;;
+    program-catalog) echo "plans/13k_Program_Catalog.png plans/13l_Program_Catalog_Detail.png plans/13m_Program_Intake.png" ;;
     plan-calendar) echo "plans/13e_Plan_Calendar.png plans/13f_Plan_Calendar_Day.png" ;;
     hidden) echo "exercises/16_Hidden_Exercises.png" ;;
     exercise-insights) echo "exercises/17a_Exercise_Detail_Variations.png exercises/17b_Exercise_Relationships.png exercises/17_Exercise_Insights.png" ;;
@@ -102,7 +105,7 @@ files_for_scene() {
   esac
 }
 
-ALL_SCENES="overview pages active rest history recommendation performance template-progression plan-review program-builder plan-calendar hidden exercise-insights muscle-balance"
+ALL_SCENES="overview pages active rest history recommendation performance template-progression plan-review program-builder program-catalog plan-calendar hidden exercise-insights muscle-balance"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 
@@ -134,7 +137,7 @@ validate_catalog() {
       echo "ScreenshotCoverage.md entry is missing from the runner: $basename"
       exit 1
     fi
-  done < <(sed -n 's/.*`\([^`]*\.png\)`.*/\1/p' "$catalog")
+  done < <(sed -n '/Pending fixture/d; /Not catalogued/d; s/.*`\([^`]*\.png\)`.*/\1/p' "$catalog")
 }
 
 for argument in "$@"; do
