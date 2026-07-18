@@ -154,6 +154,14 @@ struct PlanReviewExerciseRow: View {
             Text(exercise.summary)
                 .font(AppFont.caption)
                 .foregroundStyle(.secondary)
+            if !exercise.plannedSets.isEmpty {
+                ForEach(Array(exercise.plannedSets.enumerated()), id: \.element.id) { index, set in
+                    Label("Set \(index + 1) · \(set.summary)", systemImage: set.setType.icon)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .accessibilityIdentifier("plan-review-set-\(index + 1)-\(exercise.id.uuidString)")
+                }
+            }
             Text("\(exercise.stimulus.title) stimulus")
                 .font(AppFont.caption)
                 .foregroundStyle(Color.gymSubduedText)

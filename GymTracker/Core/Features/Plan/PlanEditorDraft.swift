@@ -432,7 +432,12 @@ struct PlanSetDraft: Identifiable {
             repetitions = "No rep target"
         }
         let load = suggestedLoadText.isEmpty ? "No load" : "\(suggestedLoadText) \(suggestedLoadType.rawValue)"
-        return "\(setType.title) · \(repetitions) · \(load)"
+        var details = ["\(setType.title) · \(repetitions) · \(load)"]
+        if let rest = Int(restSecondsText), rest >= 0 { details.append("\(rest)s rest") }
+        if let rpe = Double(targetRPEText) { details.append("RPE \(rpe.formatted(.number.precision(.fractionLength(0...1))))") }
+        if let rir = Int(targetRIRText) { details.append("RIR \(rir)") }
+        if isOptional { details.append("Optional") }
+        return details.joined(separator: " · ")
     }
 
     func makeModel(orderIndex: Int) -> PlannedSet {

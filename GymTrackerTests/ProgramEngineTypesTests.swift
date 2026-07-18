@@ -124,6 +124,108 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(rows.contains { $0.repPrescriptions.contains { if case .sequence = $0 { return true }; return false } })
     }
 
+    func testProgramDefinitionPreviewResolvesInitialLoadsAndDeloadMetadata() throws {
+        let squatID = UUID()
+        let definition = ProgramDefinitionPayload(
+            name: "Preview Cycle",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [1],
+            blocks: [
+                ProgramBlockDefinition(
+                    orderIndex: 0,
+                    name: "Deload",
+                    phaseType: .deload,
+                    deloadVolumeReductionPercent: 40,
+                    deloadIntensityReductionPercent: 15,
+                    weeks: [
+                        ProgramWeekDefinition(
+                            weekIndex: 0,
+                            name: "Recovery Week",
+                            workouts: [
+                                ProgramWorkoutDefinition(
+                                    orderIndex: 0,
+                                    name: "Recovery",
+                                    dayOffset: 2,
+                                    role: "recovery",
+                                    plannedExercises: [
+                                        ProgramExerciseDefinition(
+                                            exerciseID: squatID,
+                                            exposureKey: "squat",
+                                            orderIndex: 0,
+                                            initialTrainingMax: 200,
+                                            plannedSets: [
+                                                SetPrescriptionDefinition(
+                                                    orderIndex: 0,
+                                                    role: .working,
+                                                    repetitions: .fixed(5),
+                                                    load: LoadPrescription(
+                                                        reference: .init(kind: .trainingMax, exposureKey: "squat"),
+                                                        percentage: 0.8,
+                                                        rounding: .nearestIncrement(2.5)
+                                                    ),
+                                                    restSeconds: 120
+                                                )
+                                            ]
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
+
+        let row = try XCTUnwrap(ProgramDefinitionPreview.rows(for: definition).first)
+        XCTAssertEqual(row.phaseType, .deload)
+        XCTAssertEqual(row.weekName, "Recovery Week")
+        XCTAssertEqual(row.workoutRole, "recovery")
+        XCTAssertEqual(row.dayOffset, 2)
+        XCTAssertEqual(row.deloadVolumeReductionPercent, 40)
+        XCTAssertEqual(row.deloadIntensityReductionPercent, 15)
+        XCTAssertEqual(row.sets.first?.unroundedLoad, 160, accuracy: 0.001)
+        XCTAssertEqual(row.sets.first?.prescribedLoad, 160, accuracy: 0.001)
+        XCTAssertEqual(row.sets.first?.restSeconds, 120)
+    }
+
+    func testValidatorRejectsDeloadReductionsOutsideDeloadPhases() {
+        let definition = ProgramDefinitionPayload(
+            name: "Invalid Deload",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [1],
+            blocks: [
+                ProgramBlockDefinition(
+                    orderIndex: 0,
+                    name: "Strength",
+                    deloadVolumeReductionPercent: 95,
+                    weeks: [
+                        ProgramWeekDefinition(
+                            weekIndex: 0,
+                            workouts: [
+                                ProgramWorkoutDefinition(
+                                    orderIndex: 0,
+                                    name: "Day",
+                                    dayOffset: 0,
+                                    plannedExercises: [
+                                        ProgramExerciseDefinition(
+                                            exerciseID: UUID(),
+                                            exposureKey: "squat",
+                                            orderIndex: 0,
+                                            plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))]
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
+
+        let issues = ProgramDefinitionValidator.validate(definition)
+        XCTAssertTrue(issues.contains { $0.path == "blocks[0].deloadVolumeReductionPercent" })
+    }
+
     func testWaveLoadingFixturePreservesStructuredWavesInPreview() throws {
         let rows = try ProgramDefinitionPreview.rows(for: ProgramFixtureCatalog.waveLoading(exerciseIDs: ["squat": UUID()]))
         XCTAssertEqual(rows.count, 1)

@@ -39,9 +39,23 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
     }
 
     @discardableResult
-    mutating func addBlock(name: String, phaseType: PlanPhaseType = .accumulation) -> Int {
+    mutating func addBlock(
+        name: String,
+        phaseType: PlanPhaseType = .accumulation,
+        deloadVolumeReductionPercent: Int? = nil,
+        deloadIntensityReductionPercent: Int? = nil
+    ) -> Int {
         let index = definition.blocks.count
-        definition.blocks.append(ProgramBlockDefinition(orderIndex: index, name: name, phaseType: phaseType, weeks: []))
+        definition.blocks.append(
+            ProgramBlockDefinition(
+                orderIndex: index,
+                name: name,
+                phaseType: phaseType,
+                deloadVolumeReductionPercent: deloadVolumeReductionPercent,
+                deloadIntensityReductionPercent: deloadIntensityReductionPercent,
+                weeks: []
+            )
+        )
         return index
     }
 

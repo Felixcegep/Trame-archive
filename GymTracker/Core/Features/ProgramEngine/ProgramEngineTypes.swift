@@ -404,6 +404,8 @@ struct ProgramBlockDefinition: Codable, Hashable, Identifiable {
     var orderIndex: Int
     var name: String
     var phaseType: PlanPhaseType
+    var deloadVolumeReductionPercent: Int?
+    var deloadIntensityReductionPercent: Int?
     var weeks: [ProgramWeekDefinition]
 
     init(
@@ -411,12 +413,16 @@ struct ProgramBlockDefinition: Codable, Hashable, Identifiable {
         orderIndex: Int,
         name: String,
         phaseType: PlanPhaseType = .accumulation,
+        deloadVolumeReductionPercent: Int? = nil,
+        deloadIntensityReductionPercent: Int? = nil,
         weeks: [ProgramWeekDefinition]
     ) {
         self.id = id
         self.orderIndex = orderIndex
         self.name = name
         self.phaseType = phaseType
+        self.deloadVolumeReductionPercent = deloadVolumeReductionPercent
+        self.deloadIntensityReductionPercent = deloadIntensityReductionPercent
         self.weeks = weeks
     }
 }
@@ -593,6 +599,17 @@ enum ProgramDefinitionValidator {
             let blockPath = "blocks[\(blockIndex)]"
             checkID(block.id, blockPath)
             if block.weeks.isEmpty { add(blockPath, .emptyWeeks, "A block must contain a week.") }
+            for (field, value) in [
+                ("deloadVolumeReductionPercent", block.deloadVolumeReductionPercent),
+                ("deloadIntensityReductionPercent", block.deloadIntensityReductionPercent)
+            ] {
+                if let value, !(0...90).contains(value) {
+                    add("\(blockPath).\(field)", .invalidPercentage, "Deload reduction must be between zero and ninety percent.")
+                }
+                if block.phaseType != .deload, value != nil {
+                    add("\(blockPath).\(field)", .invalidPercentage, "Deload reductions are only valid on a deload phase.")
+                }
+            }
             var weekOrders = Set<Int>()
             for (weekIndex, week) in block.weeks.enumerated() {
                 let weekPath = "\(blockPath).weeks[\(weekIndex)]"

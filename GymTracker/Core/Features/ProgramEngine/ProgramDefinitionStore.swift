@@ -120,6 +120,8 @@ enum ProgramDefinitionCompiler {
                     name: blockDefinition.name,
                     phaseType: blockDefinition.phaseType,
                     orderIndex: blockDefinition.orderIndex,
+                    deloadVolumeReductionPercent: blockDefinition.deloadVolumeReductionPercent,
+                    deloadIntensityReductionPercent: blockDefinition.deloadIntensityReductionPercent,
                     weeks: weeks
                 )
             )
