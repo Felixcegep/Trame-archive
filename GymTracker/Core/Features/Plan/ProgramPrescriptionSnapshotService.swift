@@ -129,14 +129,26 @@ enum ProgramPrescriptionSnapshotService {
             case .calories(let calories):
                 set.calories = calories.map { $0 + (state?.caloriesOffset ?? 0) }
                 set.prescribedCalories = set.calories
-            case .sequence, .open:
+            case .sequence(let components):
+                let repetitions = components.reduce(0) { $0 + $1.repetitions }
+                set.prescribedRepetitions = max(1, repetitions + (state?.repetitionOffset ?? 0))
+                if set.repetitions <= 0 {
+                    set.repetitions = Float(set.prescribedRepetitions ?? repetitions)
+                }
+                let notation = components.map { String($0.repetitions) }.joined(separator: "+")
+                set.prescriptionNotes = ["Complex: \(notation)", definition.notes]
+                    .compactMap { $0 }
+                    .joined(separator: " · ")
+            case .open:
                 break
             }
             set.prescribedRestSeconds = definition.restSeconds.map { max(0, $0 + (state?.restDurationOffset ?? 0)) }
             set.prescribedRPE = definition.targetRPE
             set.prescribedRIR = definition.targetRIR
             set.isPrescribedOptional = definition.isOptional
-            set.prescriptionNotes = definition.notes
+            if set.prescriptionNotes == nil {
+                set.prescriptionNotes = definition.notes
+            }
             if let load = try? ProgramLoadResolver.resolve(definition.load, context: context),
                let value = load.prescribedLoad {
                 let sourceType = state?.currentLoadType ?? .kg

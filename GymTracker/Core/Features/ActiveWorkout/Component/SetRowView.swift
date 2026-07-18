@@ -42,6 +42,15 @@ struct SetRowView: View {
                 rowMenu
             }
 
+            if let notes = exerciseSet.prescriptionNotes,
+               notes.hasPrefix("Complex:") {
+                Text(notes)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .padding(.leading, 45)
+                    .accessibilityLabel(notes)
+            }
+
             if trackingType.usesDuration, !exerciseSet.done {
                 durationCountdownControls
             }
