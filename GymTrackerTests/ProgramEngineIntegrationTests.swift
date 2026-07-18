@@ -265,6 +265,13 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         let payloads = try records.map { try $0.payload() }
 
         let tiered = try XCTUnwrap(payloads.first { $0.programKey == "tiered-stage-ladder" })
+        let foundation = try XCTUnwrap(payloads.first { $0.programKey == "foundation-barbell-5x5" })
+        XCTAssertEqual(foundation.intakeInputs.filter { $0.isRequired }.count, 5)
+        if case .offerRestart(let carryState) = foundation.completionPolicy {
+            XCTAssertTrue(carryState)
+        } else {
+            XCTFail("Foundation catalog policy should offer a carry-state restart")
+        }
         let tieredExercises = tiered.blocks
             .flatMap(\.weeks)
             .flatMap(\.workouts)
@@ -306,6 +313,9 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         })
         XCTAssertTrue(ProgramDefinitionValidator.validate(tiered, isBuiltIn: true).isEmpty)
         XCTAssertTrue(ProgramDefinitionValidator.validate(waveProgram, isBuiltIn: true).isEmpty)
+        let velocityProgram = try XCTUnwrap(payloads.first { $0.programKey == "velocity-calibrated-strength" })
+        XCTAssertTrue(velocityProgram.requiredCapabilities.contains(EngineCapabilities.velocity))
+        XCTAssertTrue(velocityProgram.intakeInputs.contains { $0.kind == .probeVelocity })
     }
 
     func testEveryBundledProgramStartsSnapshotsAndKeepsCompletedHistoryImmutable() throws {

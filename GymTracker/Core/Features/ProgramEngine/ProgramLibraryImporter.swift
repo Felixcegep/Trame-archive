@@ -549,6 +549,20 @@ nonisolated struct AuthoringWaveDefinition: Codable, Hashable {
     var setGroups: [AuthoringSetGroupDefinition]
 }
 
+nonisolated struct AuthoringCompletionPolicyDefinition: Codable, Hashable {
+    var type: String
+    var carryState: Bool?
+
+    func expand() throws -> CompletionPolicy {
+        switch type {
+        case "end": return .end
+        case "offerRestart": return .offerRestart(carryState: carryState ?? false)
+        case "offerTestDay": return .offerTestDay
+        default: throw ProgramLibraryImportError.unsupportedRuleConstruct("completionPolicy.\(type)")
+        }
+    }
+}
+
 nonisolated struct AuthoringWorkoutDefinition: Codable, Hashable {
     var name: String
     var dayOffset: Int
@@ -636,6 +650,10 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var prerequisites: [String]?
     var warnings: [String]?
     var isExperimental: Bool?
+    var intakeInputs: [ProgramIntakeInput]?
+    var missedWorkoutPolicy: MissedWorkoutPolicy?
+    var completionPolicy: AuthoringCompletionPolicyDefinition?
+    var requiredCapabilities: [String]?
     var rulesLibrary: [String: AuthoringRuleSetDefinition]?
     var stageTemplates: [String: [AuthoringStageDefinition]]?
     var waveTemplates: [String: [AuthoringWaveDefinition]]?
@@ -848,15 +866,19 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
         }
 
         let allExercises = expandedBlocks.flatMap(\.weeks).flatMap(\.workouts).flatMap(\.plannedExercises)
-        var requiredCapabilities: Set<String> = []
-        if allExercises.contains(where: { !$0.stages.isEmpty }) { requiredCapabilities.insert(EngineCapabilities.stages) }
-        if allExercises.contains(where: { !$0.waves.isEmpty }) { requiredCapabilities.insert(EngineCapabilities.waves) }
+        var detectedCapabilities: Set<String> = []
+        if allExercises.contains(where: { !$0.stages.isEmpty }) { detectedCapabilities.insert(EngineCapabilities.stages) }
+        if allExercises.contains(where: { !$0.waves.isEmpty }) { detectedCapabilities.insert(EngineCapabilities.waves) }
         if allExercises.contains(where: { !($0.variationExerciseIDs ?? []).isEmpty }) {
-            requiredCapabilities.insert(EngineCapabilities.variationLadders)
+            detectedCapabilities.insert(EngineCapabilities.variationLadders)
         }
         if allExercises.flatMap({ $0.plannedSets + $0.waves.flatMap(\.plannedSets) + $0.stages.flatMap(\.plannedSets) })
             .contains(where: { if case .amrap = $0.repetitions { return true }; return false }) {
-            requiredCapabilities.insert(EngineCapabilities.amrapRepetitions)
+            detectedCapabilities.insert(EngineCapabilities.amrapRepetitions)
+        }
+        if allExercises.flatMap({ $0.plannedSets + $0.waves.flatMap(\.plannedSets) + $0.stages.flatMap(\.plannedSets) })
+            .contains(where: { $0.velocity != nil }) {
+            detectedCapabilities.insert(EngineCapabilities.velocity)
         }
 
         return ProgramDefinitionPayload(
@@ -873,7 +895,10 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             prerequisites: prerequisites ?? [],
             warnings: warnings ?? [],
             isExperimental: isExperimental ?? false,
-            requiredCapabilities: requiredCapabilities.sorted(),
+            intakeInputs: intakeInputs ?? [],
+            missedWorkoutPolicy: missedWorkoutPolicy ?? .shiftSequence,
+            completionPolicy: try completionPolicy?.expand() ?? .end,
+            requiredCapabilities: Set((requiredCapabilities ?? []) + detectedCapabilities).sorted(),
             blocks: expandedBlocks
         )
     }
