@@ -140,6 +140,21 @@ struct FolderView: View {
             .buttonStyle(.plain)
 
             NavigationLink {
+                ProgramCatalogView()
+            } label: {
+                LibraryCategoryRow(
+                    title: "Program Catalog",
+                    subtitle: "Built-in training systems",
+                    count: 13,
+                    icon: AppIcon.progression,
+                    color: Color.gymPrimary,
+                    surface: Color.gymPrimarySurface
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("program-catalog-browser")
+
+            NavigationLink {
                 PlansBrowserView(
                     onStartPlannedWorkout: onStartPlannedWorkout,
                     onCreateProgram: { activeSheet = .plan }
