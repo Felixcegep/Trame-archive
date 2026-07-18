@@ -3,6 +3,20 @@ import SwiftData
 
 #if !GYMTRACKER_EXTENSION
 
+private extension WorkoutPlan {
+    var programCompletionPolicy: CompletionPolicy {
+        get {
+            guard let completionPolicyData,
+                  let policy = try? JSONDecoder().decode(CompletionPolicy.self, from: completionPolicyData)
+            else { return .end }
+            return policy
+        }
+        set {
+            completionPolicyData = try? JSONEncoder().encode(newValue)
+        }
+    }
+}
+
 nonisolated enum ProgramDefinitionStoreError: LocalizedError, Equatable {
     case invalid([ProgramValidationIssue])
     case missingExercise(UUID)
@@ -136,7 +150,7 @@ enum ProgramDefinitionCompiler {
             )
         }
 
-        return WorkoutPlan(
+        let plan = WorkoutPlan(
             name: definition.name,
             goal: definition.goal,
             experienceLevel: definition.experienceLevel,
@@ -150,6 +164,8 @@ enum ProgramDefinitionCompiler {
             sourceProgramDefinitionID: definition.id,
             sourceProgramDefinitionVersion: definition.templateVersion
         )
+        plan.programCompletionPolicy = definition.completionPolicy
+        return plan
     }
 
     /// A definition is valid on its own without the local exercise catalog,
@@ -290,6 +306,74 @@ enum ProgramDefinitionCompiler {
         case .dailyMaximum: return .dailyMaximum
         case .test: return .test
         case .working: return .normal
+        }
+    }
+}
+
+/// Starts a new run without ever mutating the terminal run that produced it.
+/// Carry-forward copies only progression values; workout markers and pending
+/// cadence events belong to the old run and must not be replayed.
+enum ProgramRunLifecycleService {
+    @discardableResult
+    static func restartRun(
+        for plan: WorkoutPlan,
+        from previousRun: PlanRun,
+        startDate: Date = .now,
+        carryState: Bool,
+        using modelContext: ModelContext
+    ) -> PlanRun? {
+        guard previousRun.status == .completed || previousRun.status == .archived else {
+            return nil
+        }
+        guard previousRun.sourcePlanID == plan.id else { return nil }
+        guard let run = PlanCoordinator.startRun(for: plan, startDate: startDate) else { return nil }
+
+        if carryState {
+            for target in run.progressionStates {
+                guard let source = previousRun.progressionStates.first(where: {
+                    $0.progressionKey == target.progressionKey
+                        && $0.scopeRaw == target.scopeRaw
+                        && $0.scopeOwnerKey == target.scopeOwnerKey
+                }) else { continue }
+                target.currentLoad = source.currentLoad
+                target.currentLoadType = source.currentLoadType
+                target.repetitionOffset = source.repetitionOffset
+                target.setCountOffset = source.setCountOffset
+                target.durationOffset = source.durationOffset
+                target.distanceOffset = source.distanceOffset
+                target.restDurationOffset = source.restDurationOffset
+                target.caloriesOffset = source.caloriesOffset
+                target.currentStageID = source.currentStageID
+                target.currentVariationExerciseID = source.currentVariationExerciseID
+                target.trainingMax = source.trainingMax
+                target.estimatedOneRepMax = source.estimatedOneRepMax
+                target.actualOneRepMax = source.actualOneRepMax
+                target.failureCount = source.failureCount
+                target.successCount = source.successCount
+                target.currentWaveIndex = source.currentWaveIndex
+                target.currentBlockIndex = source.currentBlockIndex
+                target.previousAMRAPRepetitions = source.previousAMRAPRepetitions
+                target.previousActualRPE = source.previousActualRPE
+                target.previousActualRIR = source.previousActualRIR
+                target.velocityBaseline = source.velocityBaseline
+                target.lastSuccessfulLoad = source.lastSuccessfulLoad
+                target.isDeloading = source.isDeloading
+                target.lastCompletedOccurrence = nil
+                target.lastAppliedOutcomeID = nil
+                target.lastAppliedSetID = nil
+                target.appliedProgressionEventsData = nil
+                target.pendingProgressionData = nil
+            }
+        }
+
+        modelContext.insert(run)
+        do {
+            try modelContext.save()
+            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+            return run
+        } catch {
+            modelContext.rollback()
+            return nil
         }
     }
 }

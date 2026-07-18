@@ -416,16 +416,44 @@ enum PlanCoordinator {
         return saveAndNotify(using: modelContext)
     }
 
-    static func resume(_ run: PlanRun) {
+    static func resume(_ run: PlanRun, at date: Date = .now) {
         guard run.status == .paused else { return }
         run.status = .active
+        reanchorUnfinishedSchedule(for: run, from: date)
         refreshAvailability(for: run)
     }
 
     @discardableResult
-    static func resume(_ run: PlanRun, using modelContext: ModelContext) -> Bool {
-        resume(run)
+    static func resume(_ run: PlanRun, at date: Date = .now, using modelContext: ModelContext) -> Bool {
+        resume(run, at: date)
         return saveAndNotify(using: modelContext)
+    }
+
+    @discardableResult
+    static func resume(_ run: PlanRun, using modelContext: ModelContext) -> Bool {
+        resume(run, at: .now, using: modelContext)
+    }
+
+    private static func reanchorUnfinishedSchedule(for run: PlanRun, from date: Date) {
+        guard let plan = run.plan else { return }
+        let unfinished = run.orderedWorkoutProgress.filter {
+            $0.status != .completed && $0.status != .skipped && $0.status != .inProgress
+        }
+        let calendar = Calendar.current
+        let anchor = calendar.startOfDay(for: date)
+
+        for (sequenceIndex, progress) in unfinished.enumerated() {
+            let dayOffset: Int
+            switch plan.scheduleMode {
+            case .fixedWeekdays:
+                dayOffset = (progress.weekIndex * 7) + (plannedWorkout(for: progress, in: run)?.dayOffset ?? 0)
+            case .sequential:
+                dayOffset = sequenceIndex
+            case .everyNDays:
+                dayOffset = sequenceIndex * max(1, plan.scheduleIntervalDays)
+            }
+            progress.scheduledDate = calendar.date(byAdding: .day, value: dayOffset, to: anchor)
+        }
     }
 
     static func archive(_ run: PlanRun) {

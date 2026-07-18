@@ -344,6 +344,7 @@ nonisolated struct WorkoutPlanDTO: Codable {
     let isArchived: Bool
     var sourceProgramDefinitionID: String? = nil
     var sourceProgramDefinitionVersion: Int? = nil
+    var completionPolicyData: Data? = nil
     let blocks: [PlanBlockDTO]
 }
 
@@ -731,6 +732,7 @@ extension BackupDTO {
                 isArchived: plan.isArchived,
                 sourceProgramDefinitionID: plan.sourceProgramDefinitionID?.uuidString,
                 sourceProgramDefinitionVersion: plan.sourceProgramDefinitionVersion,
+                completionPolicyData: plan.completionPolicyData,
                 blocks: plan.orderedBlocks.map { block in
                     PlanBlockDTO(
                         id: block.id.uuidString,
@@ -1248,6 +1250,7 @@ extension BackupDTO {
                     sourceProgramDefinitionVersion: planDTO.sourceProgramDefinitionVersion
                 )
                 plan.id = try requiredUUID(planDTO.id, named: "plan")
+                plan.completionPolicyData = planDTO.completionPolicyData
                 plan.createdAt = planDTO.createdAt
                 plan.updatedAt = planDTO.updatedAt
                 plan.isArchived = planDTO.isArchived

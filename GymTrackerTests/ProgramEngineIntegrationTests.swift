@@ -103,6 +103,129 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testProgramRunRestartResetsOrCarriesStateWithoutMutatingPreviousRun() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Restart Squat", primaryMuscles: [.quadriceps])
+        context.insert(exercise)
+        var definition = simpleDefinition(exerciseID: exercise.id)
+        definition.completionPolicy = .offerRestart(carryState: true)
+        let plan = try ProgramDefinitionCompiler.compile(definition, exercisesByID: [exercise.id: exercise])
+        context.insert(plan)
+        let previous = try XCTUnwrap(PlanCoordinator.startRun(
+            for: plan,
+            startDate: Date(timeIntervalSince1970: 1_700_000_000),
+            using: context
+        ))
+        let previousState = try XCTUnwrap(previous.progressionStates.first)
+        previousState.currentLoad = 102.5
+        previous.status = .completed
+        previous.endDate = previous.startDate.addingTimeInterval(86_400)
+        try context.save()
+
+        let carried = try XCTUnwrap(ProgramRunLifecycleService.restartRun(
+            for: plan,
+            from: previous,
+            startDate: Date(timeIntervalSince1970: 1_700_100_000),
+            carryState: true,
+            using: context
+        ))
+        XCTAssertNotEqual(carried.id, previous.id)
+        XCTAssertEqual(carried.progressionStates.first?.currentLoad, 102.5)
+        XCTAssertEqual(previousState.currentLoad, 102.5)
+
+        let reset = try XCTUnwrap(ProgramRunLifecycleService.restartRun(
+            for: plan,
+            from: previous,
+            startDate: Date(timeIntervalSince1970: 1_700_200_000),
+            carryState: false,
+            using: context
+        ))
+        XCTAssertNotEqual(reset.id, previous.id)
+        XCTAssertNil(reset.progressionStates.first?.currentLoad)
+
+        let backup = try BackupDTO.create(from: context, restTimer: 90, darkMode: false, unitSystem: .metric)
+        let restoredContext = try makeContext()
+        let restored = try JSONDecoder().decode(
+            BackupDTO.self,
+            from: JSONEncoder().encode(backup)
+        )
+        try restored.restore(to: restoredContext)
+        let restoredPlan = try XCTUnwrap(try restoredContext.fetch(FetchDescriptor<WorkoutPlan>()).first)
+        XCTAssertEqual(
+            try JSONDecoder().decode(CompletionPolicy.self, from: try XCTUnwrap(restoredPlan.completionPolicyData)),
+            .offerRestart(carryState: true)
+        )
+    }
+
+    @MainActor
+    func testResumeReanchorsUnfinishedDatesAndPreservesCompletedProgress() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Pause Squat", primaryMuscles: [.quadriceps])
+        let weekOneExercise = PlannedExercise(
+            exercise: exercise,
+            orderIndex: 0,
+            plannedSets: [PlannedSet(orderIndex: 0, repetitions: 5)]
+        )
+        let weekTwoExercise = PlannedExercise(
+            exercise: exercise,
+            orderIndex: 0,
+            plannedSets: [PlannedSet(orderIndex: 0, repetitions: 5)]
+        )
+        let weekOne = PlanWeek(
+            weekIndex: 0,
+            plannedWorkouts: [PlannedWorkout(
+                name: "Day 1",
+                orderIndex: 0,
+                dayOffset: 0,
+                plannedExercises: [weekOneExercise]
+            )]
+        )
+        let weekTwo = PlanWeek(
+            weekIndex: 1,
+            plannedWorkouts: [PlannedWorkout(
+                name: "Day 2",
+                orderIndex: 0,
+                dayOffset: 0,
+                plannedExercises: [weekTwoExercise]
+            )]
+        )
+        let plan = WorkoutPlan(
+            name: "Pause Resume",
+            daysPerWeek: 1,
+            durationWeeks: 2,
+            scheduleMode: .sequential,
+            blocks: [PlanBlock(name: "Build", phaseType: .strength, orderIndex: 0, weeks: [weekOne, weekTwo])]
+        )
+        context.insert(exercise)
+        context.insert(plan)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(
+            for: plan,
+            startDate: Date(timeIntervalSince1970: 1_700_000_000),
+            using: context
+        ))
+        let first = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let second = try XCTUnwrap(run.orderedWorkoutProgress.last)
+        first.status = .completed
+        first.completedAt = first.scheduledDate
+        PlanCoordinator.refreshAvailability(for: run)
+        let completedDate = try XCTUnwrap(first.scheduledDate)
+
+        PlanCoordinator.pause(run)
+        let resumedAt = Date(timeIntervalSince1970: 1_700_900_000)
+        PlanCoordinator.resume(run, at: resumedAt)
+        let expected = Calendar.current.startOfDay(for: resumedAt)
+        XCTAssertEqual(second.scheduledDate, expected)
+        XCTAssertEqual(first.scheduledDate, completedDate)
+        XCTAssertEqual(first.status, .completed)
+        XCTAssertEqual(second.status, .available)
+
+        PlanCoordinator.pause(run)
+        PlanCoordinator.resume(run, at: resumedAt)
+        XCTAssertEqual(second.scheduledDate, expected)
+        try context.save()
+    }
+
     func testBundledCatalogSeedsValidatesPreviewsAndCompilesAllThirteenPrograms() throws {
         let context = try makeContext()
         for exercise in ExerciseSeedData.templates() {
