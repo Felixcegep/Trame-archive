@@ -51,6 +51,32 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(ProgramDefinitionValidator.validate(decoded).isEmpty)
     }
 
+    func testProgramDefinitionCodecRejectsInvalidImportedRecipes() throws {
+        let valid = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "squat",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))]
+            )
+        ])
+        let data = try ProgramDefinitionCodec.encode(valid)
+        XCTAssertEqual(try ProgramDefinitionCodec.decode(data), valid)
+
+        var invalid = valid
+        invalid.name = ""
+        XCTAssertThrowsError(try ProgramDefinitionCodec.encode(invalid)) { error in
+            guard let codecError = error as? ProgramDefinitionCodecError,
+                  case .validation(let issues) = codecError else {
+                return XCTFail("Expected validation error")
+            }
+            XCTAssertTrue(issues.contains { $0.code == .emptyName })
+        }
+        XCTAssertThrowsError(try ProgramDefinitionCodec.decode(Data("not-json".utf8))) { error in
+            XCTAssertEqual(error as? ProgramDefinitionCodecError, .malformed)
+        }
+    }
+
     func testValidatorReportsInvalidPrescriptionAndDuplicateExposure() {
         let first = ProgramExerciseDefinition(
             exerciseID: UUID(),
