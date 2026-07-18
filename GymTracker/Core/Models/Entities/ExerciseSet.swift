@@ -41,6 +41,8 @@ final class ExerciseSet {
     var prescribedRestSeconds: Int?
     var prescribedRPE: Double?
     var prescribedRIR: Int?
+    var prescribedTempo: String?
+    var prescribedProgressionEligible: Bool?
     var prescribedCalories: Double?
     var isPrescribedOptional: Bool?
     var prescriptionNotes: String?
@@ -91,6 +93,8 @@ final class ExerciseSet {
         self.prescribedRestSeconds = nil
         self.prescribedRPE = nil
         self.prescribedRIR = nil
+        self.prescribedTempo = nil
+        self.prescribedProgressionEligible = nil
         self.prescribedCalories = nil
         self.isPrescribedOptional = nil
         self.prescriptionNotes = nil

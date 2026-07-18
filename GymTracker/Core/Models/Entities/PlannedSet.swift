@@ -15,6 +15,8 @@ final class PlannedSet {
     var restSeconds: Int?
     var targetRPE: Double?
     var targetRIR: Int?
+    var tempo: String?
+    var progressionEligible: Bool
     var isOptional: Bool
     var notes: String?
     /// Encoded universal set prescription when this set came from a program definition.
@@ -32,6 +34,8 @@ final class PlannedSet {
         restSeconds: Int? = nil,
         targetRPE: Double? = nil,
         targetRIR: Int? = nil,
+        tempo: String? = nil,
+        progressionEligible: Bool = true,
         isOptional: Bool = false,
         notes: String? = nil,
         definitionData: Data? = nil
@@ -46,6 +50,8 @@ final class PlannedSet {
         self.restSeconds = restSeconds
         self.targetRPE = targetRPE
         self.targetRIR = targetRIR
+        self.tempo = tempo
+        self.progressionEligible = progressionEligible
         self.isOptional = isOptional
         self.notes = notes
         self.definitionData = definitionData

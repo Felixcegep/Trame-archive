@@ -327,6 +327,10 @@ struct ExerciceEntryCard: View {
         if let rir = exerciseEntry.prescribedRIR {
             components.append("RIR \(rir)")
         }
+        if let tempo = exerciseEntry.orderedSets.first?.prescribedTempo,
+           !tempo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            components.append("Tempo \(tempo)")
+        }
         if let load = exerciseEntry.prescribedSuggestedLoad,
            let unit = exerciseEntry.prescribedSuggestedLoadType {
             components.append("\(Formatters.formatFloat(Float(load))) \(unit.rawValue)")

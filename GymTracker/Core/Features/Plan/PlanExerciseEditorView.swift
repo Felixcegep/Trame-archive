@@ -204,6 +204,8 @@ private struct PlanSetEditorView: View {
                     .keyboardType(.decimalPad)
                 TextField("Target RIR (optional)", text: $set.targetRIRText)
                     .keyboardType(.numberPad)
+                TextField("Tempo (optional)", text: $set.tempoText)
+                Toggle("Eligible for progression", isOn: $set.progressionEligible)
                 TextField("Notes", text: $set.notes, axis: .vertical)
                     .lineLimit(2...5)
             }

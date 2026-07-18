@@ -39,7 +39,9 @@ final class ProgramEngineIntegrationTests: XCTestCase {
                                                 SetPrescriptionDefinition(
                                                     orderIndex: 0,
                                                     repetitions: .calories(420),
-                                                    restSeconds: 60
+                                                    restSeconds: 60,
+                                                    tempo: "controlled",
+                                                    progressionEligible: false
                                                 )
                                             ]
                                         )
@@ -74,6 +76,8 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         XCTAssertEqual(set.calories, 420)
         XCTAssertEqual(set.prescribedCalories, 420)
         XCTAssertEqual(set.prescribedRestSeconds, 60)
+        XCTAssertEqual(set.prescribedTempo, "controlled")
+        XCTAssertEqual(set.prescribedProgressionEligible, false)
         XCTAssertNotNil(set.prescriptionDefinitionData)
         XCTAssertEqual(progress.status, .inProgress)
     }

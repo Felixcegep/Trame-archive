@@ -51,6 +51,15 @@ struct SetRowView: View {
                     .accessibilityLabel(notes)
             }
 
+            if let tempo = exerciseSet.prescribedTempo,
+               !tempo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("Tempo \(tempo)")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .padding(.leading, 45)
+                    .accessibilityLabel("Prescribed tempo \(tempo)")
+            }
+
             if trackingType.usesDuration, !exerciseSet.done {
                 durationCountdownControls
             }

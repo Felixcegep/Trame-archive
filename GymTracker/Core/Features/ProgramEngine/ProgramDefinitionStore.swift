@@ -163,6 +163,8 @@ enum ProgramDefinitionCompiler {
                 restSeconds: prescription.restSeconds,
                 targetRPE: prescription.targetRPE,
                 targetRIR: prescription.targetRIR,
+                tempo: prescription.tempo,
+                progressionEligible: prescription.progressionEligible,
                 isOptional: prescription.isOptional,
                 notes: prescription.notes,
                 definitionData: data

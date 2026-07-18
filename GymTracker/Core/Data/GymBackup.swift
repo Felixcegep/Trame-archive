@@ -94,6 +94,8 @@ struct ExerciseSetDTO: Codable {
     var prescribedRestSeconds: Int? = nil
     var prescribedRPE: Double? = nil
     var prescribedRIR: Int? = nil
+    var prescribedTempo: String? = nil
+    var prescribedProgressionEligible: Bool? = nil
     var prescribedCalories: Double? = nil
     var isPrescribedOptional: Bool? = nil
     var prescriptionNotes: String? = nil
@@ -201,6 +203,8 @@ struct PlannedSetDTO: Codable {
     let restSeconds: Int?
     let targetRPE: Double?
     let targetRIR: Int?
+    var tempo: String? = nil
+    var progressionEligible: Bool = true
     let isOptional: Bool
     let notes: String?
     var definitionData: Data? = nil
@@ -618,6 +622,8 @@ extension BackupDTO {
                             prescribedRestSeconds: set.prescribedRestSeconds,
                             prescribedRPE: set.prescribedRPE,
                             prescribedRIR: set.prescribedRIR,
+                            prescribedTempo: set.prescribedTempo,
+                            prescribedProgressionEligible: set.prescribedProgressionEligible,
                             prescribedCalories: set.prescribedCalories,
                             isPrescribedOptional: set.isPrescribedOptional,
                             prescriptionNotes: set.prescriptionNotes,
@@ -750,6 +756,8 @@ extension BackupDTO {
                                                         restSeconds: plannedSet.restSeconds,
                                                         targetRPE: plannedSet.targetRPE,
                                                         targetRIR: plannedSet.targetRIR,
+                                                        tempo: plannedSet.tempo,
+                                                        progressionEligible: plannedSet.progressionEligible,
                                                         isOptional: plannedSet.isOptional,
                                                         notes: plannedSet.notes,
                                                         definitionData: plannedSet.definitionData
@@ -1110,6 +1118,8 @@ extension BackupDTO {
                                             restSeconds: plannedSetDTO.restSeconds,
                                             targetRPE: plannedSetDTO.targetRPE,
                                             targetRIR: plannedSetDTO.targetRIR,
+                                            tempo: plannedSetDTO.tempo,
+                                            progressionEligible: plannedSetDTO.progressionEligible,
                                             isOptional: plannedSetDTO.isOptional,
                                             notes: plannedSetDTO.notes,
                                             definitionData: plannedSetDTO.definitionData
@@ -1308,6 +1318,8 @@ extension BackupDTO {
                     setObj.prescribedRestSeconds = setDTO.prescribedRestSeconds
                     setObj.prescribedRPE = setDTO.prescribedRPE
                     setObj.prescribedRIR = setDTO.prescribedRIR
+                    setObj.prescribedTempo = setDTO.prescribedTempo
+                    setObj.prescribedProgressionEligible = setDTO.prescribedProgressionEligible
                     setObj.prescribedCalories = setDTO.prescribedCalories
                     setObj.isPrescribedOptional = setDTO.isPrescribedOptional
                     setObj.prescriptionNotes = setDTO.prescriptionNotes

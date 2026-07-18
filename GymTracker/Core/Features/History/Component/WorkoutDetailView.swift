@@ -260,6 +260,10 @@ struct WorkoutDetailView: View {
         if exercise.trackingTypeSnapshot.usesDistance { values.append(distanceText(for: set)) }
         if exercise.trackingTypeSnapshot.usesCalories { values.append(caloriesText(for: set)) }
         if let rpe = set.rpe { values.append("RPE \(rpe)") }
+        if let tempo = set.prescribedTempo,
+           !tempo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            values.append("prescribed tempo \(tempo)")
+        }
         return values.joined(separator: ", ")
     }
 }

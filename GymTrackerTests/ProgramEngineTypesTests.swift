@@ -852,6 +852,28 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(decoded.userOverrideReason, "Adjusted for today's interval")
     }
 
+    func testPlannedSetBackupPreservesTempoAndProgressionEligibility() throws {
+        let dto = PlannedSetDTO(
+            orderIndex: 0,
+            setType: "normal",
+            repetitions: 8,
+            repRangeMinimum: nil,
+            repRangeMaximum: nil,
+            suggestedLoad: 40,
+            suggestedLoadType: "kg",
+            restSeconds: 90,
+            targetRPE: 8,
+            targetRIR: 2,
+            tempo: "3-1-1-0",
+            progressionEligible: false,
+            isOptional: false,
+            notes: nil
+        )
+        let decoded = try JSONDecoder().decode(PlannedSetDTO.self, from: JSONEncoder().encode(dto))
+        XCTAssertEqual(decoded.tempo, "3-1-1-0")
+        XCTAssertFalse(decoded.progressionEligible)
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,

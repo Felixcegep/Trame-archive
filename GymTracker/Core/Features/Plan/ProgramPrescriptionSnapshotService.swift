@@ -149,6 +149,8 @@ enum ProgramPrescriptionSnapshotService {
             set.prescribedRestSeconds = definition.restSeconds.map { max(0, $0 + (state?.restDurationOffset ?? 0)) }
             set.prescribedRPE = definition.targetRPE
             set.prescribedRIR = definition.targetRIR
+            set.prescribedTempo = definition.tempo
+            set.prescribedProgressionEligible = definition.progressionEligible
             set.isPrescribedOptional = definition.isOptional
             if set.prescriptionNotes == nil {
                 set.prescriptionNotes = definition.notes
@@ -188,6 +190,8 @@ enum ProgramPrescriptionSnapshotService {
                 extra.prescribedRestSeconds = source.prescribedRestSeconds
                 extra.prescribedRPE = source.prescribedRPE
                 extra.prescribedRIR = source.prescribedRIR
+                extra.prescribedTempo = source.prescribedTempo
+                extra.prescribedProgressionEligible = source.prescribedProgressionEligible
                 extra.prescribedCalories = source.prescribedCalories
                 extra.isUserOverridden = source.isUserOverridden
                 extra.userOverrideReason = source.userOverrideReason

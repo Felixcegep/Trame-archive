@@ -213,6 +213,8 @@ final class ExerciseEntry{
             setObj.prescribedRestSeconds = plannedSet.restSeconds
             setObj.prescribedRPE = plannedSet.targetRPE
             setObj.prescribedRIR = plannedSet.targetRIR
+            setObj.prescribedTempo = plannedSet.tempo
+            setObj.prescribedProgressionEligible = plannedSet.progressionEligible
             setObj.isPrescribedOptional = plannedSet.isOptional
             setObj.prescriptionNotes = plannedSet.notes
             setObj.prescriptionDefinitionData = plannedSet.definitionData

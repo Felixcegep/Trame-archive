@@ -376,6 +376,8 @@ struct PlanSetDraft: Identifiable {
     var restSecondsText: String
     var targetRPEText: String
     var targetRIRText: String
+    var tempoText: String
+    var progressionEligible: Bool
     var isOptional: Bool
     var notes: String
     var definitionData: Data?
@@ -401,6 +403,8 @@ struct PlanSetDraft: Identifiable {
         restSecondsText = restSeconds.map { String($0) } ?? ""
         targetRPEText = targetRPE.map { String($0) } ?? ""
         targetRIRText = targetRIR.map { String($0) } ?? ""
+        tempoText = ""
+        progressionEligible = true
         isOptional = false
         notes = ""
         definitionData = nil
@@ -417,6 +421,8 @@ struct PlanSetDraft: Identifiable {
         restSecondsText = plannedSet.restSeconds.map { String($0) } ?? ""
         targetRPEText = plannedSet.targetRPE.map { String($0) } ?? ""
         targetRIRText = plannedSet.targetRIR.map { String($0) } ?? ""
+        tempoText = plannedSet.tempo ?? ""
+        progressionEligible = plannedSet.progressionEligible
         isOptional = plannedSet.isOptional
         notes = plannedSet.notes ?? ""
         definitionData = plannedSet.definitionData
@@ -436,6 +442,8 @@ struct PlanSetDraft: Identifiable {
         if let rest = Int(restSecondsText), rest >= 0 { details.append("\(rest)s rest") }
         if let rpe = Double(targetRPEText) { details.append("RPE \(rpe.formatted(.number.precision(.fractionLength(0...1))))") }
         if let rir = Int(targetRIRText) { details.append("RIR \(rir)") }
+        if !tempoText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { details.append("Tempo \(tempoText)") }
+        if !progressionEligible { details.append("No progression") }
         if isOptional { details.append("Optional") }
         return details.joined(separator: " · ")
     }
@@ -457,6 +465,8 @@ struct PlanSetDraft: Identifiable {
             restSeconds: Int(restSecondsText),
             targetRPE: Double(targetRPEText),
             targetRIR: Int(targetRIRText),
+            tempo: tempoText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : tempoText,
+            progressionEligible: progressionEligible,
             isOptional: isOptional,
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes,
             definitionData: definitionData

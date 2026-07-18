@@ -13,6 +13,8 @@ struct ProgramDefinitionPreviewSet: Hashable, Identifiable {
     let loadExplanation: String
     let targetRPE: Double?
     let targetRIR: Int?
+    let tempo: String?
+    let progressionEligible: Bool
     let restSeconds: Int?
     let isOptional: Bool
 }
@@ -71,6 +73,8 @@ enum ProgramDefinitionPreview {
                                     loadExplanation: resolution?.explanation ?? "Load requires a starting value or a completed-session reference.",
                                     targetRPE: definition.targetRPE,
                                     targetRIR: definition.targetRIR,
+                                    tempo: definition.tempo,
+                                    progressionEligible: definition.progressionEligible,
                                     restSeconds: definition.restSeconds,
                                     isOptional: definition.isOptional
                                 )
