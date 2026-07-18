@@ -8,6 +8,7 @@ nonisolated enum ProgramLibraryImportError: LocalizedError, Equatable {
     case unsupportedSchemaVersion(found: Int, supported: Int)
     case decodingFailed
     case invalidSetGroup(String)
+    case missingExercise(String)
 
     var errorDescription: String? {
         switch self {
@@ -17,6 +18,8 @@ nonisolated enum ProgramLibraryImportError: LocalizedError, Equatable {
             return "The program library could not be decoded."
         case .invalidSetGroup(let path):
             return "The set group at \(path) must define exactly one repetition prescription."
+        case .missingExercise(let name):
+            return "The program library references missing exercise \(name)."
         }
     }
 }
@@ -113,7 +116,11 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
         self.progressionEligible = progressionEligible
     }
 
-    func expand(path: String, startingAt orderIndex: Int) throws -> [SetPrescriptionDefinition] {
+    func expand(
+        path: String,
+        startingAt orderIndex: Int,
+        restSeconds: Int? = nil
+    ) throws -> [SetPrescriptionDefinition] {
         let options = [reps != nil, repRange != nil, amrap != nil, durationSeconds != nil]
         guard options.filter({ $0 }).count == 1 else {
             throw ProgramLibraryImportError.invalidSetGroup(path)
@@ -142,10 +149,211 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
                 load: load?.expand() ?? LoadPrescription(),
                 targetRPE: targetRPE,
                 targetRIR: targetRIR,
+                restSeconds: restSeconds,
                 tempo: tempo,
                 progressionEligible: progressionEligible ?? true
             )
         }
+    }
+}
+
+nonisolated struct AuthoringWarmupStep: Codable, Hashable {
+    var percent: Double
+    var reps: Int
+    var restSeconds: Int?
+}
+
+nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
+    var exercise: String
+    var exposureKey: String
+    var optional: Bool?
+    var restSeconds: Int?
+    var setGroups: [AuthoringSetGroupDefinition]
+    var warmupScheme: [AuthoringWarmupStep]?
+}
+
+nonisolated struct AuthoringWorkoutDefinition: Codable, Hashable {
+    var name: String
+    var dayOffset: Int
+    var role: String?
+    var optional: Bool?
+    var exercises: [AuthoringExerciseDefinition]
+}
+
+nonisolated struct AuthoringWeekDefinition: Codable, Hashable {
+    var weekIndex: Int
+    var name: String?
+    var repeatCount: Int
+    var workouts: [AuthoringWorkoutDefinition]
+
+    private enum CodingKeys: String, CodingKey {
+        case weekIndex, name, repeatCount = "repeat", workouts
+    }
+
+    init(weekIndex: Int, name: String? = nil, repeatCount: Int = 1, workouts: [AuthoringWorkoutDefinition]) {
+        self.weekIndex = weekIndex
+        self.name = name
+        self.repeatCount = repeatCount
+        self.workouts = workouts
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        weekIndex = try container.decode(Int.self, forKey: .weekIndex)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        repeatCount = max(1, try container.decodeIfPresent(Int.self, forKey: .repeatCount) ?? 1)
+        workouts = try container.decode([AuthoringWorkoutDefinition].self, forKey: .workouts)
+    }
+}
+
+nonisolated struct AuthoringBlockDefinition: Codable, Hashable {
+    var name: String
+    var phaseType: PlanPhaseType
+    var repeatCount: Int
+    var deloadVolumeReductionPercent: Int?
+    var deloadIntensityReductionPercent: Int?
+    var weeks: [AuthoringWeekDefinition]
+
+    private enum CodingKeys: String, CodingKey {
+        case name, phaseType, repeatCount = "repeat"
+        case deloadVolumeReductionPercent, deloadIntensityReductionPercent, weeks
+    }
+
+    init(
+        name: String,
+        phaseType: PlanPhaseType,
+        repeatCount: Int = 1,
+        deloadVolumeReductionPercent: Int? = nil,
+        deloadIntensityReductionPercent: Int? = nil,
+        weeks: [AuthoringWeekDefinition]
+    ) {
+        self.name = name
+        self.phaseType = phaseType
+        self.repeatCount = repeatCount
+        self.deloadVolumeReductionPercent = deloadVolumeReductionPercent
+        self.deloadIntensityReductionPercent = deloadIntensityReductionPercent
+        self.weeks = weeks
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        phaseType = try container.decode(PlanPhaseType.self, forKey: .phaseType)
+        repeatCount = max(1, try container.decodeIfPresent(Int.self, forKey: .repeatCount) ?? 1)
+        deloadVolumeReductionPercent = try container.decodeIfPresent(Int.self, forKey: .deloadVolumeReductionPercent)
+        deloadIntensityReductionPercent = try container.decodeIfPresent(Int.self, forKey: .deloadIntensityReductionPercent)
+        weeks = try container.decode([AuthoringWeekDefinition].self, forKey: .weeks)
+    }
+}
+
+nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
+    var programKey: String
+    var name: String
+    var description: String?
+    var goal: PlanGoal
+    var experienceLevel: PlanExperienceLevel
+    var durationWeeks: Int
+    var supportedDaysPerWeek: [Int]
+    var scheduleMode: PlanScheduleMode
+    var scheduleIntervalDays: Int?
+    var prerequisites: [String]?
+    var warnings: [String]?
+    var isExperimental: Bool?
+    var blocks: [AuthoringBlockDefinition]
+
+    func expand(exerciseIDsByName: [String: UUID]) throws -> ProgramDefinitionPayload {
+        var expandedBlocks: [ProgramBlockDefinition] = []
+        var nextWeekIndex = 0
+
+        for (sourceBlockIndex, sourceBlock) in blocks.enumerated() {
+            for blockRepeatIndex in 0..<sourceBlock.repeatCount {
+                let blockPath = "\(programKey)/b\(sourceBlockIndex)/r\(blockRepeatIndex)"
+                var expandedWeeks: [ProgramWeekDefinition] = []
+                for (sourceWeekIndex, sourceWeek) in sourceBlock.weeks.enumerated() {
+                    for weekRepeatIndex in 0..<sourceWeek.repeatCount {
+                        let weekPath = "\(blockPath)/w\(sourceWeekIndex)/r\(weekRepeatIndex)"
+                        let workouts = try sourceWeek.workouts.enumerated().map { workoutIndex, workout in
+                            let workoutPath = "\(weekPath)/wk\(workoutIndex)"
+                            let exercises = try workout.exercises.enumerated().map { exerciseIndex, exercise in
+                                guard let exerciseID = exerciseIDsByName[exercise.exercise] else {
+                                    throw ProgramLibraryImportError.missingExercise(exercise.exercise)
+                                }
+                                let exercisePath = "\(workoutPath)/e\(exerciseIndex)"
+                                var sets: [SetPrescriptionDefinition] = []
+                                for (groupIndex, group) in exercise.setGroups.enumerated() {
+                                    sets += try group.expand(
+                                        path: "\(exercisePath)/g\(groupIndex)",
+                                        startingAt: sets.count,
+                                        restSeconds: exercise.restSeconds
+                                    )
+                                }
+                                let warmup = exercise.warmupScheme.map { steps in
+                                    WarmupSchemeDefinition(steps: steps.enumerated().map { stepIndex, step in
+                                        WarmupStepDefinition(
+                                            id: ProgramLibraryDeterministicID.uuid(for: "\(exercisePath)/warmup/\(stepIndex)"),
+                                            percentage: step.percent,
+                                            repetitions: step.reps,
+                                            restSeconds: step.restSeconds
+                                        )
+                                    })
+                                }
+                                return ProgramExerciseDefinition(
+                                    id: ProgramLibraryDeterministicID.uuid(for: exercisePath),
+                                    exerciseID: exerciseID,
+                                    exposureKey: exercise.exposureKey,
+                                    orderIndex: exerciseIndex,
+                                    isOptional: exercise.optional ?? false,
+                                    plannedSets: sets,
+                                    warmupScheme: warmup
+                                )
+                            }
+                            return ProgramWorkoutDefinition(
+                                id: ProgramLibraryDeterministicID.uuid(for: workoutPath),
+                                orderIndex: workoutIndex,
+                                name: workout.name,
+                                dayOffset: workout.dayOffset,
+                                role: workout.role ?? "strength",
+                                isOptional: workout.optional ?? false,
+                                plannedExercises: exercises
+                            )
+                        }
+                        expandedWeeks.append(ProgramWeekDefinition(
+                            id: ProgramLibraryDeterministicID.uuid(for: weekPath),
+                            weekIndex: nextWeekIndex,
+                            name: sourceWeek.name,
+                            workouts: workouts
+                        ))
+                        nextWeekIndex += 1
+                    }
+                }
+                expandedBlocks.append(ProgramBlockDefinition(
+                    id: ProgramLibraryDeterministicID.uuid(for: blockPath),
+                    orderIndex: expandedBlocks.count,
+                    name: sourceBlock.name,
+                    phaseType: sourceBlock.phaseType,
+                    deloadVolumeReductionPercent: sourceBlock.deloadVolumeReductionPercent,
+                    deloadIntensityReductionPercent: sourceBlock.deloadIntensityReductionPercent,
+                    weeks: expandedWeeks
+                ))
+            }
+        }
+
+        return ProgramDefinitionPayload(
+            id: ProgramLibraryDeterministicID.uuid(for: programKey),
+            programKey: programKey,
+            name: name,
+            description: description,
+            goal: goal,
+            experienceLevel: experienceLevel,
+            durationWeeks: durationWeeks,
+            supportedDaysPerWeek: supportedDaysPerWeek,
+            scheduleMode: scheduleMode,
+            scheduleIntervalDays: scheduleIntervalDays ?? 1,
+            prerequisites: prerequisites ?? [],
+            warnings: warnings ?? [],
+            isExperimental: isExperimental ?? false,
+            blocks: expandedBlocks
+        )
     }
 }
 

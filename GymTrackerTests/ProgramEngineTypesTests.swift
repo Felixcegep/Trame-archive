@@ -63,6 +63,84 @@ final class ProgramEngineTypesTests: XCTestCase {
             XCTAssertEqual(error as? ProgramLibraryImportError, .invalidSetGroup("fixture/e0/g0"))
         }
     }
+
+    func testAuthoringProgramExpandsRepeatsNamesWarmupsAndStableStructure() throws {
+        let json = """
+        {
+          "programKey": "json-structure",
+          "name": "JSON Structure",
+          "goal": "generalStrength",
+          "experienceLevel": "beginner",
+          "durationWeeks": 4,
+          "supportedDaysPerWeek": [1],
+          "scheduleMode": "fixedWeekdays",
+          "blocks": [{
+            "name": "Build",
+            "phaseType": "strength",
+            "repeat": 2,
+            "weeks": [{
+              "weekIndex": 0,
+              "repeat": 2,
+              "workouts": [{
+                "name": "Day One",
+                "dayOffset": 0,
+                "exercises": [{
+                  "exercise": "Back Squat",
+                  "exposureKey": "squat",
+                  "restSeconds": 180,
+                  "warmupScheme": [{"percent": 0.5, "reps": 5}],
+                  "setGroups": [{
+                    "count": 3,
+                    "reps": 5,
+                    "load": {"reference": "trainingMax", "of": "squat", "percent": 0.8, "round": 2.5}
+                  }]
+                }]
+              }]
+            }]
+          }]
+        }
+        """
+        let authoring = try JSONDecoder().decode(AuthoringProgramDefinition.self, from: Data(json.utf8))
+        let squatID = UUID()
+        let first = try authoring.expand(exerciseIDsByName: ["Back Squat": squatID])
+        let second = try authoring.expand(exerciseIDsByName: ["Back Squat": squatID])
+
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(first.id, ProgramLibraryDeterministicID.uuid(for: "json-structure"))
+        XCTAssertEqual(first.blocks.count, 2)
+        XCTAssertEqual(first.blocks.flatMap(\.weeks).map(\.weekIndex), [0, 1, 2, 3])
+        let exercise = try XCTUnwrap(first.blocks.first?.weeks.first?.workouts.first?.plannedExercises.first)
+        XCTAssertEqual(exercise.exerciseID, squatID)
+        XCTAssertEqual(exercise.plannedSets.count, 3)
+        XCTAssertEqual(exercise.plannedSets.map(\.restSeconds), [180, 180, 180])
+        XCTAssertEqual(exercise.warmupScheme?.steps.first?.percentage, 0.5)
+        XCTAssertEqual(exercise.plannedSets.first?.load.reference.kind, .trainingMax)
+    }
+
+    func testAuthoringProgramFailsLoudlyForUnknownExerciseName() throws {
+        let json = """
+        {
+          "programKey": "missing-exercise",
+          "name": "Missing Exercise",
+          "goal": "generalStrength",
+          "experienceLevel": "beginner",
+          "durationWeeks": 1,
+          "supportedDaysPerWeek": [1],
+          "scheduleMode": "fixedWeekdays",
+          "blocks": [{"name": "Build", "phaseType": "strength", "weeks": [{
+            "weekIndex": 0,
+            "workouts": [{"name": "Day", "dayOffset": 0, "exercises": [{
+              "exercise": "Unknown Lift", "exposureKey": "unknown", "setGroups": [{"count": 1, "reps": 5}]
+            }]}]
+          }]}]
+        }
+        """
+        let authoring = try JSONDecoder().decode(AuthoringProgramDefinition.self, from: Data(json.utf8))
+
+        XCTAssertThrowsError(try authoring.expand(exerciseIDsByName: [:])) { error in
+            XCTAssertEqual(error as? ProgramLibraryImportError, .missingExercise("Unknown Lift"))
+        }
+    }
     func testValidatorRejectsEmptyWarmupScheme() {
         let definition = makeDefinition(exercises: [
             ProgramExerciseDefinition(
