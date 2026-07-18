@@ -3,7 +3,7 @@ import SwiftData
 
 #if !GYMTRACKER_EXTENSION
 
-private extension WorkoutPlan {
+extension WorkoutPlan {
     var programCompletionPolicy: CompletionPolicy {
         get {
             guard let completionPolicyData,

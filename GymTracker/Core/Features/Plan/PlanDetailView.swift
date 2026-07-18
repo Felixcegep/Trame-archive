@@ -107,9 +107,9 @@ struct PlanDetailView: View {
                         startDate = .now
                         isShowingStartDate = true
                     } label: {
-                        Label("Start Program", systemImage: AppIcon.play)
+                        Label(completedRun == nil ? "Start Program" : "Restart Program", systemImage: AppIcon.play)
                     }
-                    .accessibilityIdentifier("start-plan")
+                    .accessibilityIdentifier(completedRun == nil ? "start-plan" : "restart-plan")
                     .disabled(plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts).isEmpty)
                 }
             }
@@ -161,10 +161,23 @@ struct PlanDetailView: View {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Start") {
-                            guard PlanCoordinator.startRun(for: plan, startDate: startDate, using: modelContext) != nil else { return }
+                            let started: PlanRun?
+                            if let completedRun,
+                               case .offerRestart(let carryState) = plan.programCompletionPolicy {
+                                started = ProgramRunLifecycleService.restartRun(
+                                    for: plan,
+                                    from: completedRun,
+                                    startDate: startDate,
+                                    carryState: carryState,
+                                    using: modelContext
+                                )
+                            } else {
+                                started = PlanCoordinator.startRun(for: plan, startDate: startDate, using: modelContext)
+                            }
+                            guard started != nil else { return }
                             isShowingStartDate = false
                         }
-                        .accessibilityIdentifier("confirm-start-plan")
+                        .accessibilityIdentifier(completedRun == nil ? "confirm-start-plan" : "confirm-restart-plan")
                     }
                 }
             }
@@ -224,6 +237,13 @@ struct PlanDetailView: View {
 
     private var currentRun: PlanRun? {
         activeRun ?? pausedRun
+    }
+
+    private var completedRun: PlanRun? {
+        plan.runs
+            .filter { $0.status == .completed || $0.status == .archived }
+            .sorted { ($0.endDate ?? .distantPast) > ($1.endDate ?? .distantPast) }
+            .first
     }
 
     private func nextProgress(in run: PlanRun) -> PlanWorkoutProgress? {
