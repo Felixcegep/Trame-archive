@@ -46,7 +46,14 @@ enum PlanProgressionEvaluationService {
         let sourceBlockIndex = blockIndex(forWeek: sourceWeekIndex, in: run)
         let weekCompleted = isWeekCompleted(occurrenceWeekIndex, in: run, including: workout)
         let blockCompleted = isBlockCompleted(sourceBlockIndex, in: run, including: workout)
-        let cycleCompleted = run.orderedWorkoutProgress.allSatisfy { isCompleted($0, including: workout) }
+        let cycleProgress = run.orderedWorkoutProgress.filter { progress in
+            guard run.plan?.programCompletionPolicy == .offerTestDay else { return true }
+            return run.plan?.orderedWeeks
+                .flatMap(\.orderedPlannedWorkouts)
+                .first(where: { $0.id == progress.plannedWorkoutID })?.isTestDay != true
+        }
+        let cycleCompleted = !cycleProgress.isEmpty
+            && cycleProgress.allSatisfy { isCompleted($0, including: workout) }
         var formulaContext = FormulaResolutionContext()
         let effectiveStates = plannedExercises.reduce(into: [String: PlanExerciseProgressionState]()) { result, planned in
             if let state = PlanProgressionStateService.effectiveState(for: planned, in: run) {
