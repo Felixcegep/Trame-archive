@@ -94,6 +94,16 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(exercises.last?.plannedSets.count, 1)
     }
 
+    func testProgramDefinitionPreviewFlattensEveryPlannedExposure() throws {
+        let definition = ProgramFixtureCatalog.mixedAcceptance(exerciseIDs: [
+            "squat": UUID(), "bench": UUID(), "row": UUID(), "plank": UUID(), "complex": UUID(), "clean": UUID(), "jerk": UUID()
+        ])
+        let rows = try ProgramDefinitionPreview.rows(for: definition)
+        XCTAssertEqual(rows.count, 5)
+        XCTAssertTrue(rows.contains { $0.roles.contains(.topSet) && $0.loadReferences.contains(.topSet) })
+        XCTAssertTrue(rows.contains { $0.repPrescriptions.contains { if case .sequence = $0 { return true }; return false } })
+    }
+
     func testValidatorReportsInvalidPrescriptionAndDuplicateExposure() {
         let first = ProgramExerciseDefinition(
             exerciseID: UUID(),
