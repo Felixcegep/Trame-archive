@@ -126,8 +126,14 @@ class Workout {
             } else {
                 groupID = nil
             }
+            #if !GYMTRACKER_EXTENSION
+            let snapshotExercise = ProgramPrescriptionSnapshotService.resolvedExercise(for: plannedExercise, in: planRun)
+            #else
+            let snapshotExercise = plannedExercise.exercise
+            #endif
             let entry = ExerciseEntry(
                 from: plannedExercise,
+                exercise: snapshotExercise,
                 orderIndex: index,
                 usedMetric: unitSystem,
                 supersetGroupID: groupID

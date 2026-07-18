@@ -156,12 +156,13 @@ final class ExerciseEntry{
 
     convenience init(
         from plannedExercise: PlannedExercise,
+        exercise resolvedExercise: Exercise? = nil,
         orderIndex: Int,
         usedMetric: UnitSystem,
         supersetGroupID: UUID? = nil
     ) {
         self.init(
-            exercise: plannedExercise.exercise,
+            exercise: resolvedExercise ?? plannedExercise.exercise,
             orderIndex: orderIndex,
             usedMetric: usedMetric,
             supersetGroupID: supersetGroupID

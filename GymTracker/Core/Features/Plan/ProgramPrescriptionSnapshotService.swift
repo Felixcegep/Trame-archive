@@ -3,6 +3,16 @@ import Foundation
 #if !GYMTRACKER_EXTENSION
 
 enum ProgramPrescriptionSnapshotService {
+    static func resolvedExercise(for plannedExercise: PlannedExercise, in run: PlanRun) -> Exercise {
+        guard let state = PlanProgressionStateService.effectiveState(for: plannedExercise, in: run),
+              let selectedID = state.currentVariationExerciseID,
+              selectedID != plannedExercise.exercise.id else {
+            return plannedExercise.exercise
+        }
+        return plannedExercise.alternatives.first(where: { $0.exercise.id == selectedID })?.exercise
+            ?? plannedExercise.exercise
+    }
+
     /// Re-resolves only incomplete derived sets after a source set (for
     /// example a top set or daily maximum) is completed. Performed values are
     /// never rewritten.

@@ -1734,6 +1734,10 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         let state = try XCTUnwrap(run.progressionStates.first)
         XCTAssertEqual(state.currentVariationExerciseID, selected.id)
         XCTAssertEqual(state.velocityBaseline ?? 0, 0.62, accuracy: 0.0001)
+        let plannedWorkout = try XCTUnwrap(plan.orderedWeeks.first?.orderedPlannedWorkouts.first)
+        let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
+        XCTAssertEqual(workout.orderedExercises.first?.exercise.id, selected.id)
+        XCTAssertEqual(workout.orderedExercises.first?.nameSnapshot, selected.name)
     }
 
     private func simpleDefinition(exerciseID: UUID) -> ProgramDefinitionPayload {

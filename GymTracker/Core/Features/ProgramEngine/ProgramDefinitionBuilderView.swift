@@ -627,6 +627,8 @@ private struct ProgramDefinitionExerciseEditor: View {
                 .keyboardType(.decimalPad)
             TextField("Estimated 1RM", text: estimatedOneRepMaxBinding)
                 .keyboardType(.decimalPad)
+            TextField("Initial velocity baseline (m/s)", text: velocityBaselineBinding)
+                .keyboardType(.decimalPad)
             Toggle("Automatic deload", isOn: automaticDeloadEnabled)
             if exercise.automaticDeload != nil {
                 Stepper(
@@ -648,6 +650,24 @@ private struct ProgramDefinitionExerciseEditor: View {
                         .font(AppFont.captionBold)
                     ForEach(exercises.filter { $0.id != exercise.exerciseID }, id: \.id) { candidate in
                         Toggle(candidate.name, isOn: alternativeBinding(for: candidate.id))
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("Variation ladder")
+                        .font(AppFont.captionBold)
+                    Text("Select rungs in easiest-to-hardest order. Re-add a rung to move it to the end.")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                    ForEach(exercises, id: \.id) { candidate in
+                        Toggle(candidate.name, isOn: variationBinding(for: candidate.id))
+                    }
+                    if let ladder = exercise.variationExerciseIDs, !ladder.isEmpty {
+                        Picker("Initial variation", selection: initialVariationBinding) {
+                            ForEach(ladder, id: \.self) { id in
+                                Text(exercises.first(where: { $0.id == id })?.name ?? "Exercise").tag(id)
+                            }
+                        }
                     }
                 }
             }
@@ -788,6 +808,14 @@ private struct ProgramDefinitionExerciseEditor: View {
     private var initialLoadBinding: Binding<String> { optionalDoubleBinding(\ .initialLoad) }
     private var trainingMaxBinding: Binding<String> { optionalDoubleBinding(\ .initialTrainingMax) }
     private var estimatedOneRepMaxBinding: Binding<String> { optionalDoubleBinding(\ .initialEstimatedOneRepMax) }
+    private var velocityBaselineBinding: Binding<String> { optionalDoubleBinding(\ .initialVelocityBaseline) }
+
+    private var initialVariationBinding: Binding<UUID> {
+        Binding(
+            get: { exercise.initialVariationExerciseID ?? exercise.variationExerciseIDs?.first ?? exercise.exerciseID },
+            set: { exercise.initialVariationExerciseID = $0 }
+        )
+    }
 
     private var automaticDeloadEnabled: Binding<Bool> {
         Binding(
@@ -854,6 +882,23 @@ private struct ProgramDefinitionExerciseEditor: View {
                     }
                 } else {
                     exercise.alternativeExerciseIDs.removeAll { $0 == id }
+                }
+            }
+        )
+    }
+
+    private func variationBinding(for id: UUID) -> Binding<Bool> {
+        Binding(
+            get: { exercise.variationExerciseIDs?.contains(id) == true },
+            set: { enabled in
+                var ladder = exercise.variationExerciseIDs ?? []
+                ladder.removeAll { $0 == id }
+                if enabled { ladder.append(id) }
+                exercise.variationExerciseIDs = ladder.isEmpty ? nil : ladder
+                if let initial = exercise.initialVariationExerciseID, !ladder.contains(initial) {
+                    exercise.initialVariationExerciseID = ladder.first
+                } else if exercise.initialVariationExerciseID == nil {
+                    exercise.initialVariationExerciseID = ladder.first
                 }
             }
         )

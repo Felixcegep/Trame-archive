@@ -98,11 +98,16 @@ enum ProgramDefinitionCompiler {
                             guard let exercise = exercisesByID[exerciseDefinition.exerciseID] else {
                                 throw ProgramDefinitionStoreError.missingExercise(exerciseDefinition.exerciseID)
                             }
-                            let alternatives = try exerciseDefinition.alternativeExerciseIDs.map { alternativeID in
+                            let candidateIDs = (exerciseDefinition.alternativeExerciseIDs + (exerciseDefinition.variationExerciseIDs ?? []))
+                                .filter { $0 != exerciseDefinition.exerciseID }
+                                .reduce(into: [UUID]()) { result, id in
+                                    if !result.contains(id) { result.append(id) }
+                                }
+                            let alternatives = try candidateIDs.enumerated().map { index, alternativeID in
                                 guard let alternative = exercisesByID[alternativeID] else {
                                     throw ProgramDefinitionStoreError.missingExercise(alternativeID)
                                 }
-                                return PlannedExerciseAlternative(exercise: alternative, orderIndex: exerciseDefinition.alternativeExerciseIDs.firstIndex(of: alternativeID) ?? 0)
+                                return PlannedExerciseAlternative(exercise: alternative, orderIndex: index)
                             }
                             return try compileExercise(exerciseDefinition, exercise: exercise, alternatives: alternatives)
                         }
