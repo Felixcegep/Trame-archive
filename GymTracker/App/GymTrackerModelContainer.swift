@@ -11,6 +11,7 @@ enum GymTrackerModelContainer {
         } catch {
             fatalError("Unable to create GymTracker's persistent model container: \(error)")
         }
+        
     }()
 
     static let schema: Schema = {

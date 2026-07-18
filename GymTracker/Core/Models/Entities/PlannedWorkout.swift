@@ -7,8 +7,8 @@ final class PlannedWorkout {
     var name: String
     var orderIndex: Int
     var dayOffset: Int
-    var isOptional: Bool
-    var isTestDay: Bool
+    var isOptional: Bool = false
+    var isTestDay: Bool = false
     var estimatedDurationSeconds: Int?
     var notes: String?
     var week: PlanWeek?
