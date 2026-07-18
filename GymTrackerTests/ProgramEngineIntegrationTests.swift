@@ -5,6 +5,57 @@ import XCTest
 
 @MainActor
 final class ProgramEngineIntegrationTests: XCTestCase {
+    @MainActor
+    func testJSONOnlyProgramImportsWithoutEngineRegistration() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "JSON Squat", primaryMuscles: [.quadriceps])
+        context.insert(exercise)
+
+        var payload = simpleDefinition(exerciseID: exercise.id)
+        payload.programKey = "json-only-regression"
+        let document = ProgramLibraryDocument(libraryVersion: 1, programDefinitions: [payload])
+        let data = try JSONEncoder().encode(document)
+
+        let firstResult = try ProgramLibraryImporter.importData(data, into: context)
+        let secondResult = try ProgramLibraryImporter.importData(data, into: context)
+        let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+
+        XCTAssertEqual(firstResult.importedProgramKeys, ["json-only-regression"])
+        XCTAssertEqual(secondResult.importedProgramKeys, ["json-only-regression"])
+        XCTAssertEqual(records.count, 1)
+        XCTAssertTrue(try XCTUnwrap(records.first).isBuiltIn)
+        _ = try ProgramDefinitionRepository.compile(try XCTUnwrap(records.first), using: context)
+    }
+
+    @MainActor
+    func testProgramLibrarySkipsMissingCapabilitiesAndRejectsNewerSchema() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Capability Squat", primaryMuscles: [.quadriceps])
+        context.insert(exercise)
+
+        var payload = simpleDefinition(exerciseID: exercise.id)
+        payload.programKey = "future-program"
+        payload.requiredCapabilities = ["future-capability"]
+        let result = try ProgramLibraryImporter.importDocument(
+            ProgramLibraryDocument(libraryVersion: 1, programDefinitions: [payload]),
+            into: context
+        )
+
+        XCTAssertEqual(result.importedProgramKeys, [])
+        XCTAssertEqual(result.skippedPrograms, [.init(
+            programKey: "future-program",
+            missingCapabilities: ["future-capability"]
+        )])
+
+        XCTAssertThrowsError(try ProgramLibraryImporter.decode(try JSONEncoder().encode(
+            ProgramLibraryDocument(schemaVersion: 2, libraryVersion: 1, programDefinitions: [])
+        ))) { error in
+            XCTAssertEqual(
+                error as? ProgramLibraryImportError,
+                .unsupportedSchemaVersion(found: 2, supported: 1)
+            )
+        }
+    }
     func testScopedWeekStateAppliesOnlyToTargetWeekAndExposure() {
         let squat = Exercise(name: "Squat", primaryMuscles: [.quadriceps])
         let volume = PlannedExercise(exercise: squat, orderIndex: 0, progressionKey: "squat-volume")
@@ -1574,6 +1625,45 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         secondWorkout.endTime = .now
         _ = try PlanProgressionEvaluationService.evaluateAndApply(workout: secondWorkout, run: run)
         XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
+    }
+
+    private func simpleDefinition(exerciseID: UUID) -> ProgramDefinitionPayload {
+        ProgramDefinitionPayload(
+            name: "JSON-only Program",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [1],
+            blocks: [
+                ProgramBlockDefinition(
+                    orderIndex: 0,
+                    name: "Build",
+                    weeks: [
+                        ProgramWeekDefinition(
+                            weekIndex: 0,
+                            workouts: [
+                                ProgramWorkoutDefinition(
+                                    orderIndex: 0,
+                                    name: "Day One",
+                                    dayOffset: 0,
+                                    plannedExercises: [
+                                        ProgramExerciseDefinition(
+                                            exerciseID: exerciseID,
+                                            exposureKey: "json-squat",
+                                            orderIndex: 0,
+                                            plannedSets: [
+                                                SetPrescriptionDefinition(
+                                                    orderIndex: 0,
+                                                    repetitions: .fixed(5)
+                                                )
+                                            ]
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
     }
 
     private func makeContext() throws -> ModelContext {
