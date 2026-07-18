@@ -287,6 +287,70 @@ final class ProgramEngineTypesTests: XCTestCase {
         }
     }
 
+    func testProgressionEvaluatorAppliesLinearSuccessAndFailureActions() throws {
+        let rules = [
+            ProgressionRuleDefinition(
+                metric: .load,
+                trigger: .allRequiredSetsCompleted,
+                successAction: .addLoad(2.5),
+                failureAction: .repeatPrescription,
+                cadence: .nextExerciseOccurrence,
+                scope: .exerciseExposure,
+                applicationMode: .automatic
+            )
+        ]
+        let state = ProgressionEvaluationState(currentLoad: 100)
+        let success = try ProgramProgressionEvaluator.evaluate(
+            rules: rules,
+            performance: ProgressionPerformance(requiredSets: 3, completedSets: 3),
+            state: state
+        )
+        XCTAssertEqual(success.state.currentLoad, 102.5)
+        XCTAssertEqual(success.recommendations.count, 1)
+        XCTAssertEqual(success.recommendations.first?.applicationMode, .automatic)
+
+        let failure = try ProgramProgressionEvaluator.evaluate(
+            rules: rules,
+            performance: ProgressionPerformance(requiredSets: 3, completedSets: 2, didFail: true),
+            state: state
+        )
+        XCTAssertEqual(failure.state.currentLoad, 100)
+        XCTAssertEqual(failure.recommendations.first?.action, .repeatPrescription)
+    }
+
+    func testProgressionEvaluatorSupportsDoubleProgressionRecommendationAndVariationLadder() throws {
+        let increaseRule = ProgressionRuleDefinition(
+            metric: .repetitions,
+            trigger: .allSetsReachedUpperRepBound,
+            successAction: .addLoad(5),
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .recommendation
+        )
+        let variationRule = ProgressionRuleDefinition(
+            metric: .exerciseVariation,
+            trigger: .technicalQualityReached,
+            successAction: .advanceExerciseVariation,
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let firstVariation = UUID()
+        let secondVariation = UUID()
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [increaseRule, variationRule],
+            performance: ProgressionPerformance(requiredSets: 3, upperBoundSets: 3, technicalQualityReached: true),
+            state: ProgressionEvaluationState(currentLoad: 30, currentVariationExerciseID: firstVariation),
+            variationLadder: [firstVariation, secondVariation]
+        )
+
+        XCTAssertEqual(result.state.currentLoad, 30)
+        XCTAssertEqual(result.state.currentVariationExerciseID, secondVariation)
+        XCTAssertEqual(result.recommendations.count, 2)
+        XCTAssertEqual(result.recommendations.first?.applicationMode, .recommendation)
+        XCTAssertTrue(result.recommendations.contains { $0.action == .addLoad(5) })
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,
