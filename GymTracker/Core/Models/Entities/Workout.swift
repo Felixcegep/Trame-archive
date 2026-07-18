@@ -126,6 +126,12 @@ class Workout {
                 supersetGroupID: groupID
             )
             PlanDeloadService.apply(to: entry, for: plannedWorkout.week?.block)
+            ProgramPrescriptionSnapshotService.apply(
+                to: entry,
+                plannedExercise: plannedExercise,
+                run: planRun,
+                unitSystem: unitSystem
+            )
             exercises.append(entry)
         }
     }
