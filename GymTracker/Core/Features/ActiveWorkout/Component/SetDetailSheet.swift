@@ -24,6 +24,17 @@ enum RPEScale {
     }
 }
 
+enum RIRScale {
+    static func meaning(for value: Int) -> String {
+        switch value {
+        case 0: String(localized: "No reps left")
+        case 1: String(localized: "One rep left")
+        case 2: String(localized: "Two reps left")
+        default: String(localized: "At least \(value) reps left")
+        }
+    }
+}
+
 extension SetType {
     var icon: String {
         switch self {
@@ -63,6 +74,7 @@ struct SetDetailSheet: View {
             header
             setTypeSection
             rpeSection
+            rirSection
             Spacer(minLength: 0)
             deleteButton
         }
@@ -198,6 +210,66 @@ struct SetDetailSheet: View {
             return String(localized: "Slide to rate how hard this set felt")
         }
         return RPEScale.meaning(for: rpe)
+    }
+
+    private var rirSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack {
+                eyebrow("Reps in reserve · RIR")
+                Spacer()
+                if exerciseSet.rir != nil {
+                    Button("Clear") {
+                        exerciseSet.rir = nil
+                        onPersist()
+                    }
+                    .font(AppFont.footnoteMedium)
+                    .foregroundStyle(Color.gymPrimary)
+                    .accessibilityLabel("Clear RIR")
+                    .accessibilityIdentifier("clear-rir")
+                }
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                Text(exerciseSet.rir.map { "\($0)" } ?? "—")
+                    .font(AppFont.displayMedium)
+                    .monospacedDigit()
+                    .foregroundStyle(exerciseSet.rir == nil ? Color.gymSubduedText : Color.gymText)
+                    .contentTransition(.numericText())
+                Text(rirMeaning)
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+            .animation(reduceMotion ? nil : AppMotion.compact, value: exerciseSet.rir)
+
+            Slider(
+                value: Binding(
+                    get: { Double(exerciseSet.rir ?? 2) },
+                    set: {
+                        exerciseSet.rir = Int($0.rounded())
+                        onPersist()
+                    }
+                ),
+                in: 0...6,
+                step: 1
+            ) {
+                Text("RIR")
+            } minimumValueLabel: {
+                sliderBound("0")
+            } maximumValueLabel: {
+                sliderBound("6+")
+            }
+            .tint(Color.gymSecondary)
+            .accessibilityIdentifier("rir-slider")
+        }
+        .padding(Spacing.l)
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
+    }
+
+    private var rirMeaning: String {
+        guard let rir = exerciseSet.rir else {
+            return String(localized: "Slide to record reps left after this set")
+        }
+        return RIRScale.meaning(for: rir)
     }
 
     private func sliderBound(_ text: String) -> some View {

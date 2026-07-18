@@ -77,6 +77,7 @@ struct ExerciseSetDTO: Codable {
     let distance: Float?
     let done: Bool
     let rpe: Int?
+    var rir: Int? = nil
     let setType: String
     let usedMetric: String
     var prescribedSetType: String? = nil
@@ -539,6 +540,7 @@ extension BackupDTO {
                             distance: set.distance,
                             done: set.done,
                             rpe: set.rpe,
+                            rir: set.rir,
                             setType: set.setType.rawValue,
                             usedMetric: set.usedMetric.rawValue,
                             prescribedSetType: set.prescribedSetType?.rawValue,
@@ -1173,6 +1175,7 @@ extension BackupDTO {
                     setObj.isPrescribedOptional = setDTO.isPrescribedOptional
                     setObj.prescriptionNotes = setDTO.prescriptionNotes
                     setObj.prescriptionDefinitionData = setDTO.prescriptionDefinitionData
+                    setObj.rir = setDTO.rir
                     sets.append(setObj)
                 }
                 entry.sets = sets

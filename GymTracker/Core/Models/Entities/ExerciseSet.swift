@@ -21,6 +21,7 @@ final class ExerciseSet {
     var distance: Float?
     var done: Bool = false
     var rpe: Int?
+    var rir: Int?
     var setType: SetType = SetType.normal
     /// Immutable-at-start prescription evidence. Performed values above remain
     /// authoritative and are never overwritten from these fields.
@@ -47,6 +48,7 @@ final class ExerciseSet {
         
         done: Bool = false,
         rpe: Int? = nil,
+        rir: Int? = nil,
         setType: SetType = .normal,
         orderIndex: Int = 0,
         usedMetric : UnitSystem
@@ -60,6 +62,7 @@ final class ExerciseSet {
         self.distance = distance
         self.done = done
         self.rpe = rpe
+        self.rir = rir
         self.setType = setType
         self.prescribedSetType = nil
         self.prescribedRepetitions = nil
@@ -86,6 +89,7 @@ final class ExerciseSet {
             
             done: false,
             rpe: rpe,
+            rir: rir,
             setType: setType,
             orderIndex: 0,
             usedMetric: usedMetric

@@ -96,6 +96,7 @@ enum PlanProgressionEvaluationService {
         }.count
         let totalVolume = completedSets.reduce(0) { $0 + Double($1.repetitions) * Double($1.weight) }
         let actualRPE = completedSets.compactMap { $0.rpe }.map(Double.init).average
+        let actualRIR = completedSets.compactMap { $0.rir }.map(Double.init).average
         let optionalSets = sets.filter { $0.isPrescribedOptional == true }
         let requiredCompleted = completedSets.count + optionalSets.count >= requiredSets
         return ProgressionPerformance(
@@ -109,7 +110,7 @@ enum PlanProgressionEvaluationService {
             targetRPE: entry.prescribedRPE,
             actualRPE: actualRPE,
             targetRIR: entry.prescribedRIR,
-            actualRIR: nil,
+            actualRIR: actualRIR,
             workoutCompleted: entry.workout?.status == .completed,
             didFail: !requiredCompleted
         )
