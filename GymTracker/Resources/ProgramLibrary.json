@@ -1681,13 +1681,36 @@
                     "const": 0.85
                   }
                 ]
-              },
-              "andChangeStage": "5x3+"
+              }
             },
             "cadence": "nextExerciseOccurrence",
             "scope": "exerciseExposure",
             "mode": "recommendation",
             "priority": 4
+          },
+          {
+            "metric": "load",
+            "trigger": {
+              "type": "allOf",
+              "triggers": [
+                {
+                  "type": "failureCountReached",
+                  "count": 1
+                },
+                {
+                  "type": "atStage",
+                  "stageID": "10x1+"
+                }
+              ]
+            },
+            "success": {
+              "type": "changeStage",
+              "next": "5x3+"
+            },
+            "cadence": "nextExerciseOccurrence",
+            "scope": "exerciseExposure",
+            "mode": "recommendation",
+            "priority": 5
           }
         ],
         "t1lower": "t1upper with addLoad 5",
