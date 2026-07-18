@@ -219,6 +219,38 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(action, .addLoad(5))
     }
 
+    func testCatalogDecoderReportsOneProgramFailureWithoutDiscardingValidPrograms() throws {
+        let validProgram: [String: Any] = [
+            "programKey": "valid",
+            "name": "Valid",
+            "goal": "generalStrength",
+            "experienceLevel": "beginner",
+            "durationWeeks": 1,
+            "supportedDaysPerWeek": [1],
+            "scheduleMode": "fixedWeekdays",
+            "blocks": [[
+                "name": "Build", "phaseType": "strength",
+                "weeks": [["weekIndex": 0, "workouts": []]]
+            ]]
+        ]
+        let invalidProgram: [String: Any] = [
+            "programKey": "placeholder",
+            "name": "Placeholder",
+            "blocks": [["name": "Build", "phaseType": "strength", "weeks": [[
+                "weekIndex": 0, "workouts": "same as last week"
+            ]]]]
+        ]
+        let data = try JSONSerialization.data(withJSONObject: [
+            "schemaVersion": 1,
+            "programDefinitions": [validProgram, invalidProgram]
+        ])
+
+        let result = try AuthoringProgramCatalogDecoder.decode(data)
+
+        XCTAssertEqual(result.definitions.map(\.programKey), ["valid"])
+        XCTAssertEqual(result.failures.map(\.programKey), ["placeholder"])
+    }
+
     func testNamedRuleLibraryRejectsMissingAndUnsupportedRules() throws {
         let trigger = AuthoringTriggerDefinition(type: "futureTrigger")
         XCTAssertThrowsError(try trigger.expand()) { error in

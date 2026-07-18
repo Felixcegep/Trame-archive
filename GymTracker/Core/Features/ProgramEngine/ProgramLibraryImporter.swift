@@ -766,6 +766,57 @@ nonisolated struct ProgramLibraryImportResult: Equatable {
     }
 }
 
+nonisolated struct AuthoringCatalogDecodeResult {
+    var schemaVersion: Int
+    var definitions: [AuthoringProgramDefinition]
+    var failures: [Failure]
+
+    nonisolated struct Failure: Equatable {
+        var programKey: String
+        var message: String
+    }
+}
+
+nonisolated enum AuthoringProgramCatalogDecoder {
+    static func decode(_ data: Data, decoder: JSONDecoder = JSONDecoder()) throws -> AuthoringCatalogDecodeResult {
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let schemaVersion = root["schemaVersion"] as? Int,
+              let programs = root["programDefinitions"] as? [[String: Any]] else {
+            throw ProgramLibraryImportError.decodingFailed
+        }
+        guard schemaVersion <= ProgramLibraryImporter.supportedSchemaVersion else {
+            throw ProgramLibraryImportError.unsupportedSchemaVersion(
+                found: schemaVersion,
+                supported: ProgramLibraryImporter.supportedSchemaVersion
+            )
+        }
+
+        var definitions: [AuthoringProgramDefinition] = []
+        var failures: [AuthoringCatalogDecodeResult.Failure] = []
+        for program in programs {
+            let programKey = program["programKey"] as? String ?? "<missing-program-key>"
+            do {
+                let programData = try JSONSerialization.data(withJSONObject: program)
+                definitions.append(try decoder.decode(AuthoringProgramDefinition.self, from: programData))
+            } catch {
+                failures.append(.init(programKey: programKey, message: String(describing: error)))
+            }
+        }
+        return AuthoringCatalogDecodeResult(
+            schemaVersion: schemaVersion,
+            definitions: definitions,
+            failures: failures
+        )
+    }
+
+    static func bundledData(bundle: Bundle = .main) throws -> Data {
+        guard let url = bundle.url(forResource: "ProgramLibrary", withExtension: "json") else {
+            throw ProgramLibraryImportError.decodingFailed
+        }
+        return try Data(contentsOf: url)
+    }
+}
+
 enum ProgramLibraryImporter {
     nonisolated static let supportedSchemaVersion = 1
 
