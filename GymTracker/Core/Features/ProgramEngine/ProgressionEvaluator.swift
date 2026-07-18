@@ -195,6 +195,11 @@ enum ProgramProgressionEvaluator {
         case .reduceLoad(let amount): state.currentLoad = max(0, (state.currentLoad ?? 0) - amount)
         case .addLoadPercentage(let percentage): state.currentLoad = (state.currentLoad ?? 0) * (1 + percentage)
         case .reduceLoadPercentage(let percentage): state.currentLoad = (state.currentLoad ?? 0) * (1 - percentage)
+        // Assisted-bodyweight prescriptions use the same persisted load slot
+        // for assistance. Increasing assistance makes the movement easier;
+        // reducing it is the progression action.
+        case .addAssistance(let amount): state.currentLoad = (state.currentLoad ?? 0) + max(0, amount)
+        case .reduceAssistance(let amount): state.currentLoad = max(0, (state.currentLoad ?? 0) - max(0, amount))
         case .addRepetitions(let amount): state.repetitionOffset += amount
         case .reduceRepetitions(let amount): state.repetitionOffset = max(0, state.repetitionOffset - amount)
         case .addSets(let amount): state.setCountOffset += amount

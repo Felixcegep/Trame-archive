@@ -132,6 +132,11 @@ struct ExerciseEntryDTO: Codable {
     let accumulatedActiveDuration: Double?
     let activeDurationStartedAt: Date?
     var supersetGroupID: String? = nil
+    var originalExerciseIDSnapshot: String? = nil
+    var originalExerciseNameSnapshot: String? = nil
+    var selectedSubstituteExerciseIDSnapshot: String? = nil
+    var substitutionReason: String? = nil
+    var substitutionSharesProgressionState: Bool = false
     var prescriptionDefinitionData: Data? = nil
     var prescriptionRulesData: Data? = nil
 }
@@ -650,6 +655,11 @@ extension BackupDTO {
                         accumulatedActiveDuration: exercise.accumulatedActiveDuration,
                         activeDurationStartedAt: exercise.activeDurationStartedAt,
                         supersetGroupID: exercise.supersetGroupID?.uuidString,
+                        originalExerciseIDSnapshot: exercise.originalExerciseIDSnapshot?.uuidString,
+                        originalExerciseNameSnapshot: exercise.originalExerciseNameSnapshot,
+                        selectedSubstituteExerciseIDSnapshot: exercise.selectedSubstituteExerciseIDSnapshot?.uuidString,
+                        substitutionReason: exercise.substitutionReason,
+                        substitutionSharesProgressionState: exercise.substitutionSharesProgressionState,
                         prescriptionDefinitionData: exercise.prescriptionDefinitionData,
                         prescriptionRulesData: exercise.prescriptionRulesData
                     )
@@ -1257,6 +1267,11 @@ extension BackupDTO {
                 entry.recommendationPriorWorkoutDate = entryDTO.recommendationPriorWorkoutDate
                 entry.accumulatedActiveDuration = entryDTO.accumulatedActiveDuration ?? 0
                 entry.activeDurationStartedAt = entryDTO.activeDurationStartedAt
+                entry.originalExerciseIDSnapshot = entryDTO.originalExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
+                entry.originalExerciseNameSnapshot = entryDTO.originalExerciseNameSnapshot
+                entry.selectedSubstituteExerciseIDSnapshot = entryDTO.selectedSubstituteExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
+                entry.substitutionReason = entryDTO.substitutionReason
+                entry.substitutionSharesProgressionState = entryDTO.substitutionSharesProgressionState
                 entry.prescriptionDefinitionData = entryDTO.prescriptionDefinitionData
                 entry.prescriptionRulesData = entryDTO.prescriptionRulesData
 

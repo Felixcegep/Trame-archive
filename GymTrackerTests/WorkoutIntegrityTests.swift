@@ -2139,7 +2139,12 @@ final class WorkoutIntegrityTests: XCTestCase {
             recommendationCompletedSets: 3,
             recommendationPriorWorkoutDate: Date(),
             accumulatedActiveDuration: 120.0,
-            activeDurationStartedAt: Date()
+            activeDurationStartedAt: Date(),
+            originalExerciseIDSnapshot: UUID().uuidString,
+            originalExerciseNameSnapshot: "Barbell Bench Press",
+            selectedSubstituteExerciseIDSnapshot: UUID().uuidString,
+            substitutionReason: "Shoulder-friendly variation",
+            substitutionSharesProgressionState: false
         )
         let workout = WorkoutDTO(
             id: UUID().uuidString,
@@ -2213,6 +2218,13 @@ final class WorkoutIntegrityTests: XCTestCase {
         let relationships = try XCTUnwrap(jsonObject["exerciseRelationships"] as? [[String: Any]])
         XCTAssertEqual(relationships.first?["sourceExerciseName"] as? String, "Bench Press")
         XCTAssertEqual(relationships.first?["type"] as? String, "Substitution")
+
+        let workoutEntries = try XCTUnwrap(
+            (jsonObject["workouts"] as? [[String: Any]])?.first?["exercises"] as? [[String: Any]]
+        )
+        XCTAssertEqual(workoutEntries.first?["originalExerciseNameSnapshot"] as? String, "Barbell Bench Press")
+        XCTAssertEqual(workoutEntries.first?["substitutionReason"] as? String, "Shoulder-friendly variation")
+        XCTAssertEqual(workoutEntries.first?["substitutionSharesProgressionState"] as? Bool, false)
 
         // Verify exercises
         let exercises = try XCTUnwrap(jsonObject["exercises"] as? [[String: Any]])

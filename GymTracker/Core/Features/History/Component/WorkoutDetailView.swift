@@ -138,6 +138,14 @@ struct WorkoutDetailView: View {
                 .font(AppFont.titleSmallSemibold)
                 .foregroundStyle(Color.gymText)
 
+            if let original = exercise.originalExerciseNameSnapshot,
+               exercise.selectedSubstituteExerciseIDSnapshot != nil {
+                Label("Substituted for \(original)", systemImage: AppIcon.relationship)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .accessibilityLabel("Substituted for \(original)")
+            }
+
             if let note = exercise.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
                 Text(note)
                     .font(AppFont.footnote)

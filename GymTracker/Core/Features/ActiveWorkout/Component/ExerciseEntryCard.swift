@@ -99,6 +99,14 @@ struct ExerciceEntryCard: View {
                     .foregroundStyle(Color.gymText)
                     .accessibilityIdentifier("active-exercise-\(exerciseEntry.exercise.name)")
 
+                if let original = exerciseEntry.originalExerciseNameSnapshot,
+                   exerciseEntry.selectedSubstituteExerciseIDSnapshot != nil {
+                    Label("Substituted for \(original)", systemImage: AppIcon.relationship)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .accessibilityLabel("Substituted for \(original)")
+                }
+
                 if let loggingSemanticsCaption {
                     Text(loggingSemanticsCaption)
                         .font(AppFont.caption)

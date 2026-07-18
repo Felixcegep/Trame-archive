@@ -225,6 +225,8 @@ enum ProgressionAction: Codable, Hashable {
     case reduceLoad(Double)
     case addLoadPercentage(Double)
     case reduceLoadPercentage(Double)
+    case addAssistance(Double)
+    case reduceAssistance(Double)
     case addRepetitions(Int)
     case reduceRepetitions(Int)
     case addSets(Int)

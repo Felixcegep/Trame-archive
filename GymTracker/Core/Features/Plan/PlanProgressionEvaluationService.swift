@@ -68,6 +68,13 @@ enum PlanProgressionEvaluationService {
                 !rules.isEmpty,
                 let state = stateByKey[plannedExercise.progressionKey]
             else { continue }
+            // A substitution is a distinct exposure unless the plan explicitly
+            // opts into sharing progression state. Performed history still
+            // retains the original planned exercise and selected substitute.
+            if entry.selectedSubstituteExerciseIDSnapshot != nil,
+               !entry.substitutionSharesProgressionState {
+                continue
+            }
 
             let performance = performance(for: entry)
             var evaluationState = ProgressionEvaluationState(

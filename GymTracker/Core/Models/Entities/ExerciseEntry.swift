@@ -52,6 +52,13 @@ final class ExerciseEntry{
     // interpretation (name, tracking, per-side/per-unit logging) stays fixed
     // even if the library exercise is edited afterward.
     var nameSnapshot: String = ""
+    /// When an unstarted entry is substituted, preserve the original and
+    /// selected identities instead of rewriting the historical meaning.
+    var originalExerciseIDSnapshot: UUID?
+    var originalExerciseNameSnapshot: String?
+    var selectedSubstituteExerciseIDSnapshot: UUID?
+    var substitutionReason: String?
+    var substitutionSharesProgressionState: Bool = false
     var trackingTypeSnapshot: TrackingType = TrackingType.weightAndReps
     var lateralitySnapshot: Laterality = Laterality.bilateral
     var repCountingStyleSnapshot: RepCountingStyle = RepCountingStyle.total
@@ -107,6 +114,11 @@ final class ExerciseEntry{
         self.recommendationPriorWorkoutDate = nil
         self.accumulatedActiveDuration = 0
         self.activeDurationStartedAt = nil
+        self.originalExerciseIDSnapshot = nil
+        self.originalExerciseNameSnapshot = nil
+        self.selectedSubstituteExerciseIDSnapshot = nil
+        self.substitutionReason = nil
+        self.substitutionSharesProgressionState = false
         normalizeSetOrder()
     }
 

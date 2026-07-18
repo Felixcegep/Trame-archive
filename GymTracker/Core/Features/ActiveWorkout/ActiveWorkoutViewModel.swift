@@ -473,6 +473,13 @@ class ActiveWorkoutViewModel {
         }
 
         let setCount = max(storedExercise.sets.count, 1)
+        if storedExercise.originalExerciseIDSnapshot == nil {
+            storedExercise.originalExerciseIDSnapshot = storedExercise.exercise.id
+            storedExercise.originalExerciseNameSnapshot = storedExercise.nameSnapshot
+        }
+        storedExercise.selectedSubstituteExerciseIDSnapshot = replacement.id
+        storedExercise.substitutionReason = "User-selected substitution"
+        storedExercise.substitutionSharesProgressionState = false
         for set in storedExercise.sets {
             modelContext.delete(set)
         }

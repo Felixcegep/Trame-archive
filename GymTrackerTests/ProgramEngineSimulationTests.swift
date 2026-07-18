@@ -123,6 +123,23 @@ final class ProgramEngineSimulationTests: XCTestCase {
         XCTAssertEqual(distance.state.distanceOffset, 250)
     }
 
+    func testAssistanceProgressionReducesAssistanceWithoutGoingNegative() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .assistance,
+            trigger: .allRequiredSetsCompleted,
+            successAction: .reduceAssistance(5),
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(requiredSets: 3, completedSets: 3),
+            state: ProgressionEvaluationState(currentLoad: 3)
+        )
+        XCTAssertEqual(result.state.currentLoad, 0)
+    }
+
     func testOlympicQualityRuleRequiresSuccessfulAttempts() throws {
         let rule = ProgressionRuleDefinition(
             metric: .successfulAttempts,
