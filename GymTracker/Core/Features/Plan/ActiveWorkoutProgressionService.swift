@@ -70,6 +70,8 @@ enum ActiveWorkoutProgressionService {
                 rules: scopedRules,
                 performance: partialPerformance,
                 state: evaluation,
+                stageDefinitions: plannedExercise.progressionStagesData
+                    .flatMap { try? JSONDecoder().decode(ProgramStageConfiguration.self, from: $0) }?.stages ?? [],
                 automaticCadences: [.immediately, .nextSet]
             ) else { continue }
 

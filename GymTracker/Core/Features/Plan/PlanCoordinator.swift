@@ -132,10 +132,14 @@ enum PlanCoordinator {
             .flatMap(\.orderedPlannedWorkouts)
             .flatMap(\.orderedPlannedExercises)
             where stateKeys.insert(plannedExercise.progressionKey).inserted {
+            let initialStageID = plannedExercise.progressionStagesData
+                .flatMap { try? JSONDecoder().decode(ProgramStageConfiguration.self, from: $0) }
+                .map(\.initialStageID)
             run.progressionStates.append(
                 PlanExerciseProgressionState(
                     progressionKey: plannedExercise.progressionKey,
                     currentLoad: plannedExercise.suggestedLoad,
+                    currentStageID: initialStageID,
                     currentVariationExerciseID: plannedExercise.exercise.id,
                     trainingMax: plannedExercise.initialTrainingMax,
                     estimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,

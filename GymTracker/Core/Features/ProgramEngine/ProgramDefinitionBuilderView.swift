@@ -708,6 +708,35 @@ private struct ProgramDefinitionExerciseEditor: View {
             }
 
             VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text("Progression stages")
+                    .font(AppFont.captionBold)
+                if !exercise.stages.isEmpty {
+                    Picker("Initial stage", selection: initialStageBinding) {
+                        ForEach(exercise.stages) { stage in
+                            Text(stage.name ?? stage.stageID).tag(stage.stageID)
+                        }
+                    }
+                }
+                ForEach($exercise.stages) { $stage in
+                    ProgramDefinitionStageEditor(
+                        stage: $stage,
+                        initialStageID: $exercise.initialStageID,
+                        exercises: exercises,
+                        availableExposureKeys: availableExposureKeys,
+                        fallbackExerciseID: exercise.exerciseID
+                    )
+                }
+                .onDelete { offsets in
+                    exercise.stages.remove(atOffsets: offsets)
+                    if !exercise.stages.contains(where: { $0.stageID == exercise.initialStageID }) {
+                        exercise.initialStageID = exercise.stages.first?.stageID
+                    }
+                }
+                Button("Add stage", systemImage: AppIcon.plus) { addStage() }
+                    .font(AppFont.caption)
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text("Progression rules")
                     .font(AppFont.captionBold)
                 ForEach($exercise.progressionRules) { $rule in
@@ -831,6 +860,8 @@ private struct ProgramDefinitionExerciseEditor: View {
     }
 
     private func addWave() {
+        exercise.stages = []
+        exercise.initialStageID = nil
         let template = exercise.waves.last?.plannedSets ?? exercise.plannedSets
         let sets = template.enumerated().map { index, set in
             var copy = set
@@ -856,6 +887,103 @@ private struct ProgramDefinitionExerciseEditor: View {
                 exercise.waves[index].plannedSets[setIndex].orderIndex = setIndex
             }
         }
+    }
+
+    private var initialStageBinding: Binding<String> {
+        Binding(
+            get: { exercise.initialStageID ?? exercise.stages.first?.stageID ?? "" },
+            set: { exercise.initialStageID = $0 }
+        )
+    }
+
+    private func addStage() {
+        exercise.waves = []
+        let index = exercise.stages.count + 1
+        let stageID = "stage-\(index)"
+        let template = exercise.stages.last?.plannedSets ?? exercise.plannedSets
+        let sets = template.enumerated().map { setIndex, set in
+            var copy = set
+            copy.id = UUID()
+            copy.orderIndex = setIndex
+            return copy
+        }
+        exercise.stages.append(
+            ProgramStageDefinition(
+                stageID: stageID,
+                name: "Stage \(index)",
+                plannedSets: sets.isEmpty
+                    ? [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(8))]
+                    : sets
+            )
+        )
+        exercise.initialStageID = exercise.initialStageID ?? stageID
+    }
+}
+
+private struct ProgramDefinitionStageEditor: View {
+    @Binding var stage: ProgramStageDefinition
+    @Binding var initialStageID: String?
+    let exercises: [Exercise]
+    let availableExposureKeys: [String]
+    let fallbackExerciseID: UUID
+
+    var body: some View {
+        DisclosureGroup {
+            TextField("Stage identifier", text: stageIDBinding)
+            TextField("Stage name", text: stageNameBinding)
+            Toggle("Carry load into this stage", isOn: $stage.carriesLoad)
+            ForEach($stage.plannedSets) { $set in
+                ProgramDefinitionSetEditor(
+                    set: $set,
+                    exercises: exercises,
+                    availableExposureKeys: availableExposureKeys,
+                    fallbackExerciseID: fallbackExerciseID
+                )
+            }
+            .onDelete { offsets in
+                stage.plannedSets.remove(atOffsets: offsets)
+                if stage.plannedSets.isEmpty {
+                    stage.plannedSets.append(SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(8)))
+                }
+                normalizeSets()
+            }
+            Button("Add set", systemImage: AppIcon.plus) {
+                stage.plannedSets.append(
+                    SetPrescriptionDefinition(orderIndex: stage.plannedSets.count, repetitions: .fixed(8), restSeconds: 90)
+                )
+            }
+        } label: {
+            HStack {
+                Text(stage.name ?? stage.stageID)
+                    .font(AppFont.captionBold)
+                Spacer()
+                Text("\(stage.plannedSets.count) sets")
+                    .font(AppFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var stageNameBinding: Binding<String> {
+        Binding(
+            get: { stage.name ?? "" },
+            set: { stage.name = $0.isEmpty ? nil : $0 }
+        )
+    }
+
+    private var stageIDBinding: Binding<String> {
+        Binding(
+            get: { stage.stageID },
+            set: { value in
+                let previous = stage.stageID
+                stage.stageID = value
+                if initialStageID == previous { initialStageID = value }
+            }
+        )
+    }
+
+    private func normalizeSets() {
+        for index in stage.plannedSets.indices { stage.plannedSets[index].orderIndex = index }
     }
 }
 
@@ -949,9 +1077,13 @@ private enum ProgramBuilderRepKind: String, CaseIterable, Identifiable {
 }
 
 private enum ProgramBuilderTriggerKind: String, CaseIterable, Identifiable {
+    case allOf
+    case anyOf
     case allRequiredSetsCompleted
     case allRequiredRepetitionsCompleted
     case allSetsReachedUpperRepBound
+    case firstSetReachedUpperRepBound
+    case atStage
     case totalRepetitionsReached
     case totalCaloriesReached
     case totalVolumeReached
@@ -976,9 +1108,13 @@ private enum ProgramBuilderTriggerKind: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .allOf: return "All conditions"
+        case .anyOf: return "Any condition"
         case .allRequiredSetsCompleted: return "All required sets"
         case .allRequiredRepetitionsCompleted: return "All required repetitions"
         case .allSetsReachedUpperRepBound: return "All sets reach upper reps"
+        case .firstSetReachedUpperRepBound: return "First set reaches upper reps"
+        case .atStage: return "Current stage"
         case .totalRepetitionsReached: return "Total repetitions"
         case .totalCaloriesReached: return "Total calories"
         case .totalVolumeReached: return "Total volume"
@@ -1182,9 +1318,13 @@ private struct ProgramDefinitionRuleEditor: View {
 
     private var triggerKind: ProgramBuilderTriggerKind {
         switch rule.trigger {
+        case .allOf: return .allOf
+        case .anyOf: return .anyOf
         case .allRequiredSetsCompleted: return .allRequiredSetsCompleted
         case .allRequiredRepetitionsCompleted: return .allRequiredRepetitionsCompleted
         case .allSetsReachedUpperRepBound: return .allSetsReachedUpperRepBound
+        case .firstSetReachedUpperRepBound: return .firstSetReachedUpperRepBound
+        case .atStage: return .atStage
         case .totalRepetitionsReached: return .totalRepetitionsReached
         case .totalCaloriesReached: return .totalCaloriesReached
         case .totalVolumeReached: return .totalVolumeReached
@@ -1212,9 +1352,13 @@ private struct ProgramDefinitionRuleEditor: View {
             get: { triggerKind },
             set: { kind in
                 switch kind {
+                case .allOf: rule.trigger = .allOf([.allRequiredSetsCompleted])
+                case .anyOf: rule.trigger = .anyOf([.allRequiredSetsCompleted])
                 case .allRequiredSetsCompleted: rule.trigger = .allRequiredSetsCompleted
                 case .allRequiredRepetitionsCompleted: rule.trigger = .allRequiredRepetitionsCompleted
                 case .allSetsReachedUpperRepBound: rule.trigger = .allSetsReachedUpperRepBound
+                case .firstSetReachedUpperRepBound: rule.trigger = .firstSetReachedUpperRepBound
+                case .atStage: rule.trigger = .atStage("stage-1")
                 case .totalRepetitionsReached: rule.trigger = .totalRepetitionsReached(25)
                 case .totalCaloriesReached: rule.trigger = .totalCaloriesReached(100)
                 case .totalVolumeReached: rule.trigger = .totalVolumeReached(1_000)
@@ -2101,6 +2245,11 @@ private struct ProgramDefinitionPayloadPreviewView: View {
                             Text("\(row.exposureKey) · \(row.setCount) sets · \(row.progressionRuleCount) progression rules")
                                 .font(AppFont.caption)
                                 .foregroundStyle(.secondary)
+                            if !row.stageNames.isEmpty {
+                                Text("Stages: \(row.stageNames.joined(separator: " → "))")
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.gymSubduedText)
+                            }
                             ForEach(row.sets) { set in
                                 Text(previewSetText(set))
                                     .font(AppFont.caption)

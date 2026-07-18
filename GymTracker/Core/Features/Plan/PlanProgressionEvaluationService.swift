@@ -154,6 +154,8 @@ enum PlanProgressionEvaluationService {
                     performance: performance,
                     state: evaluationState,
                     formulaContext: formulaContext,
+                    stageDefinitions: plannedExercise.progressionStagesData
+                        .flatMap { try? decoder.decode(ProgramStageConfiguration.self, from: $0) }?.stages ?? [],
                     automaticCadences: automaticCadences
                 )
                 evaluationState = result.state

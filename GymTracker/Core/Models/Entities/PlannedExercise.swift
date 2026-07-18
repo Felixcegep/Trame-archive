@@ -32,6 +32,8 @@ final class PlannedExercise {
     /// Encoded structured wave prescriptions. The first wave remains mirrored
     /// into `plannedSets` for legacy editors and snapshots.
     var progressionWavesData: Data?
+    /// Encoded stage definitions and initial-stage identity for generated programs.
+    var progressionStagesData: Data?
     // Optional for compatibility with plans persisted before stimulus was added.
     // Callers should use resolvedStimulus when a concrete value is required.
     var stimulus: TrainingStimulus?
@@ -64,6 +66,7 @@ final class PlannedExercise {
         progressionKey: String? = nil,
         progressionRulesData: Data? = nil,
         progressionWavesData: Data? = nil,
+        progressionStagesData: Data? = nil,
         initialTrainingMax: Double? = nil,
         initialEstimatedOneRepMax: Double? = nil,
         initialActualOneRepMax: Double? = nil,
@@ -94,6 +97,7 @@ final class PlannedExercise {
         self.progressionRule = progressionRule
         self.progressionRulesData = progressionRulesData
         self.progressionWavesData = progressionWavesData
+        self.progressionStagesData = progressionStagesData
         self.stimulus = stimulus
         self.alternatives = alternatives
         self.plannedSets = plannedSets

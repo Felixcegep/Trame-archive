@@ -230,10 +230,14 @@ nonisolated enum ProgressionMetric: String, Codable, CaseIterable, Hashable {
     case successfulAttempts
 }
 
-nonisolated enum ProgressionTrigger: Codable, Hashable {
+nonisolated indirect enum ProgressionTrigger: Codable, Hashable {
+    case allOf([ProgressionTrigger])
+    case anyOf([ProgressionTrigger])
     case allRequiredSetsCompleted
     case allRequiredRepetitionsCompleted
     case allSetsReachedUpperRepBound
+    case firstSetReachedUpperRepBound
+    case atStage(String)
     case totalRepetitionsReached(Int)
     case totalCaloriesReached(Double)
     case totalVolumeReached(Double)
@@ -367,10 +371,64 @@ nonisolated struct ProgressionRuleDefinition: Codable, Hashable, Identifiable {
 
 // MARK: - Versioned program payload
 
+nonisolated struct ProgramIntakeInput: Codable, Hashable {
+    enum Kind: String, Codable, Hashable {
+        case oneRepMax
+        case estimatedOneRepMaxReps
+        case trainingMax
+        case startingLoad
+        case startingVariation
+        case probeVelocity
+    }
+
+    var exposureKey: String
+    var kind: Kind
+    var isRequired: Bool
+    var defaultPercentOfMax: Double?
+
+    init(
+        exposureKey: String,
+        kind: Kind,
+        isRequired: Bool = true,
+        defaultPercentOfMax: Double? = nil
+    ) {
+        self.exposureKey = exposureKey
+        self.kind = kind
+        self.isRequired = isRequired
+        self.defaultPercentOfMax = defaultPercentOfMax
+    }
+}
+
+nonisolated enum MissedWorkoutPolicy: String, Codable, Hashable {
+    case shiftSequence
+    case skipAndContinue
+}
+
+nonisolated enum CompletionPolicy: Codable, Hashable {
+    case end
+    case offerRestart(carryState: Bool)
+    case offerTestDay
+}
+
+/// Capability identifiers are intentionally strings in persisted payloads so a
+/// newer library can describe requirements to an older app without decoding a
+/// newer Swift enum case.
+nonisolated enum EngineCapabilities {
+    static let compositeTriggers = "compositeTriggers"
+    static let stages = "stages"
+
+    static let current: Set<String> = [compositeTriggers, stages]
+
+    static func missing(from requiredCapabilities: [String]) -> Set<String> {
+        Set(requiredCapabilities).subtracting(current)
+    }
+}
+
 nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     var id: UUID
     var schemaVersion: Int
     var templateVersion: Int
+    var programKey: String
     var name: String
     var description: String?
     var goal: PlanGoal
@@ -380,12 +438,20 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     var scheduleMode: PlanScheduleMode
     var scheduleIntervalDays: Int
     var requiredEquipment: [EquipmentType]
+    var prerequisites: [String]
+    var warnings: [String]
+    var isExperimental: Bool
+    var intakeInputs: [ProgramIntakeInput]
+    var missedWorkoutPolicy: MissedWorkoutPolicy
+    var completionPolicy: CompletionPolicy
+    var requiredCapabilities: [String]
     var blocks: [ProgramBlockDefinition]
 
     init(
         id: UUID = UUID(),
         schemaVersion: Int = 1,
         templateVersion: Int = 1,
+        programKey: String = "",
         name: String,
         description: String? = nil,
         goal: PlanGoal = .generalStrength,
@@ -395,11 +461,19 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         scheduleMode: PlanScheduleMode = .fixedWeekdays,
         scheduleIntervalDays: Int = 1,
         requiredEquipment: [EquipmentType] = [],
+        prerequisites: [String] = [],
+        warnings: [String] = [],
+        isExperimental: Bool = false,
+        intakeInputs: [ProgramIntakeInput] = [],
+        missedWorkoutPolicy: MissedWorkoutPolicy = .shiftSequence,
+        completionPolicy: CompletionPolicy = .end,
+        requiredCapabilities: [String] = [],
         blocks: [ProgramBlockDefinition]
     ) {
         self.id = id
         self.schemaVersion = schemaVersion
         self.templateVersion = templateVersion
+        self.programKey = programKey
         self.name = name
         self.description = description
         self.goal = goal
@@ -409,13 +483,22 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         self.scheduleMode = scheduleMode
         self.scheduleIntervalDays = max(1, scheduleIntervalDays)
         self.requiredEquipment = requiredEquipment
+        self.prerequisites = prerequisites
+        self.warnings = warnings
+        self.isExperimental = isExperimental
+        self.intakeInputs = intakeInputs
+        self.missedWorkoutPolicy = missedWorkoutPolicy
+        self.completionPolicy = completionPolicy
+        self.requiredCapabilities = requiredCapabilities
         self.blocks = blocks
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, schemaVersion, templateVersion, name, description, goal,
+        case id, schemaVersion, templateVersion, programKey, name, description, goal,
              experienceLevel, durationWeeks, supportedDaysPerWeek,
-             scheduleMode, scheduleIntervalDays, requiredEquipment, blocks
+             scheduleMode, scheduleIntervalDays, requiredEquipment, prerequisites,
+             warnings, isExperimental, intakeInputs, missedWorkoutPolicy,
+             completionPolicy, requiredCapabilities, blocks
     }
 
     init(from decoder: Decoder) throws {
@@ -423,6 +506,7 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         id = try container.decode(UUID.self, forKey: .id)
         schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
         templateVersion = try container.decode(Int.self, forKey: .templateVersion)
+        programKey = try container.decodeIfPresent(String.self, forKey: .programKey) ?? ""
         name = try container.decode(String.self, forKey: .name)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         goal = try container.decode(PlanGoal.self, forKey: .goal)
@@ -432,6 +516,13 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         scheduleMode = try container.decodeIfPresent(PlanScheduleMode.self, forKey: .scheduleMode) ?? .fixedWeekdays
         scheduleIntervalDays = max(1, try container.decodeIfPresent(Int.self, forKey: .scheduleIntervalDays) ?? 1)
         requiredEquipment = try container.decodeIfPresent([EquipmentType].self, forKey: .requiredEquipment) ?? []
+        prerequisites = try container.decodeIfPresent([String].self, forKey: .prerequisites) ?? []
+        warnings = try container.decodeIfPresent([String].self, forKey: .warnings) ?? []
+        isExperimental = try container.decodeIfPresent(Bool.self, forKey: .isExperimental) ?? false
+        intakeInputs = try container.decodeIfPresent([ProgramIntakeInput].self, forKey: .intakeInputs) ?? []
+        missedWorkoutPolicy = try container.decodeIfPresent(MissedWorkoutPolicy.self, forKey: .missedWorkoutPolicy) ?? .shiftSequence
+        completionPolicy = try container.decodeIfPresent(CompletionPolicy.self, forKey: .completionPolicy) ?? .end
+        requiredCapabilities = try container.decodeIfPresent([String].self, forKey: .requiredCapabilities) ?? []
         blocks = try container.decode([ProgramBlockDefinition].self, forKey: .blocks)
     }
 }
@@ -489,6 +580,7 @@ nonisolated struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
     var name: String
     var dayOffset: Int
     var role: String
+    var isOptional: Bool
     var plannedExercises: [ProgramExerciseDefinition]
 
     init(
@@ -497,6 +589,7 @@ nonisolated struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
         name: String,
         dayOffset: Int,
         role: String = "strength",
+        isOptional: Bool = false,
         plannedExercises: [ProgramExerciseDefinition]
     ) {
         self.id = id
@@ -504,7 +597,23 @@ nonisolated struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
         self.name = name
         self.dayOffset = dayOffset
         self.role = role
+        self.isOptional = isOptional
         self.plannedExercises = plannedExercises
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, orderIndex, name, dayOffset, role, isOptional, plannedExercises
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        orderIndex = try container.decode(Int.self, forKey: .orderIndex)
+        name = try container.decode(String.self, forKey: .name)
+        dayOffset = try container.decode(Int.self, forKey: .dayOffset)
+        role = try container.decodeIfPresent(String.self, forKey: .role) ?? "strength"
+        isOptional = try container.decodeIfPresent(Bool.self, forKey: .isOptional) ?? false
+        plannedExercises = try container.decode([ProgramExerciseDefinition].self, forKey: .plannedExercises)
     }
 }
 
@@ -525,6 +634,33 @@ nonisolated struct ProgramWaveDefinition: Codable, Hashable, Identifiable {
         self.name = name
         self.plannedSets = plannedSets
     }
+}
+
+nonisolated struct ProgramStageDefinition: Codable, Hashable, Identifiable {
+    var id: UUID
+    var stageID: String
+    var name: String?
+    var plannedSets: [SetPrescriptionDefinition]
+    var carriesLoad: Bool
+
+    init(
+        id: UUID = UUID(),
+        stageID: String,
+        name: String? = nil,
+        plannedSets: [SetPrescriptionDefinition],
+        carriesLoad: Bool = true
+    ) {
+        self.id = id
+        self.stageID = stageID
+        self.name = name
+        self.plannedSets = plannedSets
+        self.carriesLoad = carriesLoad
+    }
+}
+
+nonisolated struct ProgramStageConfiguration: Codable, Hashable {
+    var stages: [ProgramStageDefinition]
+    var initialStageID: String
 }
 
 nonisolated struct AutomaticDeloadDefinition: Codable, Hashable {
@@ -567,6 +703,8 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
     var isOptional: Bool
     var plannedSets: [SetPrescriptionDefinition]
     var waves: [ProgramWaveDefinition]
+    var stages: [ProgramStageDefinition]
+    var initialStageID: String?
     var progressionRules: [ProgressionRuleDefinition]
     var alternativeExerciseIDs: [UUID]
     var initialLoad: Double?
@@ -584,6 +722,8 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         isOptional: Bool = false,
         plannedSets: [SetPrescriptionDefinition],
         waves: [ProgramWaveDefinition] = [],
+        stages: [ProgramStageDefinition] = [],
+        initialStageID: String? = nil,
         progressionRules: [ProgressionRuleDefinition] = [],
         alternativeExerciseIDs: [UUID] = [],
         initialLoad: Double? = nil,
@@ -600,6 +740,8 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         self.isOptional = isOptional
         self.plannedSets = plannedSets
         self.waves = waves
+        self.stages = stages
+        self.initialStageID = initialStageID
         self.progressionRules = progressionRules
         self.alternativeExerciseIDs = alternativeExerciseIDs
         self.initialLoad = initialLoad
@@ -616,6 +758,7 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
 nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
     enum Code: String, Codable, Hashable {
         case invalidSchemaVersion
+        case emptyProgramKey
         case emptyName
         case invalidDuration
         case invalidSchedule
@@ -637,6 +780,8 @@ nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case invalidFormula
         case duplicateIdentifier
         case duplicateExposureKey
+        case invalidIntakeExposure
+        case invalidStage
         case formulaCycle
         case referenceCycle
     }
@@ -648,7 +793,7 @@ nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
 }
 
 nonisolated enum ProgramDefinitionValidator {
-    static func validate(_ definition: ProgramDefinitionPayload) -> [ProgramValidationIssue] {
+    static func validate(_ definition: ProgramDefinitionPayload, isBuiltIn: Bool = false) -> [ProgramValidationIssue] {
         var issues: [ProgramValidationIssue] = []
         func add(_ path: String, _ code: ProgramValidationIssue.Code, _ message: String) {
             issues.append(ProgramValidationIssue(path: path, code: code, message: message))
@@ -656,6 +801,9 @@ nonisolated enum ProgramDefinitionValidator {
 
         if definition.schemaVersion < 1 { add("schemaVersion", .invalidSchemaVersion, "Schema version must be positive.") }
         if definition.templateVersion < 1 { add("templateVersion", .invalidSchemaVersion, "Template version must be positive.") }
+        if isBuiltIn, definition.programKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            add("programKey", .emptyProgramKey, "A built-in program requires a stable program key.")
+        }
         if definition.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { add("name", .emptyName, "A program name is required.") }
         if definition.durationWeeks < 1 { add("durationWeeks", .invalidDuration, "A program must contain at least one week.") }
         if definition.supportedDaysPerWeek.isEmpty || definition.supportedDaysPerWeek.contains(where: { $0 < 1 || $0 > 7 }) {
@@ -713,7 +861,40 @@ nonisolated enum ProgramDefinitionValidator {
                             add("\(exercisePath).exposureKey", .duplicateExposureKey, "Exposure keys must be unique within a program definition.")
                         }
                         exposureKeys.insert(exercise.exposureKey)
-                        if exercise.plannedSets.isEmpty && exercise.waves.isEmpty { add(exercisePath, .emptySetPrescription, "An exercise must contain a set prescription or wave.") }
+                        if exercise.plannedSets.isEmpty && exercise.waves.isEmpty && exercise.stages.isEmpty {
+                            add(exercisePath, .emptySetPrescription, "An exercise must contain a set prescription, wave, or stage.")
+                        }
+                        if !exercise.stages.isEmpty && !exercise.waves.isEmpty {
+                            add(exercisePath, .invalidStage, "Stages and waves cannot be used on the same exercise.")
+                        }
+                        if !exercise.stages.isEmpty {
+                            var stageIDs = Set<String>()
+                            for (stageIndex, stage) in exercise.stages.enumerated() {
+                                let stagePath = "\(exercisePath).stages[\(stageIndex)]"
+                                checkID(stage.id, stagePath)
+                                let normalizedID = stage.stageID.trimmingCharacters(in: .whitespacesAndNewlines)
+                                if normalizedID.isEmpty || !stageIDs.insert(normalizedID).inserted {
+                                    add("\(stagePath).stageID", .invalidStage, "Stage identifiers must be non-empty and unique within an exercise.")
+                                }
+                                if stage.plannedSets.isEmpty {
+                                    add(stagePath, .emptySetPrescription, "A stage must contain a set prescription.")
+                                }
+                                validateStageSets(stage.plannedSets, stagePath, checkID, add)
+                            }
+                            guard let initialStageID = exercise.initialStageID,
+                                  stageIDs.contains(initialStageID) else {
+                                add("\(exercisePath).initialStageID", .invalidStage, "The initial stage must reference a stage on this exercise.")
+                                continue
+                            }
+                            for (ruleIndex, rule) in exercise.progressionRules.enumerated() {
+                                for target in stageTargets(in: [rule.successAction, rule.failureAction].compactMap { $0 })
+                                    where !stageIDs.contains(target) {
+                                    add("\(exercisePath).rules[\(ruleIndex)]", .invalidStage, "The rule references missing stage '\(target)'.")
+                                }
+                            }
+                        } else if exercise.initialStageID != nil {
+                            add("\(exercisePath).initialStageID", .invalidStage, "An initial stage requires stage definitions.")
+                        }
                         if let warmup = exercise.warmupScheme {
                             if warmup.steps.isEmpty {
                                 add("\(exercisePath).warmupScheme", .invalidSetOrder, "A warm-up scheme needs at least one step.")
@@ -798,6 +979,7 @@ nonisolated enum ProgramDefinitionValidator {
                             }
                         }
                         for (ruleIndex, rule) in exercise.progressionRules.enumerated() {
+                            validateTrigger(rule.trigger, "\(exercisePath).rules[\(ruleIndex)].trigger", add)
                             if let formula = rule.formula {
                                 var sources = Set<String>()
                                 collectSources(formula, into: &sources)
@@ -839,6 +1021,9 @@ nonisolated enum ProgramDefinitionValidator {
         for reference in formulaReferencePaths where !exposureKeys.contains(reference.dependency) {
             add(reference.path, .invalidFormula, "The formula references exposure '\(reference.dependency)', which does not exist in this program.")
         }
+        for (index, intakeInput) in definition.intakeInputs.enumerated() where !exposureKeys.contains(intakeInput.exposureKey) {
+            add("intakeInputs[\(index)].exposureKey", .invalidIntakeExposure, "The intake input references exposure '\(intakeInput.exposureKey)', which does not exist in this program.")
+        }
         return issues
     }
 
@@ -865,6 +1050,56 @@ nonisolated enum ProgramDefinitionValidator {
             if let calories, !calories.isFinite || calories <= 0 { add(path, .invalidPrescriptionValue, "Calories must be a positive finite value.") }
         case .open:
             break
+        }
+    }
+
+    private static func validateTrigger(
+        _ trigger: ProgressionTrigger,
+        _ path: String,
+        _ add: (String, ProgramValidationIssue.Code, String) -> Void
+    ) {
+        switch trigger {
+        case .allOf(let triggers), .anyOf(let triggers):
+            if triggers.isEmpty {
+                add(path, .invalidPrescriptionValue, "A composite trigger must contain at least one trigger.")
+            }
+            for (index, child) in triggers.enumerated() {
+                validateTrigger(child, "\(path)[\(index)]", add)
+            }
+        case .atStage(let stageID):
+            if stageID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                add(path, .invalidPrescriptionValue, "A stage trigger requires a stage identifier.")
+            }
+        default:
+            break
+        }
+    }
+
+    private static func stageTargets(in actions: [ProgressionAction]) -> [String] {
+        actions.compactMap { action in
+            guard case .changeStage(let stageID) = action else { return nil }
+            return stageID
+        }
+    }
+
+    private static func validateStageSets(
+        _ sets: [SetPrescriptionDefinition],
+        _ path: String,
+        _ checkID: (UUID, String) -> Void,
+        _ add: (String, ProgramValidationIssue.Code, String) -> Void
+    ) {
+        var orders = Set<Int>()
+        for (index, set) in sets.enumerated() {
+            let setPath = "\(path).sets[\(index)]"
+            checkID(set.id, setPath)
+            if set.orderIndex < 0 || !orders.insert(set.orderIndex).inserted {
+                add("\(setPath).orderIndex", .invalidSetOrder, "Stage set order indices must be non-negative and unique.")
+            }
+            validateRep(set.repetitions, setPath, add)
+            if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
+            if let rpe = set.targetRPE, !(0...10).contains(rpe) { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
+            if let rir = set.targetRIR, !(0...10).contains(rir) { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
+            validateLoad(set.load, "\(setPath).load", add)
         }
     }
 

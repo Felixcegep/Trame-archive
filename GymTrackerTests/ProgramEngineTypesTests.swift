@@ -155,6 +155,300 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(decoded.scheduleIntervalDays, 1)
     }
 
+    func testProgramDefinitionDecodesLegacyPayloadWithoutExtensibilityMetadata() throws {
+        let definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "legacy-squat",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))]
+            )
+        ])
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(definition)) as? [String: Any])
+        [
+            "programKey", "prerequisites", "warnings", "isExperimental", "intakeInputs",
+            "missedWorkoutPolicy", "completionPolicy", "requiredCapabilities"
+        ].forEach { object.removeValue(forKey: $0) }
+        var blocks = try XCTUnwrap(object["blocks"] as? [[String: Any]])
+        var weeks = try XCTUnwrap(blocks[0]["weeks"] as? [[String: Any]])
+        var workouts = try XCTUnwrap(weeks[0]["workouts"] as? [[String: Any]])
+        workouts[0].removeValue(forKey: "isOptional")
+        weeks[0]["workouts"] = workouts
+        blocks[0]["weeks"] = weeks
+        object["blocks"] = blocks
+
+        let decoded = try JSONDecoder().decode(
+            ProgramDefinitionPayload.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertEqual(decoded.programKey, "")
+        XCTAssertEqual(decoded.prerequisites, [])
+        XCTAssertEqual(decoded.warnings, [])
+        XCTAssertFalse(decoded.isExperimental)
+        XCTAssertEqual(decoded.intakeInputs, [])
+        XCTAssertEqual(decoded.missedWorkoutPolicy, .shiftSequence)
+        XCTAssertEqual(decoded.completionPolicy, .end)
+        XCTAssertEqual(decoded.requiredCapabilities, [])
+        XCTAssertFalse(try XCTUnwrap(decoded.blocks.first?.weeks.first?.workouts.first).isOptional)
+    }
+
+    func testProgramMetadataAndPoliciesRoundTrip() throws {
+        var definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "squat",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))]
+            )
+        ])
+        definition.programKey = "strength-cycle"
+        definition.prerequisites = ["Know your one-rep max"]
+        definition.warnings = ["Advanced loading"]
+        definition.isExperimental = true
+        definition.intakeInputs = [.init(exposureKey: "squat", kind: .trainingMax, defaultPercentOfMax: 0.9)]
+        definition.missedWorkoutPolicy = .skipAndContinue
+        definition.completionPolicy = .offerRestart(carryState: true)
+        definition.requiredCapabilities = ["stages", "velocity"]
+        definition.blocks[0].weeks[0].workouts[0].isOptional = true
+
+        let decoded = try JSONDecoder().decode(ProgramDefinitionPayload.self, from: JSONEncoder().encode(definition))
+
+        XCTAssertEqual(decoded, definition)
+        XCTAssertEqual(EngineCapabilities.missing(from: decoded.requiredCapabilities), ["velocity"])
+    }
+
+    func testBuiltInValidationRequiresProgramKeyAndValidIntakeExposure() {
+        var definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "squat",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))]
+            )
+        ])
+        definition.intakeInputs = [.init(exposureKey: "missing", kind: .startingLoad)]
+
+        XCTAssertFalse(ProgramDefinitionValidator.validate(definition).contains { $0.code == .emptyProgramKey })
+        let invalidIssues = ProgramDefinitionValidator.validate(definition, isBuiltIn: true)
+        XCTAssertTrue(invalidIssues.contains { $0.code == .emptyProgramKey })
+        XCTAssertTrue(invalidIssues.contains { $0.code == .invalidIntakeExposure })
+
+        definition.programKey = "squat-cycle"
+        definition.intakeInputs = [.init(exposureKey: "squat", kind: .startingLoad)]
+        XCTAssertTrue(ProgramDefinitionValidator.validate(definition, isBuiltIn: true).isEmpty)
+    }
+
+    func testCompositeTriggersSupportNestingAndStageState() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .repetitions,
+            trigger: .allOf([
+                .atStage("volume"),
+                .anyOf([.firstSetReachedUpperRepBound, .manualApproval])
+            ]),
+            successAction: .addRepetitions(1),
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let matching = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(firstSetReachedUpperBound: true),
+            state: ProgressionEvaluationState(currentStageID: "volume")
+        )
+        XCTAssertEqual(matching.state.repetitionOffset, 1)
+        XCTAssertTrue(matching.recommendations.first?.reason.contains("first set") == true)
+
+        let wrongStage = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(firstSetReachedUpperBound: true),
+            state: ProgressionEvaluationState(currentStageID: "strength")
+        )
+        XCTAssertEqual(wrongStage.state.repetitionOffset, 0)
+        XCTAssertTrue(wrongStage.recommendations.isEmpty)
+    }
+
+    func testAnyOfMatchesOnlyOneBranchAndReportsTheMatchedReason() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .repetitions,
+            trigger: .anyOf([.manualApproval, .workoutCompleted]),
+            successAction: .addRepetitions(1),
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(workoutCompleted: true),
+            state: ProgressionEvaluationState()
+        )
+
+        XCTAssertEqual(result.state.repetitionOffset, 1)
+        XCTAssertEqual(result.recommendations.first?.reason, "The workout was completed.")
+    }
+
+    func testValidatorRejectsEmptyAndMalformedCompositeTriggers() {
+        var definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "squat",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))],
+                progressionRules: [
+                    ProgressionRuleDefinition(
+                        metric: .repetitions,
+                        trigger: .allOf([.anyOf([]), .atStage(" ")]),
+                        successAction: .addRepetitions(1),
+                        cadence: .nextExerciseOccurrence,
+                        scope: .exerciseExposure
+                    )
+                ]
+            )
+        ])
+        definition.programKey = "invalid-composite"
+
+        let issues = ProgramDefinitionValidator.validate(definition, isBuiltIn: true)
+        XCTAssertEqual(issues.filter { $0.code == .invalidPrescriptionValue }.count, 2)
+    }
+
+    func testStageDefinitionCompilesAndSeedsInitialRunState() throws {
+        let squat = Exercise(name: "Stage Squat", primaryMuscles: [.quadriceps])
+        let definition = stageDefinition(exerciseID: squat.id)
+
+        XCTAssertTrue(ProgramDefinitionValidator.validate(definition, isBuiltIn: true).isEmpty)
+        let plan = try ProgramDefinitionCompiler.compile(definition, exercisesByID: [squat.id: squat])
+        let plannedExercise = try XCTUnwrap(
+            plan.orderedWeeks.first?.orderedPlannedWorkouts.first?.orderedPlannedExercises.first
+        )
+        let configuration = try JSONDecoder().decode(
+            ProgramStageConfiguration.self,
+            from: try XCTUnwrap(plannedExercise.progressionStagesData)
+        )
+        XCTAssertEqual(configuration.initialStageID, "volume")
+        XCTAssertEqual(plannedExercise.orderedPlannedSets.count, 2)
+
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        XCTAssertEqual(run.orderedProgressionStates.first?.currentStageID, "volume")
+    }
+
+    func testStageTransitionClearsLoadOnlyWhenDestinationDoesNotCarryIt() throws {
+        let stages = [
+            ProgramStageDefinition(stageID: "volume", plannedSets: [.init(orderIndex: 0, repetitions: .fixed(8))]),
+            ProgramStageDefinition(stageID: "reset", plannedSets: [.init(orderIndex: 0, repetitions: .fixed(5))], carriesLoad: false)
+        ]
+        let rule = ProgressionRuleDefinition(
+            metric: .load,
+            trigger: .manualApproval,
+            successAction: .changeStage("reset"),
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(manualApproval: true),
+            state: ProgressionEvaluationState(currentLoad: 100, currentStageID: "volume"),
+            stageDefinitions: stages
+        )
+
+        XCTAssertEqual(result.state.currentStageID, "reset")
+        XCTAssertNil(result.state.currentLoad)
+    }
+
+    func testStageSnapshotGrowsAndPreservesCompletedSetsWhenShrinking() throws {
+        let squat = Exercise(name: "Snapshot Stage Squat", primaryMuscles: [.quadriceps])
+        let plan = try ProgramDefinitionCompiler.compile(
+            stageDefinition(exerciseID: squat.id),
+            exercisesByID: [squat.id: squat]
+        )
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        let plannedWorkout = try XCTUnwrap(plan.orderedWeeks.first?.orderedPlannedWorkouts.first)
+        let plannedExercise = try XCTUnwrap(plannedWorkout.orderedPlannedExercises.first)
+        let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
+        let entry = try XCTUnwrap(workout.orderedExercises.first)
+        XCTAssertEqual(entry.orderedSets.count, 2)
+
+        let state = try XCTUnwrap(run.orderedProgressionStates.first)
+        state.currentStageID = "strength"
+        ProgramPrescriptionSnapshotService.apply(
+            to: entry,
+            plannedExercise: plannedExercise,
+            run: run,
+            unitSystem: .metric
+        )
+        XCTAssertEqual(entry.orderedSets.count, 4)
+
+        let completed = entry.orderedSets[3]
+        completed.done = true
+        state.currentStageID = "volume"
+        ProgramPrescriptionSnapshotService.apply(
+            to: entry,
+            plannedExercise: plannedExercise,
+            run: run,
+            unitSystem: .metric,
+            preservingCompletedSets: true
+        )
+        XCTAssertEqual(entry.orderedSets.count, 3)
+        XCTAssertTrue(entry.orderedSets.contains { $0.id == completed.id && $0.done })
+    }
+
+    func testValidatorRejectsStageWaveMixAndUnknownStageTargets() {
+        let exerciseID = UUID()
+        var definition = stageDefinition(exerciseID: exerciseID)
+        definition.blocks[0].weeks[0].workouts[0].plannedExercises[0].waves = [
+            ProgramWaveDefinition(orderIndex: 0, plannedSets: [.init(orderIndex: 0, repetitions: .fixed(5))])
+        ]
+        definition.blocks[0].weeks[0].workouts[0].plannedExercises[0].progressionRules = [
+            ProgressionRuleDefinition(
+                metric: .load,
+                trigger: .manualApproval,
+                successAction: .changeStage("missing"),
+                cadence: .nextExerciseOccurrence,
+                scope: .exerciseExposure
+            )
+        ]
+
+        let issues = ProgramDefinitionValidator.validate(definition, isBuiltIn: true)
+        XCTAssertTrue(issues.contains { $0.code == .invalidStage && $0.message.contains("cannot be used") })
+        XCTAssertTrue(issues.contains { $0.code == .invalidStage && $0.message.contains("missing stage") })
+    }
+
+    func testPlannedExerciseBackupPreservesStageConfiguration() throws {
+        let configuration = ProgramStageConfiguration(
+            stages: [
+                ProgramStageDefinition(
+                    stageID: "volume",
+                    name: "Volume",
+                    plannedSets: [.init(orderIndex: 0, repetitions: .fixed(8))]
+                )
+            ],
+            initialStageID: "volume"
+        )
+        let data = try JSONEncoder().encode(configuration)
+        let dto = PlannedExerciseDTO(
+            id: UUID().uuidString,
+            exerciseName: "Squat",
+            orderIndex: 0,
+            role: ExerciseRole.main.rawValue,
+            isOptional: false,
+            targetSets: 1,
+            repRangeMinimum: 8,
+            repRangeMaximum: 8,
+            suggestedLoad: 100,
+            suggestedLoadType: WeightType.kg.rawValue,
+            restSeconds: 90,
+            targetRPE: nil,
+            targetRIR: nil,
+            notes: nil,
+            progressionRule: ProgressionRule.none.rawValue,
+            progressionStagesData: data
+        )
+
+        let restored = try JSONDecoder().decode(PlannedExerciseDTO.self, from: JSONEncoder().encode(dto))
+        let restoredData = try XCTUnwrap(restored.progressionStagesData)
+        XCTAssertEqual(try JSONDecoder().decode(ProgramStageConfiguration.self, from: restoredData), configuration)
+    }
+
     func testProgramDefinitionCodecRejectsInvalidImportedRecipes() throws {
         let valid = makeDefinition(exercises: [
             ProgramExerciseDefinition(
@@ -706,7 +1000,7 @@ final class ProgramEngineTypesTests: XCTestCase {
     }
 
     func testDefinitionRecordStoresVersionedPayloadMetadata() throws {
-        let definition = makeDefinition(exercises: [
+        var definition = makeDefinition(exercises: [
             ProgramExerciseDefinition(
                 exerciseID: UUID(),
                 exposureKey: "row",
@@ -714,6 +1008,7 @@ final class ProgramEngineTypesTests: XCTestCase {
                 plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(10))]
             )
         ])
+        definition.programKey = "row-program"
         let record = try ProgramDefinitionRecord(payload: definition, isBuiltIn: true)
 
         XCTAssertEqual(record.id, definition.id)
@@ -1291,6 +1586,40 @@ final class ProgramEngineTypesTests: XCTestCase {
         let decoded = try JSONDecoder().decode(PlannedSetDTO.self, from: JSONEncoder().encode(dto))
         XCTAssertEqual(decoded.tempo, "3-1-1-0")
         XCTAssertEqual(decoded.progressionEligible, false)
+    }
+
+    private func stageDefinition(exerciseID: UUID) -> ProgramDefinitionPayload {
+        let volumeSets = (0..<2).map {
+            SetPrescriptionDefinition(orderIndex: $0, repetitions: .fixed(8), restSeconds: 90)
+        }
+        let strengthSets = (0..<4).map {
+            SetPrescriptionDefinition(orderIndex: $0, repetitions: .fixed(3), restSeconds: 150)
+        }
+        let exercise = ProgramExerciseDefinition(
+            exerciseID: exerciseID,
+            exposureKey: "squat-stage",
+            orderIndex: 0,
+            plannedSets: [],
+            stages: [
+                ProgramStageDefinition(stageID: "volume", name: "Volume", plannedSets: volumeSets),
+                ProgramStageDefinition(stageID: "strength", name: "Strength", plannedSets: strengthSets)
+            ],
+            initialStageID: "volume",
+            progressionRules: [
+                ProgressionRuleDefinition(
+                    metric: .load,
+                    trigger: .allOf([.atStage("volume"), .allRequiredSetsCompleted]),
+                    successAction: .changeStage("strength"),
+                    cadence: .nextExerciseOccurrence,
+                    scope: .exerciseExposure,
+                    applicationMode: .automatic
+                )
+            ],
+            initialLoad: 100
+        )
+        var definition = makeDefinition(exercises: [exercise])
+        definition.programKey = "stage-program"
+        return definition
     }
 
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {

@@ -45,6 +45,7 @@ nonisolated struct ProgramDefinitionPreviewRow: Hashable, Identifiable {
     let exposureKey: String
     let setCount: Int
     let waveCount: Int
+    let stageNames: [String]
     let roles: [ProgramSetRole]
     let repPrescriptions: [RepPrescription]
     let loadReferences: [LoadReferenceKind]
@@ -107,6 +108,7 @@ nonisolated enum ProgramDefinitionPreview {
                                 exposureKey: exercise.exposureKey,
                                 setCount: sets.count,
                                 waveCount: exercise.waves.count,
+                                stageNames: exercise.stages.map { $0.name ?? $0.stageID },
                                 roles: sets.map(\.role),
                                 repPrescriptions: sets.map(\.repetitions),
                                 loadReferences: sets.map(\.loadReference),
@@ -134,6 +136,9 @@ nonisolated enum ProgramDefinitionPreview {
     }
 
     private static func previewSets(for exercise: ProgramExerciseDefinition) -> [SetPrescriptionDefinition] {
+        if let initialStage = exercise.stages.first(where: { $0.stageID == exercise.initialStageID }) {
+            return initialStage.plannedSets.sorted { $0.orderIndex < $1.orderIndex }
+        }
         if let firstWave = exercise.waves.sorted(by: { $0.orderIndex < $1.orderIndex }).first {
             return firstWave.plannedSets.sorted { $0.orderIndex < $1.orderIndex }
         }
@@ -142,9 +147,13 @@ nonisolated enum ProgramDefinitionPreview {
 
     private static func triggerText(_ trigger: ProgressionTrigger) -> String {
         switch trigger {
+        case .allOf(let triggers): return triggers.map(triggerText).joined(separator: " and ")
+        case .anyOf(let triggers): return triggers.map(triggerText).joined(separator: " or ")
         case .allRequiredSetsCompleted: return "All required sets completed"
         case .allRequiredRepetitionsCompleted: return "All required repetitions completed"
         case .allSetsReachedUpperRepBound: return "All sets reach upper rep bound"
+        case .firstSetReachedUpperRepBound: return "First set reaches upper rep bound"
+        case .atStage(let stageID): return "At stage \(stageID)"
         case .totalRepetitionsReached(let value): return "Total repetitions reach \(value)"
         case .totalCaloriesReached(let value): return "Total calories reach \(value)"
         case .totalVolumeReached(let value): return "Total volume reaches \(value)"

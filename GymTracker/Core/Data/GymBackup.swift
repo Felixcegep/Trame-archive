@@ -193,6 +193,7 @@ nonisolated struct PlannedExerciseDTO: Codable {
     var progressionKey: String? = nil
     var progressionRulesData: Data? = nil
     var progressionWavesData: Data? = nil
+    var progressionStagesData: Data? = nil
     var initialTrainingMax: Double? = nil
     var initialEstimatedOneRepMax: Double? = nil
     var initialActualOneRepMax: Double? = nil
@@ -783,6 +784,7 @@ extension BackupDTO {
                                                 progressionKey: plannedExercise.progressionKey,
                                                 progressionRulesData: plannedExercise.progressionRulesData,
                                                 progressionWavesData: plannedExercise.progressionWavesData,
+                                                progressionStagesData: plannedExercise.progressionStagesData,
                                                 initialTrainingMax: plannedExercise.initialTrainingMax,
                                                 initialEstimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
                                                 initialActualOneRepMax: plannedExercise.initialActualOneRepMax,
@@ -1163,6 +1165,7 @@ extension BackupDTO {
                                     progressionKey: plannedExerciseDTO.progressionKey,
                                     progressionRulesData: plannedExerciseDTO.progressionRulesData,
                                     progressionWavesData: plannedExerciseDTO.progressionWavesData,
+                                    progressionStagesData: plannedExerciseDTO.progressionStagesData,
                                     initialTrainingMax: plannedExerciseDTO.initialTrainingMax,
                                     initialEstimatedOneRepMax: plannedExerciseDTO.initialEstimatedOneRepMax,
                                     initialActualOneRepMax: plannedExerciseDTO.initialActualOneRepMax,

@@ -191,6 +191,7 @@ struct PlanExerciseDraft: Identifiable {
     var plannedSets: [PlanSetDraft]
     var progressionRulesData: Data?
     var progressionWavesData: Data?
+    var progressionStagesData: Data?
     var initialTrainingMax: Double?
     var initialEstimatedOneRepMax: Double?
     var initialActualOneRepMax: Double?
@@ -221,6 +222,7 @@ struct PlanExerciseDraft: Identifiable {
         plannedSets = []
         progressionRulesData = nil
         progressionWavesData = nil
+        progressionStagesData = nil
         initialTrainingMax = nil
         initialEstimatedOneRepMax = nil
         initialActualOneRepMax = nil
@@ -251,6 +253,7 @@ struct PlanExerciseDraft: Identifiable {
         plannedSets = plannedExercise.orderedPlannedSets.map(PlanSetDraft.init)
         progressionRulesData = plannedExercise.progressionRulesData
         progressionWavesData = plannedExercise.progressionWavesData
+        progressionStagesData = plannedExercise.progressionStagesData
         initialTrainingMax = plannedExercise.initialTrainingMax
         initialEstimatedOneRepMax = plannedExercise.initialEstimatedOneRepMax
         initialActualOneRepMax = plannedExercise.initialActualOneRepMax
@@ -297,6 +300,7 @@ struct PlanExerciseDraft: Identifiable {
             progressionKey: progressionKey,
             progressionRulesData: progressionRulesData,
             progressionWavesData: progressionWavesData,
+            progressionStagesData: progressionStagesData,
             initialTrainingMax: initialTrainingMax,
             initialEstimatedOneRepMax: initialEstimatedOneRepMax,
             initialActualOneRepMax: initialActualOneRepMax
@@ -322,6 +326,7 @@ struct PlanExerciseDraft: Identifiable {
         model.progressionKey = progressionKey
         model.progressionRulesData = progressionRulesData
         model.progressionWavesData = progressionWavesData
+        model.progressionStagesData = progressionStagesData
         model.initialTrainingMax = initialTrainingMax
         model.initialEstimatedOneRepMax = initialEstimatedOneRepMax
         model.initialActualOneRepMax = initialActualOneRepMax

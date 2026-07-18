@@ -50,7 +50,7 @@ final class ProgramDefinitionRecord {
         isBuiltIn: Bool = false,
         encoder: JSONEncoder = JSONEncoder()
     ) throws {
-        let issues = ProgramDefinitionValidator.validate(payload)
+        let issues = ProgramDefinitionValidator.validate(payload, isBuiltIn: isBuiltIn)
         guard issues.isEmpty else { throw ProgramDefinitionStoreError.invalid(issues) }
         guard let data = try? encoder.encode(payload) else {
             throw ProgramDefinitionStoreError.encodingFailed
@@ -193,7 +193,9 @@ enum ProgramDefinitionCompiler {
         exercise: Exercise,
         alternatives: [PlannedExerciseAlternative]
     ) throws -> PlannedExercise {
-        let orderedSets = (definition.waves.first?.plannedSets ?? definition.plannedSets).sorted { $0.orderIndex < $1.orderIndex }
+        let initialStage = definition.stages.first { $0.stageID == definition.initialStageID }
+        let orderedSets = (initialStage?.plannedSets ?? definition.waves.first?.plannedSets ?? definition.plannedSets)
+            .sorted { $0.orderIndex < $1.orderIndex }
         let plannedSets = try orderedSets.map { prescription in
             let data = try JSONEncoder().encode(prescription)
             let legacy = legacyValues(for: prescription.repetitions)
@@ -237,6 +239,12 @@ enum ProgramDefinitionCompiler {
             progressionKey: definition.exposureKey,
             progressionRulesData: rulesData,
             progressionWavesData: definition.waves.isEmpty ? nil : try? JSONEncoder().encode(definition.waves),
+            progressionStagesData: definition.stages.isEmpty ? nil : try? JSONEncoder().encode(
+                ProgramStageConfiguration(
+                    stages: definition.stages,
+                    initialStageID: definition.initialStageID ?? definition.stages[0].stageID
+                )
+            ),
             initialTrainingMax: definition.initialTrainingMax,
             initialEstimatedOneRepMax: definition.initialEstimatedOneRepMax,
             initialActualOneRepMax: definition.initialActualOneRepMax,

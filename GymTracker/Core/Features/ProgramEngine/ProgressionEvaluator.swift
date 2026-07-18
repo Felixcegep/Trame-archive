@@ -8,6 +8,7 @@ nonisolated struct ProgressionPerformance: Codable, Hashable {
     var requiredRepetitions: Int = 0
     var completedRepetitions: Int = 0
     var upperBoundSets: Int = 0
+    var firstSetReachedUpperBound: Bool = false
     var totalVolume: Double = 0
     var completedCalories: Double = 0
     var amrapRepetitions: Int?
@@ -121,6 +122,7 @@ nonisolated enum ProgramProgressionEvaluator {
         state: ProgressionEvaluationState,
         formulaContext: FormulaResolutionContext = FormulaResolutionContext(),
         variationLadder: [UUID] = [],
+        stageDefinitions: [ProgramStageDefinition] = [],
         automaticCadences: Set<ProgressionCadence> = Set(ProgressionCadence.allCases)
     ) throws -> ProgressionEvaluationResult {
         var nextState = state
@@ -155,7 +157,7 @@ nonisolated enum ProgramProgressionEvaluator {
             let reason: String
             if triggered {
                 action = rule.successAction
-                reason = successReason(for: rule.trigger, performance: performance)
+                reason = successReason(for: rule.trigger, performance: performance, state: nextState)
             } else if performance.didFail {
                 action = rule.failureAction
                 reason = "The prescribed performance was not completed."
@@ -171,7 +173,13 @@ nonisolated enum ProgramProgressionEvaluator {
                 let deferred = deferredStates.last(where: { $0.cadence == rule.cadence }) {
                 proposedState = deferred.state
             }
-            try apply(action, to: &proposedState, formulaContext: formulaContext, variationLadder: variationLadder)
+            try apply(
+                action,
+                to: &proposedState,
+                formulaContext: formulaContext,
+                variationLadder: variationLadder,
+                stageDefinitions: stageDefinitions
+            )
             let recommendation = ProgressionRecommendation(
                 id: UUID(),
                 ruleID: rule.id,
@@ -218,12 +226,20 @@ nonisolated enum ProgramProgressionEvaluator {
         state: ProgressionEvaluationState
     ) -> Bool {
         switch trigger {
+        case .allOf(let triggers):
+            return !triggers.isEmpty && triggers.allSatisfy { matches($0, performance: performance, state: state) }
+        case .anyOf(let triggers):
+            return !triggers.isEmpty && triggers.contains { matches($0, performance: performance, state: state) }
         case .allRequiredSetsCompleted:
             return performance.requiredSets > 0 && performance.completedSets >= performance.requiredSets
         case .allRequiredRepetitionsCompleted:
             return performance.requiredRepetitions > 0 && performance.completedRepetitions >= performance.requiredRepetitions
         case .allSetsReachedUpperRepBound:
             return performance.requiredSets > 0 && performance.upperBoundSets >= performance.requiredSets
+        case .firstSetReachedUpperRepBound:
+            return performance.firstSetReachedUpperBound
+        case .atStage(let stageID):
+            return state.currentStageID == stageID
         case .totalRepetitionsReached(let target): return performance.completedRepetitions >= target
         case .totalCaloriesReached(let target): return performance.completedCalories >= target
         case .totalVolumeReached(let target): return performance.totalVolume >= target
@@ -260,7 +276,8 @@ nonisolated enum ProgramProgressionEvaluator {
         _ action: ProgressionAction,
         to state: inout ProgressionEvaluationState,
         formulaContext: FormulaResolutionContext,
-        variationLadder: [UUID]
+        variationLadder: [UUID],
+        stageDefinitions: [ProgramStageDefinition]
     ) throws {
         switch action {
         case .addLoad(let amount): state.currentLoad = (state.currentLoad ?? 0) + amount
@@ -289,7 +306,11 @@ nonisolated enum ProgramProgressionEvaluator {
         case .updateTrainingMax(let formula): state.trainingMax = try resolve(formula, context: formulaContext)
         case .updateEstimatedOneRepMax(let formula): state.estimatedOneRepMax = try resolve(formula, context: formulaContext)
         case .updateActualOneRepMax(let formula): state.actualOneRepMax = try resolve(formula, context: formulaContext)
-        case .changeStage(let stage): state.currentStageID = stage
+        case .changeStage(let stage):
+            if stageDefinitions.first(where: { $0.stageID == stage })?.carriesLoad == false {
+                state.currentLoad = nil
+            }
+            state.currentStageID = stage
         case .advanceExerciseVariation:
             guard !variationLadder.isEmpty else { throw ProgressionEvaluationError.invalidAction("Variation ladder is empty.") }
             guard let current = state.currentVariationExerciseID,
@@ -334,9 +355,23 @@ nonisolated enum ProgramProgressionEvaluator {
         catch let error as FormulaResolutionError { throw ProgressionEvaluationError.formula(error) }
     }
 
-    private static func successReason(for trigger: ProgressionTrigger, performance: ProgressionPerformance) -> String {
+    private static func successReason(
+        for trigger: ProgressionTrigger,
+        performance: ProgressionPerformance,
+        state: ProgressionEvaluationState
+    ) -> String {
         switch trigger {
+        case .allOf(let triggers):
+            return triggers.map { successReason(for: $0, performance: performance, state: state) }.joined(separator: " And ")
+        case .anyOf(let triggers):
+            let matchedReasons = triggers.compactMap { child -> String? in
+                guard matches(child, performance: performance, state: state) else { return nil }
+                return successReason(for: child, performance: performance, state: state)
+            }
+            return matchedReasons.joined(separator: " Or ")
         case .allSetsReachedUpperRepBound: return "Every required set reached the upper rep bound."
+        case .firstSetReachedUpperRepBound: return "The first set reached the upper rep bound."
+        case .atStage(let stageID): return "The current stage is \(stageID)."
         case .allRequiredSetsCompleted: return "All required sets were completed."
         case .allRequiredRepetitionsCompleted: return "All required repetitions were completed."
         case .totalRepetitionsReached(let target): return "The total repetition target of \(target) was reached."

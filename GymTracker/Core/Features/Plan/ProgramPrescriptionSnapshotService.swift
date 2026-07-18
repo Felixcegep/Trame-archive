@@ -133,6 +133,11 @@ enum ProgramPrescriptionSnapshotService {
             }
         }
 
+        let stageConfiguration = plannedExercise.progressionStagesData
+            .flatMap { try? decoder.decode(ProgramStageConfiguration.self, from: $0) }
+        let selectedStage = stageConfiguration?.stages.first {
+            $0.stageID == (state?.currentStageID ?? stageConfiguration?.initialStageID)
+        }
         let waveDefinitions: [ProgramWaveDefinition] = plannedExercise.progressionWavesData
             .flatMap { try? decoder.decode([ProgramWaveDefinition].self, from: $0) } ?? []
         let selectedWave = waveDefinitions
@@ -140,7 +145,14 @@ enum ProgramPrescriptionSnapshotService {
             .dropFirst(min(max(0, state?.currentWaveIndex ?? 0), max(0, waveDefinitions.count - 1)))
             .first
         let prescriptions: [(definition: SetPrescriptionDefinition, data: Data)]
-        if let selectedWave {
+        if let selectedStage {
+            prescriptions = selectedStage.plannedSets
+                .sorted { $0.orderIndex < $1.orderIndex }
+                .compactMap { definition in
+                    guard let data = try? JSONEncoder().encode(definition) else { return nil }
+                    return (definition, data)
+                }
+        } else if let selectedWave {
             prescriptions = selectedWave.plannedSets
                 .sorted { $0.orderIndex < $1.orderIndex }
                 .compactMap { definition in
@@ -166,14 +178,17 @@ enum ProgramPrescriptionSnapshotService {
         let immediatePrescriptions = prescriptions.filter {
             !deferredBackOffIDs.contains($0.definition.id)
         }
+        if !prescriptions.isEmpty {
+            reconcileStructuredSetCount(
+                in: entry,
+                targetCount: immediatePrescriptions.count,
+                preservingCompletedSets: preservingCompletedSets
+            )
+        }
         // Legacy plans have no encoded set definitions. Their ExerciseEntry
         // initializer has already snapshotted targetSets into concrete sets,
         // so an empty structured prescription must not erase those sets.
-        if !preservingCompletedSets, !prescriptions.isEmpty {
-            entry.sets = Array(entry.orderedSets.prefix(immediatePrescriptions.count))
-            entry.prescribedSets = immediatePrescriptions.count
-            entry.normalizeSetOrder()
-        }
+        if !prescriptions.isEmpty { entry.prescribedSets = immediatePrescriptions.count }
 
         // A normal workout start resolves prescriptions before generated
         // warm-ups are inserted. An active-event refresh happens afterwards,
@@ -343,6 +358,37 @@ enum ProgramPrescriptionSnapshotService {
                 .filter { $0.userOverrideAffectsFuture }
                 .map { ($0.orderIndex, $0) }
         )
+    }
+
+    private static func reconcileStructuredSetCount(
+        in entry: ExerciseEntry,
+        targetCount: Int,
+        preservingCompletedSets: Bool
+    ) {
+        let workingSets = entry.orderedSets.filter {
+            $0.prescribedSetType != .warmup && $0.setType != .warmup
+        }
+        if workingSets.count > targetCount {
+            let required = Set(workingSets.prefix(targetCount).map(\.id))
+            entry.sets.removeAll { set in
+                guard workingSets.contains(where: { $0.id == set.id }) else { return false }
+                return !required.contains(set.id) && !(preservingCompletedSets && set.done)
+            }
+        } else if workingSets.count < targetCount, let source = workingSets.last ?? entry.orderedSets.last {
+            for _ in workingSets.count..<targetCount {
+                entry.sets.append(
+                    ExerciseSet(
+                        repetitions: 0,
+                        weight: source.weight,
+                        calories: source.calories,
+                        setType: source.setType,
+                        orderIndex: entry.sets.count,
+                        usedMetric: source.usedMetric
+                    )
+                )
+            }
+        }
+        entry.normalizeSetOrder()
     }
 
     private static func refreshGeneratedBackOffs(
