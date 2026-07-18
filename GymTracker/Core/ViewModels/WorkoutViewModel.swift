@@ -137,6 +137,24 @@ class WorkoutViewModel {
         guard progress.status == .available || progress.status == .upcoming else { return false }
 
         let newWorkout = Workout(plannedWorkout: plannedWorkout, planRun: planRun, unitSystem: unitSystem)
+        // Universal program prescriptions (waves, formulas, reference loads,
+        // conditioning targets, and role metadata) must be resolved before
+        // the workout is persisted. The resulting values are immutable
+        // snapshot evidence; later plan edits cannot reinterpret this session.
+        for plannedExercise in plannedWorkout.orderedPlannedExercises {
+            guard let entry = newWorkout.orderedExercises.first(where: {
+                $0.sourcePlannedExerciseID == plannedExercise.id
+            }) else { continue }
+            ProgramPrescriptionSnapshotService.apply(
+                to: entry,
+                plannedExercise: plannedExercise,
+                run: planRun,
+                unitSystem: unitSystem
+            )
+            // Apply phase-level deload reductions after universal resolution so
+            // the deload remains the final future-only prescription snapshot.
+            PlanDeloadService.apply(to: entry, for: plannedWorkout.week?.block)
+        }
         ProgressionSnapshotService(modelContext: modelContext)
             .applyRecommendations(to: newWorkout)
         progress.status = .inProgress
