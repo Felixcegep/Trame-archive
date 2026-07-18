@@ -51,6 +51,26 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(ProgramDefinitionValidator.validate(decoded).isEmpty)
     }
 
+    func testProgramDefinitionDecodesLegacyPayloadWithoutScheduleFields() throws {
+        let definition = makeDefinition(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "legacy-squat",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))]
+            )
+        ])
+        let encoded = try JSONEncoder().encode(definition)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object.removeValue(forKey: "scheduleMode")
+        object.removeValue(forKey: "scheduleIntervalDays")
+        let legacyData = try JSONSerialization.data(withJSONObject: object)
+
+        let decoded = try JSONDecoder().decode(ProgramDefinitionPayload.self, from: legacyData)
+        XCTAssertEqual(decoded.scheduleMode, .fixedWeekdays)
+        XCTAssertEqual(decoded.scheduleIntervalDays, 1)
+    }
+
     func testProgramDefinitionCodecRejectsInvalidImportedRecipes() throws {
         let valid = makeDefinition(exercises: [
             ProgramExerciseDefinition(
@@ -627,6 +647,9 @@ final class ProgramEngineTypesTests: XCTestCase {
 
     func testProgressionRecommendationBackupPreservesExplainableAction() throws {
         let actionData = try JSONEncoder().encode(ProgressionAction.addLoad(2.5))
+        let performanceData = try JSONEncoder().encode(
+            ProgressionPerformance(completedSets: 3, completedRepetitions: 36, totalVolume: 2_700)
+        )
         let dto = ProgressionRecommendationDTO(
             id: UUID().uuidString,
             planRunID: UUID().uuidString,
@@ -638,6 +661,7 @@ final class ProgramEngineTypesTests: XCTestCase {
             scope: ProgressionScope.exerciseExposure.rawValue,
             reason: "All required sets reached the upper rep bound.",
             applicationMode: ProgressionApplicationMode.recommendation.rawValue,
+            performanceData: performanceData,
             proposedLoad: 82.5,
             proposedStageID: nil,
             proposedVariationExerciseID: nil,
@@ -660,6 +684,9 @@ final class ProgramEngineTypesTests: XCTestCase {
         let decoded = try JSONDecoder().decode(BackupDTO.self, from: data)
         XCTAssertEqual(decoded.progressionRecommendations.first?.actionData, actionData)
         XCTAssertEqual(try JSONDecoder().decode(ProgressionAction.self, from: decoded.progressionRecommendations[0].actionData), .addLoad(2.5))
+        let evidence = try XCTUnwrap(decoded.progressionRecommendations.first?.performanceData)
+        XCTAssertEqual(try JSONDecoder().decode(ProgressionPerformance.self, from: evidence).completedSets, 3)
+        XCTAssertEqual(try JSONDecoder().decode(ProgressionPerformance.self, from: evidence).totalVolume, 2_700)
     }
 
     func testProgressionStateBackupPreservesConditioningOffsets() throws {

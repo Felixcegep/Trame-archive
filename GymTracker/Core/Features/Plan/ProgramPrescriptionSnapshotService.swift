@@ -47,6 +47,10 @@ enum ProgramPrescriptionSnapshotService {
     ) {
         let decoder = JSONDecoder()
         let state = run.progressionStates.first { $0.progressionKey == plannedExercise.progressionKey }
+        let inheritedOverrides = latestFutureOverrides(
+            for: plannedExercise.progressionKey,
+            in: run
+        )
         var context = LoadResolutionContext()
         for progressionState in run.progressionStates {
             if let value = progressionState.trainingMax { context.trainingMaxByExposure[progressionState.progressionKey] = value }
@@ -157,6 +161,11 @@ enum ProgramPrescriptionSnapshotService {
                 set.prescribedSuggestedLoad = Double(converted)
                 set.prescribedSuggestedLoadType = targetType
             }
+            applyFutureOverride(
+                from: inheritedOverrides[set.orderIndex],
+                to: set,
+                trackingType: entry.trackingTypeSnapshot
+            )
         }
         if let countOffset = state?.setCountOffset, countOffset > 0,
            let source = entry.orderedSets.last {
@@ -165,6 +174,7 @@ enum ProgramPrescriptionSnapshotService {
                 let extra = ExerciseSet(
                     repetitions: 0,
                     weight: source.weight,
+                    calories: source.calories,
                     setType: source.setType,
                     orderIndex: entry.orderedSets.count,
                     usedMetric: source.usedMetric
@@ -178,6 +188,10 @@ enum ProgramPrescriptionSnapshotService {
                 extra.prescribedRestSeconds = source.prescribedRestSeconds
                 extra.prescribedRPE = source.prescribedRPE
                 extra.prescribedRIR = source.prescribedRIR
+                extra.prescribedCalories = source.prescribedCalories
+                extra.isUserOverridden = source.isUserOverridden
+                extra.userOverrideReason = source.userOverrideReason
+                extra.userOverrideAffectsFuture = source.userOverrideAffectsFuture
                 extra.isPrescribedOptional = source.isPrescribedOptional
                 extra.prescriptionNotes = source.prescriptionNotes
                 extra.prescriptionDefinitionData = source.prescriptionDefinitionData
@@ -185,6 +199,50 @@ enum ProgramPrescriptionSnapshotService {
             }
             entry.normalizeSetOrder()
         }
+    }
+
+    private static func latestFutureOverrides(
+        for progressionKey: String,
+        in run: PlanRun
+    ) -> [Int: ExerciseSet] {
+        let entries = run.orderedWorkoutProgress
+            .filter { $0.status == .completed }
+            .sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }
+            .compactMap { progress in
+                progress.completedWorkout?.orderedExercises.first {
+                    $0.progressionKey == progressionKey
+                }
+            }
+        guard let latest = entries.first else { return [:] }
+        return Dictionary(
+            uniqueKeysWithValues: latest.orderedSets
+                .filter { $0.userOverrideAffectsFuture }
+                .map { ($0.orderIndex, $0) }
+        )
+    }
+
+    private static func applyFutureOverride(
+        from source: ExerciseSet?,
+        to target: ExerciseSet,
+        trackingType: TrackingType
+    ) {
+        guard let source, source.userOverrideAffectsFuture else { return }
+        if trackingType.usesReps { target.repetitions = source.repetitions }
+        if trackingType.usesWeight {
+            target.weight = UnitConversion.weight(source.weight, from: source.weightType, to: target.weightType)
+        }
+        if trackingType.usesDuration { target.duration = source.duration }
+        if trackingType.usesDistance {
+            if let distance = source.distance {
+                target.distance = UnitConversion.distance(distance, from: source.distanceType, to: target.distanceType)
+            } else {
+                target.distance = nil
+            }
+        }
+        if trackingType.usesCalories { target.calories = source.calories }
+        target.isUserOverridden = true
+        target.userOverrideReason = source.userOverrideReason
+        target.userOverrideAffectsFuture = true
     }
 }
 #endif

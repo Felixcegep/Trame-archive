@@ -88,6 +88,9 @@ struct SetDetailSheet: View {
             rpeSection
             rirSection
             liftQualitySection
+            if exerciseSet.prescriptionDefinitionData != nil || exerciseSet.prescribedCalories != nil {
+                overrideSection
+            }
             Spacer(minLength: 0)
             deleteButton
         }
@@ -136,6 +139,31 @@ struct SetDetailSheet: View {
                     setTypeChip(type)
                 }
             }
+        }
+    }
+
+    private var overrideSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            eyebrow("Prescription override")
+            Toggle("Use this value in future sessions", isOn: $exerciseSet.userOverrideAffectsFuture)
+                .font(AppFont.subheadline)
+                .tint(Color.gymPrimary)
+                .onChange(of: exerciseSet.userOverrideAffectsFuture) { _, _ in
+                    exerciseSet.isUserOverridden = true
+                    onPersist()
+                }
+                .accessibilityIdentifier("set-override-future")
+
+            TextField("Reason (optional)", text: Binding(
+                get: { exerciseSet.userOverrideReason ?? "" },
+                set: {
+                    exerciseSet.userOverrideReason = $0.isEmpty ? nil : $0
+                    exerciseSet.isUserOverridden = true
+                    onPersist()
+                }
+            ))
+            .textFieldStyle(.roundedBorder)
+            .accessibilityIdentifier("set-override-reason")
         }
     }
 
