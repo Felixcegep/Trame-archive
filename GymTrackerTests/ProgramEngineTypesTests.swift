@@ -696,6 +696,32 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(decoded.caloriesOffset, 120)
     }
 
+    func testConditioningSetBackupPreservesCaloriesAndOverrideEvidence() throws {
+        let set = ExerciseSetDTO(
+            orderIndex: 0,
+            weightType: "kg",
+            distanceType: "km",
+            repetition: 0,
+            weight: 0,
+            duration: nil,
+            distance: nil,
+            calories: 420,
+            done: true,
+            isUserOverridden: true,
+            userOverrideReason: "Adjusted for today's interval",
+            userOverrideAffectsFuture: false,
+            rpe: nil,
+            prescribedCalories: 450,
+            setType: "normal",
+            usedMetric: "metric"
+        )
+        let decoded = try JSONDecoder().decode(ExerciseSetDTO.self, from: JSONEncoder().encode(set))
+        XCTAssertEqual(decoded.calories, 420)
+        XCTAssertEqual(decoded.prescribedCalories, 450)
+        XCTAssertTrue(decoded.isUserOverridden)
+        XCTAssertEqual(decoded.userOverrideReason, "Adjusted for today's interval")
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,
