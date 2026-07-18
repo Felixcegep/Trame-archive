@@ -101,6 +101,7 @@ nonisolated struct AuthoringTriggerDefinition: Codable, Hashable {
         case "actualRPEBelowTarget": return .actualRPEBelowTarget(tolerance: tolerance ?? 0)
         case "actualRPEAboveTarget": return .actualRPEAboveTarget(tolerance: tolerance ?? 0)
         case "targetRIRMatched": return .targetRIRMatched(tolerance: Int(tolerance ?? 0))
+        case "technicalQualityReached": return .technicalQualityReached
         case "atStage":
             guard let stageID else { throw ProgramLibraryImportError.unsupportedRuleConstruct("trigger.atStage.stageID") }
             return .atStage(stageID)
@@ -120,20 +121,50 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
     var value: Double?
     var formula: AuthoringFormulaDefinition?
     var next: String?
+    var advancesToNextStage: Bool
     var andChangeStage: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case type, value, formula, next, andChangeStage
+    }
 
     init(
         type: String,
         value: Double? = nil,
         formula: AuthoringFormulaDefinition? = nil,
         next: String? = nil,
+        advancesToNextStage: Bool = false,
         andChangeStage: String? = nil
     ) {
         self.type = type
         self.value = value
         self.formula = formula
         self.next = next
+        self.advancesToNextStage = advancesToNextStage
         self.andChangeStage = andChangeStage
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(String.self, forKey: .type)
+        value = try container.decodeIfPresent(Double.self, forKey: .value)
+        formula = try container.decodeIfPresent(AuthoringFormulaDefinition.self, forKey: .formula)
+        next = try? container.decode(String.self, forKey: .next)
+        advancesToNextStage = (try? container.decode(Bool.self, forKey: .next)) ?? false
+        andChangeStage = try container.decodeIfPresent(String.self, forKey: .andChangeStage)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(type, forKey: .type)
+        try container.encodeIfPresent(value, forKey: .value)
+        try container.encodeIfPresent(formula, forKey: .formula)
+        if let next {
+            try container.encode(next, forKey: .next)
+        } else if advancesToNextStage {
+            try container.encode(true, forKey: .next)
+        }
+        try container.encodeIfPresent(andChangeStage, forKey: .andChangeStage)
     }
 
     func expand(exposureKey: String = "") throws -> ProgressionAction {
@@ -665,6 +696,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                     })
                                 }
                                 let progressionRules: [ProgressionRuleDefinition]
+                                let stageIDs = exercise.stages
+                                    .flatMap { stageTemplates?[$0]?.map(\.stageID) } ?? []
                                 switch exercise.rules {
                                 case .none:
                                     progressionRules = []
@@ -677,10 +710,12 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                         named: ruleSetName,
                                         library: rulesLibrary ?? [:]
                                     )
-                                    progressionRules = try authoringRules.enumerated().map { ruleIndex, rule in
-                                        try rule.expand(
+                                    progressionRules = try authoringRules.enumerated().flatMap { ruleIndex, rule in
+                                        try materializeRule(
+                                            rule,
                                             path: "\(exercisePath)/rule/\(ruleIndex)",
-                                            exposureKey: exercise.exposureKey
+                                            exposureKey: exercise.exposureKey,
+                                            stageIDs: stageIDs
                                         )
                                     }
                                 case .namedMany(let ruleSetNames):
@@ -693,10 +728,12 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                             named: ruleSetName,
                                             library: rulesLibrary ?? [:]
                                         )
-                                        return try authoringRules.enumerated().map { ruleIndex, rule in
-                                            try rule.expand(
+                                        return try authoringRules.enumerated().flatMap { ruleIndex, rule in
+                                            try materializeRule(
+                                                rule,
                                                 path: "\(exercisePath)/rule/\(selectionIndex)/\(ruleIndex)",
-                                                exposureKey: exercise.exposureKey
+                                                exposureKey: exercise.exposureKey,
+                                                stageIDs: stageIDs
                                             )
                                         }
                                     }
@@ -876,6 +913,33 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             return rules
         }
     }
+
+    private func materializeRule(
+        _ rule: AuthoringRuleDefinition,
+        path: String,
+        exposureKey: String,
+        stageIDs: [String]
+    ) throws -> [ProgressionRuleDefinition] {
+        guard rule.success.advancesToNextStage else {
+            return [try rule.expand(path: path, exposureKey: exposureKey)]
+        }
+        guard stageIDs.count > 1 else {
+            throw ProgramLibraryImportError.unsupportedRuleConstruct("action.changeStage.next")
+        }
+        return try zip(stageIDs, stageIDs.dropFirst()).enumerated().map { index, transition in
+            var explicit = rule
+            explicit.trigger = .init(
+                type: "allOf",
+                triggers: [rule.trigger, .init(type: "atStage", stageID: transition.0)]
+            )
+            explicit.success.next = transition.1
+            explicit.success.advancesToNextStage = false
+            return try explicit.expand(
+                path: "\(path)/stage/\(index)",
+                exposureKey: exposureKey
+            )
+        }
+    }
 }
 
 nonisolated enum ProgramLibraryDeterministicID {
@@ -1043,6 +1107,9 @@ enum ProgramLibrarySeedData {
     static func seed(_ data: Data, in context: ModelContext) throws -> ProgramLibraryImportResult {
         let catalog = try AuthoringProgramCatalogDecoder.decode(data)
         guard catalog.failures.isEmpty else {
+            for failure in catalog.failures {
+                print("Program catalog decode failed for \(failure.programKey): \(failure.message)")
+            }
             throw ProgramLibraryImportError.catalogFailures(catalog.failures.map(\.programKey))
         }
 

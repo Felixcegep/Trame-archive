@@ -133,6 +133,58 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         }
     }
 
+    func testBundledCatalogMaterializesStageTransitionsAndAdvancedRuleConstructs() throws {
+        let context = try makeContext()
+        for exercise in ExerciseSeedData.templates() { context.insert(exercise) }
+        try context.save()
+        _ = try ProgramLibrarySeedData.seed(try AuthoringProgramCatalogDecoder.bundledData(), in: context)
+        let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+        let payloads = try records.map { try $0.payload() }
+
+        let tiered = try XCTUnwrap(payloads.first { $0.programKey == "tiered-stage-ladder" })
+        let tieredExercises = tiered.blocks
+            .flatMap(\.weeks)
+            .flatMap(\.workouts)
+            .flatMap(\.plannedExercises)
+        let stagedExercise = try XCTUnwrap(tieredExercises.first { $0.exposureKey == "t1-squat" })
+        XCTAssertEqual(stagedExercise.stages.map(\.stageID), ["5x3+", "6x2+", "10x1+"])
+
+        let transitions = stagedExercise.progressionRules.compactMap { rule -> (String, String)? in
+            guard case .changeStage(let destination) = rule.successAction,
+                  case .allOf(let triggers) = rule.trigger,
+                  let source = triggers.compactMap({ trigger -> String? in
+                      guard case .atStage(let stageID) = trigger else { return nil }
+                      return stageID
+                  }).first
+            else { return nil }
+            return (source, destination)
+        }
+        XCTAssertTrue(transitions.contains { $0 == ("5x3+", "6x2+") })
+        XCTAssertTrue(transitions.contains { $0 == ("6x2+", "10x1+") })
+
+        let bodyweight = try XCTUnwrap(payloads.first { $0.programKey == "bodyweight-ladder-foundations" })
+        let bodyweightRules = bodyweight.blocks
+            .flatMap(\.weeks)
+            .flatMap(\.workouts)
+            .flatMap(\.plannedExercises)
+            .flatMap(\.progressionRules)
+        XCTAssertTrue(bodyweightRules.contains { rule in
+            if case .technicalQualityReached = rule.trigger { return true }
+            return false
+        })
+
+        let waveProgram = try XCTUnwrap(payloads.first { $0.programKey == "wave-builder-base-peak" })
+        let waveExercises = waveProgram.blocks
+            .flatMap(\.weeks)
+            .flatMap(\.workouts)
+            .flatMap(\.plannedExercises)
+        XCTAssertTrue(waveExercises.contains { exercise in
+            Set(exercise.waves.map { $0.plannedSets.count }).count > 1
+        })
+        XCTAssertTrue(ProgramDefinitionValidator.validate(tiered, isBuiltIn: true).isEmpty)
+        XCTAssertTrue(ProgramDefinitionValidator.validate(waveProgram, isBuiltIn: true).isEmpty)
+    }
+
     func testEveryBundledProgramStartsSnapshotsAndKeepsCompletedHistoryImmutable() throws {
         let context = try makeContext()
         for exercise in ExerciseSeedData.templates() { context.insert(exercise) }

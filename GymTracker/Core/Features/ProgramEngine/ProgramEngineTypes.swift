@@ -975,17 +975,11 @@ nonisolated enum ProgramDefinitionValidator {
                         }
                         if !exercise.waves.isEmpty {
                             var waveOrders = Set<Int>()
-                            var waveSetCount: Int?
                             for (waveIndex, wave) in exercise.waves.enumerated() {
                                 let wavePath = "\(exercisePath).waves[\(waveIndex)]"
                                 checkID(wave.id, wavePath)
                                 if !waveOrders.insert(wave.orderIndex).inserted { add("\(wavePath).orderIndex", .invalidSetOrder, "Wave order indices must be unique within an exercise.") }
                                 if wave.plannedSets.isEmpty { add(wavePath, .emptySetPrescription, "A wave must contain a set prescription.") }
-                                if let waveSetCount, waveSetCount != wave.plannedSets.count {
-                                    add(wavePath, .invalidSetOrder, "All waves for one exercise must contain the same number of sets.")
-                                } else {
-                                    waveSetCount = wave.plannedSets.count
-                                }
                                 var waveSetOrders = Set<Int>()
                                 for (setIndex, set) in wave.plannedSets.enumerated() {
                                     let setPath = "\(wavePath).sets[\(setIndex)]"
