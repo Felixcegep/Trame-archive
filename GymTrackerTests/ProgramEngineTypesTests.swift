@@ -414,6 +414,7 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(success.state.currentLoad, 102.5)
         XCTAssertEqual(success.recommendations.count, 1)
         XCTAssertEqual(success.recommendations.first?.applicationMode, .automatic)
+        XCTAssertEqual(success.recommendations.first?.performance.completedSets, 3)
 
         let failure = try ProgramProgressionEvaluator.evaluate(
             rules: rules,

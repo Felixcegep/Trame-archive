@@ -2,7 +2,7 @@ import Foundation
 
 #if !GYMTRACKER_EXTENSION
 
-struct ProgressionPerformance: Hashable {
+struct ProgressionPerformance: Codable, Hashable {
     var requiredSets: Int = 0
     var completedSets: Int = 0
     var requiredRepetitions: Int = 0
@@ -59,6 +59,9 @@ struct ProgressionRecommendation: Hashable, Identifiable {
     let reason: String
     let applicationMode: ProgressionApplicationMode
     let proposedState: ProgressionEvaluationState
+    /// Immutable evidence from the completed occurrence that caused this
+    /// recommendation. It makes the decision explainable after source edits.
+    let performance: ProgressionPerformance
 }
 
 struct ProgressionEvaluationResult: Hashable {
@@ -111,7 +114,8 @@ enum ProgramProgressionEvaluator {
                 scope: rule.scope,
                 reason: reason,
                 applicationMode: rule.applicationMode,
-                proposedState: proposedState
+                proposedState: proposedState,
+                performance: performance
             )
             recommendations.append(recommendation)
             if rule.applicationMode == .automatic {

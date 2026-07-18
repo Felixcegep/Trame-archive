@@ -14,6 +14,7 @@ final class PlanProgressionRecommendationRecord {
     var scope: ProgressionScope
     var reason: String
     var applicationMode: ProgressionApplicationMode
+    var performanceData: Data?
     var proposedLoad: Double?
     var proposedTrainingMax: Double?
     var proposedEstimatedOneRepMax: Double?
@@ -48,6 +49,7 @@ final class PlanProgressionRecommendationRecord {
         scope = recommendation.scope
         reason = recommendation.reason
         applicationMode = recommendation.applicationMode
+        performanceData = try encoder.encode(recommendation.performance)
         proposedLoad = recommendation.proposedState.currentLoad
         proposedTrainingMax = recommendation.proposedState.trainingMax
         proposedEstimatedOneRepMax = recommendation.proposedState.estimatedOneRepMax

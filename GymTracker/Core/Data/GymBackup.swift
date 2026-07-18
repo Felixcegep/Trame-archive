@@ -241,6 +241,7 @@ struct ProgressionRecommendationDTO: Codable {
     let scope: String
     let reason: String
     let applicationMode: String
+    var performanceData: Data? = nil
     let proposedLoad: Double?
     var proposedTrainingMax: Double? = nil
     var proposedEstimatedOneRepMax: Double? = nil
@@ -843,6 +844,7 @@ extension BackupDTO {
                 scope: record.scope.rawValue,
                 reason: record.reason,
                 applicationMode: record.applicationMode.rawValue,
+                performanceData: record.performanceData,
                 proposedLoad: record.proposedLoad,
                 proposedTrainingMax: record.proposedTrainingMax,
                 proposedEstimatedOneRepMax: record.proposedEstimatedOneRepMax,
@@ -1404,7 +1406,10 @@ extension BackupDTO {
                         currentWaveIndex: recommendationDTO.proposedWaveIndex,
                         currentBlockIndex: recommendationDTO.proposedBlockIndex,
                         isDeloading: recommendationDTO.proposedIsDeloading
-                    )
+                    ),
+                    performance: (recommendationDTO.performanceData.flatMap {
+                        try? JSONDecoder().decode(ProgressionPerformance.self, from: $0)
+                    }) ?? ProgressionPerformance()
                 )
                 let record = try PlanProgressionRecommendationRecord(
                     recommendation: recommendation,
