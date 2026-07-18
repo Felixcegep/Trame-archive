@@ -173,6 +173,8 @@ struct PlannedExerciseDTO: Codable {
     var plannedSets: [PlannedSetDTO]? = nil
     var progressionKey: String? = nil
     var progressionRulesData: Data? = nil
+    var initialTrainingMax: Double? = nil
+    var initialEstimatedOneRepMax: Double? = nil
 }
 
 struct PlannedSetDTO: Codable {
@@ -663,6 +665,8 @@ extension BackupDTO {
                                                 supersetGroupID: plannedExercise.supersetGroupID?.uuidString,
                                                 progressionKey: plannedExercise.progressionKey,
                                                 progressionRulesData: plannedExercise.progressionRulesData,
+                                                initialTrainingMax: plannedExercise.initialTrainingMax,
+                                                initialEstimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
                                                 plannedSets: plannedExercise.orderedPlannedSets.map { plannedSet in
                                                     PlannedSetDTO(
                                                         orderIndex: plannedSet.orderIndex,
@@ -1003,7 +1007,9 @@ extension BackupDTO {
                                     },
                                     supersetGroupID: plannedExerciseDTO.supersetGroupID.flatMap(UUID.init(uuidString:)),
                                     progressionKey: plannedExerciseDTO.progressionKey,
-                                    progressionRulesData: plannedExerciseDTO.progressionRulesData
+                                    progressionRulesData: plannedExerciseDTO.progressionRulesData,
+                                    initialTrainingMax: plannedExerciseDTO.initialTrainingMax,
+                                    initialEstimatedOneRepMax: plannedExerciseDTO.initialEstimatedOneRepMax
                                 )
                                 plannedExercise.id = try requiredUUID(plannedExerciseDTO.id, named: "planned exercise")
                                 return plannedExercise

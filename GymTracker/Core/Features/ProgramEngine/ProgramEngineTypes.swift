@@ -433,6 +433,9 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
     var plannedSets: [SetPrescriptionDefinition]
     var progressionRules: [ProgressionRuleDefinition]
     var alternativeExerciseIDs: [UUID]
+    var initialLoad: Double?
+    var initialTrainingMax: Double?
+    var initialEstimatedOneRepMax: Double?
 
     init(
         id: UUID = UUID(),
@@ -442,7 +445,10 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         isOptional: Bool = false,
         plannedSets: [SetPrescriptionDefinition],
         progressionRules: [ProgressionRuleDefinition] = [],
-        alternativeExerciseIDs: [UUID] = []
+        alternativeExerciseIDs: [UUID] = [],
+        initialLoad: Double? = nil,
+        initialTrainingMax: Double? = nil,
+        initialEstimatedOneRepMax: Double? = nil
     ) {
         self.id = id
         self.exerciseID = exerciseID
@@ -452,6 +458,9 @@ struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         self.plannedSets = plannedSets
         self.progressionRules = progressionRules
         self.alternativeExerciseIDs = alternativeExerciseIDs
+        self.initialLoad = initialLoad
+        self.initialTrainingMax = initialTrainingMax
+        self.initialEstimatedOneRepMax = initialEstimatedOneRepMax
     }
 }
 

@@ -406,6 +406,38 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(result.state.currentBlockIndex, 1)
     }
 
+    func testCompiledExposureSeedsItsFirstRunValues() throws {
+        let squat = Exercise(name: "Seeded Squat", primaryMuscles: [.quadriceps])
+        let definition = ProgramDefinitionPayload(
+            name: "Seeded Program",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [1],
+            blocks: [ProgramBlockDefinition(
+                orderIndex: 0,
+                name: "Main",
+                weeks: [ProgramWeekDefinition(
+                    weekIndex: 0,
+                    workouts: [ProgramWorkoutDefinition(
+                        orderIndex: 0,
+                        name: "Day",
+                        dayOffset: 0,
+                        plannedExercises: [ProgramExerciseDefinition(
+                            exerciseID: squat.id,
+                            exposureKey: "seeded-squat",
+                            orderIndex: 0,
+                            plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "seeded-squat"), percentage: 0.8))],
+                            initialTrainingMax: 200
+                        )]
+                    )]
+                )]
+            )]
+        )
+        let plan = try ProgramDefinitionCompiler.compile(definition, exercisesByID: [squat.id: squat])
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        XCTAssertEqual(run.orderedProgressionStates.first?.trainingMax, 200)
+        XCTAssertNil(run.orderedProgressionStates.first?.currentLoad, "No fixed current load should be invented from a percentage prescription")
+    }
+
     private func makeDefinition(exercises: [ProgramExerciseDefinition]) -> ProgramDefinitionPayload {
         let workout = ProgramWorkoutDefinition(
             orderIndex: 0,

@@ -121,6 +121,9 @@ enum PlanCoordinator {
             run.progressionStates.append(
                 PlanExerciseProgressionState(
                     progressionKey: plannedExercise.progressionKey,
+                    currentLoad: plannedExercise.suggestedLoad,
+                    trainingMax: plannedExercise.initialTrainingMax,
+                    estimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
                     currentVariationExerciseID: plannedExercise.exercise.id
                 )
             )

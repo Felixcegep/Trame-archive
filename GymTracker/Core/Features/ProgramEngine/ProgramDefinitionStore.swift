@@ -154,8 +154,8 @@ enum ProgramDefinitionCompiler {
                 repetitions: legacy.exact,
                 repRangeMinimum: legacy.minimum,
                 repRangeMaximum: legacy.maximum,
-                suggestedLoad: prescription.load.fixedValue,
-                suggestedLoadType: prescription.load.fixedValue == nil ? nil : .kg,
+                suggestedLoad: prescription.load.fixedValue ?? (prescription.orderIndex == orderedSets.first?.orderIndex ? definition.initialLoad : nil),
+                suggestedLoadType: (prescription.load.fixedValue ?? (prescription.orderIndex == orderedSets.first?.orderIndex ? definition.initialLoad : nil)) == nil ? nil : .kg,
                 restSeconds: prescription.restSeconds,
                 targetRPE: prescription.targetRPE,
                 targetRIR: prescription.targetRIR,
@@ -174,8 +174,8 @@ enum ProgramDefinitionCompiler {
             targetSets: max(1, plannedSets.count),
             repRangeMinimum: firstLegacy.minimum,
             repRangeMaximum: max(firstLegacy.minimum, firstLegacy.maximum),
-            suggestedLoad: first?.load.fixedValue,
-            suggestedLoadType: first?.load.fixedValue == nil ? nil : .kg,
+            suggestedLoad: first?.load.fixedValue ?? definition.initialLoad,
+            suggestedLoadType: (first?.load.fixedValue ?? definition.initialLoad) == nil ? nil : .kg,
             restSeconds: first?.restSeconds ?? 90,
             targetRPE: first?.targetRPE,
             targetRIR: first?.targetRIR,
@@ -183,7 +183,9 @@ enum ProgramDefinitionCompiler {
             alternatives: alternatives,
             plannedSets: plannedSets,
             progressionKey: definition.exposureKey,
-            progressionRulesData: rulesData
+            progressionRulesData: rulesData,
+            initialTrainingMax: definition.initialTrainingMax,
+            initialEstimatedOneRepMax: definition.initialEstimatedOneRepMax
         )
     }
 
