@@ -196,6 +196,8 @@ nonisolated struct PlannedExerciseDTO: Codable {
     var progressionWavesData: Data? = nil
     var progressionStagesData: Data? = nil
     var variationLadderData: Data? = nil
+    var initialVariationExerciseID: String? = nil
+    var initialVelocityBaseline: Double? = nil
     var initialTrainingMax: Double? = nil
     var initialEstimatedOneRepMax: Double? = nil
     var initialActualOneRepMax: Double? = nil
@@ -790,6 +792,8 @@ extension BackupDTO {
                                                 progressionWavesData: plannedExercise.progressionWavesData,
                                                 progressionStagesData: plannedExercise.progressionStagesData,
                                                 variationLadderData: plannedExercise.variationLadderData,
+                                                initialVariationExerciseID: plannedExercise.initialVariationExerciseID?.uuidString,
+                                                initialVelocityBaseline: plannedExercise.initialVelocityBaseline,
                                                 initialTrainingMax: plannedExercise.initialTrainingMax,
                                                 initialEstimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
                                                 initialActualOneRepMax: plannedExercise.initialActualOneRepMax,
@@ -1173,6 +1177,8 @@ extension BackupDTO {
                                     progressionWavesData: plannedExerciseDTO.progressionWavesData,
                                     progressionStagesData: plannedExerciseDTO.progressionStagesData,
                                     variationLadderData: plannedExerciseDTO.variationLadderData,
+                                    initialVariationExerciseID: plannedExerciseDTO.initialVariationExerciseID.flatMap(UUID.init(uuidString:)),
+                                    initialVelocityBaseline: plannedExerciseDTO.initialVelocityBaseline,
                                     initialTrainingMax: plannedExerciseDTO.initialTrainingMax,
                                     initialEstimatedOneRepMax: plannedExerciseDTO.initialEstimatedOneRepMax,
                                     initialActualOneRepMax: plannedExerciseDTO.initialActualOneRepMax,

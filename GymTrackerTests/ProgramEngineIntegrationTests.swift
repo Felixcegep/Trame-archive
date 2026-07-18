@@ -1703,6 +1703,39 @@ final class ProgramEngineIntegrationTests: XCTestCase {
         XCTAssertEqual(state.currentLoad ?? 0, 102.5, accuracy: 0.001)
     }
 
+    func testRunStartsWithConfiguredVariationAndVelocityBaseline() throws {
+        let context = try makeContext()
+        let base = Exercise(name: "Pull-up", primaryMuscles: [.latissimusDorsi], trackingType: .repsOnly, equipmentType: .bodyweight)
+        let selected = Exercise(name: "Assisted Pull-up", primaryMuscles: [.latissimusDorsi], trackingType: .repsOnly, equipmentType: .machine)
+        context.insert(base)
+        context.insert(selected)
+        let programExercise = ProgramExerciseDefinition(
+            exerciseID: base.id,
+            exposureKey: "pull",
+            orderIndex: 0,
+            plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))],
+            variationExerciseIDs: [base.id, selected.id],
+            initialVariationExerciseID: selected.id,
+            initialVelocityBaseline: 0.62
+        )
+        let definition = ProgramDefinitionPayload(
+            name: "Configured Program",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [1],
+            blocks: [ProgramBlockDefinition(orderIndex: 0, name: "Start", weeks: [
+                ProgramWeekDefinition(weekIndex: 0, workouts: [
+                    ProgramWorkoutDefinition(orderIndex: 0, name: "Day One", dayOffset: 0, plannedExercises: [programExercise])
+                ])
+            ])]
+        )
+
+        let plan = try ProgramDefinitionCompiler.compile(definition, exercisesByID: [base.id: base, selected.id: selected])
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, using: context))
+        let state = try XCTUnwrap(run.progressionStates.first)
+        XCTAssertEqual(state.currentVariationExerciseID, selected.id)
+        XCTAssertEqual(state.velocityBaseline ?? 0, 0.62, accuracy: 0.0001)
+    }
+
     private func simpleDefinition(exerciseID: UUID) -> ProgramDefinitionPayload {
         ProgramDefinitionPayload(
             name: "JSON-only Program",

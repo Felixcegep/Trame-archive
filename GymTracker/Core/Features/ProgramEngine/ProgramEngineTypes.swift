@@ -722,6 +722,8 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
     var progressionRules: [ProgressionRuleDefinition]
     var alternativeExerciseIDs: [UUID]
     var variationExerciseIDs: [UUID]?
+    var initialVariationExerciseID: UUID?
+    var initialVelocityBaseline: Double?
     var initialLoad: Double?
     var initialTrainingMax: Double?
     var initialEstimatedOneRepMax: Double?
@@ -742,6 +744,8 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         progressionRules: [ProgressionRuleDefinition] = [],
         alternativeExerciseIDs: [UUID] = [],
         variationExerciseIDs: [UUID]? = nil,
+        initialVariationExerciseID: UUID? = nil,
+        initialVelocityBaseline: Double? = nil,
         initialLoad: Double? = nil,
         initialTrainingMax: Double? = nil,
         initialEstimatedOneRepMax: Double? = nil,
@@ -761,6 +765,8 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         self.progressionRules = progressionRules
         self.alternativeExerciseIDs = alternativeExerciseIDs
         self.variationExerciseIDs = variationExerciseIDs
+        self.initialVariationExerciseID = initialVariationExerciseID
+        self.initialVelocityBaseline = initialVelocityBaseline
         self.initialLoad = initialLoad
         self.initialTrainingMax = initialTrainingMax
         self.initialEstimatedOneRepMax = initialEstimatedOneRepMax

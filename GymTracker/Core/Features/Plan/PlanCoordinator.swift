@@ -140,10 +140,11 @@ enum PlanCoordinator {
                     progressionKey: plannedExercise.progressionKey,
                     currentLoad: plannedExercise.suggestedLoad,
                     currentStageID: initialStageID,
-                    currentVariationExerciseID: plannedExercise.exercise.id,
+                    currentVariationExerciseID: plannedExercise.initialVariationExerciseID ?? plannedExercise.exercise.id,
                     trainingMax: plannedExercise.initialTrainingMax,
                     estimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
-                    actualOneRepMax: plannedExercise.initialActualOneRepMax
+                    actualOneRepMax: plannedExercise.initialActualOneRepMax,
+                    velocityBaseline: plannedExercise.initialVelocityBaseline
                 )
             )
         }

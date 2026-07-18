@@ -249,6 +249,8 @@ enum ProgramDefinitionCompiler {
                 )
             ),
             variationLadderData: definition.variationExerciseIDs.flatMap { try? JSONEncoder().encode($0) },
+            initialVariationExerciseID: definition.initialVariationExerciseID,
+            initialVelocityBaseline: definition.initialVelocityBaseline,
             initialTrainingMax: definition.initialTrainingMax,
             initialEstimatedOneRepMax: definition.initialEstimatedOneRepMax,
             initialActualOneRepMax: definition.initialActualOneRepMax,
