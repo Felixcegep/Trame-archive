@@ -355,6 +355,39 @@ final class ProgramEngineTypesTests: XCTestCase {
         )
     }
 
+    func testAuthoringFormulaExpandsBoundedRelativeDelta() throws {
+        let json = """
+        {"op":"add","args":[
+          {"source":"trainingMax","of":"$self"},
+          {"op":"clamp","min":-5,"max":5,"args":[
+            {"op":"multiply","args":[
+              {"op":"subtract","args":[{"metric":"amrapRepetitions","of":"$self"},{"const":6}]},
+              {"const":1.25}
+            ]}
+          ]}
+        ]}
+        """
+        let formula = try JSONDecoder().decode(AuthoringFormulaDefinition.self, from: Data(json.utf8))
+
+        XCTAssertEqual(
+            try formula.expand(exposureKey: "squat"),
+            .add(
+                .source(.trainingMax(exposureKey: "squat")),
+                .clamp(
+                    value: .multiply(
+                        .subtract(
+                            .source(.completedMetric(exposureKey: "squat", metric: .amrapRepetitions)),
+                            .source(.constant(6))
+                        ),
+                        .source(.constant(1.25))
+                    ),
+                    minimum: -5,
+                    maximum: 5
+                )
+            )
+        )
+    }
+
     func testStageTemplateExpandsAndResolvesSelfLoadReference() throws {
         let json = """
         {

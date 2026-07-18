@@ -171,9 +171,11 @@ nonisolated struct AuthoringFormulaDefinition: Codable, Hashable {
     var of: String?
     var op: String?
     var args: [AuthoringFormulaDefinition]?
+    var min: Double?
+    var max: Double?
 
     private enum CodingKeys: String, CodingKey {
-        case constant = "const", source, metric, of, op, args
+        case constant = "const", source, metric, of, op, args, min, max
     }
 
     func expand(exposureKey: String) throws -> ProgressionFormula {
@@ -195,6 +197,13 @@ nonisolated struct AuthoringFormulaDefinition: Codable, Hashable {
             return .source(.completedMetric(exposureKey: resolvedExposure, metric: metric))
         }
         guard let op else { throw ProgramLibraryImportError.unsupportedRuleConstruct("formula.empty") }
+        if op == "clamp", let argument = args?.first, let min, let max {
+            return .clamp(
+                value: try argument.expand(exposureKey: exposureKey),
+                minimum: min,
+                maximum: max
+            )
+        }
         guard let args, args.count == 2 else {
             throw ProgramLibraryImportError.unsupportedRuleConstruct("formula.\(op).arguments")
         }
@@ -292,14 +301,21 @@ nonisolated struct AuthoringLoadDefinition: Codable, Hashable {
         self.round = round
     }
 
-    func expand(exposureKey: String? = nil) -> LoadPrescription {
+    func expand(exposureKey: String? = nil, mainReference: String? = nil) -> LoadPrescription {
         let kind: LoadReferenceKind
         if fixed != nil {
             kind = .fixedLoad
         } else {
             kind = reference ?? .manual
         }
-        let resolvedExposure = of == "$self" ? exposureKey : of
+        let resolvedExposure: String?
+        if of == "$self" {
+            resolvedExposure = exposureKey
+        } else if of == "$main" {
+            resolvedExposure = mainReference
+        } else {
+            resolvedExposure = of
+        }
         return LoadPrescription(
             reference: LoadReference(kind: kind, exposureKey: resolvedExposure),
             fixedValue: fixed,
@@ -356,7 +372,8 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
         path: String,
         startingAt orderIndex: Int,
         restSeconds: Int? = nil,
-        exposureKey: String? = nil
+        exposureKey: String? = nil,
+        mainReference: String? = nil
     ) throws -> [SetPrescriptionDefinition] {
         let options = [reps != nil, repRange != nil, amrap != nil, durationSeconds != nil]
         guard options.filter({ $0 }).count == 1 else {
@@ -383,7 +400,7 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
                 orderIndex: orderIndex + offset,
                 role: role ?? (amrap != nil ? .amrap : .working),
                 repetitions: repetitionPrescription,
-                load: load?.expand(exposureKey: exposureKey) ?? LoadPrescription(),
+                load: load?.expand(exposureKey: exposureKey, mainReference: mainReference) ?? LoadPrescription(),
                 targetRPE: targetRPE,
                 targetRIR: targetRIR,
                 restSeconds: restSeconds,
@@ -414,6 +431,7 @@ nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
     var initialStage: String?
     var variationLadder: [String]?
     var waves: String?
+    var mainReference: String?
 }
 
 nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
@@ -585,7 +603,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                         path: "\(exercisePath)/g\(groupIndex)",
                                         startingAt: sets.count,
                                         restSeconds: exercise.restSeconds,
-                                        exposureKey: exercise.exposureKey
+                                        exposureKey: exercise.exposureKey,
+                                        mainReference: exercise.mainReference
                                     )
                                 }
                                 for (setIndex, set) in (exercise.sets ?? []).enumerated() {
@@ -649,7 +668,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                                 path: "\(stagePath)/g\(groupIndex)",
                                                 startingAt: stageSets.count,
                                                 restSeconds: exercise.restSeconds,
-                                                exposureKey: exercise.exposureKey
+                                                exposureKey: exercise.exposureKey,
+                                                mainReference: exercise.mainReference
                                             )
                                         }
                                         return ProgramStageDefinition(
@@ -682,7 +702,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                                 path: "\(wavePath)/g\(groupIndex)",
                                                 startingAt: waveSets.count,
                                                 restSeconds: exercise.restSeconds,
-                                                exposureKey: exercise.exposureKey
+                                                exposureKey: exercise.exposureKey,
+                                                mainReference: exercise.mainReference
                                             )
                                         }
                                         return ProgramWaveDefinition(
