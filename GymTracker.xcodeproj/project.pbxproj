@@ -75,6 +75,8 @@
 				Core/Features/ProgramEngine/ProgressionEvaluator.swift,
 				Core/Features/ProgramEngine/ProgramFixtureCatalog.swift,
 				Core/Features/Plan/PlanProgressionEvaluationService.swift,
+				Core/Features/Plan/PlanProgressionRecommendationService.swift,
+				Core/Features/Plan/PlanProgressionRecommendationService.swift,
 				Core/Features/Plan/ProgramPrescriptionSnapshotService.swift,
 				Core/Models/Entities/PlanProgressionRecommendationRecord.swift,
 				Localizable.xcstrings,

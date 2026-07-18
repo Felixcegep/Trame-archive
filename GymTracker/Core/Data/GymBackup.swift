@@ -229,10 +229,15 @@ struct ProgressionRecommendationDTO: Codable {
     let reason: String
     let applicationMode: String
     let proposedLoad: Double?
+    var proposedTrainingMax: Double? = nil
+    var proposedEstimatedOneRepMax: Double? = nil
     let proposedStageID: String?
     let proposedVariationExerciseID: String?
     let proposedRepetitionOffset: Int
     let proposedSetCountOffset: Int
+    var proposedWaveIndex: Int = 0
+    var proposedBlockIndex: Int = 0
+    var proposedIsDeloading: Bool = false
     let createdAt: Date
     let isResolved: Bool
     let resolvedAt: Date?
@@ -808,10 +813,15 @@ extension BackupDTO {
                 reason: record.reason,
                 applicationMode: record.applicationMode.rawValue,
                 proposedLoad: record.proposedLoad,
+                proposedTrainingMax: record.proposedTrainingMax,
+                proposedEstimatedOneRepMax: record.proposedEstimatedOneRepMax,
                 proposedStageID: record.proposedStageID,
                 proposedVariationExerciseID: record.proposedVariationExerciseID?.uuidString,
                 proposedRepetitionOffset: record.proposedRepetitionOffset,
                 proposedSetCountOffset: record.proposedSetCountOffset,
+                proposedWaveIndex: record.proposedWaveIndex,
+                proposedBlockIndex: record.proposedBlockIndex,
+                proposedIsDeloading: record.proposedIsDeloading,
                 createdAt: record.createdAt,
                 isResolved: record.isResolved,
                 resolvedAt: record.resolvedAt
@@ -1331,10 +1341,15 @@ extension BackupDTO {
                     applicationMode: applicationMode,
                     proposedState: ProgressionEvaluationState(
                         currentLoad: recommendationDTO.proposedLoad,
+                        trainingMax: recommendationDTO.proposedTrainingMax,
+                        estimatedOneRepMax: recommendationDTO.proposedEstimatedOneRepMax,
                         currentStageID: recommendationDTO.proposedStageID,
                         currentVariationExerciseID: recommendationDTO.proposedVariationExerciseID.flatMap(UUID.init(uuidString:)),
                         repetitionOffset: recommendationDTO.proposedRepetitionOffset,
-                        setCountOffset: recommendationDTO.proposedSetCountOffset
+                        setCountOffset: recommendationDTO.proposedSetCountOffset,
+                        currentWaveIndex: recommendationDTO.proposedWaveIndex,
+                        currentBlockIndex: recommendationDTO.proposedBlockIndex,
+                        isDeloading: recommendationDTO.proposedIsDeloading
                     )
                 )
                 let record = try PlanProgressionRecommendationRecord(

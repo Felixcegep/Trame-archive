@@ -15,10 +15,15 @@ final class PlanProgressionRecommendationRecord {
     var reason: String
     var applicationMode: ProgressionApplicationMode
     var proposedLoad: Double?
+    var proposedTrainingMax: Double?
+    var proposedEstimatedOneRepMax: Double?
     var proposedStageID: String?
     var proposedVariationExerciseID: UUID?
     var proposedRepetitionOffset: Int
     var proposedSetCountOffset: Int
+    var proposedWaveIndex: Int
+    var proposedBlockIndex: Int
+    var proposedIsDeloading: Bool
     var createdAt: Date
     var isResolved: Bool
     var resolvedAt: Date?
@@ -39,10 +44,15 @@ final class PlanProgressionRecommendationRecord {
         reason = recommendation.reason
         applicationMode = recommendation.applicationMode
         proposedLoad = recommendation.proposedState.currentLoad
+        proposedTrainingMax = recommendation.proposedState.trainingMax
+        proposedEstimatedOneRepMax = recommendation.proposedState.estimatedOneRepMax
         proposedStageID = recommendation.proposedState.currentStageID
         proposedVariationExerciseID = recommendation.proposedState.currentVariationExerciseID
         proposedRepetitionOffset = recommendation.proposedState.repetitionOffset
         proposedSetCountOffset = recommendation.proposedState.setCountOffset
+        proposedWaveIndex = recommendation.proposedState.currentWaveIndex
+        proposedBlockIndex = recommendation.proposedState.currentBlockIndex
+        proposedIsDeloading = recommendation.proposedState.isDeloading
         createdAt = .now
         isResolved = recommendation.applicationMode == .automatic
         resolvedAt = isResolved ? .now : nil
