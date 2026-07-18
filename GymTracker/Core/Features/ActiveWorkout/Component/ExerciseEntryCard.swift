@@ -319,6 +319,10 @@ struct ExerciceEntryCard: View {
         if let rir = exerciseEntry.prescribedRIR {
             components.append("RIR \(rir)")
         }
+        if let load = exerciseEntry.prescribedSuggestedLoad,
+           let unit = exerciseEntry.prescribedSuggestedLoadType {
+            components.append("\(Formatters.formatFloat(Float(load))) \(unit.rawValue)")
+        }
         return components.joined(separator: "  ·  ")
     }
 

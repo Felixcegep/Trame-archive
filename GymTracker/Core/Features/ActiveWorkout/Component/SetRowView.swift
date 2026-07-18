@@ -159,7 +159,7 @@ struct SetRowView: View {
                     }
                     viewModel.persistChanges()
                 }
-            ), prompt: Text(previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? "0"))
+            ), prompt: Text(previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? prescribedWeightPrompt))
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
             .font(AppFont.titleSmallSemiboldMonospaced)
@@ -734,6 +734,15 @@ struct SetRowView: View {
 
     private func displayWeight(for previousSet: PreviousSetPerformance) -> Float {
         UnitConversion.weight(previousSet.weight, from: previousSet.weightType, to: exerciseSet.weightType)
+    }
+
+    private var prescribedWeightPrompt: String {
+        guard let load = exerciseSet.prescribedSuggestedLoad,
+              let type = exerciseSet.prescribedSuggestedLoadType else {
+            return "0"
+        }
+        let converted = UnitConversion.weight(Float(load), from: type, to: exerciseSet.weightType)
+        return Formatters.formatFloat(converted)
     }
 
     private func displayDistance(for previousSet: PreviousSetPerformance) -> Float {
