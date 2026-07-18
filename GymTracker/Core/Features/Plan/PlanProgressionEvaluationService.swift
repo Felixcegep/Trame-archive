@@ -160,6 +160,7 @@ enum PlanProgressionEvaluationService {
         let actualRIR = completedSets.compactMap { $0.rir }.map(Double.init).average
         let qualitySets = completedSets.compactMap(\.liftQuality)
         let successfulAttemptRatio = qualitySets.isEmpty ? nil : Double(qualitySets.filter { $0 == .excellent || $0 == .acceptable }.count) / Double(qualitySets.count)
+        let missedAttempt = qualitySets.contains(.missed)
         let optionalSets = sets.filter { $0.isPrescribedOptional == true }
         let requiredCompleted = completedSets.count + optionalSets.count >= requiredSets
         let amrapRepetitions = completedSets.last(where: { $0.prescribedSetType == .amrap }).map { Int($0.repetitions) }
@@ -179,7 +180,7 @@ enum PlanProgressionEvaluationService {
             successfulAttemptRatio: successfulAttemptRatio,
             technicalQualityReached: !qualitySets.isEmpty && qualitySets.allSatisfy { $0 == .excellent || $0 == .acceptable },
             workoutCompleted: entry.workout?.status == .completed,
-            didFail: !requiredCompleted
+            didFail: !requiredCompleted || missedAttempt
         )
     }
 }
