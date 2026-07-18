@@ -214,6 +214,14 @@ enum ProgramProgressionEvaluator {
             state.currentWaveIndex = 0
         case .startDeload:
             state.isDeloading = action == .startDeload
+        case .resetFailureCount:
+            state.failureCount = 0
+        case .resetProgressionOffsets:
+            state.repetitionOffset = 0
+            state.setCountOffset = 0
+            state.durationOffset = 0
+            state.distanceOffset = 0
+            state.restDurationOffset = 0
         }
     }
 

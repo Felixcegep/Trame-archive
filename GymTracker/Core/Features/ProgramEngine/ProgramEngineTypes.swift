@@ -246,6 +246,8 @@ enum ProgressionAction: Codable, Hashable {
     case advanceBlock
     case restartBlock
     case startDeload
+    case resetFailureCount
+    case resetProgressionOffsets
     case endExercise
     case endProgram
     case generateRecommendation
@@ -490,6 +492,8 @@ struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case invalidRest
         case invalidRPE
         case invalidRIR
+        case invalidPrescriptionValue
+        case invalidLoadReference
         case invalidPercentage
         case invalidFormula
         case duplicateIdentifier
@@ -591,7 +595,13 @@ enum ProgramDefinitionValidator {
             if let maximum, maximum < (minimum ?? 0) { add(path, .invalidRepRange, "AMRAP maximum cannot be below its minimum.") }
         case .sequence(let components):
             if components.isEmpty || components.contains(where: { $0.repetitions < 1 }) { add(path, .invalidRepRange, "A sequence needs positive repetitions.") }
-        case .duration, .distance, .calories, .open:
+        case .duration(let seconds):
+            if let seconds, !seconds.isFinite || seconds <= 0 { add(path, .invalidPrescriptionValue, "Duration must be a positive finite value.") }
+        case .distance(let meters):
+            if let meters, !meters.isFinite || meters <= 0 { add(path, .invalidPrescriptionValue, "Distance must be a positive finite value.") }
+        case .calories(let calories):
+            if let calories, !calories.isFinite || calories <= 0 { add(path, .invalidPrescriptionValue, "Calories must be a positive finite value.") }
+        case .open:
             break
         }
     }
@@ -601,6 +611,19 @@ enum ProgramDefinitionValidator {
         _ path: String,
         _ add: (String, ProgramValidationIssue.Code, String) -> Void
     ) {
+        switch load.reference.kind {
+        case .trainingMax, .estimatedOneRepMax, .previousWorkout, .previousSuccessfulSet,
+                .previousOccurrence, .topSet, .dailyMaximum, .anotherPlannedExercise:
+            if load.reference.exposureKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+                add("(path).reference", .invalidLoadReference, "This load reference requires an exposure key.")
+            }
+        case .exerciseOneRepMax, .referenceExercise:
+            if load.reference.exerciseID == nil && load.reference.exposureKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+                add("(path).reference", .invalidLoadReference, "This load reference requires an exercise or exposure key.")
+            }
+        case .manual, .fixedLoad:
+            break
+        }
         if let percentage = load.percentage, percentage < 0 || percentage > 3 {
             add("\(path).percentage", .invalidPercentage, "Percentage must be between zero and three.")
         }

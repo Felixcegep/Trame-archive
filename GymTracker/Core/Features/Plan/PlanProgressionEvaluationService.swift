@@ -128,6 +128,7 @@ enum PlanProgressionEvaluationService {
         let successfulAttemptRatio = qualitySets.isEmpty ? nil : Double(qualitySets.filter { $0 == .excellent || $0 == .acceptable }.count) / Double(qualitySets.count)
         let optionalSets = sets.filter { $0.isPrescribedOptional == true }
         let requiredCompleted = completedSets.count + optionalSets.count >= requiredSets
+        let amrapRepetitions = completedSets.last(where: { $0.prescribedSetType == .amrap }).map { Int($0.repetitions) }
         return ProgressionPerformance(
             requiredSets: requiredSets,
             completedSets: requiredCompleted ? requiredSets : completedSets.count,
@@ -135,7 +136,7 @@ enum PlanProgressionEvaluationService {
             completedRepetitions: completedRepetitions,
             upperBoundSets: upperBoundSets,
             totalVolume: totalVolume,
-            amrapRepetitions: nil,
+            amrapRepetitions: amrapRepetitions,
             targetRPE: entry.prescribedRPE,
             actualRPE: actualRPE,
             targetRIR: entry.prescribedRIR,

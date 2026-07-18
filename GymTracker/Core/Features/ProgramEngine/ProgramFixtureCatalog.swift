@@ -25,10 +25,10 @@ enum ProgramFixtureCatalog {
                 applicationMode: .automatic
             )
         ]
-        let squat = exercise(id: exerciseIDs["squat"]!, key: "squat", sets: fixedSets(5, reps: 5, load: .trainingMax), rules: rules)
-        let bench = exercise(id: exerciseIDs["bench"]!, key: "bench", sets: fixedSets(5, reps: 5, load: .trainingMax), rules: rules)
-        let row = exercise(id: exerciseIDs["row"]!, key: "row", sets: fixedSets(5, reps: 5, load: .previousOccurrence), rules: rules)
-        let bSquat = exercise(id: exerciseIDs["squat"]!, key: "squat", sets: fixedSets(5, reps: 5, load: .trainingMax), rules: rules)
+        let squat = exercise(id: exerciseIDs["squat"]!, key: "squat", sets: fixedSets(5, reps: 5, load: .trainingMax, exposureKey: "squat"), rules: rules)
+        let bench = exercise(id: exerciseIDs["bench"]!, key: "bench", sets: fixedSets(5, reps: 5, load: .trainingMax, exposureKey: "bench"), rules: rules)
+        let row = exercise(id: exerciseIDs["row"]!, key: "row", sets: fixedSets(5, reps: 5, load: .previousOccurrence, exposureKey: "row"), rules: rules)
+        let bSquat = exercise(id: exerciseIDs["squat"]!, key: "squat", sets: fixedSets(5, reps: 5, load: .trainingMax, exposureKey: "squat"), rules: rules)
         return definition(name: "Beginner 5×5", workouts: [
             workout("A", exercises: [squat, bench, row]),
             workout("B", exercises: [bSquat, exercise(id: exerciseIDs["press"]!, key: "press", sets: fixedSets(5, reps: 5)), exercise(id: exerciseIDs["deadlift"]!, key: "deadlift", sets: fixedSets(1, reps: 5))])
@@ -111,12 +111,79 @@ enum ProgramFixtureCatalog {
         return definition(name: "Mixed Program Acceptance", workouts: [workout("Mixed", exercises: [squat, bench, row, plank, complex])])
     }
 
+    static func weeklyHeavyLightMedium(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
+        let weeklyRule = ProgressionRuleDefinition(
+            metric: .load,
+            trigger: .weekCompleted,
+            successAction: .addLoad(2.5),
+            cadence: .nextWeek,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let volume = exercise(id: exerciseIDs["squat"]!, key: "hlm-volume", sets: fixedSets(5, reps: 5), rules: [weeklyRule], initialLoad: 100)
+        let recovery = exercise(id: exerciseIDs["squat"]!, key: "hlm-recovery", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .anotherPlannedExercise, exposureKey: "hlm-volume"), percentage: 0.8))])
+        let intensity = exercise(id: exerciseIDs["squat"]!, key: "hlm-intensity", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "hlm-intensity"), rounding: .nearestIncrement(2.5)))], initialLoad: 140)
+        return definition(name: "Heavy Light Medium", weeks: [ProgramWeekDefinition(weekIndex: 0, workouts: [
+            ProgramWorkoutDefinition(orderIndex: 0, name: "Volume", dayOffset: 0, role: "volume", plannedExercises: [volume]),
+            ProgramWorkoutDefinition(orderIndex: 1, name: "Recovery", dayOffset: 2, role: "recovery", plannedExercises: [recovery]),
+            ProgramWorkoutDefinition(orderIndex: 2, name: "Intensity", dayOffset: 4, role: "intensity", plannedExercises: [intensity])
+        ])])
+    }
+
+    static func amrapWave(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
+        let waveRule = ProgressionRuleDefinition(
+            metric: .repetitions,
+            trigger: .extraRepetitionsCompleted(2),
+            successAction: .advanceWave,
+            cadence: .nextWave,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let weeks = (0..<3).map { week in
+            let baseReps = max(1, 5 - week)
+            let exercise = self.exercise(id: exerciseIDs["squat"]!, key: "amrap-wave", sets: [
+                SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(baseReps), load: LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "amrap-wave"), rounding: .nearestIncrement(2.5))),
+                SetPrescriptionDefinition(orderIndex: 1, role: .amrap, repetitions: .amrap(minimum: baseReps, maximum: nil), load: LoadPrescription(reference: .init(kind: .previousOccurrence, exposureKey: "amrap-wave"), rounding: .nearestIncrement(2.5))
+                )
+            ], rules: [waveRule], initialLoad: 100)
+            return ProgramWeekDefinition(weekIndex: week, name: "Wave (week + 1)", workouts: [workout("AMRAP Wave (week + 1)", exercises: [exercise])])
+        }
+        return definition(name: "AMRAP Wave", weeks: weeks)
+    }
+
+    static func blockPeriodized(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
+        let phases: [(String, PlanPhaseType, Int, Int)] = [
+            ("Hypertrophy", .hypertrophy, 4, 10),
+            ("Strength", .strength, 4, 5),
+            ("Peaking", .peaking, 3, 2),
+            ("Deload", .deload, 1, 3)
+        ]
+        let blocks = phases.enumerated().map { index, phase in
+            let exercise = self.exercise(id: exerciseIDs["squat"]!, key: "block-(index)-squat", sets: fixedSets(index == 3 ? 2 : 4, reps: phase.3), initialTrainingMax: 200)
+            let week = ProgramWeekDefinition(weekIndex: index, name: phase.0, workouts: [workout(phase.0, exercises: [exercise])])
+            return ProgramBlockDefinition(orderIndex: index, name: phase.0, phaseType: phase.1, weeks: [week])
+        }
+        return definition(name: "Block Periodized Strength", blocks: blocks, durationWeeks: 12)
+    }
+
+    static func conditioningProgression(exerciseIDs: [String: UUID]) -> ProgramDefinitionPayload {
+        let durationRule = ProgressionRuleDefinition(metric: .duration, trigger: .allRequiredSetsCompleted, successAction: .addDuration(60), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic)
+        let distanceRule = ProgressionRuleDefinition(metric: .distance, trigger: .allRequiredSetsCompleted, successAction: .addDistance(250), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic)
+        let plank = exercise(id: exerciseIDs["plank"]!, key: "plank-duration", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .duration(seconds: 30))], rules: [durationRule])
+        let carry = exercise(id: exerciseIDs["carry"]!, key: "carry-distance", sets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .distance(meters: 20))], rules: [distanceRule])
+        return definition(name: "Conditioning Progression", workouts: [workout("Conditioning", exercises: [plank, carry])])
+    }
+
     private static func definition(name: String, workouts: [ProgramWorkoutDefinition]) -> ProgramDefinitionPayload {
         definition(name: name, weeks: [ProgramWeekDefinition(weekIndex: 0, workouts: workouts)])
     }
 
     private static func definition(name: String, weeks: [ProgramWeekDefinition]) -> ProgramDefinitionPayload {
-        ProgramDefinitionPayload(name: name, durationWeeks: max(1, weeks.count), supportedDaysPerWeek: [max(1, weeks.first?.workouts.count ?? 1)], blocks: [ProgramBlockDefinition(orderIndex: 0, name: "Main", weeks: weeks)])
+        definition(name: name, blocks: [ProgramBlockDefinition(orderIndex: 0, name: "Main", weeks: weeks)], durationWeeks: max(1, weeks.count))
+    }
+
+    private static func definition(name: String, blocks: [ProgramBlockDefinition], durationWeeks: Int) -> ProgramDefinitionPayload {
+        ProgramDefinitionPayload(name: name, durationWeeks: durationWeeks, supportedDaysPerWeek: [max(1, blocks.first?.weeks.first?.workouts.count ?? 1)], blocks: blocks)
     }
 
     private static func workout(_ name: String, exercises: [ProgramExerciseDefinition]) -> ProgramWorkoutDefinition {
@@ -127,9 +194,9 @@ enum ProgramFixtureCatalog {
         ProgramExerciseDefinition(exerciseID: id, exposureKey: key, orderIndex: 0, plannedSets: sets, progressionRules: rules, alternativeExerciseIDs: alternatives, initialLoad: initialLoad, initialTrainingMax: initialTrainingMax, initialEstimatedOneRepMax: initialEstimatedOneRepMax)
     }
 
-    private static func fixedSets(_ count: Int, reps: Int, load: LoadReferenceKind = .manual, range: Bool = false) -> [SetPrescriptionDefinition] {
+    private static func fixedSets(_ count: Int, reps: Int, load: LoadReferenceKind = .manual, exposureKey: String? = nil, range: Bool = false) -> [SetPrescriptionDefinition] {
         (0..<count).map { index in
-            SetPrescriptionDefinition(orderIndex: index, repetitions: range ? .range(minimum: reps - 2, maximum: reps + 2) : .fixed(reps), load: LoadPrescription(reference: .init(kind: load)))
+            SetPrescriptionDefinition(orderIndex: index, repetitions: range ? .range(minimum: reps - 2, maximum: reps + 2) : .fixed(reps), load: LoadPrescription(reference: .init(kind: load, exposureKey: exposureKey)))
         }
     }
 }

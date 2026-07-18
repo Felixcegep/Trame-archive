@@ -81,6 +81,24 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertTrue(issues.contains { $0.code == .duplicateExposureKey })
     }
 
+    func testValidatorRejectsInvalidConditioningValuesAndReferences() {
+        let exercise = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "conditioning",
+            orderIndex: 0,
+            plannedSets: [
+                SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .duration(seconds: -1),
+                    load: LoadPrescription(reference: .init(kind: .trainingMax))
+                )
+            ]
+        )
+        let issues = ProgramDefinitionValidator.validate(makeDefinition(exercises: [exercise]))
+        XCTAssertTrue(issues.contains { $0.code == .invalidPrescriptionValue })
+        XCTAssertTrue(issues.contains { $0.code == .invalidLoadReference })
+    }
+
     func testValidatorRejectsCrossExposureFormulaCycles() {
         let ruleA = ProgressionRuleDefinition(
             metric: .load,
@@ -390,10 +408,25 @@ final class ProgramEngineTypesTests: XCTestCase {
         XCTAssertEqual(result.state.restDurationOffset, 5)
     }
 
+    func testProgressionEvaluatorResetsFailureAndOffsets() throws {
+        let rules = [
+            ProgressionRuleDefinition(metric: .load, trigger: .manualApproval, successAction: .resetFailureCount, cadence: .nextWorkout, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .load, trigger: .manualApproval, successAction: .resetProgressionOffsets, cadence: .nextWorkout, scope: .exerciseExposure, applicationMode: .automatic)
+        ]
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: rules,
+            performance: ProgressionPerformance(manualApproval: true),
+            state: ProgressionEvaluationState(repetitionOffset: 2, setCountOffset: 1, durationOffset: 30, distanceOffset: 100, restDurationOffset: 5, failureCount: 3)
+        )
+        XCTAssertEqual(result.state.failureCount, 0)
+        XCTAssertEqual(result.state.repetitionOffset, 0)
+        XCTAssertEqual(result.state.distanceOffset, 0)
+    }
+
     func testRequiredProgramFixturesValidateWithoutProgramSpecificLogic() {
         let ids = Dictionary(uniqueKeysWithValues: [
             "squat", "bench", "row", "press", "deadlift", "upper", "assisted", "band", "bodyweight", "weighted",
-            "snatch", "pull", "complex", "clean", "jerk", "plank"
+            "snatch", "pull", "complex", "clean", "jerk", "plank", "carry"
         ].map { ($0, UUID()) })
         let fixtures = [
             ProgramFixtureCatalog.beginnerFiveByFive(exerciseIDs: ids),
@@ -403,7 +436,11 @@ final class ProgramEngineTypesTests: XCTestCase {
             ProgramFixtureCatalog.topSetBackOff(exerciseIDs: ids),
             ProgramFixtureCatalog.bodyweightVariation(exerciseIDs: ids),
             ProgramFixtureCatalog.olympicWeightlifting(exerciseIDs: ids),
-            ProgramFixtureCatalog.mixedAcceptance(exerciseIDs: ids)
+            ProgramFixtureCatalog.mixedAcceptance(exerciseIDs: ids),
+            ProgramFixtureCatalog.weeklyHeavyLightMedium(exerciseIDs: ids),
+            ProgramFixtureCatalog.amrapWave(exerciseIDs: ids),
+            ProgramFixtureCatalog.blockPeriodized(exerciseIDs: ids),
+            ProgramFixtureCatalog.conditioningProgression(exerciseIDs: ids)
         ]
         for fixture in fixtures {
             let issues = ProgramDefinitionValidator.validate(fixture)
