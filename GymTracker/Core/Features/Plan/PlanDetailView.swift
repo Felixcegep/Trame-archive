@@ -107,9 +107,9 @@ struct PlanDetailView: View {
                         startDate = .now
                         isShowingStartDate = true
                     } label: {
-                        Label(completedRun == nil ? "Start Program" : "Restart Program", systemImage: AppIcon.play)
+                        Label(canOfferRestart ? "Restart Program" : "Start Program", systemImage: AppIcon.play)
                     }
-                    .accessibilityIdentifier(completedRun == nil ? "start-plan" : "restart-plan")
+                    .accessibilityIdentifier(canOfferRestart ? "restart-plan" : "start-plan")
                     .disabled(plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts).isEmpty)
                 }
             }
@@ -177,7 +177,7 @@ struct PlanDetailView: View {
                             guard started != nil else { return }
                             isShowingStartDate = false
                         }
-                        .accessibilityIdentifier(completedRun == nil ? "confirm-start-plan" : "confirm-restart-plan")
+                        .accessibilityIdentifier(canOfferRestart ? "confirm-restart-plan" : "confirm-start-plan")
                     }
                 }
             }
@@ -244,6 +244,12 @@ struct PlanDetailView: View {
             .filter { $0.status == .completed || $0.status == .archived }
             .sorted { ($0.endDate ?? .distantPast) > ($1.endDate ?? .distantPast) }
             .first
+    }
+
+    private var canOfferRestart: Bool {
+        guard completedRun != nil else { return false }
+        if case .offerRestart = plan.programCompletionPolicy { return true }
+        return false
     }
 
     private func nextProgress(in run: PlanRun) -> PlanWorkoutProgress? {
