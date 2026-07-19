@@ -1,0 +1,467 @@
+import Foundation
+
+nonisolated struct PreferencesDTO: Codable {
+    let darkMode: Bool
+    let restTimer: Int
+    let unitSystem: String
+}
+
+nonisolated struct ExerciseTemplateDTO: Codable {
+    var id: String? = nil
+    let name: String
+    let primaryMuscles: [String]
+    let secondaryMuscles: [String]?
+    let category: String?
+    let trackingType: String
+    let equipmentType: String?
+    let resistanceType: String?
+    let movementPattern: String?
+    let difficulty: String?
+    let tags: [String]
+    let isFavorite: Bool
+    let isPlateLoaded: Bool
+    let isCustom: Bool
+    let isArchived: Bool
+    var forceType: String? = nil
+    var mechanics: String? = nil
+    var laterality: String? = nil
+    var repCountingStyle: String? = nil
+    var weightEntryStyle: String? = nil
+    var loadUnitCount: Int? = nil
+    var gripStyle: String? = nil
+    var stance: String? = nil
+    var rangeOfMotion: String? = nil
+    var setupAngleDegrees: Int? = nil
+    var variationFamilyID: String? = nil
+}
+
+nonisolated struct ExerciseRelationshipDTO: Codable {
+    let sourceExerciseName: String
+    let targetExerciseName: String
+    let type: String
+}
+
+nonisolated struct TemplateExerciseDTO: Codable {
+    let exerciseName: String
+    let orderIndex: Int
+    let targetSets: Int
+    let repRangeMinimum: Int
+    let repRangeMaximum: Int
+    let restSeconds: Int
+    let targetRPE: Double?
+    let targetRIR: Int?
+    let notes: String?
+    let progressionRule: String?
+    var supersetGroupID: String? = nil
+    var progressionKey: String? = nil
+}
+
+nonisolated struct WorkoutTemplateDTO: Codable {
+    let name: String
+    let templateExercises: [TemplateExerciseDTO]
+}
+
+nonisolated struct WorkoutCollectionDTO: Codable {
+    let name: String
+    let templateNames: [String]
+}
+
+nonisolated struct ExerciseSetDTO: Codable {
+    let orderIndex: Int
+    let weightType: String
+    let distanceType: String
+    let repetition: Float
+    let weight: Float
+    let duration: Double?
+    let distance: Float?
+    var calories: Double? = nil
+    let done: Bool
+    var isUserOverridden: Bool = false
+    var userOverrideReason: String? = nil
+    var userOverrideAffectsFuture: Bool = false
+    let rpe: Int?
+    var rir: Int? = nil
+    var liftQuality: String? = nil
+    var meanVelocity: Double? = nil
+    let setType: String
+    var isSelectedDailyMaximum: Bool? = nil
+    var generatedBackOffDefinitionID: String? = nil
+    let usedMetric: String
+    var prescribedSetType: String? = nil
+    var prescribedRepetitions: Int? = nil
+    var prescribedRepRangeMinimum: Int? = nil
+    var prescribedRepRangeMaximum: Int? = nil
+    var prescribedSuggestedLoad: Double? = nil
+    var prescribedSuggestedLoadType: String? = nil
+    var prescribedUnroundedLoad: Double? = nil
+    var prescribedReferenceValue: Double? = nil
+    var prescriptionLoadExplanation: String? = nil
+    var prescribedRestSeconds: Int? = nil
+    var prescribedRPE: Double? = nil
+    var prescribedRIR: Int? = nil
+    var prescribedTempo: String? = nil
+    var prescribedProgressionEligible: Bool? = nil
+    var prescribedCalories: Double? = nil
+    var prescribedVelocityMinimum: Double? = nil
+    var prescribedVelocityMaximum: Double? = nil
+    var prescribedVelocityLossStopPercent: Double? = nil
+    var isVelocityProbe: Bool? = nil
+    var isPrescribedOptional: Bool? = nil
+    var prescriptionNotes: String? = nil
+    var prescriptionDefinitionData: Data? = nil
+    var id: String? = nil
+}
+
+nonisolated struct ExerciseEntryDTO: Codable {
+    let orderIndex: Int
+    let comment: String?
+    let exerciseName: String
+    let usedMetric: String
+    let sets: [ExerciseSetDTO]
+
+    let prescribedSets: Int?
+    let prescribedRepRangeMinimum: Int?
+    let prescribedRepRangeMaximum: Int?
+    let prescribedRestSeconds: Int?
+    let prescribedRPE: Double?
+    let prescribedRIR: Int?
+    let prescriptionNotes: String?
+    let sourcePlannedExerciseID: String?
+    var progressionKey: String? = nil
+    let prescribedRole: String?
+    let isPrescribedOptional: Bool?
+    let prescribedSuggestedLoad: Double?
+    let prescribedSuggestedLoadType: String?
+    let prescribedProgressionRule: String?
+    let recommendedDecision: String?
+    let recommendedLoad: Float?
+    let recommendedUnit: String?
+    let recommendationPriorLoad: Float?
+    let recommendationRequiredSets: Int?
+    let recommendationRepCeiling: Int?
+    let recommendationCompletedSets: Int?
+    let recommendationPriorWorkoutDate: Date?
+    let accumulatedActiveDuration: Double?
+    let activeDurationStartedAt: Date?
+    var supersetGroupID: String? = nil
+    var originalExerciseIDSnapshot: String? = nil
+    var originalExerciseNameSnapshot: String? = nil
+    var selectedSubstituteExerciseIDSnapshot: String? = nil
+    var substitutionReason: String? = nil
+    var substitutionSharesProgressionState: Bool? = nil
+    var variationSourceExerciseIDSnapshot: String? = nil
+    var variationSelectedExerciseIDSnapshot: String? = nil
+    var prescriptionDefinitionData: Data? = nil
+    var prescriptionRulesData: Data? = nil
+    var deferredBackOffDefinitionsData: Data? = nil
+}
+
+nonisolated struct WorkoutDTO: Codable {
+    let id: String?
+    let status: String
+    let name: String?
+    let notes: String?
+    let startTime: Date
+    let endTime: Date?
+    let restEndDate: Date?
+    let pausedRemainingTime: Double?
+    let sourceTemplateName: String?
+    let sourcePlanID: String?
+    let sourcePlanRunID: String?
+    let sourcePlanBlockID: String?
+    let sourcePlanWeekID: String?
+    let sourcePlannedWorkoutID: String?
+    let sourcePlanName: String?
+    var sourceProgramDefinitionID: String? = nil
+    var sourceProgramDefinitionVersion: Int? = nil
+    let exercises: [ExerciseEntryDTO]
+}
+
+nonisolated struct PlannedExerciseDTO: Codable {
+    let id: String
+    let exerciseName: String
+    let orderIndex: Int
+    let role: String
+    let isOptional: Bool
+    let targetSets: Int
+    let repRangeMinimum: Int
+    let repRangeMaximum: Int
+    let suggestedLoad: Double?
+    let suggestedLoadType: String?
+    let restSeconds: Int
+    let targetRPE: Double?
+    let targetRIR: Int?
+    let notes: String?
+    let progressionRule: String
+    var stimulus: String? = nil
+    var alternativeExerciseNames: [String]? = nil
+    var supersetGroupID: String? = nil
+    var plannedSets: [PlannedSetDTO]? = nil
+    var progressionKey: String? = nil
+    var progressionRulesData: Data? = nil
+    var progressionWavesData: Data? = nil
+    var progressionStagesData: Data? = nil
+    var variationLadderData: Data? = nil
+    var initialVariationExerciseID: String? = nil
+    var initialVelocityBaseline: Double? = nil
+    var initialTrainingMax: Double? = nil
+    var initialEstimatedOneRepMax: Double? = nil
+    var initialActualOneRepMax: Double? = nil
+    var automaticDeloadVolumeReductionPercent: Int? = nil
+    var automaticDeloadIntensityReductionPercent: Int? = nil
+    var warmupSchemeData: Data? = nil
+}
+
+nonisolated struct PlannedSetDTO: Codable {
+    let orderIndex: Int
+    let setType: String
+    let repetitions: Int?
+    let repRangeMinimum: Int?
+    let repRangeMaximum: Int?
+    let suggestedLoad: Double?
+    let suggestedLoadType: String?
+    let restSeconds: Int?
+    let targetRPE: Double?
+    let targetRIR: Int?
+    var tempo: String? = nil
+    var progressionEligible: Bool? = nil
+    let isOptional: Bool
+    let notes: String?
+    var definitionData: Data? = nil
+}
+
+nonisolated struct ProgressionStateDTO: Codable {
+    let id: String
+    let progressionKey: String
+    var scope: String? = nil
+    var scopeOwnerKey: String? = nil
+    let currentLoad: Double?
+    let currentLoadType: String?
+    var repetitionOffset: Int = 0
+    var setCountOffset: Int = 0
+    var durationOffset: TimeInterval = 0
+    var distanceOffset: Double = 0
+    var restDurationOffset: Int = 0
+    var caloriesOffset: Double = 0
+    var actualOneRepMax: Double? = nil
+    let currentStageID: String?
+    let currentVariationExerciseID: String?
+    let trainingMax: Double?
+    let estimatedOneRepMax: Double?
+    let failureCount: Int
+    let successCount: Int
+    let currentWaveIndex: Int?
+    let currentBlockIndex: Int?
+    let previousAMRAPRepetitions: Int?
+    let previousActualRPE: Double?
+    let previousActualRIR: Double?
+    var velocityBaseline: Double? = nil
+    let lastCompletedOccurrence: Date?
+    let lastSuccessfulLoad: Double?
+    let isDeloading: Bool
+    let lastAppliedOutcomeID: String?
+    var lastAppliedSetID: String? = nil
+    var appliedProgressionEventsData: Data? = nil
+    var pendingProgressionData: Data? = nil
+}
+
+nonisolated struct ProgressionRecommendationDTO: Codable {
+    let id: String
+    let planRunID: String
+    let workoutID: String
+    let progressionKey: String
+    let ruleID: String
+    let actionData: Data
+    let cadence: String
+    let scope: String
+    var scopeOwnerKey: String? = nil
+    let reason: String
+    let applicationMode: String
+    var performanceData: Data? = nil
+    let proposedLoad: Double?
+    var proposedTrainingMax: Double? = nil
+    var proposedEstimatedOneRepMax: Double? = nil
+    var proposedActualOneRepMax: Double? = nil
+    let proposedStageID: String?
+    let proposedVariationExerciseID: String?
+    let proposedRepetitionOffset: Int
+    let proposedSetCountOffset: Int
+    var proposedDurationOffset: TimeInterval = 0
+    var proposedDistanceOffset: Double = 0
+    var proposedRestDurationOffset: Int = 0
+    var proposedCaloriesOffset: Double = 0
+    var proposedWaveIndex: Int = 0
+    var proposedBlockIndex: Int = 0
+    var proposedIsDeloading: Bool = false
+    let createdAt: Date
+    let isResolved: Bool
+    let resolvedAt: Date?
+}
+
+nonisolated struct PlannedWorkoutDTO: Codable {
+    let id: String
+    let name: String
+    let orderIndex: Int
+    let dayOffset: Int
+    var isOptional: Bool = false
+    var isTestDay: Bool = false
+    let estimatedDurationSeconds: Int?
+    let notes: String?
+    let sourceTemplateName: String?
+    let plannedExercises: [PlannedExerciseDTO]
+}
+
+nonisolated struct PlanWeekDTO: Codable {
+    let id: String
+    let weekIndex: Int
+    let name: String?
+    let notes: String?
+    let plannedWorkouts: [PlannedWorkoutDTO]
+}
+
+nonisolated struct PlanBlockDTO: Codable {
+    let id: String
+    let name: String
+    let phaseType: String
+    let goal: String?
+    let notes: String?
+    let deloadVolumeReductionPercent: Int?
+    let deloadIntensityReductionPercent: Int?
+    let orderIndex: Int
+    let weeks: [PlanWeekDTO]
+}
+
+nonisolated struct WorkoutPlanDTO: Codable {
+    let id: String
+    let name: String
+    let goal: String
+    let experienceLevel: String
+    let requiredEquipment: [String]
+    let daysPerWeek: Int
+    let durationWeeks: Int
+    var scheduleMode: String? = nil
+    var scheduleIntervalDays: Int? = nil
+    let notes: String?
+    let createdAt: Date
+    let updatedAt: Date
+    let isArchived: Bool
+    var sourceProgramDefinitionID: String? = nil
+    var sourceProgramDefinitionVersion: Int? = nil
+    var completionPolicyData: Data? = nil
+    let blocks: [PlanBlockDTO]
+}
+
+nonisolated struct PlanWorkoutProgressDTO: Codable {
+    let id: String
+    let plannedWorkoutID: String
+    let plannedWorkoutName: String
+    let weekIndex: Int
+    var sourceWeekIndex: Int? = nil
+    let workoutIndex: Int
+    let scheduledDate: Date?
+    let status: String
+    let startedAt: Date?
+    let completedAt: Date?
+    let skipReason: String?
+    let completedWorkoutID: String?
+}
+
+nonisolated struct PlanRunDTO: Codable {
+    let id: String
+    let sourcePlanID: String
+    let sourcePlanName: String
+    let planID: String?
+    let startDate: Date
+    let endDate: Date?
+    let status: String
+    let currentWeekIndex: Int
+    let currentWorkoutIndex: Int
+    var endedProgressionKeysData: Data? = nil
+    let createdAt: Date
+    let updatedAt: Date
+    let workoutProgress: [PlanWorkoutProgressDTO]
+    var progressionStates: [ProgressionStateDTO] = []
+}
+
+nonisolated struct ProgramDefinitionDTO: Codable {
+    let id: String
+    let schemaVersion: Int
+    let templateVersion: Int
+    let name: String
+    let summary: String?
+    let goal: String
+    let experienceLevel: String
+    let durationWeeks: Int
+    let supportedDaysPerWeek: [Int]
+    let isBuiltIn: Bool
+    let isArchived: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    let definitionData: Data
+}
+
+nonisolated struct BackupDTO: Codable, Identifiable {
+    var id: UUID { UUID() }
+    let version: Int
+    let preferences: PreferencesDTO
+    let exercises: [ExerciseTemplateDTO]
+    let templates: [WorkoutTemplateDTO]
+    let collections: [WorkoutCollectionDTO]
+    let workouts: [WorkoutDTO]
+    let plans: [WorkoutPlanDTO]
+    let planRuns: [PlanRunDTO]
+    let exerciseRelationships: [ExerciseRelationshipDTO]
+    let programDefinitions: [ProgramDefinitionDTO]
+    let progressionRecommendations: [ProgressionRecommendationDTO]
+
+    static let legacyVersion = 1
+    static let planVersion = 2
+    static let supersetVersion = 3
+    static let programVersion = 5
+    static let currentVersion = 5
+
+    init(
+        version: Int,
+        preferences: PreferencesDTO,
+        exercises: [ExerciseTemplateDTO],
+        templates: [WorkoutTemplateDTO],
+        collections: [WorkoutCollectionDTO],
+        workouts: [WorkoutDTO],
+        plans: [WorkoutPlanDTO] = [],
+        planRuns: [PlanRunDTO] = [],
+        exerciseRelationships: [ExerciseRelationshipDTO] = [],
+        programDefinitions: [ProgramDefinitionDTO] = [],
+        progressionRecommendations: [ProgressionRecommendationDTO] = []
+    ) {
+        self.version = version
+        self.preferences = preferences
+        self.exercises = exercises
+        self.templates = templates
+        self.collections = collections
+        self.workouts = workouts
+        self.plans = plans
+        self.planRuns = planRuns
+        self.exerciseRelationships = exerciseRelationships
+        self.programDefinitions = programDefinitions
+        self.progressionRecommendations = progressionRecommendations
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions, progressionRecommendations
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(Int.self, forKey: .version)
+        preferences = try container.decode(PreferencesDTO.self, forKey: .preferences)
+        exercises = try container.decode([ExerciseTemplateDTO].self, forKey: .exercises)
+        templates = try container.decode([WorkoutTemplateDTO].self, forKey: .templates)
+        collections = try container.decode([WorkoutCollectionDTO].self, forKey: .collections)
+        workouts = try container.decode([WorkoutDTO].self, forKey: .workouts)
+        plans = try container.decodeIfPresent([WorkoutPlanDTO].self, forKey: .plans) ?? []
+        planRuns = try container.decodeIfPresent([PlanRunDTO].self, forKey: .planRuns) ?? []
+        exerciseRelationships = try container.decodeIfPresent([ExerciseRelationshipDTO].self, forKey: .exerciseRelationships) ?? []
+        programDefinitions = try container.decodeIfPresent([ProgramDefinitionDTO].self, forKey: .programDefinitions) ?? []
+        progressionRecommendations = try container.decodeIfPresent([ProgressionRecommendationDTO].self, forKey: .progressionRecommendations) ?? []
+    }
+}

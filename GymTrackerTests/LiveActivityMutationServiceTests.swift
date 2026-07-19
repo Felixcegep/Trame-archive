@@ -103,31 +103,7 @@ final class LiveActivityMutationServiceTests: XCTestCase {
     }
 
     private func makeContext() throws -> ModelContext {
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: Workout.self,
-            Exercise.self,
-            ExerciseRelationship.self,
-            ExerciseEntry.self,
-            ExerciseSet.self,
-            WorkoutTemplate.self,
-            TemplateExercise.self,
-            WorkoutCollection.self,
-            WorkoutPlan.self,
-            PlanBlock.self,
-            PlanWeek.self,
-            PlannedWorkout.self,
-            PlannedExercise.self,
-            PlannedExerciseAlternative.self,
-            PlannedSet.self,
-            PlanRun.self,
-            PlanWorkoutProgress.self,
-            PlanExerciseProgressionState.self,
-            ProgramDefinitionRecord.self,
-            PlanProgressionRecommendationRecord.self,
-            configurations: configuration
-        )
-        return ModelContext(container)
+        try GymTrackerTestStore.makeInMemoryContext()
     }
 
     private func makeActiveWorkout(

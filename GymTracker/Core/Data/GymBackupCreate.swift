@@ -1,0 +1,447 @@
+import Foundation
+import SwiftData
+
+extension BackupDTO {
+
+    static func create(from context: ModelContext, restTimer: Int, darkMode: Bool, unitSystem: UnitSystem) throws -> BackupDTO {
+        let exercises = try context.fetch(FetchDescriptor<Exercise>())
+        let exerciseDTOs = exercises.map { exercise in
+            ExerciseTemplateDTO(
+                id: exercise.id.uuidString,
+                name: exercise.name,
+                primaryMuscles: exercise.primaryMuscles.map(\.rawValue),
+                secondaryMuscles: exercise.secondaryMuscles?.map(\.rawValue),
+                category: exercise.category?.rawValue,
+                trackingType: exercise.trackingType.rawValue,
+                equipmentType: exercise.equipmentType?.rawValue,
+                resistanceType: exercise.resistanceType?.rawValue,
+                movementPattern: exercise.movementPattern?.rawValue,
+                difficulty: exercise.difficulty?.rawValue,
+                tags: exercise.tags,
+                isFavorite: exercise.isFavorite,
+                isPlateLoaded: exercise.isPlateLoaded,
+                isCustom: exercise.isCustom,
+                isArchived: exercise.isArchived,
+                forceType: exercise.forceType?.rawValue,
+                mechanics: exercise.mechanics?.rawValue,
+                laterality: exercise.laterality.rawValue,
+                repCountingStyle: exercise.repCountingStyle.rawValue,
+                weightEntryStyle: exercise.weightEntryStyle.rawValue,
+                loadUnitCount: exercise.loadUnitCount,
+                gripStyle: exercise.gripStyle?.rawValue,
+                stance: exercise.stance?.rawValue,
+                rangeOfMotion: exercise.rangeOfMotion?.rawValue,
+                setupAngleDegrees: exercise.setupAngleDegrees,
+                variationFamilyID: exercise.variationFamilyID
+            )
+        }
+
+        let relationshipDTOs: [ExerciseRelationshipDTO] = try context.fetch(FetchDescriptor<ExerciseRelationship>()).compactMap { relationship in
+            guard let source = relationship.sourceExercise, let target = relationship.targetExercise else {
+                return nil
+            }
+            return ExerciseRelationshipDTO(
+                sourceExerciseName: source.name,
+                targetExerciseName: target.name,
+                type: relationship.type.rawValue
+            )
+        }
+
+        let templates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
+        let templateDTOs = templates.map { template in
+            WorkoutTemplateDTO(
+                name: template.name,
+                templateExercises: template.templateExercises.map { te in
+                    TemplateExerciseDTO(
+                        exerciseName: te.exercise.name,
+                        orderIndex: te.orderIndex,
+                        targetSets: te.targetSets,
+                        repRangeMinimum: te.repRangeMinimum,
+                        repRangeMaximum: te.repRangeMaximum,
+                        restSeconds: te.restSeconds,
+                        targetRPE: te.targetRPE,
+                        targetRIR: te.targetRIR,
+                        notes: te.notes,
+                        progressionRule: te.progressionRule.rawValue,
+                        supersetGroupID: te.supersetGroupID?.uuidString,
+                        progressionKey: te.progressionKey
+                    )
+                }
+            )
+        }
+
+        let collections = try context.fetch(FetchDescriptor<WorkoutCollection>())
+        let collectionDTOs = collections.map { collection in
+            WorkoutCollectionDTO(
+                name: collection.name,
+                templateNames: collection.workoutTemplates.map(\.name)
+            )
+        }
+
+        let workouts = try context.fetch(FetchDescriptor<Workout>())
+        let workoutDTOs = workouts.map { workout in
+            WorkoutDTO(
+                id: workout.id.uuidString,
+                status: workout.status.rawValue,
+                name: workout.name,
+                notes: workout.notes,
+                startTime: workout.startTime,
+                endTime: workout.endTime,
+                restEndDate: workout.restEndDate,
+                pausedRemainingTime: workout.pausedRemainingTime,
+                sourceTemplateName: workout.sourceTemplate?.name,
+                sourcePlanID: workout.sourcePlanID?.uuidString,
+                sourcePlanRunID: workout.sourcePlanRunID?.uuidString,
+                sourcePlanBlockID: workout.sourcePlanBlockID?.uuidString,
+                sourcePlanWeekID: workout.sourcePlanWeekID?.uuidString,
+                sourcePlannedWorkoutID: workout.sourcePlannedWorkoutID?.uuidString,
+                sourcePlanName: workout.sourcePlanName,
+                sourceProgramDefinitionID: workout.sourceProgramDefinitionID?.uuidString,
+                sourceProgramDefinitionVersion: workout.sourceProgramDefinitionVersion,
+                exercises: workout.exercises.map { exercise in
+                    let setsDTO = exercise.sets.map { set in
+                        ExerciseSetDTO(
+                            orderIndex: set.orderIndex,
+                            weightType: set.weightType.rawValue,
+                            distanceType: set.distanceType.rawValue,
+                            repetition: set.repetitions,
+                            weight: set.weight,
+                            duration: set.duration,
+                            distance: set.distance,
+                            calories: set.calories,
+                            done: set.done,
+                            isUserOverridden: set.isUserOverridden,
+                            userOverrideReason: set.userOverrideReason,
+                            userOverrideAffectsFuture: set.userOverrideAffectsFuture,
+                            rpe: set.rpe,
+                            rir: set.rir,
+                            liftQuality: set.liftQuality?.rawValue,
+                            meanVelocity: set.meanVelocity,
+                            setType: set.setType.rawValue,
+                            isSelectedDailyMaximum: set.isSelectedDailyMaximum,
+                            generatedBackOffDefinitionID: set.generatedBackOffDefinitionID?.uuidString,
+                            usedMetric: set.usedMetric.rawValue,
+                            prescribedSetType: set.prescribedSetType?.rawValue,
+                            prescribedRepetitions: set.prescribedRepetitions,
+                            prescribedRepRangeMinimum: set.prescribedRepRangeMinimum,
+                            prescribedRepRangeMaximum: set.prescribedRepRangeMaximum,
+                            prescribedSuggestedLoad: set.prescribedSuggestedLoad,
+                            prescribedSuggestedLoadType: set.prescribedSuggestedLoadType?.rawValue,
+                            prescribedUnroundedLoad: set.prescribedUnroundedLoad,
+                            prescribedReferenceValue: set.prescribedReferenceValue,
+                            prescriptionLoadExplanation: set.prescriptionLoadExplanation,
+                            prescribedRestSeconds: set.prescribedRestSeconds,
+                            prescribedRPE: set.prescribedRPE,
+                            prescribedRIR: set.prescribedRIR,
+                            prescribedTempo: set.prescribedTempo,
+                            prescribedProgressionEligible: set.prescribedProgressionEligible,
+                            prescribedCalories: set.prescribedCalories,
+                            prescribedVelocityMinimum: set.prescribedVelocityMinimum,
+                            prescribedVelocityMaximum: set.prescribedVelocityMaximum,
+                            prescribedVelocityLossStopPercent: set.prescribedVelocityLossStopPercent,
+                            isVelocityProbe: set.isVelocityProbe,
+                            isPrescribedOptional: set.isPrescribedOptional,
+                            prescriptionNotes: set.prescriptionNotes,
+                            prescriptionDefinitionData: set.prescriptionDefinitionData,
+                            id: set.id.uuidString
+                        )
+                    }
+                    return ExerciseEntryDTO(
+                        orderIndex: exercise.orderIndex,
+                        comment: exercise.comment,
+                        exerciseName: exercise.exercise.name,
+                        usedMetric: exercise.usedMetric.rawValue,
+                        sets: setsDTO,
+                        prescribedSets: exercise.prescribedSets,
+                        prescribedRepRangeMinimum: exercise.prescribedRepRangeMinimum,
+                        prescribedRepRangeMaximum: exercise.prescribedRepRangeMaximum,
+                        prescribedRestSeconds: exercise.prescribedRestSeconds,
+                        prescribedRPE: exercise.prescribedRPE,
+                        prescribedRIR: exercise.prescribedRIR,
+                        prescriptionNotes: exercise.prescriptionNotes,
+                        sourcePlannedExerciseID: exercise.sourcePlannedExerciseID?.uuidString,
+                        progressionKey: exercise.progressionKey,
+                        prescribedRole: exercise.prescribedRole?.rawValue,
+                        isPrescribedOptional: exercise.isPrescribedOptional,
+                        prescribedSuggestedLoad: exercise.prescribedSuggestedLoad,
+                        prescribedSuggestedLoadType: exercise.prescribedSuggestedLoadType?.rawValue,
+                        prescribedProgressionRule: exercise.prescribedProgressionRule?.rawValue,
+                        recommendedDecision: exercise.recommendedDecision?.rawValue,
+                        recommendedLoad: exercise.recommendedLoad,
+                        recommendedUnit: exercise.recommendedUnit?.rawValue,
+                        recommendationPriorLoad: exercise.recommendationPriorLoad,
+                        recommendationRequiredSets: exercise.recommendationRequiredSets,
+                        recommendationRepCeiling: exercise.recommendationRepCeiling,
+                        recommendationCompletedSets: exercise.recommendationCompletedSets,
+                        recommendationPriorWorkoutDate: exercise.recommendationPriorWorkoutDate,
+                        accumulatedActiveDuration: exercise.accumulatedActiveDuration,
+                        activeDurationStartedAt: exercise.activeDurationStartedAt,
+                        supersetGroupID: exercise.supersetGroupID?.uuidString,
+                        originalExerciseIDSnapshot: exercise.originalExerciseIDSnapshot?.uuidString,
+                        originalExerciseNameSnapshot: exercise.originalExerciseNameSnapshot,
+                        selectedSubstituteExerciseIDSnapshot: exercise.selectedSubstituteExerciseIDSnapshot?.uuidString,
+                        substitutionReason: exercise.substitutionReason,
+                        substitutionSharesProgressionState: exercise.substitutionSharesProgressionState,
+                        variationSourceExerciseIDSnapshot: exercise.variationSourceExerciseIDSnapshot?.uuidString,
+                        variationSelectedExerciseIDSnapshot: exercise.variationSelectedExerciseIDSnapshot?.uuidString,
+                        prescriptionDefinitionData: exercise.prescriptionDefinitionData,
+                        prescriptionRulesData: exercise.prescriptionRulesData,
+                        deferredBackOffDefinitionsData: exercise.deferredBackOffDefinitionsData
+                    )
+                }
+            )
+        }
+
+        let plans = try context.fetch(FetchDescriptor<WorkoutPlan>())
+        let planDTOs = plans.map { plan in
+            WorkoutPlanDTO(
+                id: plan.id.uuidString,
+                name: plan.name,
+                goal: plan.goal.rawValue,
+                experienceLevel: plan.experienceLevel.rawValue,
+                requiredEquipment: plan.requiredEquipment.map(\.rawValue),
+                daysPerWeek: plan.daysPerWeek,
+                durationWeeks: plan.durationWeeks,
+                scheduleMode: plan.scheduleMode.rawValue,
+                scheduleIntervalDays: plan.scheduleIntervalDays,
+                notes: plan.notes,
+                createdAt: plan.createdAt,
+                updatedAt: plan.updatedAt,
+                isArchived: plan.isArchived,
+                sourceProgramDefinitionID: plan.sourceProgramDefinitionID?.uuidString,
+                sourceProgramDefinitionVersion: plan.sourceProgramDefinitionVersion,
+                completionPolicyData: plan.completionPolicyData,
+                blocks: plan.orderedBlocks.map { block in
+                    PlanBlockDTO(
+                        id: block.id.uuidString,
+                        name: block.name,
+                        phaseType: block.phaseType.rawValue,
+                        goal: block.goal,
+                        notes: block.notes,
+                        deloadVolumeReductionPercent: block.deloadVolumeReductionPercent,
+                        deloadIntensityReductionPercent: block.deloadIntensityReductionPercent,
+                        orderIndex: block.orderIndex,
+                        weeks: block.orderedWeeks.map { week in
+                            PlanWeekDTO(
+                                id: week.id.uuidString,
+                                weekIndex: week.weekIndex,
+                                name: week.name,
+                                notes: week.notes,
+                                plannedWorkouts: week.orderedPlannedWorkouts.map { plannedWorkout in
+                                    PlannedWorkoutDTO(
+                                        id: plannedWorkout.id.uuidString,
+                                        name: plannedWorkout.name,
+                                        orderIndex: plannedWorkout.orderIndex,
+                                        dayOffset: plannedWorkout.dayOffset,
+                                        isOptional: plannedWorkout.isOptional,
+                                        isTestDay: plannedWorkout.isTestDay,
+                                        estimatedDurationSeconds: plannedWorkout.estimatedDurationSeconds,
+                                        notes: plannedWorkout.notes,
+                                        sourceTemplateName: plannedWorkout.sourceTemplate?.name,
+                                        plannedExercises: plannedWorkout.orderedPlannedExercises.map { plannedExercise in
+                                            PlannedExerciseDTO(
+                                                id: plannedExercise.id.uuidString,
+                                                exerciseName: plannedExercise.exercise.name,
+                                                orderIndex: plannedExercise.orderIndex,
+                                                role: plannedExercise.role.rawValue,
+                                                isOptional: plannedExercise.isOptional,
+                                                targetSets: plannedExercise.targetSets,
+                                                repRangeMinimum: plannedExercise.repRangeMinimum,
+                                                repRangeMaximum: plannedExercise.repRangeMaximum,
+                                                suggestedLoad: plannedExercise.suggestedLoad,
+                                                suggestedLoadType: plannedExercise.suggestedLoadType?.rawValue,
+                                                restSeconds: plannedExercise.restSeconds,
+                                                targetRPE: plannedExercise.targetRPE,
+                                                targetRIR: plannedExercise.targetRIR,
+                                                notes: plannedExercise.notes,
+                                                progressionRule: plannedExercise.progressionRule.rawValue,
+                                                stimulus: plannedExercise.resolvedStimulus.rawValue,
+                                                alternativeExerciseNames: plannedExercise.alternatives
+                                                    .sorted { $0.orderIndex < $1.orderIndex }
+                                                    .map { $0.exercise.name },
+                                                supersetGroupID: plannedExercise.supersetGroupID?.uuidString,
+                                                plannedSets: plannedExercise.orderedPlannedSets.map { plannedSet in
+                                                    PlannedSetDTO(
+                                                        orderIndex: plannedSet.orderIndex,
+                                                        setType: plannedSet.setType.rawValue,
+                                                        repetitions: plannedSet.repetitions,
+                                                        repRangeMinimum: plannedSet.repRangeMinimum,
+                                                        repRangeMaximum: plannedSet.repRangeMaximum,
+                                                        suggestedLoad: plannedSet.suggestedLoad,
+                                                        suggestedLoadType: plannedSet.suggestedLoadType?.rawValue,
+                                                        restSeconds: plannedSet.restSeconds,
+                                                        targetRPE: plannedSet.targetRPE,
+                                                        targetRIR: plannedSet.targetRIR,
+                                                        tempo: plannedSet.tempo,
+                                                        progressionEligible: plannedSet.progressionEligible,
+                                                        isOptional: plannedSet.isOptional,
+                                                        notes: plannedSet.notes,
+                                                        definitionData: plannedSet.definitionData
+                                                    )
+                                                },
+                                                progressionKey: plannedExercise.progressionKey,
+                                                progressionRulesData: plannedExercise.progressionRulesData,
+                                                progressionWavesData: plannedExercise.progressionWavesData,
+                                                progressionStagesData: plannedExercise.progressionStagesData,
+                                                variationLadderData: plannedExercise.variationLadderData,
+                                                initialVariationExerciseID: plannedExercise.initialVariationExerciseID?.uuidString,
+                                                initialVelocityBaseline: plannedExercise.initialVelocityBaseline,
+                                                initialTrainingMax: plannedExercise.initialTrainingMax,
+                                                initialEstimatedOneRepMax: plannedExercise.initialEstimatedOneRepMax,
+                                                initialActualOneRepMax: plannedExercise.initialActualOneRepMax,
+                                                automaticDeloadVolumeReductionPercent: plannedExercise.automaticDeloadVolumeReductionPercent,
+                                                automaticDeloadIntensityReductionPercent: plannedExercise.automaticDeloadIntensityReductionPercent,
+                                                warmupSchemeData: plannedExercise.warmupSchemeData
+                                            )
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    )
+                }
+            )
+        }
+
+        let planRuns = try context.fetch(FetchDescriptor<PlanRun>())
+        let planRunDTOs = planRuns.map { run in
+            PlanRunDTO(
+                id: run.id.uuidString,
+                sourcePlanID: run.sourcePlanID.uuidString,
+                sourcePlanName: run.sourcePlanName,
+                planID: run.plan?.id.uuidString,
+                startDate: run.startDate,
+                endDate: run.endDate,
+                status: run.status.rawValue,
+                currentWeekIndex: run.currentWeekIndex,
+                currentWorkoutIndex: run.currentWorkoutIndex,
+                endedProgressionKeysData: run.endedProgressionKeysData,
+                createdAt: run.createdAt,
+                updatedAt: run.updatedAt,
+                workoutProgress: run.orderedWorkoutProgress.map { progress in
+                    PlanWorkoutProgressDTO(
+                        id: progress.id.uuidString,
+                        plannedWorkoutID: progress.plannedWorkoutID.uuidString,
+                        plannedWorkoutName: progress.plannedWorkoutName,
+                        weekIndex: progress.weekIndex,
+                        sourceWeekIndex: progress.sourceWeekIndex,
+                        workoutIndex: progress.workoutIndex,
+                        scheduledDate: progress.scheduledDate,
+                        status: progress.status.rawValue,
+                        startedAt: progress.startedAt,
+                        completedAt: progress.completedAt,
+                        skipReason: progress.skipReason,
+                        completedWorkoutID: progress.completedWorkout?.id.uuidString
+                    )
+                },
+                progressionStates: run.orderedProgressionStates.map { state in
+                    ProgressionStateDTO(
+                        id: state.id.uuidString,
+                        progressionKey: state.progressionKey,
+                        scope: state.scopeRaw,
+                        scopeOwnerKey: state.scopeOwnerKey,
+                        currentLoad: state.currentLoad,
+                        currentLoadType: state.currentLoadType?.rawValue,
+                        repetitionOffset: state.repetitionOffset,
+                        setCountOffset: state.setCountOffset,
+                        durationOffset: state.durationOffset,
+                        distanceOffset: state.distanceOffset,
+                        restDurationOffset: state.restDurationOffset,
+                        caloriesOffset: state.caloriesOffset,
+                        actualOneRepMax: state.actualOneRepMax,
+                        currentStageID: state.currentStageID,
+                        currentVariationExerciseID: state.currentVariationExerciseID?.uuidString,
+                        trainingMax: state.trainingMax,
+                        estimatedOneRepMax: state.estimatedOneRepMax,
+                        failureCount: state.failureCount,
+                        successCount: state.successCount,
+                        currentWaveIndex: state.currentWaveIndex,
+                        currentBlockIndex: state.currentBlockIndex,
+                        previousAMRAPRepetitions: state.previousAMRAPRepetitions,
+                        previousActualRPE: state.previousActualRPE,
+                        previousActualRIR: state.previousActualRIR,
+                        velocityBaseline: state.velocityBaseline,
+                        lastCompletedOccurrence: state.lastCompletedOccurrence,
+                        lastSuccessfulLoad: state.lastSuccessfulLoad,
+                        isDeloading: state.isDeloading,
+                        lastAppliedOutcomeID: state.lastAppliedOutcomeID?.uuidString,
+                        lastAppliedSetID: state.lastAppliedSetID?.uuidString,
+                        appliedProgressionEventsData: state.appliedProgressionEventsData,
+                        pendingProgressionData: state.pendingProgressionData
+                    )
+                }
+            )
+        }
+
+        let programDefinitionDTOs = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>()).map { record in
+            ProgramDefinitionDTO(
+                id: record.id.uuidString,
+                schemaVersion: record.schemaVersion,
+                templateVersion: record.templateVersion,
+                name: record.name,
+                summary: record.summary,
+                goal: record.goal.rawValue,
+                experienceLevel: record.experienceLevel.rawValue,
+                durationWeeks: record.durationWeeks,
+                supportedDaysPerWeek: record.supportedDaysPerWeek,
+                isBuiltIn: record.isBuiltIn,
+                isArchived: record.isArchived,
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt,
+                definitionData: record.definitionData
+            )
+        }
+        let progressionRecommendationDTOs = try context.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()).map { record in
+            ProgressionRecommendationDTO(
+                id: record.id.uuidString,
+                planRunID: record.planRunID.uuidString,
+                workoutID: record.workoutID.uuidString,
+                progressionKey: record.progressionKey,
+                ruleID: record.ruleID.uuidString,
+                actionData: record.actionData,
+                cadence: record.cadence.rawValue,
+                scope: record.scope.rawValue,
+                scopeOwnerKey: record.scopeOwnerKey,
+                reason: record.reason,
+                applicationMode: record.applicationMode.rawValue,
+                performanceData: record.performanceData,
+                proposedLoad: record.proposedLoad,
+                proposedTrainingMax: record.proposedTrainingMax,
+                proposedEstimatedOneRepMax: record.proposedEstimatedOneRepMax,
+                proposedActualOneRepMax: record.proposedActualOneRepMax,
+                proposedStageID: record.proposedStageID,
+                proposedVariationExerciseID: record.proposedVariationExerciseID?.uuidString,
+                proposedRepetitionOffset: record.proposedRepetitionOffset,
+                proposedSetCountOffset: record.proposedSetCountOffset,
+                proposedDurationOffset: record.proposedDurationOffset,
+                proposedDistanceOffset: record.proposedDistanceOffset,
+                proposedRestDurationOffset: record.proposedRestDurationOffset,
+                proposedCaloriesOffset: record.proposedCaloriesOffset,
+                proposedWaveIndex: record.proposedWaveIndex,
+                proposedBlockIndex: record.proposedBlockIndex,
+                proposedIsDeloading: record.proposedIsDeloading,
+                createdAt: record.createdAt,
+                isResolved: record.isResolved,
+                resolvedAt: record.resolvedAt
+            )
+        }
+
+        return BackupDTO(
+            version: currentVersion,
+            preferences: PreferencesDTO(
+                darkMode: darkMode,
+                restTimer: restTimer,
+                unitSystem: unitSystem.rawValue
+            ),
+            exercises: exerciseDTOs,
+            templates: templateDTOs,
+            collections: collectionDTOs,
+            workouts: workoutDTOs,
+            plans: planDTOs,
+            planRuns: planRunDTOs,
+            exerciseRelationships: relationshipDTOs,
+            programDefinitions: programDefinitionDTOs,
+            progressionRecommendations: progressionRecommendationDTOs
+        )
+    }
+}

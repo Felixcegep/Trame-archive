@@ -18,9 +18,7 @@ struct SetRowView: View {
     @State private var isShowingSetDetails = false
     @State private var completionValidationMessage: String?
     @State private var isShowingIncompleteConfirmation = false
-    @State private var countdownEndDate: Date?
-    @State private var pausedCountdownRemaining: TimeInterval?
-    @State private var countdownFinished = false
+    @State private var isTimerRunning = false
 
     private var trackingType: TrackingType {
         exerciseEntry.trackingTypeSnapshot
@@ -80,7 +78,15 @@ struct SetRowView: View {
             }
 
             if trackingType.usesDuration, !exerciseSet.done {
-                durationCountdownControls
+                SetDurationCountdownView(
+                    index: index,
+                    exerciseSet: exerciseSet,
+                    exerciseEntry: exerciseEntry,
+                    viewModel: viewModel,
+                    focusedInput: focusedInput,
+                    completionValidationMessage: $completionValidationMessage,
+                    isTimerRunning: $isTimerRunning
+                )
             }
 
             if let completionValidationMessage {
@@ -128,9 +134,6 @@ struct SetRowView: View {
         .sensoryFeedback(.success, trigger: exerciseSet.done) { _, newValue in
             newValue
         }
-        .sensoryFeedback(.success, trigger: countdownFinished) { _, newValue in
-            newValue
-        }
         .confirmationDialog(
             "Mark this set incomplete?",
             isPresented: $isShowingIncompleteConfirmation,
@@ -143,15 +146,6 @@ struct SetRowView: View {
         .onAppear {
             synchronizeIncompleteSetUnits()
             prefillPrescribedDurationIfNeeded()
-        }
-        .task(id: countdownEndDate) {
-            guard let countdownEndDate else { return }
-            let delay = max(0, countdownEndDate.timeIntervalSinceNow)
-            try? await Task.sleep(for: .seconds(delay))
-            guard !Task.isCancelled, self.countdownEndDate == countdownEndDate else { return }
-            self.countdownEndDate = nil
-            pausedCountdownRemaining = 0
-            countdownFinished = true
         }
     }
 
@@ -233,7 +227,7 @@ struct SetRowView: View {
             }
         ), focusID: setFocus, prompt: previousSet?.duration.map { String(Int($0)) })
         .accessibilityIdentifier("duration-field-\(exerciseEntry.exercise.name)-\(index)")
-        .disabled(isCompletedAndLocked || countdownEndDate != nil)
+        .disabled(isCompletedAndLocked || isTimerRunning)
     }
 
     private var caloriesField: some View {
@@ -255,129 +249,7 @@ struct SetRowView: View {
         .disabled(isCompletedAndLocked)
     }
 
-    private var durationCountdownControls: some View {
-        Group {
-            if countdownFinished {
-                countdownStrip(surface: Color.gymMutedSurface) {
-                    Image(systemName: AppIcon.checkmarkCircle)
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymSecondary)
 
-                    Text("Time complete")
-                        .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymSecondary)
-
-                    Spacer(minLength: 0)
-
-                    countdownControlButton(
-                        AppIcon.reset,
-                        label: "Restart timer",
-                        tint: Color.gymSecondary,
-                        action: startCountdown
-                    )
-                }
-            } else if let countdownEndDate {
-                countdownStrip(surface: Color.gymPrimarySurface) {
-                    Image(systemName: AppIcon.timer)
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymPrimary)
-
-                    Text(timerInterval: Date.now...max(Date.now, countdownEndDate), countsDown: true)
-                        .font(AppFont.headlineMonospaced)
-                        .foregroundStyle(Color.gymPrimary)
-
-                    Spacer(minLength: 0)
-
-                    countdownControlButton(
-                        AppIcon.pause,
-                        label: "Pause timer",
-                        tint: Color.gymPrimary,
-                        action: pauseCountdown
-                    )
-                    countdownControlButton(
-                        AppIcon.reset,
-                        label: "Reset timer",
-                        tint: Color.gymPrimary,
-                        action: resetCountdown
-                    )
-                }
-            } else if let pausedCountdownRemaining, pausedCountdownRemaining > 0 {
-                countdownStrip(surface: Color.gymAccentSurface) {
-                    Image(systemName: AppIcon.timer)
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymAccent)
-
-                    Text(formatCountdown(pausedCountdownRemaining))
-                        .font(AppFont.headlineMonospaced)
-                        .foregroundStyle(Color.gymAccent)
-
-                    Text("Paused")
-                        .font(AppFont.captionBold)
-                        .foregroundStyle(Color.gymSubduedText)
-
-                    Spacer(minLength: 0)
-
-                    countdownControlButton(
-                        AppIcon.play,
-                        label: "Resume timer",
-                        tint: Color.gymAccent,
-                        action: resumeCountdown
-                    )
-                    countdownControlButton(
-                        AppIcon.reset,
-                        label: "Reset timer",
-                        tint: Color.gymAccent,
-                        action: resetCountdown
-                    )
-                }
-            } else {
-                Button(action: startCountdown) {
-                    Label(
-                        countdownTargetSeconds > 0 ? "Start \(countdownTargetSeconds) sec timer" : "Start timer",
-                        systemImage: AppIcon.play
-                    )
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymPrimary)
-                    .padding(.horizontal, Spacing.m)
-                    .padding(.vertical, Spacing.s)
-                    .background(Color.gymPrimarySurface, in: Capsule())
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.borderless)
-                .accessibilityIdentifier("start-countdown-\(exerciseEntry.exercise.name)-\(index)")
-            }
-        }
-        .padding(.leading, 45)
-        .accessibilityElement(children: .contain)
-    }
-
-    private func countdownStrip(surface: Color, @ViewBuilder content: () -> some View) -> some View {
-        HStack(spacing: Spacing.s) {
-            content()
-        }
-        .padding(.horizontal, Spacing.m)
-        .padding(.vertical, Spacing.xs + Spacing.xxs)
-        .background(surface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
-    }
-
-    private func countdownControlButton(
-        _ icon: String,
-        label: String,
-        tint: Color,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(AppFont.captionBold)
-                .foregroundStyle(tint)
-                .frame(width: 30, height: 30)
-                .background(Color.gymCard, in: Circle())
-                .contentShape(Circle())
-        }
-        .buttonStyle(.borderless)
-        .accessibilityLabel(label)
-    }
 
     private var distanceField: some View {
         numberField("Distance", text: Binding(
@@ -603,12 +475,12 @@ struct SetRowView: View {
         }
     }
 
-    private var countdownTargetSeconds: Int {
-        max(0, Int(exerciseSet.duration ?? 0))
-    }
+
 
     private func prefillPrescribedDurationIfNeeded() {
-        guard trackingType.usesDuration, (exerciseSet.duration ?? 0) <= 0 else { return }
+        guard !exerciseSet.done,
+              trackingType.usesDuration,
+              (exerciseSet.duration ?? 0) <= 0 else { return }
         let prescribedSeconds = exerciseEntry.prescribedRepRangeMaximum
             ?? exerciseEntry.prescribedRepRangeMinimum
             ?? 0
@@ -617,77 +489,11 @@ struct SetRowView: View {
         viewModel.persistChanges()
     }
 
-    private func startCountdown() {
-        guard countdownTargetSeconds > 0 else {
-            completionValidationMessage = "Enter seconds before starting the timer."
-            focusedInput.wrappedValue = setFocus
-            return
-        }
-        focusedInput.wrappedValue = nil
-        completionValidationMessage = nil
-        countdownFinished = false
-        pausedCountdownRemaining = nil
-        countdownEndDate = Date.now.addingTimeInterval(TimeInterval(countdownTargetSeconds))
-    }
 
-    private func pauseCountdown() {
-        guard let countdownEndDate else { return }
-        pausedCountdownRemaining = max(0, countdownEndDate.timeIntervalSinceNow)
-        self.countdownEndDate = nil
-    }
-
-    private func resumeCountdown() {
-        guard let pausedCountdownRemaining, pausedCountdownRemaining > 0 else { return }
-        countdownFinished = false
-        countdownEndDate = Date.now.addingTimeInterval(pausedCountdownRemaining)
-        self.pausedCountdownRemaining = nil
-    }
-
-    private func resetCountdown() {
-        countdownEndDate = nil
-        pausedCountdownRemaining = nil
-        countdownFinished = false
-    }
-
-    private func formatCountdown(_ seconds: TimeInterval) -> String {
-        let roundedSeconds = Int(ceil(seconds))
-        return String(format: "%d:%02d", roundedSeconds / 60, roundedSeconds % 60)
-    }
 
     private func synchronizeIncompleteSetUnits() {
         let preferredSystem = UserDefaults.standard.unitSystem
-        let preferredWeightType: WeightType = preferredSystem == .metric ? .kg : .lbs
-        let preferredDistanceType: DistanceType = preferredSystem == .metric ? .kilometers : .miles
-        var didChange = false
-
-        if exerciseSet.weightType != preferredWeightType {
-            exerciseSet.weight = UnitConversion.weight(
-                exerciseSet.weight,
-                from: exerciseSet.weightType,
-                to: preferredWeightType
-            )
-            exerciseSet.weightType = preferredWeightType
-            didChange = true
-        }
-
-        if exerciseSet.distanceType != preferredDistanceType {
-            if let distance = exerciseSet.distance {
-                exerciseSet.distance = UnitConversion.distance(
-                    distance,
-                    from: exerciseSet.distanceType,
-                    to: preferredDistanceType
-                )
-            }
-            exerciseSet.distanceType = preferredDistanceType
-            didChange = true
-        }
-
-        if exerciseSet.usedMetric != preferredSystem {
-            exerciseSet.usedMetric = preferredSystem
-            didChange = true
-        }
-
-        if didChange {
+        if WorkoutSetInputNormalizer.synchronize(exerciseSet, to: preferredSystem) {
             viewModel.persistChanges()
         }
     }

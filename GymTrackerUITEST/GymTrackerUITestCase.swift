@@ -1,0 +1,273 @@
+import XCTest
+@testable import GymTracker
+
+enum AppTab: Int {
+    case home
+    case library
+    case history
+    case settings
+}
+
+class GymTrackerUITestCase: XCTestCase {
+    func selectTab(_ tab: AppTab, in app: XCUIApplication) {
+        let tabButton = app.tabBars.buttons.element(boundBy: tab.rawValue)
+        XCTAssertTrue(tabButton.waitForExistence(timeout: 5))
+        tabButton.tap()
+    }
+
+    @discardableResult
+    func tapButton(
+        _ identifier: String,
+        in app: XCUIApplication,
+        timeout: TimeInterval = 5,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> XCUIElement {
+        let button = app.buttons[identifier].firstMatch
+        XCTAssertTrue(
+            button.waitForExistence(timeout: timeout),
+            "Expected button '\(identifier)' to exist",
+            file: file,
+            line: line
+        )
+        button.tap()
+        return button
+    }
+
+    func tapFirstAvailableButton(
+        _ identifiers: [String],
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        for identifier in identifiers {
+            let button = app.buttons[identifier].firstMatch
+            if button.waitForExistence(timeout: 1) {
+                button.tap()
+                return
+            }
+        }
+        XCTFail("None of the expected buttons existed: \(identifiers)", file: file, line: line)
+    }
+
+    func selectExerciseFromOpenPicker(_ name: String, in app: XCUIApplication) {
+        let search = app.searchFields["Search exercises"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText(name)
+        tapButton("add-exercise-\(name)", in: app)
+
+        let keyboardClose = app.buttons["close"]
+        if keyboardClose.waitForExistence(timeout: 2) {
+            keyboardClose.tap()
+        }
+        tapButton("close-exercise-picker", in: app)
+    }
+
+    func completeSet(
+        _ exercise: String,
+        index: Int,
+        dismissRest: Bool,
+        in app: XCUIApplication
+    ) {
+        tapButton("complete-set-\(exercise)-\(index)", in: app)
+        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+        if dismissRest {
+            dismissRestIfPresent(in: app)
+        }
+    }
+
+    func dismissRestIfPresent(in app: XCUIApplication) {
+        let done = app.buttons["Done"]
+        if done.waitForExistence(timeout: 2) {
+            done.tap()
+        }
+    }
+
+    func openUpperBodyTemplateEditor(in app: XCUIApplication) {
+        selectTab(.library, in: app)
+        let templatesBrowser = app.staticTexts["Workouts"].firstMatch
+        XCTAssertTrue(templatesBrowser.waitForExistence(timeout: 5))
+        templatesBrowser.tap()
+
+        let template = app.staticTexts["Day 2 – Upper Body (Push/Pull)"].firstMatch
+        XCTAssertTrue(template.waitForExistence(timeout: 5))
+        template.tap()
+    }
+
+
+    func assertLibrarySearchResult(_ name: String, in app: XCUIApplication) {
+        let search = app.textFields["library-search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText(name)
+        XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 5))
+    }
+
+    func assertRestDuration(_ expected: String, in app: XCUIApplication) {
+        let duration = app.descendants(matching: .any)["settings-rest-duration"]
+        XCTAssertTrue(duration.waitForExistence(timeout: 5))
+        let value = duration.value as? String ?? duration.label
+        XCTAssertTrue(value.contains(expected), "Expected rest duration to contain '\(expected)', got '\(value)'")
+    }
+
+    func assertUnitSystem(_ expected: String, in app: XCUIApplication) {
+        let picker = app.buttons["settings-units-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        let value = picker.value as? String ?? picker.label
+        XCTAssertTrue(value.localizedCaseInsensitiveContains(expected), "Expected units to contain '\(expected)', got '\(value)'")
+    }
+
+    func launchFreshApp(additionalArguments: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data"] + additionalArguments
+        app.launch()
+        XCTAssertEqual(app.state, .runningForeground)
+
+        // A reset clears and reseeds SwiftData before the tab content becomes
+        // interactive. Wait on that real state transition instead of guessing
+        // how long a cold simulator needs.
+        let preparing = app.descendants(matching: .any)["app-preparing"]
+        if preparing.exists {
+            XCTAssertTrue(preparing.waitForNonExistence(timeout: 60))
+        }
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 45))
+        return app
+    }
+
+    func launchFixture(
+        _ fixture: String,
+        additionalArguments: [String] = [],
+        expectsActiveWorkout: Bool = true,
+        expectedHomeControl: String = "start-free-workout"
+    ) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-test-fixture", fixture] + additionalArguments
+        app.launch()
+        XCTAssertEqual(app.state, .runningForeground)
+
+        let preparing = app.descendants(matching: .any)["app-preparing"]
+        XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
+        if expectsActiveWorkout {
+            XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 30))
+        } else {
+            XCTAssertTrue(app.buttons[expectedHomeControl].waitForExistence(timeout: 15))
+        }
+        return app
+    }
+
+    func relaunchPreservingData(
+        _ app: XCUIApplication,
+        launchArguments: [String] = ["-ui-testing"]
+    ) {
+        app.terminate()
+        app.launchArguments = launchArguments
+        app.launch()
+        XCTAssertEqual(app.state, .runningForeground)
+
+        let preparing = app.descendants(matching: .any)["app-preparing"]
+        XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
+    }
+
+    func resumeActiveWorkout(in app: XCUIApplication) {
+        let resumeButton = app.buttons["resume-active-workout"]
+        XCTAssertTrue(resumeButton.waitForExistence(timeout: 15))
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isHittable == true"),
+            object: resumeButton
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 10), .completed)
+        resumeButton.tap()
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
+    }
+
+    func selectPlanTemplate(
+        _ name: String,
+        forDayOffset dayOffset: Int,
+        in app: XCUIApplication
+    ) {
+        let picker = app.buttons["plan-day-template-\(dayOffset)"]
+        scrollToElement(picker, in: app)
+        picker.tap()
+
+        let template = app.staticTexts[name].firstMatch
+        XCTAssertTrue(template.waitForExistence(timeout: 5))
+        template.tap()
+
+        let back = app.navigationBars.buttons.firstMatch
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        back.tap()
+    }
+
+    func activeExerciseCard(_ name: String, in app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
+    }
+
+    func addExercise(_ name: String, in app: XCUIApplication) {
+        let addExercise = app.buttons["add-active-exercise"]
+        XCTAssertTrue(addExercise.waitForExistence(timeout: 5))
+        addExercise.tap()
+
+        let search = app.searchFields["Search exercises"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText(name)
+
+        let exercise = app.buttons["add-exercise-\(name)"]
+        XCTAssertTrue(exercise.waitForExistence(timeout: 5))
+        exercise.tap()
+
+        let keyboardClose = app.buttons["close"]
+        if keyboardClose.waitForExistence(timeout: 2) {
+            keyboardClose.tap()
+        }
+
+        let closeExercisePicker = app.buttons["close-exercise-picker"]
+        XCTAssertTrue(closeExercisePicker.waitForExistence(timeout: 5))
+        closeExercisePicker.tap()
+    }
+
+    func enterValidValues(
+        for exercise: String,
+        set: Int,
+        repsValue: String = "8",
+        in app: XCUIApplication
+    ) {
+        let reps = app.textFields["reps-field-\(exercise)-\(set)"]
+        XCTAssertTrue(reps.waitForExistence(timeout: 5))
+        reps.tap()
+        reps.typeText(XCUIKeyboardKey.delete.rawValue)
+        reps.typeText(repsValue)
+
+        let weight = app.textFields["weight-field-\(exercise)-\(set)"]
+        XCTAssertTrue(weight.waitForExistence(timeout: 5))
+        weight.tap()
+        weight.typeText(XCUIKeyboardKey.delete.rawValue)
+        weight.typeText("50")
+
+        app.buttons["Done"].tap()
+    }
+
+    func enterReps(_ value: String, for exercise: String, set: Int, in app: XCUIApplication) {
+        let reps = app.textFields["reps-field-\(exercise)-\(set)"]
+        XCTAssertTrue(reps.waitForExistence(timeout: 5))
+        reps.tap()
+        reps.typeText(XCUIKeyboardKey.delete.rawValue)
+        reps.typeText(value)
+        app.buttons["Done"].tap()
+    }
+
+    func scrollToElement(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        for _ in 0..<6 where !element.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(element.waitForExistence(timeout: 5), file: file, line: line)
+        XCTAssertTrue(element.isHittable, file: file, line: line)
+    }
+
+}

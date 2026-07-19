@@ -293,7 +293,7 @@ run_test_list() {
     xcrun simctl uninstall "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
     xcodebuild "${xcode_args[@]}" \
       -resultBundlePath "$rb_dir/$CAPTURE_RUN_ID-$test_name.xcresult" \
-      "-only-testing:GymTrackerUITEST/GymTrackerUITEST/$test_name" \
+      "-only-testing:GymTrackerUITEST/ScreenshotUITests/$test_name" \
       test-without-building
   done
 }

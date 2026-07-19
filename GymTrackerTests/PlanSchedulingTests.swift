@@ -349,31 +349,7 @@ final class PlanSchedulingTests: XCTestCase {
     }
 
     private func makeContext() throws -> ModelContext {
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(
-            for: Workout.self,
-            Exercise.self,
-            ExerciseRelationship.self,
-            ExerciseEntry.self,
-            ExerciseSet.self,
-            WorkoutTemplate.self,
-            TemplateExercise.self,
-            WorkoutCollection.self,
-            PlanRun.self,
-            PlanWorkoutProgress.self,
-            PlanExerciseProgressionState.self,
-            ProgramDefinitionRecord.self,
-            PlanProgressionRecommendationRecord.self,
-            WorkoutPlan.self,
-            PlanBlock.self,
-            PlanWeek.self,
-            PlannedWorkout.self,
-            PlannedExercise.self,
-            PlannedExerciseAlternative.self,
-            PlannedSet.self,
-            configurations: configuration
-        )
-        return ModelContext(container)
+        try GymTrackerTestStore.makeInMemoryContext()
     }
 
     private func makeDiskStoreURL() throws -> URL {
@@ -387,30 +363,6 @@ final class PlanSchedulingTests: XCTestCase {
         at url: URL,
         _ body: (ModelContext) throws -> T
     ) throws -> T {
-        let configuration = ModelConfiguration(url: url)
-        let container = try ModelContainer(
-            for: Workout.self,
-            Exercise.self,
-            ExerciseRelationship.self,
-            ExerciseEntry.self,
-            ExerciseSet.self,
-            WorkoutTemplate.self,
-            TemplateExercise.self,
-            WorkoutCollection.self,
-            PlanRun.self,
-            PlanWorkoutProgress.self,
-            PlanExerciseProgressionState.self,
-            ProgramDefinitionRecord.self,
-            PlanProgressionRecommendationRecord.self,
-            WorkoutPlan.self,
-            PlanBlock.self,
-            PlanWeek.self,
-            PlannedWorkout.self,
-            PlannedExercise.self,
-            PlannedExerciseAlternative.self,
-            PlannedSet.self,
-            configurations: configuration
-        )
-        return try body(ModelContext(container))
+        try GymTrackerTestStore.withDiskContext(at: url, body)
     }
 }

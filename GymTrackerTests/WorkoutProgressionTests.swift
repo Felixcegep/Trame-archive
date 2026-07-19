@@ -1,0 +1,137 @@
+import Foundation
+import SwiftData
+import XCTest
+@testable import GymTracker
+
+@MainActor
+final class WorkoutProgressionTests: XCTestCase {
+    func testUnitConversionPreservesEquivalentLoad() {
+        XCTAssertEqual(UnitConversion.weight(100, from: .kg, to: .lbs), 220.462_26, accuracy: 0.001)
+        XCTAssertEqual(UnitConversion.weight(220.462_26, from: .lbs, to: .kg), 100, accuracy: 0.001)
+    }
+
+    func testRestTimerControllerTransitionsThroughPauseAndResume() {
+        let controller = RestTimerController()
+        let endDate = Date.now.addingTimeInterval(90)
+
+        controller.start(until: endDate)
+        XCTAssertEqual(controller.endDate, endDate)
+        XCTAssertTrue(controller.isVisible)
+
+        controller.pause(remaining: 45)
+        XCTAssertEqual(controller.pausedRemaining, 45)
+        XCTAssertNil(controller.endDate)
+
+        controller.extendPaused(by: 15)
+        XCTAssertEqual(controller.pausedRemaining, 60)
+
+        controller.cancel()
+        XCTAssertFalse(controller.isVisible)
+    }
+
+    func testExerciseActiveDurationAccumulatesAcrossSelectionsAndRelaunches() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
+        let startedAt = Date(timeIntervalSinceReferenceDate: 1_000)
+        context.insert(exercise)
+        context.insert(entry)
+
+        entry.startActiveDuration(at: startedAt)
+        entry.stopActiveDuration(at: startedAt.addingTimeInterval(42))
+        entry.startActiveDuration(at: startedAt.addingTimeInterval(60))
+        try context.save()
+
+        let restored = try XCTUnwrap(context.fetch(FetchDescriptor<ExerciseEntry>()).first)
+        XCTAssertEqual(restored.activeDuration(at: startedAt.addingTimeInterval(78)), 60, accuracy: 0.001)
+
+        restored.stopActiveDuration(at: startedAt.addingTimeInterval(78))
+        XCTAssertEqual(restored.accumulatedActiveDuration, 60, accuracy: 0.001)
+        XCTAssertNil(restored.activeDurationStartedAt)
+    }
+
+    func testDoubleProgressionIncreasesOnlyAfterAllRequiredSetsReachCeiling() {
+        let performance = PreviousExercisePerformance(
+            workoutDate: .now,
+            sets: [
+                PreviousSetPerformance(orderIndex: 0, repetitions: 12, weight: 100, weightType: .lbs, duration: nil, distance: nil, distanceType: .miles, setType: .normal),
+                PreviousSetPerformance(orderIndex: 1, repetitions: 12, weight: 100, weightType: .lbs, duration: nil, distance: nil, distanceType: .miles, setType: .normal),
+                PreviousSetPerformance(orderIndex: 2, repetitions: 12, weight: 100, weightType: .lbs, duration: nil, distance: nil, distanceType: .miles, setType: .normal)
+            ]
+        )
+
+        let recommendation = DoubleProgressionEngine.recommend(
+            from: performance,
+            requiredSets: 3,
+            repCeiling: 12,
+            increment: 5
+        )
+
+        XCTAssertEqual(recommendation?.decision, .increase)
+        XCTAssertEqual(recommendation?.recommendedLoad, 105)
+        XCTAssertTrue(recommendation?.explanation.contains("105 lbs recommended") == true)
+    }
+
+    func testDoubleProgressionHoldsLoadWhenAnyRequiredSetIsBelowTheRepCeiling() {
+        let performance = PreviousExercisePerformance(
+            workoutDate: .now,
+            sets: [
+                previousSet(order: 0, reps: 12, weight: 100),
+                previousSet(order: 1, reps: 11, weight: 100),
+                previousSet(order: 2, reps: 12, weight: 100)
+            ]
+        )
+
+        let recommendation = DoubleProgressionEngine.recommend(
+            from: performance,
+            requiredSets: 3,
+            repCeiling: 12,
+            increment: Constants.Progression.imperialIncrementLbs
+        )
+
+        XCTAssertEqual(recommendation?.decision, .hold)
+        XCTAssertEqual(recommendation?.recommendedLoad, 100)
+        XCTAssertEqual(recommendation?.evidence.completedSets, 3)
+    }
+
+    func testDoubleProgressionRequiresTheFullRequiredSetPrefix() {
+        let performance = PreviousExercisePerformance(
+            workoutDate: .now,
+            sets: [
+                previousSet(order: 0, reps: 12, weight: 100),
+                previousSet(order: 1, reps: 12, weight: 100)
+            ]
+        )
+
+        XCTAssertNil(
+            DoubleProgressionEngine.recommend(
+                from: performance,
+                requiredSets: 3,
+                repCeiling: 12,
+                increment: Constants.Progression.imperialIncrementLbs
+            )
+        )
+    }
+
+
+    private func makeExercise() -> Exercise {
+        Exercise(name: "Bench Press", primaryMuscles: [.upperChest])
+    }
+
+    private func previousSet(order: Int, reps: Float, weight: Float) -> PreviousSetPerformance {
+        PreviousSetPerformance(
+            orderIndex: order,
+            repetitions: reps,
+            weight: weight,
+            weightType: .lbs,
+            duration: nil,
+            distance: nil,
+            distanceType: .miles,
+            setType: .normal
+        )
+    }
+
+    private func makeContext() throws -> ModelContext {
+        try GymTrackerTestStore.makeInMemoryContext()
+    }
+}
