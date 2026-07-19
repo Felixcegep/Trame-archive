@@ -78,7 +78,7 @@ tests_for_scene() {
     program-catalog) echo "testCaptureProgramCatalogScreenshots" ;;
     plan-calendar) echo "testCapturePlanCalendarScreenshots" ;;
     hidden) echo "testCaptureHiddenExercisesScreenshot" ;;
-    exercise-insights) echo "testCaptureExerciseDetailInsightsScreenshot" ;;
+    exercise-insights) echo "testCaptureExerciseDetailVariationsScreenshot testCaptureExerciseRelationshipsScreenshot testCaptureExercisePerformanceInsightsScreenshot" ;;
     muscle-balance) echo "testCaptureMuscleBalanceScreenshot" ;;
     *) return 1 ;;
   esac
@@ -237,11 +237,11 @@ if [[ "$USE_PARALLEL" == true ]]; then
 fi
 
 echo "=== Building for Simulator 1 ($SIMULATOR_ID) ==="
-xcodebuild -quiet -project "$WORKSPACE_DIR/GymTracker.xcodeproj" -scheme GymTracker -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath "$DERIVED_DATA_PATH" build-for-testing
+xcodebuild -quiet -project "$WORKSPACE_DIR/GymTracker.xcodeproj" -scheme GymTrackerUITEST -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath "$DERIVED_DATA_PATH" build-for-testing
 
 if [[ "$USE_PARALLEL" == true ]]; then
   echo "=== Building for Simulator 2 ($SIMULATOR_ID_2) ==="
-  xcodebuild -quiet -project "$WORKSPACE_DIR/GymTracker.xcodeproj" -scheme GymTracker -destination "platform=iOS Simulator,id=$SIMULATOR_ID_2" -derivedDataPath "$DERIVED_DATA_PATH_2" build-for-testing
+  xcodebuild -quiet -project "$WORKSPACE_DIR/GymTracker.xcodeproj" -scheme GymTrackerUITEST -destination "platform=iOS Simulator,id=$SIMULATOR_ID_2" -derivedDataPath "$DERIVED_DATA_PATH_2" build-for-testing
 fi
 
 SELECTED_TESTS=()
@@ -275,7 +275,7 @@ run_test_list() {
   local xcode_args=(
     -quiet
     -project "$WORKSPACE_DIR/GymTracker.xcodeproj"
-    -scheme GymTracker
+    -scheme GymTrackerUITEST
     -destination "platform=iOS Simulator,id=$sim_id"
     -derivedDataPath "$dd_path"
     -parallel-testing-enabled NO
@@ -286,6 +286,11 @@ run_test_list() {
     echo "=== [$sim_id] Running test $test_name ==="
     # Each method receives a fresh UI-test runner. This prevents a failed app
     # relaunch from cancelling unrelated screenshot states in the same scene.
+    # Remove the app container too: fixture launches reset SwiftData in-process,
+    # and a just-deleted active workout can otherwise remain visible to the next
+    # independently launched method through SwiftData's query cache.
+    xcrun simctl terminate "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
+    xcrun simctl uninstall "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
     xcodebuild "${xcode_args[@]}" \
       -resultBundlePath "$rb_dir/$CAPTURE_RUN_ID-$test_name.xcresult" \
       "-only-testing:GymTrackerUITEST/GymTrackerUITEST/$test_name" \

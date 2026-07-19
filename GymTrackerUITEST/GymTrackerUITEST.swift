@@ -929,22 +929,25 @@ final class GymTrackerUITEST: XCTestCase {
         saveScreenshot("history/11_History_Detail")
     }
 
-    func testCaptureExerciseDetailInsightsScreenshot() {
-        let app = launchFixture("exercise-insights", expectsActiveWorkout: false)
-
-        selectTab(.library, in: app)
-        let exercisesBrowser = app.staticTexts["Exercises"].firstMatch
-        XCTAssertTrue(exercisesBrowser.waitForExistence(timeout: 5))
-        exercisesBrowser.tap()
-
-        tapButton("exercise-row-Bench Press", in: app)
-        XCTAssertTrue(app.buttons["exercise-variation-Dumbbell Bench Press"].waitForExistence(timeout: 5))
+    func testCaptureExerciseDetailVariationsScreenshot() {
+        let app = launchExerciseInsightsFixture()
+        let variation = app.buttons["exercise-variation-Dumbbell Bench Press"]
+        scrollToElement(variation, in: app)
         saveScreenshot("exercises/17a_Exercise_Detail_Variations")
+    }
+
+    func testCaptureExerciseRelationshipsScreenshot() {
+        let app = launchExerciseInsightsFixture()
         tapButton("exercise-relationships", in: app)
         XCTAssertTrue(app.navigationBars["Exercise Relationships"].waitForExistence(timeout: 5))
         saveScreenshot("exercises/17b_Exercise_Relationships")
-        tapButton("Done", in: app)
-        tapButton("exercise-stats", in: app)
+    }
+
+    func testCaptureExercisePerformanceInsightsScreenshot() {
+        let app = launchExerciseInsightsFixture()
+        let statistics = app.buttons["exercise-stats"]
+        scrollToElement(statistics, in: app)
+        statistics.tap()
         XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-screen"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["exercise-insights-back"].isHittable)
         XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-content"].waitForExistence(timeout: 10))
@@ -952,6 +955,15 @@ final class GymTrackerUITEST: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["exercise-insights-volume"].exists)
 
         saveScreenshot("exercises/17_Exercise_Insights")
+    }
+
+    private func launchExerciseInsightsFixture() -> XCUIApplication {
+        launchFixture(
+            "exercise-insights",
+            additionalArguments: ["-ui-testing-open-exercise-detail"],
+            expectsActiveWorkout: false,
+            expectedHomeControl: "exercise-relationships"
+        )
     }
 
     func testCaptureMuscleBalanceScreenshot() {
@@ -1134,15 +1146,18 @@ final class GymTrackerUITEST: XCTestCase {
         app.buttons["edit-plan-workout"].firstMatch.tap()
         XCTAssertTrue(app.buttons["plan-workout-exercise"].firstMatch.waitForExistence(timeout: 5))
         app.buttons["plan-workout-exercise"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["add-plan-exercise-alternative"].waitForExistence(timeout: 5))
+        let addAlternative = app.buttons["add-plan-exercise-alternative"]
+        scrollToElement(addAlternative, in: app)
         saveScreenshot("plans/13g_Plan_Exercise_Alternatives")
         let addSet = app.buttons["add-plan-set-prescription"]
         scrollToElement(addSet, in: app)
         tapButton("add-plan-set-prescription", in: app)
         XCTAssertTrue(app.buttons["plan-set-prescription-row"].firstMatch.waitForExistence(timeout: 5))
         saveScreenshot("plans/13h_Plan_Per_Set_Prescription")
-        app.buttons["Done"].tap()
-        app.buttons["Done"].tap()
+        tapButton("Done", in: app)
+        XCTAssertTrue(app.buttons["plan-workout-exercise"].firstMatch.waitForExistence(timeout: 5))
+        tapButton("Done", in: app)
+        XCTAssertTrue(app.buttons["edit-plan-workout"].firstMatch.waitForExistence(timeout: 5))
         tapButton("save-plan-edits", in: app)
         XCTAssertTrue(app.buttons["confirm-plan-changes"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13_Plan_Review")

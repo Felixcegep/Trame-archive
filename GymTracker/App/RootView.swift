@@ -58,6 +58,16 @@ struct RootView: View {
                     switch route {
                     case .archivedExercises:
                         ArchivedExercisesView()
+                    case .exercise(let exerciseID):
+                        if let exercise = exercise(id: exerciseID) {
+                            ExerciseView(exercise: exercise)
+                        } else {
+                            ContentUnavailableView(
+                                "Exercise unavailable",
+                                systemImage: AppIcon.warning,
+                                description: Text("This exercise may have been removed or replaced.")
+                            )
+                        }
                     case .plan(let planID):
                         if let plan = plan(id: planID) {
                             PlanDetailView(
@@ -228,6 +238,13 @@ struct RootView: View {
                 // reconciling that deletion with its query cache.
                 workoutVM.restoreActiveWorkout(using: modelContext)
             }
+            if CommandLine.arguments.contains("-ui-testing-open-exercise-detail"),
+               let benchPress = try? modelContext.fetch(
+                   FetchDescriptor<Exercise>(predicate: #Predicate { $0.name == "Bench Press" })
+               ).first {
+                selectedTab = .library
+                libraryPath = [.exercise(benchPress.id)]
+            }
             isPreparingApp = false
             await PlanNotificationScheduler.shared.reconcile(using: modelContext)
         }
@@ -262,6 +279,10 @@ struct RootView: View {
 
     private func plan(id: UUID) -> WorkoutPlan? {
         try? modelContext.fetch(FetchDescriptor<WorkoutPlan>()).first { $0.id == id }
+    }
+
+    private func exercise(id: UUID) -> Exercise? {
+        try? modelContext.fetch(FetchDescriptor<Exercise>()).first { $0.id == id }
     }
 
     private func seedExerciseTemplatesIfNeeded() {
