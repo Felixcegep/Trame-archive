@@ -24,6 +24,12 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         selectTab(.progress, in: app)
         XCTAssertTrue(app.descendants(matching: .any)["progress-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["progress-workout-history"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["progress-training-trends"].exists)
+        let muscleGroupVolume = app.descendants(matching: .any)["progress-muscle-group-volume"]
+        XCTAssertTrue(muscleGroupVolume.exists)
+        muscleGroupVolume.tap()
+        XCTAssertTrue(app.navigationBars["Muscle-group volume"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
 
         selectTab(.settings, in: app)
         XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))

@@ -80,7 +80,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("overview/01_Today")
         selectTab(.library, in: app)
         saveScreenshot("overview/02_Train")
-        selectTab(.history, in: app)
+        selectTab(.progress, in: app)
         saveScreenshot("overview/03_Progress_Empty")
         selectTab(.settings, in: app)
         saveScreenshot("overview/04_Settings")
@@ -298,12 +298,14 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let app = launchFixture("muscle-balance", expectsActiveWorkout: false)
         selectTab(.history, in: app)
 
-        let balanceTab = app.buttons["Balance"]
+        let balanceTab = app.buttons["Volume"]
         XCTAssertTrue(balanceTab.waitForExistence(timeout: 5))
         balanceTab.tap()
         XCTAssertTrue(app.descendants(matching: .any)["muscle-balance-content"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["muscle-balance-chart"].exists)
+        let chart = app.descendants(matching: .any)["muscle-balance-chart"]
+        XCTAssertTrue(chart.exists)
         XCTAssertTrue(app.descendants(matching: .any)["muscle-balance-callouts"].exists)
+        app.swipeUp(velocity: .slow)
 
         saveScreenshot("history/16_Muscle_Balance")
     }
@@ -389,6 +391,28 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("open-daily-check-in", in: app)
         XCTAssertTrue(app.navigationBars["Daily check-in"].waitForExistence(timeout: 5))
         saveScreenshot("overview/01e_Daily_Check_In")
+    }
+
+    func testCaptureDailyCheckInWeightDueScreenshot() {
+        let app = launchFixture("today-weight-due", expectsActiveWorkout: false)
+        tapButton("open-daily-check-in", in: app)
+        XCTAssertTrue(app.textFields["daily-check-in-weight"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/01h_Daily_Check_In_Weight_Due")
+    }
+
+    func testCaptureBodyWeightHistoryScreenshot() {
+        let app = launchFixture("body-weight-history", expectsActiveWorkout: false)
+        selectTab(.settings, in: app)
+        tapButton("settings-body-weight", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["body-weight-history"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/04a_Body_Weight_History")
+    }
+
+    func testCaptureCaffeineQuickLogScreenshot() {
+        let app = launchFixture("today-complete", expectsActiveWorkout: false)
+        tapButton("today-caffeine-summary", in: app)
+        XCTAssertTrue(app.navigationBars["Log caffeine"].waitForExistence(timeout: 5))
+        saveScreenshot("nutrition/20a_Caffeine_Quick_Log")
     }
 
     func testCaptureTodayRescheduleScreenshot() {

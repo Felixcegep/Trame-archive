@@ -12,6 +12,7 @@ RUN_ID="$(date +%Y%m%d-%H%M%S)"
 # Behavioral tests deliberately exclude screenshot capture and the two-phase
 # reboot verifier. Those lanes have their own deterministic runners below.
 FAST_TESTS=(
+  testCoordinatedNavigationExposesFourDestinationsAndTodaySettings
   testStartFreeWorkout
   testResumesPersistedActiveWorkoutAfterRelaunch
   testResumesPersistedRestTimerAfterRelaunch
@@ -107,7 +108,14 @@ run_fast() {
 
   local test_args=()
   for test_name in "${FAST_TESTS[@]}"; do
-    test_args+=("-only-testing:GymTrackerUITEST/GymTrackerUITEST/$test_name")
+    case "$test_name" in
+      testPlanCalendarShowsDerivedStatesAndKeepsCompletedSessionsLocked|testRelaunchRefreshesHomeWithTheSessionScheduledForToday)
+        test_args+=("-only-testing:GymTrackerUITEST/ScreenshotUITests/$test_name")
+        ;;
+      *)
+        test_args+=("-only-testing:GymTrackerUITEST/GymTrackerUITEST/$test_name")
+        ;;
+    esac
   done
 
   echo "=== Running ${#FAST_TESTS[@]} behavioral UI tests ==="
