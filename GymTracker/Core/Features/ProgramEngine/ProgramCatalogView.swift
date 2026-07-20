@@ -4,75 +4,179 @@ import SwiftUI
 struct ProgramCatalogView: View {
     @Query(sort: \ProgramDefinitionRecord.name) private var records: [ProgramDefinitionRecord]
     @State private var searchText = ""
+    @State private var selectedLevel: PlanExperienceLevel?
+    @State private var selectedDays: Int?
+
+    private var availableRecords: [ProgramDefinitionRecord] {
+        records.filter { $0.isBuiltIn && !$0.isArchived }
+    }
 
     private var builtIns: [ProgramDefinitionRecord] {
-        records.filter { record in
-            record.isBuiltIn && !record.isArchived && (
-                searchText.isEmpty || record.name.localizedCaseInsensitiveContains(searchText)
-            )
+        availableRecords.filter { record in
+            (searchText.isEmpty || record.name.localizedCaseInsensitiveContains(searchText))
+                && (selectedLevel == nil || record.experienceLevel == selectedLevel)
+                && (selectedDays == nil || record.supportedDaysPerWeek.contains(selectedDays ?? 0))
         }
+    }
+
+    private var availableDays: [Int] {
+        Array(Set(availableRecords.flatMap(\.supportedDaysPerWeek))).sorted()
     }
 
     var body: some View {
         Group {
-            if builtIns.isEmpty && searchText.isEmpty {
+            if availableRecords.isEmpty {
                 ContentUnavailableView(
                     "No programs available",
                     systemImage: AppIcon.plan,
                     description: Text("The built-in program catalog could not be loaded.")
                 )
             } else {
-                List {
-                    Section {
-                        ForEach(builtIns) { record in
-                            NavigationLink {
-                                ProgramCatalogDetailView(record: record)
-                            } label: {
-                                ProgramCatalogRow(record: record)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        filterChips
+
+                        LibraryListSectionHeader(title: "Programs", count: builtIns.count)
+
+                        if builtIns.isEmpty {
+                            VStack(alignment: .leading, spacing: Spacing.s) {
+                                Text("No programs match your search or filters.")
+                                    .font(AppFont.subheadline)
+                                    .foregroundStyle(Color.gymSubduedText)
+                                Button("Clear filters") {
+                                    searchText = ""
+                                    selectedLevel = nil
+                                    selectedDays = nil
+                                }
+                                .font(AppFont.subheadlineSemibold)
                             }
-                            .accessibilityIdentifier("program-catalog-\(record.name)")
+                            .padding(.top, Spacing.m)
+                        } else {
+                            ForEach(builtIns) { record in
+                                NavigationLink {
+                                    ProgramCatalogDetailView(record: record)
+                                } label: {
+                                    ProgramCatalogCard(record: record)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("program-catalog-\(record.name)")
+                            }
                         }
-                    } header: {
-                        Text("\(builtIns.count) programs")
                     }
+                    .padding(.horizontal, Spacing.xl)
+                    .padding(.vertical, Spacing.l)
                 }
-                .listStyle(.insetGrouped)
+                .folderScreenStyle()
             }
         }
-        .searchable(text: $searchText, prompt: "Search programs")
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search programs"
+        )
         .navigationTitle("Program Catalog")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("program-catalog")
     }
+
+    private var filterChips: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            ScrollView(.horizontal) {
+                HStack(spacing: Spacing.s) {
+                    FilterChip(title: "All levels", isSelected: selectedLevel == nil) {
+                        selectedLevel = nil
+                    }
+                    ForEach(PlanExperienceLevel.allCases, id: \.self) { level in
+                        FilterChip(
+                            title: level.rawValue.localizedCapitalized,
+                            isSelected: selectedLevel == level
+                        ) {
+                            selectedLevel = selectedLevel == level ? nil : level
+                        }
+                    }
+                }
+                .padding(.vertical, Spacing.xs)
+            }
+            .scrollIndicators(.hidden)
+
+            ScrollView(.horizontal) {
+                HStack(spacing: Spacing.s) {
+                    FilterChip(title: "Any schedule", isSelected: selectedDays == nil) {
+                        selectedDays = nil
+                    }
+                    ForEach(availableDays, id: \.self) { days in
+                        FilterChip(
+                            title: "\(days) days/week",
+                            isSelected: selectedDays == days
+                        ) {
+                            selectedDays = selectedDays == days ? nil : days
+                        }
+                    }
+                }
+                .padding(.vertical, Spacing.xs)
+            }
+            .scrollIndicators(.hidden)
+        }
+    }
 }
 
-private struct ProgramCatalogRow: View {
+private struct ProgramCatalogCard: View {
     let record: ProgramDefinitionRecord
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            Text(record.name)
-                .font(AppFont.headline)
-                .foregroundStyle(Color.gymText)
-            HStack(spacing: Spacing.m) {
-                Label("\(record.durationWeeks) weeks", systemImage: AppIcon.plan)
-                Text(record.experienceLevel.rawValue.localizedCapitalized)
+        HStack(alignment: .center, spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Text(record.name)
+                    .font(AppFont.headline)
+                    .foregroundStyle(Color.gymText)
+                    .multilineTextAlignment(.leading)
+
+                HStack(spacing: Spacing.s) {
+                    ProgramMetaChip(text: "\(record.durationWeeks) weeks")
+                    ProgramMetaChip(text: record.experienceLevel.rawValue.localizedCapitalized)
+                }
+
+                if let summary = record.summary, !summary.isEmpty {
+                    Text(summary)
+                        .font(AppFont.subheadline)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                }
             }
-            .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
-            if let summary = record.summary, !summary.isEmpty {
-                Text(summary)
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .lineLimit(2)
-            }
+
+            Spacer(minLength: Spacing.s)
+
+            Image(systemName: "chevron.right")
+                .font(AppFont.captionBold)
+                .foregroundStyle(Color.gymSubtleText)
         }
-        .padding(.vertical, Spacing.s)
+        .padding(Spacing.l)
+        .background {
+            RoundedRectangle(cornerRadius: Radius.large)
+                .fill(Color.gymCard)
+                .stroke(Color.gymBorder, lineWidth: 1)
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+struct ProgramMetaChip: View {
+    let text: String
+
+    var body: some View {
+        Text(LocalizedStringKey(text))
+            .font(AppFont.captionBold)
+            .foregroundStyle(Color.gymPrimary)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.xs)
+            .background(Color.gymPrimarySurface, in: Capsule())
     }
 }
 
 struct ProgramCatalogDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query private var exercises: [Exercise]
     let record: ProgramDefinitionRecord
 
     @State private var errorMessage: String?
@@ -80,6 +184,10 @@ struct ProgramCatalogDetailView: View {
     @State private var isShowingSetup = false
 
     private var payload: ProgramDefinitionPayload? { try? record.payload() }
+
+    private var exerciseNamesByID: [UUID: String] {
+        Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0.name) })
+    }
 
     var body: some View {
         ScrollView {
@@ -93,7 +201,7 @@ struct ProgramCatalogDetailView: View {
             .padding(.vertical, Spacing.l)
         }
         .folderScreenStyle()
-        .navigationTitle(record.name)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("program-catalog-detail")
         .sheet(isPresented: $isShowingSetup) {
@@ -110,30 +218,32 @@ struct ProgramCatalogDetailView: View {
     private var overview: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Text(record.name)
-                .font(AppFont.titleMedium)
+                .font(AppFont.displayMedium)
                 .foregroundStyle(Color.gymText)
             if let summary = record.summary {
                 Text(summary)
                     .font(AppFont.body)
                     .foregroundStyle(Color.gymSubduedText)
             }
-            HStack(spacing: Spacing.m) {
-                Label("\(record.durationWeeks) weeks", systemImage: AppIcon.plan)
-                Text(record.experienceLevel.rawValue.localizedCapitalized)
-                Text(record.supportedDaysPerWeek.map(String.init).joined(separator: ", ") + " days/week")
+            HStack(spacing: Spacing.s) {
+                ProgramMetaChip(text: "\(record.durationWeeks) weeks")
+                ProgramMetaChip(text: record.experienceLevel.rawValue.localizedCapitalized)
+                ProgramMetaChip(text: record.supportedDaysPerWeek.map(String.init).joined(separator: "/") + " days/week")
             }
-            .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
         }
     }
 
     @ViewBuilder
     private var requirements: some View {
         if let payload, !payload.prerequisites.isEmpty || !payload.warnings.isEmpty {
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                Text("Before you start").font(AppFont.titleSmall)
+            sectionCard(title: "Before you start") {
                 ForEach(payload.prerequisites, id: \.self) { item in
-                    Label(item, systemImage: AppIcon.checkmarkCircle)
+                    Label {
+                        Text(item).foregroundStyle(Color.gymText)
+                    } icon: {
+                        Image(systemName: AppIcon.checkmarkCircle)
+                            .foregroundStyle(Color.gymSecondary)
+                    }
                 }
                 ForEach(payload.warnings, id: \.self) { warning in
                     Label(warning, systemImage: AppIcon.warning)
@@ -147,21 +257,74 @@ struct ProgramCatalogDetailView: View {
     @ViewBuilder
     private var prescription: some View {
         if let payload, let rows = try? ProgramDefinitionPreview.rows(for: payload) {
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                Text("Prescription preview").font(AppFont.titleSmall)
-                ForEach(Array(rows.prefix(8))) { row in
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text(row.exposureKey).font(AppFont.bodyMedium)
-                        Text("Week \(row.weekIndex + 1) · \(row.workoutName) · \(row.setCount) sets")
-                            .font(AppFont.caption)
+            let names = exerciseNamesByID
+            let previewRows = Array(rows.prefix(8))
+            let workouts = groupedByWorkout(previewRows)
+
+            sectionCard(title: "Week 1 preview") {
+                ForEach(Array(workouts.enumerated()), id: \.offset) { index, workout in
+                    if index > 0 {
+                        Divider().overlay(Color.gymBorder)
+                    }
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        Text(workout.name.uppercased())
+                            .font(AppFont.captionBold)
+                            .tracking(0.8)
                             .foregroundStyle(Color.gymSubduedText)
+                        ForEach(Array(workout.rows.enumerated()), id: \.offset) { _, row in
+                            HStack {
+                                Text(names[row.exerciseID] ?? row.exposureKey)
+                                    .font(AppFont.bodyMedium)
+                                    .foregroundStyle(Color.gymText)
+                                Spacer()
+                                Text("\(row.setCount) sets")
+                                    .font(AppFont.subheadlineMonospaced)
+                                    .foregroundStyle(Color.gymSubduedText)
+                            }
+                        }
                     }
                 }
-                if rows.count > 8 {
-                    Text("Plus \(rows.count - 8) additional prescribed sets")
+                if rows.count > previewRows.count {
+                    Text("Plus \(rows.count - previewRows.count) more prescribed exercises across the program")
                         .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
                 }
+            }
+        }
+    }
+
+    private func groupedByWorkout(
+        _ rows: [ProgramDefinitionPreviewRow]
+    ) -> [(name: String, rows: [ProgramDefinitionPreviewRow])] {
+        var groups: [(name: String, rows: [ProgramDefinitionPreviewRow])] = []
+        for row in rows {
+            let name = "Week \(row.weekIndex + 1) · \(row.workoutName)"
+            if let lastIndex = groups.indices.last, groups[lastIndex].name == name {
+                groups[lastIndex].rows.append(row)
+            } else {
+                groups.append((name: name, rows: [row]))
+            }
+        }
+        return groups
+    }
+
+    private func sectionCard<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            Text(title)
+                .font(AppFont.titleSmall)
+                .foregroundStyle(Color.gymText)
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                content()
+            }
+            .padding(Spacing.l)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: Radius.large)
+                    .fill(Color.gymCard)
+                    .stroke(Color.gymBorder, lineWidth: 1)
             }
         }
     }

@@ -86,12 +86,13 @@ class GymTrackerUITestCase: XCTestCase {
 
     func openUpperBodyTemplateEditor(in app: XCUIApplication) {
         selectTab(.library, in: app)
-        let templatesBrowser = app.staticTexts["Workouts"].firstMatch
-        XCTAssertTrue(templatesBrowser.waitForExistence(timeout: 5))
-        templatesBrowser.tap()
-
         let template = app.staticTexts["Day 2 – Upper Body (Push/Pull)"].firstMatch
         XCTAssertTrue(template.waitForExistence(timeout: 5))
+        var attempts = 0
+        while !template.isHittable && attempts < 4 {
+            app.swipeUp()
+            attempts += 1
+        }
         template.tap()
     }
 

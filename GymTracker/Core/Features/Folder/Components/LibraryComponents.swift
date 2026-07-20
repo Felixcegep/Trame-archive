@@ -38,45 +38,13 @@ struct LibraryBrowserList<Content: View>: View {
     }
 }
 
-struct LibraryCategoryRow: View {
-    let title: String
-    let subtitle: String
-    let count: Int
-    let icon: String
-    let color: Color
-    let surface: Color
-
-    var body: some View {
-        HStack(spacing: Spacing.m) {
-            Image(systemName: icon)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(color)
-                .frame(width: 42, height: 42)
-                .background(surface, in: RoundedRectangle(cornerRadius: Radius.medium))
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(title).font(.body.weight(.semibold))
-                Text(subtitle).font(.caption).foregroundStyle(Color.gymSubduedText)
-            }
-            Spacer()
-            Text("\(count)")
-                .font(.subheadline.monospacedDigit())
-                .foregroundStyle(Color.gymSubduedText)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(Color.gymSubtleText)
-        }
-        .padding(Spacing.l - 2)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large))
-        .overlay { RoundedRectangle(cornerRadius: Radius.large).stroke(Color.gymBorder, lineWidth: 1) }
-    }
-}
-
 struct LibraryItemRow: View {
     let title: String
-    let subtitle: String
+    let subtitle: String?
     let icon: String
     let color: Color
     let surface: Color
+    var count: Int?
     var showsCard = true
     var showsChevron = true
 
@@ -93,9 +61,16 @@ struct LibraryItemRow: View {
                     .foregroundStyle(Color.gymText)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
-                Text(subtitle).font(.caption).foregroundStyle(Color.gymSubduedText).lineLimit(1)
+                if let subtitle {
+                    Text(subtitle).font(.caption).foregroundStyle(Color.gymSubduedText).lineLimit(1)
+                }
             }
             Spacer()
+            if let count {
+                Text("\(count)")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(Color.gymSubduedText)
+            }
             if showsChevron {
                 Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(Color.gymSubtleText)
             }
@@ -109,6 +84,57 @@ struct LibraryItemRow: View {
                     .stroke(Color.gymBorder, lineWidth: 1)
             }
         }
+        .contentShape(Rectangle())
+    }
+}
+
+struct LibraryGroupCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content
+        }
+        .background {
+            RoundedRectangle(cornerRadius: Radius.large)
+                .fill(Color.gymCard)
+                .stroke(Color.gymBorder, lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Radius.large))
+    }
+}
+
+struct LibraryGroupDivider: View {
+    var body: some View {
+        Divider()
+            .overlay(Color.gymBorder)
+            .padding(.leading, 60)
+    }
+}
+
+struct LibraryCreateRow: View {
+    let title: LocalizedStringKey
+    var subtitle: LocalizedStringKey?
+    let icon: String
+
+    var body: some View {
+        HStack(spacing: Spacing.m) {
+            Image(systemName: icon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Color.gymPrimary)
+                .frame(width: 34, height: 34)
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.gymPrimary)
+                if let subtitle {
+                    Text(subtitle).font(.caption).foregroundStyle(Color.gymSubduedText)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, Spacing.l - 2)
+        .padding(.vertical, Spacing.md)
         .contentShape(Rectangle())
     }
 }

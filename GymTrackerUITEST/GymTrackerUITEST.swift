@@ -40,7 +40,10 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(startingLoad.waitForExistence(timeout: 5))
         startingLoad.tap()
         startingLoad.typeText("20")
-        app.buttons["Done"].tap()
+        let keyboardDone = app.buttons["Done"]
+        if keyboardDone.waitForExistence(timeout: 2) {
+            keyboardDone.tap()
+        }
         tapButton("start-program", in: app)
         XCTAssertTrue(app.buttons["use-program"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["use-program"].label.contains("Program added"))
@@ -534,10 +537,6 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.launch()
 
         app.tabBars.buttons.element(boundBy: 1).tap()
-
-        let workoutsRow = app.staticTexts["Workouts"].firstMatch
-        XCTAssertTrue(workoutsRow.waitForExistence(timeout: 5))
-        workoutsRow.tap()
 
         let seededCollection = app.staticTexts["Upper/Lower Program – 4 Days"]
         XCTAssertTrue(seededCollection.waitForExistence(timeout: 5))

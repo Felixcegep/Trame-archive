@@ -71,6 +71,45 @@ enum Muscle: String, Codable, CaseIterable {
 }
 
 extension Muscle {
+    enum Group: String, CaseIterable {
+        case chest = "Chest"
+        case shoulders = "Shoulders"
+        case arms = "Arms"
+        case back = "Back"
+        case core = "Core"
+        case glutes = "Glutes"
+        case legs = "Legs"
+        case other = "Other Muscles"
+
+        var muscles: [Muscle] {
+            Muscle.allCases.filter { $0.group == self }
+        }
+    }
+
+    var group: Group {
+        switch self {
+        case .upperChest, .middleChest, .lowerChest:
+            return .chest
+        case .frontDeltoid, .lateralDeltoid, .rearDeltoid:
+            return .shoulders
+        case .bicep, .brachialis, .brachioradialis,
+             .tricepLongHead, .tricepLateralHead, .tricepMedialHead, .forearms:
+            return .arms
+        case .latissimusDorsi, .trapezius, .rhomboids, .teresMajor, .erectorSpinae:
+            return .back
+        case .rectusAbdominis, .obliques, .transverseAbdominis:
+            return .core
+        case .gluteMaximus, .gluteMedius, .gluteMinimus:
+            return .glutes
+        case .quadriceps, .hamstrings, .adductors, .abductors, .calves, .tibialisAnterior:
+            return .legs
+        case .neck:
+            return .other
+        }
+    }
+}
+
+extension Muscle {
     private static let displayNames: [Muscle: String] = {
         Dictionary(uniqueKeysWithValues: allCases.map { muscle in
             let name = muscle.rawValue.reduce("") { result, character in

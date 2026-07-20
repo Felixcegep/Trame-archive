@@ -69,12 +69,6 @@ struct ExerciseFormView: View {
                 TextField("Name", text: $name)
                     .accessibilityIdentifier("exercise-name-field")
 
-                Picker("Category", selection: $category) {
-                    ForEach(ExerciseCategory.allCases, id: \.self) { category in
-                        Text(LocalizedStringKey(category.rawValue)).tag(category)
-                    }
-                }
-
                 Picker("Equipment", selection: $equipmentType) {
                     ForEach(EquipmentType.allCases, id: \.self) { equipment in
                         Text(LocalizedStringKey(equipment.rawValue)).tag(equipment)
@@ -86,109 +80,63 @@ struct ExerciseFormView: View {
                         Text(LocalizedStringKey(trackingType.rawValue)).tag(trackingType)
                     }
                 }
-
-                Picker("Difficulty", selection: $difficulty) {
-                    ForEach(Difficulty.allCases, id: \.self) { difficulty in
-                        Text(LocalizedStringKey(difficulty.rawValue)).tag(difficulty)
-                    }
-                }
             }
 
-            Section("Advanced — Classification") {
-                Picker("Resistance", selection: $resistanceType) {
-                    Text("None").tag(ResistanceType?.none)
-                    ForEach(ResistanceType.allCases, id: \.self) { resistance in
-                        Text(LocalizedStringKey(resistance.rawValue)).tag(Optional(resistance))
-                    }
+            Section("Muscles") {
+                NavigationLink {
+                    MusclePickerView(
+                        primaryMuscles: $primaryMuscles,
+                        secondaryMuscles: $secondaryMuscles
+                    )
+                } label: {
+                    drillDownRow(
+                        icon: AppIcon.muscles,
+                        tint: Color.gymPrimary,
+                        surface: Color.gymPrimarySurface,
+                        title: "Muscles Worked",
+                        subtitle: muscleSummary
+                    )
                 }
-
-                Picker("Movement Pattern", selection: $movementPattern) {
-                    Text("None").tag(MovementPattern?.none)
-                    ForEach(MovementPattern.allCases, id: \.self) { movement in
-                        Text(LocalizedStringKey(movement.rawValue)).tag(Optional(movement))
-                    }
-                }
-
-                Picker("Mechanics", selection: $mechanics) {
-                    Text("None").tag(ExerciseMechanics?.none)
-                    ForEach(ExerciseMechanics.allCases, id: \.self) { mechanics in
-                        Text(LocalizedStringKey(mechanics.rawValue)).tag(Optional(mechanics))
-                    }
-                }
-
-                Picker("Force", selection: $forceType) {
-                    Text("None").tag(ForceType?.none)
-                    ForEach(ForceType.allCases, id: \.self) { forceType in
-                        Text(LocalizedStringKey(forceType.rawValue)).tag(Optional(forceType))
-                    }
-                }
+                .accessibilityIdentifier("exercise-muscles-link")
             }
 
-            variationSection
-
-            Section("Advanced — Logging") {
-                Picker("Laterality", selection: $laterality) {
-                    ForEach(Laterality.allCases, id: \.self) { laterality in
-                        Text(LocalizedStringKey(laterality.rawValue)).tag(laterality)
-                    }
+            Section {
+                NavigationLink {
+                    ExerciseAdvancedDetailsView(
+                        trackingType: trackingType,
+                        equipmentType: equipmentType,
+                        category: $category,
+                        difficulty: $difficulty,
+                        resistanceType: $resistanceType,
+                        movementPattern: $movementPattern,
+                        mechanics: $mechanics,
+                        forceType: $forceType,
+                        gripStyle: $gripStyle,
+                        stance: $stance,
+                        rangeOfMotion: $rangeOfMotion,
+                        setupAngleDegrees: $setupAngleDegrees,
+                        variationFamilyID: $variationFamilyID,
+                        laterality: $laterality,
+                        repCountingStyle: $repCountingStyle,
+                        weightEntryStyle: $weightEntryStyle,
+                        loadUnitCount: $loadUnitCount,
+                        isPlateLoaded: $isPlateLoaded,
+                        tagsText: $tagsText
+                    )
+                } label: {
+                    drillDownRow(
+                        icon: AppIcon.advanced,
+                        tint: Color.gymAccent,
+                        surface: Color.gymAccentSurface,
+                        title: "Advanced Details",
+                        subtitle: advancedSummary
+                    )
                 }
-                .pickerStyle(.segmented)
-
-                if laterality == .unilateral {
-                    Picker("Rep Counting", selection: $repCountingStyle) {
-                        ForEach(RepCountingStyle.allCases, id: \.self) { style in
-                            Text(LocalizedStringKey(style.rawValue)).tag(style)
-                        }
-                    }
-                }
-
-                if trackingType.usesWeight {
-                    Picker("Weight Entry", selection: $weightEntryStyle) {
-                        ForEach(WeightEntryStyle.allCases, id: \.self) { style in
-                            Text(LocalizedStringKey(style.rawValue)).tag(style)
-                        }
-                    }
-
-                    if weightEntryStyle == .perLoadUnit {
-                        Stepper("Load Units: \(loadUnitCount)", value: $loadUnitCount, in: 1...4)
-                    }
-                }
-            }
-
-            if trackingType.usesWeight && equipmentType == .barbell {
-                Section {
-                    Label("Plate calculator enabled", systemImage: AppIcon.plateCalculator)
-                } header: {
-                    Text("Weight entry")
-                } footer: {
-                    Text("Barbell exercises use the plate calculator automatically.")
-                }
-            } else if canConfigurePlateLoading {
-                Section {
-                    Toggle("Uses weight plates", isOn: $isPlateLoaded)
-                } header: {
-                    Text("Weight entry")
-                } footer: {
-                    Text("Enable this for plate-loaded machines or equipment loaded equally on both sides.")
-                }
-            }
-
-            MuscleSelectionSection(
-                title: "Primary Muscles",
-                selectedMuscles: primaryMuscles,
-                onSelect: togglePrimaryMuscle
-            )
-
-            MuscleSelectionSection(
-                title: "Secondary Muscles",
-                selectedMuscles: secondaryMuscles,
-                onSelect: toggleSecondaryMuscle
-            )
-
-            Section("Tags") {
-                TextField("Tags, separated by commas", text: $tagsText)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+                .accessibilityIdentifier("exercise-advanced-link")
+            } header: {
+                Text("More")
+            } footer: {
+                Text("Everything in Advanced Details is optional — sensible defaults are already applied.")
             }
         }
         .scrollContentBackground(.hidden)
@@ -284,56 +232,63 @@ struct ExerciseFormView: View {
         )
     }
 
-    private var canConfigurePlateLoading: Bool {
-        trackingType.usesWeight && (equipmentType == .machine || equipmentType == .other)
-    }
-
     private var normalizedVariationFamilyID: String? {
         let value = variationFamilyID.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
     }
 
-    private var variationSection: some View {
-        Section {
-            Picker("Grip", selection: $gripStyle) {
-                Text("None").tag(GripStyle?.none)
-                ForEach(GripStyle.allCases, id: \.self) { gripStyle in
-                    Text(LocalizedStringKey(gripStyle.rawValue)).tag(Optional(gripStyle))
+    private func drillDownRow(
+        icon: String,
+        tint: Color,
+        surface: Color,
+        title: LocalizedStringKey,
+        subtitle: String
+    ) -> some View {
+        HStack(spacing: Spacing.m) {
+            RoundedRectangle(cornerRadius: Radius.small)
+                .fill(surface)
+                .frame(width: 36, height: 36)
+                .overlay {
+                    Image(systemName: icon)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(tint)
                 }
-            }
 
-            Picker("Stance", selection: $stance) {
-                Text("None").tag(ExerciseStance?.none)
-                ForEach(ExerciseStance.allCases, id: \.self) { stance in
-                    Text(LocalizedStringKey(stance.rawValue)).tag(Optional(stance))
-                }
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(title)
+                    .font(AppFont.body)
+                    .foregroundStyle(Color.gymText)
+                Text(subtitle)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .lineLimit(1)
             }
-
-            Picker("Range of Motion", selection: $rangeOfMotion) {
-                Text("None").tag(RangeOfMotion?.none)
-                ForEach(RangeOfMotion.allCases, id: \.self) { rangeOfMotion in
-                    Text(LocalizedStringKey(rangeOfMotion.rawValue)).tag(Optional(rangeOfMotion))
-                }
-            }
-
-            Picker("Setup Angle", selection: $setupAngleDegrees) {
-                Text("None").tag(Int?.none)
-                ForEach(Self.setupAngles, id: \.self) { angle in
-                    Text(String(angle) + "°").tag(Optional(angle))
-                }
-            }
-
-            TextField("Variation family", text: $variationFamilyID)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-        } header: {
-            Text("Advanced — Variation")
-        } footer: {
-            Text("Use a shared family only to help people discover related variants. It does not make exercises interchangeable.")
         }
+        .padding(.vertical, Spacing.xxs)
     }
 
-    private static let setupAngles = Array(stride(from: 0, through: 90, by: 5))
+    private var muscleSummary: String {
+        let names = sortedMuscles(primaryMuscles).map(\.displayName)
+        guard !names.isEmpty else {
+            return NSLocalizedString("Choose at least one primary muscle", comment: "")
+        }
+
+        var summary = names.prefix(3).joined(separator: " · ")
+        if names.count > 3 {
+            summary += " +\(names.count - 3)"
+        }
+        if !secondaryMuscles.isEmpty {
+            let format = NSLocalizedString("%d secondary", comment: "Count of secondary muscles")
+            summary += " · " + String(format: format, secondaryMuscles.count)
+        }
+        return summary
+    }
+
+    private var advancedSummary: String {
+        NSLocalizedString(category.rawValue, comment: "")
+            + " · "
+            + NSLocalizedString(difficulty.rawValue, comment: "")
+    }
 
     private func handleEquipmentChange(from previous: EquipmentType, to current: EquipmentType) {
         if previous == .barbell && current != .barbell {
@@ -367,24 +322,6 @@ struct ExerciseFormView: View {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }))
             .sorted()
-    }
-
-    private func togglePrimaryMuscle(_ muscle: Muscle) {
-        if primaryMuscles.contains(muscle) {
-            primaryMuscles.remove(muscle)
-        } else {
-            primaryMuscles.insert(muscle)
-            secondaryMuscles.remove(muscle)
-        }
-    }
-
-    private func toggleSecondaryMuscle(_ muscle: Muscle) {
-        if secondaryMuscles.contains(muscle) {
-            secondaryMuscles.remove(muscle)
-        } else {
-            secondaryMuscles.insert(muscle)
-            primaryMuscles.remove(muscle)
-        }
     }
 
     private func sortedMuscles(_ muscles: Set<Muscle>) -> [Muscle] {

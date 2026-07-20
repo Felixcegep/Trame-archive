@@ -43,12 +43,14 @@ Scenes:
   recommendation         Progression decisions, actions, and recommendation with rest
   performance            Planned-versus-performed save and history feedback
   template-progression   Template progression controls
+  workout-form           New Workout creation form with exercise selection
   plan-review            Per-day assignments and plan change review
   program-builder        Custom universal program definition builder
   program-catalog        Built-in program browser, detail, and intake
   plan-calendar          Active program agenda and a scheduled-day detail
   hidden                 Hidden and archived exercise management
   exercise-insights      Per-exercise history and progression insights
+  exercise-form          New Exercise form, muscle picker, and advanced details
   muscle-balance        Estimated weekly muscle-group balance
 
 Options:
@@ -73,12 +75,14 @@ tests_for_scene() {
     recommendation) echo "testCaptureIncreaseRecommendationScreenshots testCaptureHoldRecommendationScreenshot testCaptureInsufficientHistoryRecommendationScreenshots testCaptureRecommendationWithRunningRestScreenshot testCaptureRecommendationWithPausedRestScreenshot" ;;
     performance) echo "testCapturePerformanceComparisonReviewScreenshot testCapturePerformanceComparisonHistoryScreenshot" ;;
     template-progression) echo "testCaptureTemplateProgressionScreenshot" ;;
+    workout-form) echo "testCaptureNewWorkoutFormScreenshot" ;;
     plan-review) echo "testCapturePlanReviewScreenshot testCaptureActivePlanRunScreenshot" ;;
     program-builder) echo "testCaptureProgramDefinitionBuilderScreenshot" ;;
     program-catalog) echo "testCaptureProgramCatalogScreenshots" ;;
     plan-calendar) echo "testCapturePlanCalendarScreenshots" ;;
     hidden) echo "testCaptureHiddenExercisesScreenshot" ;;
     exercise-insights) echo "testCaptureExerciseDetailVariationsScreenshot testCaptureExerciseRelationshipsScreenshot testCaptureExercisePerformanceInsightsScreenshot" ;;
+    exercise-form) echo "testCaptureNewExerciseFormScreenshots" ;;
     muscle-balance) echo "testCaptureMuscleBalanceScreenshot" ;;
     *) return 1 ;;
   esac
@@ -94,18 +98,20 @@ files_for_scene() {
     recommendation) echo "progression/10_Previous_Performance.png progression/10b_Progression_Hold.png progression/10c_Progression_Starting_Weight.png progression/10d_Progression_Manual_Edit.png progression/10e_Progression_Applied_Weight.png progression/10f_Progression_With_Rest_Running.png progression/10g_Progression_With_Rest_Paused.png" ;;
     performance) echo "review/14_Save_Performance_Comparison.png history/15_History_Performance_Comparison.png" ;;
     template-progression) echo "templates/12_Template_Progression.png" ;;
+    workout-form) echo "templates/12b_New_Workout_Form.png templates/12c_Exercise_Filters.png" ;;
     plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13c_Program_Equipment.png plans/13d_Plan_Deload_Schedule.png plans/13g_Plan_Exercise_Alternatives.png plans/13h_Plan_Per_Set_Prescription.png plans/13_Plan_Review.png plans/13i_Program_Prescription_Preview.png plans/13b_Plan_Active_Run.png overview/01d_Home_Active_Plan.png" ;;
     program-builder) echo "plans/13j_Program_Definition_Builder.png" ;;
     program-catalog) echo "plans/13k_Program_Catalog.png plans/13l_Program_Catalog_Detail.png plans/13m_Program_Intake.png" ;;
     plan-calendar) echo "plans/13e_Plan_Calendar.png plans/13f_Plan_Calendar_Day.png" ;;
     hidden) echo "exercises/16_Hidden_Exercises.png" ;;
     exercise-insights) echo "exercises/17a_Exercise_Detail_Variations.png exercises/17b_Exercise_Relationships.png exercises/17_Exercise_Insights.png" ;;
+    exercise-form) echo "exercises/18_New_Exercise_Form.png exercises/18b_New_Exercise_Muscles.png exercises/18c_New_Exercise_Advanced.png" ;;
     muscle-balance) echo "history/16_Muscle_Balance.png" ;;
     *) return 1 ;;
   esac
 }
 
-ALL_SCENES="overview pages active rest history recommendation performance template-progression plan-review program-builder program-catalog plan-calendar hidden exercise-insights muscle-balance"
+ALL_SCENES="overview pages active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar hidden exercise-insights exercise-form muscle-balance"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 

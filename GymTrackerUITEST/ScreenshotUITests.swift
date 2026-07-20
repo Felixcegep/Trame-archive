@@ -2,13 +2,47 @@ import XCTest
 @testable import GymTracker
 
 final class ScreenshotUITests: GymTrackerUITestCase {
+    func testCaptureNewWorkoutFormScreenshot() {
+        let app = launchFreshApp()
+        selectTab(.library, in: app)
+        tapButton("Create library item", in: app)
+        tapButton("New Workout", in: app)
+
+        let nameField = app.textFields["template-name-field"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        tapButton("template-exercise-Arnold Press", in: app)
+        saveScreenshot("templates/12b_New_Workout_Form")
+
+        tapButton("exercise-filters-button", in: app)
+        XCTAssertTrue(app.navigationBars["Filters"].waitForExistence(timeout: 5))
+        saveScreenshot("templates/12c_Exercise_Filters")
+    }
+
+    func testCaptureNewExerciseFormScreenshots() {
+        let app = launchFreshApp()
+        selectTab(.library, in: app)
+        tapButton("Create library item", in: app)
+        tapButton("New Exercise", in: app)
+
+        let nameField = app.textFields["exercise-name-field"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        saveScreenshot("exercises/18_New_Exercise_Form")
+
+        tapButton("exercise-muscles-link", in: app)
+        XCTAssertTrue(app.navigationBars["Muscles Worked"].waitForExistence(timeout: 5))
+        saveScreenshot("exercises/18b_New_Exercise_Muscles")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        tapButton("exercise-advanced-link", in: app)
+        XCTAssertTrue(app.navigationBars["Advanced Details"].waitForExistence(timeout: 5))
+        saveScreenshot("exercises/18c_New_Exercise_Advanced")
+    }
+
     func testCaptureHiddenExercisesScreenshot() {
         let app = launchFreshApp()
         selectTab(.library, in: app)
 
-        let exercises = app.staticTexts["Exercises"].firstMatch
-        XCTAssertTrue(exercises.waitForExistence(timeout: 5))
-        exercises.tap()
+        tapButton("exercises-browser", in: app)
 
         let benchPress = app.buttons["exercise-row-Bench Press"]
         XCTAssertTrue(benchPress.waitForExistence(timeout: 5))
@@ -353,11 +387,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureLibrarySecondaryStatesScreenshots() {
         let library = launchFreshApp()
         selectTab(.library, in: library)
-        let templatesBrowser = library.staticTexts["Workouts"].firstMatch
-        XCTAssertTrue(templatesBrowser.waitForExistence(timeout: 5))
-        templatesBrowser.tap()
+        let myWorkoutsHeader = library.staticTexts["MY WORKOUTS"].firstMatch
+        XCTAssertTrue(myWorkoutsHeader.waitForExistence(timeout: 5))
+        library.swipeUp()
         saveScreenshot("overview/02b_Library_Templates")
-        library.navigationBars.buttons.firstMatch.tap()
+        library.swipeDown()
         tapButton("plans-browser", in: library)
         saveScreenshot("overview/02c_Library_Plans")
         library.navigationBars.buttons.firstMatch.tap()
@@ -587,92 +621,6 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         dayRows.element(boundBy: 2).tap()
         XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-day-screen"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13f_Plan_Calendar_Day")
-    }
-
-    private func selectTab(_ tab: AppTab, in app: XCUIApplication) {
-        let tabButton = app.tabBars.buttons.element(boundBy: tab.rawValue)
-        XCTAssertTrue(tabButton.waitForExistence(timeout: 5))
-        tabButton.tap()
-    }
-
-    @discardableResult
-    private func tapButton(
-        _ identifier: String,
-        in app: XCUIApplication,
-        timeout: TimeInterval = 5,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) -> XCUIElement {
-        let button = app.buttons[identifier].firstMatch
-        XCTAssertTrue(
-            button.waitForExistence(timeout: timeout),
-            "Expected button '\(identifier)' to exist",
-            file: file,
-            line: line
-        )
-        button.tap()
-        return button
-    }
-
-    private func tapFirstAvailableButton(
-        _ identifiers: [String],
-        in app: XCUIApplication,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) {
-        for identifier in identifiers {
-            let button = app.buttons[identifier].firstMatch
-            if button.waitForExistence(timeout: 1) {
-                button.tap()
-                return
-            }
-        }
-        XCTFail("None of the expected buttons existed: \(identifiers)", file: file, line: line)
-    }
-
-    private func selectExerciseFromOpenPicker(_ name: String, in app: XCUIApplication) {
-        let search = app.searchFields["Search exercises"]
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
-        search.tap()
-        search.typeText(name)
-        tapButton("add-exercise-\(name)", in: app)
-
-        let keyboardClose = app.buttons["close"]
-        if keyboardClose.waitForExistence(timeout: 2) {
-            keyboardClose.tap()
-        }
-        tapButton("close-exercise-picker", in: app)
-    }
-
-    private func completeSet(
-        _ exercise: String,
-        index: Int,
-        dismissRest: Bool,
-        in app: XCUIApplication
-    ) {
-        tapButton("complete-set-\(exercise)-\(index)", in: app)
-        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
-        if dismissRest {
-            dismissRestIfPresent(in: app)
-        }
-    }
-
-    private func dismissRestIfPresent(in app: XCUIApplication) {
-        let done = app.buttons["Done"]
-        if done.waitForExistence(timeout: 2) {
-            done.tap()
-        }
-    }
-
-    private func openUpperBodyTemplateEditor(in app: XCUIApplication) {
-        selectTab(.library, in: app)
-        let templatesBrowser = app.staticTexts["Workouts"].firstMatch
-        XCTAssertTrue(templatesBrowser.waitForExistence(timeout: 5))
-        templatesBrowser.tap()
-
-        let template = app.staticTexts["Day 2 – Upper Body (Push/Pull)"].firstMatch
-        XCTAssertTrue(template.waitForExistence(timeout: 5))
-        template.tap()
     }
 
     private func saveScreenshot(

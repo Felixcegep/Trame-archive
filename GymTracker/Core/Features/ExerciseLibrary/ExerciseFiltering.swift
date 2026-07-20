@@ -215,6 +215,7 @@ struct ExerciseFilterControls: View {
                     }
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("exercise-filters-button")
             .accessibilityLabel("Filters, \(filter.activeFilterCount) active")
         }
         .sheet(isPresented: $isShowingFilters) {
@@ -255,83 +256,94 @@ private struct ExerciseFiltersSheet: View {
     let resultCount: Int
 
     var body: some View {
-        Form {
-            Section("Quick focus") {
-                Picker("Focus", selection: $filter.focus) {
-                    Text("All").tag(ExerciseFocus?.none)
-                    ForEach(ExerciseFocus.allCases) { focus in
-                        Text(LocalizedStringKey(focus.rawValue)).tag(Optional(focus))
-                    }
-                }
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.xxl) {
+                singleChipSection(
+                    title: "Focus",
+                    values: ExerciseFocus.allCases,
+                    label: \.rawValue,
+                    selection: $filter.focus
+                )
 
-            Section("Body area") {
-                DisclosureGroup("Choose body areas") {
-                    ForEach(ExerciseBodyArea.allCases) { area in
-                        Toggle(LocalizedStringKey(area.rawValue), isOn: selectionBinding(for: area, keyPath: \.bodyAreas))
-                    }
-                }
-            }
+                multiChipSection(
+                    title: "Body Area",
+                    values: ExerciseBodyArea.allCases,
+                    label: \.rawValue,
+                    selection: $filter.bodyAreas
+                )
 
-            Section("Movement") {
-                DisclosureGroup("Choose movement patterns") {
-                    ForEach(MovementPattern.allCases, id: \.self) { pattern in
-                        Toggle(LocalizedStringKey(pattern.rawValue), isOn: selectionBinding(for: pattern, keyPath: \.movementPatterns))
-                    }
-                }
+                singleChipSection(
+                    title: "Equipment",
+                    values: EquipmentType.allCases,
+                    label: \.rawValue,
+                    selection: $filter.equipment
+                )
 
-                DisclosureGroup("Choose mechanics") {
-                    ForEach(ExerciseMechanics.allCases, id: \.self) { mechanics in
-                        Toggle(LocalizedStringKey(mechanics.rawValue), isOn: selectionBinding(for: mechanics, keyPath: \.mechanics))
-                    }
-                }
+                multiChipSection(
+                    title: "Movement Pattern",
+                    values: MovementPattern.allCases,
+                    label: \.rawValue,
+                    selection: $filter.movementPatterns
+                )
 
-                DisclosureGroup("Choose force type") {
-                    ForEach(ForceType.allCases, id: \.self) { forceType in
-                        Toggle(LocalizedStringKey(forceType.rawValue), isOn: selectionBinding(for: forceType, keyPath: \.forceTypes))
-                    }
-                }
+                multiChipSection(
+                    title: "Mechanics",
+                    values: ExerciseMechanics.allCases,
+                    label: \.rawValue,
+                    selection: $filter.mechanics
+                )
 
-                DisclosureGroup("Choose laterality") {
-                    ForEach(Laterality.allCases, id: \.self) { laterality in
-                        Toggle(LocalizedStringKey(laterality.rawValue), isOn: selectionBinding(for: laterality, keyPath: \.laterality))
-                    }
-                }
-            }
+                multiChipSection(
+                    title: "Force",
+                    values: ForceType.allCases,
+                    label: \.rawValue,
+                    selection: $filter.forceTypes
+                )
 
-            Section("Details") {
-                Picker("Equipment", selection: $filter.equipment) {
-                    Text("All equipment").tag(EquipmentType?.none)
-                    ForEach(EquipmentType.allCases, id: \.self) { equipment in
-                        Text(LocalizedStringKey(equipment.rawValue)).tag(Optional(equipment))
-                    }
-                }
+                multiChipSection(
+                    title: "Laterality",
+                    values: Laterality.allCases,
+                    label: \.rawValue,
+                    selection: $filter.laterality
+                )
 
-                Picker("Category", selection: $filter.category) {
-                    Text("All categories").tag(ExerciseCategory?.none)
-                    ForEach(ExerciseCategory.allCases, id: \.self) { category in
-                        Text(LocalizedStringKey(category.rawValue)).tag(Optional(category))
-                    }
-                }
+                singleChipSection(
+                    title: "Category",
+                    values: ExerciseCategory.allCases,
+                    label: \.rawValue,
+                    selection: $filter.category
+                )
 
-                Picker("Difficulty", selection: $filter.difficulty) {
-                    Text("All difficulties").tag(Difficulty?.none)
-                    ForEach(Difficulty.allCases, id: \.self) { difficulty in
-                        Text(LocalizedStringKey(difficulty.rawValue)).tag(Optional(difficulty))
-                    }
-                }
+                singleChipSection(
+                    title: "Difficulty",
+                    values: Difficulty.allCases,
+                    label: \.rawValue,
+                    selection: $filter.difficulty
+                )
 
-                Picker("Tracking", selection: $filter.tracking) {
-                    Text("All tracking").tag(TrackingType?.none)
-                    ForEach(TrackingType.allCases, id: \.self) { tracking in
-                        Text(LocalizedStringKey(tracking.rawValue)).tag(Optional(tracking))
-                    }
-                }
+                singleChipSection(
+                    title: "Tracking",
+                    values: TrackingType.allCases,
+                    label: \.rawValue,
+                    selection: $filter.tracking
+                )
 
                 Toggle("Favorites only", isOn: $filter.favoritesOnly)
+                    .font(AppFont.bodyMedium)
+                    .tint(Color.gymPrimary)
+                    .padding(Spacing.l)
+                    .background {
+                        RoundedRectangle(cornerRadius: Radius.large)
+                            .fill(Color.gymCard)
+                            .stroke(Color.gymText.opacity(0.08), lineWidth: 1)
+                    }
             }
+            .padding(.horizontal, Spacing.xl)
+            .padding(.vertical, Spacing.l)
         }
+        .background(Color.gymBackground)
         .navigationTitle("Filters")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button("Clear filters") {
@@ -363,21 +375,124 @@ private struct ExerciseFiltersSheet: View {
         }
     }
 
-    private func selectionBinding<Value: Hashable>(
-        for value: Value,
-        keyPath: WritableKeyPath<ExerciseFilterState, Set<Value>>
-    ) -> Binding<Bool> {
-        Binding(
-            get: { filter[keyPath: keyPath].contains(value) },
-            set: { isSelected in
-                var updatedFilter = filter
-                if isSelected {
-                    updatedFilter[keyPath: keyPath].insert(value)
-                } else {
-                    updatedFilter[keyPath: keyPath].remove(value)
+    private func singleChipSection<Value: Hashable>(
+        title: String,
+        values: [Value],
+        label: KeyPath<Value, String>,
+        selection: Binding<Value?>
+    ) -> some View {
+        chipSection(title: title) {
+            ForEach(values, id: \.self) { value in
+                FilterChip(
+                    title: value[keyPath: label],
+                    isSelected: selection.wrappedValue == value
+                ) {
+                    selection.wrappedValue = selection.wrappedValue == value ? nil : value
                 }
-                filter = updatedFilter
             }
-        )
+        }
+    }
+
+    private func multiChipSection<Value: Hashable>(
+        title: String,
+        values: [Value],
+        label: KeyPath<Value, String>,
+        selection: Binding<Set<Value>>
+    ) -> some View {
+        chipSection(title: title) {
+            ForEach(values, id: \.self) { value in
+                FilterChip(
+                    title: value[keyPath: label],
+                    isSelected: selection.wrappedValue.contains(value)
+                ) {
+                    if selection.wrappedValue.contains(value) {
+                        selection.wrappedValue.remove(value)
+                    } else {
+                        selection.wrappedValue.insert(value)
+                    }
+                }
+            }
+        }
+    }
+
+    private func chipSection<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text(title.uppercased())
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(Color.gymSubduedText)
+            ChipFlowLayout(spacing: Spacing.s) {
+                content()
+            }
+        }
+    }
+}
+
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            Text(LocalizedStringKey(title))
+                .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(isSelected ? .white : Color.gymText)
+                .padding(.horizontal, Spacing.m)
+                .frame(height: 36)
+                .background(isSelected ? Color.gymPrimary : Color.gymCard)
+                .clipShape(Capsule())
+                .overlay {
+                    Capsule()
+                        .stroke(isSelected ? Color.clear : Color.gymText.opacity(0.08), lineWidth: 1)
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+private struct ChipFlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+
+        return CGSize(width: proposal.width ?? x, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
     }
 }
