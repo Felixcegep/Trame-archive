@@ -142,4 +142,26 @@ final class MobilitySessionTests: XCTestCase {
         XCTAssertTrue(try restored.fetch(FetchDescriptor<MobilityRoutine>()).isEmpty)
         XCTAssertTrue(try restored.fetch(FetchDescriptor<MobilityDefinition>()).isEmpty)
     }
+
+    func testSeedingPopulatesFiftyFourDefinitionsAndEightFamilies() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        MobilitySeedData.seedIfNeeded(using: context)
+
+        let definitions = try context.fetch(FetchDescriptor<MobilityDefinition>())
+        let families = try context.fetch(FetchDescriptor<MobilityFamily>())
+        let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
+
+        XCTAssertEqual(definitions.count, 54)
+        XCTAssertEqual(families.count, 8)
+        XCTAssertEqual(routines.count, 1)
+
+        // Running seed again should be idempotent and not create duplicate definitions or families
+        MobilitySeedData.seedIfNeeded(using: context)
+        let reFetchedDefinitions = try context.fetch(FetchDescriptor<MobilityDefinition>())
+        let reFetchedFamilies = try context.fetch(FetchDescriptor<MobilityFamily>())
+
+        XCTAssertEqual(reFetchedDefinitions.count, 54)
+        XCTAssertEqual(reFetchedFamilies.count, 8)
+    }
 }
+
