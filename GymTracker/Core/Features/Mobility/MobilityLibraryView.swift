@@ -136,28 +136,57 @@ struct MobilityDefinitionsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MobilityDefinition.name) private var definitions: [MobilityDefinition]
     @State private var isShowingNewDefinition = false
+    @State private var definitionToEdit: MobilityDefinition?
+    @State private var showsArchived = false
 
     var body: some View {
         List {
-            ForEach(definitions.filter { $0.isArchived == false }) { definition in
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(definition.name)
-                        .font(AppFont.subheadlineSemibold)
-                    Text(definition.trackingType.displayName)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
-                }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if visibleDefinitions.isEmpty {
+                ContentUnavailableView(
+                    showsArchived ? "No archived movements" : "No movements",
+                    systemImage: AppIcon.mobility,
+                    description: Text("Create a movement before adding it to a routine.")
+                )
+            } else {
+                ForEach(visibleDefinitions) { definition in
                     Button {
-                        definition.isFavorite.toggle()
-                        try? modelContext.save()
+                        definitionToEdit = definition
                     } label: {
-                        Label(
-                            definition.isFavorite ? "Remove favorite" : "Favorite",
-                            systemImage: definition.isFavorite ? "star.slash" : "star"
-                        )
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text(definition.name)
+                                .font(AppFont.subheadlineSemibold)
+                            Text(definition.trackingType.displayName)
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.gymSubduedText)
+                        }
                     }
-                    .tint(Color.gymAccent)
+                    .foregroundStyle(Color.gymText)
+                    .accessibilityIdentifier("edit-mobility-definition-\(definition.id)")
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button {
+                            definition.isFavorite.toggle()
+                            definition.updatedAt = .now
+                            try? modelContext.save()
+                        } label: {
+                            Label(
+                                definition.isFavorite ? "Remove favorite" : "Favorite",
+                                systemImage: definition.isFavorite ? "star.slash" : "star"
+                            )
+                        }
+                        .tint(Color.gymAccent)
+
+                        Button(role: definition.isArchived ? nil : .destructive) {
+                            definition.isArchived.toggle()
+                            definition.updatedAt = .now
+                            try? modelContext.save()
+                        } label: {
+                            Label(
+                                definition.isArchived ? "Restore" : "Archive",
+                                systemImage: definition.isArchived ? "arrow.uturn.backward" : "archivebox"
+                            )
+                        }
+                        .accessibilityIdentifier("archive-mobility-definition-\(definition.id)")
+                    }
                 }
             }
         }
@@ -165,6 +194,12 @@ struct MobilityDefinitionsView: View {
         .background(Color.gymBackground)
         .navigationTitle("Movements")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(showsArchived ? "Current" : "Archived") {
+                    showsArchived.toggle()
+                }
+                .accessibilityIdentifier("toggle-archived-mobility-definitions")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     isShowingNewDefinition = true
@@ -177,6 +212,13 @@ struct MobilityDefinitionsView: View {
         .sheet(isPresented: $isShowingNewDefinition) {
             MobilityDefinitionForm()
         }
+        .sheet(item: $definitionToEdit) { definition in
+            MobilityDefinitionForm(definition: definition)
+        }
+    }
+
+    private var visibleDefinitions: [MobilityDefinition] {
+        definitions.filter { $0.isArchived == showsArchived }
     }
 }
 
@@ -188,6 +230,12 @@ struct MobilityDefinitionForm: View {
     @State private var trackingType: MobilityTrackingType = .duration
     @State private var duration = 30
     @State private var repetitions = 8
+    @State private var error: ValidationIssue?
+    let definition: MobilityDefinition?
+
+    init(definition: MobilityDefinition? = nil) {
+        self.definition = definition
+    }
 
     var body: some View {
         NavigationStack {
@@ -208,27 +256,65 @@ struct MobilityDefinitionForm: View {
                     }
                 }
             }
-            .navigationTitle("New movement")
+            .navigationTitle(definition == nil ? "New movement" : "Edit movement")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear(perform: loadDefinition)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        let definition = MobilityDefinition(
-                            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                            instructions: instructions,
-                            trackingType: trackingType,
-                            defaultDurationSeconds: trackingType == .duration ? duration : nil,
-                            defaultRepetitions: trackingType == .repetitions ? repetitions : nil
-                        )
-                        modelContext.insert(definition)
-                        guard (try? modelContext.save()) != nil else { return }
-                        dismiss()
-                    }
+                    Button("Save", action: save)
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("save-mobility-definition")
                 }
             }
+            .alert("Couldn’t save movement", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+                Button("OK", role: .cancel) { error = nil }
+            } message: {
+                Text(error?.message ?? "Please try again.")
+            }
+        }
+    }
+
+    private func loadDefinition() {
+        guard let definition else { return }
+        name = definition.name
+        instructions = definition.instructions ?? ""
+        trackingType = definition.trackingType
+        duration = definition.defaultDurationSeconds ?? 30
+        repetitions = definition.defaultRepetitions ?? 8
+    }
+
+    private func save() {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let existingNames = (try? modelContext.fetch(FetchDescriptor<MobilityDefinition>())) ?? []
+        guard existingNames.allSatisfy({
+            $0.id == definition?.id || $0.name.localizedCaseInsensitiveCompare(trimmedName) != .orderedSame
+        }) else {
+            error = ValidationIssue(severity: .error, message: "A movement with that name already exists.")
+            return
+        }
+
+        let target = definition ?? MobilityDefinition(
+            name: trimmedName,
+            instructions: nil,
+            trackingType: trackingType,
+            defaultDurationSeconds: nil,
+            defaultRepetitions: nil
+        )
+        target.name = trimmedName
+        let trimmedInstructions = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
+        target.instructions = trimmedInstructions.isEmpty ? nil : trimmedInstructions
+        target.trackingType = trackingType
+        target.defaultDurationSeconds = trackingType == .duration ? duration : nil
+        target.defaultRepetitions = trackingType == .repetitions ? repetitions : nil
+        target.updatedAt = .now
+        if definition == nil { modelContext.insert(target) }
+
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            self.error = ValidationIssue(severity: .error, message: "The movement could not be saved. Try again.")
         }
     }
 }

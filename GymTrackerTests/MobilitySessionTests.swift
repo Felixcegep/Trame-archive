@@ -30,9 +30,11 @@ final class MobilitySessionTests: XCTestCase {
 
         definition.name = "Changed later"
         definition.instructions = "Changed later."
+        definition.isArchived = true
         try context.save()
         XCTAssertEqual(session.orderedEntries[0].definitionNameSnapshot, "Hip switch")
         XCTAssertEqual(session.orderedEntries[0].instructionsSnapshot, "Move slowly.")
+        XCTAssertFalse(session.orderedEntries[0].definitionNameSnapshot == definition.name)
     }
 
     func testCompletingAndStoppingPreservesDistinctResultStates() throws {
