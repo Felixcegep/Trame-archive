@@ -162,10 +162,7 @@ final class WorkoutSupersetTests: XCTestCase {
     }
 
     private func makeDiskStoreURL() throws -> URL {
-        let directory = FileManager.default.temporaryDirectory
-
-    private func makeContext() throws -> ModelContext {
-        try GymTrackerTestStore.makeInMemoryContext()
+        try WorkoutTestFixture.makeDiskStoreURL()
     }
 
     private func makeExercise() -> Exercise {

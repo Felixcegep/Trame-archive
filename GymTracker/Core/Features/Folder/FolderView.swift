@@ -18,7 +18,7 @@ struct FolderView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xxl) {
-                Text("Library")
+                Text("Train")
                     .font(AppFont.displayMedium)
                     .foregroundStyle(Color.gymText)
 
@@ -224,6 +224,21 @@ struct FolderView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("program-catalog-browser")
+
+            LibraryGroupDivider()
+
+            NavigationLink(value: LibraryRoute.mobility) {
+                LibraryItemRow(
+                    title: "Mobility",
+                    subtitle: "Routines and movement library",
+                    icon: AppIcon.mobility,
+                    color: Color.gymSecondary,
+                    surface: Color.gymSecondarySurface,
+                    showsCard: false
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("train-mobility-library")
         }
     }
 
@@ -415,4 +430,5 @@ enum LibraryRoute: Hashable {
     case archivedExercises
     case exercise(UUID)
     case plan(UUID)
+    case mobility
 }

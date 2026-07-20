@@ -10,24 +10,21 @@ import SwiftUI
 import Combine
 
 struct RootView: View {
-    private enum AppTab: Hashable {
-        case home
-        case library
-        case history
-        case settings
-    }
-
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var workoutVM = WorkoutViewModel()
-    @State private var libraryPath: [LibraryRoute] = []
+    @State private var todayPath: [TodayRoute] = []
+    @State private var trainPath: [LibraryRoute] = []
+    @State private var nutritionPath: [NutritionRoute] = []
+    @State private var progressPath: [ProgressRoute] = []
     @State private var activeWorkoutPath: [ActiveWorkoutRoute] = []
     @State private var isShowingActiveWorkout = false
     @State private var isShowingActiveMobility = false
     @State private var activeMobilitySessionID: UUID?
     @State private var shouldDiscardActiveWorkout = false
-    @State private var selectedTab: AppTab = .home
+    @State private var selectedTab: AppTab = .today
+    @State private var requestedRescheduleProgressID: UUID?
     @State private var templateToStart: WorkoutTemplate? = nil
     @State private var plannedWorkoutToStart: PendingPlannedWorkout? = nil
     @State private var isShowingActiveWorkoutConflictAlert = false
@@ -35,27 +32,51 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            NavigationStack {
+            NavigationStack(path: $todayPath) {
                 HomeView(
                     workoutVM: workoutVM,
                     isShowingActiveWorkout: $isShowingActiveWorkout,
                     onStartPlannedWorkout: startPlannedWorkout,
                     onStartMobility: startMobility,
-                    onResumeMobility: resumeMobility
+                    onResumeMobility: resumeMobility,
+                    onOpenNutrition: { selectedTab = .nutrition },
+                    onOpenTrainMobility: openTrainMobility,
+                    onOpenTrainingCalendar: { todayPath.append(.trainingCalendar) },
+                    onOpenSettings: { todayPath.append(.settings) },
+                    requestedRescheduleProgressID: $requestedRescheduleProgressID
                 )
+                .navigationDestination(for: TodayRoute.self) { route in
+                    switch route {
+                    case .trainingCalendar:
+                        TrainingCalendarView(
+                            onStartPlannedWorkout: startPlannedWorkout,
+                            onOpenNutrition: { selectedTab = .nutrition },
+                            onOpenMobilityHistory: {
+                                selectedTab = .progress
+                                progressPath = [.mobilityHistory]
+                            },
+                            onOpenJournalHistory: {
+                                selectedTab = .progress
+                                progressPath = [.journalHistory]
+                            }
+                        )
+                    case .settings:
+                        SettingView()
+                    }
+                }
             }
             .tabItem {
-                Label("Home", systemImage: "house")
-                    .accessibilityIdentifier("tab-home")
+                Label(AppTab.today.title, systemImage: AppTab.today.icon)
+                    .accessibilityIdentifier(AppTab.today.accessibilityIdentifier)
             }
-            .tag(AppTab.home)
+            .tag(AppTab.today)
 
-            NavigationStack(path: $libraryPath) {
+            NavigationStack(path: $trainPath) {
                 FolderView(
                     onStartWorkout: startWorkout,
                     onStartPlannedWorkout: startPlannedWorkout,
                     onShowArchivedExercises: {
-                        libraryPath.append(.archivedExercises)
+                        trainPath.append(.archivedExercises)
                     }
                 )
                 .navigationDestination(for: LibraryRoute.self) { route in
@@ -85,32 +106,60 @@ struct RootView: View {
                                 description: Text("This program may have been removed or replaced.")
                             )
                         }
+                    case .mobility:
+                        MobilityLibraryView(onStart: { routine, context, workoutID in
+                            startMobility(routine, context, workoutID)
+                        })
                     }
                 }
             }
             .tabItem {
-                Label("Library", systemImage: "folder.fill")
-                    .accessibilityIdentifier("tab-library")
+                Label(AppTab.train.title, systemImage: AppTab.train.icon)
+                    .accessibilityIdentifier(AppTab.train.accessibilityIdentifier)
             }
-            .tag(AppTab.library)
+            .tag(AppTab.train)
 
-            NavigationStack {
-                HistoryView(viewModel: workoutVM, onStartFreeWorkout: startFreeWorkout)
+            NavigationStack(path: $nutritionPath) {
+                NutritionCenterView()
+                    .navigationDestination(for: NutritionRoute.self) { route in
+                        switch route {
+                        case .foodLibrary:
+                            FoodLibraryView()
+                        case .mealTemplates:
+                            MealTemplateLibraryView()
+                        case .targets:
+                            NutritionTargetsView()
+                        }
+                    }
             }
             .tabItem {
-                Label("History", systemImage: "clock")
-                    .accessibilityIdentifier("tab-history")
+                Label(AppTab.nutrition.title, systemImage: AppTab.nutrition.icon)
+                    .accessibilityIdentifier(AppTab.nutrition.accessibilityIdentifier)
             }
-            .tag(AppTab.history)
+            .tag(AppTab.nutrition)
 
-            NavigationStack {
-                SettingView()
+            NavigationStack(path: $progressPath) {
+                ProgressHubView()
+                    .navigationDestination(for: ProgressRoute.self) { route in
+                        switch route {
+                        case .workoutHistory:
+                            HistoryView(viewModel: workoutVM, onStartFreeWorkout: startFreeWorkout)
+                        case .records:
+                            HistoryView(viewModel: workoutVM, onStartFreeWorkout: startFreeWorkout, initialTab: .records)
+                        case .mobilityHistory:
+                            MobilityHistoryView()
+                        case .nutritionHistory:
+                            NutritionHistoryView()
+                        case .journalHistory:
+                            JournalHistoryView()
+                        }
+                    }
             }
             .tabItem {
-                Label("Settings", systemImage: AppIcon.settings)
-                    .accessibilityIdentifier("tab-settings")
+                Label(AppTab.progress.title, systemImage: AppTab.progress.icon)
+                    .accessibilityIdentifier(AppTab.progress.accessibilityIdentifier)
             }
-            .tag(AppTab.settings)
+            .tag(AppTab.progress)
         }
         .accessibilityHidden(isPreparingApp)
         .overlay {
@@ -204,15 +253,17 @@ struct RootView: View {
             let fixture = UITestFixture.launchFixture
             let isResettingForUITesting = CommandLine.arguments.contains("-reset-data") || fixture != nil
             if CommandLine.arguments.contains("-ui-testing-open-history") {
-                selectedTab = .history
+                selectedTab = .progress
+                progressPath = [.workoutHistory]
             }
 
             if CommandLine.arguments.contains("-ui-testing-open-library") {
-                selectedTab = .library
+                selectedTab = .train
             }
 
             if CommandLine.arguments.contains("-ui-testing-open-settings") {
-                selectedTab = .settings
+                selectedTab = .today
+                todayPath = [.settings]
             }
 
             if isResettingForUITesting {
@@ -225,6 +276,7 @@ struct RootView: View {
             seedWorkoutCollectionsIfNeeded()
             seedWorkoutPlansIfNeeded()
             MobilitySeedData.seedIfNeeded(using: modelContext)
+            NutritionSeedData.seedIfNeeded(using: modelContext)
             normalizePersistedWorkoutData()
             if fixture == nil || fixture?.refreshesPlanRunAvailability == true {
                 refreshActivePlanRuns()
@@ -267,9 +319,24 @@ struct RootView: View {
                let benchPress = try? modelContext.fetch(
                    FetchDescriptor<Exercise>(predicate: #Predicate { $0.name == "Bench Press" })
                ).first {
-                selectedTab = .library
-                libraryPath = [.exercise(benchPress.id)]
+                selectedTab = .train
+                trainPath = [.exercise(benchPress.id)]
             }
+            if CommandLine.arguments.contains("-ui-testing-open-plan-reminder-reschedule"),
+               let run = try? modelContext.fetch(FetchDescriptor<PlanRun>()).first(where: { $0.status == .active }),
+               let progress = run.orderedWorkoutProgress.first(where: {
+                   PlanReminderEligibility.isActionableToday($0, in: run)
+               }) {
+                PlanNotificationRouter.shared.submit(
+                    PlanNotificationDestination(
+                        planID: run.sourcePlanID,
+                        runID: run.id,
+                        progressID: progress.id,
+                        action: .reschedule
+                    )
+                )
+            }
+            consumePendingPlanNotificationDestination()
             isPreparingApp = false
             await PlanNotificationScheduler.shared.reconcile(using: modelContext)
             await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
@@ -289,8 +356,8 @@ struct RootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .planNotificationOpened)) { notification in
             guard let destination = notification.object as? PlanNotificationDestination else { return }
-            selectedTab = .library
-            libraryPath = [.plan(destination.planID)]
+            handlePlanNotificationDestination(destination)
+            _ = PlanNotificationRouter.shared.consumePendingDestination()
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .background {
@@ -313,6 +380,31 @@ struct RootView: View {
         try? modelContext.fetch(FetchDescriptor<WorkoutPlan>()).first { $0.id == id }
     }
 
+    private func consumePendingPlanNotificationDestination() {
+        guard let destination = PlanNotificationRouter.shared.consumePendingDestination() else { return }
+        handlePlanNotificationDestination(destination)
+    }
+
+    private func handlePlanNotificationDestination(_ destination: PlanNotificationDestination) {
+        switch destination.action {
+        case .openPlan:
+            selectedTab = .train
+            trainPath = [.plan(destination.planID)]
+        case .reschedule:
+            guard let run = try? modelContext.fetch(FetchDescriptor<PlanRun>()).first(where: { $0.id == destination.runID }),
+                  run.sourcePlanID == destination.planID,
+                  let progress = run.workoutProgress.first(where: { $0.id == destination.progressID }),
+                  PlanReminderEligibility.isActionableToday(progress, in: run)
+            else {
+                selectedTab = .today
+                return
+            }
+            selectedTab = .today
+            todayPath.removeAll()
+            requestedRescheduleProgressID = progress.id
+        }
+    }
+
     private func mobilitySession(id: UUID?) -> MobilitySession? {
         guard let id else { return nil }
         return try? modelContext.fetch(FetchDescriptor<MobilitySession>()).first { $0.id == id }
@@ -332,6 +424,11 @@ struct RootView: View {
     private func resumeMobility(_ session: MobilitySession) {
         activeMobilitySessionID = session.id
         isShowingActiveMobility = true
+    }
+
+    private func openTrainMobility() {
+        selectedTab = .train
+        trainPath = [.mobility]
     }
 
     private func exercise(id: UUID) -> Exercise? {

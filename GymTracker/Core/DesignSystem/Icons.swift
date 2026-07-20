@@ -45,10 +45,13 @@ struct AppIcon {
     static let number = "number"
     static let favorite = "star"
     static let favoriteFilled = "star.fill"
+    static let favoriteRemove = "star.slash"
+    static let restore = "arrow.uturn.backward"
     
     // Specific Features
     static let workout = "dumbbell.fill"
     static let mobility = "figure.flexibility"
+    static let nutrition = "fork.knife"
     static let routine = "list.bullet.rectangle"
     static let stop = "stop.fill"
     static let timer = "timer"

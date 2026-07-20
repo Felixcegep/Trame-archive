@@ -1,16 +1,46 @@
 import XCTest
 @testable import GymTracker
 
-enum AppTab: Int {
-    case home
-    case library
+enum AppTab {
+    case today
+    case train
+    case nutrition
+    case progress
+    /// Compatibility destinations used by existing tests while their flows
+    /// migrate from former tabs to Progress and Today.
     case history
     case settings
+
+    static let home: Self = .today
+    static let library: Self = .train
 }
 
 class GymTrackerUITestCase: XCTestCase {
     func selectTab(_ tab: AppTab, in app: XCUIApplication) {
-        let tabButton = app.tabBars.buttons.element(boundBy: tab.rawValue)
+        switch tab {
+        case .history:
+            selectTab(.progress, in: app)
+            let history = app.descendants(matching: .any)["progress-workout-history"]
+            XCTAssertTrue(history.waitForExistence(timeout: 5))
+            history.tap()
+            return
+        case .settings:
+            selectTab(.today, in: app)
+            tapButton("open-settings", in: app)
+            return
+        case .today, .train, .nutrition, .progress:
+            break
+        }
+
+        let index: Int
+        switch tab {
+        case .today: index = 0
+        case .train: index = 1
+        case .nutrition: index = 2
+        case .progress: index = 3
+        case .history, .settings: fatalError("Compatibility destinations are handled above")
+        }
+        let tabButton = app.tabBars.buttons.element(boundBy: index)
         XCTAssertTrue(tabButton.waitForExistence(timeout: 5))
         tabButton.tap()
     }

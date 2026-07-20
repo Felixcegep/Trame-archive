@@ -13,7 +13,17 @@ struct HistoryView: View {
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     let viewModel: WorkoutViewModel
     var onStartFreeWorkout: (() -> Void)? = nil
-    @State private var selectedTab: HistoryTab = .workouts
+    @State private var selectedTab: HistoryTab
+
+    init(
+        viewModel: WorkoutViewModel,
+        onStartFreeWorkout: (() -> Void)? = nil,
+        initialTab: HistoryTab = .workouts
+    ) {
+        self.viewModel = viewModel
+        self.onStartFreeWorkout = onStartFreeWorkout
+        _selectedTab = State(initialValue: initialTab)
+    }
 
     var body: some View {
         Group {

@@ -1,7 +1,9 @@
 import Foundation
+import SwiftData
 import XCTest
 @testable import GymTracker
 
+@MainActor
 final class ExerciseLibraryIntegrityTests: XCTestCase {
     func testExerciseFilteringShortCircuitsAndMatchesMuscleCriteria() {
         let benchPress = Exercise(
@@ -163,4 +165,7 @@ final class ExerciseLibraryIntegrityTests: XCTestCase {
         XCTAssertEqual(ranked.first?.reason, "Same movement family")
     }
 
+    private func makeContext() throws -> ModelContext {
+        try GymTrackerTestStore.makeInMemoryContext()
+    }
 }

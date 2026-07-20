@@ -35,8 +35,8 @@ Usage: ./capture_screenshots.sh [--open] [list|all|SCENE ...]
 Capture all screenshots (the default) or only selected scene groups.
 
 Scenes:
-  overview               Main Home, Library, empty History, and Settings screens
-  pages                  Home, Library, and Settings secondary page states
+  overview               Main Today, Train, empty Progress, and Settings screens
+  pages                  Today, Train, Nutrition, and Settings secondary page states
   mobility               Mobility routine library and active execution
   active                 Active Workout, tools, completed, discard, and review states
   rest                   Running, paused, and ready Rest Between Sets cards
@@ -49,6 +49,7 @@ Scenes:
   program-builder        Custom universal program definition builder
   program-catalog        Built-in program browser, detail, and intake
   plan-calendar          Active program agenda and a scheduled-day detail
+  training-calendar      Cross-domain training calendar and its action state
   hidden                 Hidden and archived exercise management
   exercise-insights      Per-exercise history and progression insights
   exercise-form          New Exercise form, muscle picker, and advanced details
@@ -69,8 +70,9 @@ EOF
 tests_for_scene() {
   case "$1" in
     overview) echo "testCaptureOverviewScreenshots" ;;
-    pages) echo "testCaptureHomeTemplateSheetScreenshot testCaptureHomeConflictScreenshot testCaptureDailyCheckInScreenshot testCaptureTodayRescheduleScreenshot testCaptureMobilityLibraryScreenshot testCaptureActiveMobilityScreenshot testCaptureLibrarySecondaryStatesScreenshots testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot" ;;
+    pages) echo "testCaptureHomeTemplateSheetScreenshot testCaptureHomeConflictScreenshot testCaptureDailyCheckInScreenshot testCaptureTodayRescheduleScreenshot testCaptureNotificationRescheduleScreenshot testCaptureMobilityLibraryScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureLibrarySecondaryStatesScreenshots testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot" ;;
     mobility) echo "testCaptureMobilityLibraryScreenshot testCaptureActiveMobilityScreenshot" ;;
+    nutrition) echo "testCaptureNutritionTodayScreenshot" ;;
     active) echo "testCaptureActiveEmptyAndResumeScreenshots testCaptureActiveToolScreenshots testCaptureExerciseSwapScreenshot testCaptureCompletedSetScreenshot testCaptureSupersetScreenshot testCaptureCompletedExerciseCollapsedScreenshot testCapturePartialSaveScreenshots testCaptureDiscardWorkoutScreenshot testCaptureDurationTimerScreenshots" ;;
     rest) echo "testCaptureRunningRestScreenshot testCapturePausedRestScreenshot testCaptureReadyRestScreenshot" ;;
     history) echo "testCaptureHistoryScreenshots" ;;
@@ -82,6 +84,7 @@ tests_for_scene() {
     program-builder) echo "testCaptureProgramDefinitionBuilderScreenshot" ;;
     program-catalog) echo "testCaptureProgramCatalogScreenshots" ;;
     plan-calendar) echo "testCapturePlanCalendarScreenshots" ;;
+    training-calendar) echo "testCaptureTrainingCalendarScreenshots testCaptureTrainingCalendarEmptyScreenshot" ;;
     hidden) echo "testCaptureHiddenExercisesScreenshot" ;;
     exercise-insights) echo "testCaptureExerciseDetailVariationsScreenshot testCaptureExerciseRelationshipsScreenshot testCaptureExercisePerformanceInsightsScreenshot" ;;
     exercise-form) echo "testCaptureNewExerciseFormScreenshots" ;;
@@ -92,9 +95,10 @@ tests_for_scene() {
 
 files_for_scene() {
   case "$1" in
-    overview) echo "overview/01_Home.png overview/02_Library.png overview/03_History_Empty.png overview/04_Settings.png" ;;
-    pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01f_Today_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png overview/02b_Library_Templates.png overview/02c_Library_Plans.png overview/02d_Library_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png" ;;
+    overview) echo "overview/01_Today.png overview/02_Train.png overview/03_Progress_Empty.png overview/04_Settings.png" ;;
+    pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01f_Today_Reschedule_Workout.png overview/01g_Notification_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png nutrition/20_Nutrition_Today.png overview/02b_Train_Templates.png overview/02c_Train_Plans.png overview/02d_Train_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png" ;;
     mobility) echo "mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png" ;;
+    nutrition) echo "nutrition/20_Nutrition_Today.png" ;;
     active) echo "active-workout/05_Active_Workout_Empty.png overview/05_Home_With_Active_Workout.png active-workout/06_Add_Exercise_Sheet.png active-workout/07_Plate_Calculator.png active-workout/07b_Set_Details.png active-workout/08j_Exercise_Swap.png active-workout/08_Active_Workout_With_Set.png active-workout/08k_Active_Superset.png active-workout/08d_Completed_Exercise_Collapsed.png active-workout/08e_Discard_Workout.png active-workout/08f_Duration_Timer_Idle.png active-workout/08g_Duration_Timer_Running.png active-workout/08h_Duration_Timer_Paused.png active-workout/08i_Duration_Timer_Complete.png review/09_Save_Workout.png review/09b_Partial_Save_Confirmation.png" ;;
     rest) echo "active-workout/08_Rest_Countdown.png active-workout/08b_Rest_Paused.png active-workout/08c_Rest_Ready.png" ;;
     history) echo "history/10_History_With_Workout.png history/11_History_Detail.png" ;;
@@ -106,6 +110,7 @@ files_for_scene() {
     program-builder) echo "plans/13j_Program_Definition_Builder.png" ;;
     program-catalog) echo "plans/13k_Program_Catalog.png plans/13l_Program_Catalog_Detail.png plans/13m_Program_Intake.png" ;;
     plan-calendar) echo "plans/13e_Plan_Calendar.png plans/13f_Plan_Calendar_Day.png" ;;
+    training-calendar) echo "calendar/21_Training_Calendar.png calendar/21b_Training_Calendar_Reschedule.png calendar/21c_Training_Calendar_Empty.png" ;;
     hidden) echo "exercises/16_Hidden_Exercises.png" ;;
     exercise-insights) echo "exercises/17a_Exercise_Detail_Variations.png exercises/17b_Exercise_Relationships.png exercises/17_Exercise_Insights.png" ;;
     exercise-form) echo "exercises/18_New_Exercise_Form.png exercises/18b_New_Exercise_Muscles.png exercises/18c_New_Exercise_Advanced.png" ;;
@@ -114,7 +119,7 @@ files_for_scene() {
   esac
 }
 
-ALL_SCENES="overview pages mobility active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar hidden exercise-insights exercise-form muscle-balance"
+ALL_SCENES="overview pages mobility nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 
@@ -253,11 +258,18 @@ if [[ "$USE_PARALLEL" == true ]]; then
   xcodebuild -quiet -project "$WORKSPACE_DIR/GymTracker.xcodeproj" -scheme GymTrackerUITEST -destination "platform=iOS Simulator,id=$SIMULATOR_ID_2" -derivedDataPath "$DERIVED_DATA_PATH_2" build-for-testing
 fi
 
-SELECTED_TESTS=()
+RAW_TESTS=()
 for scene in $SELECTED_SCENES; do
   for test_name in $(tests_for_scene "$scene"); do
-    SELECTED_TESTS+=("$test_name")
+    RAW_TESTS+=("$test_name")
   done
+done
+
+SELECTED_TESTS=()
+for test_name in "${RAW_TESTS[@]}"; do
+  if [[ ! " ${SELECTED_TESTS[*]:-} " =~ " ${test_name} " ]]; then
+    SELECTED_TESTS+=("$test_name")
+  fi
 done
 
 TESTS_1=()
@@ -300,6 +312,7 @@ run_test_list() {
     # independently launched method through SwiftData's query cache.
     xcrun simctl terminate "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
     xcrun simctl uninstall "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
+    rm -rf "$rb_dir/$CAPTURE_RUN_ID-$test_name.xcresult"
     xcodebuild "${xcode_args[@]}" \
       -resultBundlePath "$rb_dir/$CAPTURE_RUN_ID-$test_name.xcresult" \
       "-only-testing:GymTrackerUITEST/ScreenshotUITests/$test_name" \

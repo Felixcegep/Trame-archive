@@ -539,6 +539,96 @@ extension BackupDTO {
                 }
             )
         }
+        let foodDTOs = try context.fetch(FetchDescriptor<FoodItem>()).map { food in
+            FoodItemDTO(
+                id: food.id.uuidString,
+                name: food.name,
+                referenceAmount: food.referenceAmount,
+                referenceUnit: food.referenceUnit.rawValue,
+                calories: food.calories,
+                proteinGrams: food.proteinGrams,
+                carbohydrateGrams: food.carbohydrateGrams,
+                fatGrams: food.fatGrams,
+                sourceKind: food.sourceKind.rawValue,
+                confidence: food.confidence.rawValue,
+                preparationState: food.preparationState.rawValue,
+                isFavorite: food.isFavorite,
+                isArchived: food.isArchived,
+                createdAt: food.createdAt,
+                updatedAt: food.updatedAt,
+                servings: food.orderedServings.map {
+                    FoodServingDTO(id: $0.id.uuidString, name: $0.name, amount: $0.amount, unit: $0.unit.rawValue, equivalentReferenceAmount: $0.equivalentReferenceAmount)
+                }
+            )
+        }
+        let mealTemplateDTOs = try context.fetch(FetchDescriptor<MealTemplate>()).map { template in
+            MealTemplateDTO(
+                id: template.id.uuidString,
+                lineageID: template.lineageID.uuidString,
+                version: template.version,
+                name: template.name,
+                preparationState: template.preparationState.rawValue,
+                finalCookedWeightGrams: template.finalCookedWeightGrams,
+                isCurrent: template.isCurrent,
+                isArchived: template.isArchived,
+                createdAt: template.createdAt,
+                updatedAt: template.updatedAt,
+                items: template.orderedItems.map {
+                    MealTemplateItemDTO(id: $0.id.uuidString, foodID: $0.food.id.uuidString, orderIndex: $0.orderIndex, servingID: $0.servingID?.uuidString, quantity: $0.quantity)
+                }
+            )
+        }
+        let loggedMealDTOs = try context.fetch(FetchDescriptor<LoggedMeal>()).map { meal in
+            LoggedMealDTO(
+                id: meal.id.uuidString,
+                dayKey: meal.dayKey,
+                slot: meal.slot.rawValue,
+                loggedAt: meal.loggedAt,
+                nameSnapshot: meal.nameSnapshot,
+                sourceMealTemplateID: meal.sourceMealTemplateID?.uuidString,
+                sourceMealTemplateName: meal.sourceMealTemplateName,
+                createdAt: meal.createdAt,
+                updatedAt: meal.updatedAt,
+                items: meal.orderedItems.map {
+                    LoggedMealItemDTO(
+                        id: $0.id.uuidString,
+                        orderIndex: $0.orderIndex,
+                        sourceFoodID: $0.sourceFoodID?.uuidString,
+                        foodNameSnapshot: $0.foodNameSnapshot,
+                        servingNameSnapshot: $0.servingNameSnapshot,
+                        quantity: $0.quantity,
+                        portionAmountSnapshot: $0.portionAmountSnapshot,
+                        portionUnit: $0.portionUnit.rawValue,
+                        caloriesSnapshot: $0.caloriesSnapshot,
+                        proteinGramsSnapshot: $0.proteinGramsSnapshot,
+                        carbohydrateGramsSnapshot: $0.carbohydrateGramsSnapshot,
+                        fatGramsSnapshot: $0.fatGramsSnapshot,
+                        sourceKind: $0.sourceKindRaw,
+                        confidence: $0.confidenceRaw,
+                        preparationState: $0.preparationStateRaw
+                    )
+                }
+            )
+        }
+        let nutritionTargetDTOs = try context.fetch(FetchDescriptor<NutritionTarget>()).map { target in
+            NutritionTargetDTO(
+                id: target.id.uuidString,
+                phase: target.phase.rawValue,
+                effectiveStartDayKey: target.effectiveStartDayKey,
+                effectiveEndDayKey: target.effectiveEndDayKey,
+                trainingCalories: target.trainingCalories,
+                trainingProteinGrams: target.trainingProteinGrams,
+                trainingCarbohydrateGrams: target.trainingCarbohydrateGrams,
+                trainingFatGrams: target.trainingFatGrams,
+                restCalories: target.restCalories,
+                restProteinGrams: target.restProteinGrams,
+                restCarbohydrateGrams: target.restCarbohydrateGrams,
+                restFatGrams: target.restFatGrams,
+                isArchived: target.isArchived,
+                createdAt: target.createdAt,
+                updatedAt: target.updatedAt
+            )
+        }
 
         return BackupDTO(
             version: currentVersion,
@@ -561,7 +651,11 @@ extension BackupDTO {
             mobilityFamilies: mobilityFamilyDTOs,
             mobilityDefinitions: mobilityDefinitionDTOs,
             mobilityRoutines: mobilityRoutineDTOs,
-            mobilitySessions: mobilitySessionDTOs
+            mobilitySessions: mobilitySessionDTOs,
+            foods: foodDTOs,
+            mealTemplates: mealTemplateDTOs,
+            loggedMeals: loggedMealDTOs,
+            nutritionTargets: nutritionTargetDTOs
         )
     }
 }

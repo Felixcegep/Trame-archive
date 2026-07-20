@@ -285,6 +285,8 @@ final class WorkoutIntegrityTests: XCTestCase {
         )
     }
 
+    private func makeDiskStoreURL() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("GymTrackerBackupTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory.appendingPathComponent("GymTracker.store")
@@ -647,5 +649,9 @@ final class WorkoutIntegrityTests: XCTestCase {
 
         let afterReSeedTemplates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
         XCTAssertEqual(afterReSeedTemplates.count, 4)
+    }
+
+    private func makeContext() throws -> ModelContext {
+        try GymTrackerTestStore.makeInMemoryContext()
     }
 }

@@ -3,6 +3,7 @@ import SwiftData
 import XCTest
 @testable import GymTracker
 
+@MainActor
 final class ProgramCatalogIntegrationTests: XCTestCase {
     func testJSONOnlyProgramImportsWithoutEngineRegistration() throws {
         let context = try makeContext()

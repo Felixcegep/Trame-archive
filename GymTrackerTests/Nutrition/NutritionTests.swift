@@ -1,0 +1,216 @@
+import SwiftData
+import XCTest
+@testable import GymTracker
+
+@MainActor
+final class NutritionTests: XCTestCase {
+    func testFoodEditsDoNotRewriteLoggedMealSnapshotOrDailyTotals() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Yogurt", calories: 100, proteinGrams: 18, carbohydrateGrams: 8, fatGrams: 1)
+        context.insert(food)
+        try context.save()
+
+        let meal = try XCTUnwrap(NutritionLoggingService.log(food: food, using: context))
+        let item = try XCTUnwrap(meal.items.first)
+        XCTAssertEqual(item.caloriesSnapshot, 100)
+        XCTAssertEqual(item.proteinGramsSnapshot, 18)
+
+        food.name = "Edited yogurt"
+        food.calories = 420
+        food.proteinGrams = 2
+        food.isArchived = true
+        try context.save()
+
+        let summary = NutritionDaySummary.resolve(day: .today, meals: [meal])
+        XCTAssertEqual(item.foodNameSnapshot, "Yogurt")
+        XCTAssertEqual(summary.totals.calories, 100)
+        XCTAssertEqual(summary.totals.protein, 18)
+    }
+
+    func testUnknownNutrientsAreNotInterpretedAsZeroCompleteness() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Estimate", calories: 200, proteinGrams: nil, carbohydrateGrams: 20, fatGrams: nil, confidence: .estimated)
+        context.insert(food)
+        try context.save()
+        let meal = try XCTUnwrap(NutritionLoggingService.log(food: food, using: context))
+
+        let summary = NutritionDaySummary.resolve(day: .today, meals: [meal])
+        XCTAssertEqual(summary.totals.calories, 200)
+        XCTAssertEqual(summary.totals.protein, 0)
+        XCTAssertEqual(summary.totals.unknownProteinCount, 1)
+        XCTAssertEqual(summary.totals.unknownFatCount, 1)
+        XCTAssertTrue(summary.totals.hasUnknownValues)
+    }
+
+    func testRepeatingMealCreatesIndependentLoggedIdentifiers() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Rice", calories: 130, proteinGrams: 3, carbohydrateGrams: 28, fatGrams: 0.3)
+        context.insert(food)
+        try context.save()
+        let source = try XCTUnwrap(NutritionLoggingService.log(food: food, using: context))
+        let repeated = try XCTUnwrap(NutritionLoggingService.repeatMeal(source, using: context))
+
+        XCTAssertNotEqual(source.id, repeated.id)
+        XCTAssertNotEqual(source.items.first?.id, repeated.items.first?.id)
+        XCTAssertEqual(source.items.first?.caloriesSnapshot, repeated.items.first?.caloriesSnapshot)
+    }
+
+    func testReferencedFoodArchivesInsteadOfDeleting() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Egg", calories: 70, proteinGrams: 6, carbohydrateGrams: 0, fatGrams: 5)
+        context.insert(food)
+        try context.save()
+        _ = NutritionLoggingService.log(food: food, using: context)
+
+        try FoodLibraryService.archiveOrDelete(food, using: context)
+        XCTAssertTrue(food.isArchived)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<FoodItem>()).contains { $0.id == food.id })
+    }
+
+    func testTargetResolutionUsesActivePlanRunScheduleOnLocalDay() throws {
+        let day = LocalDay(rawValue: "2026-07-20")
+        let trainingTarget = NutritionTarget(
+            phase: .bulk,
+            effectiveStartDay: LocalDay(rawValue: "2026-07-01"),
+            training: NutritionTargetValues(calories: 3_200, protein: 190, carbohydrates: 400, fat: 85),
+            rest: NutritionTargetValues(calories: 2_700, protein: 190, carbohydrates: 280, fat: 90)
+        )
+        let run = PlanRun(sourcePlanID: UUID(), sourcePlanName: "Strength", startDate: .now)
+        let scheduled = Calendar.current.date(from: DateComponents(year: 2026, month: 7, day: 20))!
+        let progress = PlanWorkoutProgress(plannedWorkoutID: UUID(), plannedWorkoutName: "Squat", weekIndex: 0, workoutIndex: 0, scheduledDate: scheduled)
+        run.workoutProgress = [progress]
+
+        let resolvedTraining = NutritionTargetResolver.resolve(day: day, planRuns: [run], targets: [trainingTarget])
+        XCTAssertEqual(resolvedTraining.kind, .training)
+        XCTAssertEqual(resolvedTraining.values.calories, 3_200)
+
+        progress.status = .skipped
+        let resolvedRest = NutritionTargetResolver.resolve(day: day, planRuns: [run], targets: [trainingTarget])
+        XCTAssertEqual(resolvedRest.kind, .rest)
+        XCTAssertEqual(resolvedRest.values.calories, 2_700)
+    }
+
+    func testTargetRevisionPreservesEarlierEffectiveDays() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let existing = NutritionTarget(
+            phase: .maintenance,
+            effectiveStartDay: LocalDay(rawValue: "2020-01-01"),
+            training: NutritionTargetValues(calories: 2_500, protein: nil, carbohydrates: nil, fat: nil),
+            rest: NutritionTargetValues(calories: 2_500, protein: nil, carbohydrates: nil, fat: nil)
+        )
+        context.insert(existing)
+        try context.save()
+        let revised = try XCTUnwrap(NutritionTargetService.revise(
+            existing,
+            phase: .bulk,
+            requestedStartDay: .today,
+            requestedEndDay: nil,
+            training: NutritionTargetValues(calories: 3_000, protein: nil, carbohydrates: nil, fat: nil),
+            rest: .empty,
+            using: context
+        ))
+        let oldDay = NutritionTargetResolver.resolve(day: LocalDay(rawValue: "2020-07-01"), planRuns: [], targets: [existing, revised])
+        XCTAssertEqual(oldDay.values.calories, 2_500)
+        XCTAssertGreaterThan(revised.effectiveStartDayKey, LocalDay.today.rawValue)
+        XCTAssertLessThan(try XCTUnwrap(existing.effectiveEndDayKey), revised.effectiveStartDayKey)
+    }
+
+    func testEditingFutureTargetDoesNotCreateAnInvalidHistoricalRange() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let future = LocalDay(rawValue: "2099-01-01")
+        let target = NutritionTarget(
+            phase: .maintenance,
+            effectiveStartDay: future,
+            training: NutritionTargetValues(calories: 2_500, protein: nil, carbohydrates: nil, fat: nil),
+            rest: .empty
+        )
+        context.insert(target)
+        try context.save()
+
+        let updated = try XCTUnwrap(NutritionTargetService.revise(
+            target,
+            phase: .cut,
+            requestedStartDay: future,
+            requestedEndDay: nil,
+            training: NutritionTargetValues(calories: 2_100, protein: nil, carbohydrates: nil, fat: nil),
+            rest: .empty,
+            using: context
+        ))
+        XCTAssertEqual(updated.id, target.id)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<NutritionTarget>()).count, 1)
+        XCTAssertNil(updated.effectiveEndDayKey)
+        XCTAssertEqual(updated.trainingCalories, 2_100)
+    }
+
+    func testRecipeRevisionAndBackupKeepConsumptionHistoryStable() throws {
+        let source = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Chicken", calories: 165, proteinGrams: 31, carbohydrateGrams: 0, fatGrams: 3.6)
+        food.servings = [FoodServing(name: "150 g", amount: 150, unit: .grams, equivalentReferenceAmount: 150)]
+        source.insert(food)
+        let recipe = MealTemplate(name: "Chicken bowl")
+        recipe.items = [MealTemplateItem(food: food, orderIndex: 0, servingID: food.servings.first?.id, quantity: 1)]
+        source.insert(recipe)
+        try source.save()
+
+        let logged = try XCTUnwrap(NutritionLoggingService.log(template: recipe, using: source))
+        let revision = try XCTUnwrap(MealTemplateService.revise(recipe, name: "Chicken bowl", preparationState: .cooked, finalCookedWeightGrams: 450, items: [(food, food.servings.first?.id, 2)], using: source))
+        XCTAssertFalse(recipe.isCurrent)
+        XCTAssertEqual(revision.version, 2)
+        XCTAssertEqual(try XCTUnwrap(logged.items.first?.proteinGramsSnapshot), 46.5, accuracy: 0.001)
+
+        let target = NutritionTarget(phase: .maintenance, training: NutritionTargetValues(calories: 3_000, protein: 180, carbohydrates: 350, fat: 90), rest: NutritionTargetValues(calories: 2_700, protein: 180, carbohydrates: 280, fat: 90))
+        source.insert(target)
+        try source.save()
+        let backup = try BackupDTO.create(from: source, restTimer: 90, darkMode: false, unitSystem: .metric)
+        XCTAssertEqual(backup.version, BackupDTO.nutritionVersion)
+        XCTAssertEqual(backup.foods.count, 1)
+        XCTAssertEqual(backup.mealTemplates.count, 2)
+        XCTAssertEqual(backup.loggedMeals.count, 1)
+        XCTAssertEqual(backup.nutritionTargets.count, 1)
+
+        let restored = try GymTrackerTestStore.makeInMemoryContext()
+        try backup.restore(to: restored)
+        let restoredMeal = try XCTUnwrap(restored.fetch(FetchDescriptor<LoggedMeal>()).first)
+        XCTAssertEqual(try XCTUnwrap(restoredMeal.items.first?.proteinGramsSnapshot), 46.5, accuracy: 0.001)
+        XCTAssertEqual(try restored.fetch(FetchDescriptor<MealTemplate>()).filter(\.isCurrent).count, 1)
+        XCTAssertEqual(try restored.fetch(FetchDescriptor<NutritionTarget>()).count, 1)
+    }
+
+    func testInvalidNutritionBackupDoesNotReplaceExistingFood() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let sentinel = FoodItem(name: "Keep this food", calories: 100)
+        context.insert(sentinel)
+        try context.save()
+        let invalid = BackupDTO(
+            version: BackupDTO.currentVersion,
+            preferences: PreferencesDTO(darkMode: false, restTimer: 90, unitSystem: UnitSystem.metric.rawValue),
+            exercises: [],
+            templates: [],
+            collections: [],
+            workouts: [],
+            foods: [
+                FoodItemDTO(
+                    id: UUID().uuidString,
+                    name: "Invalid food",
+                    referenceAmount: 0,
+                    referenceUnit: NutritionServingUnit.grams.rawValue,
+                    calories: 100,
+                    proteinGrams: nil,
+                    carbohydrateGrams: nil,
+                    fatGrams: nil,
+                    sourceKind: FoodSourceKind.userCreated.rawValue,
+                    confidence: FoodConfidence.userProvided.rawValue,
+                    preparationState: FoodPreparationState.raw.rawValue,
+                    isFavorite: false,
+                    isArchived: false,
+                    createdAt: .now,
+                    updatedAt: .now,
+                    servings: []
+                )
+            ]
+        )
+
+        XCTAssertThrowsError(try invalid.restore(to: context))
+        XCTAssertTrue(try context.fetch(FetchDescriptor<FoodItem>()).contains { $0.id == sentinel.id })
+    }
+}

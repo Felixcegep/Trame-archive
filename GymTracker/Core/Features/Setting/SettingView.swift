@@ -310,6 +310,7 @@ struct SettingView: View {
                 try modelContext.save()
             }
             MobilitySeedData.seedIfNeeded(using: modelContext)
+            NutritionSeedData.seedIfNeeded(using: modelContext)
         } catch {
             print("Failed to reset development data: \(error)")
         }

@@ -16,6 +16,10 @@ extension ModelContext {
         for routine in try fetch(FetchDescriptor<MobilityRoutine>()) { delete(routine) }
         for definition in try fetch(FetchDescriptor<MobilityDefinition>()) { delete(definition) }
         for family in try fetch(FetchDescriptor<MobilityFamily>()) { delete(family) }
+        for meal in try fetch(FetchDescriptor<LoggedMeal>()) { delete(meal) }
+        for template in try fetch(FetchDescriptor<MealTemplate>()) { delete(template) }
+        for target in try fetch(FetchDescriptor<NutritionTarget>()) { delete(target) }
+        for food in try fetch(FetchDescriptor<FoodItem>()) { delete(food) }
         for entry in try fetch(FetchDescriptor<DailyLogEntry>()) { delete(entry) }
         for occurrence in try fetch(FetchDescriptor<SupplementOccurrence>()) { delete(occurrence) }
         for run in try fetch(FetchDescriptor<PlanRun>()) { delete(run) }

@@ -34,6 +34,8 @@ enum UITestFixture: String {
     case backupImportTarget = "backup-import-target"
     case todayComplete = "today-complete"
     case mobilityActive = "mobility-active"
+    case nutritionToday = "nutrition-today"
+    case trainingCalendar = "training-calendar"
 
     static var launchFixture: UITestFixture? {
         guard
@@ -47,7 +49,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .backupImportTarget, .todayComplete, .mobilityActive:
+        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .backupImportTarget, .todayComplete, .mobilityActive, .nutritionToday, .trainingCalendar:
             false
         default:
             true
@@ -137,6 +139,24 @@ enum UITestFixture: String {
             guard MobilitySessionService.start(routine: routine, using: context) != nil else {
                 throw FixtureError.invalidPlan
             }
+        case .nutritionToday:
+            let foods = try context.fetch(FetchDescriptor<FoodItem>())
+            guard let yogurt = foods.first(where: { $0.name == "Greek yogurt" }),
+                  let chicken = foods.first(where: { $0.name == "Cooked chicken breast" }) else {
+                throw FixtureError.invalidPlan
+            }
+            guard NutritionLoggingService.log(food: yogurt, using: context) != nil,
+                  NutritionLoggingService.log(food: chicken, using: context) != nil else {
+                throw FixtureError.invalidPlan
+            }
+            context.insert(NutritionTarget(
+                phase: .maintenance,
+                training: NutritionTargetValues(calories: 3_000, protein: 180, carbohydrates: 350, fat: 90),
+                rest: NutritionTargetValues(calories: 2_700, protein: 180, carbohydrates: 280, fat: 90)
+            ))
+            try context.save()
+        case .trainingCalendar:
+            try makeTrainingCalendarFixture(using: context)
         }
     }
 
@@ -372,6 +392,68 @@ enum UITestFixture: String {
             throw FixtureError.invalidPlan
         }
         context.insert(run)
+        try context.save()
+    }
+
+    private static func makeTrainingCalendarFixture(using context: ModelContext) throws {
+        let plan = WorkoutPlan(name: "Calendar Strength", daysPerWeek: 2, durationWeeks: 1)
+        let run = PlanRun(plan: plan)
+        let today = Calendar.current.startOfDay(for: .now)
+        let ready = PlanWorkoutProgress(
+            plannedWorkoutID: UUID(),
+            plannedWorkoutName: "Today Strength",
+            weekIndex: 0,
+            workoutIndex: 0,
+            scheduledDate: today
+        )
+        ready.status = .available
+        let completed = PlanWorkoutProgress(
+            plannedWorkoutID: UUID(),
+            plannedWorkoutName: "Completed Strength",
+            weekIndex: 0,
+            workoutIndex: 1,
+            scheduledDate: today
+        )
+        completed.status = .completed
+        completed.completedAt = Date.now.addingTimeInterval(-3_600)
+        let completedWorkout = Workout(name: "Completed Strength", endTime: Date.now.addingTimeInterval(-3_600))
+        completedWorkout.startTime = Date.now.addingTimeInterval(-7_200)
+        completed.completedWorkout = completedWorkout
+        run.workoutProgress = [ready, completed]
+        plan.runs = [run]
+
+        let freeWorkout = Workout(name: "Accessory Work", endTime: Date.now.addingTimeInterval(-1_800))
+        freeWorkout.startTime = Date.now.addingTimeInterval(-2_700)
+        let mobility = MobilitySession(nameSnapshot: "Hip Mobility", startTime: Date.now.addingTimeInterval(-5_400))
+        mobility.status = .completed
+        let meal = LoggedMeal(day: .today, nameSnapshot: "Calendar Lunch")
+        meal.items = [LoggedMealItem(
+            sourceFoodID: nil,
+            foodNameSnapshot: "Chicken and rice",
+            servingNameSnapshot: "Bowl",
+            quantity: 1,
+            portionAmountSnapshot: 1,
+            portionUnit: .serving,
+            caloriesSnapshot: 720,
+            proteinGramsSnapshot: 52,
+            carbohydrateGramsSnapshot: 78,
+            fatGramsSnapshot: 18,
+            sourceKind: .userCreated,
+            confidence: .userProvided,
+            preparationState: .cooked,
+            orderIndex: 0
+        )]
+        let checkIn = DailyLogEntry(day: .today, status: .completed, sleepQuality: 4, energy: 4)
+        let creatine = SupplementOccurrence(kind: .creatine, day: .today, status: .completed)
+
+        context.insert(plan)
+        context.insert(run)
+        context.insert(completedWorkout)
+        context.insert(freeWorkout)
+        context.insert(mobility)
+        context.insert(meal)
+        context.insert(checkIn)
+        context.insert(creatine)
         try context.save()
     }
 

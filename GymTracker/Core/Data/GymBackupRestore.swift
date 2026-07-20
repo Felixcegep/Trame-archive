@@ -766,6 +766,139 @@ extension BackupDTO {
                 }
                 context.insert(session)
             }
+
+            var foodsByID = [String: FoodItem]()
+            for foodDTO in foods {
+                guard let referenceUnit = NutritionServingUnit(rawValue: foodDTO.referenceUnit),
+                      let sourceKind = FoodSourceKind(rawValue: foodDTO.sourceKind),
+                      let confidence = FoodConfidence(rawValue: foodDTO.confidence),
+                      let preparationState = FoodPreparationState(rawValue: foodDTO.preparationState) else {
+                    throw BackupValidationError.invalidIdentifier("food")
+                }
+                let food = FoodItem(
+                    name: foodDTO.name,
+                    referenceAmount: foodDTO.referenceAmount,
+                    referenceUnit: referenceUnit,
+                    calories: foodDTO.calories,
+                    proteinGrams: foodDTO.proteinGrams,
+                    carbohydrateGrams: foodDTO.carbohydrateGrams,
+                    fatGrams: foodDTO.fatGrams,
+                    sourceKind: sourceKind,
+                    confidence: confidence,
+                    preparationState: preparationState,
+                    isFavorite: foodDTO.isFavorite,
+                    isArchived: foodDTO.isArchived,
+                    id: try requiredUUID(foodDTO.id, named: "food"),
+                    createdAt: foodDTO.createdAt,
+                    updatedAt: foodDTO.updatedAt
+                )
+                food.servings = try foodDTO.servings.map {
+                    guard let unit = NutritionServingUnit(rawValue: $0.unit) else {
+                        throw BackupValidationError.invalidIdentifier("food serving")
+                    }
+                    return FoodServing(
+                        name: $0.name,
+                        amount: $0.amount,
+                        unit: unit,
+                        equivalentReferenceAmount: $0.equivalentReferenceAmount,
+                        id: try requiredUUID($0.id, named: "food serving")
+                    )
+                }
+                foodsByID[foodDTO.id] = food
+                context.insert(food)
+            }
+
+            for templateDTO in mealTemplates {
+                guard let preparationState = FoodPreparationState(rawValue: templateDTO.preparationState) else {
+                    throw BackupValidationError.invalidIdentifier("meal template")
+                }
+                let template = MealTemplate(
+                    name: templateDTO.name,
+                    preparationState: preparationState,
+                    finalCookedWeightGrams: templateDTO.finalCookedWeightGrams,
+                    lineageID: try requiredUUID(templateDTO.lineageID, named: "meal template lineage"),
+                    version: templateDTO.version,
+                    isCurrent: templateDTO.isCurrent,
+                    isArchived: templateDTO.isArchived,
+                    id: try requiredUUID(templateDTO.id, named: "meal template"),
+                    createdAt: templateDTO.createdAt,
+                    updatedAt: templateDTO.updatedAt
+                )
+                template.items = try templateDTO.items.map { itemDTO in
+                    guard let food = foodsByID[itemDTO.foodID] else {
+                        throw BackupValidationError.invalidIdentifier("meal template food")
+                    }
+                    return MealTemplateItem(
+                        food: food,
+                        orderIndex: itemDTO.orderIndex,
+                        servingID: try itemDTO.servingID.map { try requiredUUID($0, named: "meal template serving") },
+                        quantity: itemDTO.quantity,
+                        id: try requiredUUID(itemDTO.id, named: "meal template item")
+                    )
+                }
+                context.insert(template)
+            }
+
+            for mealDTO in loggedMeals {
+                guard let slot = MealSlot(rawValue: mealDTO.slot) else {
+                    throw BackupValidationError.invalidIdentifier("logged meal")
+                }
+                let meal = LoggedMeal(
+                    day: LocalDay(rawValue: mealDTO.dayKey),
+                    slot: slot,
+                    loggedAt: mealDTO.loggedAt,
+                    nameSnapshot: mealDTO.nameSnapshot,
+                    sourceMealTemplateID: try mealDTO.sourceMealTemplateID.map { try requiredUUID($0, named: "logged meal template") },
+                    sourceMealTemplateName: mealDTO.sourceMealTemplateName,
+                    id: try requiredUUID(mealDTO.id, named: "logged meal"),
+                    createdAt: mealDTO.createdAt,
+                    updatedAt: mealDTO.updatedAt
+                )
+                meal.items = try mealDTO.items.map { itemDTO in
+                    guard let unit = NutritionServingUnit(rawValue: itemDTO.portionUnit),
+                          let sourceKind = FoodSourceKind(rawValue: itemDTO.sourceKind),
+                          let confidence = FoodConfidence(rawValue: itemDTO.confidence),
+                          let preparationState = FoodPreparationState(rawValue: itemDTO.preparationState) else {
+                        throw BackupValidationError.invalidIdentifier("logged meal item")
+                    }
+                    return LoggedMealItem(
+                        sourceFoodID: try itemDTO.sourceFoodID.map { try requiredUUID($0, named: "logged meal food") },
+                        foodNameSnapshot: itemDTO.foodNameSnapshot,
+                        servingNameSnapshot: itemDTO.servingNameSnapshot,
+                        quantity: itemDTO.quantity,
+                        portionAmountSnapshot: itemDTO.portionAmountSnapshot,
+                        portionUnit: unit,
+                        caloriesSnapshot: itemDTO.caloriesSnapshot,
+                        proteinGramsSnapshot: itemDTO.proteinGramsSnapshot,
+                        carbohydrateGramsSnapshot: itemDTO.carbohydrateGramsSnapshot,
+                        fatGramsSnapshot: itemDTO.fatGramsSnapshot,
+                        sourceKind: sourceKind,
+                        confidence: confidence,
+                        preparationState: preparationState,
+                        orderIndex: itemDTO.orderIndex,
+                        id: try requiredUUID(itemDTO.id, named: "logged meal item")
+                    )
+                }
+                context.insert(meal)
+            }
+
+            for targetDTO in nutritionTargets {
+                guard let phase = NutritionGoalPhase(rawValue: targetDTO.phase) else {
+                    throw BackupValidationError.invalidIdentifier("nutrition target")
+                }
+                let target = NutritionTarget(
+                    phase: phase,
+                    effectiveStartDay: LocalDay(rawValue: targetDTO.effectiveStartDayKey),
+                    effectiveEndDay: targetDTO.effectiveEndDayKey.map(LocalDay.init(rawValue:)),
+                    training: NutritionTargetValues(calories: targetDTO.trainingCalories, protein: targetDTO.trainingProteinGrams, carbohydrates: targetDTO.trainingCarbohydrateGrams, fat: targetDTO.trainingFatGrams),
+                    rest: NutritionTargetValues(calories: targetDTO.restCalories, protein: targetDTO.restProteinGrams, carbohydrates: targetDTO.restCarbohydrateGrams, fat: targetDTO.restFatGrams),
+                    isArchived: targetDTO.isArchived,
+                    id: try requiredUUID(targetDTO.id, named: "nutrition target"),
+                    createdAt: targetDTO.createdAt,
+                    updatedAt: targetDTO.updatedAt
+                )
+                context.insert(target)
+            }
             try beforeCommit?()
             try context.save()
         } catch {

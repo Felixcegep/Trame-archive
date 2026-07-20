@@ -128,7 +128,7 @@ final class MobilitySessionTests: XCTestCase {
         XCTAssertTrue(MobilitySessionService.completeCurrent(in: session, performedRepetitions: 8, using: source))
 
         let backup = try BackupDTO.create(from: source, restTimer: 90, darkMode: false, unitSystem: .metric)
-        XCTAssertEqual(backup.version, BackupDTO.mobilityVersion)
+        XCTAssertEqual(backup.version, BackupDTO.currentVersion)
         XCTAssertEqual(backup.mobilitySessions.count, 1)
 
         let restored = try GymTrackerTestStore.makeInMemoryContext()

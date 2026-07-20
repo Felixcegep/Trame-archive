@@ -6,6 +6,29 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         continueAfterFailure = false
     }
 
+    func testCoordinatedNavigationExposesFourDestinationsAndTodaySettings() {
+        let app = launchFreshApp()
+
+        XCTAssertEqual(app.tabBars.buttons.count, 4)
+        XCTAssertTrue(app.tabBars.buttons.element(boundBy: 0).label.contains("Today"))
+        XCTAssertTrue(app.tabBars.buttons.element(boundBy: 1).label.contains("Train"))
+        XCTAssertTrue(app.tabBars.buttons.element(boundBy: 2).label.contains("Nutrition"))
+        XCTAssertTrue(app.tabBars.buttons.element(boundBy: 3).label.contains("Progress"))
+
+        selectTab(.train, in: app)
+        XCTAssertTrue(app.staticTexts["Train"].waitForExistence(timeout: 5))
+
+        selectTab(.nutrition, in: app)
+        XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
+
+        selectTab(.progress, in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["progress-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["progress-workout-history"].exists)
+
+        selectTab(.settings, in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
+    }
+
     func testStartFreeWorkout() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
@@ -540,6 +563,36 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         let seededCollection = app.staticTexts["Upper/Lower Program – 4 Days"]
         XCTAssertTrue(seededCollection.waitForExistence(timeout: 5))
+    }
+
+    func testTrainingCalendarShowsDerivedDayContextAndPlanActions() {
+        let app = launchFixture(
+            "training-calendar",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+        tapButton("open-training-calendar", in: app)
+
+        XCTAssertTrue(app.descendants(matching: .any)["training-calendar-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Today Strength"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Completed Strength"].exists)
+        XCTAssertTrue(app.staticTexts["Accessory Work"].exists)
+        XCTAssertTrue(app.staticTexts["Hip Mobility"].exists)
+        XCTAssertTrue(app.staticTexts["Nutrition"].exists)
+        XCTAssertTrue(app.staticTexts["Journal"].exists)
+
+        XCTAssertEqual(
+            app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "training-calendar-start-")).count,
+            1
+        )
+        XCTAssertEqual(
+            app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "training-calendar-skip-")).count,
+            1
+        )
+        XCTAssertEqual(
+            app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "training-calendar-reschedule-")).count,
+            1
+        )
     }
 
 }

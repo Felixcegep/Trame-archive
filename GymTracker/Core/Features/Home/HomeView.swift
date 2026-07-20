@@ -8,6 +8,11 @@ struct HomeView: View {
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
     let onStartMobility: (MobilityRoutine, MobilitySessionContext, UUID?) -> Void
     let onResumeMobility: (MobilitySession) -> Void
+    let onOpenNutrition: () -> Void
+    let onOpenTrainMobility: () -> Void
+    let onOpenTrainingCalendar: () -> Void
+    let onOpenSettings: () -> Void
+    @Binding var requestedRescheduleProgressID: UUID?
 
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
@@ -16,9 +21,10 @@ struct HomeView: View {
     @Query private var supplementOccurrences: [SupplementOccurrence]
     @Query(sort: \MobilityRoutine.updatedAt, order: .reverse) private var mobilityRoutines: [MobilityRoutine]
     @Query(sort: \MobilitySession.updatedAt, order: .reverse) private var mobilitySessions: [MobilitySession]
+    @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var loggedMeals: [LoggedMeal]
+    @Query(sort: \NutritionTarget.effectiveStartDayKey, order: .reverse) private var nutritionTargets: [NutritionTarget]
     @State private var isShowingTemplatePicker = false
     @State private var isShowingDailyCheckIn = false
-    @State private var isShowingMobilityLibrary = false
     @State private var reschedulingProgress: PlanWorkoutProgress?
     @State private var rescheduleDate = Date.now
     @State private var progressToSkip: PlanWorkoutProgress?
@@ -32,6 +38,7 @@ struct HomeView: View {
                 welcomeHeader
                 primaryWorkoutCard
                 dailyContext
+                nutritionContext
                 mobilityContext
                 quickActions
                 recentActivity
@@ -49,6 +56,26 @@ struct HomeView: View {
         .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: onOpenTrainingCalendar) {
+                    Label("Training Calendar", systemImage: AppIcon.plan)
+                }
+                .accessibilityIdentifier("open-training-calendar")
+                .accessibilityLabel("Training Calendar")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: onOpenSettings) {
+                    Label("Settings", systemImage: AppIcon.settings)
+                }
+                .accessibilityIdentifier("open-settings")
+                .accessibilityLabel("Settings")
+            }
+        }
+        .onAppear(perform: presentRequestedRescheduleIfNeeded)
+        .onChange(of: requestedRescheduleProgressID) { _, _ in
+            presentRequestedRescheduleIfNeeded()
+        }
         .sheet(isPresented: $isShowingTemplatePicker) {
             NavigationStack {
                 SavedWorkoutTemplatePicker(templates: workoutTemplates) { template in
@@ -62,16 +89,6 @@ struct HomeView: View {
         .sheet(isPresented: $isShowingDailyCheckIn) {
             DailyCheckInSheet(day: .today) {
                 Task { await CheckInNotificationScheduler.shared.reconcile(using: modelContext) }
-            }
-        }
-        .sheet(isPresented: $isShowingMobilityLibrary) {
-            NavigationStack {
-                MobilityLibraryView(onStart: { routine, context, workoutID in
-                    isShowingMobilityLibrary = false
-                    DispatchQueue.main.async {
-                        onStartMobility(routine, context, workoutID)
-                    }
-                })
             }
         }
         .sheet(item: $reschedulingProgress) { progress in
@@ -379,6 +396,41 @@ struct HomeView: View {
         }
     }
 
+    private var nutritionContext: some View {
+        let summary = NutritionDaySummary.resolve(day: .today, meals: loggedMeals)
+        let resolution = NutritionTargetResolver.resolve(day: .today, planRuns: planRuns, targets: nutritionTargets)
+        return VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("NUTRITION")
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(Color.gymSubduedText)
+
+            Button {
+                onOpenNutrition()
+            } label: {
+                dailyContextRow(
+                    icon: AppIcon.nutrition,
+                    iconColor: Color.gymSecondary,
+                    title: "\(FoodLibraryService.format(summary.totals.calories)) kcal · \(FoodLibraryService.format(summary.totals.protein)) g protein",
+                    detail: nutritionDetail(summary: summary, resolution: resolution),
+                    completion: summary.meals.isEmpty == false
+                )
+            }
+            .buttonStyle(.gymPress)
+            .accessibilityIdentifier("open-nutrition-today")
+            .accessibilityLabel("Nutrition today, \(FoodLibraryService.format(summary.totals.calories)) calories, \(FoodLibraryService.format(summary.totals.protein)) grams protein")
+        }
+    }
+
+    private func nutritionDetail(
+        summary: NutritionDaySummary,
+        resolution: (target: NutritionTarget?, kind: NutritionDayKind, values: NutritionTargetValues)
+    ) -> String {
+        let target = resolution.values.calories.map { "of \(FoodLibraryService.format($0)) kcal" } ?? "No calorie target"
+        let unknown = summary.totals.hasUnknownValues ? " · Some nutrients unknown" : ""
+        return "\(resolution.kind.displayName) · \(target)\(unknown)"
+    }
+
     private var mobilityContext: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text("MOBILITY")
@@ -417,7 +469,7 @@ struct HomeView: View {
                 .accessibilityIdentifier("start-mobility-routine")
             } else {
                 Button {
-                    isShowingMobilityLibrary = true
+                    onOpenTrainMobility()
                 } label: {
                     dailyContextRow(
                         icon: AppIcon.mobility,
@@ -432,7 +484,7 @@ struct HomeView: View {
             }
 
             Button("Manage mobility routines") {
-                isShowingMobilityLibrary = true
+                onOpenTrainMobility()
             }
             .font(AppFont.captionBold)
             .accessibilityIdentifier("manage-mobility-routines")
@@ -701,7 +753,7 @@ struct HomeView: View {
     }
 
     private func saveReschedule(_ progress: PlanWorkoutProgress) {
-        guard let run = activePlanRun,
+        guard let run = planRuns.first(where: { $0.workoutProgress.contains(where: { $0.id == progress.id }) }),
               PlanCoordinator.reschedule(progress, to: rescheduleDate, in: run, using: modelContext)
         else {
             scheduleActionError = ValidationIssue(
@@ -711,6 +763,21 @@ struct HomeView: View {
             return
         }
         reschedulingProgress = nil
+    }
+
+    private func presentRequestedRescheduleIfNeeded() {
+        guard let progressID = requestedRescheduleProgressID else { return }
+        defer { requestedRescheduleProgressID = nil }
+        guard let run = planRuns.first(where: { run in
+            run.workoutProgress.contains(where: { $0.id == progressID })
+        }),
+        let progress = run.workoutProgress.first(where: { $0.id == progressID }),
+        PlanReminderEligibility.isActionableToday(progress, in: run)
+        else {
+            return
+        }
+        rescheduleDate = progress.scheduledDate ?? .now
+        reschedulingProgress = progress
     }
 
     private func postponePlannedWorkoutUntilTomorrow() {

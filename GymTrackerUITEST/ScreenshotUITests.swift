@@ -77,11 +77,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureOverviewScreenshots() {
         let app = launchFreshApp()
 
-        saveScreenshot("overview/01_Home")
+        saveScreenshot("overview/01_Today")
         selectTab(.library, in: app)
-        saveScreenshot("overview/02_Library")
+        saveScreenshot("overview/02_Train")
         selectTab(.history, in: app)
-        saveScreenshot("overview/03_History_Empty")
+        saveScreenshot("overview/03_Progress_Empty")
         selectTab(.settings, in: app)
         saveScreenshot("overview/04_Settings")
     }
@@ -402,6 +402,23 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("overview/01f_Today_Reschedule_Workout")
     }
 
+    func testCaptureNotificationRescheduleScreenshot() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-test-fixture",
+            "plan-active-run",
+            "-ui-testing-open-plan-reminder-reschedule"
+        ]
+        app.launch()
+        XCTAssertEqual(app.state, .runningForeground)
+        let preparing = app.descendants(matching: .any)["app-preparing"]
+        XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
+        XCTAssertTrue(app.navigationBars["Reschedule workout"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/01g_Notification_Reschedule_Workout")
+    }
+
     func testCaptureActiveMobilityScreenshot() {
         let app = launchFixture(
             "mobility-active",
@@ -417,6 +434,33 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("manage-mobility-routines", in: app)
         XCTAssertTrue(app.navigationBars["Mobility"].waitForExistence(timeout: 5))
         saveScreenshot("mobility/18_Mobility_Routines")
+    }
+
+    func testCaptureNutritionTodayScreenshot() {
+        let app = launchFixture(
+            "nutrition-today",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "open-nutrition-today"
+        )
+        tapButton("open-nutrition-today", in: app)
+        XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["nutrition-today-totals"].waitForExistence(timeout: 5))
+        saveScreenshot("nutrition/20_Nutrition_Today")
+    }
+
+    func testTodayCanQuickLogFood() {
+        let app = launchFixture(
+            "nutrition-today",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "open-nutrition-today"
+        )
+        tapButton("open-nutrition-today", in: app)
+        let quickLog = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "quick-log-food-")).firstMatch
+        XCTAssertTrue(quickLog.waitForExistence(timeout: 5))
+        quickLog.tap()
+        XCTAssertTrue(app.navigationBars["Log food"].waitForExistence(timeout: 5))
+        tapButton("confirm-log-food", in: app)
+        XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
     }
 
     func testTodayCanSkipPlannedWorkoutWithoutChangingThePlan() {
@@ -437,16 +481,16 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let myWorkoutsHeader = library.staticTexts["MY WORKOUTS"].firstMatch
         XCTAssertTrue(myWorkoutsHeader.waitForExistence(timeout: 5))
         library.swipeUp()
-        saveScreenshot("overview/02b_Library_Templates")
+        saveScreenshot("overview/02b_Train_Templates")
         library.swipeDown()
         tapButton("plans-browser", in: library)
-        saveScreenshot("overview/02c_Library_Plans")
+        saveScreenshot("overview/02c_Train_Plans")
         library.navigationBars.buttons.firstMatch.tap()
         let search = library.textFields["library-search"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap()
         search.typeText("not-a-real-library-item")
-        saveScreenshot("overview/02d_Library_Empty_Search")
+        saveScreenshot("overview/02d_Train_Empty_Search")
     }
 
     func testCaptureSettingsImportErrorScreenshot() {
@@ -668,6 +712,45 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         dayRows.element(boundBy: 2).tap()
         XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-day-screen"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13f_Plan_Calendar_Day")
+    }
+
+    func testCaptureTrainingCalendarScreenshots() {
+        let app = launchFixture(
+            "training-calendar",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+        tapButton("open-training-calendar", in: app)
+        waitForTrainingCalendar(in: app)
+        XCTAssertTrue(app.staticTexts["Today Strength"].waitForExistence(timeout: 5))
+        saveScreenshot("calendar/21_Training_Calendar")
+
+        let reschedule = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "training-calendar-reschedule-")
+        ).firstMatch
+        XCTAssertTrue(reschedule.waitForExistence(timeout: 5))
+        reschedule.tap()
+        XCTAssertTrue(app.navigationBars["Reschedule"].waitForExistence(timeout: 5))
+        saveScreenshot("calendar/21b_Training_Calendar_Reschedule")
+    }
+
+    func testCaptureTrainingCalendarEmptyScreenshot() {
+        let app = launchFreshApp()
+        tapButton("open-training-calendar", in: app)
+        waitForTrainingCalendar(in: app)
+        XCTAssertTrue(app.staticTexts["Nothing recorded for this day"].waitForExistence(timeout: 5))
+        saveScreenshot("calendar/21c_Training_Calendar_Empty")
+    }
+
+    private func waitForTrainingCalendar(in app: XCUIApplication) {
+        XCTAssertTrue(app.descendants(matching: .any)["training-calendar-screen"].waitForExistence(timeout: 5))
+        let today = app.buttons["training-calendar-today"]
+        XCTAssertTrue(today.waitForExistence(timeout: 5))
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isHittable == true"),
+            object: today
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 5), .completed)
     }
 
     private func saveScreenshot(

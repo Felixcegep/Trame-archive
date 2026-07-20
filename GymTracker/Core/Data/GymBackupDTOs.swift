@@ -512,6 +512,104 @@ nonisolated struct MobilitySessionDTO: Codable {
     let entries: [MobilityEntryDTO]
 }
 
+nonisolated struct FoodServingDTO: Codable {
+    let id: String
+    let name: String
+    let amount: Double
+    let unit: String
+    let equivalentReferenceAmount: Double
+}
+
+nonisolated struct FoodItemDTO: Codable {
+    let id: String
+    let name: String
+    let referenceAmount: Double
+    let referenceUnit: String
+    let calories: Double?
+    let proteinGrams: Double?
+    let carbohydrateGrams: Double?
+    let fatGrams: Double?
+    let sourceKind: String
+    let confidence: String
+    let preparationState: String
+    let isFavorite: Bool
+    let isArchived: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    let servings: [FoodServingDTO]
+}
+
+nonisolated struct MealTemplateItemDTO: Codable {
+    let id: String
+    let foodID: String
+    let orderIndex: Int
+    let servingID: String?
+    let quantity: Double
+}
+
+nonisolated struct MealTemplateDTO: Codable {
+    let id: String
+    let lineageID: String
+    let version: Int
+    let name: String
+    let preparationState: String
+    let finalCookedWeightGrams: Double?
+    let isCurrent: Bool
+    let isArchived: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    let items: [MealTemplateItemDTO]
+}
+
+nonisolated struct LoggedMealItemDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let sourceFoodID: String?
+    let foodNameSnapshot: String
+    let servingNameSnapshot: String
+    let quantity: Double
+    let portionAmountSnapshot: Double
+    let portionUnit: String
+    let caloriesSnapshot: Double?
+    let proteinGramsSnapshot: Double?
+    let carbohydrateGramsSnapshot: Double?
+    let fatGramsSnapshot: Double?
+    let sourceKind: String
+    let confidence: String
+    let preparationState: String
+}
+
+nonisolated struct LoggedMealDTO: Codable {
+    let id: String
+    let dayKey: String
+    let slot: String
+    let loggedAt: Date
+    let nameSnapshot: String
+    let sourceMealTemplateID: String?
+    let sourceMealTemplateName: String?
+    let createdAt: Date
+    let updatedAt: Date
+    let items: [LoggedMealItemDTO]
+}
+
+nonisolated struct NutritionTargetDTO: Codable {
+    let id: String
+    let phase: String
+    let effectiveStartDayKey: String
+    let effectiveEndDayKey: String?
+    let trainingCalories: Double?
+    let trainingProteinGrams: Double?
+    let trainingCarbohydrateGrams: Double?
+    let trainingFatGrams: Double?
+    let restCalories: Double?
+    let restProteinGrams: Double?
+    let restCarbohydrateGrams: Double?
+    let restFatGrams: Double?
+    let isArchived: Bool
+    let createdAt: Date
+    let updatedAt: Date
+}
+
 nonisolated struct BackupDTO: Codable, Identifiable {
     var id: UUID { UUID() }
     let version: Int
@@ -531,6 +629,10 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     let mobilityDefinitions: [MobilityDefinitionDTO]
     let mobilityRoutines: [MobilityRoutineDTO]
     let mobilitySessions: [MobilitySessionDTO]
+    let foods: [FoodItemDTO]
+    let mealTemplates: [MealTemplateDTO]
+    let loggedMeals: [LoggedMealDTO]
+    let nutritionTargets: [NutritionTargetDTO]
 
     static let legacyVersion = 1
     static let planVersion = 2
@@ -538,7 +640,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     static let programVersion = 5
     static let dailyContextVersion = 6
     static let mobilityVersion = 7
-    static let currentVersion = mobilityVersion
+    static let nutritionVersion = 8
+    static let currentVersion = nutritionVersion
 
     init(
         version: Int,
@@ -557,7 +660,11 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         mobilityFamilies: [MobilityFamilyDTO] = [],
         mobilityDefinitions: [MobilityDefinitionDTO] = [],
         mobilityRoutines: [MobilityRoutineDTO] = [],
-        mobilitySessions: [MobilitySessionDTO] = []
+        mobilitySessions: [MobilitySessionDTO] = [],
+        foods: [FoodItemDTO] = [],
+        mealTemplates: [MealTemplateDTO] = [],
+        loggedMeals: [LoggedMealDTO] = [],
+        nutritionTargets: [NutritionTargetDTO] = []
     ) {
         self.version = version
         self.preferences = preferences
@@ -576,10 +683,14 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         self.mobilityDefinitions = mobilityDefinitions
         self.mobilityRoutines = mobilityRoutines
         self.mobilitySessions = mobilitySessions
+        self.foods = foods
+        self.mealTemplates = mealTemplates
+        self.loggedMeals = loggedMeals
+        self.nutritionTargets = nutritionTargets
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, foods, mealTemplates, loggedMeals, nutritionTargets
     }
 
     init(from decoder: Decoder) throws {
@@ -601,5 +712,9 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         mobilityDefinitions = try container.decodeIfPresent([MobilityDefinitionDTO].self, forKey: .mobilityDefinitions) ?? []
         mobilityRoutines = try container.decodeIfPresent([MobilityRoutineDTO].self, forKey: .mobilityRoutines) ?? []
         mobilitySessions = try container.decodeIfPresent([MobilitySessionDTO].self, forKey: .mobilitySessions) ?? []
+        foods = try container.decodeIfPresent([FoodItemDTO].self, forKey: .foods) ?? []
+        mealTemplates = try container.decodeIfPresent([MealTemplateDTO].self, forKey: .mealTemplates) ?? []
+        loggedMeals = try container.decodeIfPresent([LoggedMealDTO].self, forKey: .loggedMeals) ?? []
+        nutritionTargets = try container.decodeIfPresent([NutritionTargetDTO].self, forKey: .nutritionTargets) ?? []
     }
 }

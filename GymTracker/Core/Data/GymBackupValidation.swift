@@ -46,7 +46,7 @@ enum BackupValidationError: LocalizedError {
 
 extension BackupDTO {
     func validate() throws {
-        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.currentVersion else {
+        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.mobilityVersion || version == Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
 
@@ -166,6 +166,10 @@ extension BackupDTO {
 
         if version >= Self.mobilityVersion {
             try validateMobility()
+        }
+
+        if version >= Self.nutritionVersion {
+            try validateNutrition()
         }
 
         guard version != Self.legacyVersion else { return }
@@ -376,6 +380,105 @@ extension BackupDTO {
         }
         try validateUniqueIdentifiers(entryIDs, named: "mobility entry")
         try validateUniqueIdentifiers(resultIDs, named: "mobility result")
+    }
+
+    private func validateNutrition() throws {
+        try validateUniqueIdentifiers(foods.map(\.id), named: "food")
+        try validateUniqueIdentifiers(mealTemplates.map(\.id), named: "meal template")
+        try validateUniqueIdentifiers(loggedMeals.map(\.id), named: "logged meal")
+        try validateUniqueIdentifiers(nutritionTargets.map(\.id), named: "nutrition target")
+
+        let foodIDs = Set(foods.map(\.id))
+        let foodNames = foods.map(\.name)
+        guard Set(foodNames.map { $0.folding(options: [.caseInsensitive], locale: .current) }).count == foodNames.count else {
+            throw BackupValidationError.duplicateIdentifier("food name")
+        }
+        var servingIDs = Set<String>()
+        var foodIDByServingID = [String: String]()
+        for food in foods {
+            guard food.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+                  food.referenceAmount > 0,
+                  NutritionServingUnit(rawValue: food.referenceUnit) != nil,
+                  FoodSourceKind(rawValue: food.sourceKind) != nil,
+                  FoodConfidence(rawValue: food.confidence) != nil,
+                  FoodPreparationState(rawValue: food.preparationState) != nil,
+                  [food.calories, food.proteinGrams, food.carbohydrateGrams, food.fatGrams].allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
+                throw BackupValidationError.invalidIdentifier("food")
+            }
+            for serving in food.servings {
+                guard servingIDs.insert(serving.id).inserted,
+                      UUID(uuidString: serving.id) != nil,
+                      serving.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+                      serving.amount > 0,
+                      serving.equivalentReferenceAmount > 0,
+                      NutritionServingUnit(rawValue: serving.unit) != nil else {
+                    throw BackupValidationError.invalidIdentifier("food serving")
+                }
+                foodIDByServingID[serving.id] = food.id
+            }
+        }
+
+        var templateItemIDs = Set<String>()
+        var lineageVersions = Set<String>()
+        for template in mealTemplates {
+            guard UUID(uuidString: template.lineageID) != nil,
+                  template.version > 0,
+                  template.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+                  FoodPreparationState(rawValue: template.preparationState) != nil,
+                  template.finalCookedWeightGrams.map({ $0 > 0 }) ?? true,
+                  lineageVersions.insert("\(template.lineageID)|\(template.version)").inserted else {
+                throw BackupValidationError.invalidIdentifier("meal template")
+            }
+            guard template.items.isEmpty == false else {
+                throw BackupValidationError.invalidIdentifier("meal template")
+            }
+            for item in template.items {
+                guard templateItemIDs.insert(item.id).inserted,
+                      UUID(uuidString: item.id) != nil,
+                      foodIDs.contains(item.foodID),
+                      item.orderIndex >= 0,
+                      item.quantity > 0,
+                      item.servingID.map({ foodIDByServingID[$0] == item.foodID }) ?? true else {
+                    throw BackupValidationError.invalidIdentifier("meal template item")
+                }
+            }
+        }
+
+        var loggedItemIDs = Set<String>()
+        for meal in loggedMeals {
+            guard isValidLocalDayKey(meal.dayKey),
+                  MealSlot(rawValue: meal.slot) != nil,
+                  meal.nameSnapshot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+                  meal.items.isEmpty == false,
+                  meal.sourceMealTemplateID.map({ UUID(uuidString: $0) != nil }) ?? true else {
+                throw BackupValidationError.invalidIdentifier("logged meal")
+            }
+            for item in meal.items {
+                guard loggedItemIDs.insert(item.id).inserted,
+                      UUID(uuidString: item.id) != nil,
+                      item.sourceFoodID.map({ UUID(uuidString: $0) != nil }) ?? true,
+                      item.orderIndex >= 0,
+                      item.quantity > 0,
+                      item.portionAmountSnapshot > 0,
+                      NutritionServingUnit(rawValue: item.portionUnit) != nil,
+                      FoodSourceKind(rawValue: item.sourceKind) != nil,
+                      FoodConfidence(rawValue: item.confidence) != nil,
+                      FoodPreparationState(rawValue: item.preparationState) != nil,
+                      [item.caloriesSnapshot, item.proteinGramsSnapshot, item.carbohydrateGramsSnapshot, item.fatGramsSnapshot].allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
+                    throw BackupValidationError.invalidIdentifier("logged meal item")
+                }
+            }
+        }
+
+        for target in nutritionTargets {
+            guard NutritionGoalPhase(rawValue: target.phase) != nil,
+                  isValidLocalDayKey(target.effectiveStartDayKey),
+                  target.effectiveEndDayKey.map(isValidLocalDayKey) ?? true,
+                  target.effectiveEndDayKey.map({ $0 >= target.effectiveStartDayKey }) ?? true,
+                  [target.trainingCalories, target.trainingProteinGrams, target.trainingCarbohydrateGrams, target.trainingFatGrams, target.restCalories, target.restProteinGrams, target.restCarbohydrateGrams, target.restFatGrams].allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
+                throw BackupValidationError.invalidIdentifier("nutrition target")
+            }
+        }
     }
 
     private func validateUniqueIdentifiers(_ identifiers: [String], named name: String) throws {

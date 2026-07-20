@@ -463,9 +463,6 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
         try WorkoutTestFixture.withDiskContext(at: url, body)
     }
 
-    private func makeExercise() -> Exercise {
-        WorkoutTestFixture.makeExercise()
-    }
 
     private func makeTemplate(exercise: Exercise, targetSets: Int) -> WorkoutTemplate {
         WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: targetSets)

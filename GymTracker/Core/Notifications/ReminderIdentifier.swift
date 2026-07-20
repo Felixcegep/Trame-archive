@@ -9,6 +9,10 @@ enum ReminderIdentifier {
         prefix + "plan." + progressID.uuidString
     }
 
+    static func snoozedPlanWorkout(progressID: UUID) -> String {
+        prefix + "plan.snooze." + progressID.uuidString
+    }
+
     static func checkIn(day: LocalDay) -> String {
         prefix + "check-in." + day.rawValue
     }
