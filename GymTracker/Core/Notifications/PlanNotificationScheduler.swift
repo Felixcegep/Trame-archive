@@ -18,7 +18,6 @@ struct PlanNotificationDestination: Sendable {
 final class PlanNotificationScheduler {
     static let shared = PlanNotificationScheduler()
 
-    private static let identifierPrefix = "gymtracker.plan."
     private static let categoryIdentifier = "GYMTRACKER_PLAN_WORKOUT"
 
     private let center = UNUserNotificationCenter.current()
@@ -116,7 +115,7 @@ final class PlanNotificationScheduler {
                 )
                 requests.append(
                     UNNotificationRequest(
-                        identifier: Self.identifierPrefix + progress.id.uuidString,
+                        identifier: ReminderIdentifier.planWorkout(progressID: progress.id),
                         content: content,
                         trigger: UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
                     )
@@ -134,7 +133,7 @@ final class PlanNotificationScheduler {
 
     private func cancelAllPlanReminders() async {
         let requests = await center.pendingNotificationRequests()
-        let identifiers = requests.map(\.identifier).filter { $0.hasPrefix(Self.identifierPrefix) }
+        let identifiers = requests.map(\.identifier).filter(ReminderIdentifier.matchesPlanWorkout)
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
     }
 }

@@ -55,6 +55,24 @@ final class PlanSchedulingTests: XCTestCase {
         XCTAssertEqual(PlanCoordinator.nextProgress(in: run)?.plannedWorkoutID, sessions[1].plannedWorkoutID)
     }
 
+    func testReschedulingNextWorkoutToTomorrowChangesOnlyRunProgress() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, startDate: .now))
+        context.insert(run)
+        try context.save()
+
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let plannedWorkout = try XCTUnwrap(PlanCoordinator.plannedWorkout(for: progress, in: run))
+        let originalPlanOffset = plannedWorkout.dayOffset
+        let tomorrow = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 1, to: .now))
+
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: tomorrow, in: run, using: context))
+        XCTAssertEqual(progress.scheduledDate, Calendar.current.startOfDay(for: tomorrow))
+        XCTAssertEqual(plannedWorkout.dayOffset, originalPlanOffset)
+        XCTAssertNil(progress.completedWorkout)
+    }
+
     func testDuplicateScheduledDatesFallBackToPlanOrder() throws {
         let context = try makeContext()
         let plan = try makeScheduledPlan(in: context)

@@ -24,6 +24,8 @@ struct RootView: View {
     @State private var libraryPath: [LibraryRoute] = []
     @State private var activeWorkoutPath: [ActiveWorkoutRoute] = []
     @State private var isShowingActiveWorkout = false
+    @State private var isShowingActiveMobility = false
+    @State private var activeMobilitySessionID: UUID?
     @State private var shouldDiscardActiveWorkout = false
     @State private var selectedTab: AppTab = .home
     @State private var templateToStart: WorkoutTemplate? = nil
@@ -37,7 +39,9 @@ struct RootView: View {
                 HomeView(
                     workoutVM: workoutVM,
                     isShowingActiveWorkout: $isShowingActiveWorkout,
-                    onStartPlannedWorkout: startPlannedWorkout
+                    onStartPlannedWorkout: startPlannedWorkout,
+                    onStartMobility: startMobility,
+                    onResumeMobility: resumeMobility
                 )
             }
             .tabItem {
@@ -146,6 +150,22 @@ struct RootView: View {
                 }
             }
         }
+        .fullScreenCover(isPresented: $isShowingActiveMobility, onDismiss: {
+            activeMobilitySessionID = nil
+        }) {
+            NavigationStack {
+                if let session = mobilitySession(id: activeMobilitySessionID) {
+                    MobilitySessionView(session: session) {
+                        isShowingActiveMobility = false
+                    }
+                } else {
+                    ContentUnavailableView(
+                        "Mobility session unavailable",
+                        systemImage: AppIcon.warning,
+                        description: Text("The session may have been removed."))
+                }
+            }
+        }
         .confirmationDialog(
             "An active workout is already in progress",
             isPresented: $isShowingActiveWorkoutConflictAlert,
@@ -204,6 +224,7 @@ struct RootView: View {
             seedWorkoutTemplatesIfNeeded()
             seedWorkoutCollectionsIfNeeded()
             seedWorkoutPlansIfNeeded()
+            MobilitySeedData.seedIfNeeded(using: modelContext)
             normalizePersistedWorkoutData()
             if fixture == nil || fixture?.refreshesPlanRunAvailability == true {
                 refreshActivePlanRuns()
@@ -238,6 +259,10 @@ struct RootView: View {
                 // reconciling that deletion with its query cache.
                 workoutVM.restoreActiveWorkout(using: modelContext)
             }
+            if let session = MobilitySessionService.activeSession(using: modelContext) {
+                activeMobilitySessionID = session.id
+                isShowingActiveMobility = true
+            }
             if CommandLine.arguments.contains("-ui-testing-open-exercise-detail"),
                let benchPress = try? modelContext.fetch(
                    FetchDescriptor<Exercise>(predicate: #Predicate { $0.name == "Bench Press" })
@@ -247,13 +272,17 @@ struct RootView: View {
             }
             isPreparingApp = false
             await PlanNotificationScheduler.shared.reconcile(using: modelContext)
+            await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
         }
         .onReceive(NotificationCenter.default.publisher(for: .gymDataRestored)) { _ in
             templateToStart = nil
             plannedWorkoutToStart = nil
             isShowingActiveWorkout = false
             workoutVM.restoreActiveWorkout(using: modelContext)
-            Task { await PlanNotificationScheduler.shared.reconcile(using: modelContext) }
+            Task {
+                await PlanNotificationScheduler.shared.reconcile(using: modelContext)
+                await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .planScheduleDidChange)) { _ in
             Task { await PlanNotificationScheduler.shared.reconcile(using: modelContext) }
@@ -272,13 +301,37 @@ struct RootView: View {
                 }
             } else if newPhase == .active {
                 workoutVM.reconcileLiveActivity()
-                Task { await PlanNotificationScheduler.shared.reconcile(using: modelContext) }
+                Task {
+                    await PlanNotificationScheduler.shared.reconcile(using: modelContext)
+                    await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
+                }
             }
         }
     }
 
     private func plan(id: UUID) -> WorkoutPlan? {
         try? modelContext.fetch(FetchDescriptor<WorkoutPlan>()).first { $0.id == id }
+    }
+
+    private func mobilitySession(id: UUID?) -> MobilitySession? {
+        guard let id else { return nil }
+        return try? modelContext.fetch(FetchDescriptor<MobilitySession>()).first { $0.id == id }
+    }
+
+    private func startMobility(_ routine: MobilityRoutine, _ context: MobilitySessionContext, _ workoutID: UUID?) {
+        guard let session = MobilitySessionService.start(
+            routine: routine,
+            context: context,
+            workoutID: workoutID,
+            using: modelContext
+        ) else { return }
+        activeMobilitySessionID = session.id
+        isShowingActiveMobility = true
+    }
+
+    private func resumeMobility(_ session: MobilitySession) {
+        activeMobilitySessionID = session.id
+        isShowingActiveMobility = true
     }
 
     private func exercise(id: UUID) -> Exercise? {

@@ -384,6 +384,53 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("overview/01c_Home_Workout_Conflict")
     }
 
+    func testCaptureDailyCheckInScreenshot() {
+        let app = launchFixture("today-complete", expectsActiveWorkout: false)
+        tapButton("open-daily-check-in", in: app)
+        XCTAssertTrue(app.navigationBars["Daily check-in"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/01e_Daily_Check_In")
+    }
+
+    func testCaptureTodayRescheduleScreenshot() {
+        let app = launchFixture(
+            "plan-active-run",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+        tapButton("today-reschedule-planned-workout", in: app)
+        XCTAssertTrue(app.navigationBars["Reschedule workout"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/01f_Today_Reschedule_Workout")
+    }
+
+    func testCaptureActiveMobilityScreenshot() {
+        let app = launchFixture(
+            "mobility-active",
+            expectsActiveWorkout: false,
+            expectsMobilitySession: true
+        )
+        XCTAssertTrue(app.buttons["complete-mobility-movement"].waitForExistence(timeout: 5))
+        saveScreenshot("mobility/19_Active_Mobility")
+    }
+
+    func testCaptureMobilityLibraryScreenshot() {
+        let app = launchFixture("today-complete", expectsActiveWorkout: false)
+        tapButton("manage-mobility-routines", in: app)
+        XCTAssertTrue(app.navigationBars["Mobility"].waitForExistence(timeout: 5))
+        saveScreenshot("mobility/18_Mobility_Routines")
+    }
+
+    func testTodayCanSkipPlannedWorkoutWithoutChangingThePlan() {
+        let app = launchFixture(
+            "plan-active-run",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+        tapButton("today-skip-planned-workout", in: app)
+        XCTAssertTrue(app.staticTexts["Skip this workout?"].waitForExistence(timeout: 5))
+        tapButton("today-confirm-skip-workout", in: app)
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
+    }
+
     func testCaptureLibrarySecondaryStatesScreenshots() {
         let library = launchFreshApp()
         selectTab(.library, in: library)

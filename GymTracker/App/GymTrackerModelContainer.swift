@@ -31,7 +31,16 @@ enum GymTrackerModelContainer {
             PlannedExerciseAlternative.self,
             PlanRun.self,
             PlanWorkoutProgress.self,
-            PlanExerciseProgressionState.self
+            PlanExerciseProgressionState.self,
+            DailyLogEntry.self,
+            SupplementOccurrence.self,
+            MobilityFamily.self,
+            MobilityDefinition.self,
+            MobilityRoutine.self,
+            MobilityRoutineItem.self,
+            MobilitySession.self,
+            MobilityEntry.self,
+            MobilityResult.self
         ]
 #if !GYMTRACKER_EXTENSION
         types.append(ProgramDefinitionRecord.self)

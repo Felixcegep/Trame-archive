@@ -605,6 +605,167 @@ extension BackupDTO {
                 record.resolvedAt = recommendationDTO.resolvedAt
                 context.insert(record)
             }
+
+            for entryDTO in dailyLogEntries {
+                guard let status = DailyCheckInStatus(rawValue: entryDTO.status) else {
+                    throw BackupValidationError.invalidIdentifier("daily log entry")
+                }
+                let entry = DailyLogEntry(
+                    day: LocalDay(rawValue: entryDTO.dayKey),
+                    status: status,
+                    sleepQuality: entryDTO.sleepQuality,
+                    energy: entryDTO.energy,
+                    workoutDifficulty: entryDTO.workoutDifficulty,
+                    note: entryDTO.note,
+                    createdAt: entryDTO.createdAt,
+                    updatedAt: entryDTO.updatedAt,
+                    id: try requiredUUID(entryDTO.id, named: "daily log entry")
+                )
+                context.insert(entry)
+            }
+
+            for occurrenceDTO in supplementOccurrences {
+                guard let kind = SupplementKind(rawValue: occurrenceDTO.kind),
+                      let status = SupplementOccurrenceStatus(rawValue: occurrenceDTO.status) else {
+                    throw BackupValidationError.invalidIdentifier("supplement occurrence")
+                }
+                let occurrence = SupplementOccurrence(
+                    kind: kind,
+                    day: LocalDay(rawValue: occurrenceDTO.dayKey),
+                    status: status,
+                    completedAt: occurrenceDTO.completedAt,
+                    createdAt: occurrenceDTO.createdAt,
+                    updatedAt: occurrenceDTO.updatedAt,
+                    id: try requiredUUID(occurrenceDTO.id, named: "supplement occurrence")
+                )
+                context.insert(occurrence)
+            }
+
+            var mobilityFamiliesByID = [String: MobilityFamily]()
+            for familyDTO in mobilityFamilies {
+                let family = MobilityFamily(
+                    name: familyDTO.name,
+                    id: try requiredUUID(familyDTO.id, named: "mobility family"),
+                    createdAt: familyDTO.createdAt,
+                    updatedAt: familyDTO.updatedAt
+                )
+                mobilityFamiliesByID[familyDTO.id] = family
+                context.insert(family)
+            }
+
+            var mobilityDefinitionsByID = [String: MobilityDefinition]()
+            for definitionDTO in mobilityDefinitions {
+                guard let trackingType = MobilityTrackingType(rawValue: definitionDTO.trackingType) else {
+                    throw BackupValidationError.invalidIdentifier("mobility definition")
+                }
+                let definition = MobilityDefinition(
+                    name: definitionDTO.name,
+                    instructions: definitionDTO.instructions,
+                    trackingType: trackingType,
+                    defaultDurationSeconds: definitionDTO.defaultDurationSeconds,
+                    defaultRepetitions: definitionDTO.defaultRepetitions,
+                    isFavorite: definitionDTO.isFavorite,
+                    isCustom: definitionDTO.isCustom,
+                    isArchived: definitionDTO.isArchived,
+                    family: definitionDTO.familyID.flatMap { mobilityFamiliesByID[$0] },
+                    id: try requiredUUID(definitionDTO.id, named: "mobility definition"),
+                    createdAt: definitionDTO.createdAt,
+                    updatedAt: definitionDTO.updatedAt
+                )
+                mobilityDefinitionsByID[definitionDTO.id] = definition
+                context.insert(definition)
+            }
+
+            for routineDTO in mobilityRoutines {
+                let routine = MobilityRoutine(
+                    name: routineDTO.name,
+                    notes: routineDTO.notes,
+                    isArchived: routineDTO.isArchived,
+                    id: try requiredUUID(routineDTO.id, named: "mobility routine"),
+                    createdAt: routineDTO.createdAt,
+                    updatedAt: routineDTO.updatedAt
+                )
+                routine.items = try routineDTO.items.map { itemDTO in
+                    guard let definition = mobilityDefinitionsByID[itemDTO.definitionID],
+                          let side = MobilitySide(rawValue: itemDTO.side) else {
+                        throw BackupValidationError.invalidIdentifier("mobility routine item")
+                    }
+                    return MobilityRoutineItem(
+                        definition: definition,
+                        orderIndex: itemDTO.orderIndex,
+                        targetDurationSeconds: itemDTO.targetDurationSeconds,
+                        targetRepetitions: itemDTO.targetRepetitions,
+                        side: side,
+                        restSeconds: itemDTO.restSeconds,
+                        notes: itemDTO.notes,
+                        id: try requiredUUID(itemDTO.id, named: "mobility routine item")
+                    )
+                }
+                context.insert(routine)
+            }
+
+            for sessionDTO in mobilitySessions {
+                guard let status = MobilitySessionStatus(rawValue: sessionDTO.status),
+                      let sessionContext = MobilitySessionContext(rawValue: sessionDTO.context) else {
+                    throw BackupValidationError.invalidIdentifier("mobility session")
+                }
+                let session = MobilitySession(
+                    nameSnapshot: sessionDTO.nameSnapshot,
+                    sourceRoutineID: try sessionDTO.sourceRoutineID.map { try requiredUUID($0, named: "mobility session routine") },
+                    sourceRoutineName: sessionDTO.sourceRoutineName,
+                    workoutID: try sessionDTO.workoutID.map { try requiredUUID($0, named: "mobility session workout") },
+                    context: sessionContext,
+                    id: try requiredUUID(sessionDTO.id, named: "mobility session"),
+                    startTime: sessionDTO.startTime,
+                    createdAt: sessionDTO.createdAt,
+                    updatedAt: sessionDTO.updatedAt
+                )
+                session.status = status
+                session.endTime = sessionDTO.endTime
+                session.currentEntryIndex = sessionDTO.currentEntryIndex
+                session.entries = try sessionDTO.entries.map { entryDTO in
+                    guard let trackingType = MobilityTrackingType(rawValue: entryDTO.trackingType),
+                          let side = MobilitySide(rawValue: entryDTO.side) else {
+                        throw BackupValidationError.invalidIdentifier("mobility entry")
+                    }
+                    let entry = MobilityEntry(
+                        definitionIDSnapshot: try requiredUUID(entryDTO.definitionIDSnapshot, named: "mobility entry definition"),
+                        definitionNameSnapshot: entryDTO.definitionNameSnapshot,
+                        instructionsSnapshot: entryDTO.instructionsSnapshot,
+                        trackingType: trackingType,
+                        targetDurationSeconds: entryDTO.targetDurationSeconds,
+                        targetRepetitions: entryDTO.targetRepetitions,
+                        side: side,
+                        restSeconds: entryDTO.restSeconds,
+                        notesSnapshot: entryDTO.notesSnapshot,
+                        timerStartedAt: entryDTO.timerStartedAt,
+                        orderIndex: entryDTO.orderIndex,
+                        id: try requiredUUID(entryDTO.id, named: "mobility entry")
+                    )
+                    entry.results = try entryDTO.results.map { resultDTO in
+                        guard let resultSide = MobilitySide(rawValue: resultDTO.side),
+                              let resultStatus = MobilityResultStatus(rawValue: resultDTO.status) else {
+                            throw BackupValidationError.invalidIdentifier("mobility result")
+                        }
+                        let result = MobilityResult(
+                            side: resultSide,
+                            prescribedDurationSeconds: resultDTO.prescribedDurationSeconds,
+                            prescribedRepetitions: resultDTO.prescribedRepetitions,
+                            id: try requiredUUID(resultDTO.id, named: "mobility result")
+                        )
+                        result.status = resultStatus
+                        result.performedDurationSeconds = resultDTO.performedDurationSeconds
+                        result.performedRepetitions = resultDTO.performedRepetitions
+                        result.perceivedIntensity = resultDTO.perceivedIntensity
+                        result.discomfortNote = resultDTO.discomfortNote
+                        result.startedAt = resultDTO.startedAt
+                        result.completedAt = resultDTO.completedAt
+                        return result
+                    }
+                    return entry
+                }
+                context.insert(session)
+            }
             try beforeCommit?()
             try context.save()
         } catch {

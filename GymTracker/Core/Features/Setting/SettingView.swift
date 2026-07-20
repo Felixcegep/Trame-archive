@@ -24,11 +24,20 @@ struct SettingView: View {
     @State private var reminderAuthorization: UNAuthorizationStatus = .notDetermined
     @State private var reminderErrorMessage: String?
     @State private var remindersEnabled = UserDefaults.standard.bool(forKey: DefaultsKey.planRemindersEnabled)
+    @State private var checkInRemindersEnabled = UserDefaults.standard.bool(forKey: DefaultsKey.checkInRemindersEnabled)
     @State private var reminderTime = Calendar.current.date(
         bySettingHour: UserDefaults.standard.object(forKey: DefaultsKey.planReminderHour) == nil
             ? 9
             : UserDefaults.standard.integer(forKey: DefaultsKey.planReminderHour),
         minute: UserDefaults.standard.integer(forKey: DefaultsKey.planReminderMinute),
+        second: 0,
+        of: .now
+    ) ?? .now
+    @State private var checkInReminderTime = Calendar.current.date(
+        bySettingHour: UserDefaults.standard.object(forKey: DefaultsKey.checkInReminderHour) == nil
+            ? 20
+            : UserDefaults.standard.integer(forKey: DefaultsKey.checkInReminderHour),
+        minute: UserDefaults.standard.integer(forKey: DefaultsKey.checkInReminderMinute),
         second: 0,
         of: .now
     ) ?? .now
@@ -55,6 +64,7 @@ struct SettingView: View {
             }
 
             workoutRemindersSection
+            checkInRemindersSection
 
             Section("Backup & Restore") {
                 if let url = exportURL() {
@@ -208,6 +218,56 @@ struct SettingView: View {
         }
     }
 
+    @MainActor
+    private func setCheckInRemindersEnabled(_ enabled: Bool) async {
+        if enabled {
+            guard await CheckInNotificationScheduler.shared.enable() else {
+                checkInRemindersEnabled = false
+                reminderAuthorization = await CheckInNotificationScheduler.shared.authorizationStatus()
+                reminderErrorMessage = reminderAuthorization == .denied
+                    ? "Allow notifications in System Settings to receive daily check-in reminders."
+                    : "Daily check-in reminders could not be enabled."
+                return
+            }
+            reminderAuthorization = await CheckInNotificationScheduler.shared.authorizationStatus()
+            await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
+        } else {
+            checkInRemindersEnabled = false
+            CheckInNotificationScheduler.shared.disable()
+        }
+    }
+
+    private var checkInRemindersSection: some View {
+        Section {
+            Toggle("Daily check-in reminder", isOn: Binding(
+                get: { checkInRemindersEnabled },
+                set: { enabled in
+                    checkInRemindersEnabled = enabled
+                    Task { await setCheckInRemindersEnabled(enabled) }
+                }
+            ))
+            .accessibilityIdentifier("settings-check-in-reminder")
+
+            if checkInRemindersEnabled {
+                DatePicker("Reminder time", selection: $checkInReminderTime, displayedComponents: .hourAndMinute)
+                    .onChange(of: checkInReminderTime) { _, newValue in
+                        CheckInNotificationScheduler.shared.setReminderTime(newValue)
+                        Task { await CheckInNotificationScheduler.shared.reconcile(using: modelContext) }
+                    }
+            }
+
+            if reminderAuthorization == .denied {
+                Text("Notifications are disabled in System Settings.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Daily check-in")
+        } footer: {
+            Text("One optional reminder is scheduled for the selected evening time. Saving or skipping today’s check-in removes it.")
+        }
+    }
+
     private var formattedRestTimer: String {
         if restTimer < 60 {
             return String(localized: "\(restTimer) sec")
@@ -249,6 +309,7 @@ struct SettingView: View {
                 modelContext.insert(collection)
                 try modelContext.save()
             }
+            MobilitySeedData.seedIfNeeded(using: modelContext)
         } catch {
             print("Failed to reset development data: \(error)")
         }
@@ -331,6 +392,10 @@ struct ImportPreviewView: View {
                     LabeledContent("Programs", value: "\(backup.plans.count)")
                     LabeledContent("Program Runs", value: "\(backup.planRuns.count)")
                     LabeledContent("Workout History", value: "\(backup.workouts.count)")
+                    LabeledContent("Daily Check-ins", value: "\(backup.dailyLogEntries.count)")
+                    LabeledContent("Creatine Confirmations", value: "\(backup.supplementOccurrences.filter { $0.status == SupplementOccurrenceStatus.completed.rawValue }.count)")
+                    LabeledContent("Mobility Routines", value: "\(backup.mobilityRoutines.count)")
+                    LabeledContent("Mobility Sessions", value: "\(backup.mobilitySessions.count)")
                 }
             }
             .scrollContentBackground(.hidden)

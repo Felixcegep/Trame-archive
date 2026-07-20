@@ -16,23 +16,22 @@ tests, the Program Library UI journey, catalog screenshot capture, and the seria
 full UI suite once a working iOS Simulator service is available. Until those runs
 are green, the test plan's behavioural and screenshot acceptance rows remain open.
 
-1. [01-ArchitectureAudit.md](01-ArchitectureAudit.md) — verified code paths,
-   confirmed gaps G1–G10, compatibility matrix, licensing/product-risk table,
-   final per-program verdicts (Outputs 1 + 7).
-2. [02-ProgramSpecifications.md](02-ProgramSpecifications.md) — complete specs for
+The retained reference set contains only documents that still describe the shipped engine or an explicit parked gap:
+
+1. [02-ProgramSpecifications.md](02-ProgramSpecifications.md) — complete specs for
    the 13 ship-safe default programs, incl. formulas, worked examples, failure/
-   deload/missed/completion behavior (Output 2).
-3. [03-DomainModel.md](03-DomainModel.md) — canonical model = existing types +
-   deltas Δ1–Δ10; formula reference semantics; state-ownership table (Output 3).
-4. [04-SeedData.md](04-SeedData.md) + [seed/program-library.json](seed/program-library.json)
+   deload/missed/completion behavior.
+2. [03-DomainModel.md](03-DomainModel.md) — engine-specific model, formula
+   reference semantics, and state-ownership table.
+3. [04-SeedData.md](04-SeedData.md) + [seed/program-library.json](seed/program-library.json)
    — authoring schema, missing catalog exercises, relationship records, SwiftData
-   seeding strategy, import-ready data (Output 4).
-5. [05-ImplementationPlan.md](05-ImplementationPlan.md) — phased plan; Phases 1–3
-   mostly shipped, new work concentrated in Phases 4–6 (Output 5).
-6. [06-TestPlan.md](06-TestPlan.md) — scenario matrix vs existing suites, 13
-   end-to-end program tests, seed/integrity suites (Output 6).
-7. [07-ExecutionPlan.md](07-ExecutionPlan.md) — PR-by-PR execution roadmap:
-   4 milestones, 17 PRs, dependency graph, risk register.
+   seeding strategy, and import-ready data.
+4. [06-TestPlan.md](06-TestPlan.md) — scenario matrix, 13 end-to-end program
+   tests, and seed/integrity suites.
+5. [08-SchemaGapBacklog.md](08-SchemaGapBacklog.md) — parked schema candidates
+   that are not scheduled by the active product roadmap.
+6. [09-DeepResearchCorrections.md](09-DeepResearchCorrections.md) — corrections
+   applied to the authored program specifications.
 
 Headline: no structural redesign was needed. The engine gaps identified in this audit
 are implemented; verification of the full behavioural matrix is the remaining

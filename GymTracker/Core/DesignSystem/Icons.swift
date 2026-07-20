@@ -9,6 +9,7 @@ struct AppIcon {
     static let plan = "calendar"
     static let planAdd = "calendar.badge.plus"
     static let reschedule = "calendar.badge.clock"
+    static let tomorrow = "calendar.badge.plus"
     static let minimize = "chevron.down"
     static let chevronLeft = "chevron.left"
     static let chevronRight = "chevron.right"
@@ -37,6 +38,7 @@ struct AppIcon {
     static let circle = "circle"
     static let circleFill = "circle.fill"
     static let circleDashed = "circle.dashed"
+    static let skip = "circle.slash"
     static let info = "info.circle"
     static let warning = "exclamationmark.triangle"
     static let warningCircle = "exclamationmark.circle"
@@ -46,6 +48,9 @@ struct AppIcon {
     
     // Specific Features
     static let workout = "dumbbell.fill"
+    static let mobility = "figure.flexibility"
+    static let routine = "list.bullet.rectangle"
+    static let stop = "stop.fill"
     static let timer = "timer"
     static let chart = "chart.xyaxis.line"
     static let progression = "chart.line.uptrend.xyaxis"

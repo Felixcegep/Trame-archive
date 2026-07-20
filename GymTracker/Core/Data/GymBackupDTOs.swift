@@ -400,6 +400,118 @@ nonisolated struct ProgramDefinitionDTO: Codable {
     let definitionData: Data
 }
 
+nonisolated struct DailyLogEntryDTO: Codable {
+    let id: String
+    let dayKey: String
+    let status: String
+    let sleepQuality: Int?
+    let energy: Int?
+    let workoutDifficulty: Int?
+    let note: String?
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+nonisolated struct SupplementOccurrenceDTO: Codable {
+    let id: String
+    let occurrenceKey: String
+    let dayKey: String
+    let kind: String
+    let status: String
+    let completedAt: Date?
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+nonisolated struct MobilityFamilyDTO: Codable {
+    let id: String
+    let name: String
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+nonisolated struct MobilityDefinitionDTO: Codable {
+    let id: String
+    let name: String
+    let instructions: String?
+    let trackingType: String
+    let defaultDurationSeconds: Int?
+    let defaultRepetitions: Int?
+    let isFavorite: Bool
+    let isCustom: Bool
+    let isArchived: Bool
+    let familyID: String?
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+nonisolated struct MobilityRoutineItemDTO: Codable {
+    let id: String
+    let definitionID: String
+    let orderIndex: Int
+    let targetDurationSeconds: Int?
+    let targetRepetitions: Int?
+    let side: String
+    let restSeconds: Int?
+    let notes: String?
+}
+
+nonisolated struct MobilityRoutineDTO: Codable {
+    let id: String
+    let name: String
+    let notes: String?
+    let isArchived: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    let items: [MobilityRoutineItemDTO]
+}
+
+nonisolated struct MobilityResultDTO: Codable {
+    let id: String
+    let side: String
+    let status: String
+    let prescribedDurationSeconds: Int?
+    let prescribedRepetitions: Int?
+    let performedDurationSeconds: Int?
+    let performedRepetitions: Int?
+    let perceivedIntensity: Int?
+    let discomfortNote: String?
+    let startedAt: Date?
+    let completedAt: Date?
+}
+
+nonisolated struct MobilityEntryDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let definitionIDSnapshot: String
+    let definitionNameSnapshot: String
+    let instructionsSnapshot: String?
+    let trackingType: String
+    let targetDurationSeconds: Int?
+    let targetRepetitions: Int?
+    let side: String
+    let restSeconds: Int?
+    let notesSnapshot: String?
+    let timerStartedAt: Date?
+    let results: [MobilityResultDTO]
+}
+
+nonisolated struct MobilitySessionDTO: Codable {
+    let id: String
+    let status: String
+    let nameSnapshot: String
+    let sourceRoutineID: String?
+    let sourceRoutineName: String?
+    let workoutID: String?
+    let context: String
+    let startTime: Date
+    let endTime: Date?
+    let currentEntryIndex: Int
+    let createdAt: Date
+    let updatedAt: Date
+    let entries: [MobilityEntryDTO]
+}
+
 nonisolated struct BackupDTO: Codable, Identifiable {
     var id: UUID { UUID() }
     let version: Int
@@ -413,12 +525,20 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     let exerciseRelationships: [ExerciseRelationshipDTO]
     let programDefinitions: [ProgramDefinitionDTO]
     let progressionRecommendations: [ProgressionRecommendationDTO]
+    let dailyLogEntries: [DailyLogEntryDTO]
+    let supplementOccurrences: [SupplementOccurrenceDTO]
+    let mobilityFamilies: [MobilityFamilyDTO]
+    let mobilityDefinitions: [MobilityDefinitionDTO]
+    let mobilityRoutines: [MobilityRoutineDTO]
+    let mobilitySessions: [MobilitySessionDTO]
 
     static let legacyVersion = 1
     static let planVersion = 2
     static let supersetVersion = 3
     static let programVersion = 5
-    static let currentVersion = 5
+    static let dailyContextVersion = 6
+    static let mobilityVersion = 7
+    static let currentVersion = mobilityVersion
 
     init(
         version: Int,
@@ -431,7 +551,13 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         planRuns: [PlanRunDTO] = [],
         exerciseRelationships: [ExerciseRelationshipDTO] = [],
         programDefinitions: [ProgramDefinitionDTO] = [],
-        progressionRecommendations: [ProgressionRecommendationDTO] = []
+        progressionRecommendations: [ProgressionRecommendationDTO] = [],
+        dailyLogEntries: [DailyLogEntryDTO] = [],
+        supplementOccurrences: [SupplementOccurrenceDTO] = [],
+        mobilityFamilies: [MobilityFamilyDTO] = [],
+        mobilityDefinitions: [MobilityDefinitionDTO] = [],
+        mobilityRoutines: [MobilityRoutineDTO] = [],
+        mobilitySessions: [MobilitySessionDTO] = []
     ) {
         self.version = version
         self.preferences = preferences
@@ -444,10 +570,16 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         self.exerciseRelationships = exerciseRelationships
         self.programDefinitions = programDefinitions
         self.progressionRecommendations = progressionRecommendations
+        self.dailyLogEntries = dailyLogEntries
+        self.supplementOccurrences = supplementOccurrences
+        self.mobilityFamilies = mobilityFamilies
+        self.mobilityDefinitions = mobilityDefinitions
+        self.mobilityRoutines = mobilityRoutines
+        self.mobilitySessions = mobilitySessions
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions, progressionRecommendations
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions
     }
 
     init(from decoder: Decoder) throws {
@@ -463,5 +595,11 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         exerciseRelationships = try container.decodeIfPresent([ExerciseRelationshipDTO].self, forKey: .exerciseRelationships) ?? []
         programDefinitions = try container.decodeIfPresent([ProgramDefinitionDTO].self, forKey: .programDefinitions) ?? []
         progressionRecommendations = try container.decodeIfPresent([ProgressionRecommendationDTO].self, forKey: .progressionRecommendations) ?? []
+        dailyLogEntries = try container.decodeIfPresent([DailyLogEntryDTO].self, forKey: .dailyLogEntries) ?? []
+        supplementOccurrences = try container.decodeIfPresent([SupplementOccurrenceDTO].self, forKey: .supplementOccurrences) ?? []
+        mobilityFamilies = try container.decodeIfPresent([MobilityFamilyDTO].self, forKey: .mobilityFamilies) ?? []
+        mobilityDefinitions = try container.decodeIfPresent([MobilityDefinitionDTO].self, forKey: .mobilityDefinitions) ?? []
+        mobilityRoutines = try container.decodeIfPresent([MobilityRoutineDTO].self, forKey: .mobilityRoutines) ?? []
+        mobilitySessions = try container.decodeIfPresent([MobilitySessionDTO].self, forKey: .mobilitySessions) ?? []
     }
 }

@@ -12,6 +12,12 @@ extension ModelContext {
         // lets SwiftData apply the same cascade and nullification rules that the
         // app uses for a real discard or deletion.
         for workout in workouts { delete(workout) }
+        for session in try fetch(FetchDescriptor<MobilitySession>()) { delete(session) }
+        for routine in try fetch(FetchDescriptor<MobilityRoutine>()) { delete(routine) }
+        for definition in try fetch(FetchDescriptor<MobilityDefinition>()) { delete(definition) }
+        for family in try fetch(FetchDescriptor<MobilityFamily>()) { delete(family) }
+        for entry in try fetch(FetchDescriptor<DailyLogEntry>()) { delete(entry) }
+        for occurrence in try fetch(FetchDescriptor<SupplementOccurrence>()) { delete(occurrence) }
         for run in try fetch(FetchDescriptor<PlanRun>()) { delete(run) }
         for plan in try fetch(FetchDescriptor<WorkoutPlan>()) { delete(plan) }
         for collection in try fetch(FetchDescriptor<WorkoutCollection>()) { delete(collection) }

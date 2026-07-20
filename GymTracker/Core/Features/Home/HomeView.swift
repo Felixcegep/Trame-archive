@@ -6,11 +6,23 @@ struct HomeView: View {
     let workoutVM: WorkoutViewModel
     @Binding var isShowingActiveWorkout: Bool
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
+    let onStartMobility: (MobilityRoutine, MobilitySessionContext, UUID?) -> Void
+    let onResumeMobility: (MobilitySession) -> Void
 
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     @Query private var planRuns: [PlanRun]
+    @Query private var dailyLogEntries: [DailyLogEntry]
+    @Query private var supplementOccurrences: [SupplementOccurrence]
+    @Query(sort: \MobilityRoutine.updatedAt, order: .reverse) private var mobilityRoutines: [MobilityRoutine]
+    @Query(sort: \MobilitySession.updatedAt, order: .reverse) private var mobilitySessions: [MobilitySession]
     @State private var isShowingTemplatePicker = false
+    @State private var isShowingDailyCheckIn = false
+    @State private var isShowingMobilityLibrary = false
+    @State private var reschedulingProgress: PlanWorkoutProgress?
+    @State private var rescheduleDate = Date.now
+    @State private var progressToSkip: PlanWorkoutProgress?
+    @State private var scheduleActionError: ValidationIssue?
     @State private var templateToStart: WorkoutTemplate? = nil
     @State private var isShowingActiveWorkoutConflictAlert = false
 
@@ -19,6 +31,8 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 welcomeHeader
                 primaryWorkoutCard
+                dailyContext
+                mobilityContext
                 quickActions
                 recentActivity
             }
@@ -30,6 +44,7 @@ struct HomeView: View {
         .foregroundStyle(Color.gymText)
         .background(Color.gymBackground)
         .tint(Color.gymPrimary)
+        .navigationTitle("Today")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
@@ -43,6 +58,61 @@ struct HomeView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $isShowingDailyCheckIn) {
+            DailyCheckInSheet(day: .today) {
+                Task { await CheckInNotificationScheduler.shared.reconcile(using: modelContext) }
+            }
+        }
+        .sheet(isPresented: $isShowingMobilityLibrary) {
+            NavigationStack {
+                MobilityLibraryView(onStart: { routine, context, workoutID in
+                    isShowingMobilityLibrary = false
+                    DispatchQueue.main.async {
+                        onStartMobility(routine, context, workoutID)
+                    }
+                })
+            }
+        }
+        .sheet(item: $reschedulingProgress) { progress in
+            NavigationStack {
+                Form {
+                    DatePicker("Scheduled date", selection: $rescheduleDate, displayedComponents: .date)
+                }
+                .navigationTitle("Reschedule workout")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { reschedulingProgress = nil }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") { saveReschedule(progress) }
+                            .accessibilityIdentifier("today-confirm-reschedule")
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            "Skip this workout?",
+            isPresented: Binding(
+                get: { progressToSkip != nil },
+                set: { if !$0 { progressToSkip = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Skip Workout", role: .destructive) { skipPlannedWorkout() }
+                .accessibilityIdentifier("today-confirm-skip-workout")
+            Button("Cancel", role: .cancel) { progressToSkip = nil }
+        } message: {
+            Text("This session will remain in the program schedule as skipped. Your plan and workout history will not change.")
+        }
+        .alert("Couldn’t update workout", isPresented: Binding(
+            get: { scheduleActionError != nil },
+            set: { if !$0 { scheduleActionError = nil } }
+        )) {
+            Button("OK", role: .cancel) { scheduleActionError = nil }
+        } message: {
+            Text(scheduleActionError?.message ?? "Please try again.")
         }
         .confirmationDialog(
             "An active workout is already in progress",
@@ -69,6 +139,14 @@ struct HomeView: View {
         }
     }
 
+    private var todayWorkoutSummary: TodayWorkoutSummary {
+        TodayWorkoutSummary.resolve(
+            activeWorkout: workoutVM.activeWorkout,
+            activePlanRun: activePlanRun,
+            nextPlanProgress: activePlanProgress
+        )
+    }
+
     private var welcomeHeader: some View {
         VStack(alignment: .leading, spacing: Spacing.xs + 2) {
             Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
@@ -80,12 +158,12 @@ struct HomeView: View {
                     .padding(.bottom, Spacing.xs)
             }
 
-            Text(workoutVM.hasActiveWorkout ? "Your workout is ready." : "Ready when you are.")
+            Text(todayWorkoutSummary.title)
                 .font(AppFont.displayMedium)
 
             Text(workoutVM.hasActiveWorkout
                  ? "Your session is still running."
-                 : "Track your training today.")
+                 : "Train, reflect, and keep the day simple.")
                 .font(AppFont.subheadline)
                 .foregroundStyle(Color.gymSubduedText)
         }
@@ -120,84 +198,123 @@ struct HomeView: View {
     }
 
     private var primaryWorkoutCard: some View {
-        Button(action: openPrimaryWorkout) {
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                HStack {
-                    Label(
-                        primaryCardLabel,
-                        systemImage: primaryCardIcon
-                    )
-                    .font(AppFont.captionBold)
-                    .tracking(0.8)
-                    .foregroundStyle(workoutVM.hasActiveWorkout ? .white : Color.gymPrimary)
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: openPrimaryWorkout) {
+                VStack(alignment: .leading, spacing: Spacing.m) {
+                    HStack {
+                        Label(
+                            primaryCardLabel,
+                            systemImage: primaryCardIcon
+                        )
+                        .font(AppFont.captionBold)
+                        .tracking(0.8)
+                        .foregroundStyle(workoutVM.hasActiveWorkout ? .white : Color.gymPrimary)
 
-                    Spacer()
+                        Spacer()
 
-                    if workoutVM.hasActiveWorkout {
-                        Image(systemName: "chevron.right")
-                            .font(AppFont.subheadlineBold)
-                            .foregroundStyle(.white)
+                        if workoutVM.hasActiveWorkout {
+                            Image(systemName: "chevron.right")
+                                .font(AppFont.subheadlineBold)
+                                .foregroundStyle(.white)
+                        }
+                    }
+
+                    Text(primaryCardTitle)
+                        .font(AppFont.titleMedium)
+                        .foregroundStyle(workoutVM.hasActiveWorkout ? .white : Color.gymText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(primaryCardSubtitle)
+                        .font(AppFont.subheadline)
+                        .foregroundStyle(workoutVM.hasActiveWorkout ? .white.opacity(0.86) : Color.gymSubduedText)
+
+                    if let workout = workoutVM.activeWorkout, workout.totalSetCount > 0 {
+                        ProgressView(
+                            value: Double(workout.completedSetCount),
+                            total: Double(workout.totalSetCount)
+                        )
+                        .tint(.white.opacity(0.95))
+                        .padding(.top, Spacing.xxs)
+                    }
+
+                    if !workoutVM.hasActiveWorkout {
+                        HStack(spacing: Spacing.s) {
+                            Text("Start workout")
+                                .font(AppFont.subheadlineBold)
+                            Image(systemName: "arrow.right")
+                                .font(AppFont.captionBold)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.vertical, Spacing.md)
+                        .padding(.horizontal, Spacing.xl)
+                        .background(Color.gymPrimary, in: Capsule())
+                        .padding(.top, Spacing.xs)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Spacing.l)
+            }
+            .buttonStyle(.gymPress)
+            .accessibilityHint(primaryCardHint)
+            .accessibilityIdentifier(primaryCardAccessibilityIdentifier)
 
-                Text(primaryCardTitle)
-                    .font(AppFont.titleMedium)
-                    .foregroundStyle(workoutVM.hasActiveWorkout ? .white : Color.gymText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+            if let activePlanRun, let activePlanProgress,
+               !workoutVM.hasActiveWorkout,
+               PlanCoordinator.canEditSchedule(activePlanProgress, in: activePlanRun) {
+                Divider()
+                    .overlay(Color.gymBorder)
+                    .padding(.horizontal, Spacing.l)
 
-                Text(primaryCardSubtitle)
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(workoutVM.hasActiveWorkout ? .white.opacity(0.86) : Color.gymSubduedText)
-
-                if let workout = workoutVM.activeWorkout, workout.totalSetCount > 0 {
-                    ProgressView(
-                        value: Double(workout.completedSetCount),
-                        total: Double(workout.totalSetCount)
-                    )
-                    .tint(.white.opacity(0.95))
-                    .padding(.top, Spacing.xxs)
-                }
-
-                if !workoutVM.hasActiveWorkout {
-                    HStack(spacing: Spacing.s) {
-                        Text("Start workout")
-                            .font(AppFont.subheadlineBold)
-                        Image(systemName: "arrow.right")
-                            .font(AppFont.captionBold)
+                HStack(spacing: Spacing.s) {
+                    Button {
+                        postponePlannedWorkoutUntilTomorrow()
+                    } label: {
+                        Label("Tomorrow", systemImage: AppIcon.tomorrow)
                     }
-                    .foregroundStyle(.white)
-                    .padding(.vertical, Spacing.md)
-                    .padding(.horizontal, Spacing.xl)
-                    .background(Color.gymPrimary, in: Capsule())
-                    .padding(.top, Spacing.xs)
+                    .accessibilityIdentifier("today-postpone-planned-workout")
+
+                    Button {
+                        rescheduleDate = activePlanProgress.scheduledDate ?? .now
+                        reschedulingProgress = activePlanProgress
+                    } label: {
+                        Label("Reschedule", systemImage: AppIcon.reschedule)
+                    }
+                    .accessibilityIdentifier("today-reschedule-planned-workout")
+
+                    Spacer(minLength: Spacing.s)
+
+                    Button(role: .destructive) {
+                        progressToSkip = activePlanProgress
+                    } label: {
+                        Label("Skip", systemImage: AppIcon.skip)
+                    }
+                    .accessibilityIdentifier("today-skip-planned-workout")
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Spacing.l)
-            .background {
-                if workoutVM.hasActiveWorkout {
-                    LinearGradient(
-                        colors: [Color.gymPrimary, Color.gymPrimary.opacity(0.85)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                } else {
-                    Color.gymCard
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .shadow(color: Color.gymText.opacity(0.03), radius: 6, x: 0, y: 3)
-            .overlay {
-                if !workoutVM.hasActiveWorkout {
-                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .stroke(Color.gymPrimary.opacity(0.16), lineWidth: 1.5)
-                }
+                .font(AppFont.subheadlineSemibold)
+                .padding(.horizontal, Spacing.l)
+                .padding(.vertical, Spacing.m)
             }
         }
-        .buttonStyle(.gymPress)
-        .accessibilityHint(primaryCardHint)
-        .accessibilityIdentifier(primaryCardAccessibilityIdentifier)
+        .background {
+            if workoutVM.hasActiveWorkout {
+                LinearGradient(
+                    colors: [Color.gymPrimary, Color.gymPrimary.opacity(0.85)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
+                Color.gymCard
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .shadow(color: Color.gymText.opacity(0.03), radius: 6, x: 0, y: 3)
+        .overlay {
+            if !workoutVM.hasActiveWorkout {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.gymPrimary.opacity(0.16), lineWidth: 1.5)
+            }
+        }
     }
 
     private var quickActions: some View {
@@ -224,6 +341,140 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    private var dailyContext: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("TODAY")
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(Color.gymSubduedText)
+
+            Button {
+                isShowingDailyCheckIn = true
+            } label: {
+                dailyContextRow(
+                    icon: "text.book.closed",
+                    iconColor: Color.gymAccent,
+                    title: dailyCheckInTitle,
+                    detail: dailyCheckInDetail,
+                    completion: dailyLogEntry?.status == .completed
+                )
+            }
+            .buttonStyle(.gymPress)
+            .accessibilityIdentifier("open-daily-check-in")
+
+            Button(action: toggleCreatine) {
+                dailyContextRow(
+                    icon: "drop.fill",
+                    iconColor: Color.gymSecondary,
+                    title: "Creatine",
+                    detail: creatineTaken ? "Confirmed for today" : "Confirm today’s dose",
+                    completion: creatineTaken
+                )
+            }
+            .buttonStyle(.gymPress)
+            .accessibilityIdentifier("toggle-creatine")
+            .accessibilityValue(creatineTaken ? "Confirmed" : "Not confirmed")
+        }
+    }
+
+    private var mobilityContext: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("MOBILITY")
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(Color.gymSubduedText)
+
+            if let activeMobilitySession {
+                Button {
+                    onResumeMobility(activeMobilitySession)
+                } label: {
+                    dailyContextRow(
+                        icon: AppIcon.mobility,
+                        iconColor: Color.gymAccent,
+                        title: "Resume mobility",
+                        detail: "\(activeMobilitySession.nameSnapshot) · Movement \(min(activeMobilitySession.currentEntryIndex + 1, activeMobilitySession.entries.count)) of \(activeMobilitySession.entries.count)",
+                        completion: false
+                    )
+                }
+                .buttonStyle(.gymPress)
+                .accessibilityIdentifier("resume-mobility-session")
+            } else if let routine = availableMobilityRoutine {
+                Button {
+                    let context: MobilitySessionContext = workoutVM.activeWorkout == nil ? .standalone : .warmup
+                    onStartMobility(routine, context, workoutVM.activeWorkout?.id)
+                } label: {
+                    dailyContextRow(
+                        icon: AppIcon.mobility,
+                        iconColor: Color.gymAccent,
+                        title: workoutVM.activeWorkout == nil ? "Start mobility" : "Start mobility warm-up",
+                        detail: "\(routine.name) · \(routine.items.count) movement\(routine.items.count == 1 ? "" : "s")",
+                        completion: false
+                    )
+                }
+                .buttonStyle(.gymPress)
+                .accessibilityIdentifier("start-mobility-routine")
+            } else {
+                Button {
+                    isShowingMobilityLibrary = true
+                } label: {
+                    dailyContextRow(
+                        icon: AppIcon.mobility,
+                        iconColor: Color.gymAccent,
+                        title: "Create a mobility routine",
+                        detail: "Build a short warm-up or recovery sequence",
+                        completion: false
+                    )
+                }
+                .buttonStyle(.gymPress)
+                .accessibilityIdentifier("create-mobility-routine-from-today")
+            }
+
+            Button("Manage mobility routines") {
+                isShowingMobilityLibrary = true
+            }
+            .font(AppFont.captionBold)
+            .accessibilityIdentifier("manage-mobility-routines")
+        }
+    }
+
+    private func dailyContextRow(
+        icon: String,
+        iconColor: Color,
+        title: String,
+        detail: String,
+        completion: Bool
+    ) -> some View {
+        HStack(spacing: Spacing.m) {
+            Image(systemName: completion ? "checkmark.circle.fill" : icon)
+                .font(AppFont.headline)
+                .frame(width: 38, height: 38)
+                .foregroundStyle(completion ? Color.gymSecondary : iconColor)
+                .background((completion ? Color.gymSecondary : iconColor).opacity(0.12))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(title)
+                    .font(AppFont.subheadlineSemibold)
+                Text(detail)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+
+            Spacer()
+
+            Image(systemName: completion ? "checkmark" : "chevron.right")
+                .font(AppFont.captionBold)
+                .foregroundStyle(completion ? Color.gymSecondary : Color.gymSubduedText)
+        }
+        .padding(Spacing.m)
+        .background(Color.gymCard)
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+                .stroke(Color.gymBorder, lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
     }
 
     private func quickActionRow(
@@ -359,6 +610,54 @@ struct HomeView: View {
         return "Free Workout"
     }
 
+    private var todayDay: LocalDay { .today }
+
+    private var dailyLogEntry: DailyLogEntry? {
+        dailyLogEntries.first { $0.dayKey == todayDay.rawValue }
+    }
+
+    private var dailyCheckInTitle: String {
+        guard let dailyLogEntry else { return "Daily check-in" }
+        return dailyLogEntry.status == .completed ? "Daily check-in complete" : "Daily check-in skipped"
+    }
+
+    private var dailyCheckInDetail: String {
+        guard let dailyLogEntry else { return "Reflect on sleep, energy, and training" }
+        return dailyLogEntry.status == .completed ? "You can edit today’s reflection" : "You can still add a reflection"
+    }
+
+    private var creatineOccurrence: SupplementOccurrence? {
+        supplementOccurrences.first {
+            $0.dayKey == todayDay.rawValue && $0.kind == .creatine
+        }
+    }
+
+    private var activeMobilitySession: MobilitySession? {
+        mobilitySessions.first { $0.status == .active }
+    }
+
+    private var availableMobilityRoutine: MobilityRoutine? {
+        mobilityRoutines.first { $0.isArchived == false && $0.items.isEmpty == false }
+    }
+
+    private var creatineTaken: Bool {
+        creatineOccurrence?.status == .completed
+    }
+
+    private func toggleCreatine() {
+        let occurrence = creatineOccurrence ?? SupplementOccurrence(
+            kind: .creatine,
+            day: todayDay,
+            status: .skipped,
+            completedAt: nil
+        )
+        occurrence.update(status: creatineTaken ? .skipped : .completed)
+        if creatineOccurrence == nil {
+            modelContext.insert(occurrence)
+        }
+        try? modelContext.save()
+    }
+
     private var primaryCardSubtitle: LocalizedStringKey {
         if let workout = workoutVM.activeWorkout {
             guard workout.totalSetCount > 0 else {
@@ -398,6 +697,47 @@ struct HomeView: View {
         } else {
             workoutVM.startWorkout(using: modelContext)
             isShowingActiveWorkout = true
+        }
+    }
+
+    private func saveReschedule(_ progress: PlanWorkoutProgress) {
+        guard let run = activePlanRun,
+              PlanCoordinator.reschedule(progress, to: rescheduleDate, in: run, using: modelContext)
+        else {
+            scheduleActionError = ValidationIssue(
+                severity: .error,
+                message: "The workout could not be rescheduled. Try again."
+            )
+            return
+        }
+        reschedulingProgress = nil
+    }
+
+    private func postponePlannedWorkoutUntilTomorrow() {
+        guard let run = activePlanRun,
+              let progress = activePlanProgress,
+              let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now),
+              PlanCoordinator.reschedule(progress, to: tomorrow, in: run, using: modelContext)
+        else {
+            scheduleActionError = ValidationIssue(
+                severity: .error,
+                message: "The workout could not be moved to tomorrow. Try again."
+            )
+            return
+        }
+    }
+
+    private func skipPlannedWorkout() {
+        defer { progressToSkip = nil }
+        guard let progress = progressToSkip,
+              let run = activePlanRun,
+              PlanCoordinator.skip(progress, in: run, using: modelContext)
+        else {
+            scheduleActionError = ValidationIssue(
+                severity: .error,
+                message: "The workout could not be skipped. Try again."
+            )
+            return
         }
     }
 

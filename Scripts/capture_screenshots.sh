@@ -37,6 +37,7 @@ Capture all screenshots (the default) or only selected scene groups.
 Scenes:
   overview               Main Home, Library, empty History, and Settings screens
   pages                  Home, Library, and Settings secondary page states
+  mobility               Mobility routine library and active execution
   active                 Active Workout, tools, completed, discard, and review states
   rest                   Running, paused, and ready Rest Between Sets cards
   history                Saved-workout History list and detail
@@ -68,7 +69,8 @@ EOF
 tests_for_scene() {
   case "$1" in
     overview) echo "testCaptureOverviewScreenshots" ;;
-    pages) echo "testCaptureHomeTemplateSheetScreenshot testCaptureHomeConflictScreenshot testCaptureLibrarySecondaryStatesScreenshots testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot" ;;
+    pages) echo "testCaptureHomeTemplateSheetScreenshot testCaptureHomeConflictScreenshot testCaptureDailyCheckInScreenshot testCaptureTodayRescheduleScreenshot testCaptureMobilityLibraryScreenshot testCaptureActiveMobilityScreenshot testCaptureLibrarySecondaryStatesScreenshots testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot" ;;
+    mobility) echo "testCaptureMobilityLibraryScreenshot testCaptureActiveMobilityScreenshot" ;;
     active) echo "testCaptureActiveEmptyAndResumeScreenshots testCaptureActiveToolScreenshots testCaptureExerciseSwapScreenshot testCaptureCompletedSetScreenshot testCaptureSupersetScreenshot testCaptureCompletedExerciseCollapsedScreenshot testCapturePartialSaveScreenshots testCaptureDiscardWorkoutScreenshot testCaptureDurationTimerScreenshots" ;;
     rest) echo "testCaptureRunningRestScreenshot testCapturePausedRestScreenshot testCaptureReadyRestScreenshot" ;;
     history) echo "testCaptureHistoryScreenshots" ;;
@@ -91,7 +93,8 @@ tests_for_scene() {
 files_for_scene() {
   case "$1" in
     overview) echo "overview/01_Home.png overview/02_Library.png overview/03_History_Empty.png overview/04_Settings.png" ;;
-    pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/02b_Library_Templates.png overview/02c_Library_Plans.png overview/02d_Library_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png" ;;
+    pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01f_Today_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png overview/02b_Library_Templates.png overview/02c_Library_Plans.png overview/02d_Library_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png" ;;
+    mobility) echo "mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png" ;;
     active) echo "active-workout/05_Active_Workout_Empty.png overview/05_Home_With_Active_Workout.png active-workout/06_Add_Exercise_Sheet.png active-workout/07_Plate_Calculator.png active-workout/07b_Set_Details.png active-workout/08j_Exercise_Swap.png active-workout/08_Active_Workout_With_Set.png active-workout/08k_Active_Superset.png active-workout/08d_Completed_Exercise_Collapsed.png active-workout/08e_Discard_Workout.png active-workout/08f_Duration_Timer_Idle.png active-workout/08g_Duration_Timer_Running.png active-workout/08h_Duration_Timer_Paused.png active-workout/08i_Duration_Timer_Complete.png review/09_Save_Workout.png review/09b_Partial_Save_Confirmation.png" ;;
     rest) echo "active-workout/08_Rest_Countdown.png active-workout/08b_Rest_Paused.png active-workout/08c_Rest_Ready.png" ;;
     history) echo "history/10_History_With_Workout.png history/11_History_Detail.png" ;;
@@ -111,7 +114,7 @@ files_for_scene() {
   esac
 }
 
-ALL_SCENES="overview pages active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar hidden exercise-insights exercise-form muscle-balance"
+ALL_SCENES="overview pages mobility active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar hidden exercise-insights exercise-form muscle-balance"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 

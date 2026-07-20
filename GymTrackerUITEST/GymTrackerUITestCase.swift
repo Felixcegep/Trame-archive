@@ -140,6 +140,7 @@ class GymTrackerUITestCase: XCTestCase {
         _ fixture: String,
         additionalArguments: [String] = [],
         expectsActiveWorkout: Bool = true,
+        expectsMobilitySession: Bool = false,
         expectedHomeControl: String = "start-free-workout"
     ) -> XCUIApplication {
         let app = XCUIApplication()
@@ -149,7 +150,9 @@ class GymTrackerUITestCase: XCTestCase {
 
         let preparing = app.descendants(matching: .any)["app-preparing"]
         XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
-        if expectsActiveWorkout {
+        if expectsMobilitySession {
+            XCTAssertTrue(app.buttons["complete-mobility-movement"].waitForExistence(timeout: 30))
+        } else if expectsActiveWorkout {
             XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 30))
         } else {
             XCTAssertTrue(app.buttons[expectedHomeControl].waitForExistence(timeout: 15))

@@ -32,6 +32,8 @@ enum UITestFixture: String {
     case planRelaunchSchedule = "plan-relaunch-schedule"
     case planPartialSave = "plan-partial-save"
     case backupImportTarget = "backup-import-target"
+    case todayComplete = "today-complete"
+    case mobilityActive = "mobility-active"
 
     static var launchFixture: UITestFixture? {
         guard
@@ -45,7 +47,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .backupImportTarget:
+        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .backupImportTarget, .todayComplete, .mobilityActive:
             false
         default:
             true
@@ -118,6 +120,23 @@ enum UITestFixture: String {
             try makePartialPlannedWorkout(using: context)
         case .backupImportTarget:
             try makeBackupImportTarget(using: context)
+        case .todayComplete:
+            context.insert(DailyLogEntry(
+                day: .today,
+                sleepQuality: 4,
+                energy: 4,
+                workoutDifficulty: 3,
+                note: "Felt steady today."
+            ))
+            context.insert(SupplementOccurrence(kind: .creatine, day: .today))
+            try context.save()
+        case .mobilityActive:
+            guard let routine = try context.fetch(FetchDescriptor<MobilityRoutine>()).first else {
+                throw FixtureError.invalidPlan
+            }
+            guard MobilitySessionService.start(routine: routine, using: context) != nil else {
+                throw FixtureError.invalidPlan
+            }
         }
     }
 

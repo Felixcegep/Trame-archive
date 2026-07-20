@@ -46,7 +46,7 @@ enum BackupValidationError: LocalizedError {
 
 extension BackupDTO {
     func validate() throws {
-        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.currentVersion else {
+        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
 
@@ -134,6 +134,38 @@ extension BackupDTO {
                     throw BackupValidationError.invalidIdentifier("progression recommendation")
                 }
             }
+        }
+
+        if version >= Self.dailyContextVersion {
+            try validateUniqueIdentifiers(dailyLogEntries.map(\.id), named: "daily log entry")
+            try validateUniqueIdentifiers(supplementOccurrences.map(\.id), named: "supplement occurrence")
+            let dayKeys = dailyLogEntries.map(\.dayKey)
+            guard Set(dayKeys).count == dayKeys.count,
+                  dayKeys.allSatisfy(isValidLocalDayKey),
+                  dailyLogEntries.allSatisfy({ DailyCheckInStatus(rawValue: $0.status) != nil }),
+                  dailyLogEntries.allSatisfy({ entry in
+                      [entry.sleepQuality, entry.energy, entry.workoutDifficulty].allSatisfy { score in
+                          score.map { (1...5).contains($0) } ?? true
+                      }
+                  }),
+                  supplementOccurrences.allSatisfy({
+                      SupplementKind(rawValue: $0.kind) != nil &&
+                      SupplementOccurrenceStatus(rawValue: $0.status) != nil &&
+                      $0.occurrenceKey == "\($0.dayKey)|\($0.kind)"
+                  }) else {
+                throw BackupValidationError.invalidIdentifier("daily context")
+            }
+            let occurrenceKeys = supplementOccurrences.map(\.occurrenceKey)
+            guard supplementOccurrences.allSatisfy({ isValidLocalDayKey($0.dayKey) }) else {
+                throw BackupValidationError.invalidIdentifier("daily context")
+            }
+            guard Set(occurrenceKeys).count == occurrenceKeys.count else {
+                throw BackupValidationError.duplicateIdentifier("supplement occurrence")
+            }
+        }
+
+        if version >= Self.mobilityVersion {
+            try validateMobility()
         }
 
         guard version != Self.legacyVersion else { return }
@@ -247,6 +279,103 @@ extension BackupDTO {
             throw BackupValidationError.invalidIdentifier(name)
         }
         return uuid
+    }
+
+    private func isValidLocalDayKey(_ value: String) -> Bool {
+        let parts = value.split(separator: "-", omittingEmptySubsequences: false)
+        guard
+            parts.count == 3,
+            parts[0].count == 4,
+            parts[1].count == 2,
+            parts[2].count == 2,
+            let year = Int(parts[0]),
+            let month = Int(parts[1]),
+            let day = Int(parts[2])
+        else {
+            return false
+        }
+
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.timeZone = TimeZone(secondsFromGMT: 0)
+        components.year = year
+        components.month = month
+        components.day = day
+        guard let date = components.date else { return false }
+        let normalized = components.calendar?.dateComponents([.year, .month, .day], from: date)
+        return normalized?.year == year && normalized?.month == month && normalized?.day == day
+    }
+
+    private func validateMobility() throws {
+        try validateUniqueIdentifiers(mobilityFamilies.map(\.id), named: "mobility family")
+        try validateUniqueIdentifiers(mobilityDefinitions.map(\.id), named: "mobility definition")
+        try validateUniqueIdentifiers(mobilityRoutines.map(\.id), named: "mobility routine")
+        try validateUniqueIdentifiers(mobilitySessions.map(\.id), named: "mobility session")
+
+        let familyIDs = Set(mobilityFamilies.map(\.id))
+        let definitionIDs = Set(mobilityDefinitions.map(\.id))
+        for definition in mobilityDefinitions {
+            guard MobilityTrackingType(rawValue: definition.trackingType) != nil,
+                  definition.defaultDurationSeconds.map({ $0 > 0 }) ?? true,
+                  definition.defaultRepetitions.map({ $0 > 0 }) ?? true,
+                  definition.familyID.map({ familyIDs.contains($0) }) ?? true else {
+                throw BackupValidationError.invalidIdentifier("mobility definition")
+            }
+        }
+
+        var routineItemIDs = [String]()
+        for routine in mobilityRoutines {
+            for item in routine.items {
+                routineItemIDs.append(item.id)
+                guard definitionIDs.contains(item.definitionID),
+                      item.orderIndex >= 0,
+                      MobilitySide(rawValue: item.side) != nil,
+                      item.targetDurationSeconds.map({ $0 > 0 }) ?? true,
+                      item.targetRepetitions.map({ $0 > 0 }) ?? true,
+                      item.restSeconds.map({ $0 >= 0 }) ?? true else {
+                    throw BackupValidationError.invalidIdentifier("mobility routine item")
+                }
+            }
+        }
+        try validateUniqueIdentifiers(routineItemIDs, named: "mobility routine item")
+
+        var entryIDs = [String]()
+        var resultIDs = [String]()
+        for session in mobilitySessions {
+            guard MobilitySessionStatus(rawValue: session.status) != nil,
+                  MobilitySessionContext(rawValue: session.context) != nil,
+                  session.currentEntryIndex >= 0,
+                  session.sourceRoutineID.map({ UUID(uuidString: $0) != nil }) ?? true,
+                  session.workoutID.map({ UUID(uuidString: $0) != nil }) ?? true else {
+                throw BackupValidationError.invalidIdentifier("mobility session")
+            }
+            for entry in session.entries {
+                entryIDs.append(entry.id)
+                guard entry.orderIndex >= 0,
+                      UUID(uuidString: entry.definitionIDSnapshot) != nil,
+                      MobilityTrackingType(rawValue: entry.trackingType) != nil,
+                      MobilitySide(rawValue: entry.side) != nil,
+                      entry.targetDurationSeconds.map({ $0 > 0 }) ?? true,
+                      entry.targetRepetitions.map({ $0 > 0 }) ?? true,
+                      entry.restSeconds.map({ $0 >= 0 }) ?? true else {
+                    throw BackupValidationError.invalidIdentifier("mobility entry")
+                }
+                for result in entry.results {
+                    resultIDs.append(result.id)
+                    guard MobilitySide(rawValue: result.side) != nil,
+                          MobilityResultStatus(rawValue: result.status) != nil,
+                          result.prescribedDurationSeconds.map({ $0 > 0 }) ?? true,
+                          result.prescribedRepetitions.map({ $0 > 0 }) ?? true,
+                          result.performedDurationSeconds.map({ $0 >= 0 }) ?? true,
+                          result.performedRepetitions.map({ $0 >= 0 }) ?? true,
+                          result.perceivedIntensity.map({ (1...5).contains($0) }) ?? true else {
+                        throw BackupValidationError.invalidIdentifier("mobility result")
+                    }
+                }
+            }
+        }
+        try validateUniqueIdentifiers(entryIDs, named: "mobility entry")
+        try validateUniqueIdentifiers(resultIDs, named: "mobility result")
     }
 
     private func validateUniqueIdentifiers(_ identifiers: [String], named name: String) throws {

@@ -8,6 +8,9 @@ struct DefaultsKey {
     static let planRemindersEnabled = "planRemindersEnabled"
     static let planReminderHour = "planReminderHour"
     static let planReminderMinute = "planReminderMinute"
+    static let checkInRemindersEnabled = "checkInRemindersEnabled"
+    static let checkInReminderHour = "checkInReminderHour"
+    static let checkInReminderMinute = "checkInReminderMinute"
 }
 
 extension UserDefaults {

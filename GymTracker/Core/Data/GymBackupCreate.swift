@@ -426,6 +426,120 @@ extension BackupDTO {
             )
         }
 
+        let dailyLogEntryDTOs = try context.fetch(FetchDescriptor<DailyLogEntry>()).map { entry in
+            DailyLogEntryDTO(
+                id: entry.id.uuidString,
+                dayKey: entry.dayKey,
+                status: entry.status.rawValue,
+                sleepQuality: entry.sleepQuality,
+                energy: entry.energy,
+                workoutDifficulty: entry.workoutDifficulty,
+                note: entry.note,
+                createdAt: entry.createdAt,
+                updatedAt: entry.updatedAt
+            )
+        }
+        let supplementOccurrenceDTOs = try context.fetch(FetchDescriptor<SupplementOccurrence>()).map { occurrence in
+            SupplementOccurrenceDTO(
+                id: occurrence.id.uuidString,
+                occurrenceKey: occurrence.occurrenceKey,
+                dayKey: occurrence.dayKey,
+                kind: occurrence.kind.rawValue,
+                status: occurrence.status.rawValue,
+                completedAt: occurrence.completedAt,
+                createdAt: occurrence.createdAt,
+                updatedAt: occurrence.updatedAt
+            )
+        }
+        let mobilityFamilyDTOs = try context.fetch(FetchDescriptor<MobilityFamily>()).map {
+            MobilityFamilyDTO(id: $0.id.uuidString, name: $0.name, createdAt: $0.createdAt, updatedAt: $0.updatedAt)
+        }
+        let mobilityDefinitionDTOs = try context.fetch(FetchDescriptor<MobilityDefinition>()).map { definition in
+            MobilityDefinitionDTO(
+                id: definition.id.uuidString,
+                name: definition.name,
+                instructions: definition.instructions,
+                trackingType: definition.trackingType.rawValue,
+                defaultDurationSeconds: definition.defaultDurationSeconds,
+                defaultRepetitions: definition.defaultRepetitions,
+                isFavorite: definition.isFavorite,
+                isCustom: definition.isCustom,
+                isArchived: definition.isArchived,
+                familyID: definition.family?.id.uuidString,
+                createdAt: definition.createdAt,
+                updatedAt: definition.updatedAt
+            )
+        }
+        let mobilityRoutineDTOs = try context.fetch(FetchDescriptor<MobilityRoutine>()).map { routine in
+            MobilityRoutineDTO(
+                id: routine.id.uuidString,
+                name: routine.name,
+                notes: routine.notes,
+                isArchived: routine.isArchived,
+                createdAt: routine.createdAt,
+                updatedAt: routine.updatedAt,
+                items: routine.orderedItems.map { item in
+                    MobilityRoutineItemDTO(
+                        id: item.id.uuidString,
+                        definitionID: item.definition.id.uuidString,
+                        orderIndex: item.orderIndex,
+                        targetDurationSeconds: item.targetDurationSeconds,
+                        targetRepetitions: item.targetRepetitions,
+                        side: item.side.rawValue,
+                        restSeconds: item.restSeconds,
+                        notes: item.notes
+                    )
+                }
+            )
+        }
+        let mobilitySessionDTOs = try context.fetch(FetchDescriptor<MobilitySession>()).map { session in
+            MobilitySessionDTO(
+                id: session.id.uuidString,
+                status: session.status.rawValue,
+                nameSnapshot: session.nameSnapshot,
+                sourceRoutineID: session.sourceRoutineID?.uuidString,
+                sourceRoutineName: session.sourceRoutineName,
+                workoutID: session.workoutID?.uuidString,
+                context: session.context.rawValue,
+                startTime: session.startTime,
+                endTime: session.endTime,
+                currentEntryIndex: session.currentEntryIndex,
+                createdAt: session.createdAt,
+                updatedAt: session.updatedAt,
+                entries: session.orderedEntries.map { entry in
+                    MobilityEntryDTO(
+                        id: entry.id.uuidString,
+                        orderIndex: entry.orderIndex,
+                        definitionIDSnapshot: entry.definitionIDSnapshot.uuidString,
+                        definitionNameSnapshot: entry.definitionNameSnapshot,
+                        instructionsSnapshot: entry.instructionsSnapshot,
+                        trackingType: entry.trackingType.rawValue,
+                        targetDurationSeconds: entry.targetDurationSeconds,
+                        targetRepetitions: entry.targetRepetitions,
+                        side: entry.side.rawValue,
+                        restSeconds: entry.restSeconds,
+                        notesSnapshot: entry.notesSnapshot,
+                        timerStartedAt: entry.timerStartedAt,
+                        results: entry.orderedResults.map { result in
+                            MobilityResultDTO(
+                                id: result.id.uuidString,
+                                side: result.side.rawValue,
+                                status: result.status.rawValue,
+                                prescribedDurationSeconds: result.prescribedDurationSeconds,
+                                prescribedRepetitions: result.prescribedRepetitions,
+                                performedDurationSeconds: result.performedDurationSeconds,
+                                performedRepetitions: result.performedRepetitions,
+                                perceivedIntensity: result.perceivedIntensity,
+                                discomfortNote: result.discomfortNote,
+                                startedAt: result.startedAt,
+                                completedAt: result.completedAt
+                            )
+                        }
+                    )
+                }
+            )
+        }
+
         return BackupDTO(
             version: currentVersion,
             preferences: PreferencesDTO(
@@ -441,7 +555,13 @@ extension BackupDTO {
             planRuns: planRunDTOs,
             exerciseRelationships: relationshipDTOs,
             programDefinitions: programDefinitionDTOs,
-            progressionRecommendations: progressionRecommendationDTOs
+            progressionRecommendations: progressionRecommendationDTOs,
+            dailyLogEntries: dailyLogEntryDTOs,
+            supplementOccurrences: supplementOccurrenceDTOs,
+            mobilityFamilies: mobilityFamilyDTOs,
+            mobilityDefinitions: mobilityDefinitionDTOs,
+            mobilityRoutines: mobilityRoutineDTOs,
+            mobilitySessions: mobilitySessionDTOs
         )
     }
 }
