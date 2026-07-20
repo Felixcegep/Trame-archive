@@ -15,6 +15,7 @@ final class ExerciseDetailAnalyticsServiceTests: XCTestCase {
             .analytics(for: exercise, referenceDate: referenceDate)
 
         XCTAssertNil(analytics.unit)
+        XCTAssertEqual(analytics.sessionCount, 0)
         XCTAssertNil(analytics.latestSession)
         XCTAssertNil(analytics.sessionComparison)
         XCTAssertNil(analytics.bestLoadSet)
@@ -23,6 +24,7 @@ final class ExerciseDetailAnalyticsServiceTests: XCTestCase {
         XCTAssertNil(analytics.estimatedOneRepMax)
         XCTAssertEqual(analytics.weeklyVolume.count, 8)
         XCTAssertTrue(analytics.weeklyVolume.allSatisfy { $0.totalVolume == 0 })
+        XCTAssertTrue(analytics.weeklyVolume.allSatisfy { $0.workingSetCount == 0 && $0.sessionCount == 0 })
         XCTAssertTrue(analytics.notes.isEmpty)
     }
 
@@ -127,6 +129,7 @@ final class ExerciseDetailAnalyticsServiceTests: XCTestCase {
             .analytics(for: exercise, referenceDate: referenceDate)
 
         XCTAssertNil(analytics.sessionComparison)
+        XCTAssertEqual(analytics.sessionCount, 1)
         XCTAssertNotNil(analytics.latestSession)
         XCTAssertEqual(analytics.bestLoadSet?.weight, 100)
         XCTAssertNotNil(analytics.estimatedOneRepMax)
@@ -258,6 +261,8 @@ final class ExerciseDetailAnalyticsServiceTests: XCTestCase {
         XCTAssertEqual(analytics.weeklyVolume.count, 8)
         let lastWeekVolume = try XCTUnwrap(analytics.weeklyVolume.last?.totalVolume)
         XCTAssertEqual(lastWeekVolume, 1_000, accuracy: 0.01)
+        XCTAssertEqual(analytics.weeklyVolume.last?.workingSetCount, 2)
+        XCTAssertEqual(analytics.weeklyVolume.last?.sessionCount, 2)
         XCTAssertEqual(analytics.weeklyVolume.dropLast().reduce(Float(0)) { $0 + $1.totalVolume }, 0)
     }
 

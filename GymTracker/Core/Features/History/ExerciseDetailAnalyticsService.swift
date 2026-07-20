@@ -71,6 +71,8 @@ struct OneRepMaxEstimate: Equatable, Sendable {
 struct ExerciseVolumeWeek: Equatable, Sendable {
     let weekStart: Date
     let totalVolume: Float
+    let workingSetCount: Int
+    let sessionCount: Int
 }
 
 struct ExerciseNote: Equatable, Sendable {
@@ -79,6 +81,7 @@ struct ExerciseNote: Equatable, Sendable {
 }
 
 struct ExerciseDetailAnalytics: Equatable, Sendable {
+    let sessionCount: Int
     let unit: WeightType?
     let latestSession: ExerciseSession?
     let sessionComparison: SessionComparison?
@@ -132,6 +135,7 @@ struct ExerciseDetailAnalyticsService {
 
         guard let latestSession = sessions.last else {
             return ExerciseDetailAnalytics(
+                sessionCount: 0,
                 unit: nil,
                 latestSession: nil,
                 sessionComparison: nil,
@@ -150,6 +154,7 @@ struct ExerciseDetailAnalyticsService {
         let includesReps = exercise.trackingType.usesReps
 
         return ExerciseDetailAnalytics(
+            sessionCount: sessions.count,
             unit: unit,
             latestSession: latestSession,
             sessionComparison: previousSession.map {
@@ -386,10 +391,15 @@ struct ExerciseDetailAnalyticsService {
                   let interval = calendar.dateInterval(of: .weekOfYear, for: weekStart)
             else { return nil }
 
-            let totalVolume = sessions
-                .filter { interval.contains($0.workoutDate) }
+            let weekSessions = sessions.filter { interval.contains($0.workoutDate) }
+            let totalVolume = weekSessions
                 .reduce(Float(0)) { $0 + volume(of: $1.workingSets, semantics: $1.semantics, in: unit) }
-            return ExerciseVolumeWeek(weekStart: weekStart, totalVolume: totalVolume)
+            return ExerciseVolumeWeek(
+                weekStart: weekStart,
+                totalVolume: totalVolume,
+                workingSetCount: weekSessions.reduce(0) { $0 + $1.workingSets.count },
+                sessionCount: weekSessions.count
+            )
         }
     }
 }

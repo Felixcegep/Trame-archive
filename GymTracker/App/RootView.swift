@@ -146,6 +146,10 @@ struct RootView: View {
                             HistoryView(viewModel: workoutVM, onStartFreeWorkout: startFreeWorkout)
                         case .records:
                             HistoryView(viewModel: workoutVM, onStartFreeWorkout: startFreeWorkout, initialTab: .records)
+                        case .trainingTrends:
+                            HistoryView(viewModel: workoutVM, onStartFreeWorkout: startFreeWorkout, initialTab: .progress)
+                        case .muscleGroupVolume:
+                            HistoryMuscleBalanceDestination()
                         case .mobilityHistory:
                             MobilityHistoryView()
                         case .nutritionHistory:

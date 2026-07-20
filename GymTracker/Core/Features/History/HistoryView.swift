@@ -149,7 +149,7 @@ enum HistoryTab: String, CaseIterable, Identifiable {
         case .workouts: "Workouts"
         case .progress: "Progress"
         case .records: "Records"
-        case .balance: "Balance"
+        case .balance: "Volume"
         }
     }
 }

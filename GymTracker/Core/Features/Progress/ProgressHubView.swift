@@ -12,7 +12,7 @@ struct ProgressHubView: View {
 
     var body: some View {
         List {
-            Section("Overview") {
+            Section("Training") {
                 progressLink(
                     route: .workoutHistory,
                     title: "Training history",
@@ -25,6 +25,21 @@ struct ProgressHubView: View {
                     detail: "Best performed sets and exercise progress",
                     icon: AppIcon.trophy
                 )
+                progressLink(
+                    route: .trainingTrends,
+                    title: "Exercise trends",
+                    detail: "Completed load, volume, and repetition history",
+                    icon: AppIcon.progression
+                )
+                progressLink(
+                    route: .muscleGroupVolume,
+                    title: "Muscle-group volume",
+                    detail: "Estimated working-set distribution and evidence",
+                    icon: AppIcon.muscles
+                )
+            }
+
+            Section("Supporting history") {
                 progressLink(
                     route: .mobilityHistory,
                     title: "Mobility history",
@@ -70,8 +85,7 @@ struct ProgressHubView: View {
                         .foregroundStyle(Color.gymSubduedText)
                 }
             } icon: {
-                Image(systemName: icon)
-                    .foregroundStyle(Color.gymPrimary)
+                GymIconChip(systemImage: icon)
             }
         }
         .accessibilityIdentifier("progress-\(route.accessibilityIdentifier)")
@@ -87,6 +101,8 @@ extension ProgressRoute {
         switch self {
         case .workoutHistory: "workout-history"
         case .records: "records"
+        case .trainingTrends: "training-trends"
+        case .muscleGroupVolume: "muscle-group-volume"
         case .mobilityHistory: "mobility-history"
         case .nutritionHistory: "nutrition-history"
         case .journalHistory: "journal-history"

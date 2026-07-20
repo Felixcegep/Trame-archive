@@ -61,6 +61,8 @@ final class MuscleBalanceAnalyticsServiceTests: XCTestCase {
             .analytics(referenceDate: referenceDate)
         XCTAssertTrue(analytics.callouts.contains { $0.group == .hamstrings })
         XCTAssertTrue(analytics.callouts.contains { $0.message.contains("Hamstrings") })
+        XCTAssertTrue(analytics.callouts.contains { $0.message.contains("estimated sets per week") })
+        XCTAssertTrue(analytics.callouts.contains { $0.message.contains("previous four weeks") })
     }
 
     func testEmptyHistoryReturnsEightEmptyWeeks() throws {

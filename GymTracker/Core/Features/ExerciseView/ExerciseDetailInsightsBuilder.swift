@@ -35,7 +35,7 @@ enum ExerciseDetailInsightsBuilder {
             bestResults.append(
                 ExerciseDetailBestResult(
                     id: "best-reps",
-                    title: "Best reps",
+                    title: "Most reps in one working set",
                     value: "\(Formatters.formatFloat(bestRepetitionSet.weight)) \(bestRepetitionSet.unit.rawValue) × \(Formatters.formatFloat(bestRepetitionSet.repetitions))",
                     detail: bestRepetitionSet.workoutDate.formatted(date: .abbreviated, time: .omitted)
                 )
@@ -53,20 +53,17 @@ enum ExerciseDetailInsightsBuilder {
         let volumePoints = analytics.weeklyVolume.map { week in
             ExerciseDetailVolumePoint(
                 id: week.weekStart.formatted(.iso8601),
+                date: week.weekStart,
                 label: week.weekStart.formatted(.dateTime.month(.abbreviated).day()),
                 value: Double(week.totalVolume),
-                accessibilityValue: "\(Formatters.formatFloat(week.totalVolume)) \(analytics.unit?.rawValue ?? "volume units")"
+                unit: analytics.unit?.rawValue ?? "",
+                workingSetCount: week.workingSetCount,
+                sessionCount: week.sessionCount,
+                accessibilityValue: "\(Formatters.formatGroupedMetric(week.totalVolume)) \(analytics.unit?.rawValue ?? "volume units"), \(week.workingSetCount) working sets, \(week.sessionCount) \(week.sessionCount == 1 ? "session" : "sessions")"
             )
         }
 
-        let historyCount: Int
-        if analytics.latestSession == nil {
-            historyCount = 0
-        } else if analytics.sessionComparison == nil {
-            historyCount = 1
-        } else {
-            historyCount = 2
-        }
+        let historyCount = analytics.sessionCount
 
         return ExerciseDetailInsightsModel(
             exerciseName: exercise.name,
@@ -76,12 +73,17 @@ enum ExerciseDetailInsightsBuilder {
             bestResults: bestResults,
             estimatedOneRepMax: analytics.estimatedOneRepMax.map {
                 ExerciseDetailMetric(
-                    value: Formatters.formatFloat($0.estimatedLoad),
+                    value: Formatters.formatEstimatedLoad($0.estimatedLoad),
                     unit: $0.unit.rawValue,
                     context: "From \(Formatters.formatFloat($0.sourceWeight)) \($0.unit.rawValue) × \(Formatters.formatFloat($0.sourceRepetitions)) on \($0.workoutDate.formatted(date: .abbreviated, time: .omitted))"
                 )
             },
             volumePoints: volumePoints,
+            changeSummary: StrengthInsightPresentationPolicy.changeSummary(for: analytics),
+            volumeTakeaway: StrengthInsightPresentationPolicy.volumeTakeaway(
+                sessionCount: analytics.sessionCount,
+                weeklyVolumes: analytics.weeklyVolume.map(\.totalVolume)
+            ),
             notes: Array(analytics.notes.map {
                 ExerciseDetailNote(
                     id: "note-\($0.workoutDate.timeIntervalSince1970)-\($0.text)",

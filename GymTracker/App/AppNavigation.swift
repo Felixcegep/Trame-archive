@@ -47,6 +47,8 @@ enum NutritionRoute: Hashable {
 enum ProgressRoute: Hashable {
     case workoutHistory
     case records
+    case trainingTrends
+    case muscleGroupVolume
     case mobilityHistory
     case nutritionHistory
     case journalHistory

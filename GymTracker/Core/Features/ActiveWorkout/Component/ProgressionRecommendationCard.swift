@@ -6,7 +6,7 @@ struct ProgressionRecommendationCard: View {
     let onAction: (RecommendationAction) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
+        GymCard(variant: .current, radius: Radius.section) {
             Label("Progression recommendation", systemImage: AppIcon.progression)
                 .font(AppFont.subheadlineSemibold)
                 .foregroundStyle(Color.gymPrimary)
@@ -21,13 +21,6 @@ struct ProgressionRecommendationCard: View {
             case .insufficientHistory:
                 insufficientHistoryContent
             }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.section)
-                .stroke(Color.gymPrimary.opacity(0.28), lineWidth: 1)
         }
         // Keep the card addressable as a screenshot state without hiding its
         // action buttons from VoiceOver and UI tests.
@@ -58,8 +51,7 @@ struct ProgressionRecommendationCard: View {
                     Text("Keep \(presentation.priorLoadText)")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(.gymPrimary)
                 .accessibilityIdentifier("keep-last-recommendation-\(exerciseName)")
             }
 
@@ -80,8 +72,7 @@ struct ProgressionRecommendationCard: View {
             Text("Accept \(presentation.appliedLoadText)")
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
+        .buttonStyle(.gymPrimary)
         .accessibilityIdentifier("accept-recommendation-\(exerciseName)")
 
         Button {
@@ -108,8 +99,7 @@ struct ProgressionRecommendationCard: View {
                 Text("Enter starting weight")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.gymPrimary)
             .accessibilityIdentifier("enter-starting-weight-\(exerciseName)")
         }
     }

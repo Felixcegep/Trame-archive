@@ -176,7 +176,7 @@ struct MuscleBalanceAnalyticsService {
             else { return nil }
             return MuscleBalanceCallout(
                 group: summary.group,
-                message: "\(summary.group.displayName) received much less estimated work than the previous four-week average."
+                message: "\(summary.group.displayName) averaged \(Formatters.formatFloat(Float(summary.recentAverage))) estimated sets per week, down from \(Formatters.formatFloat(Float(summary.previousAverage))) in the previous four weeks."
             )
         }
 

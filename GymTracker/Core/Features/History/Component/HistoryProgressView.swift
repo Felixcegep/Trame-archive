@@ -16,7 +16,7 @@ struct HistoryProgressView: View {
                         .foregroundStyle(Color.gymSubduedText)
                 }
 
-                frequencyCard
+                HistoryFrequencyChart(points: frequencyPoints)
 
                 if exerciseSeries.isEmpty {
                     ContentUnavailableView(
@@ -39,41 +39,6 @@ struct HistoryProgressView: View {
             .padding(.vertical, Spacing.l)
         }
         .background(Color.gymBackground)
-    }
-
-    private var frequencyCard: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            HStack {
-                Label("Training frequency", systemImage: AppIcon.history)
-                    .font(AppFont.headlineSemibold)
-                Spacer()
-                Text("Last 8 weeks")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-            }
-
-            Chart(frequencyPoints) { point in
-                BarMark(
-                    x: .value("Week", point.start, unit: .weekOfYear),
-                    y: .value("Workouts", point.count)
-                )
-                .foregroundStyle(Color.gymPrimary.gradient)
-                .cornerRadius(Radius.small)
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading, values: .stride(by: 1))
-            }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .weekOfYear)) { value in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
-                }
-            }
-            .frame(height: 150)
-            .accessibilityLabel("Workout frequency for the last eight weeks")
-        }
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
     }
 
     private var exerciseSeries: [HistoryExerciseSeries] {
@@ -136,21 +101,90 @@ struct HistoryProgressView: View {
     }
 }
 
+private struct HistoryFrequencyChart: View {
+    let points: [HistoryFrequencyPoint]
+
+    @State private var selectedDate: Date?
+
+    init(points: [HistoryFrequencyPoint]) {
+        self.points = points
+        _selectedDate = State(initialValue: points.last(where: { $0.count > 0 })?.start ?? points.last?.start)
+    }
+
+    private var selectedPoint: HistoryFrequencyPoint? {
+        guard let selectedDate else { return nil }
+        return points.min { abs($0.start.timeIntervalSince(selectedDate)) < abs($1.start.timeIntervalSince(selectedDate)) }
+    }
+
+    var body: some View {
+        GymChartCard(
+            title: "Training frequency · 8 weeks",
+            evidence: "Completed workouts only; every week is shown.",
+            takeaway: takeaway
+        ) {
+            if let selectedPoint {
+                GymChartSelectionAnnotation(
+                    title: selectedPoint.start.formatted(.dateTime.month(.abbreviated).day()),
+                    value: "\(selectedPoint.count) \(selectedPoint.count == 1 ? "workout" : "workouts")"
+                )
+            }
+            Chart(points) { point in
+                BarMark(
+                    x: .value("Week", point.start, unit: .weekOfYear),
+                    y: .value("Workouts", point.count)
+                )
+                .foregroundStyle(point.count == 0 ? Color.gymRowSurface : Color.gymPrimary)
+                .cornerRadius(Radius.small)
+                if selectedPoint?.id == point.id {
+                    RuleMark(x: .value("Selected week", point.start))
+                        .foregroundStyle(Color.gymPrimary.opacity(0.42))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
+            }
+            .chartXSelection(value: $selectedDate)
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .stride(by: 1))
+            }
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                    AxisGridLine().foregroundStyle(Color.gymText.opacity(0.08))
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                }
+            }
+            .frame(height: ComponentSize.compactChartHeight)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Workout frequency for the last eight weeks")
+            .accessibilityValue(points.map { "\($0.start.formatted(.dateTime.month(.abbreviated).day())): \($0.count) workouts" }.joined(separator: ", "))
+        }
+    }
+
+    private var takeaway: String? {
+        guard points.count >= 8 else { return nil }
+        let previous = points.prefix(4).reduce(0) { $0 + $1.count }
+        let recent = points.suffix(4).reduce(0) { $0 + $1.count }
+        if previous == recent { return "Training frequency was the same across the two four-week windows." }
+        return "You completed \(abs(recent - previous)) \(recent > previous ? "more" : "fewer") workouts in the recent four weeks."
+    }
+}
+
 struct HistoryExerciseProgressCard: View {
     let series: HistoryExerciseSeries
     @State private var metric: HistoryProgressMetric = .load
+    @State private var selectedDate: Date?
+
+    private var selectedPoint: HistoryMetricPoint? {
+        guard let selectedDate else { return nil }
+        return series.points(for: metric).min {
+            abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate))
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            HStack {
-                Text(series.name)
-                    .font(AppFont.headlineSemibold)
-                Spacer()
-                Text(series.summary(for: metric))
-                    .font(AppFont.captionSemiboldMonospaced)
-                    .foregroundStyle(Color.gymPrimary)
-            }
-
+        GymChartCard(
+            title: series.name,
+            evidence: "\(series.points(for: metric).count) completed-session values.",
+            takeaway: takeaway
+        ) {
             Picker("Metric", selection: $metric) {
                 ForEach(HistoryProgressMetric.allCases) { metric in
                     Text(metric.title).tag(metric)
@@ -163,6 +197,12 @@ struct HistoryExerciseProgressCard: View {
                     .font(AppFont.footnote)
                     .foregroundStyle(Color.gymSubduedText)
             } else {
+                if let selectedPoint {
+                    GymChartSelectionAnnotation(
+                        title: selectedPoint.date.formatted(.dateTime.month(.abbreviated).day()),
+                        value: formatted(selectedPoint.value)
+                    )
+                }
                 Chart(series.points(for: metric)) { point in
                     LineMark(
                         x: .value("Date", point.date),
@@ -175,18 +215,50 @@ struct HistoryExerciseProgressCard: View {
                         y: .value(metric.title, point.value)
                     )
                     .foregroundStyle(Color.gymPrimary)
+                    if selectedPoint?.id == point.id {
+                        RuleMark(x: .value("Selected session", point.date))
+                            .foregroundStyle(Color.gymPrimary.opacity(0.42))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    }
                 }
+                .chartXSelection(value: $selectedDate)
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 3)) { value in
                         AxisValueLabel(format: .dateTime.month(.abbreviated).day())
                     }
                 }
-                .frame(height: 140)
+                .frame(height: ComponentSize.compactChartHeight)
                 .accessibilityLabel("\(series.name) \(metric.title) trend")
+                .accessibilityValue(series.points(for: metric).map {
+                    "\($0.date.formatted(.dateTime.month(.abbreviated).day())): \(formatted($0.value))"
+                }.joined(separator: ", "))
             }
         }
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
+        .onAppear {
+            selectedDate = series.points(for: metric).last?.date
+        }
+        .onChange(of: metric) { _, newMetric in
+            selectedDate = series.points(for: newMetric).last?.date
+        }
+    }
+
+    private var takeaway: String? {
+        let points = series.points(for: metric)
+        guard let first = points.first, let last = points.last else { return nil }
+        guard points.count >= 2 else { return "Early pattern — one completed-session value is available." }
+        guard first.value != 0 else { return "No non-zero baseline is available for a percentage comparison." }
+        let change = (last.value - first.value) / abs(first.value)
+        let percentage = Int((abs(change) * 100).rounded())
+        if percentage < 1 { return "The first and latest completed-session values were about the same." }
+        return "The latest value was \(percentage)% \(change > 0 ? "higher" : "lower") than the first recorded value."
+    }
+
+    private func formatted(_ value: Float) -> String {
+        switch metric {
+        case .load: "\(Formatters.formatFloat(value)) \(series.unit)"
+        case .volume: "\(Formatters.formatGroupedMetric(value)) volume"
+        case .reps: "\(Formatters.formatFloat(value)) reps"
+        }
     }
 }
 

@@ -20,7 +20,8 @@ struct NutritionCenterView: View {
         List {
             Section {
                 NutritionTotalsView(totals: summary.totals, target: targetResolution.values, dayKind: targetResolution.kind)
-                    .listRowBackground(Color.gymCard)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: Spacing.s, leading: Spacing.l, bottom: Spacing.s, trailing: Spacing.l))
                     .accessibilityIdentifier("nutrition-today-totals")
             } header: {
                 Text("Today · \(targetResolution.kind.displayName)")
@@ -57,13 +58,19 @@ struct NutritionCenterView: View {
                         Button {
                             selectedMealToRepeat = meal
                         } label: {
-                            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                Text(meal.nameSnapshot)
-                                    .font(AppFont.subheadlineSemibold)
+                            HStack(spacing: Spacing.m) {
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text(meal.slot.displayName)
+                                        .font(AppFont.captionBold)
+                                        .foregroundStyle(Color.gymAccent)
+                                    Text(meal.nameSnapshot)
+                                        .font(AppFont.subheadlineSemibold)
+                                        .foregroundStyle(Color.gymText)
+                                }
+                                Spacer()
+                                Text(mealMacroDescription(meal))
+                                    .font(AppFont.subheadlineSemiboldMonospaced)
                                     .foregroundStyle(Color.gymText)
-                                Text("\(meal.slot.displayName) · \(mealMacroDescription(meal))")
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
                             }
                         }
                         .accessibilityHint("Repeats this meal as a new entry today")
@@ -139,34 +146,39 @@ struct NutritionTotalsView: View {
     let dayKind: NutritionDayKind
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("\(FoodLibraryService.format(totals.calories)) kcal")
-                        .font(AppFont.titleMedium)
-                        .foregroundStyle(Color.gymText)
-                    if let calories = target.calories {
-                        Text("of \(FoodLibraryService.format(calories)) kcal target")
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
-                    } else {
-                        Text("No calorie target set")
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
-                    }
+        GymCard {
+            HStack(spacing: Spacing.xl) {
+                calorieRing
+                VStack(spacing: Spacing.m) {
+                    NutritionMacroValue(label: "Protein", value: totals.protein, target: target.protein, unknown: totals.unknownProteinCount, tint: .gymPrimary)
+                    NutritionMacroValue(label: "Carbs", value: totals.carbohydrates, target: target.carbohydrates, unknown: totals.unknownCarbohydratesCount, tint: .gymSecondary)
+                    NutritionMacroValue(label: "Fat", value: totals.fat, target: target.fat, unknown: totals.unknownFatCount, tint: .gymAccent)
                 }
-                Spacer()
-                Image(systemName: AppIcon.nutrition).foregroundStyle(Color.gymSecondary)
-            }
-            HStack(spacing: Spacing.m) {
-                NutritionMacroValue(label: "Protein", value: totals.protein, target: target.protein, unknown: totals.unknownProteinCount)
-                NutritionMacroValue(label: "Carbs", value: totals.carbohydrates, target: target.carbohydrates, unknown: totals.unknownCarbohydratesCount)
-                NutritionMacroValue(label: "Fat", value: totals.fat, target: target.fat, unknown: totals.unknownFatCount)
             }
         }
-        .padding(.vertical, Spacing.xs)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(dayKind.displayName). \(FoodLibraryService.format(totals.calories)) calories. Protein \(FoodLibraryService.format(totals.protein)) grams. Carbohydrates \(FoodLibraryService.format(totals.carbohydrates)) grams. Fat \(FoodLibraryService.format(totals.fat)) grams.")
+    }
+
+    private var calorieRing: some View {
+        let progress = target.calories.map { min(max(totals.calories / max($0, 1), 0), 1) } ?? 0
+        return ZStack {
+            Circle().stroke(Color.gymPrimarySurface, lineWidth: Spacing.m)
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(Color.gymPrimary, style: StrokeStyle(lineWidth: Spacing.m, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            VStack(spacing: Spacing.xxs) {
+                Text(FoodLibraryService.format(totals.calories))
+                    .font(AppFont.titleMedium)
+                    .foregroundStyle(Color.gymText)
+                Text(target.calories.map { "/ \(FoodLibraryService.format($0))" } ?? "kcal")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+        }
+        .frame(width: ComponentSize.nutritionRing, height: ComponentSize.nutritionRing)
+        .accessibilityHidden(true)
     }
 }
 
@@ -175,18 +187,20 @@ private struct NutritionMacroValue: View {
     let value: Double
     let target: Double?
     let unknown: Int
+    let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text(label).font(AppFont.captionBold).foregroundStyle(Color.gymSubduedText)
-            Text("\(FoodLibraryService.format(value)) g")
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
-            if let target {
-                Text("/ \(FoodLibraryService.format(target)) g").font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
-            } else if unknown > 0 {
-                Text("+ unknown").font(AppFont.caption).foregroundStyle(Color.gymAccent)
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack {
+                Text(label).font(AppFont.subheadline).foregroundStyle(Color.gymText)
+                Spacer()
+                Text(target.map { "\(FoodLibraryService.format(value))/\(FoodLibraryService.format($0)) g" } ?? "\(FoodLibraryService.format(value)) g")
+                    .font(AppFont.subheadlineSemiboldMonospaced)
+                    .foregroundStyle(Color.gymText)
             }
+            ProgressView(value: target.map { min(value / max($0, 1), 1) } ?? 0)
+                .tint(tint)
+            if unknown > 0 { Text("+ unknown").font(AppFont.caption).foregroundStyle(Color.gymAccent) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

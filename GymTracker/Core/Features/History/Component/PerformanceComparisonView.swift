@@ -5,7 +5,7 @@ struct PerformanceComparisonView: View {
 
     var body: some View {
         if comparison.hasTargets {
-            VStack(alignment: .leading, spacing: Spacing.m) {
+            GymCard(variant: .completed, radius: Radius.medium) {
                 HStack {
                     Text("Program vs performed")
                         .font(AppFont.subheadlineSemibold)
@@ -29,8 +29,6 @@ struct PerformanceComparisonView: View {
                     }
                 }
             }
-            .padding(Spacing.m)
-            .background(Color.gymMutedSurface, in: RoundedRectangle(cornerRadius: Radius.medium))
             .accessibilityElement(children: .combine)
             .accessibilityLabel(accessibilitySummary)
             .accessibilityIdentifier("performance-comparison")
@@ -60,9 +58,11 @@ struct PerformanceComparisonView: View {
     }
 
     private func statusLabel(_ status: PerformanceComparisonStatus) -> some View {
-        Label(status.title, systemImage: icon(for: status))
-            .font(AppFont.captionBold)
-            .foregroundStyle(color(for: status))
+        GymStatusBadge(
+            title: status.title,
+            systemImage: icon(for: status),
+            tint: color(for: status)
+        )
     }
 
     private func icon(for status: PerformanceComparisonStatus) -> String {

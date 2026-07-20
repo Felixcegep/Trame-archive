@@ -4,6 +4,7 @@ import SwiftUI
 
 struct HistoryMuscleBalanceDestination: View {
     @Environment(\.modelContext) private var modelContext
+
     @State private var analytics: MuscleBalanceAnalytics?
     @State private var hasError = false
 
@@ -13,258 +14,298 @@ struct HistoryMuscleBalanceDestination: View {
                 HistoryMuscleBalanceView(analytics: analytics)
             } else if hasError {
                 ContentUnavailableView(
-                    "Balance unavailable",
+                    "Volume unavailable",
                     systemImage: AppIcon.warning,
                     description: Text("Completed workout history could not be loaded.")
                 )
             } else {
-                ProgressView("Loading balance…")
+                ProgressView("Loading muscle-group volume…")
             }
         }
         .task {
-            guard analytics == nil, !hasError else { return }
-            do {
-                analytics = try MuscleBalanceAnalyticsService(modelContext: modelContext).analytics()
-            } catch {
-                hasError = true
-            }
+            await loadAnalytics()
         }
-        .navigationTitle("Muscle Balance")
+        .navigationTitle("Muscle-group volume")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func loadAnalytics() async {
+        guard analytics == nil, !hasError else { return }
+        do {
+            analytics = try MuscleBalanceAnalyticsService(modelContext: modelContext).analytics()
+        } catch {
+            hasError = true
+        }
     }
 }
 
 struct HistoryMuscleBalanceView: View {
     let analytics: MuscleBalanceAnalytics
 
+    @State private var selectedGroup: MuscleBalanceGroup?
+
+    init(analytics: MuscleBalanceAnalytics) {
+        self.analytics = analytics
+        _selectedGroup = State(initialValue: analytics.summaries.first?.group)
+    }
+
     var body: some View {
         Group {
-            if !analytics.hasHistory {
+            if analytics.hasHistory {
+                content
+            } else {
                 ContentUnavailableView(
-                    "No estimated muscle balance yet",
+                    "No estimated muscle-group volume yet",
                     systemImage: AppIcon.chart,
-                    description: Text("Complete working sets to see estimated weekly muscle-group balance.")
+                    description: Text("Complete working sets to see weekly muscle-group training distribution.")
                 )
                 .accessibilityIdentifier("muscle-balance-empty")
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.xxl) {
-                        introduction
-                        weeklyChart
-
-                        if !analytics.callouts.isEmpty {
-                            calloutsSection
-                        }
-
-                        summariesSection
-                    }
-                    .padding(.horizontal, Spacing.xl)
-                    .padding(.top, Spacing.l)
-                    .padding(.bottom, Spacing.xxxl)
-                }
             }
         }
         .background(Color.gymBackground.ignoresSafeArea())
     }
 
-    private var introduction: some View {
-        MuscleBalanceCard {
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.xxl) {
+                methodology
+                MuscleGroupRankingSection(
+                    summaries: analytics.summaries,
+                    selectedGroup: $selectedGroup
+                )
+
+                if let selectedGroup {
+                    MuscleGroupVolumeChart(
+                        group: selectedGroup,
+                        weeks: analytics.weeks,
+                        summary: analytics.summaries.first { $0.group == selectedGroup }
+                    )
+                }
+
+                if !analytics.callouts.isEmpty {
+                    observation
+                }
+            }
+            .padding(.horizontal, Spacing.xl)
+            .padding(.top, Spacing.l)
+            .padding(.bottom, Spacing.xxxl)
+        }
+    }
+
+    private var methodology: some View {
+        GymCard(variant: .current) {
             Label("Estimated working sets", systemImage: AppIcon.info)
                 .font(AppFont.subheadlineSemibold)
                 .foregroundStyle(Color.gymPrimary)
-            Text("Primary muscles count as 1.0 set and secondary muscles as 0.5. Warm-ups are excluded. These are estimates, not a measurement of physiological response.")
+            Text("Primary muscles count as 1.0 set and secondary muscles as 0.5. Warm-ups are excluded. This describes training distribution, not physiological response.")
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymText)
         }
         .accessibilityIdentifier("muscle-balance-explanation")
         .overlay(alignment: .topLeading) {
-            screenshotStateMarker("muscle-balance-content", label: "Muscle balance content")
+            screenshotStateMarker("muscle-balance-content", label: "Muscle-group volume content")
         }
     }
 
-    private var weeklyChart: some View {
+    private var observation: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("Weekly balance · 8 weeks")
-                .font(AppFont.headlineSemibold)
-                .foregroundStyle(Color.gymText)
-
-            MuscleBalanceCard {
-                Chart(chartPoints) { point in
-                    BarMark(
-                        x: .value("Week", point.weekLabel),
-                        y: .value("Estimated sets", point.count)
-                    )
-                    .foregroundStyle(by: .value("Muscle group", point.group.displayName))
+            GymSectionHeader(title: "Worth noticing")
+            GymCard(variant: .accent) {
+                Label {
+                    Text(observationText)
+                        .font(AppFont.subheadline)
+                } icon: {
+                    Image(systemName: AppIcon.warning)
+                        .foregroundStyle(Color.gymAccent)
                 }
-                .chartForegroundStyleScale(
-                    domain: chartGroups,
-                    range: [Color.gymPrimary, Color.gymSecondary, Color.gymAccent, Color.gymText.opacity(0.68), Color.gymPrimary.opacity(0.7), Color.gymSecondary.opacity(0.7), Color.gymAccent.opacity(0.7), Color.gymText.opacity(0.45), Color.gymPrimary.opacity(0.45), Color.gymSecondary.opacity(0.45)]
-                )
-                .chartYAxis {
-                    AxisMarks(position: .leading) { value in
-                        AxisGridLine().foregroundStyle(Color.gymText.opacity(0.08))
-                        AxisValueLabel().font(AppFont.caption)
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                        AxisValueLabel().font(AppFont.caption)
-                    }
-                }
-                .frame(height: 220)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Eight-week estimated muscle balance")
-                .accessibilityValue(chartAccessibilityValue)
             }
         }
-        .overlay(alignment: .topLeading) {
-            screenshotStateMarker("muscle-balance-chart", label: "Muscle balance chart")
-        }
+        .accessibilityIdentifier("muscle-balance-callouts")
     }
 
-    private var calloutsSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("Worth noticing")
-                .font(AppFont.headlineSemibold)
-                .foregroundStyle(Color.gymText)
-
-            MuscleBalanceCard {
-                ForEach(analytics.callouts) { callout in
-                    Label {
-                        Text(callout.message)
-                            .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymText)
-                    } icon: {
-                        Image(systemName: AppIcon.warning)
-                            .foregroundStyle(Color.gymAccent)
-                    }
-                }
-            }
-            .overlay(alignment: .topLeading) {
-                screenshotStateMarker("muscle-balance-callouts", label: "Muscle balance callouts")
-            }
+    private var observationText: String {
+        let affected = analytics.callouts.compactMap { callout in
+            analytics.summaries.first { $0.group == callout.group }
         }
+        guard affected.count > 1 else { return analytics.callouts.first?.message ?? "" }
+        let evidence = affected.map {
+            "\($0.group.displayName) (\(Formatters.formatFloat(Float($0.recentAverage))) from \(Formatters.formatFloat(Float($0.previousAverage))))"
+        }
+        let joined: String
+        if evidence.count == 2 {
+            joined = evidence.joined(separator: " and ")
+        } else {
+            joined = evidence.dropLast().joined(separator: ", ") + ", and " + (evidence.last ?? "")
+        }
+        return "Estimated sets per week fell for \(joined) compared with the previous four weeks."
+    }
+}
+
+private struct MuscleGroupRankingSection: View {
+    let summaries: [MuscleBalanceSummary]
+    @Binding var selectedGroup: MuscleBalanceGroup?
+
+    @State private var showsAllGroups = false
+
+    private var visibleSummaries: [MuscleBalanceSummary] {
+        showsAllGroups ? summaries : Array(summaries.prefix(4))
     }
 
-    private var summariesSection: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("Last four weeks")
-                .font(AppFont.headlineSemibold)
-                .foregroundStyle(Color.gymText)
-
-            MuscleBalanceCard {
-                ForEach(Array(analytics.summaries.enumerated()), id: \.element.id) { index, summary in
+            GymSectionHeader(
+                title: "Last four weeks",
+                detail: "Select a muscle group to inspect its weekly evidence."
+            )
+            GymCard {
+                ForEach(Array(visibleSummaries.enumerated()), id: \.element.id) { index, summary in
                     if index > 0 { Divider() }
-                    MuscleBalanceSummaryRow(summary: summary)
+                    Button {
+                        selectedGroup = summary.group
+                    } label: {
+                        MuscleGroupSummaryRow(
+                            summary: summary,
+                            isSelected: selectedGroup == summary.group
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .accessibilityAddTraits(selectedGroup == summary.group ? .isSelected : [])
+                }
+                if summaries.count > 4 {
+                    Divider()
+                    Button(showsAllGroups ? "Show fewer muscle groups" : "Show all \(summaries.count) muscle groups") {
+                        showsAllGroups.toggle()
+                    }
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymPrimary)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("muscle-balance-show-all")
                 }
             }
             .accessibilityIdentifier("muscle-balance-summaries")
         }
     }
-
-    private var chartGroups: [String] {
-        analytics.summaries.map(\.group.displayName)
-    }
-
-    private var chartPoints: [MuscleBalanceChartPoint] {
-        analytics.weeks.flatMap { week in
-            analytics.summaries.compactMap { summary in
-                let count = week.count(for: summary.group)
-                guard count > 0 else { return nil }
-                return MuscleBalanceChartPoint(
-                    id: "\(week.id.timeIntervalSinceReferenceDate)-\(summary.group.rawValue)",
-                    weekLabel: week.weekStart.formatted(.dateTime.month(.abbreviated).day()),
-                    group: summary.group,
-                    count: count
-                )
-            }
-        }
-    }
-
-    private var chartAccessibilityValue: String {
-        chartPoints.map {
-            "\($0.weekLabel): \($0.group.displayName) \(Formatters.formatFloat(Float($0.count))) sets"
-        }.joined(separator: ", ")
-    }
 }
 
-private struct MuscleBalanceChartPoint: Identifiable {
-    let id: String
-    let weekLabel: String
-    let group: MuscleBalanceGroup
-    let count: Double
-}
-
-private struct MuscleBalanceSummaryRow: View {
+private struct MuscleGroupSummaryRow: View {
     let summary: MuscleBalanceSummary
+    let isSelected: Bool
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+            Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
+                .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubtleText)
+                .accessibilityHidden(true)
             Text(summary.group.displayName)
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
             Spacer()
             VStack(alignment: .trailing, spacing: Spacing.xxs) {
                 Text("\(Formatters.formatFloat(Float(summary.recentAverage))) sets / week")
                     .font(AppFont.subheadlineSemiboldMonospaced)
-                    .foregroundStyle(Color.gymText)
                 Text(changeText)
                     .font(AppFont.caption)
-                    .foregroundStyle(changeColor)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
+        .frame(minHeight: 44)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(summary.group.displayName), \(Formatters.formatFloat(Float(summary.recentAverage))) estimated sets per week, \(changeText)")
     }
 
     private var changeText: String {
-        guard let ratio = summary.changeRatio else {
-            return "No previous four-week baseline"
-        }
+        guard let ratio = summary.changeRatio else { return "No earlier baseline" }
         let percent = Int((abs(ratio) * 100).rounded())
-        if percent == 0 { return "About the same as the previous four weeks" }
-        return ratio > 0 ? "\(percent)% more than previous" : "\(percent)% less than previous"
-    }
-
-    private var changeColor: Color {
-        if summary.change > 0 { return Color.gymSecondary }
-        if summary.change < 0 { return Color.gymAccent }
-        return Color.gymText.opacity(0.62)
+        if percent == 0 { return "About the same as before" }
+        return ratio > 0 ? "\(percent)% more than before" : "\(percent)% less than before"
     }
 }
 
-private struct MuscleBalanceCard<Content: View>: View {
-    @ViewBuilder let content: Content
+private struct MuscleGroupVolumeChart: View {
+    let group: MuscleBalanceGroup
+    let weeks: [MuscleBalanceWeek]
+    let summary: MuscleBalanceSummary?
+
+    @State private var selectedDate: Date?
+
+    init(group: MuscleBalanceGroup, weeks: [MuscleBalanceWeek], summary: MuscleBalanceSummary?) {
+        self.group = group
+        self.weeks = weeks
+        self.summary = summary
+        _selectedDate = State(
+            initialValue: weeks.last(where: { $0.count(for: group) > 0 })?.weekStart ?? weeks.last?.weekStart
+        )
+    }
+
+    private var selectedWeek: MuscleBalanceWeek? {
+        guard let selectedDate else { return nil }
+        return weeks.min { abs($0.weekStart.timeIntervalSince(selectedDate)) < abs($1.weekStart.timeIntervalSince(selectedDate)) }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            content
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.gymText.opacity(0.08), lineWidth: 1)
-        }
-    }
-}
+        GymChartCard(
+            title: "\(group.displayName) · 8 weeks",
+            evidence: "Estimated completed working sets; every week is shown.",
+            takeaway: takeaway,
+            titleIdentifier: "muscle-balance-chart-title"
+        ) {
+            if let selectedWeek {
+                GymChartSelectionAnnotation(
+                    title: selectedWeek.weekStart.formatted(.dateTime.month(.abbreviated).day()),
+                    value: selectedWeek.count(for: group) == 0
+                        ? "No completed working sets"
+                        : "\(Formatters.formatFloat(Float(selectedWeek.count(for: group)))) estimated sets"
+                )
+                .accessibilityIdentifier("muscle-balance-chart-selection")
+            }
 
-#Preview("Muscle Balance") {
-    NavigationStack {
-        HistoryMuscleBalanceView(
-            analytics: MuscleBalanceAnalytics(
-                weeks: [],
-                summaries: [
-                    MuscleBalanceSummary(group: .chest, recentAverage: 8, previousAverage: 6),
-                    MuscleBalanceSummary(group: .back, recentAverage: 6, previousAverage: 8),
-                    MuscleBalanceSummary(group: .quadriceps, recentAverage: 5, previousAverage: 5),
-                    MuscleBalanceSummary(group: .hamstrings, recentAverage: 2, previousAverage: 5)
-                ],
-                callouts: [
-                    MuscleBalanceCallout(group: .hamstrings, message: "Hamstrings received much less estimated work than the previous four-week average.")
-                ]
-            )
-        )
+            Chart(weeks) { week in
+                BarMark(
+                    x: .value("Week", week.weekStart, unit: .weekOfYear),
+                    y: .value("Estimated sets", week.count(for: group))
+                )
+                .foregroundStyle(week.count(for: group) == 0 ? Color.gymRowSurface : Color.gymPrimary)
+                .cornerRadius(Radius.small)
+
+                if selectedWeek?.id == week.id {
+                    RuleMark(x: .value("Selected week", week.weekStart))
+                        .foregroundStyle(Color.gymPrimary.opacity(0.42))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
+            }
+            .frame(height: ComponentSize.standardChartHeight)
+            .chartXSelection(value: $selectedDate)
+            .chartYAxis {
+                AxisMarks(position: .leading) { _ in
+                    AxisGridLine().foregroundStyle(Color.gymText.opacity(0.08))
+                    AxisValueLabel().font(AppFont.caption)
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                        .font(AppFont.caption)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Eight-week estimated \(group.displayName) working-set volume")
+            .accessibilityValue(weeks.map {
+                "\($0.weekStart.formatted(.dateTime.month(.abbreviated).day())): \(Formatters.formatFloat(Float($0.count(for: group)))) estimated sets"
+            }.joined(separator: ", "))
+        }
+        .id(group)
+        .accessibilityIdentifier("muscle-balance-chart")
+    }
+
+    private var takeaway: String? {
+        guard let summary else { return nil }
+        guard let ratio = summary.changeRatio else {
+            return "No previous four-week baseline is available for comparison."
+        }
+        let percentage = Int((abs(ratio) * 100).rounded())
+        if percentage < 5 {
+            return "Estimated weekly sets were about the same as the previous four weeks."
+        }
+        return "Estimated weekly sets were \(percentage)% \(ratio > 0 ? "higher" : "lower") than the previous four weeks."
     }
 }

@@ -5,14 +5,15 @@ import SwiftUI
 struct ExerciseDetailInsightsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+
     let model: ExerciseDetailInsightsModel
 
     var body: some View {
         Group {
-            if !model.hasHistory {
-                emptyState
-            } else {
+            if model.hasHistory {
                 insightsContent
+            } else {
+                emptyState
             }
         }
         .background(Color.gymBackground.ignoresSafeArea())
@@ -21,9 +22,7 @@ struct ExerciseDetailInsightsView: View {
         .navigationBarBackButtonHidden()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
+                Button(action: dismiss.callAsFunction) {
                     Image(systemName: AppIcon.chevronLeft)
                 }
                 .accessibilityLabel("Back")
@@ -35,49 +34,46 @@ struct ExerciseDetailInsightsView: View {
         }
     }
 
-    private var emptyState: some View {
-        ContentUnavailableView(
-            "No completed history yet",
-            systemImage: AppIcon.chart,
-            description: Text("Complete a workout with this exercise to see performance insights here.")
-        )
-        .accessibilityIdentifier("exercise-insights-empty")
-    }
-
     private var insightsContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xxl) {
                 if model.hasInsufficientHistory {
-                    insufficientHistoryCard
+                    InsufficientExerciseHistoryCard(sessionCount: model.historyCount)
                 }
 
                 if let latestSession = model.latestSession {
-                    sessionSection(title: "Last session", session: latestSession, identifier: "exercise-insights-last-session")
+                    ExerciseSessionSection(
+                        session: latestSession,
+                        workout: latestSession.workoutID.flatMap(completedWorkout)
+                    )
                 }
 
-                if let previousSession = model.previousSession,
-                   let latestSession = model.latestSession {
-                    comparisonSection(latest: latestSession, previous: previousSession)
-                }
-
-                if !model.bestResults.isEmpty {
-                    bestResultsSection
-                }
-
-                if let estimatedOneRepMax = model.estimatedOneRepMax {
-                    estimatedOneRepMaxSection(estimatedOneRepMax)
-                }
-
-                if !model.volumePoints.isEmpty {
-                    volumeSection
-                }
-
-                if !model.notes.isEmpty {
-                    notesSection
+                if let changeSummary = model.changeSummary {
+                    ExerciseChangeSection(summary: changeSummary)
                 }
 
                 if let progression = model.progression {
-                    progressionSection(progression)
+                    ExerciseProgressionSection(progression: progression)
+                }
+
+                if !model.volumePoints.isEmpty {
+                    ExerciseVolumeChartSection(
+                        points: model.volumePoints,
+                        historyCount: model.historyCount,
+                        takeaway: model.volumeTakeaway
+                    )
+                }
+
+                if !model.bestResults.isEmpty {
+                    ExerciseBestResultsSection(results: model.bestResults)
+                }
+
+                if let estimatedOneRepMax = model.estimatedOneRepMax {
+                    EstimatedOneRepMaxSection(metric: estimatedOneRepMax)
+                }
+
+                if !model.notes.isEmpty {
+                    ExerciseNotesSection(notes: model.notes)
                 }
             }
             .padding(.horizontal, Spacing.l)
@@ -87,70 +83,13 @@ struct ExerciseDetailInsightsView: View {
         .accessibilityIdentifier("exercise-insights-content")
     }
 
-    private var insufficientHistoryCard: some View {
-        InsightCard {
-            Label("Build more history", systemImage: AppIcon.info)
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymPrimary)
-            Text("Keep logging this exercise. More completed sessions will unlock comparisons, trends, and stronger records.")
-                .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymText)
-        }
-        .accessibilityIdentifier("exercise-insights-insufficient-history")
-    }
-
-    private func sessionSection(
-        title: String,
-        session: ExerciseDetailSession,
-        identifier: String
-    ) -> some View {
-        insightSection(title: title, identifier: identifier) {
-            if let workoutID = session.workoutID,
-               let workout = completedWorkout(id: workoutID) {
-                NavigationLink {
-                    HistoryWorkoutView(workout: workout)
-                } label: {
-                    sessionCard(session)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Opens the completed workout in History")
-            } else {
-                sessionCard(session)
-            }
-        }
-    }
-
-    private func sessionCard(_ session: ExerciseDetailSession) -> some View {
-        InsightCard {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(session.date)
-                        .font(AppFont.subheadlineSemibold)
-                    Spacer()
-                    Text(session.summary)
-                        .font(AppFont.captionSemiboldMonospaced)
-                        .foregroundStyle(Color.gymText.opacity(0.68))
-                }
-
-                Divider()
-
-                ForEach(session.sets) { set in
-                    HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
-                        Text(set.label)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymText.opacity(0.62))
-                            .frame(width: 44, alignment: .leading)
-                        Text(set.value)
-                            .font(AppFont.bodyMedium.monospacedDigit())
-                        Spacer()
-                        if let detail = set.detail {
-                            Text(detail)
-                                .font(AppFont.caption)
-                                .foregroundStyle(Color.gymAccent)
-                                .multilineTextAlignment(.trailing)
-                        }
-                    }
-                }
-            }
+    private var emptyState: some View {
+        ContentUnavailableView(
+            "No completed history yet",
+            systemImage: AppIcon.chart,
+            description: Text("Complete a workout with this exercise to see performance insights here.")
+        )
+        .accessibilityIdentifier("exercise-insights-empty")
     }
 
     private func completedWorkout(id: UUID) -> Workout? {
@@ -158,142 +97,94 @@ struct ExerciseDetailInsightsView: View {
             $0.id == id && $0.status == .completed
         }
     }
+}
 
-    private func comparisonSection(
-        latest: ExerciseDetailSession,
-        previous: ExerciseDetailSession
-    ) -> some View {
-        insightSection(title: "Previous-session comparison", identifier: "exercise-insights-comparison") {
-            InsightCard {
-                comparisonRow(title: "Latest", value: latest.summary, detail: latest.date)
-                comparisonRow(title: "Previous", value: previous.summary, detail: previous.date)
-                Label("Compare completed sets and notes in History for the full context.", systemImage: AppIcon.history)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymText.opacity(0.68))
-                    .padding(.top, Spacing.xs)
-            }
-        }
-    }
+private struct InsufficientExerciseHistoryCard: View {
+    let sessionCount: Int
 
-    private func comparisonRow(title: String, value: String, detail: String) -> some View {
-        HStack {
-            Text(title)
+    var body: some View {
+        GymCard(variant: .current) {
+            Label("Early history", systemImage: AppIcon.info)
+                .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(Color.gymPrimary)
+            Text("Based on \(sessionCount) completed \(sessionCount == 1 ? "session" : "sessions"). Keep logging before treating changes as a trend.")
                 .font(AppFont.subheadline)
-            Spacer()
-            VStack(alignment: .trailing, spacing: Spacing.xxs) {
-                Text(value)
-                    .font(AppFont.subheadlineSemiboldMonospaced)
-                Text(detail)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymText.opacity(0.62))
+        }
+        .accessibilityIdentifier("exercise-insights-insufficient-history")
+    }
+}
+
+private struct ExerciseSessionSection: View {
+    let session: ExerciseDetailSession
+    let workout: Workout?
+
+    var body: some View {
+        InsightSection(title: "Latest performance", identifier: "exercise-insights-last-session") {
+            if let workout {
+                NavigationLink {
+                    HistoryWorkoutView(workout: workout)
+                } label: {
+                    sessionCard
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens the completed workout in History")
+            } else {
+                sessionCard
             }
         }
     }
 
-    private var bestResultsSection: some View {
-        insightSection(title: "Best results", identifier: "exercise-insights-best-results") {
-            InsightCard {
-                ForEach(Array(model.bestResults.enumerated()), id: \.element.id) { index, result in
-                    if index > 0 { Divider() }
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text(result.title)
-                                .font(AppFont.subheadline)
-                                .foregroundStyle(Color.gymText.opacity(0.68))
-                            if let detail = result.detail {
-                                Text(detail)
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymText.opacity(0.58))
-                            }
-                        }
-                        Spacer()
-                        Text(result.value)
-                            .font(AppFont.subheadlineSemiboldMonospaced)
+    private var sessionCard: some View {
+        GymCard {
+            HStack(alignment: .firstTextBaseline) {
+                Text(session.date)
+                    .font(AppFont.subheadlineSemibold)
+                Spacer()
+                Text(session.summary)
+                    .font(AppFont.captionSemiboldMonospaced)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+            Divider()
+            ForEach(session.sets) { set in
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+                    Text(set.label)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .frame(width: 44, alignment: .leading)
+                    Text(set.value)
+                        .font(AppFont.bodyMedium.monospacedDigit())
+                    Spacer()
+                    if let detail = set.detail {
+                        Text(detail)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymAccent)
                     }
                 }
             }
         }
     }
+}
 
-    private func estimatedOneRepMaxSection(_ metric: ExerciseDetailMetric) -> some View {
-        insightSection(title: "Estimated 1RM", identifier: "exercise-insights-estimated-1rm") {
-            InsightCard {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(metric.value)
-                        .font(AppFont.displayMedium)
-                        .foregroundStyle(Color.gymPrimary)
-                    Text(metric.unit)
-                        .font(AppFont.titleSmallSemibold)
-                    Spacer()
-                    Image(systemName: AppIcon.progression)
-                        .font(AppFont.titleSmall)
-                        .foregroundStyle(Color.gymPrimary)
-                }
-                Text("Estimate only — based on completed historical sets, not a tested max.")
+private struct ExerciseChangeSection: View {
+    let summary: String
+
+    var body: some View {
+        InsightSection(title: "What changed", identifier: "exercise-insights-comparison") {
+            GymCard {
+                Label(summary, systemImage: AppIcon.history)
                     .font(AppFont.subheadline)
                     .foregroundStyle(Color.gymText)
-                if let context = metric.context {
-                    Text(context)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymText.opacity(0.62))
-                }
             }
         }
     }
+}
 
-    private var volumeSection: some View {
-        insightSection(title: "Volume · 8 weeks", identifier: "exercise-insights-volume") {
-            InsightCard {
-                Chart(model.volumePoints) { point in
-                    LineMark(
-                        x: .value("Week", point.label),
-                        y: .value("Volume", point.value)
-                    )
-                    .foregroundStyle(Color.gymPrimary)
-                    .interpolationMethod(.catmullRom)
+private struct ExerciseProgressionSection: View {
+    let progression: ExerciseDetailProgression
 
-                    PointMark(
-                        x: .value("Week", point.label),
-                        y: .value("Volume", point.value)
-                    )
-                    .foregroundStyle(Color.gymPrimary)
-                }
-                .frame(height: 180)
-                .chartYAxis(.hidden)
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                        AxisGridLine().foregroundStyle(Color.gymText.opacity(0.08))
-                        AxisValueLabel().font(AppFont.caption)
-                    }
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Eight-week volume trend")
-                .accessibilityValue(model.volumePoints.map { "\($0.label): \($0.accessibilityValue)" }.joined(separator: ", "))
-            }
-        }
-    }
-
-    private var notesSection: some View {
-        insightSection(title: "Notes history", identifier: "exercise-insights-notes") {
-            InsightCard {
-                ForEach(Array(model.notes.enumerated()), id: \.element.id) { index, note in
-                    if index > 0 { Divider() }
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text(note.date)
-                            .font(AppFont.captionSemiboldMonospaced)
-                            .foregroundStyle(Color.gymText.opacity(0.62))
-                        Text(note.text)
-                            .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymText)
-                    }
-                }
-            }
-        }
-    }
-
-    private func progressionSection(_ progression: ExerciseDetailProgression) -> some View {
-        insightSection(title: "Next suggestion", identifier: "exercise-insights-progression") {
-            InsightCard {
+    var body: some View {
+        InsightSection(title: "Next suggestion", identifier: "exercise-insights-progression") {
+            GymCard(variant: .completed) {
                 Label(progression.title, systemImage: AppIcon.progression)
                     .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(Color.gymSecondary)
@@ -307,53 +198,187 @@ struct ExerciseDetailInsightsView: View {
             }
         }
     }
+}
 
-    private func insightSection<Content: View>(
-        title: String,
-        identifier: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
+private struct ExerciseVolumeChartSection: View {
+    let points: [ExerciseDetailVolumePoint]
+    let historyCount: Int
+    let takeaway: String?
+
+    @State private var selectedDate: Date?
+
+    init(points: [ExerciseDetailVolumePoint], historyCount: Int, takeaway: String?) {
+        self.points = points
+        self.historyCount = historyCount
+        self.takeaway = takeaway
+        _selectedDate = State(initialValue: points.last(where: { $0.sessionCount > 0 })?.date ?? points.last?.date)
+    }
+
+    private var selectedPoint: ExerciseDetailVolumePoint? {
+        guard let selectedDate else { return nil }
+        return points.min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
+    }
+
+    var body: some View {
+        GymChartCard(
+            title: "Completed volume · 8 weeks",
+            evidence: "Based on \(historyCount) completed \(historyCount == 1 ? "session" : "sessions").",
+            takeaway: takeaway
+        ) {
+            if let selectedPoint {
+                GymChartSelectionAnnotation(
+                    title: selectedPoint.label,
+                    value: selectedPoint.sessionCount == 0
+                        ? "No completed sets"
+                        : "\(Formatters.formatGroupedMetric(Float(selectedPoint.value))) \(selectedPoint.unit) volume",
+                    detail: selectedPoint.sessionCount == 0
+                        ? nil
+                        : "\(selectedPoint.workingSetCount) working sets · \(selectedPoint.sessionCount) \(selectedPoint.sessionCount == 1 ? "session" : "sessions")"
+                )
+            }
+
+            Chart(points) { point in
+                LineMark(
+                    x: .value("Week", point.date),
+                    y: .value("Volume", point.value)
+                )
+                .foregroundStyle(Color.gymPrimary)
+                .interpolationMethod(.linear)
+
+                PointMark(
+                    x: .value("Week", point.date),
+                    y: .value("Volume", point.value)
+                )
+                .symbol(point.sessionCount == 0 ? .diamond : .circle)
+                .foregroundStyle(point.sessionCount == 0 ? Color.gymSubduedText : Color.gymPrimary)
+
+                if selectedPoint?.id == point.id {
+                    RuleMark(x: .value("Selected week", point.date))
+                        .foregroundStyle(Color.gymPrimary.opacity(0.42))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
+            }
+            .frame(height: ComponentSize.compactChartHeight)
+            .chartXSelection(value: $selectedDate)
+            .chartYAxis(.hidden)
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                    AxisGridLine().foregroundStyle(Color.gymText.opacity(0.08))
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                        .font(AppFont.caption)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Eight-week completed exercise volume")
+            .accessibilityValue(points.map { "\($0.label): \($0.accessibilityValue)" }.joined(separator: ", "))
+        }
+        .accessibilityIdentifier("exercise-insights-volume")
+    }
+}
+
+private struct ExerciseBestResultsSection: View {
+    let results: [ExerciseDetailBestResult]
+
+    var body: some View {
+        InsightSection(title: "Records", identifier: "exercise-insights-best-results") {
+            GymCard {
+                ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
+                    if index > 0 { Divider() }
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text(result.title)
+                                .font(AppFont.subheadline)
+                                .foregroundStyle(Color.gymSubduedText)
+                            if let detail = result.detail {
+                                Text(detail)
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.gymSubtleText)
+                            }
+                        }
+                        Spacer()
+                        Text(result.value)
+                            .font(AppFont.subheadlineSemiboldMonospaced)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct EstimatedOneRepMaxSection: View {
+    let metric: ExerciseDetailMetric
+
+    var body: some View {
+        InsightSection(title: "Estimated 1RM", identifier: "exercise-insights-estimated-1rm") {
+            GymCard {
+                HStack(alignment: .firstTextBaseline) {
+                    GymMetricValue(value: metric.value, unit: metric.unit, isEstimate: true, prominence: .display)
+                    Spacer()
+                    Image(systemName: AppIcon.progression)
+                        .font(AppFont.titleSmall)
+                        .foregroundStyle(Color.gymPrimary)
+                }
+                Text("Estimate from completed historical sets, not a tested maximum.")
+                    .font(AppFont.subheadline)
+                if let context = metric.context {
+                    Text(context)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+            }
+        }
+    }
+}
+
+private struct ExerciseNotesSection: View {
+    let notes: [ExerciseDetailNote]
+
+    var body: some View {
+        InsightSection(title: "Notes history", identifier: "exercise-insights-notes") {
+            GymCard {
+                ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
+                    if index > 0 { Divider() }
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text(note.date)
+                            .font(AppFont.captionSemiboldMonospaced)
+                            .foregroundStyle(Color.gymSubduedText)
+                        Text(note.text)
+                            .font(AppFont.subheadline)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct InsightSection<Content: View>: View {
+    let title: String
+    let identifier: String
+    @ViewBuilder let content: Content
+
+    init(title: String, identifier: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.identifier = identifier
+        self.content = content()
+    }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            Text(title)
-                .font(AppFont.headlineSemibold)
-                .foregroundStyle(Color.gymText)
-            content()
+            GymSectionHeader(title: title)
+            content
         }
         .accessibilityIdentifier(identifier)
     }
 }
 
-private struct InsightCard<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            content
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.gymText.opacity(0.08), lineWidth: 1)
-        }
-    }
-}
-
 #Preview("Exercise Insights") {
-    NavigationStack {
-        ExerciseDetailInsightsView(model: .previewFull)
-    }
+    NavigationStack { ExerciseDetailInsightsView(model: .previewFull) }
 }
 
 #Preview("Exercise Insights — Insufficient History") {
-    NavigationStack {
-        ExerciseDetailInsightsView(model: .previewInsufficient)
-    }
+    NavigationStack { ExerciseDetailInsightsView(model: .previewInsufficient) }
 }
 
 #Preview("Exercise Insights — Empty") {
-    NavigationStack {
-        ExerciseDetailInsightsView(model: .previewEmpty)
-    }
+    NavigationStack { ExerciseDetailInsightsView(model: .previewEmpty) }
 }

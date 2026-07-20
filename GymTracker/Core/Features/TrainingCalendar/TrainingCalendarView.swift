@@ -44,6 +44,7 @@ struct TrainingCalendarView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 monthControls
+                monthSummary
                 weekdayHeader
                 monthGrid
 
@@ -166,6 +167,32 @@ struct TrainingCalendarView: View {
                     .accessibilityHidden(true)
             }
         }
+    }
+
+    private var monthSummary: some View {
+        let days = calendarMonth.weeks.flatMap { $0 }.filter(\.isInDisplayedMonth)
+        let planned = days.reduce(0) { $0 + $1.plannedWorkouts.count }
+        let completed = days.reduce(0) { $0 + $1.completedWorkoutCount }
+        let activeDays = days.filter { $0.completedWorkoutCount > 0 }.count
+        return GymCard(variant: .completed) {
+            GymSectionHeader(title: "Month at a glance", detail: "A concise view of planned and performed training.", systemImage: AppIcon.chart)
+            HStack(spacing: Spacing.l) {
+                calendarMetric(value: planned, label: "Planned")
+                Divider()
+                calendarMetric(value: completed, label: "Completed")
+                Divider()
+                calendarMetric(value: activeDays, label: "Training days")
+            }
+        }
+        .accessibilityIdentifier("training-calendar-month-summary")
+    }
+
+    private func calendarMetric(value: Int, label: LocalizedStringKey) -> some View {
+        VStack(spacing: Spacing.xxs) {
+            Text("\(value)").font(AppFont.titleSmallSemiboldMonospaced).foregroundStyle(Color.gymText)
+            Text(label).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var monthGrid: some View {
