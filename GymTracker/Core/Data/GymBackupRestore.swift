@@ -624,6 +624,23 @@ extension BackupDTO {
                 context.insert(entry)
             }
 
+            for entryDTO in bodyWeightEntries {
+                guard let unit = WeightType(rawValue: entryDTO.unit),
+                      let source = BodyWeightSource(rawValue: entryDTO.source) else {
+                    throw BackupValidationError.invalidIdentifier("body weight entry")
+                }
+                context.insert(BodyWeightEntry(
+                    day: LocalDay(rawValue: entryDTO.dayKey),
+                    value: entryDTO.value,
+                    unit: unit,
+                    source: source,
+                    measuredAt: entryDTO.measuredAt,
+                    createdAt: entryDTO.createdAt,
+                    updatedAt: entryDTO.updatedAt,
+                    id: try requiredUUID(entryDTO.id, named: "body weight entry")
+                ))
+            }
+
             for occurrenceDTO in supplementOccurrences {
                 guard let kind = SupplementKind(rawValue: occurrenceDTO.kind),
                       let status = SupplementOccurrenceStatus(rawValue: occurrenceDTO.status) else {
@@ -783,6 +800,8 @@ extension BackupDTO {
                     proteinGrams: foodDTO.proteinGrams,
                     carbohydrateGrams: foodDTO.carbohydrateGrams,
                     fatGrams: foodDTO.fatGrams,
+                    caffeineMilligrams: foodDTO.caffeineMilligrams,
+                    npn: foodDTO.npn,
                     sourceKind: sourceKind,
                     confidence: confidence,
                     preparationState: preparationState,
@@ -872,6 +891,7 @@ extension BackupDTO {
                         proteinGramsSnapshot: itemDTO.proteinGramsSnapshot,
                         carbohydrateGramsSnapshot: itemDTO.carbohydrateGramsSnapshot,
                         fatGramsSnapshot: itemDTO.fatGramsSnapshot,
+                        caffeineMilligramsSnapshot: itemDTO.caffeineMilligramsSnapshot,
                         sourceKind: sourceKind,
                         confidence: confidence,
                         preparationState: preparationState,

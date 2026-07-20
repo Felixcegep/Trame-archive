@@ -11,6 +11,8 @@ final class FoodItem {
     var proteinGrams: Double?
     var carbohydrateGrams: Double?
     var fatGrams: Double?
+    var caffeineMilligrams: Double?
+    var npn: String?
     var sourceKindRaw: String
     var confidenceRaw: String
     var preparationStateRaw: String
@@ -51,6 +53,8 @@ final class FoodItem {
         proteinGrams: Double? = nil,
         carbohydrateGrams: Double? = nil,
         fatGrams: Double? = nil,
+        caffeineMilligrams: Double? = nil,
+        npn: String? = nil,
         sourceKind: FoodSourceKind = .userCreated,
         confidence: FoodConfidence = .userProvided,
         preparationState: FoodPreparationState = .raw,
@@ -68,6 +72,8 @@ final class FoodItem {
         self.proteinGrams = proteinGrams
         self.carbohydrateGrams = carbohydrateGrams
         self.fatGrams = fatGrams
+        self.caffeineMilligrams = caffeineMilligrams
+        self.npn = npn
         self.sourceKindRaw = sourceKind.rawValue
         self.confidenceRaw = confidence.rawValue
         self.preparationStateRaw = preparationState.rawValue

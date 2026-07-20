@@ -549,6 +549,8 @@ extension BackupDTO {
                 proteinGrams: food.proteinGrams,
                 carbohydrateGrams: food.carbohydrateGrams,
                 fatGrams: food.fatGrams,
+                caffeineMilligrams: food.caffeineMilligrams,
+                npn: food.npn,
                 sourceKind: food.sourceKind.rawValue,
                 confidence: food.confidence.rawValue,
                 preparationState: food.preparationState.rawValue,
@@ -603,6 +605,7 @@ extension BackupDTO {
                         proteinGramsSnapshot: $0.proteinGramsSnapshot,
                         carbohydrateGramsSnapshot: $0.carbohydrateGramsSnapshot,
                         fatGramsSnapshot: $0.fatGramsSnapshot,
+                        caffeineMilligramsSnapshot: $0.caffeineMilligramsSnapshot,
                         sourceKind: $0.sourceKindRaw,
                         confidence: $0.confidenceRaw,
                         preparationState: $0.preparationStateRaw
@@ -635,7 +638,8 @@ extension BackupDTO {
             preferences: PreferencesDTO(
                 darkMode: darkMode,
                 restTimer: restTimer,
-                unitSystem: unitSystem.rawValue
+                unitSystem: unitSystem.rawValue,
+                birthdateTimestamp: UserDefaults.standard.object(forKey: DefaultsKey.caffeineBirthdateTimestamp) as? Double
             ),
             exercises: exerciseDTOs,
             templates: templateDTOs,

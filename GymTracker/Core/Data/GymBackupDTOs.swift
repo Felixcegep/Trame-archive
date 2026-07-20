@@ -4,6 +4,7 @@ nonisolated struct PreferencesDTO: Codable {
     let darkMode: Bool
     let restTimer: Int
     let unitSystem: String
+    var birthdateTimestamp: Double? = nil
 }
 
 nonisolated struct ExerciseTemplateDTO: Codable {
@@ -529,6 +530,8 @@ nonisolated struct FoodItemDTO: Codable {
     let proteinGrams: Double?
     let carbohydrateGrams: Double?
     let fatGrams: Double?
+    var caffeineMilligrams: Double? = nil
+    var npn: String? = nil
     let sourceKind: String
     let confidence: String
     let preparationState: String
@@ -574,6 +577,7 @@ nonisolated struct LoggedMealItemDTO: Codable {
     let proteinGramsSnapshot: Double?
     let carbohydrateGramsSnapshot: Double?
     let fatGramsSnapshot: Double?
+    var caffeineMilligramsSnapshot: Double? = nil
     let sourceKind: String
     let confidence: String
     let preparationState: String

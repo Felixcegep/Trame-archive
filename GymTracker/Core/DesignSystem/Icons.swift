@@ -52,6 +52,7 @@ struct AppIcon {
     static let workout = "dumbbell.fill"
     static let mobility = "figure.flexibility"
     static let nutrition = "fork.knife"
+    static let caffeine = "cup.and.saucer.fill"
     static let routine = "list.bullet.rectangle"
     static let stop = "stop.fill"
     static let timer = "timer"

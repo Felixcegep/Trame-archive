@@ -46,7 +46,7 @@ enum BackupValidationError: LocalizedError {
 
 extension BackupDTO {
     func validate() throws {
-        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.mobilityVersion || version == Self.currentVersion else {
+        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.mobilityVersion || version == Self.nutritionVersion || version == Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
 
@@ -161,6 +161,18 @@ extension BackupDTO {
             }
             guard Set(occurrenceKeys).count == occurrenceKeys.count else {
                 throw BackupValidationError.duplicateIdentifier("supplement occurrence")
+            }
+        }
+
+        if version >= Self.bodyWeightVersion {
+            try validateUniqueIdentifiers(bodyWeightEntries.map(\.id), named: "body weight entry")
+            let dayKeys = bodyWeightEntries.map(\.dayKey)
+            guard Set(dayKeys).count == dayKeys.count,
+                  dayKeys.allSatisfy(isValidLocalDayKey),
+                  bodyWeightEntries.allSatisfy({ $0.value.isFinite && $0.value > 0 && $0.value <= 1_500 }),
+                  bodyWeightEntries.allSatisfy({ WeightType(rawValue: $0.unit) != nil }),
+                  bodyWeightEntries.allSatisfy({ BodyWeightSource(rawValue: $0.source) != nil }) else {
+                throw BackupValidationError.invalidIdentifier("body weight entry")
             }
         }
 
@@ -402,7 +414,7 @@ extension BackupDTO {
                   FoodSourceKind(rawValue: food.sourceKind) != nil,
                   FoodConfidence(rawValue: food.confidence) != nil,
                   FoodPreparationState(rawValue: food.preparationState) != nil,
-                  [food.calories, food.proteinGrams, food.carbohydrateGrams, food.fatGrams].allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
+                  [food.calories, food.proteinGrams, food.carbohydrateGrams, food.fatGrams, food.caffeineMilligrams].allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
                 throw BackupValidationError.invalidIdentifier("food")
             }
             for serving in food.servings {
@@ -464,7 +476,7 @@ extension BackupDTO {
                       FoodSourceKind(rawValue: item.sourceKind) != nil,
                       FoodConfidence(rawValue: item.confidence) != nil,
                       FoodPreparationState(rawValue: item.preparationState) != nil,
-                      [item.caloriesSnapshot, item.proteinGramsSnapshot, item.carbohydrateGramsSnapshot, item.fatGramsSnapshot].allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
+                      [item.caloriesSnapshot, item.proteinGramsSnapshot, item.carbohydrateGramsSnapshot, item.fatGramsSnapshot, item.caffeineMilligramsSnapshot].allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
                     throw BackupValidationError.invalidIdentifier("logged meal item")
                 }
             }

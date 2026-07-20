@@ -33,6 +33,8 @@ enum UITestFixture: String {
     case planPartialSave = "plan-partial-save"
     case backupImportTarget = "backup-import-target"
     case todayComplete = "today-complete"
+    case todayWeightDue = "today-weight-due"
+    case bodyWeightHistory = "body-weight-history"
     case mobilityActive = "mobility-active"
     case nutritionToday = "nutrition-today"
     case trainingCalendar = "training-calendar"
@@ -49,7 +51,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .backupImportTarget, .todayComplete, .mobilityActive, .nutritionToday, .trainingCalendar:
+        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .nutritionToday, .trainingCalendar:
             false
         default:
             true
@@ -65,6 +67,7 @@ enum UITestFixture: String {
     }
 
     static func apply(_ fixture: UITestFixture, using context: ModelContext) throws {
+        UserDefaults.standard.set(BodyWeightPromptCadence.off.rawValue, forKey: DefaultsKey.bodyWeightPromptCadence)
         switch fixture {
         case .activeEmpty:
             try makeActiveWorkout(exercises: [], using: context)
@@ -131,6 +134,27 @@ enum UITestFixture: String {
                 note: "Felt steady today."
             ))
             context.insert(SupplementOccurrence(kind: .creatine, day: .today))
+            let coffee = FoodItem(
+                name: "Coffee · Brewed",
+                referenceAmount: 1,
+                referenceUnit: .serving,
+                caffeineMilligrams: 145,
+                sourceKind: .curated,
+                confidence: .estimated,
+                preparationState: .cooked
+            )
+            context.insert(coffee)
+            _ = NutritionLoggingService.log(food: coffee, using: context)
+            try context.save()
+        case .todayWeightDue:
+            UserDefaults.standard.set(BodyWeightPromptCadence.weekly.rawValue, forKey: DefaultsKey.bodyWeightPromptCadence)
+            try context.save()
+        case .bodyWeightHistory:
+            let calendar = Calendar.current
+            let recent = Date.now.addingTimeInterval(-86_400)
+            let prior = calendar.date(byAdding: .month, value: -1, to: recent) ?? recent
+            context.insert(BodyWeightEntry(day: LocalDay(date: prior), value: 181.5, unit: .lbs, measuredAt: prior))
+            context.insert(BodyWeightEntry(day: LocalDay(date: recent), value: 179.8, unit: .lbs, measuredAt: recent))
             try context.save()
         case .mobilityActive:
             guard let routine = try context.fetch(FetchDescriptor<MobilityRoutine>()).first else {

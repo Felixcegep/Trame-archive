@@ -15,6 +15,7 @@ final class LoggedMealItem {
     var proteinGramsSnapshot: Double?
     var carbohydrateGramsSnapshot: Double?
     var fatGramsSnapshot: Double?
+    var caffeineMilligramsSnapshot: Double?
     var sourceKindRaw: String
     var confidenceRaw: String
     var preparationStateRaw: String
@@ -36,6 +37,7 @@ final class LoggedMealItem {
         proteinGramsSnapshot: Double?,
         carbohydrateGramsSnapshot: Double?,
         fatGramsSnapshot: Double?,
+        caffeineMilligramsSnapshot: Double? = nil,
         sourceKind: FoodSourceKind,
         confidence: FoodConfidence,
         preparationState: FoodPreparationState,
@@ -53,6 +55,7 @@ final class LoggedMealItem {
         self.proteinGramsSnapshot = proteinGramsSnapshot
         self.carbohydrateGramsSnapshot = carbohydrateGramsSnapshot
         self.fatGramsSnapshot = fatGramsSnapshot
+        self.caffeineMilligramsSnapshot = caffeineMilligramsSnapshot
         self.sourceKindRaw = sourceKind.rawValue
         self.confidenceRaw = confidence.rawValue
         self.preparationStateRaw = preparationState.rawValue

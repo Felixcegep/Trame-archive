@@ -11,6 +11,7 @@ struct DefaultsKey {
     static let checkInRemindersEnabled = "checkInRemindersEnabled"
     static let checkInReminderHour = "checkInReminderHour"
     static let checkInReminderMinute = "checkInReminderMinute"
+    static let caffeineBirthdateTimestamp = "caffeineBirthdateTimestamp"
 }
 
 extension UserDefaults {

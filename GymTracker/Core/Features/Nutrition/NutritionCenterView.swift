@@ -370,6 +370,8 @@ struct FoodEditorView: View {
     @State private var protein = ""
     @State private var carbohydrates = ""
     @State private var fat = ""
+    @State private var caffeine = ""
+    @State private var npn = ""
     @State private var confidence: FoodConfidence = .userProvided
     @State private var preparation: FoodPreparationState = .raw
     @State private var servingName = ""
@@ -404,6 +406,8 @@ struct FoodEditorView: View {
                     TextField("Protein g (optional)", text: $protein).keyboardType(.decimalPad)
                     TextField("Carbohydrates g (optional)", text: $carbohydrates).keyboardType(.decimalPad)
                     TextField("Fat g (optional)", text: $fat).keyboardType(.decimalPad)
+                    TextField("Caffeine mg (optional)", text: $caffeine).keyboardType(.decimalPad)
+                    TextField("NPN (optional, Canadian products)", text: $npn)
                 }
                 Section("Quick serving") {
                     TextField("Serving name (optional)", text: $servingName)
@@ -448,7 +452,8 @@ struct FoodEditorView: View {
     private func load() {
         guard let food else { return }
         name = food.name; referenceAmount = FoodLibraryService.format(food.referenceAmount); referenceUnit = food.referenceUnit
-        calories = string(food.calories); protein = string(food.proteinGrams); carbohydrates = string(food.carbohydrateGrams); fat = string(food.fatGrams)
+        calories = string(food.calories); protein = string(food.proteinGrams); carbohydrates = string(food.carbohydrateGrams); fat = string(food.fatGrams); caffeine = string(food.caffeineMilligrams)
+        npn = food.npn ?? ""
         confidence = food.confidence; preparation = food.preparationState
         if let serving = food.orderedServings.first {
             servingName = serving.name; servingAmount = FoodLibraryService.format(serving.amount); servingEquivalentReferenceAmount = FoodLibraryService.format(serving.equivalentReferenceAmount); servingUnit = serving.unit
@@ -460,10 +465,13 @@ struct FoodEditorView: View {
         guard let amount = Double(referenceAmount), amount > 0 else { errorMessage = "Enter a positive reference amount."; return }
         let allFoods = (try? modelContext.fetch(FetchDescriptor<FoodItem>())) ?? []
         guard allFoods.allSatisfy({ $0.id == food?.id || $0.name.localizedCaseInsensitiveCompare(trimmed) != .orderedSame }) else { errorMessage = "A food with that name already exists."; return }
-        guard [calories, protein, carbohydrates, fat].allSatisfy(validOptionalNumber) else { errorMessage = "Macros must be positive numbers or left blank."; return }
+        guard [calories, protein, carbohydrates, fat, caffeine].allSatisfy(validOptionalNumber) else { errorMessage = "Nutrition values must be positive numbers or left blank."; return }
         let target = food ?? FoodItem(name: trimmed)
         target.name = trimmed; target.referenceAmount = amount; target.referenceUnit = referenceUnit
         target.calories = optionalNumber(calories); target.proteinGrams = optionalNumber(protein); target.carbohydrateGrams = optionalNumber(carbohydrates); target.fatGrams = optionalNumber(fat)
+        target.caffeineMilligrams = optionalNumber(caffeine)
+        let trimmedNPN = npn.trimmingCharacters(in: .whitespacesAndNewlines)
+        target.npn = trimmedNPN.isEmpty ? nil : trimmedNPN
         target.confidence = confidence; target.preparationState = preparation; target.updatedAt = .now
         if food == nil { modelContext.insert(target) }
         let trimmedServing = servingName.trimmingCharacters(in: .whitespacesAndNewlines)

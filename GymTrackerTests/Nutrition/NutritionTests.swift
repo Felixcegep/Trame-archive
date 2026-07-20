@@ -42,6 +42,102 @@ final class NutritionTests: XCTestCase {
         XCTAssertTrue(summary.totals.hasUnknownValues)
     }
 
+    func testCaffeineIsSnapshottedScaledAndDerivedFromNutritionTruth() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let coffee = FoodItem(
+            name: "Coffee",
+            referenceAmount: 1,
+            referenceUnit: .serving,
+            caffeineMilligrams: 100,
+            sourceKind: .curated,
+            confidence: .estimated,
+            preparationState: .cooked
+        )
+        context.insert(coffee)
+        try context.save()
+
+        let large = FoodPortion(id: nil, name: "Large", amount: 1, unit: .serving, equivalentReferenceAmount: 1.5)
+        let meal = try XCTUnwrap(NutritionLoggingService.log(food: coffee, portion: large, using: context))
+        coffee.caffeineMilligrams = 20
+        try context.save()
+
+        let summary = NutritionDaySummary.resolve(day: .today, meals: [meal])
+        XCTAssertEqual(meal.items.first?.caffeineMilligramsSnapshot, 150)
+        XCTAssertEqual(summary.totals.caffeineMilligrams, 150)
+        XCTAssertEqual(summary.totals.unknownCaffeineCount, 0)
+
+        let backup = try BackupDTO.create(from: context, restTimer: 90, darkMode: false, unitSystem: .metric)
+        let restored = try GymTrackerTestStore.makeInMemoryContext()
+        try backup.restore(to: restored)
+        let restoredFood = try XCTUnwrap(restored.fetch(FetchDescriptor<FoodItem>()).first)
+        let restoredItem = try XCTUnwrap(restored.fetch(FetchDescriptor<LoggedMealItem>()).first)
+        XCTAssertEqual(restoredFood.caffeineMilligrams, 20)
+        XCTAssertEqual(restoredItem.caffeineMilligramsSnapshot, 150)
+    }
+
+    func testMissingCaffeineRemainsUnknownRatherThanZero() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let food = FoodItem(name: "Unknown drink", calories: 10)
+        context.insert(food)
+        try context.save()
+        let meal = try XCTUnwrap(NutritionLoggingService.log(food: food, using: context))
+        let summary = NutritionDaySummary.resolve(day: .today, meals: [meal])
+
+        XCTAssertEqual(summary.totals.caffeineMilligrams, 0)
+        XCTAssertEqual(summary.totals.unknownCaffeineCount, 1)
+    }
+
+    func testCaffeinePresetValuesMatchReferenceAverages() {
+        XCTAssertEqual(CaffeineDrinkPreset.espresso.caffeineMilligrams(for: .small), 47)
+        XCTAssertEqual(CaffeineDrinkPreset.espresso.caffeineMilligrams(for: .medium), 94)
+        XCTAssertEqual(CaffeineDrinkPreset.espresso.caffeineMilligrams(for: .large), 141)
+
+        XCTAssertEqual(CaffeineDrinkPreset.brewed.caffeineMilligrams(for: .small), 95)
+        XCTAssertEqual(CaffeineDrinkPreset.brewed.caffeineMilligrams(for: .medium), 145)
+        XCTAssertEqual(CaffeineDrinkPreset.brewed.caffeineMilligrams(for: .large), 190)
+
+        XCTAssertEqual(CaffeineDrinkPreset.coldBrew.caffeineMilligrams(for: .small), 120)
+        XCTAssertEqual(CaffeineDrinkPreset.coldBrew.caffeineMilligrams(for: .medium), 180)
+        XCTAssertEqual(CaffeineDrinkPreset.coldBrew.caffeineMilligrams(for: .large), 240)
+
+        XCTAssertEqual(CaffeineDrinkPreset.latte.caffeineMilligrams(for: .small), 75)
+        XCTAssertEqual(CaffeineDrinkPreset.latte.caffeineMilligrams(for: .medium), 150)
+        XCTAssertEqual(CaffeineDrinkPreset.latte.caffeineMilligrams(for: .large), 225)
+
+        XCTAssertEqual(TeaPreset.blackTea.caffeineMilligrams(for: .medium), 47)
+        XCTAssertEqual(TeaPreset.greenTea.caffeineMilligrams(for: .medium), 28)
+        XCTAssertEqual(TeaPreset.matcha.caffeineMilligrams(for: .medium), 70)
+
+        XCTAssertEqual(PreWorkoutIntensity.stimulantFree.estimatedMilligrams, 0)
+        XCTAssertEqual(PreWorkoutIntensity.light.estimatedMilligrams, 50)
+        XCTAssertEqual(PreWorkoutIntensity.moderate.estimatedMilligrams, 150)
+        XCTAssertEqual(PreWorkoutIntensity.high.estimatedMilligrams, 250)
+        XCTAssertEqual(PreWorkoutIntensity.veryHigh.estimatedMilligrams, 350)
+        XCTAssertNil(PreWorkoutIntensity.custom.estimatedMilligrams)
+    }
+
+    func testNPNRoundTripsThroughFoodBackup() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let preWorkout = FoodItem(
+            name: "Pre-workout · Custom",
+            referenceAmount: 1,
+            referenceUnit: .serving,
+            caffeineMilligrams: 275,
+            npn: "80012345",
+            sourceKind: .userCreated,
+            confidence: .userProvided,
+            preparationState: .cooked
+        )
+        context.insert(preWorkout)
+        try context.save()
+
+        let backup = try BackupDTO.create(from: context, restTimer: 90, darkMode: false, unitSystem: .metric)
+        let restored = try GymTrackerTestStore.makeInMemoryContext()
+        try backup.restore(to: restored)
+        let restoredFood = try XCTUnwrap(restored.fetch(FetchDescriptor<FoodItem>()).first)
+        XCTAssertEqual(restoredFood.npn, "80012345")
+    }
+
     func testRepeatingMealCreatesIndependentLoggedIdentifiers() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let food = FoodItem(name: "Rice", calories: 130, proteinGrams: 3, carbohydrateGrams: 28, fatGrams: 0.3)
@@ -162,7 +258,7 @@ final class NutritionTests: XCTestCase {
         source.insert(target)
         try source.save()
         let backup = try BackupDTO.create(from: source, restTimer: 90, darkMode: false, unitSystem: .metric)
-        XCTAssertEqual(backup.version, BackupDTO.nutritionVersion)
+        XCTAssertEqual(backup.version, BackupDTO.currentVersion)
         XCTAssertEqual(backup.foods.count, 1)
         XCTAssertEqual(backup.mealTemplates.count, 2)
         XCTAssertEqual(backup.loggedMeals.count, 1)
@@ -212,5 +308,22 @@ final class NutritionTests: XCTestCase {
 
         XCTAssertThrowsError(try invalid.restore(to: context))
         XCTAssertTrue(try context.fetch(FetchDescriptor<FoodItem>()).contains { $0.id == sentinel.id })
+    }
+
+    func testSeedingPopulatesFiftyFoodsAndSixRecipes() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        NutritionSeedData.seedIfNeeded(using: context)
+
+        let foods = try context.fetch(FetchDescriptor<FoodItem>())
+        let templates = try context.fetch(FetchDescriptor<MealTemplate>())
+        XCTAssertEqual(foods.count, 50)
+        XCTAssertEqual(templates.count, 6)
+
+        // Seeding again should be idempotent
+        NutritionSeedData.seedIfNeeded(using: context)
+        let reFetchedFoods = try context.fetch(FetchDescriptor<FoodItem>())
+        let reFetchedTemplates = try context.fetch(FetchDescriptor<MealTemplate>())
+        XCTAssertEqual(reFetchedFoods.count, 50)
+        XCTAssertEqual(reFetchedTemplates.count, 6)
     }
 }

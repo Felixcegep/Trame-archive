@@ -73,10 +73,12 @@ struct NutritionMacroTotals: Equatable, Sendable {
     var protein: Double = 0
     var carbohydrates: Double = 0
     var fat: Double = 0
+    var caffeineMilligrams: Double = 0
     var unknownCaloriesCount: Int = 0
     var unknownProteinCount: Int = 0
     var unknownCarbohydratesCount: Int = 0
     var unknownFatCount: Int = 0
+    var unknownCaffeineCount: Int = 0
 
     var hasUnknownValues: Bool {
         unknownCaloriesCount + unknownProteinCount + unknownCarbohydratesCount + unknownFatCount > 0

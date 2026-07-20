@@ -22,6 +22,9 @@ struct NutritionDaySummary: Equatable {
             add(item.proteinGramsSnapshot, to: &totals.protein, unknown: &totals.unknownProteinCount)
             add(item.carbohydrateGramsSnapshot, to: &totals.carbohydrates, unknown: &totals.unknownCarbohydratesCount)
             add(item.fatGramsSnapshot, to: &totals.fat, unknown: &totals.unknownFatCount)
+            // Caffeine is an optional beverage/food fact. Missing caffeine is
+            // preserved as unknown rather than interpreted as zero.
+            add(item.caffeineMilligramsSnapshot, to: &totals.caffeineMilligrams, unknown: &totals.unknownCaffeineCount)
         }
         return NutritionDaySummary(day: day, meals: dayMeals.sorted { $0.loggedAt > $1.loggedAt }, totals: totals)
     }
@@ -115,6 +118,7 @@ enum NutritionLoggingService {
                 proteinGramsSnapshot: item.proteinGramsSnapshot,
                 carbohydrateGramsSnapshot: item.carbohydrateGramsSnapshot,
                 fatGramsSnapshot: item.fatGramsSnapshot,
+                caffeineMilligramsSnapshot: item.caffeineMilligramsSnapshot,
                 sourceKind: FoodSourceKind(rawValue: item.sourceKindRaw) ?? .userCreated,
                 confidence: FoodConfidence(rawValue: item.confidenceRaw) ?? .userProvided,
                 preparationState: FoodPreparationState(rawValue: item.preparationStateRaw) ?? .raw,
@@ -138,6 +142,7 @@ enum NutritionLoggingService {
             proteinGramsSnapshot: food.proteinGrams.map { $0 * multiplier },
             carbohydrateGramsSnapshot: food.carbohydrateGrams.map { $0 * multiplier },
             fatGramsSnapshot: food.fatGrams.map { $0 * multiplier },
+            caffeineMilligramsSnapshot: food.caffeineMilligrams.map { $0 * multiplier },
             sourceKind: food.sourceKind,
             confidence: food.confidence,
             preparationState: food.preparationState,

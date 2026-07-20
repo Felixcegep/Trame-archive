@@ -15,6 +15,7 @@ struct SettingView: View {
     @AppStorage(DefaultsKey.darkMode) private var darkMode: Bool = false
     @AppStorage(DefaultsKey.restTimer) private var restTimer: Int = 20
     @AppStorage(DefaultsKey.useMetric) private var unitSystem: UnitSystem = .metric
+    @AppStorage(DefaultsKey.caffeineBirthdateTimestamp) private var caffeineBirthdateTimestamp: Double?
     @State private var isShowingResetConfirmation = false
     @State private var isShowingFileImporter = false
     @State private var importBackup: BackupDTO? = nil
@@ -54,6 +55,30 @@ struct SettingView: View {
                 .pickerStyle(.menu)
                 .accessibilityIdentifier("settings-units-picker")
                 .accessibilityValue(unitSystem == .metric ? String(localized: "Metric") : String(localized: "Imperial"))
+            }
+
+            Section {
+                Toggle("Use birthdate", isOn: Binding(
+                    get: { caffeineBirthdateTimestamp != nil },
+                    set: { enabled in
+                        caffeineBirthdateTimestamp = enabled
+                            ? (caffeineBirthdateTimestamp ?? Calendar.current.date(byAdding: .year, value: -25, to: .now)?.timeIntervalSince1970)
+                            : nil
+                    }
+                ))
+                .accessibilityIdentifier("settings-caffeine-birthdate-toggle")
+
+                if let caffeineBirthdateTimestamp {
+                    DatePicker("Birthdate", selection: Binding(
+                        get: { Date(timeIntervalSince1970: caffeineBirthdateTimestamp) },
+                        set: { self.caffeineBirthdateTimestamp = $0.timeIntervalSince1970 }
+                    ), displayedComponents: .date)
+                    .accessibilityIdentifier("settings-caffeine-birthdate-picker")
+                }
+            } header: {
+                Text("Caffeine Reference")
+            } footer: {
+                Text("Used only to personalize the daily caffeine reference amount shown in Nutrition. Never required, and never shared.")
             }
 
             Section("Rest Timer") {
@@ -360,6 +385,7 @@ struct SettingView: View {
             self.darkMode = preferences.darkMode
             self.restTimer = preferences.restTimer
             self.unitSystem = UnitSystem(rawValue: preferences.unitSystem) ?? .metric
+            self.caffeineBirthdateTimestamp = preferences.birthdateTimestamp
             NotificationCenter.default.post(name: .gymDataRestored, object: nil)
         } catch {
             showImportError("Failed to restore backup: \(error.localizedDescription)")
