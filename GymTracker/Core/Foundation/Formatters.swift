@@ -17,4 +17,20 @@ struct Formatters {
                 .precision(.fractionLength(0...2))
         )
     }
+
+    static func formatEstimatedLoad(_ value: Float) -> String {
+        value.formatted(
+            .number
+                .grouping(.never)
+                .precision(.fractionLength(0))
+        )
+    }
+
+    static func formatGroupedMetric(_ value: Float) -> String {
+        value.formatted(
+            .number
+                .grouping(.automatic)
+                .precision(.fractionLength(0...1))
+        )
+    }
 }

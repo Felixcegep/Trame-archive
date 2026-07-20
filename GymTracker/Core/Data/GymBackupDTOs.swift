@@ -4,6 +4,7 @@ nonisolated struct PreferencesDTO: Codable {
     let darkMode: Bool
     let restTimer: Int
     let unitSystem: String
+    var bodyWeightPromptCadence: String? = nil
     var birthdateTimestamp: Double? = nil
 }
 
@@ -413,6 +414,17 @@ nonisolated struct DailyLogEntryDTO: Codable {
     let updatedAt: Date
 }
 
+nonisolated struct BodyWeightEntryDTO: Codable {
+    let id: String
+    let dayKey: String
+    let value: Float
+    let unit: String
+    let source: String
+    let measuredAt: Date
+    let createdAt: Date
+    let updatedAt: Date
+}
+
 nonisolated struct SupplementOccurrenceDTO: Codable {
     let id: String
     let occurrenceKey: String
@@ -628,6 +640,7 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     let programDefinitions: [ProgramDefinitionDTO]
     let progressionRecommendations: [ProgressionRecommendationDTO]
     let dailyLogEntries: [DailyLogEntryDTO]
+    let bodyWeightEntries: [BodyWeightEntryDTO]
     let supplementOccurrences: [SupplementOccurrenceDTO]
     let mobilityFamilies: [MobilityFamilyDTO]
     let mobilityDefinitions: [MobilityDefinitionDTO]
@@ -645,7 +658,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     static let dailyContextVersion = 6
     static let mobilityVersion = 7
     static let nutritionVersion = 8
-    static let currentVersion = nutritionVersion
+    static let bodyWeightVersion = 9
+    static let currentVersion = bodyWeightVersion
 
     init(
         version: Int,
@@ -660,6 +674,7 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         programDefinitions: [ProgramDefinitionDTO] = [],
         progressionRecommendations: [ProgressionRecommendationDTO] = [],
         dailyLogEntries: [DailyLogEntryDTO] = [],
+        bodyWeightEntries: [BodyWeightEntryDTO] = [],
         supplementOccurrences: [SupplementOccurrenceDTO] = [],
         mobilityFamilies: [MobilityFamilyDTO] = [],
         mobilityDefinitions: [MobilityDefinitionDTO] = [],
@@ -682,6 +697,7 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         self.programDefinitions = programDefinitions
         self.progressionRecommendations = progressionRecommendations
         self.dailyLogEntries = dailyLogEntries
+        self.bodyWeightEntries = bodyWeightEntries
         self.supplementOccurrences = supplementOccurrences
         self.mobilityFamilies = mobilityFamilies
         self.mobilityDefinitions = mobilityDefinitions
@@ -694,7 +710,7 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, foods, mealTemplates, loggedMeals, nutritionTargets
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, foods, mealTemplates, loggedMeals, nutritionTargets
     }
 
     init(from decoder: Decoder) throws {
@@ -711,6 +727,7 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         programDefinitions = try container.decodeIfPresent([ProgramDefinitionDTO].self, forKey: .programDefinitions) ?? []
         progressionRecommendations = try container.decodeIfPresent([ProgressionRecommendationDTO].self, forKey: .progressionRecommendations) ?? []
         dailyLogEntries = try container.decodeIfPresent([DailyLogEntryDTO].self, forKey: .dailyLogEntries) ?? []
+        bodyWeightEntries = try container.decodeIfPresent([BodyWeightEntryDTO].self, forKey: .bodyWeightEntries) ?? []
         supplementOccurrences = try container.decodeIfPresent([SupplementOccurrenceDTO].self, forKey: .supplementOccurrences) ?? []
         mobilityFamilies = try container.decodeIfPresent([MobilityFamilyDTO].self, forKey: .mobilityFamilies) ?? []
         mobilityDefinitions = try container.decodeIfPresent([MobilityDefinitionDTO].self, forKey: .mobilityDefinitions) ?? []

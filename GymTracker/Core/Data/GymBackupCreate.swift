@@ -439,6 +439,18 @@ extension BackupDTO {
                 updatedAt: entry.updatedAt
             )
         }
+        let bodyWeightEntryDTOs = try context.fetch(FetchDescriptor<BodyWeightEntry>()).map { entry in
+            BodyWeightEntryDTO(
+                id: entry.id.uuidString,
+                dayKey: entry.dayKey,
+                value: entry.value,
+                unit: entry.unit.rawValue,
+                source: entry.source.rawValue,
+                measuredAt: entry.measuredAt,
+                createdAt: entry.createdAt,
+                updatedAt: entry.updatedAt
+            )
+        }
         let supplementOccurrenceDTOs = try context.fetch(FetchDescriptor<SupplementOccurrence>()).map { occurrence in
             SupplementOccurrenceDTO(
                 id: occurrence.id.uuidString,
@@ -639,6 +651,7 @@ extension BackupDTO {
                 darkMode: darkMode,
                 restTimer: restTimer,
                 unitSystem: unitSystem.rawValue,
+                bodyWeightPromptCadence: UserDefaults.standard.string(forKey: DefaultsKey.bodyWeightPromptCadence),
                 birthdateTimestamp: UserDefaults.standard.object(forKey: DefaultsKey.caffeineBirthdateTimestamp) as? Double
             ),
             exercises: exerciseDTOs,
@@ -651,6 +664,7 @@ extension BackupDTO {
             programDefinitions: programDefinitionDTOs,
             progressionRecommendations: progressionRecommendationDTOs,
             dailyLogEntries: dailyLogEntryDTOs,
+            bodyWeightEntries: bodyWeightEntryDTOs,
             supplementOccurrences: supplementOccurrenceDTOs,
             mobilityFamilies: mobilityFamilyDTOs,
             mobilityDefinitions: mobilityDefinitionDTOs,

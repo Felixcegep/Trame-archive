@@ -11,6 +11,7 @@ struct DefaultsKey {
     static let checkInRemindersEnabled = "checkInRemindersEnabled"
     static let checkInReminderHour = "checkInReminderHour"
     static let checkInReminderMinute = "checkInReminderMinute"
+    static let bodyWeightPromptCadence = "bodyWeightPromptCadence"
     static let caffeineBirthdateTimestamp = "caffeineBirthdateTimestamp"
 }
 

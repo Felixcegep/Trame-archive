@@ -33,6 +33,7 @@ enum GymTrackerModelContainer {
             PlanWorkoutProgress.self,
             PlanExerciseProgressionState.self,
             DailyLogEntry.self,
+            BodyWeightEntry.self,
             SupplementOccurrence.self,
             MobilityFamily.self,
             MobilityDefinition.self,

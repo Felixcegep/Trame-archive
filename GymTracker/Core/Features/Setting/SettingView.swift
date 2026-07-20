@@ -15,7 +15,9 @@ struct SettingView: View {
     @AppStorage(DefaultsKey.darkMode) private var darkMode: Bool = false
     @AppStorage(DefaultsKey.restTimer) private var restTimer: Int = 20
     @AppStorage(DefaultsKey.useMetric) private var unitSystem: UnitSystem = .metric
+    @AppStorage(DefaultsKey.bodyWeightPromptCadence) private var bodyWeightPromptCadence: BodyWeightPromptCadence = .off
     @AppStorage(DefaultsKey.caffeineBirthdateTimestamp) private var caffeineBirthdateTimestamp: Double?
+    @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var bodyWeightEntries: [BodyWeightEntry]
     @State private var isShowingResetConfirmation = false
     @State private var isShowingFileImporter = false
     @State private var importBackup: BackupDTO? = nil
@@ -55,6 +57,25 @@ struct SettingView: View {
                 .pickerStyle(.menu)
                 .accessibilityIdentifier("settings-units-picker")
                 .accessibilityValue(unitSystem == .metric ? String(localized: "Metric") : String(localized: "Imperial"))
+            }
+
+            Section {
+                NavigationLink {
+                    BodyWeightHistoryView()
+                } label: {
+                    LabeledContent("Current weight", value: latestBodyWeightText)
+                }
+                .accessibilityIdentifier("settings-body-weight")
+
+                Picker("Ask in check-in", selection: $bodyWeightPromptCadence) {
+                    Text("Off").tag(BodyWeightPromptCadence.off)
+                    Text("Weekly").tag(BodyWeightPromptCadence.weekly)
+                    Text("Monthly").tag(BodyWeightPromptCadence.monthly)
+                }
+            } header: {
+                Text("Body Weight")
+            } footer: {
+                Text("Optional measurements stay private and never change workouts or nutrition targets automatically.")
             }
 
             Section {
@@ -308,6 +329,11 @@ struct SettingView: View {
         return String(localized: "\(minutes) min \(seconds) sec")
     }
 
+    private var latestBodyWeightText: String {
+        guard let latest = bodyWeightEntries.first else { return String(localized: "Not recorded") }
+        return "\(Formatters.formatFloat(latest.value)) \(latest.unit.rawValue)"
+    }
+
     private func resetDevelopmentData() {
         do {
             try modelContext.clearAllGymData()
@@ -385,6 +411,7 @@ struct SettingView: View {
             self.darkMode = preferences.darkMode
             self.restTimer = preferences.restTimer
             self.unitSystem = UnitSystem(rawValue: preferences.unitSystem) ?? .metric
+            self.bodyWeightPromptCadence = preferences.bodyWeightPromptCadence.flatMap(BodyWeightPromptCadence.init(rawValue:)) ?? .off
             self.caffeineBirthdateTimestamp = preferences.birthdateTimestamp
             NotificationCenter.default.post(name: .gymDataRestored, object: nil)
         } catch {
