@@ -69,6 +69,7 @@ final class LiveActivityManager {
             totalSeries: projection.totalSets,
             currentExerciseOrderIndex: projection.currentExerciseOrderIndex,
             currentSetOrderIndex: projection.currentSetOrderIndex,
+            hasAnySets: projection.hasAnySets,
             restPhase: projection.restPhase,
             restEndDate: projection.restEndDate,
             pausedRemainingTime: projection.pausedRemainingTime

@@ -13,6 +13,13 @@ enum LiveActivityRestPhase: String, Codable, Hashable, Sendable {
     case paused
 }
 
+enum WorkoutActivityPresentationState: Hashable, Sendable {
+    case emptyWorkout
+    case activeSet(exercise: String, set: Int, total: Int)
+    case resting(nextExercise: String?)
+    case readyForReview
+}
+
 /// A Codable display projection of persisted `Workout` truth. It deliberately
 /// contains no independently mutable workout state.
 struct LiveActivityProjection: Hashable, Sendable {
@@ -23,6 +30,7 @@ struct LiveActivityProjection: Hashable, Sendable {
     let totalSets: Int?
     let currentExerciseOrderIndex: Int?
     let currentSetOrderIndex: Int?
+    let hasAnySets: Bool
     let restPhase: LiveActivityRestPhase
     let restEndDate: Date?
     let pausedRemainingTime: TimeInterval?
@@ -38,6 +46,7 @@ struct LiveActivityProjection: Hashable, Sendable {
         self.totalSets = next?.0.orderedSets.count
         self.currentExerciseOrderIndex = next?.0.orderIndex
         self.currentSetOrderIndex = next?.1.orderIndex
+        self.hasAnySets = workout.totalSetCount > 0
 
         if let deadline = workout.restEndDate, deadline > now {
             self.restPhase = .running
@@ -65,8 +74,27 @@ struct GymTrackerAttributes: ActivityAttributes {
         var totalSeries: Int?
         var currentExerciseOrderIndex: Int?
         var currentSetOrderIndex: Int?
+        var hasAnySets: Bool
         var restPhase: LiveActivityRestPhase
         var restEndDate: Date?
         var pausedRemainingTime: TimeInterval?
+    }
+}
+
+extension GymTrackerAttributes.ContentState {
+    var presentationState: WorkoutActivityPresentationState {
+        if restPhase != .inactive {
+            return .resting(nextExercise: currentExerciseName)
+        }
+        guard hasAnySets else {
+            return .emptyWorkout
+        }
+        guard let currentExerciseName,
+              let currentSet,
+              let totalSeries,
+              totalSeries > 0 else {
+            return .readyForReview
+        }
+        return .activeSet(exercise: currentExerciseName, set: currentSet, total: totalSeries)
     }
 }
