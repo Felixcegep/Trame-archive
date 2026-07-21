@@ -371,12 +371,14 @@ enum ExerciseSeedData {
                 primaryMuscles: [.quadriceps],
                 equipmentType: .machine,
                 resistanceType: .machine,
+                movementPattern: .other,
                 forceType: .push,
                 mechanics: .isolation,
-                stance: .standing,
+                stance: .seated,
                 rangeOfMotion: .full,
-                variationFamilyID: "calf-raise",
-                difficulty: .beginner
+                variationFamilyID: "leg-extension",
+                difficulty: .beginner,
+                tags: ["leg-extension", "machine", "quadriceps", "isolation"]
             ),
 
             Exercise(

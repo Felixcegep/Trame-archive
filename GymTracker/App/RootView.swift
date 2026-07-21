@@ -479,6 +479,23 @@ struct RootView: View {
                         existingTemplate.isPlateLoaded = template.isPlateLoaded
                         didChangeTemplates = true
                     }
+                    // Leg Extension shipped with legacy calf-raise metadata.
+                    // This is a built-in catalogue correction; it neither
+                    // changes a performed workout snapshot nor creates a
+                    // duplicate exercise record.
+                    if template.name == "Leg Extension" {
+                        existingTemplate.primaryMuscles = template.primaryMuscles
+                        existingTemplate.secondaryMuscles = template.secondaryMuscles
+                        existingTemplate.movementPattern = template.movementPattern
+                        existingTemplate.forceType = template.forceType
+                        existingTemplate.mechanics = template.mechanics
+                        existingTemplate.stance = template.stance
+                        existingTemplate.rangeOfMotion = template.rangeOfMotion
+                        existingTemplate.variationFamilyID = template.variationFamilyID
+                        existingTemplate.tags = template.tags
+                        existingTemplate.isArchived = false
+                        didChangeTemplates = true
+                    }
                 } else {
                     modelContext.insert(template)
                     didChangeTemplates = true
