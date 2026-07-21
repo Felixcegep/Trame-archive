@@ -29,6 +29,7 @@ struct RootView: View {
     @State private var plannedWorkoutToStart: PendingPlannedWorkout? = nil
     @State private var isShowingActiveWorkoutConflictAlert = false
     @State private var isPreparingApp = true
+    @State private var appIntentRouteStore = AppIntentRouteStore.shared
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -341,6 +342,7 @@ struct RootView: View {
                 )
             }
             consumePendingPlanNotificationDestination()
+            consumePendingAppIntentDestination()
             isPreparingApp = false
             await PlanNotificationScheduler.shared.reconcile(using: modelContext)
             await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
@@ -363,6 +365,9 @@ struct RootView: View {
             handlePlanNotificationDestination(destination)
             _ = PlanNotificationRouter.shared.consumePendingDestination()
         }
+        .onChange(of: appIntentRouteStore.pendingDestination) { _, _ in
+            consumePendingAppIntentDestination()
+        }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .background {
                 do {
@@ -382,6 +387,25 @@ struct RootView: View {
 
     private func plan(id: UUID) -> WorkoutPlan? {
         try? modelContext.fetch(FetchDescriptor<WorkoutPlan>()).first { $0.id == id }
+    }
+
+    private func consumePendingAppIntentDestination() {
+        guard let destination = appIntentRouteStore.consume() else { return }
+        switch destination {
+        case .today:
+            selectedTab = .today
+            todayPath.removeAll()
+        case .activeWorkout(let workoutID):
+            guard workoutVM.restoreActiveWorkout(using: modelContext),
+                  workoutVM.activeWorkout?.id == workoutID
+            else {
+                selectedTab = .today
+                return
+            }
+            selectedTab = .today
+            activeWorkoutPath.removeAll()
+            isShowingActiveWorkout = true
+        }
     }
 
     private func consumePendingPlanNotificationDestination() {

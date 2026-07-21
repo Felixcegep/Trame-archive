@@ -7,6 +7,25 @@ import SwiftData
 /// truth and callers rebuild their presentation from the returned projection.
 @MainActor
 struct ActiveWorkoutMutationService {
+    struct CurrentSetLog {
+        var repetitions: Int?
+        var weight: Double?
+        var rpe: Int?
+        var rir: Int?
+
+        init(
+            repetitions: Int? = nil,
+            weight: Double? = nil,
+            rpe: Int? = nil,
+            rir: Int? = nil
+        ) {
+            self.repetitions = repetitions
+            self.weight = weight
+            self.rpe = rpe
+            self.rir = rir
+        }
+    }
+
     enum Result: Equatable {
         case applied(LiveActivityProjection)
         case stale(LiveActivityProjection?)
@@ -66,6 +85,62 @@ struct ActiveWorkoutMutationService {
         }
         workout.pausedRemainingTime = nil
 
+        return saveAndProject(workout, now: now)
+    }
+
+    /// Logs the next incomplete strength set and completes it in one durable
+    /// transaction. Optional values intentionally preserve the current
+    /// prescription when a shortcut only says “log my set”.
+    func logCurrentSet(
+        workoutID: UUID,
+        log: CurrentSetLog,
+        now: Date = .now
+    ) -> Result {
+        guard let workout = activeWorkout(id: workoutID) else {
+            return .unavailable
+        }
+        guard let current = currentSet(in: workout) else {
+            return .stale(LiveActivityProjection(workout: workout, now: now))
+        }
+        guard log.rpe == nil || log.rir == nil else {
+            return .invalid(LiveActivityProjection(workout: workout, now: now))
+        }
+        guard log.repetitions.map({ $0 > 0 }) ?? true,
+              log.weight.map({ $0 >= 0 }) ?? true,
+              log.rpe.map({ (1...10).contains($0) }) ?? true,
+              log.rir.map({ (0...6).contains($0) }) ?? true
+        else {
+            return .invalid(LiveActivityProjection(workout: workout, now: now))
+        }
+
+        if let repetitions = log.repetitions {
+            current.set.repetitions = Float(repetitions)
+        }
+        if let weight = log.weight {
+            current.set.weight = Float(weight)
+        }
+        if let rpe = log.rpe {
+            current.set.recordRPE(rpe)
+        }
+        if let rir = log.rir {
+            current.set.recordRIR(rir)
+        }
+        guard Self.canComplete(current.set, for: current.exercise) else {
+            return .invalid(LiveActivityProjection(workout: workout, now: now))
+        }
+
+        current.set.done = true
+        current.set.synchronizeSegmentCompletion()
+        #if !GYMTRACKER_EXTENSION
+        ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
+        #endif
+        let restSeconds = WorkoutSetSelector.restSeconds(
+            afterCompleting: current.exercise,
+            in: workout,
+            defaultSeconds: defaultRestSeconds
+        )
+        workout.restEndDate = restSeconds.map { now.addingTimeInterval(TimeInterval($0)) }
+        workout.pausedRemainingTime = nil
         return saveAndProject(workout, now: now)
     }
 

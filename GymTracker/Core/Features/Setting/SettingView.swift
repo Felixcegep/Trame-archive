@@ -5,6 +5,7 @@
 //  Created by Felix Lachapelle on 2026-07-07.
 //
 
+import AppIntents
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -107,6 +108,22 @@ struct SettingView: View {
                     LabeledContent("Duration", value: formattedRestTimer)
                 }
                 .accessibilityIdentifier("settings-rest-duration")
+            }
+
+            Section("Workout") {
+                NavigationLink("Logging preferences") {
+                    WorkoutLoggingSettingsView()
+                }
+                .accessibilityIdentifier("settings-workout-logging")
+            }
+
+            Section {
+                ShortcutsLink()
+                    .accessibilityIdentifier("settings-shortcuts-link")
+            } header: {
+                Text("Siri & Shortcuts")
+            } footer: {
+                Text("Show today’s plan, start a workout, log the current set, control rest, or review performance and volume from Shortcuts and Siri.")
             }
 
             workoutRemindersSection
@@ -417,6 +434,29 @@ struct SettingView: View {
         } catch {
             showImportError("Failed to restore backup: \(error.localizedDescription)")
         }
+    }
+}
+
+private struct WorkoutLoggingSettingsView: View {
+    @AppStorage(DefaultsKey.effortMeasure) private var effortMeasure: EffortMeasure = .rir
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Effort measure", selection: $effortMeasure) {
+                    ForEach(EffortMeasure.allCases, id: \.self) { measure in
+                        Text(measure.title).tag(measure)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("settings-effort-measure")
+            } header: {
+                Text("Effort")
+            } footer: {
+                Text("Record either RIR or RPE for each performed set. Changing this preference never changes existing workout history.")
+            }
+        }
+        .navigationTitle("Workout Logging")
     }
 }
 
