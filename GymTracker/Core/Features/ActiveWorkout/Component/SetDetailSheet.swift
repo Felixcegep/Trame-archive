@@ -73,6 +73,7 @@ extension SetType {
 
 struct SetDetailSheet: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(DefaultsKey.effortMeasure) private var effortMeasure: EffortMeasure = .rir
     let index: Int
     @Bindable var exerciseSet: ExerciseSet
     let exerciseName: String
@@ -80,36 +81,55 @@ struct SetDetailSheet: View {
     let onDelete: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var pendingEffortMeasure: EffortMeasure?
+    @State private var isShowingEffortSwitchConfirmation = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xl) {
-            header
-            setTypeSection
-            if showsVelocity { velocitySection }
-            rpeSection
-            rirSection
-            liftQualitySection
-            if exerciseSet.prescriptionDefinitionData != nil || exerciseSet.prescribedCalories != nil {
-                overrideSection
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
+                header
+                setTypeSection
+                setMethodSection
+                if showsVelocity { velocitySection }
+                specializedMetricsSection
+                effortSection
+                liftQualitySection
+                if exerciseSet.prescriptionDefinitionData != nil || exerciseSet.prescribedCalories != nil {
+                    overrideSection
+                }
+                deleteButton
             }
-            Spacer(minLength: 0)
-            deleteButton
+            .padding(.horizontal, Spacing.l)
+            .padding(.top, Spacing.xl)
+            .padding(.bottom, Spacing.l)
         }
-        .padding(.horizontal, Spacing.l)
-        .padding(.top, Spacing.xl)
-        .padding(.bottom, Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.gymBackground)
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("set-details-screen", label: "Set details open")
         }
+        .confirmationDialog(
+            "Switch to \(pendingEffortMeasure == .rpe ? "RPE" : "RIR")?",
+            isPresented: $isShowingEffortSwitchConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Switch and remove \(effortMeasure == .rpe ? "RPE" : "RIR")", role: .destructive) {
+                guard let pendingEffortMeasure else { return }
+                clearActiveEffortValue()
+                effortMeasure = pendingEffortMeasure
+                self.pendingEffortMeasure = nil
+                onPersist()
+            }
+            Button("Cancel", role: .cancel) {
+                pendingEffortMeasure = nil
+            }
+        } message: {
+            Text("This set has \(activeEffortValueText). Recording \(pendingEffortMeasure == .rpe ? "RPE" : "RIR") will remove it from this set.")
+        }
     }
 
     private var showsVelocity: Bool {
-        exerciseSet.isVelocityProbe
-            || exerciseSet.prescribedVelocityMinimum != nil
-            || exerciseSet.prescribedVelocityMaximum != nil
-            || exerciseSet.meanVelocity != nil
+        true
     }
 
     private var velocitySection: some View {
@@ -125,6 +145,23 @@ struct SetDetailSheet: View {
                     .font(AppFont.bodyMedium)
                     .foregroundStyle(Color.gymSubduedText)
             }
+            HStack(spacing: Spacing.s) {
+                TextField("Peak 0.00", text: peakVelocityBinding)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Peak velocity in metres per second")
+                    .accessibilityIdentifier("set-peak-velocity")
+                Text("m/s")
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+            measurementSourcePicker(selection: Binding(
+                get: { exerciseSet.velocityMeasurementSource ?? .manual },
+                set: {
+                    exerciseSet.velocityMeasurementSource = $0
+                    onPersist()
+                }
+            ))
             if let minimum = exerciseSet.prescribedVelocityMinimum,
                let maximum = exerciseSet.prescribedVelocityMaximum {
                 Text("Target \(minimum.formatted(.number.precision(.fractionLength(2))))–\(maximum.formatted(.number.precision(.fractionLength(2)))) m/s")
@@ -143,7 +180,25 @@ struct SetDetailSheet: View {
         Binding(
             get: { exerciseSet.meanVelocity.map { $0.formatted(.number.precision(.fractionLength(2))) } ?? "" },
             set: { text in
-                exerciseSet.meanVelocity = Double(text.replacingOccurrences(of: ",", with: "."))
+                let value = Double(text.replacingOccurrences(of: ",", with: "."))
+                exerciseSet.meanVelocity = value.flatMap { $0 > 0 ? $0 : nil }
+                if exerciseSet.meanVelocity != nil, exerciseSet.velocityMeasurementSource == nil {
+                    exerciseSet.velocityMeasurementSource = .manual
+                }
+                onPersist()
+            }
+        )
+    }
+
+    private var peakVelocityBinding: Binding<String> {
+        Binding(
+            get: { exerciseSet.peakVelocity.map { $0.formatted(.number.precision(.fractionLength(2))) } ?? "" },
+            set: { text in
+                let value = Double(text.replacingOccurrences(of: ",", with: "."))
+                exerciseSet.peakVelocity = value.flatMap { $0 > 0 ? $0 : nil }
+                if exerciseSet.peakVelocity != nil, exerciseSet.velocityMeasurementSource == nil {
+                    exerciseSet.velocityMeasurementSource = .manual
+                }
                 onPersist()
             }
         )
@@ -185,6 +240,170 @@ struct SetDetailSheet: View {
                 }
             }
         }
+    }
+
+    private var setMethodSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            eyebrow("Set method")
+            Picker("Method", selection: Binding(
+                get: { exerciseSet.setMethod },
+                set: { method in
+                    exerciseSet.setMethod = method
+                    exerciseSet.ensureSegmentsForMethod()
+                    onPersist()
+                }
+            )) {
+                ForEach(SetMethod.allCases, id: \.self) { method in
+                    Text(method.title).tag(method)
+                }
+            }
+            .pickerStyle(.menu)
+            .accessibilityIdentifier("set-method-picker")
+
+            if exerciseSet.setMethod != .standard {
+                Text(exerciseSet.setMethod.detail)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                segmentEditor
+            }
+        }
+        .padding(Spacing.l)
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
+    }
+
+    private var segmentEditor: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            ForEach(exerciseSet.orderedSegments, id: \.persistentModelID) { segment in
+                SetSegmentEditorRow(
+                    segment: segment,
+                    canDelete: exerciseSet.orderedSegments.count > exerciseSet.setMethod.minimumSegmentCount,
+                    onPersist: onPersist
+                ) {
+                    exerciseSet.segments.removeAll { $0 === segment }
+                    exerciseSet.normalizeSegmentOrder()
+                    onPersist()
+                }
+            }
+            Button {
+                exerciseSet.segments.append(
+                    ExerciseSetSegment(
+                        orderIndex: exerciseSet.orderedSegments.count,
+                        repetitions: exerciseSet.repetitions,
+                        weight: exerciseSet.weight,
+                        weightType: exerciseSet.weightType
+                    )
+                )
+                onPersist()
+            } label: {
+                Label("Add segment", systemImage: AppIcon.plus)
+                    .font(AppFont.footnoteMedium)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(Color.gymPrimary)
+            .accessibilityIdentifier("add-set-segment")
+        }
+    }
+
+    private var specializedMetricsSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            eyebrow("Specialized performance")
+            Picker("Metric", selection: Binding(
+                get: { exerciseSet.specializedMetricKind },
+                set: { kind in
+                    exerciseSet.specializedMetricKind = kind
+                    if kind == .none {
+                        exerciseSet.specializedMetricMeasurementSource = nil
+                    } else if exerciseSet.specializedMetricMeasurementSource == nil {
+                        exerciseSet.specializedMetricMeasurementSource = .manual
+                    }
+                    onPersist()
+                }
+            )) {
+                ForEach(SpecializedPerformanceMetricKind.allCases, id: \.self) { kind in
+                    Text(kind.title).tag(kind)
+                }
+            }
+            .pickerStyle(.menu)
+            .accessibilityIdentifier("specialized-metric-picker")
+
+            if exerciseSet.specializedMetricKind != .none {
+                HStack(spacing: Spacing.s) {
+                    TextField(metricPlaceholder, text: specializedMetricBinding)
+                        .keyboardType(.decimalPad)
+                        .textFieldStyle(.roundedBorder)
+                    Text(metricUnit)
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+                measurementSourcePicker(selection: Binding(
+                    get: { exerciseSet.specializedMetricMeasurementSource ?? .manual },
+                    set: {
+                        exerciseSet.specializedMetricMeasurementSource = $0
+                        onPersist()
+                    }
+                ))
+            }
+        }
+        .padding(Spacing.l)
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
+    }
+
+    private var metricPlaceholder: String {
+        switch exerciseSet.specializedMetricKind {
+        case .jumpHeight: "0.00"
+        case .contactTime: "0"
+        case .throwDistance: "0.00"
+        case .kettlebellCadence: "0"
+        case .none: ""
+        }
+    }
+
+    private var metricUnit: String {
+        switch exerciseSet.specializedMetricKind {
+        case .jumpHeight, .throwDistance: "m"
+        case .contactTime: "ms"
+        case .kettlebellCadence: "rpm"
+        case .none: ""
+        }
+    }
+
+    private var specializedMetricBinding: Binding<String> {
+        Binding(
+            get: {
+                let value: Double?
+                switch exerciseSet.specializedMetricKind {
+                case .jumpHeight: value = exerciseSet.jumpHeightMeters
+                case .contactTime: value = exerciseSet.contactTimeMilliseconds
+                case .throwDistance: value = exerciseSet.throwDistanceMeters
+                case .kettlebellCadence: value = exerciseSet.kettlebellCadenceRPM
+                case .none: value = nil
+                }
+                return value.map { $0.formatted(.number.precision(.fractionLength(2))) } ?? ""
+            },
+            set: { text in
+                let value = Double(text.replacingOccurrences(of: ",", with: ".")).flatMap { $0 > 0 ? $0 : nil }
+                switch exerciseSet.specializedMetricKind {
+                case .jumpHeight: exerciseSet.jumpHeightMeters = value
+                case .contactTime: exerciseSet.contactTimeMilliseconds = value
+                case .throwDistance: exerciseSet.throwDistanceMeters = value
+                case .kettlebellCadence: exerciseSet.kettlebellCadenceRPM = value
+                case .none: break
+                }
+                if value != nil, exerciseSet.specializedMetricMeasurementSource == nil {
+                    exerciseSet.specializedMetricMeasurementSource = .manual
+                }
+                onPersist()
+            }
+        )
+    }
+
+    private func measurementSourcePicker(selection: Binding<MeasurementSource>) -> some View {
+        Picker("Source", selection: selection) {
+            ForEach(MeasurementSource.allCases, id: \.self) { source in
+                Text(source.title).tag(source)
+            }
+        }
+        .pickerStyle(.menu)
     }
 
     private var overrideSection: some View {
@@ -237,125 +456,153 @@ struct SetDetailSheet: View {
         .accessibilityIdentifier("set-type-option-\(type.rawValue)")
     }
 
-    private var rpeSection: some View {
+    private var effortSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            HStack {
-                eyebrow("Effort · RPE")
-                Spacer()
-                if exerciseSet.rpe != nil {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                eyebrow(effortMeasure == .rir ? "Effort · Reps in reserve" : "Effort · RPE")
+                Spacer(minLength: Spacing.s)
+                Menu {
+                    ForEach(EffortMeasure.allCases, id: \.self) { measure in
+                        Button {
+                            selectEffortMeasure(measure)
+                        } label: {
+                            if measure == effortMeasure {
+                                Label(measure.title, systemImage: AppIcon.checkmark)
+                            } else {
+                                Text(measure.title)
+                            }
+                        }
+                    }
+                } label: {
+                    Label(effortMeasure == .rir ? "Use RPE" : "Use RIR", systemImage: "chevron.down")
+                        .font(AppFont.footnoteMedium)
+                        .foregroundStyle(Color.gymPrimary)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Effort measure: \(effortMeasure.title)")
+                .accessibilityHint("Switches between RIR and RPE")
+
+                if activeEffortValue != nil {
                     Button("Clear") {
-                        exerciseSet.rpe = nil
+                        clearActiveEffortValue()
                         onPersist()
                     }
                     .font(AppFont.footnoteMedium)
                     .foregroundStyle(Color.gymPrimary)
-                    .accessibilityLabel("Clear RPE")
-                    .accessibilityIdentifier("clear-rpe")
+                    .accessibilityIdentifier(effortMeasure == .rir ? "clear-rir" : "clear-rpe")
                 }
             }
 
             HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
-                Text(exerciseSet.rpe.map { "\($0)" } ?? "—")
+                Text(activeEffortValue.map(String.init) ?? "—")
                     .font(AppFont.displayMedium)
                     .monospacedDigit()
-                    .foregroundStyle(exerciseSet.rpe == nil ? Color.gymSubduedText : Color.gymText)
+                    .foregroundStyle(activeEffortValue == nil ? Color.gymSubduedText : Color.gymText)
                     .contentTransition(.numericText())
-
-                Text(rpeMeaning)
+                Text(activeEffortMeaning)
                     .font(AppFont.subheadline)
                     .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .animation(reduceMotion ? nil : AppMotion.compact, value: exerciseSet.rpe)
+            .animation(reduceMotion ? nil : AppMotion.compact, value: activeEffortValue)
 
-            Slider(
-                value: Binding(
-                    get: { Double(exerciseSet.rpe ?? 7) },
-                    set: {
-                        exerciseSet.rpe = Int($0.rounded())
-                        onPersist()
-                    }
-                ),
-                in: 1...10,
-                step: 1
-            ) {
-                Text("RPE")
-            } minimumValueLabel: {
-                sliderBound("1")
-            } maximumValueLabel: {
-                sliderBound("10")
+            if effortMeasure == .rir {
+                Slider(value: rirBinding, in: 0...6, step: 1) {
+                    Text("RIR")
+                } minimumValueLabel: {
+                    sliderBound("0")
+                } maximumValueLabel: {
+                    sliderBound("6+")
+                }
+                .tint(Color.gymSecondary)
+                .accessibilityIdentifier("rir-slider")
+            } else {
+                Slider(value: rpeBinding, in: 1...10, step: 1) {
+                    Text("RPE")
+                } minimumValueLabel: {
+                    sliderBound("1")
+                } maximumValueLabel: {
+                    sliderBound("10")
+                }
+                .tint(Color.gymPrimary)
+                .accessibilityIdentifier("rpe-slider")
             }
-            .tint(Color.gymPrimary)
-            .accessibilityIdentifier("rpe-slider")
+
+            if let historicalEffortCaption {
+                Text(historicalEffortCaption)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
         }
         .padding(Spacing.l)
         .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
     }
 
-    private var rpeMeaning: String {
-        guard let rpe = exerciseSet.rpe else {
-            return String(localized: "Slide to rate how hard this set felt")
-        }
-        return RPEScale.meaning(for: rpe)
+    private var activeEffortValue: Int? {
+        effortMeasure == .rir ? exerciseSet.rir : exerciseSet.rpe
     }
 
-    private var rirSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            HStack {
-                eyebrow("Reps in reserve · RIR")
-                Spacer()
-                if exerciseSet.rir != nil {
-                    Button("Clear") {
-                        exerciseSet.rir = nil
-                        onPersist()
-                    }
-                    .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymPrimary)
-                    .accessibilityLabel("Clear RIR")
-                    .accessibilityIdentifier("clear-rir")
-                }
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
-                Text(exerciseSet.rir.map { "\($0)" } ?? "—")
-                    .font(AppFont.displayMedium)
-                    .monospacedDigit()
-                    .foregroundStyle(exerciseSet.rir == nil ? Color.gymSubduedText : Color.gymText)
-                    .contentTransition(.numericText())
-                Text(rirMeaning)
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
-            }
-            .animation(reduceMotion ? nil : AppMotion.compact, value: exerciseSet.rir)
-
-            Slider(
-                value: Binding(
-                    get: { Double(exerciseSet.rir ?? 2) },
-                    set: {
-                        exerciseSet.rir = Int($0.rounded())
-                        onPersist()
-                    }
-                ),
-                in: 0...6,
-                step: 1
-            ) {
-                Text("RIR")
-            } minimumValueLabel: {
-                sliderBound("0")
-            } maximumValueLabel: {
-                sliderBound("6+")
-            }
-            .tint(Color.gymSecondary)
-            .accessibilityIdentifier("rir-slider")
-        }
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
+    private var activeEffortValueText: String {
+        guard let activeEffortValue else { return effortMeasure == .rir ? "an RIR value" : "an RPE value" }
+        return "\(effortMeasure == .rir ? "RIR" : "RPE") \(activeEffortValue)"
     }
 
-    private var rirMeaning: String {
-        guard let rir = exerciseSet.rir else {
-            return String(localized: "Slide to record reps left after this set")
+    private var activeEffortMeaning: String {
+        guard let activeEffortValue else {
+            return effortMeasure == .rir
+                ? String(localized: "Slide to record reps left after this set")
+                : String(localized: "Slide to rate how hard this set felt")
         }
-        return RIRScale.meaning(for: rir)
+        return effortMeasure == .rir ? RIRScale.meaning(for: activeEffortValue) : RPEScale.meaning(for: activeEffortValue)
+    }
+
+    private var historicalEffortCaption: String? {
+        if effortMeasure == .rir, let rpe = exerciseSet.rpe {
+            return "RPE \(rpe) recorded earlier on this set"
+        }
+        if effortMeasure == .rpe, let rir = exerciseSet.rir {
+            return "RIR \(rir) recorded earlier on this set"
+        }
+        return nil
+    }
+
+    private var rirBinding: Binding<Double> {
+        Binding(
+            get: { Double(exerciseSet.rir ?? 2) },
+            set: {
+                exerciseSet.recordRIR(Int($0.rounded()))
+                onPersist()
+            }
+        )
+    }
+
+    private var rpeBinding: Binding<Double> {
+        Binding(
+            get: { Double(exerciseSet.rpe ?? 7) },
+            set: {
+                exerciseSet.recordRPE(Int($0.rounded()))
+                onPersist()
+            }
+        )
+    }
+
+    private func selectEffortMeasure(_ measure: EffortMeasure) {
+        guard measure != effortMeasure else { return }
+        if activeEffortValue != nil {
+            pendingEffortMeasure = measure
+            isShowingEffortSwitchConfirmation = true
+        } else {
+            effortMeasure = measure
+        }
+    }
+
+    private func clearActiveEffortValue() {
+        if effortMeasure == .rir {
+            exerciseSet.recordRIR(nil)
+        } else {
+            exerciseSet.recordRPE(nil)
+        }
     }
 
     private var liftQualitySection: some View {

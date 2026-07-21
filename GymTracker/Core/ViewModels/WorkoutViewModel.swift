@@ -55,12 +55,26 @@ class WorkoutViewModel {
         }
 
         // Do not carry added-but-never-started exercises into workout history.
-        let emptyExercises = activeWorkout.exercises.filter { $0.sets.isEmpty }
+        // An empty component entry in an execution block is different: keeping
+        // it preserves the intended circuit/complex membership when the
+        // lifter saves a partial block.
+        let emptyExercises = activeWorkout.exercises.filter {
+            $0.sets.isEmpty && $0.executionBlockID == nil
+        }
         activeWorkout.exercises.removeAll { exercise in
             emptyExercises.contains { $0.persistentModelID == exercise.persistentModelID }
         }
         for exercise in emptyExercises {
             modelContext.delete(exercise)
+        }
+
+        for block in activeWorkout.orderedExecutionBlocks {
+            if WorkoutExecutionBlockService.entries(in: block, workout: activeWorkout).isEmpty {
+                activeWorkout.executionBlocks.removeAll { $0 === block }
+                modelContext.delete(block)
+            } else {
+                WorkoutExecutionBlockService.finalizeForWorkoutSave(block)
+            }
         }
 
         activeWorkout.name = normalized(activeWorkout.name)

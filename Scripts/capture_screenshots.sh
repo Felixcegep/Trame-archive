@@ -70,15 +70,15 @@ EOF
 tests_for_scene() {
   case "$1" in
     overview) echo "testCaptureOverviewScreenshots" ;;
-    pages) echo "testCaptureHomeTemplateSheetScreenshot testCaptureHomeConflictScreenshot testCaptureDailyCheckInScreenshot testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCaptureTodayRescheduleScreenshot testCaptureNotificationRescheduleScreenshot testCaptureMobilityLibraryScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureLibrarySecondaryStatesScreenshots testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot" ;;
+    pages) echo "testCaptureHomeTemplateSheetScreenshot testCaptureHomeConflictScreenshot testCaptureDailyCheckInScreenshot testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCaptureTodayRescheduleScreenshot testCaptureNotificationRescheduleScreenshot testCaptureMobilityLibraryScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureLibrarySecondaryStatesScreenshots testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsScreenshot" ;;
     mobility) echo "testCaptureMobilityLibraryScreenshot testCaptureActiveMobilityScreenshot" ;;
     nutrition) echo "testCaptureNutritionTodayScreenshot testCaptureCaffeineQuickLogScreenshot" ;;
-    active) echo "testCaptureActiveEmptyAndResumeScreenshots testCaptureActiveToolScreenshots testCaptureExerciseSwapScreenshot testCaptureCompletedSetScreenshot testCaptureSupersetScreenshot testCaptureCompletedExerciseCollapsedScreenshot testCapturePartialSaveScreenshots testCaptureDiscardWorkoutScreenshot testCaptureDurationTimerScreenshots" ;;
+    active) echo "testCaptureActiveEmptyAndResumeScreenshots testCaptureActiveToolScreenshots testCaptureExecutionBlockScreenshots testCaptureExerciseSwapScreenshot testCaptureCompletedSetScreenshot testCaptureSupersetScreenshot testCaptureCompletedExerciseCollapsedScreenshot testCapturePartialSaveScreenshots testCaptureDiscardWorkoutScreenshot testCaptureDurationTimerScreenshots" ;;
     rest) echo "testCaptureRunningRestScreenshot testCapturePausedRestScreenshot testCaptureReadyRestScreenshot" ;;
     history) echo "testCaptureHistoryScreenshots" ;;
     recommendation) echo "testCaptureIncreaseRecommendationScreenshots testCaptureHoldRecommendationScreenshot testCaptureInsufficientHistoryRecommendationScreenshots testCaptureRecommendationWithRunningRestScreenshot testCaptureRecommendationWithPausedRestScreenshot" ;;
     performance) echo "testCapturePerformanceComparisonReviewScreenshot testCapturePerformanceComparisonHistoryScreenshot" ;;
-    template-progression) echo "testCaptureTemplateProgressionScreenshot" ;;
+    template-progression) echo "testCaptureTemplateProgressionScreenshot testCaptureTemplateExecutionBlockScreenshot" ;;
     workout-form) echo "testCaptureNewWorkoutFormScreenshot" ;;
     plan-review) echo "testCapturePlanReviewScreenshot testCaptureActivePlanRunScreenshot" ;;
     program-builder) echo "testCaptureProgramDefinitionBuilderScreenshot" ;;
@@ -96,17 +96,17 @@ tests_for_scene() {
 files_for_scene() {
   case "$1" in
     overview) echo "overview/01_Today.png overview/02_Train.png overview/03_Progress_Empty.png overview/04_Settings.png" ;;
-    pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01h_Daily_Check_In_Weight_Due.png overview/04a_Body_Weight_History.png overview/01f_Today_Reschedule_Workout.png overview/01g_Notification_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png nutrition/20_Nutrition_Today.png overview/02b_Train_Templates.png overview/02c_Train_Plans.png overview/02d_Train_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png" ;;
+    pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01h_Daily_Check_In_Weight_Due.png overview/04a_Body_Weight_History.png overview/01f_Today_Reschedule_Workout.png overview/01g_Notification_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png nutrition/20_Nutrition_Today.png overview/02b_Train_Templates.png overview/02c_Train_Plans.png overview/02d_Train_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png overview/04d_Settings_Shortcuts.png" ;;
     mobility) echo "mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png" ;;
     nutrition) echo "nutrition/20_Nutrition_Today.png nutrition/20a_Caffeine_Quick_Log.png" ;;
-    active) echo "active-workout/05_Active_Workout_Empty.png overview/05_Home_With_Active_Workout.png active-workout/06_Add_Exercise_Sheet.png active-workout/07_Plate_Calculator.png active-workout/07b_Set_Details.png active-workout/08j_Exercise_Swap.png active-workout/08_Active_Workout_With_Set.png active-workout/08k_Active_Superset.png active-workout/08d_Completed_Exercise_Collapsed.png active-workout/08e_Discard_Workout.png active-workout/08f_Duration_Timer_Idle.png active-workout/08g_Duration_Timer_Running.png active-workout/08h_Duration_Timer_Paused.png active-workout/08i_Duration_Timer_Complete.png review/09_Save_Workout.png review/09b_Partial_Save_Confirmation.png" ;;
+    active) echo "active-workout/05_Active_Workout_Empty.png overview/05_Home_With_Active_Workout.png active-workout/06_Add_Exercise_Sheet.png active-workout/07_Plate_Calculator.png active-workout/07b_Set_Details.png active-workout/07c_Execution_Block_Builder.png active-workout/07d_Execution_Block_Active.png active-workout/07e_Set_Method_Segments.png active-workout/08j_Exercise_Swap.png active-workout/08_Active_Workout_With_Set.png active-workout/08k_Active_Superset.png active-workout/08d_Completed_Exercise_Collapsed.png active-workout/08e_Discard_Workout.png active-workout/08f_Duration_Timer_Idle.png active-workout/08g_Duration_Timer_Running.png active-workout/08h_Duration_Timer_Paused.png active-workout/08i_Duration_Timer_Complete.png review/09_Save_Workout.png review/09b_Partial_Save_Confirmation.png" ;;
     rest) echo "active-workout/08_Rest_Countdown.png active-workout/08b_Rest_Paused.png active-workout/08c_Rest_Ready.png" ;;
-    history) echo "history/10_History_With_Workout.png history/11_History_Detail.png" ;;
+    history) echo "history/10_History_With_Workout.png history/10b_Expanded_Records.png history/11_History_Detail.png" ;;
     recommendation) echo "progression/10_Previous_Performance.png progression/10b_Progression_Hold.png progression/10c_Progression_Starting_Weight.png progression/10d_Progression_Manual_Edit.png progression/10e_Progression_Applied_Weight.png progression/10f_Progression_With_Rest_Running.png progression/10g_Progression_With_Rest_Paused.png" ;;
     performance) echo "review/14_Save_Performance_Comparison.png history/15_History_Performance_Comparison.png" ;;
-    template-progression) echo "templates/12_Template_Progression.png" ;;
+    template-progression) echo "templates/12_Template_Progression.png templates/12d_Template_Execution_Block.png" ;;
     workout-form) echo "templates/12b_New_Workout_Form.png templates/12c_Exercise_Filters.png" ;;
-    plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13c_Program_Equipment.png plans/13d_Plan_Deload_Schedule.png plans/13g_Plan_Exercise_Alternatives.png plans/13h_Plan_Per_Set_Prescription.png plans/13_Plan_Review.png plans/13i_Program_Prescription_Preview.png plans/13b_Plan_Active_Run.png overview/01d_Home_Active_Plan.png" ;;
+    plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13c_Program_Equipment.png plans/13d_Plan_Deload_Schedule.png plans/13g_Plan_Exercise_Alternatives.png plans/13h_Plan_Per_Set_Prescription.png plans/13n_Plan_Execution_Block.png plans/13_Plan_Review.png plans/13i_Program_Prescription_Preview.png plans/13b_Plan_Active_Run.png overview/01d_Home_Active_Plan.png" ;;
     program-builder) echo "plans/13j_Program_Definition_Builder.png" ;;
     program-catalog) echo "plans/13k_Program_Catalog.png plans/13l_Program_Catalog_Detail.png plans/13m_Program_Intake.png" ;;
     plan-calendar) echo "plans/13e_Plan_Calendar.png plans/13f_Plan_Calendar_Day.png" ;;

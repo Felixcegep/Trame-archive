@@ -3,6 +3,7 @@ import SwiftUI
 struct PlateCalculatorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage(DefaultsKey.useMetric) private var preferredUnitSystem: UnitSystem = .metric
     @Bindable var exerciseSet: ExerciseSet
     let usesBarbell: Bool
@@ -30,20 +31,20 @@ struct PlateCalculatorView: View {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
                     header
                     Divider()
+
                     if usesBarbell {
-                        plateDiagram
+                        calculatorCard
                     } else {
                         plateLoadedEquipmentNote
                     }
-                    result
-                    if usesBarbell {
-                        barSelector
-                    }
-                    plateKeyboard
                 }
                 .padding(Spacing.xl)
+                .padding(.bottom, Spacing.s)
             }
             .background(Color.gymBackground)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                plateControls
+            }
             .navigationTitle("Plate calculator")
             .navigationBarTitleDisplayMode(.inline)
             .overlay(alignment: .topLeading) {
@@ -63,98 +64,247 @@ struct PlateCalculatorView: View {
         }
     }
 
-    private var plateDiagram: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Text("BAR LOAD")
+    private var header: some View {
+        HStack(alignment: .top, spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("TARGET WEIGHT")
                     .font(AppFont.captionBold)
                     .tracking(0.8)
                     .foregroundStyle(Color.gymSubduedText)
-
-                Spacer()
-
-                selectedBarSummary
+                Text("\(formatted(exerciseSet.weight)) \(equipment.unitLabel)")
+                    .font(AppFont.displayLarge)
+                    .monospacedDigit()
+                    .lineLimit(1)
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 2) {
-                    barSegment(width: 40)
-                    collarSegment(height: 30, width: 8)
+            Spacer(minLength: Spacing.s)
 
-                    ForEach(diagramPlates) { item in
-                        diagramPlateShape(item.weight)
-                            .transition(reduceMotion
-                                ? .opacity
-                                : .scale(scale: 0.94).combined(with: .opacity))
+            if usesBarbell {
+                Menu {
+                    ForEach(BarKind.allCases) { bar in
+                        Button {
+                            selectBar(bar)
+                        } label: {
+                            if selectedBarID == bar.id {
+                                Label(
+                                    "\(bar.title) · \(formatted(bar.weight(for: preferredUnitSystem))) \(equipment.unitLabel)",
+                                    systemImage: AppIcon.checkmark
+                                )
+                            } else {
+                                Text("\(bar.title) · \(formatted(bar.weight(for: preferredUnitSystem))) \(equipment.unitLabel)")
+                            }
+                        }
                     }
-
-                    collarSegment(height: 24, width: 6)
-                    barSegment(width: 24)
+                } label: {
+                    Label {
+                        Text("\(selectedBar.title) · \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
+                            .lineLimit(2)
+                            .multilineTextAlignment(.trailing)
+                    } icon: {
+                        Image(systemName: "chevron.down")
+                    }
+                    .font(AppFont.captionSemiboldMonospaced)
+                    .foregroundStyle(Color.gymPrimary)
+                    .frame(minHeight: 44, alignment: .trailing)
+                    .contentShape(Rectangle())
                 }
-                .padding(.vertical, Spacing.s)
-                .padding(.horizontal, Spacing.l)
-                .frame(minHeight: 108)
-                .animation(reduceMotion ? nil : AppMotion.compact, value: diagramPlates)
+                .accessibilityLabel("Bar type: \(selectedBar.title), \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
+                .accessibilityIdentifier("bar-type-menu")
             }
-            .defaultScrollAnchor(.center)
+        }
+    }
 
-            Text(calculation.plates.isEmpty
-                 ? "Bare \(selectedBar.title) bar · \(formatted(equipment.barWeight)) \(equipment.unitLabel)."
-                 : "One side shown · Add or remove plates below.")
-                .font(AppFont.caption)
+    private var calculatorCard: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            Text("BAR LOAD · ONE SIDE")
+                .font(AppFont.captionBold)
+                .tracking(0.8)
                 .foregroundStyle(Color.gymSubduedText)
+
+            PlateDiagramView(
+                barWeight: equipment.barWeight,
+                plates: calculation.plates,
+                availablePlates: equipment.plates,
+                unitLabel: equipment.unitLabel,
+                barColor: Self.barMetalColor,
+                plateColor: plateColor(for:),
+                plateTextColor: plateTextColor(for:),
+                reduceMotion: reduceMotion
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(diagramAccessibilityLabel)
+
+            Divider()
+
+            summary
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymCard)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Bar load diagram, one side shown")
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+        .accessibilityIdentifier("plate-summary")
     }
 
-    private var diagramPlates: [DiagramPlate] {
-        var occurrences: [Float: Int] = [:]
-        return calculation.plates.map { weight in
-            let occurrence = occurrences[weight, default: 0]
-            occurrences[weight] = occurrence + 1
-            return DiagramPlate(weight: weight, occurrence: occurrence)
+    @ViewBuilder
+    private var summary: some View {
+        if exerciseSet.weight <= 0 {
+            Label("Add plates below or enter a weight.", systemImage: AppIcon.number)
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymAccent)
+        } else if exerciseSet.weight < equipment.barWeight {
+            Label("Target is below the \(formatted(equipment.barWeight)) \(equipment.unitLabel) bar.", systemImage: AppIcon.warning)
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymAccent)
+        } else {
+            if calculation.remainingWeight > 0.01 {
+                Label(
+                    "Cannot load exactly — closest \(formatted(calculation.totalWeight)) \(equipment.unitLabel)",
+                    systemImage: AppIcon.warning
+                )
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymAccent)
+            }
+
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    loadEachSideSummary
+                    totalSummary
+                }
+            } else {
+                HStack(alignment: .lastTextBaseline, spacing: Spacing.m) {
+                    loadEachSideSummary
+                    Spacer(minLength: Spacing.s)
+                    totalSummary
+                        .multilineTextAlignment(.trailing)
+                }
+            }
         }
     }
 
-    private var selectedBarSummary: some View {
-        Text("\(selectedBar.title) · \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
-            .font(AppFont.captionSemiboldMonospaced)
-            .foregroundStyle(Color.gymPrimary)
-            .lineLimit(1)
-        .accessibilityLabel("Bar type: \(selectedBar.title), \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
+    private var loadEachSideSummary: some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text("LOAD EACH SIDE")
+                .font(AppFont.captionBold)
+                .tracking(0.55)
+                .foregroundStyle(Color.gymSubduedText)
+            Text(loadEachSideText)
+                .font(AppFont.titleSmallSemiboldMonospaced)
+                .foregroundStyle(Color.gymPrimary)
+                .lineLimit(2)
+        }
     }
 
-    private func barSegment(width: CGFloat) -> some View {
-        Capsule()
-            .fill(Self.barMetalColor)
-            .frame(width: width, height: 9)
+    private var totalSummary: some View {
+        Text("Per side incl. ½ bar \(formatted(calculation.perSideWeight)) \(equipment.unitLabel) · Total \(formatted(calculation.totalWeight)) \(equipment.unitLabel)")
+            .font(AppFont.caption)
+            .foregroundStyle(Color.gymSubduedText)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func collarSegment(height: CGFloat, width: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 2, style: .continuous)
-            .fill(Self.barMetalColor)
-            .frame(width: width, height: height)
+    private var loadEachSideText: String {
+        guard !calculation.plates.isEmpty else {
+            return "No plates — bare \(formatted(equipment.barWeight)) \(equipment.unitLabel) bar"
+        }
+        return calculation.plates
+            .map { formatted($0) }
+            .joined(separator: " + ") + " \(equipment.unitLabel)"
     }
 
-    private func diagramPlateShape(_ plate: Float) -> some View {
-        let maxPlate = CGFloat(equipment.plates.max() ?? 1)
-        let ratio = CGFloat(plate) / maxPlate
-        let plateHeight = 34 + ratio * 58
-        let plateWidth = 7 + ratio * 11
+    private var diagramAccessibilityLabel: String {
+        let plateText = calculation.plates.isEmpty
+            ? "no plates"
+            : calculation.plates.map(formatted).joined(separator: ", ") + " \(equipment.unitLabel)"
+        return "Bar load, one side: \(plateText) on a \(formatted(equipment.barWeight)) \(equipment.unitLabel) \(selectedBar.title) bar"
+    }
 
-        return RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(plateColor(for: plate))
-            .frame(width: plateWidth, height: plateHeight)
-            .overlay {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .stroke(Color.black.opacity(0.18), lineWidth: 1)
+    private var plateControls: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Divider()
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.s) {
+                    ForEach(equipment.plates, id: \.self) { plate in
+                        plateStepper(for: plate)
+                    }
+                }
+                .padding(.horizontal, Spacing.xl)
+            }
+
+            HStack(spacing: Spacing.s) {
+                if usesBarbell {
+                    Button("Bare bar · \(formatted(equipment.barWeight)) \(equipment.unitLabel)") {
+                        exerciseSet.weight = equipment.barWeight
+                    }
+                }
+
+                Button(usesBarbell ? "Remove all plates" : "Clear", role: .destructive) {
+                    exerciseSet.weight = usesBarbell ? equipment.barWeight : 0
+                }
+            }
+            .buttonStyle(.bordered)
+            .padding(.horizontal, Spacing.xl)
+        }
+        .padding(.vertical, Spacing.s)
+        .background(Color.gymBackground)
+    }
+
+    private func plateStepper(for plate: Float) -> some View {
+        let loadedCount = calculation.plates.filter { $0 == plate }.count
+
+        return HStack(spacing: Spacing.xxs) {
+            Button {
+                removePlatePair(plate)
+            } label: {
+                Image(systemName: AppIcon.minus)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .disabled(loadedCount == 0)
+            .accessibilityLabel("Remove \(formatted(plate)) \(equipment.unitLabel) each side")
+
+            HStack(spacing: Spacing.xs) {
+                Circle()
+                    .fill(plateColor(for: plate))
+                    .frame(width: 10, height: 10)
+                    .overlay { Circle().stroke(Color.black.opacity(0.18), lineWidth: 0.5) }
+                Text("\(formatted(plate))")
+                    .font(AppFont.headlineMonospaced)
+                    .lineLimit(1)
+                if loadedCount > 0 {
+                    Text("×\(loadedCount)")
+                        .font(AppFont.captionSemiboldMonospaced)
+                        .foregroundStyle(Color.gymPrimary)
+                }
             }
             .accessibilityHidden(true)
+
+            Button {
+                addPlatePair(plate)
+            } label: {
+                Image(systemName: AppIcon.plus)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Add \(formatted(plate)) \(equipment.unitLabel) each side")
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(Color.gymPrimary)
+        .background(Color.gymCard, in: Capsule())
+        .overlay { Capsule().stroke(Color.gymBorder, lineWidth: 1) }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(formatted(plate)) \(equipment.unitLabel) plate, \(loadedCount) per side")
+        .accessibilityIdentifier("plate-stepper-\(formatted(plate))")
+    }
+
+    private var plateLoadedEquipmentNote: some View {
+        Label(
+            "Plate-loaded mode treats the entered weight as the total and splits it equally between both sides.",
+            systemImage: AppIcon.info
+        )
+        .font(AppFont.subheadline)
+        .foregroundStyle(Color.gymAccent)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.l)
+        .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
     }
 
     // Real-world competition plate colors (IWF convention); intentionally not
@@ -164,184 +314,20 @@ struct PlateCalculatorView: View {
     private func plateColor(for plate: Float) -> Color {
         let isMetric = preferredUnitSystem == .metric
         switch (isMetric, plate) {
-        case (true, 25), (false, 55): return Color(red: 0.85, green: 0.16, blue: 0.16)   // red
-        case (true, 20), (false, 45): return Color(red: 0.16, green: 0.36, blue: 0.83)   // blue
-        case (true, 15), (false, 35): return Color(red: 0.95, green: 0.77, blue: 0.06)   // yellow
-        case (true, 10), (false, 25): return Color(red: 0.16, green: 0.62, blue: 0.33)   // green
-        case (true, 5), (false, 10): return Color(red: 0.93, green: 0.93, blue: 0.91)    // white
-        case (true, 2.5), (false, 5): return Color(red: 0.85, green: 0.16, blue: 0.16)   // red change plate
-        case (false, 2.5): return Color(red: 0.16, green: 0.62, blue: 0.33)              // green change plate
-        default: return Self.barMetalColor                                               // chrome minis (1.25 kg / 1 lb)
+        case (true, 25), (false, 55): return Color(red: 0.85, green: 0.16, blue: 0.16)
+        case (true, 20), (false, 45): return Color(red: 0.16, green: 0.36, blue: 0.83)
+        case (true, 15), (false, 35): return Color(red: 0.95, green: 0.77, blue: 0.06)
+        case (true, 10), (false, 25): return Color(red: 0.16, green: 0.62, blue: 0.33)
+        case (true, 5), (false, 10): return Color(red: 0.93, green: 0.93, blue: 0.91)
+        case (true, 2.5), (false, 5): return Color(red: 0.85, green: 0.16, blue: 0.16)
+        case (false, 2.5): return Color(red: 0.16, green: 0.62, blue: 0.33)
+        default: return Self.barMetalColor
         }
     }
 
-    private var barSelector: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("BAR TYPE")
-                .font(AppFont.captionBold)
-                .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Spacing.s) {
-                    ForEach(BarKind.allCases) { bar in
-                        Button {
-                            selectBar(bar)
-                        } label: {
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text(LocalizedStringKey(bar.title))
-                                    .font(AppFont.captionSemiboldMonospaced)
-                                Text("\(formatted(bar.weight(for: preferredUnitSystem))) \(equipment.unitLabel)")
-                                    .font(AppFont.captionSemiboldMonospaced)
-                                    .foregroundStyle(selectedBarID == bar.id ? Color.gymPrimary : Color.gymSubduedText)
-                            }
-                            .frame(minWidth: 104, alignment: .leading)
-                            .padding(.horizontal, Spacing.m)
-                            .padding(.vertical, Spacing.s)
-                            .background(selectedBarID == bar.id ? Color.gymPrimarySurface : Color.gymCard)
-                            .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                                    .stroke(selectedBarID == bar.id ? Color.gymPrimary : .clear, lineWidth: 1)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityAddTraits(selectedBarID == bar.id ? .isSelected : [])
-                        .accessibilityLabel("\(bar.title), \(formatted(bar.weight(for: preferredUnitSystem))) \(equipment.unitLabel)")
-                    }
-                }
-            }
-        }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            Text("TARGET WEIGHT")
-                .font(AppFont.captionBold)
-                .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
-            Text("\(formatted(exerciseSet.weight)) \(equipment.unitLabel)")
-                .font(AppFont.displayLarge)
-        }
-    }
-
-    private var plateLoadedEquipmentNote: some View {
-        calculatorMessage(
-            "Plate-loaded mode treats the entered weight as the total and splits it equally between both sides.",
-            icon: AppIcon.info
-        )
-    }
-
-    @ViewBuilder
-    private var result: some View {
-        if exerciseSet.weight <= 0 {
-            calculatorMessage("Use the plate keyboard or enter a target weight.", icon: AppIcon.number)
-        } else if usesBarbell && exerciseSet.weight < equipment.barWeight {
-            calculatorMessage("The target is below the \(formatted(equipment.barWeight)) \(equipment.unitLabel) bar. The minimum loaded weight is \(formatted(equipment.barWeight)) \(equipment.unitLabel).", icon: AppIcon.warning)
-        } else if calculation.remainingWeight > 0.01 {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                calculatorMessage("This cannot be loaded exactly with the standard plates.", icon: AppIcon.warning)
-                loadingSummary(label: "Closest load")
-            }
-        } else {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                Label("Load each side", systemImage: AppIcon.workout)
-                    .font(AppFont.headline)
-                Text(calculation.plates.isEmpty ? "No plates" : calculation.plates.map { "\(formatted($0)) \(equipment.unitLabel) each side" }.joined(separator: " + "))
-                    .font(AppFont.titleSmallSemiboldMonospaced)
-                    .foregroundStyle(Color.gymPrimary)
-                if usesBarbell {
-                    Text("On the \(selectedBar.title) bar · \(formatted(equipment.barWeight)) \(equipment.unitLabel)")
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
-                }
-                loadingSummary(label: "Total load")
-            }
-            .padding(Spacing.l)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.gymCard)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
-        }
-    }
-
-    private var plateKeyboard: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("PLATE KEYBOARD")
-                .font(AppFont.captionBold)
-                .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
-
-            HStack(spacing: Spacing.md) {
-                if usesBarbell {
-                    Button("Bare bar · \(formatted(equipment.barWeight)) \(equipment.unitLabel)") {
-                        exerciseSet.weight = equipment.barWeight
-                    }
-                }
-                Button(usesBarbell ? "Remove plates" : "Clear", role: .destructive) {
-                    exerciseSet.weight = usesBarbell ? equipment.barWeight : 0
-                }
-            }
-            .buttonStyle(.bordered)
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: Spacing.md)], spacing: Spacing.md) {
-                ForEach(equipment.plates, id: \.self) { plate in
-                    plateTile(for: plate)
-                }
-            }
-        }
-    }
-
-    private func plateTile(for plate: Float) -> some View {
-        let loadedCount = calculation.plates.filter { $0 == plate }.count
-
-        return VStack(spacing: Spacing.s) {
-            VStack(spacing: Spacing.xxs) {
-                HStack(spacing: Spacing.xs) {
-                    Circle()
-                        .fill(plateColor(for: plate))
-                        .frame(width: 10, height: 10)
-                        .overlay {
-                            Circle().stroke(Color.black.opacity(0.18), lineWidth: 0.5)
-                        }
-                    Text("\(formatted(plate)) \(equipment.unitLabel)")
-                        .font(AppFont.headlineMonospaced)
-                        .foregroundStyle(Color.gymText)
-                }
-                Text(loadedCount > 0 ? "×\(loadedCount) per side" : "per side")
-                    .font(AppFont.caption)
-                    .foregroundStyle(loadedCount > 0 ? Color.gymPrimary : Color.gymSubduedText)
-            }
-
-            HStack(spacing: 0) {
-                Button {
-                    removePlatePair(plate)
-                } label: {
-                    Image(systemName: AppIcon.minus)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("Remove \(formatted(plate)) \(equipment.unitLabel) each side")
-
-                Divider()
-                    .frame(height: 20)
-
-                Button {
-                    addPlatePair(plate)
-                } label: {
-                    Image(systemName: AppIcon.plus)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("Add \(formatted(plate)) \(equipment.unitLabel) each side")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(Color.gymPrimary)
-        }
-        .padding(.vertical, Spacing.s)
-        .padding(.horizontal, Spacing.xs)
-        .background(Color.gymCard)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
-        .accessibilityElement(children: .contain)
+    private func plateTextColor(for plate: Float) -> Color {
+        let isLightPlate = (preferredUnitSystem == .metric && plate == 5)
+        return isLightPlate ? Color.gymText : .white
     }
 
     private func addPlatePair(_ plate: Float) {
@@ -379,42 +365,108 @@ struct PlateCalculatorView: View {
         }
     }
 
-    private func calculatorMessage(_ message: LocalizedStringKey, icon: String) -> some View {
-        Label(message, systemImage: icon)
-            .font(AppFont.subheadline)
-            .foregroundStyle(Color.gymAccent)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Spacing.l)
-            .background(Color.gymAccentSurface)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
-    }
-
-    private func loadingSummary(label: String) -> some View {
-        HStack(spacing: Spacing.m) {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(label)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-                Text("\(formatted(calculation.totalWeight)) \(equipment.unitLabel)")
-                    .font(AppFont.headlineMonospaced)
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: Spacing.xs) {
-                Text(usesBarbell ? "Per side · incl. ½ bar" : "Per side")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-                Text("\(formatted(calculation.perSideWeight)) \(equipment.unitLabel)")
-                    .font(AppFont.headlineMonospaced)
-            }
-        }
-        .padding(Spacing.m)
-        .background(Color.gymMutedSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
-    }
-
     private func formatted(_ value: Float) -> String {
         Formatters.formatFloat(value)
+    }
+}
+
+private struct PlateDiagramView: View {
+    let barWeight: Float
+    let plates: [Float]
+    let availablePlates: [Float]
+    let unitLabel: String
+    let barColor: Color
+    let plateColor: (Float) -> Color
+    let plateTextColor: (Float) -> Color
+    let reduceMotion: Bool
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 2) {
+                barSegment(width: 54)
+                collarSegment(height: 30, width: 8)
+
+                ForEach(diagramPlates) { item in
+                    plateShape(item.weight)
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.94).combined(with: .opacity))
+                }
+
+                collarSegment(height: 24, width: 6)
+                barSegment(width: 28, showsLabel: false)
+            }
+            .padding(.vertical, Spacing.s)
+            .padding(.horizontal, Spacing.l)
+            .frame(minHeight: 118)
+            .animation(reduceMotion ? nil : AppMotion.compact, value: diagramPlates)
+        }
+        .defaultScrollAnchor(.center)
+    }
+
+    private var diagramPlates: [DiagramPlate] {
+        var occurrences: [Float: Int] = [:]
+        return plates.map { weight in
+            let occurrence = occurrences[weight, default: 0]
+            occurrences[weight] = occurrence + 1
+            return DiagramPlate(weight: weight, occurrence: occurrence)
+        }
+    }
+
+    private func barSegment(width: CGFloat, showsLabel: Bool = true) -> some View {
+        Capsule()
+            .fill(barColor)
+            .frame(width: width, height: 12)
+            .overlay {
+                if showsLabel {
+                    Text(Formatters.formatFloat(barWeight))
+                        .font(AppFont.captionSemiboldMonospaced)
+                        .foregroundStyle(Color.gymText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .accessibilityHidden(true)
+                }
+            }
+    }
+
+    private func collarSegment(height: CGFloat, width: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 2, style: .continuous)
+            .fill(barColor)
+            .frame(width: width, height: height)
+    }
+
+    private func plateShape(_ plate: Float) -> some View {
+        let maximum = CGFloat(availablePlates.max() ?? 1)
+        let ratio = CGFloat(plate) / maximum
+        let height = 34 + ratio * 58
+        let width = 7 + ratio * 18
+        let labelFitsOnPlate = width >= 17
+
+        return VStack(spacing: Spacing.xxs) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(plateColor(plate))
+                .frame(width: width, height: height)
+                .overlay {
+                    if labelFitsOnPlate {
+                        Text(Formatters.formatFloat(plate))
+                            .font(AppFont.captionSemiboldMonospaced)
+                            .foregroundStyle(plateTextColor(plate))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.55)
+                            .rotationEffect(.degrees(width < 24 ? -90 : 0))
+                            .accessibilityHidden(true)
+                    }
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .stroke(Color.black.opacity(0.18), lineWidth: 1)
+                }
+
+            if !labelFitsOnPlate {
+                Text(Formatters.formatFloat(plate))
+                    .font(AppFont.captionSemiboldMonospaced)
+                    .foregroundStyle(Color.gymText)
+                    .lineLimit(1)
+                    .accessibilityHidden(true)
+            }
+        }
     }
 }

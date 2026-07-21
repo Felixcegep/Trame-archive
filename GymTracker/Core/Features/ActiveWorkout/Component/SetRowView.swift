@@ -3,6 +3,7 @@ import SwiftData
 
 struct SetRowView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let index: Int
     @Bindable var exerciseSet: ExerciseSet
     let exerciseEntry: ExerciseEntry
@@ -19,6 +20,7 @@ struct SetRowView: View {
     @State private var completionValidationMessage: String?
     @State private var isShowingIncompleteConfirmation = false
     @State private var isTimerRunning = false
+    @State private var completedEditSnapshot: CompletedSetEditSnapshot?
 
     private var trackingType: TrackingType {
         exerciseEntry.trackingTypeSnapshot
@@ -26,19 +28,7 @@ struct SetRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(spacing: Spacing.s) {
-                setTypeChip
-                    .frame(width: 45, alignment: .leading)
-
-                if trackingType.usesReps { repsField }
-                if trackingType.usesWeight { weightField }
-                if trackingType.usesDuration { durationField }
-                if trackingType.usesDistance { distanceField }
-                if trackingType.usesCalories { caloriesField }
-
-                doneButton
-                rowMenu
-            }
+            rowInputs
 
             if let notes = exerciseSet.prescriptionNotes,
                notes.hasPrefix("Complex:") {
@@ -97,18 +87,23 @@ struct SetRowView: View {
                     .accessibilityLabel(completionValidationMessage)
             }
 
-            if let previousSet, !exerciseSet.done {
+            if let previousSet, !exerciseSet.done, isCurrentSet {
                 Button {
                     viewModel.applyPreviousPerformance(to: exerciseSet, in: exerciseEntry, index: index)
+                    focusedInput.wrappedValue = SetInputFocus(
+                        exerciseID: exerciseEntry.persistentModelID,
+                        setID: exerciseSet.persistentModelID,
+                        field: firstInputField
+                    )
                 } label: {
-                    Text("Use last time: \(previousSetText(previousSet))")
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymPrimary)
+                    Label("Use last time · \(previousSetText(previousSet))", systemImage: AppIcon.copy)
+                        .font(AppFont.footnoteMedium)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }
-                .buttonStyle(.borderless)
-                .padding(.leading, 45)
+                .buttonStyle(.bordered)
+                .foregroundStyle(Color.gymPrimary)
                 .accessibilityLabel("Use last time values for set \(index + 1)")
-                .accessibilityIdentifier("use-previous-set-\(exerciseEntry.exercise.name)-\(index)")
+                .accessibilityIdentifier("copy-previous-set-\(exerciseEntry.exercise.name)-\(index)")
             }
 
             if let rpe = exerciseSet.rpe {
@@ -124,12 +119,29 @@ struct SetRowView: View {
                 .accessibilityLabel("RPE \(rpe), \(RPEScale.meaning(for: rpe))")
                 .accessibilityHint("Edit set details")
                 .accessibilityIdentifier("rpe-badge-\(exerciseEntry.exercise.name)-\(index)")
+            } else if let rir = exerciseSet.rir {
+                Button {
+                    isShowingSetDetails = true
+                } label: {
+                    Text("RIR \(rir) · \(RIRScale.meaning(for: rir))")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+                .buttonStyle(.borderless)
+                .padding(.leading, 45)
+                .accessibilityLabel("RIR \(rir), \(RIRScale.meaning(for: rir))")
+                .accessibilityHint("Edit set details")
+                .accessibilityIdentifier("rir-badge-\(exerciseEntry.exercise.name)-\(index)")
             }
         }
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, 7)
         .background(rowSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                .stroke(isEditingCompletedSet ? Color.gymPrimary : .clear, lineWidth: 1)
+        }
         .animation(reduceMotion ? nil : AppMotion.compact, value: exerciseSet.done)
         .sensoryFeedback(.success, trigger: exerciseSet.done) { _, newValue in
             newValue
@@ -147,6 +159,122 @@ struct SetRowView: View {
             synchronizeIncompleteSetUnits()
             prefillPrescribedDurationIfNeeded()
         }
+        .sheet(isPresented: $isShowingPlateCalculator, onDismiss: {
+            viewModel.persistChanges()
+        }) {
+            PlateCalculatorView(
+                exerciseSet: exerciseSet,
+                usesBarbell: exerciseEntry.exercise.equipmentType == .barbell
+            )
+            .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.height(560), .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $isShowingSetDetails, onDismiss: {
+            viewModel.persistChanges()
+        }) {
+            SetDetailSheet(
+                index: index,
+                exerciseSet: exerciseSet,
+                exerciseName: exerciseEntry.exercise.name,
+                onPersist: { viewModel.persistChanges() },
+                onDelete: onRemove
+            )
+            .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.height(480), .large])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    @ViewBuilder
+    private var rowInputs: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            stackedRowInputs
+        } else {
+            ViewThatFits(in: .horizontal) {
+                horizontalRowInputs
+                stackedRowInputs
+            }
+        }
+    }
+
+    private var horizontalRowInputs: some View {
+        HStack(spacing: Spacing.s) {
+            setTypeChip
+                .frame(width: 44, height: 44)
+
+            inputFieldsHorizontal
+
+            if !isEditingCompletedSet {
+                doneButton
+            }
+            rowActions
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isCompletedAndLocked { beginCompletedSetEditing() }
+        }
+    }
+
+    private var stackedRowInputs: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack(spacing: Spacing.s) {
+                setTypeChip
+                    .frame(width: 44, height: 44)
+                Text("Set \(index + 1) · \(exerciseSet.setType.title)")
+                    .font(AppFont.footnoteMedium)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if !isEditingCompletedSet {
+                    doneButton
+                }
+                rowActions
+            }
+
+            inputFieldsStacked
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isCompletedAndLocked { beginCompletedSetEditing() }
+        }
+    }
+
+    @ViewBuilder
+    private var inputFieldsHorizontal: some View {
+        if trackingType.usesReps { repsField }
+        if trackingType.usesWeight { weightField }
+        if trackingType.usesDuration { durationField }
+        if trackingType.usesDistance { distanceField }
+        if trackingType.usesCalories { caloriesField }
+    }
+
+    private var inputFieldsStacked: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Spacing.s) {
+                if trackingType.usesReps { labeledField(label: "REPS", field: repsField) }
+                if trackingType.usesWeight { labeledField(label: "WEIGHT", field: weightField) }
+                if trackingType.usesDuration { labeledField(label: "SECONDS", field: durationField) }
+                if trackingType.usesDistance { labeledField(label: "DISTANCE", field: distanceField) }
+                if trackingType.usesCalories { labeledField(label: "CALORIES", field: caloriesField) }
+            }
+            VStack(spacing: Spacing.s) {
+                if trackingType.usesReps { labeledField(label: "REPS", field: repsField) }
+                if trackingType.usesWeight { labeledField(label: "WEIGHT", field: weightField) }
+                if trackingType.usesDuration { labeledField(label: "SECONDS", field: durationField) }
+                if trackingType.usesDistance { labeledField(label: "DISTANCE", field: distanceField) }
+                if trackingType.usesCalories { labeledField(label: "CALORIES", field: caloriesField) }
+            }
+        }
+    }
+
+    private func labeledField<Field: View>(label: String, field: Field) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(label)
+                .font(AppFont.caption2Bold)
+                .tracking(0.55)
+                .foregroundStyle(Color.gymSubduedText)
+            field
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var repsField: some View {
@@ -162,7 +290,7 @@ struct SetRowView: View {
                 }
                 viewModel.persistChanges()
             }
-        ), focusID: setFocus, prompt: previousSet.map { Formatters.formatFloat($0.repetitions) })
+        ), focusID: inputFocus(.repetitions), prompt: previousSet.map { Formatters.formatFloat($0.repetitions) })
         .accessibilityIdentifier("reps-field-\(exerciseEntry.exercise.name)-\(index)")
         .disabled(isCompletedAndLocked)
     }
@@ -185,7 +313,7 @@ struct SetRowView: View {
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
             .font(AppFont.titleSmallSemiboldMonospaced)
-            .focused(focusedInput, equals: setFocus)
+            .focused(focusedInput, equals: inputFocus(.weight))
             .accessibilityIdentifier("weight-field-\(exerciseEntry.exercise.name)-\(index)")
             .disabled(isCompletedAndLocked)
 
@@ -198,16 +326,6 @@ struct SetRowView: View {
         .overlay {
             RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
                 .stroke(Color.gymBorder, lineWidth: 1)
-        }
-        .sheet(isPresented: $isShowingPlateCalculator, onDismiss: {
-            viewModel.persistChanges()
-        }) {
-            PlateCalculatorView(
-                exerciseSet: exerciseSet,
-                usesBarbell: exerciseEntry.exercise.equipmentType == .barbell
-            )
-                .presentationDetents([.height(560), .large])
-                .presentationDragIndicator(.visible)
         }
     }
 
@@ -225,7 +343,7 @@ struct SetRowView: View {
                 }
                 viewModel.persistChanges()
             }
-        ), focusID: setFocus, prompt: previousSet?.duration.map { String(Int($0)) })
+        ), focusID: inputFocus(.duration), prompt: previousSet?.duration.map { String(Int($0)) })
         .accessibilityIdentifier("duration-field-\(exerciseEntry.exercise.name)-\(index)")
         .disabled(isCompletedAndLocked || isTimerRunning)
     }
@@ -244,7 +362,7 @@ struct SetRowView: View {
                 }
                 viewModel.persistChanges()
             }
-        ), focusID: setFocus, prompt: previousSet?.calories.map { Formatters.formatFloat(Float($0)) })
+        ), focusID: inputFocus(.calories), prompt: previousSet?.calories.map { Formatters.formatFloat(Float($0)) })
         .accessibilityIdentifier("calories-field-\(exerciseEntry.exercise.name)-\(index)")
         .disabled(isCompletedAndLocked)
     }
@@ -262,7 +380,7 @@ struct SetRowView: View {
                 markUserOverride()
                 viewModel.persistChanges()
             }
-        ), focusID: setFocus, prompt: previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) })
+        ), focusID: inputFocus(.distance), prompt: previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) })
         .disabled(isCompletedAndLocked)
     }
 
@@ -271,11 +389,12 @@ struct SetRowView: View {
             Image(systemName: exerciseSet.done ? AppIcon.checkmark : AppIcon.circle)
                 .font(AppFont.subheadlineBold)
                 .foregroundStyle(exerciseSet.done ? .white : Color.gymPrimary)
-                .frame(width: 28, height: 28)
+                .frame(width: 36, height: 36)
                 .background(exerciseSet.done ? Color.gymSecondary : Color.gymPrimary.opacity(0.14))
                 .clipShape(Circle())
         }
         .buttonStyle(.borderless)
+        .frame(width: 44, height: 44)
         .contentTransition(.symbolEffect(.replace))
         .accessibilityLabel(exerciseSet.done ? "Completed set" : "Complete set")
         .accessibilityHint(exerciseSet.done ? "Opens confirmation before marking this set incomplete." : "Marks this set complete.")
@@ -287,6 +406,9 @@ struct SetRowView: View {
     }
 
     private var rowSurface: Color {
+        if isEditingCompletedSet {
+            return Color.gymPrimarySurface
+        }
         if exerciseSet.done {
             return Color.gymSecondarySurface
         }
@@ -336,71 +458,145 @@ struct SetRowView: View {
         exerciseSet.prescribedSetType == .dailyMaximum || exerciseSet.setType == .dailyMaximum
     }
 
-    private var rowMenu: some View {
-        Group {
-            if exerciseSet.done {
-                Button {
-                    editingCompletedSetID = isCompletedAndLocked ? exerciseSet.persistentModelID : nil
-                } label: {
-                    Image(systemName: isCompletedAndLocked ? AppIcon.edit : AppIcon.checkmark)
-                    .font(AppFont.subheadlineBold)
-                    .foregroundStyle(isCompletedAndLocked ? Color.gymPrimary : Color.gymSecondary)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        (isCompletedAndLocked ? Color.gymPrimary : Color.gymSecondary).opacity(0.1),
-                        in: Circle()
-                    )
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel(isCompletedAndLocked ? "Edit completed set" : "Finish editing completed set")
-                .accessibilityHint("The completion checkmark marks this set incomplete")
-                .accessibilityIdentifier("edit-completed-set-\(exerciseEntry.exercise.name)-\(index)")
-            } else {
-                Menu {
-                    if exerciseEntry.exercise.supportsPlateCalculator {
-                        Button {
-                            isShowingPlateCalculator = true
-                        } label: {
-                            Label("Plate calculator", systemImage: AppIcon.plateCalculator)
-                        }
-                        .accessibilityIdentifier("plate-calculator-\(exerciseEntry.exercise.name)")
-                    }
-
-                    Button {
-                        isShowingSetDetails = true
-                    } label: {
-                        Label("Set details", systemImage: AppIcon.ellipsis)
-                    }
-                } label: {
-                    Image(systemName: AppIcon.ellipsis)
-                        .font(AppFont.captionBold)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .frame(width: 20, height: 28)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.borderless)
-                .accessibilityLabel("Set actions")
-                .accessibilityIdentifier("set-menu-\(exerciseEntry.exercise.name)-\(index)")
+    @ViewBuilder
+    private var rowActions: some View {
+        if isEditingCompletedSet {
+            Button("Finish") {
+                finishCompletedSetEditing()
             }
+            .buttonStyle(.borderedProminent)
+            .font(AppFont.footnoteMedium)
+            .frame(minHeight: 44)
+            .accessibilityLabel("Finish editing")
+            .accessibilityHint("Saves the edited values.")
+            .accessibilityIdentifier("finish-editing-set-\(exerciseEntry.exercise.name)-\(index)")
+        } else if exerciseSet.done {
+            Button {
+                beginCompletedSetEditing()
+            } label: {
+                Image(systemName: AppIcon.edit)
+                    .font(AppFont.subheadlineBold)
+                    .foregroundStyle(Color.gymPrimary)
+                    .frame(width: 36, height: 36)
+                    .background(Color.gymPrimary.opacity(0.1), in: Circle())
+            }
+            .buttonStyle(.borderless)
+            .frame(width: 44, height: 44)
+            .accessibilityLabel("Edit completed set")
+            .accessibilityHint("Values become editable; the set stays completed.")
+            .accessibilityIdentifier("edit-completed-set-\(exerciseEntry.exercise.name)-\(index)")
+        } else {
+            Menu {
+                if exerciseEntry.exercise.supportsPlateCalculator {
+                    Button {
+                        isShowingPlateCalculator = true
+                    } label: {
+                        Label("Plate calculator", systemImage: AppIcon.plateCalculator)
+                    }
+                    .accessibilityIdentifier("plate-calculator-\(exerciseEntry.exercise.name)")
+                }
+
+                if !isCurrentSet, previousSet != nil {
+                    Button {
+                        viewModel.applyPreviousPerformance(to: exerciseSet, in: exerciseEntry, index: index)
+                    } label: {
+                        Label("Copy previous set", systemImage: AppIcon.copy)
+                    }
+                }
+
+                Button {
+                    isShowingSetDetails = true
+                } label: {
+                    Label("Set details", systemImage: AppIcon.ellipsis)
+                }
+            } label: {
+                Image(systemName: AppIcon.ellipsis)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .frame(width: 36, height: 36)
+                    .background(Color.gymText.opacity(0.06), in: Circle())
+            }
+            .buttonStyle(.borderless)
+            .frame(width: 44, height: 44)
+            .accessibilityLabel("Set actions")
+            .accessibilityIdentifier("set-menu-\(exerciseEntry.exercise.name)-\(index)")
         }
-        .sheet(isPresented: $isShowingSetDetails, onDismiss: {
-            viewModel.persistChanges()
-        }) {
-            SetDetailSheet(
-                index: index,
-                exerciseSet: exerciseSet,
-                exerciseName: exerciseEntry.exercise.name,
-                onPersist: { viewModel.persistChanges() },
-                onDelete: onRemove
-            )
-            .presentationDetents([.height(480), .large])
-            .presentationDragIndicator(.visible)
+
+        if isEditingCompletedSet {
+            Menu {
+                Button("Mark set incomplete", role: .destructive) {
+                    isShowingIncompleteConfirmation = true
+                }
+                Button("Discard changes", role: .destructive) {
+                    discardCompletedSetEditing()
+                }
+            } label: {
+                Image(systemName: AppIcon.ellipsis)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Completed set actions")
         }
     }
 
     private var isCompletedAndLocked: Bool {
         exerciseSet.done && editingCompletedSetID != exerciseSet.persistentModelID
+    }
+
+    private var isEditingCompletedSet: Bool {
+        exerciseSet.done && editingCompletedSetID == exerciseSet.persistentModelID
+    }
+
+    private func beginCompletedSetEditing() {
+        guard isCompletedAndLocked else { return }
+        completedEditSnapshot = CompletedSetEditSnapshot(exerciseSet)
+        editingCompletedSetID = exerciseSet.persistentModelID
+        completionValidationMessage = nil
+        UIAccessibility.post(notification: .announcement, argument: "Editing set \(index + 1)")
+        focusedInput.wrappedValue = SetInputFocus(
+            exerciseID: exerciseEntry.persistentModelID,
+            setID: exerciseSet.persistentModelID,
+            field: firstInputField
+        )
+    }
+
+    private func finishCompletedSetEditing() {
+        guard viewModel.canComplete(exerciseSet, for: exerciseEntry) else {
+            completionValidationMessage = validationMessage
+            return
+        }
+        completionValidationMessage = nil
+        completedEditSnapshot = nil
+        editingCompletedSetID = nil
+        focusedInput.wrappedValue = nil
+        viewModel.persistChanges()
+    }
+
+    private func discardCompletedSetEditing() {
+        completedEditSnapshot?.restore(on: exerciseSet)
+        completedEditSnapshot = nil
+        editingCompletedSetID = nil
+        completionValidationMessage = nil
+        focusedInput.wrappedValue = nil
+        viewModel.persistChanges()
+    }
+
+    private var firstInputField: SetInputFocus.Field {
+        if trackingType.usesReps { return .repetitions }
+        if trackingType.usesWeight { return .weight }
+        if trackingType.usesDuration { return .duration }
+        if trackingType.usesDistance { return .distance }
+        return .calories
+    }
+
+    private func inputFocus(_ field: SetInputFocus.Field) -> SetInputFocus {
+        SetInputFocus(
+            exerciseID: exerciseEntry.persistentModelID,
+            setID: exerciseSet.persistentModelID,
+            field: field
+        )
     }
 
     private func handleCompletionButton() {
@@ -413,15 +609,9 @@ struct SetRowView: View {
 
     private func markIncomplete() {
         guard exerciseSet.done, viewModel.switchStateDoneSet(exerciseEntry, exerciseSet) else { return }
-        editingCompletedSetID = exerciseSet.persistentModelID
+        completedEditSnapshot = nil
+        editingCompletedSetID = nil
         completionValidationMessage = nil
-    }
-
-    private var setFocus: SetInputFocus {
-        SetInputFocus(
-            exerciseID: exerciseEntry.persistentModelID,
-            setID: exerciseSet.persistentModelID
-        )
     }
 
     private func numberField(
@@ -435,7 +625,7 @@ struct SetRowView: View {
             .multilineTextAlignment(.center)
             .font(AppFont.titleSmallSemiboldMonospaced)
             .focused(focusedInput, equals: focusID)
-            .frame(maxWidth: .infinity)
+            .frame(minWidth: 70, maxWidth: .infinity)
             .frame(minHeight: 44)
             .background(Color.gymCard.opacity(0.9))
             .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
@@ -465,7 +655,7 @@ struct SetRowView: View {
                 .accessibilityHidden(true)
         }
         .padding(.horizontal, Spacing.xs)
-        .frame(maxWidth: .infinity)
+        .frame(minWidth: 70, maxWidth: .infinity)
         .frame(minHeight: 44)
         .background(Color.gymCard.opacity(0.9))
         .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
@@ -502,7 +692,7 @@ struct SetRowView: View {
         let shouldStartRestTimer = !exerciseSet.done
         guard !shouldStartRestTimer || viewModel.canComplete(exerciseSet, for: exerciseEntry) else {
             completionValidationMessage = validationMessage
-            focusedInput.wrappedValue = setFocus
+            focusedInput.wrappedValue = inputFocus(firstInputField)
             return
         }
 
@@ -517,7 +707,8 @@ struct SetRowView: View {
             if let nextSet = exerciseEntry.orderedSets.first(where: { !$0.done }) {
                 focusedInput.wrappedValue = SetInputFocus(
                     exerciseID: exerciseEntry.persistentModelID,
-                    setID: nextSet.persistentModelID
+                    setID: nextSet.persistentModelID,
+                    field: firstInputField
                 )
             } else {
                 focusedInput.wrappedValue = nil
@@ -585,5 +776,29 @@ struct SetRowView: View {
 
     private func displayDistance(for previousSet: PreviousSetPerformance) -> Float {
         UnitConversion.distance(previousSet.distance ?? 0, from: previousSet.distanceType, to: exerciseSet.distanceType)
+    }
+}
+
+private struct CompletedSetEditSnapshot {
+    let repetitions: Float
+    let weight: Float
+    let duration: TimeInterval?
+    let distance: Float?
+    let calories: Double?
+
+    init(_ set: ExerciseSet) {
+        repetitions = set.repetitions
+        weight = set.weight
+        duration = set.duration
+        distance = set.distance
+        calories = set.calories
+    }
+
+    func restore(on set: ExerciseSet) {
+        set.repetitions = repetitions
+        set.weight = weight
+        set.duration = duration
+        set.distance = distance
+        set.calories = calories
     }
 }

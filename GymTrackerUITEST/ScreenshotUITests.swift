@@ -86,6 +86,17 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("overview/04_Settings")
     }
 
+    func testCaptureSettingsShortcutsScreenshot() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
+        app.launch()
+
+        let shortcutsLink = app.descendants(matching: .any)["settings-shortcuts-link"]
+        XCTAssertTrue(shortcutsLink.waitForExistence(timeout: 10))
+        scrollToElement(shortcutsLink, in: app)
+        saveScreenshot("overview/04d_Settings_Shortcuts")
+    }
+
     func testCaptureActiveEmptyAndResumeScreenshots() {
         let empty = launchFixture("active-empty")
         saveScreenshot("active-workout/05_Active_Workout_Empty")
@@ -114,8 +125,31 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(inProgress.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(inProgress.staticTexts["Set 1"].exists)
         XCTAssertTrue(inProgress.sliders["rir-slider"].exists)
-        XCTAssertTrue(inProgress.buttons["lift-quality-excellent"].exists)
+        XCTAssertTrue(inProgress.descendants(matching: .any)["set-method-picker"].exists)
         saveScreenshot("active-workout/07b_Set_Details")
+        scrollToElement(inProgress.buttons["lift-quality-excellent"], in: inProgress)
+    }
+
+    func testCaptureExecutionBlockScreenshots() {
+        let builder = launchFixture("active-in-progress")
+        tapButton("add-execution-block", in: builder)
+        XCTAssertTrue(builder.navigationBars["Execution Block"].waitForExistence(timeout: 5))
+        XCTAssertTrue(builder.buttons["create-execution-block"].exists)
+        saveScreenshot("active-workout/07c_Execution_Block_Builder")
+
+        let active = launchFixture("active-execution-block")
+        XCTAssertTrue(active.staticTexts["EXECUTION BLOCKS"].waitForExistence(timeout: 5))
+        XCTAssertTrue(active.staticTexts["Power circuit"].exists)
+        XCTAssertTrue(active.buttons["Complete round"].exists)
+        saveScreenshot("active-workout/07d_Execution_Block_Active")
+
+        let advancedSet = launchFixture("active-advanced-set")
+        tapButton("set-menu-Bench Press-0", in: advancedSet)
+        tapButton("Set details", in: advancedSet)
+        XCTAssertTrue(advancedSet.descendants(matching: .any)["set-method-picker"].waitForExistence(timeout: 5))
+        XCTAssertTrue(advancedSet.descendants(matching: .any)["specialized-metric-picker"].exists)
+        XCTAssertTrue(advancedSet.descendants(matching: .any)["add-set-segment"].exists)
+        saveScreenshot("active-workout/07e_Set_Method_Segments")
     }
 
     func testCaptureExerciseSwapScreenshot() {
@@ -253,6 +287,10 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         selectTab(.history, in: app)
         XCTAssertTrue(app.buttons["history-workout-row"].firstMatch.waitForExistence(timeout: 5))
         saveScreenshot("history/10_History_With_Workout")
+        tapButton("Records", in: app)
+        XCTAssertTrue(app.staticTexts["Format records"].waitForExistence(timeout: 5))
+        saveScreenshot("history/10b_Expanded_Records")
+        tapButton("Workouts", in: app)
         app.buttons["history-workout-row"].firstMatch.tap()
         saveScreenshot("history/11_History_Detail")
     }
@@ -549,6 +587,15 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("templates/12_Template_Progression")
     }
 
+    func testCaptureTemplateExecutionBlockScreenshot() {
+        let app = launchFreshApp()
+        openUpperBodyTemplateEditor(in: app)
+        tapButton("template-add-menu", in: app)
+        tapButton("add-template-execution-block", in: app)
+        XCTAssertTrue(app.navigationBars["Execution Block"].waitForExistence(timeout: 5))
+        saveScreenshot("templates/12d_Template_Execution_Block")
+    }
+
     func testCapturePlanReviewScreenshot() {
         let app = launchFreshApp(additionalArguments: ["-ui-testing-plan-deload"])
         selectTab(.library, in: app)
@@ -587,6 +634,12 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("edit-plan", in: app)
         XCTAssertTrue(app.buttons["edit-plan-workout"].firstMatch.waitForExistence(timeout: 5))
         app.buttons["edit-plan-workout"].firstMatch.tap()
+        let executionBlock = app.buttons["add-plan-execution-block"]
+        XCTAssertTrue(executionBlock.waitForExistence(timeout: 5))
+        executionBlock.tap()
+        XCTAssertTrue(app.navigationBars["Execution Block"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13n_Plan_Execution_Block")
+        tapButton("Cancel", in: app)
         XCTAssertTrue(app.buttons["plan-workout-exercise"].firstMatch.waitForExistence(timeout: 5))
         app.buttons["plan-workout-exercise"].firstMatch.tap()
         let addAlternative = app.buttons["add-plan-exercise-alternative"]

@@ -33,6 +33,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         selectTab(.settings, in: app)
         XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["settings-shortcuts-link"].exists)
     }
 
     func testStartFreeWorkout() {
@@ -258,17 +259,19 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["plate-calculator-Leg Press"].waitForExistence(timeout: 5))
     }
 
-    func testKeyboardOffersCopyLastSetValuesForFocusedSet() {
+    func testKeyboardNavigatesFocusedSetFields() {
         let app = launchFixture("active-in-progress")
 
         let secondWeightField = app.textFields["weight-field-Bench Press-1"]
         XCTAssertTrue(secondWeightField.waitForExistence(timeout: 5))
         secondWeightField.tap()
 
-        let copyButton = app.buttons["Copy last set values"]
-        XCTAssertTrue(copyButton.waitForExistence(timeout: 5))
-        XCTAssertTrue(copyButton.isEnabled)
-        copyButton.tap()
+        let previousButton = app.buttons["Previous field"]
+        let nextButton = app.buttons["Next field"]
+        XCTAssertTrue(previousButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(nextButton.exists)
+        XCTAssertTrue(previousButton.isEnabled)
+        previousButton.tap()
     }
 
     func testActiveWorkoutSetMutationsAndRestTimer() {
@@ -365,7 +368,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         addExercise("Bench Press", in: app)
 
         XCTAssertTrue(app.staticTexts["previous-performance-Bench Press"].waitForExistence(timeout: 5))
-        let usePrevious = app.buttons["use-previous-set-Bench Press-0"]
+        let usePrevious = app.buttons["copy-previous-set-Bench Press-0"]
         XCTAssertTrue(usePrevious.waitForExistence(timeout: 5))
         usePrevious.tap()
 
