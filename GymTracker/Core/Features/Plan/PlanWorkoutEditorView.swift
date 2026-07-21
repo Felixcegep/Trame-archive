@@ -9,6 +9,8 @@ struct PlanWorkoutEditorView: View {
     @State private var isShowingExerciseEditor = false
     @State private var isShowingExercisePicker = false
     @State private var groupingExerciseID: UUID?
+    @State private var isShowingExecutionBlockBuilder = false
+    @State private var executionBlockToEdit: PlanExecutionBlockDraft?
 
     var body: some View {
         Form {
@@ -51,13 +53,48 @@ struct PlanWorkoutEditorView: View {
                             }
                         }
                     }
-                    .onDelete { workout.exercises.remove(atOffsets: $0) }
+                    .onDelete {
+                        workout.exercises.remove(atOffsets: $0)
+                        normalizeExecutionBlocks()
+                    }
                     .onMove { workout.exercises.move(fromOffsets: $0, toOffset: $1) }
                 }
 
                 Button("Add Exercise", systemImage: AppIcon.plus) {
                     isShowingExercisePicker = true
                 }
+            }
+
+            Section("Execution Blocks") {
+                if workout.executionBlocks.isEmpty {
+                    Text("No shared execution blocks.")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                } else {
+                    ForEach(workout.executionBlocks) { block in
+                        HStack {
+                            Image(systemName: AppIcon.relationship)
+                                .foregroundStyle(Color.gymPrimary)
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text(block.name.isEmpty ? block.kind.title : block.name)
+                                    .font(AppFont.bodyMedium)
+                                Text(blockSummary(block))
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.gymSubduedText)
+                            }
+                            Spacer()
+                            Button("Edit") { executionBlockToEdit = block }
+                                .font(AppFont.captionBold)
+                            Button("Remove", role: .destructive) { removeBlock(block) }
+                                .font(AppFont.captionBold)
+                        }
+                    }
+                }
+                Button("Add execution block", systemImage: AppIcon.relationship) {
+                    isShowingExecutionBlockBuilder = true
+                }
+                .disabled(workout.exercises.filter { $0.executionBlockID == nil }.isEmpty)
+                .accessibilityIdentifier("add-plan-execution-block")
             }
         }
         .scrollContentBackground(.hidden)
@@ -88,6 +125,12 @@ struct PlanWorkoutEditorView: View {
                     isShowingExercisePicker = false
                 }
             }
+        }
+        .sheet(isPresented: $isShowingExecutionBlockBuilder) {
+            PlanExecutionBlockBuilderSheet(workout: $workout)
+        }
+        .sheet(item: $executionBlockToEdit) { block in
+            PlanExecutionBlockBuilderSheet(workout: $workout, editingBlockID: block.id)
         }
         .confirmationDialog(
             "Superset with…",
@@ -131,6 +174,38 @@ struct PlanWorkoutEditorView: View {
                     workout.exercises[index].supersetGroupID = nil
                 }
             }
+        }
+    }
+
+    private func removeBlock(_ block: PlanExecutionBlockDraft) {
+        workout.executionBlocks.removeAll { $0.id == block.id }
+        for index in workout.exercises.indices where workout.exercises[index].executionBlockID == block.id {
+            workout.exercises[index].executionBlockID = nil
+            workout.exercises[index].executionBlockComponentOrder = nil
+        }
+    }
+
+    private func blockSummary(_ block: PlanExecutionBlockDraft) -> String {
+        workout.exercises
+            .filter { $0.executionBlockID == block.id }
+            .sorted { ($0.executionBlockComponentOrder ?? .max) < ($1.executionBlockComponentOrder ?? .max) }
+            .map(\.displayName)
+            .joined(separator: " · ")
+    }
+
+    private func normalizeExecutionBlocks() {
+        let invalidBlocks = workout.executionBlocks.filter { block in
+            let count = workout.exercises.filter { $0.executionBlockID == block.id }.count
+            return switch block.kind {
+            case .straight: count != 1
+            case .pairedSet: count != 2
+            case .triset: count != 3
+            case .giantSet: count < 4
+            default: count == 0
+            }
+        }
+        for block in invalidBlocks {
+            removeBlock(block)
         }
     }
 }

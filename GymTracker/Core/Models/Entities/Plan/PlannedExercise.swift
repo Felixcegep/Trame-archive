@@ -9,6 +9,8 @@ final class PlannedExercise {
     var orderIndex: Int
     /// Membership in a contiguous superset within this planned workout.
     var supersetGroupID: UUID?
+    var executionBlockID: UUID?
+    var executionBlockComponentOrder: Int?
     var role: ExerciseRole
     var isOptional: Bool
     var targetSets: Int
@@ -112,6 +114,8 @@ final class PlannedExercise {
         self.alternatives = alternatives
         self.plannedSets = plannedSets
         self.supersetGroupID = supersetGroupID
+        self.executionBlockID = nil
+        self.executionBlockComponentOrder = nil
     }
 
     var resolvedStimulus: TrainingStimulus {

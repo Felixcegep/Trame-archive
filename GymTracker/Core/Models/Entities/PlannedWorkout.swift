@@ -16,6 +16,8 @@ final class PlannedWorkout {
     var sourceTemplate: WorkoutTemplate?
     @Relationship(deleteRule: .cascade, inverse: \PlannedExercise.plannedWorkout)
     var plannedExercises: [PlannedExercise] = []
+    @Relationship(deleteRule: .cascade, inverse: \PlannedExerciseBlock.plannedWorkout)
+    var executionBlocks: [PlannedExerciseBlock] = []
 
     init(
         name: String,
@@ -26,7 +28,8 @@ final class PlannedWorkout {
         estimatedDurationSeconds: Int? = nil,
         notes: String? = nil,
         sourceTemplate: WorkoutTemplate? = nil,
-        plannedExercises: [PlannedExercise] = []
+        plannedExercises: [PlannedExercise] = [],
+        executionBlocks: [PlannedExerciseBlock] = []
     ) {
         self.name = name
         self.orderIndex = orderIndex
@@ -37,10 +40,15 @@ final class PlannedWorkout {
         self.notes = notes
         self.sourceTemplate = sourceTemplate
         self.plannedExercises = plannedExercises
+        self.executionBlocks = executionBlocks
     }
 
     var orderedPlannedExercises: [PlannedExercise] {
         plannedExercises.sorted { $0.orderIndex < $1.orderIndex }
+    }
+
+    var orderedExecutionBlocks: [PlannedExerciseBlock] {
+        executionBlocks.sorted { $0.orderIndex < $1.orderIndex }
     }
 
     func normalizePlannedExerciseOrder() {

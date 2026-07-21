@@ -16,6 +16,8 @@ enum UITestFixture: String {
     case activeDraft = "active-draft"
     case activeLoadingStyles = "active-loading-styles"
     case activeSuperset = "active-superset"
+    case activeExecutionBlock = "active-execution-block"
+    case activeAdvancedSet = "active-advanced-set"
     case historyBench = "history-bench"
     case exerciseInsights = "exercise-insights"
     case muscleBalance = "muscle-balance"
@@ -93,6 +95,10 @@ enum UITestFixture: String {
             try makeLoadingStyleWorkout(using: context)
         case .activeSuperset:
             try makeSupersetWorkout(using: context)
+        case .activeExecutionBlock:
+            try makeExecutionBlockWorkout(using: context)
+        case .activeAdvancedSet:
+            try makeAdvancedSetWorkout(using: context)
         case .historyBench:
             try makeCompletedBenchHistory(using: context)
         case .exerciseInsights:
@@ -249,6 +255,53 @@ enum UITestFixture: String {
         try makeActiveWorkout(exercises: [bench, row], using: context)
     }
 
+    private static func makeExecutionBlockWorkout(using context: ModelContext) throws {
+        let bench = try inProgressEntry(named: "Bench Press", orderIndex: 0, using: context)
+        let row = try inProgressEntry(named: "Barbell Row", orderIndex: 1, using: context)
+        let workout = Workout(name: "Power Circuit")
+        workout.startTime = Date.now.addingTimeInterval(-135)
+        workout.exercises = [bench, row]
+
+        let block = WorkoutExecutionBlock(
+            orderIndex: 0,
+            kind: .circuit,
+            name: "Power circuit",
+            targetRounds: 3,
+            restSeconds: 90,
+            clockMode: .countUp,
+            timeCapSeconds: 600,
+            scoreKind: .roundsAndRepetitions
+        )
+        block.status = .inProgress
+        block.elapsedStartedAt = workout.startTime
+        block.completedRounds = 1
+        block.additionalRepetitions = 6
+        workout.executionBlocks = [block]
+        bench.executionBlockID = block.id
+        bench.executionBlockComponentOrder = 0
+        row.executionBlockID = block.id
+        row.executionBlockComponentOrder = 1
+        context.insert(workout)
+        try context.save()
+    }
+
+    private static func makeAdvancedSetWorkout(using context: ModelContext) throws {
+        let entry = try inProgressEntry(named: "Bench Press", using: context)
+        guard let set = entry.orderedSets.first else { throw FixtureError.invalidPlan }
+        set.setMethod = .dropSet
+        set.meanVelocity = 0.56
+        set.peakVelocity = 0.71
+        set.velocityMeasurementSource = .device
+        set.specializedMetricKind = .jumpHeight
+        set.jumpHeightMeters = 0.48
+        set.specializedMetricMeasurementSource = .device
+        set.segments = [
+            ExerciseSetSegment(orderIndex: 0, repetitions: 8, weight: 50, done: false),
+            ExerciseSetSegment(orderIndex: 1, repetitions: 6, weight: 40, restAfterSeconds: 0, done: false)
+        ]
+        try makeActiveWorkout(exercises: [entry], using: context)
+    }
+
     private static func makeActiveDraftWorkout(using context: ModelContext) throws {
         let benchPress = try exercise(named: "Bench Press", using: context)
         let alternative = try exercise(named: "Dumbbell Bench Press", using: context)
@@ -272,6 +325,19 @@ enum UITestFixture: String {
         let workout = Workout(name: "Upper Body", endTime: Date.now.addingTimeInterval(-3_600))
         workout.startTime = Date.now.addingTimeInterval(-7_200)
         workout.exercises = [entry]
+        let block = WorkoutExecutionBlock(
+            orderIndex: 0,
+            kind: .forTime,
+            name: "Upper benchmark",
+            clockMode: .countUp,
+            timeCapSeconds: 900,
+            scoreKind: .duration
+        )
+        block.status = .completed
+        block.scoreValue = 423
+        workout.executionBlocks = [block]
+        entry.executionBlockID = block.id
+        entry.executionBlockComponentOrder = 0
         context.insert(workout)
         try context.save()
     }

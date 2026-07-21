@@ -22,6 +22,8 @@ struct ActiveWorkoutView: View {
     @State private var handledRecommendationExerciseIDs: Set<PersistentIdentifier> = []
     @State private var editingCompletedSetID: PersistentIdentifier?
     @State private var exerciseToSwap: ExerciseEntry?
+    @State private var isShowingExecutionBlockBuilder = false
+    @State private var executionBlockToEdit: WorkoutExecutionBlock?
 
     private var unitSystem: UnitSystem {
         UserDefaults.standard.unitSystem
@@ -110,6 +112,20 @@ struct ActiveWorkoutView: View {
                 }
             }
         }
+        .sheet(isPresented: $isShowingExecutionBlockBuilder) {
+            if let workout = viewModel.activeWorkout {
+                WorkoutExecutionBlockBuilderSheet(workout: workout) {
+                    viewModel.persistChanges()
+                }
+            }
+        }
+        .sheet(item: $executionBlockToEdit) { block in
+            if let workout = viewModel.activeWorkout {
+                WorkoutExecutionBlockBuilderSheet(workout: workout, blockToEdit: block) {
+                    viewModel.persistChanges()
+                }
+            }
+        }
         .onDisappear {
             viewModel.persistChanges()
         }
@@ -128,11 +144,18 @@ struct ActiveWorkoutView: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Button {
-                    viewModel.copyValuesForFocusedSet(focusedInput)
+                    moveFocusedInput(by: -1)
                 } label: {
-                    Label("Copy last set values", systemImage: AppIcon.copy)
+                    Label("Previous field", systemImage: "chevron.left")
                 }
-                .disabled(!viewModel.canCopyValuesForFocusedSet(focusedInput))
+                .disabled(previousInput == nil)
+
+                Button {
+                    moveFocusedInput(by: 1)
+                } label: {
+                    Label("Next field", systemImage: "chevron.right")
+                }
+                .disabled(nextInput == nil)
 
                 Spacer()
 
@@ -144,39 +167,51 @@ struct ActiveWorkoutView: View {
     }
 
     private func workoutContent(for workout: Workout) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.l) {
-                sessionHeader(for: workout)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.l) {
+                    sessionHeader(for: workout)
 
-                if let recommendation = firstRecommendation(in: workout) {
-                    ProgressionRecommendationCard(
-                        exerciseName: recommendation.exercise.exercise.name,
-                        state: recommendation.state,
-                        onAction: { action in
-                            handleRecommendationAction(action, for: recommendation.exercise)
-                        }
-                    )
+                    if let recommendation = firstRecommendation(in: workout) {
+                        ProgressionRecommendationCard(
+                            exerciseName: recommendation.exercise.exercise.name,
+                            state: recommendation.state,
+                            onAction: { action in
+                                handleRecommendationAction(action, for: recommendation.exercise)
+                            }
+                        )
+                    }
+
+                    if viewModel.isTimerVisible {
+                        // A paused timer intentionally has no end date. Keep its
+                        // controls visible by supplying an unused placeholder; the
+                        // paused branch of `restTimer` renders the saved remaining
+                        // duration instead of this value.
+                        restTimer(endDate: viewModel.timerPause ?? .now)
+                    }
+
+                    if !workout.orderedExecutionBlocks.isEmpty {
+                        executionBlocks(for: workout)
+                    }
+
+                    exerciseList(for: workout)
                 }
-
-                if viewModel.isTimerVisible {
-                    // A paused timer intentionally has no end date. Keep its
-                    // controls visible by supplying an unused placeholder; the
-                    // paused branch of `restTimer` renders the saved remaining
-                    // duration instead of this value.
-                    restTimer(endDate: viewModel.timerPause ?? .now)
-                }
-
-                exerciseList(for: workout)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.top, Spacing.l)
+                .padding(.bottom, 110)
             }
-            .padding(.horizontal, Spacing.xl)
-            .padding(.top, Spacing.l)
-            .padding(.bottom, 110)
-        }
-        .scrollIndicators(.hidden)
-        .background(Color.gymBackground)
-        .safeAreaInset(edge: .bottom) {
-            if focusedInput == nil {
-                finishButton(for: workout)
+            .scrollIndicators(.hidden)
+            .background(Color.gymBackground)
+            .safeAreaInset(edge: .bottom) {
+                if focusedInput == nil {
+                    finishButton(for: workout)
+                }
+            }
+            .onChange(of: focusedInput) { _, focus in
+                guard let focus else { return }
+                withAnimation(reduceMotion ? nil : AppMotion.layout) {
+                    proxy.scrollTo(focus.setID, anchor: .center)
+                }
             }
         }
         .onAppear {
@@ -184,6 +219,50 @@ struct ActiveWorkoutView: View {
             viewModel.trackActiveExercise(with: expandedExerciseID)
             viewModel.restorePersistedRestTimer()
         }
+    }
+
+    private var allInputs: [SetInputFocus] {
+        guard let workout = viewModel.activeWorkout else { return [] }
+        return workout.orderedExercises.flatMap { exercise in
+            exercise.orderedSets.flatMap { set in
+                inputFields(for: exercise).map {
+                    SetInputFocus(
+                        exerciseID: exercise.persistentModelID,
+                        setID: set.persistentModelID,
+                        field: $0
+                    )
+                }
+            }
+        }
+    }
+
+    private var previousInput: SetInputFocus? {
+        guard let focusedInput,
+              let index = allInputs.firstIndex(of: focusedInput),
+              index > 0 else { return nil }
+        return allInputs[index - 1]
+    }
+
+    private var nextInput: SetInputFocus? {
+        guard let focusedInput,
+              let index = allInputs.firstIndex(of: focusedInput),
+              allInputs.indices.contains(index + 1) else { return nil }
+        return allInputs[index + 1]
+    }
+
+    private func moveFocusedInput(by offset: Int) {
+        focusedInput = offset < 0 ? previousInput : nextInput
+    }
+
+    private func inputFields(for exercise: ExerciseEntry) -> [SetInputFocus.Field] {
+        let type = exercise.trackingTypeSnapshot
+        var fields: [SetInputFocus.Field] = []
+        if type.usesReps { fields.append(.repetitions) }
+        if type.usesWeight { fields.append(.weight) }
+        if type.usesDuration { fields.append(.duration) }
+        if type.usesDistance { fields.append(.distance) }
+        if type.usesCalories { fields.append(.calories) }
+        return fields
     }
 
     private func sessionHeader(for workout: Workout) -> some View {
@@ -345,6 +424,16 @@ struct ActiveWorkoutView: View {
 
                 if !workout.exercises.isEmpty {
                     Button {
+                        isShowingExecutionBlockBuilder = true
+                    } label: {
+                        Label("Block", systemImage: AppIcon.relationship)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.gymPrimary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("add-execution-block")
+
+                    Button {
                         isShowingExercisePicker = true
                     } label: {
                         Label("Add", systemImage: AppIcon.plus)
@@ -383,6 +472,34 @@ struct ActiveWorkoutView: View {
         }
     }
 
+    private func executionBlocks(for workout: Workout) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            sessionSectionHeader(
+                title: "EXECUTION BLOCKS",
+                detail: "Track shared rounds, clock, and score",
+                icon: AppIcon.relationship
+            )
+            ForEach(workout.orderedExecutionBlocks, id: \.persistentModelID) { block in
+                WorkoutExecutionBlockCard(
+                    block: block,
+                    workout: workout,
+                    onPersist: viewModel.persistChanges,
+                    onRoundCompleted: {
+                        viewModel.startRest(after: block)
+                    },
+                    onEdit: {
+                        executionBlockToEdit = block
+                    },
+                    onRemove: {
+                        WorkoutExecutionBlockService.remove(block, from: workout)
+                        modelContext.delete(block)
+                        viewModel.persistChanges()
+                    }
+                )
+            }
+        }
+    }
+
     private func sessionSectionHeader(title: String, detail: String?, icon: String) -> some View {
         HStack(spacing: Spacing.s) {
             Image(systemName: icon)
@@ -408,6 +525,7 @@ struct ActiveWorkoutView: View {
         ForEach(exercises, id: \.persistentModelID) { exercise in
             ExerciceEntryCard(
                 exerciseEntry: exercise,
+                executionBlock: workout.orderedExecutionBlocks.first { $0.id == exercise.executionBlockID },
                 viewModel: viewModel,
                 onButtonPress: { viewModel.startTime(after: exercise) },
                 unitSystem: unitSystem,
@@ -564,7 +682,8 @@ struct ActiveWorkoutView: View {
             if let set = exercise.orderedSets.first(where: { !$0.done }) {
                 focusedInput = SetInputFocus(
                     exerciseID: exercise.persistentModelID,
-                    setID: set.persistentModelID
+                    setID: set.persistentModelID,
+                    field: exercise.trackingTypeSnapshot.usesWeight ? .weight : .repetitions
                 )
             }
         }

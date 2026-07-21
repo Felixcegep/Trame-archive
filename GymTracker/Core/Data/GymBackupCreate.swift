@@ -64,7 +64,29 @@ extension BackupDTO {
                         notes: te.notes,
                         progressionRule: te.progressionRule.rawValue,
                         supersetGroupID: te.supersetGroupID?.uuidString,
-                        progressionKey: te.progressionKey
+                        progressionKey: te.progressionKey,
+                        executionBlockID: te.executionBlockID?.uuidString,
+                        executionBlockComponentOrder: te.executionBlockComponentOrder
+                    )
+                },
+                executionBlocks: template.orderedExecutionBlocks.map { block in
+                    TemplateExerciseBlockDTO(
+                        id: block.id.uuidString,
+                        orderIndex: block.orderIndex,
+                        kind: block.kind.rawValue,
+                        name: block.name,
+                        targetRounds: block.targetRounds,
+                        isSharedLoad: block.isSharedLoad,
+                        restSeconds: block.restSeconds,
+                        clockMode: block.clockMode.rawValue,
+                        prescribedDurationSeconds: block.prescribedDurationSeconds,
+                        timeCapSeconds: block.timeCapSeconds,
+                        intervalSeconds: block.intervalSeconds,
+                        scoreKind: block.scoreKind.rawValue,
+                        repetitionScheme: block.repetitionScheme.rawValue,
+                        repetitionStart: block.repetitionStart,
+                        repetitionEnd: block.repetitionEnd,
+                        repetitionStep: block.repetitionStep
                     )
                 }
             )
@@ -117,6 +139,30 @@ extension BackupDTO {
                             rir: set.rir,
                             liftQuality: set.liftQuality?.rawValue,
                             meanVelocity: set.meanVelocity,
+                            peakVelocity: set.peakVelocity,
+                            velocityMeasurementSource: set.velocityMeasurementSource?.rawValue,
+                            specializedMetricKind: set.specializedMetricKind.rawValue,
+                            jumpHeightMeters: set.jumpHeightMeters,
+                            contactTimeMilliseconds: set.contactTimeMilliseconds,
+                            throwDistanceMeters: set.throwDistanceMeters,
+                            kettlebellCadenceRPM: set.kettlebellCadenceRPM,
+                            specializedMetricMeasurementSource: set.specializedMetricMeasurementSource?.rawValue,
+                            setMethod: set.setMethod.rawValue,
+                            segments: set.orderedSegments.map { segment in
+                                ExerciseSetSegmentDTO(
+                                    id: segment.id.uuidString,
+                                    orderIndex: segment.orderIndex,
+                                    repetitions: segment.repetitions,
+                                    weight: segment.weight,
+                                    weightType: segment.weightType.rawValue,
+                                    duration: segment.duration,
+                                    restAfterSeconds: segment.restAfterSeconds,
+                                    done: segment.done,
+                                    variationNote: segment.variationNote,
+                                    rpe: segment.rpe,
+                                    rir: segment.rir
+                                )
+                            },
                             setType: set.setType.rawValue,
                             isSelectedDailyMaximum: set.isSelectedDailyMaximum,
                             generatedBackOffDefinitionID: set.generatedBackOffDefinitionID?.uuidString,
@@ -177,6 +223,8 @@ extension BackupDTO {
                         accumulatedActiveDuration: exercise.accumulatedActiveDuration,
                         activeDurationStartedAt: exercise.activeDurationStartedAt,
                         supersetGroupID: exercise.supersetGroupID?.uuidString,
+                        executionBlockID: exercise.executionBlockID?.uuidString,
+                        executionBlockComponentOrder: exercise.executionBlockComponentOrder,
                         originalExerciseIDSnapshot: exercise.originalExerciseIDSnapshot?.uuidString,
                         originalExerciseNameSnapshot: exercise.originalExerciseNameSnapshot,
                         selectedSubstituteExerciseIDSnapshot: exercise.selectedSubstituteExerciseIDSnapshot?.uuidString,
@@ -187,6 +235,36 @@ extension BackupDTO {
                         prescriptionDefinitionData: exercise.prescriptionDefinitionData,
                         prescriptionRulesData: exercise.prescriptionRulesData,
                         deferredBackOffDefinitionsData: exercise.deferredBackOffDefinitionsData
+                    )
+                },
+                executionBlocks: workout.orderedExecutionBlocks.map { block in
+                    WorkoutExecutionBlockDTO(
+                        id: block.id.uuidString,
+                        orderIndex: block.orderIndex,
+                        kind: block.kind.rawValue,
+                        name: block.name,
+                        targetRounds: block.targetRounds,
+                        isSharedLoad: block.isSharedLoad,
+                        restSeconds: block.restSeconds,
+                        clockMode: block.clockMode.rawValue,
+                        prescribedDurationSeconds: block.prescribedDurationSeconds,
+                        timeCapSeconds: block.timeCapSeconds,
+                        intervalSeconds: block.intervalSeconds,
+                        scoreKind: block.scoreKind.rawValue,
+                        repetitionScheme: block.repetitionScheme.rawValue,
+                        repetitionStart: block.repetitionStart,
+                        repetitionEnd: block.repetitionEnd,
+                        repetitionStep: block.repetitionStep,
+                        status: block.status.rawValue,
+                        completedRounds: block.completedRounds,
+                        additionalRepetitions: block.additionalRepetitions,
+                        scoreValue: block.scoreValue,
+                        scoreTiebreakValue: block.scoreTiebreakValue,
+                        accumulatedElapsedDuration: block.accumulatedElapsedDuration,
+                        elapsedStartedAt: block.elapsedStartedAt,
+                        sourceTemplateBlockID: block.sourceTemplateBlockID?.uuidString,
+                        sourcePlannedBlockID: block.sourcePlannedBlockID?.uuidString,
+                        sourceDefinitionBlockKey: block.sourceDefinitionBlockKey
                     )
                 }
             )
@@ -260,6 +338,8 @@ extension BackupDTO {
                                                     .sorted { $0.orderIndex < $1.orderIndex }
                                                     .map { $0.exercise.name },
                                                 supersetGroupID: plannedExercise.supersetGroupID?.uuidString,
+                                                executionBlockID: plannedExercise.executionBlockID?.uuidString,
+                                                executionBlockComponentOrder: plannedExercise.executionBlockComponentOrder,
                                                 plannedSets: plannedExercise.orderedPlannedSets.map { plannedSet in
                                                     PlannedSetDTO(
                                                         orderIndex: plannedSet.orderIndex,
@@ -292,6 +372,28 @@ extension BackupDTO {
                                                 automaticDeloadVolumeReductionPercent: plannedExercise.automaticDeloadVolumeReductionPercent,
                                                 automaticDeloadIntensityReductionPercent: plannedExercise.automaticDeloadIntensityReductionPercent,
                                                 warmupSchemeData: plannedExercise.warmupSchemeData
+                                            )
+                                        },
+                                        executionBlocks: plannedWorkout.orderedExecutionBlocks.map { block in
+                                            PlannedExerciseBlockDTO(
+                                                id: block.id.uuidString,
+                                                orderIndex: block.orderIndex,
+                                                kind: block.kind.rawValue,
+                                                name: block.name,
+                                                targetRounds: block.targetRounds,
+                                                isSharedLoad: block.isSharedLoad,
+                                                restSeconds: block.restSeconds,
+                                                clockMode: block.clockMode.rawValue,
+                                                prescribedDurationSeconds: block.prescribedDurationSeconds,
+                                                timeCapSeconds: block.timeCapSeconds,
+                                                intervalSeconds: block.intervalSeconds,
+                                                scoreKind: block.scoreKind.rawValue,
+                                                repetitionScheme: block.repetitionScheme.rawValue,
+                                                repetitionStart: block.repetitionStart,
+                                                repetitionEnd: block.repetitionEnd,
+                                                repetitionStep: block.repetitionStep,
+                                                sourceTemplateBlockID: block.sourceTemplateBlockID?.uuidString,
+                                                definitionBlockKey: block.definitionBlockKey
                                             )
                                         }
                                     )

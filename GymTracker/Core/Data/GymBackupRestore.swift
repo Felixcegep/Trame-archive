@@ -140,6 +140,8 @@ extension BackupDTO {
                         progressionKey: teDTO.progressionKey
                     )
                     te.orderIndex = teDTO.orderIndex
+                    te.executionBlockID = teDTO.executionBlockID.flatMap(UUID.init(uuidString:))
+                    te.executionBlockComponentOrder = teDTO.executionBlockComponentOrder
                     templateExercises.append(te)
                 }
 
@@ -149,6 +151,33 @@ extension BackupDTO {
                     exercises: exercises,
                     templateExercises: templateExercises
                 )
+                newTemplate.executionBlocks = (templateDTO.executionBlocks ?? []).compactMap { blockDTO in
+                    guard let id = UUID(uuidString: blockDTO.id),
+                          let kind = ExerciseBlockKind(rawValue: blockDTO.kind),
+                          let clockMode = BlockClockMode(rawValue: blockDTO.clockMode),
+                          let scoreKind = BlockScoreKind(rawValue: blockDTO.scoreKind) else {
+                        return nil
+                    }
+                    let block = TemplateExerciseBlock(
+                        orderIndex: blockDTO.orderIndex,
+                        kind: kind,
+                        name: blockDTO.name,
+                        targetRounds: blockDTO.targetRounds,
+                        isSharedLoad: blockDTO.isSharedLoad,
+                        restSeconds: blockDTO.restSeconds,
+                        clockMode: clockMode,
+                        prescribedDurationSeconds: blockDTO.prescribedDurationSeconds,
+                        timeCapSeconds: blockDTO.timeCapSeconds,
+                        intervalSeconds: blockDTO.intervalSeconds,
+                        scoreKind: scoreKind,
+                        repetitionScheme: blockDTO.repetitionScheme.flatMap(BlockRepetitionScheme.init(rawValue:)) ?? .fixed,
+                        repetitionStart: blockDTO.repetitionStart,
+                        repetitionEnd: blockDTO.repetitionEnd,
+                        repetitionStep: blockDTO.repetitionStep
+                    )
+                    block.id = id
+                    return block
+                }
                 context.insert(newTemplate)
                 templateMap[newTemplate.name] = newTemplate
             }
@@ -255,6 +284,8 @@ extension BackupDTO {
                                     warmupSchemeData: plannedExerciseDTO.warmupSchemeData
                                 )
                                 plannedExercise.id = try requiredUUID(plannedExerciseDTO.id, named: "planned exercise")
+                                plannedExercise.executionBlockID = plannedExerciseDTO.executionBlockID.flatMap(UUID.init(uuidString:))
+                                plannedExercise.executionBlockComponentOrder = plannedExerciseDTO.executionBlockComponentOrder
                                 return plannedExercise
                             }
                             let plannedWorkout = PlannedWorkout(
@@ -268,6 +299,35 @@ extension BackupDTO {
                                 sourceTemplate: plannedWorkoutDTO.sourceTemplateName.flatMap { templateMap[$0] },
                                 plannedExercises: plannedExercises
                             )
+                            plannedWorkout.executionBlocks = (plannedWorkoutDTO.executionBlocks ?? []).compactMap { blockDTO in
+                                guard let id = UUID(uuidString: blockDTO.id),
+                                      let kind = ExerciseBlockKind(rawValue: blockDTO.kind),
+                                      let clockMode = BlockClockMode(rawValue: blockDTO.clockMode),
+                                      let scoreKind = BlockScoreKind(rawValue: blockDTO.scoreKind) else {
+                                    return nil
+                                }
+                                let block = PlannedExerciseBlock(
+                                    orderIndex: blockDTO.orderIndex,
+                                    kind: kind,
+                                    name: blockDTO.name,
+                                    targetRounds: blockDTO.targetRounds,
+                                    isSharedLoad: blockDTO.isSharedLoad,
+                                    restSeconds: blockDTO.restSeconds,
+                                    clockMode: clockMode,
+                                    prescribedDurationSeconds: blockDTO.prescribedDurationSeconds,
+                                    timeCapSeconds: blockDTO.timeCapSeconds,
+                                    intervalSeconds: blockDTO.intervalSeconds,
+                                    scoreKind: scoreKind,
+                                    repetitionScheme: blockDTO.repetitionScheme.flatMap(BlockRepetitionScheme.init(rawValue:)) ?? .fixed,
+                                    repetitionStart: blockDTO.repetitionStart,
+                                    repetitionEnd: blockDTO.repetitionEnd,
+                                    repetitionStep: blockDTO.repetitionStep,
+                                    sourceTemplateBlockID: blockDTO.sourceTemplateBlockID.flatMap(UUID.init(uuidString:)),
+                                    definitionBlockKey: blockDTO.definitionBlockKey
+                                )
+                                block.id = id
+                                return block
+                            }
                             plannedWorkout.id = try requiredUUID(plannedWorkoutDTO.id, named: "planned workout")
                             return plannedWorkout
                         }
@@ -401,6 +461,8 @@ extension BackupDTO {
                     entry.recommendationPriorWorkoutDate = entryDTO.recommendationPriorWorkoutDate
                     entry.accumulatedActiveDuration = entryDTO.accumulatedActiveDuration ?? 0
                     entry.activeDurationStartedAt = entryDTO.activeDurationStartedAt
+                    entry.executionBlockID = entryDTO.executionBlockID.flatMap(UUID.init(uuidString:))
+                    entry.executionBlockComponentOrder = entryDTO.executionBlockComponentOrder
                     entry.originalExerciseIDSnapshot = entryDTO.originalExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
                     entry.originalExerciseNameSnapshot = entryDTO.originalExerciseNameSnapshot
                     entry.selectedSubstituteExerciseIDSnapshot = entryDTO.selectedSubstituteExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
@@ -431,6 +493,15 @@ extension BackupDTO {
                             userOverrideAffectsFuture: setDTO.userOverrideAffectsFuture,
                             rpe: setDTO.rpe,
                             meanVelocity: setDTO.meanVelocity,
+                            peakVelocity: setDTO.peakVelocity,
+                            velocityMeasurementSource: setDTO.velocityMeasurementSource.flatMap(MeasurementSource.init(rawValue:)),
+                            specializedMetricKind: setDTO.specializedMetricKind.flatMap(SpecializedPerformanceMetricKind.init(rawValue:)) ?? .none,
+                            jumpHeightMeters: setDTO.jumpHeightMeters,
+                            contactTimeMilliseconds: setDTO.contactTimeMilliseconds,
+                            throwDistanceMeters: setDTO.throwDistanceMeters,
+                            kettlebellCadenceRPM: setDTO.kettlebellCadenceRPM,
+                            specializedMetricMeasurementSource: setDTO.specializedMetricMeasurementSource.flatMap(MeasurementSource.init(rawValue:)),
+                            setMethod: setDTO.setMethod.flatMap(SetMethod.init(rawValue:)) ?? .standard,
                             setType: setType,
                             orderIndex: setDTO.orderIndex,
                             usedMetric: setUsedMetric
@@ -461,6 +532,23 @@ extension BackupDTO {
                         setObj.prescriptionDefinitionData = setDTO.prescriptionDefinitionData
                         setObj.rir = setDTO.rir
                         setObj.liftQuality = setDTO.liftQuality.flatMap(LiftQuality.init(rawValue:))
+                        setObj.segments = (setDTO.segments ?? []).compactMap { segmentDTO in
+                            guard let segmentID = UUID(uuidString: segmentDTO.id) else { return nil }
+                            let segment = ExerciseSetSegment(
+                                orderIndex: segmentDTO.orderIndex,
+                                repetitions: segmentDTO.repetitions,
+                                weight: segmentDTO.weight,
+                                weightType: WeightType(rawValue: segmentDTO.weightType) ?? .kg,
+                                duration: segmentDTO.duration,
+                                restAfterSeconds: segmentDTO.restAfterSeconds,
+                                done: segmentDTO.done,
+                                variationNote: segmentDTO.variationNote,
+                                rpe: segmentDTO.rpe,
+                                rir: segmentDTO.rir
+                            )
+                            segment.id = segmentID
+                            return segment
+                        }
                         setObj.isSelectedDailyMaximum = setDTO.isSelectedDailyMaximum ?? false
                         setObj.generatedBackOffDefinitionID = setDTO.generatedBackOffDefinitionID.flatMap(UUID.init(uuidString:))
                         if let id = setDTO.id.flatMap(UUID.init(uuidString:)) {
@@ -472,6 +560,44 @@ extension BackupDTO {
                     exercises.append(entry)
                 }
                 newWorkout.exercises = exercises
+                newWorkout.executionBlocks = (workoutDTO.executionBlocks ?? []).compactMap { blockDTO in
+                    guard let blockID = UUID(uuidString: blockDTO.id),
+                          let kind = ExerciseBlockKind(rawValue: blockDTO.kind),
+                          let clockMode = BlockClockMode(rawValue: blockDTO.clockMode),
+                          let scoreKind = BlockScoreKind(rawValue: blockDTO.scoreKind),
+                          let status = WorkoutBlockStatus(rawValue: blockDTO.status) else {
+                        return nil
+                    }
+                    let block = WorkoutExecutionBlock(
+                        orderIndex: blockDTO.orderIndex,
+                        kind: kind,
+                        name: blockDTO.name,
+                        targetRounds: blockDTO.targetRounds,
+                        isSharedLoad: blockDTO.isSharedLoad,
+                        restSeconds: blockDTO.restSeconds,
+                        clockMode: clockMode,
+                        prescribedDurationSeconds: blockDTO.prescribedDurationSeconds,
+                        timeCapSeconds: blockDTO.timeCapSeconds,
+                        intervalSeconds: blockDTO.intervalSeconds,
+                        scoreKind: scoreKind,
+                        repetitionScheme: blockDTO.repetitionScheme.flatMap(BlockRepetitionScheme.init(rawValue:)) ?? .fixed,
+                        repetitionStart: blockDTO.repetitionStart,
+                        repetitionEnd: blockDTO.repetitionEnd,
+                        repetitionStep: blockDTO.repetitionStep
+                    )
+                    block.id = blockID
+                    block.status = status
+                    block.completedRounds = blockDTO.completedRounds
+                    block.additionalRepetitions = blockDTO.additionalRepetitions
+                    block.scoreValue = blockDTO.scoreValue
+                    block.scoreTiebreakValue = blockDTO.scoreTiebreakValue
+                    block.accumulatedElapsedDuration = blockDTO.accumulatedElapsedDuration
+                    block.elapsedStartedAt = blockDTO.elapsedStartedAt
+                    block.sourceTemplateBlockID = blockDTO.sourceTemplateBlockID.flatMap(UUID.init(uuidString:))
+                    block.sourcePlannedBlockID = blockDTO.sourcePlannedBlockID.flatMap(UUID.init(uuidString:))
+                    block.sourceDefinitionBlockKey = blockDTO.sourceDefinitionBlockKey
+                    return block
+                }
                 context.insert(newWorkout)
                 if let identifier = workoutDTO.id {
                     workoutMap[identifier] = newWorkout

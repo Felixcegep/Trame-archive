@@ -31,6 +31,23 @@ final class ExerciseSet {
     var rir: Int?
     var liftQuality: LiftQuality?
     var meanVelocity: Double?
+    /// Peak concentric velocity in metres per second. It is optional because
+    /// manual and device capture are both opt-in and absent data is never zero.
+    var peakVelocity: Double?
+    var velocityMeasurementSource: MeasurementSource?
+    var specializedMetricKind: SpecializedPerformanceMetricKind = SpecializedPerformanceMetricKind.none
+    /// Measured vertically in metres; presentation can convert to the user's
+    /// preferred unit without losing a stable analytical unit.
+    var jumpHeightMeters: Double?
+    /// Ground-contact duration in milliseconds for reactive jump work.
+    var contactTimeMilliseconds: Double?
+    /// Distance in metres for throws and comparable strongman events.
+    var throwDistanceMeters: Double?
+    /// Repetitions per minute for kettlebell and cyclical implement work.
+    var kettlebellCadenceRPM: Double?
+    var specializedMetricMeasurementSource: MeasurementSource?
+    /// Independent from `setType`: describes how the work was performed.
+    var setMethod: SetMethod = SetMethod.standard
     var setType: SetType = SetType.normal
     /// For a daily-maximum exposure, the lifter can choose which completed
     /// attempt supplies same-session derived back-off work.
@@ -68,6 +85,8 @@ final class ExerciseSet {
     var prescriptionDefinitionData: Data?
     var usedMetric : UnitSystem
     var exerciseEntry: ExerciseEntry?
+    @Relationship(deleteRule: .cascade, inverse: \ExerciseSetSegment.exerciseSet)
+    var segments: [ExerciseSetSegment] = []
     init(
         repetitions: Float = 0,
         weight: Float = 0,
@@ -84,6 +103,15 @@ final class ExerciseSet {
         rir: Int? = nil,
         liftQuality: LiftQuality? = nil,
         meanVelocity: Double? = nil,
+        peakVelocity: Double? = nil,
+        velocityMeasurementSource: MeasurementSource? = nil,
+        specializedMetricKind: SpecializedPerformanceMetricKind = .none,
+        jumpHeightMeters: Double? = nil,
+        contactTimeMilliseconds: Double? = nil,
+        throwDistanceMeters: Double? = nil,
+        kettlebellCadenceRPM: Double? = nil,
+        specializedMetricMeasurementSource: MeasurementSource? = nil,
+        setMethod: SetMethod = .standard,
         setType: SetType = .normal,
         orderIndex: Int = 0,
         usedMetric : UnitSystem
@@ -104,6 +132,15 @@ final class ExerciseSet {
         self.rir = rir
         self.liftQuality = liftQuality
         self.meanVelocity = meanVelocity
+        self.peakVelocity = peakVelocity
+        self.velocityMeasurementSource = velocityMeasurementSource
+        self.specializedMetricKind = specializedMetricKind
+        self.jumpHeightMeters = jumpHeightMeters
+        self.contactTimeMilliseconds = contactTimeMilliseconds
+        self.throwDistanceMeters = throwDistanceMeters
+        self.kettlebellCadenceRPM = kettlebellCadenceRPM
+        self.specializedMetricMeasurementSource = specializedMetricMeasurementSource
+        self.setMethod = setMethod
         self.setType = setType
         self.isSelectedDailyMaximum = false
         self.generatedBackOffDefinitionID = nil
@@ -130,6 +167,7 @@ final class ExerciseSet {
         self.prescriptionNotes = nil
         self.prescriptionDefinitionData = nil
         self.usedMetric = usedMetric
+        self.segments = []
     }
 
     func copy() -> ExerciseSet {
@@ -146,6 +184,15 @@ final class ExerciseSet {
             rir: rir,
             liftQuality: liftQuality,
             meanVelocity: meanVelocity,
+            peakVelocity: peakVelocity,
+            velocityMeasurementSource: velocityMeasurementSource,
+            specializedMetricKind: specializedMetricKind,
+            jumpHeightMeters: jumpHeightMeters,
+            contactTimeMilliseconds: contactTimeMilliseconds,
+            throwDistanceMeters: throwDistanceMeters,
+            kettlebellCadenceRPM: kettlebellCadenceRPM,
+            specializedMetricMeasurementSource: specializedMetricMeasurementSource,
+            setMethod: setMethod,
             setType: setType,
             orderIndex: 0,
             usedMetric: usedMetric
@@ -182,7 +229,47 @@ final class ExerciseSet {
         // maximum cannot create two reference attempts.
         copy.isSelectedDailyMaximum = false
         copy.generatedBackOffDefinitionID = nil
+        copy.segments = orderedSegments.map { segment in
+            ExerciseSetSegment(
+                orderIndex: segment.orderIndex,
+                repetitions: segment.repetitions,
+                weight: segment.weight,
+                weightType: segment.weightType,
+                duration: segment.duration,
+                restAfterSeconds: segment.restAfterSeconds,
+                done: false,
+                variationNote: segment.variationNote,
+                rpe: segment.rpe,
+                rir: segment.rir
+            )
+        }
         return copy
+    }
+
+    /// Initializes internal evidence only when a segmented method is selected.
+    /// Existing segments are never overwritten by a method change, preserving
+    /// recorded work instead of silently fabricating or deleting history.
+    func ensureSegmentsForMethod() {
+        let requiredCount = setMethod.minimumSegmentCount
+        guard requiredCount > 0, segments.count < requiredCount else { return }
+        for index in segments.count..<requiredCount {
+            segments.append(ExerciseSetSegment(
+                orderIndex: index,
+                repetitions: repetitions,
+                weight: weight,
+                weightType: weightType,
+                restAfterSeconds: index + 1 < requiredCount ? setMethod.defaultInterSegmentRestSeconds : nil
+            ))
+        }
+        normalizeSegmentOrder()
+    }
+
+    /// Segments are evidence inside this one set, so they share the parent
+    /// completion transition and never become independently completable work.
+    func synchronizeSegmentCompletion() {
+        for segment in segments {
+            segment.done = done
+        }
     }
 
     /// Removes prescription evidence when the user intentionally creates a
@@ -228,5 +315,19 @@ final class ExerciseSet {
         }
 
         return "\(Int(repetitions)) reps"
+    }
+
+    var orderedSegments: [ExerciseSetSegment] {
+        segments.sorted { lhs, rhs in
+            lhs.orderIndex == rhs.orderIndex
+                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
+                : lhs.orderIndex < rhs.orderIndex
+        }
+    }
+
+    func normalizeSegmentOrder() {
+        for (index, segment) in orderedSegments.enumerated() {
+            segment.orderIndex = index
+        }
     }
 }

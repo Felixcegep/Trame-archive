@@ -13,6 +13,19 @@ struct DefaultsKey {
     static let checkInReminderMinute = "checkInReminderMinute"
     static let bodyWeightPromptCadence = "bodyWeightPromptCadence"
     static let caffeineBirthdateTimestamp = "caffeineBirthdateTimestamp"
+    static let effortMeasure = "effortMeasure"
+}
+
+enum EffortMeasure: String, CaseIterable {
+    case rir
+    case rpe
+
+    var title: String {
+        switch self {
+        case .rir: "Reps in reserve (RIR)"
+        case .rpe: "Rate of perceived exertion (RPE)"
+        }
+    }
 }
 
 extension UserDefaults {

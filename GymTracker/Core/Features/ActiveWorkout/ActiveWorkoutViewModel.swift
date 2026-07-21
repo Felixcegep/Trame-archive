@@ -138,8 +138,14 @@ class ActiveWorkoutViewModel {
         currentSet.duration = previousSet.duration
         currentSet.distance = previousSet.distance
         currentSet.calories = previousSet.calories
-        currentSet.rpe = previousSet.rpe
-        currentSet.rir = previousSet.rir
+        // Performed effort is intentionally exclusive for a new logged set.
+        // Legacy history may contain both values, but copying it forward must
+        // retain one unambiguous measure.
+        if let rir = previousSet.rir {
+            currentSet.recordRIR(rir)
+        } else {
+            currentSet.recordRPE(previousSet.rpe)
+        }
         currentSet.liftQuality = previousSet.liftQuality
         currentSet.isUserOverridden = currentSet.prescribedSetType != nil
             || currentSet.prescribedRepetitions != nil
@@ -265,6 +271,10 @@ class ActiveWorkoutViewModel {
         }
 
         set.done.toggle()
+        // Segments are internal evidence for this one performed set, not
+        // independently counted top-level work. Their completion follows the
+        // parent attempt so an undo restores a coherent in-progress state.
+        set.synchronizeSegmentCompletion()
         if !set.done {
             // A selected source must remain a completed performed attempt.
             // Derived work falls back to the latest remaining completed
@@ -333,14 +343,24 @@ class ActiveWorkoutViewModel {
             )
         }
 
-        guard let restSeconds else {
+        startRest(seconds: restSeconds)
+    }
+
+    func startRest(after block: WorkoutExecutionBlock) {
+        startRest(seconds: block.restSeconds)
+    }
+
+    private func startRest(seconds: Int?) {
+        guard let workout = workoutVM.activeWorkout else { return }
+
+        guard let seconds, seconds > 0 else {
             workout.restEndDate = nil
             workout.pausedRemainingTime = nil
             persistChanges()
             workoutVM.reconcileLiveActivity()
             return
         }
-        let timerEndDate = Date.now.addingTimeInterval(TimeInterval(restSeconds))
+        let timerEndDate = Date.now.addingTimeInterval(TimeInterval(seconds))
 
         workout.restEndDate = timerEndDate
         workout.pausedRemainingTime = nil

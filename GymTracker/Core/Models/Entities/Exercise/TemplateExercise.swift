@@ -9,6 +9,8 @@ final class TemplateExercise {
     /// Membership in a contiguous superset. This identifier belongs to this
     /// prescription only; each workout snapshot receives fresh identifiers.
     var supersetGroupID: UUID?
+    var executionBlockID: UUID?
+    var executionBlockComponentOrder: Int?
     var targetSets: Int
     var repRangeMinimum: Int
     var repRangeMaximum: Int
@@ -46,5 +48,7 @@ final class TemplateExercise {
         self.notes = notes
         self.progressionRule = progressionRule
         self.supersetGroupID = supersetGroupID
+        self.executionBlockID = nil
+        self.executionBlockComponentOrder = nil
     }
 }

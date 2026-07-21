@@ -226,6 +226,17 @@ final class ProgramSnapshotIntegrationTests: XCTestCase {
     }
 
     func testGeneratedWarmupsSnapshotBeforeWorkingSetsWithoutChangingWorkingTarget() throws {
+        let defaults = UserDefaults.standard
+        let priorUnitSystem = defaults.object(forKey: DefaultsKey.useMetric)
+        defaults.set(UnitSystem.metric.rawValue, forKey: DefaultsKey.useMetric)
+        defer {
+            if let priorUnitSystem {
+                defaults.set(priorUnitSystem, forKey: DefaultsKey.useMetric)
+            } else {
+                defaults.removeObject(forKey: DefaultsKey.useMetric)
+            }
+        }
+
         let context = try makeContext()
         let exercise = Exercise(
             name: "Warm-up Squat",

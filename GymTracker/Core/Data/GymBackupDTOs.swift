@@ -56,11 +56,33 @@ nonisolated struct TemplateExerciseDTO: Codable {
     let progressionRule: String?
     var supersetGroupID: String? = nil
     var progressionKey: String? = nil
+    var executionBlockID: String? = nil
+    var executionBlockComponentOrder: Int? = nil
+}
+
+nonisolated struct TemplateExerciseBlockDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let kind: String
+    let name: String?
+    let targetRounds: Int?
+    let isSharedLoad: Bool
+    let restSeconds: Int?
+    let clockMode: String
+    let prescribedDurationSeconds: Int?
+    let timeCapSeconds: Int?
+    let intervalSeconds: Int?
+    let scoreKind: String
+    var repetitionScheme: String? = nil
+    var repetitionStart: Int? = nil
+    var repetitionEnd: Int? = nil
+    var repetitionStep: Int? = nil
 }
 
 nonisolated struct WorkoutTemplateDTO: Codable {
     let name: String
     let templateExercises: [TemplateExerciseDTO]
+    var executionBlocks: [TemplateExerciseBlockDTO]? = nil
 }
 
 nonisolated struct WorkoutCollectionDTO: Codable {
@@ -85,6 +107,16 @@ nonisolated struct ExerciseSetDTO: Codable {
     var rir: Int? = nil
     var liftQuality: String? = nil
     var meanVelocity: Double? = nil
+    var peakVelocity: Double? = nil
+    var velocityMeasurementSource: String? = nil
+    var specializedMetricKind: String? = nil
+    var jumpHeightMeters: Double? = nil
+    var contactTimeMilliseconds: Double? = nil
+    var throwDistanceMeters: Double? = nil
+    var kettlebellCadenceRPM: Double? = nil
+    var specializedMetricMeasurementSource: String? = nil
+    var setMethod: String? = nil
+    var segments: [ExerciseSetSegmentDTO]? = nil
     let setType: String
     var isSelectedDailyMaximum: Bool? = nil
     var generatedBackOffDefinitionID: String? = nil
@@ -112,6 +144,20 @@ nonisolated struct ExerciseSetDTO: Codable {
     var prescriptionNotes: String? = nil
     var prescriptionDefinitionData: Data? = nil
     var id: String? = nil
+}
+
+nonisolated struct ExerciseSetSegmentDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let repetitions: Float
+    let weight: Float
+    let weightType: String
+    let duration: TimeInterval?
+    let restAfterSeconds: Int?
+    let done: Bool
+    let variationNote: String?
+    let rpe: Int?
+    let rir: Int?
 }
 
 nonisolated struct ExerciseEntryDTO: Codable {
@@ -146,6 +192,8 @@ nonisolated struct ExerciseEntryDTO: Codable {
     let accumulatedActiveDuration: Double?
     let activeDurationStartedAt: Date?
     var supersetGroupID: String? = nil
+    var executionBlockID: String? = nil
+    var executionBlockComponentOrder: Int? = nil
     var originalExerciseIDSnapshot: String? = nil
     var originalExerciseNameSnapshot: String? = nil
     var selectedSubstituteExerciseIDSnapshot: String? = nil
@@ -177,6 +225,36 @@ nonisolated struct WorkoutDTO: Codable {
     var sourceProgramDefinitionID: String? = nil
     var sourceProgramDefinitionVersion: Int? = nil
     let exercises: [ExerciseEntryDTO]
+    var executionBlocks: [WorkoutExecutionBlockDTO]? = nil
+}
+
+nonisolated struct WorkoutExecutionBlockDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let kind: String
+    let name: String?
+    let targetRounds: Int?
+    let isSharedLoad: Bool
+    let restSeconds: Int?
+    let clockMode: String
+    let prescribedDurationSeconds: Int?
+    let timeCapSeconds: Int?
+    let intervalSeconds: Int?
+    let scoreKind: String
+    var repetitionScheme: String? = nil
+    var repetitionStart: Int? = nil
+    var repetitionEnd: Int? = nil
+    var repetitionStep: Int? = nil
+    let status: String
+    let completedRounds: Int
+    let additionalRepetitions: Int
+    let scoreValue: Double?
+    let scoreTiebreakValue: Double?
+    let accumulatedElapsedDuration: TimeInterval
+    let elapsedStartedAt: Date?
+    let sourceTemplateBlockID: String?
+    let sourcePlannedBlockID: String?
+    let sourceDefinitionBlockKey: String?
 }
 
 nonisolated struct PlannedExerciseDTO: Codable {
@@ -198,6 +276,8 @@ nonisolated struct PlannedExerciseDTO: Codable {
     var stimulus: String? = nil
     var alternativeExerciseNames: [String]? = nil
     var supersetGroupID: String? = nil
+    var executionBlockID: String? = nil
+    var executionBlockComponentOrder: Int? = nil
     var plannedSets: [PlannedSetDTO]? = nil
     var progressionKey: String? = nil
     var progressionRulesData: Data? = nil
@@ -311,6 +391,28 @@ nonisolated struct PlannedWorkoutDTO: Codable {
     let notes: String?
     let sourceTemplateName: String?
     let plannedExercises: [PlannedExerciseDTO]
+    var executionBlocks: [PlannedExerciseBlockDTO]? = nil
+}
+
+nonisolated struct PlannedExerciseBlockDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let kind: String
+    let name: String?
+    let targetRounds: Int?
+    let isSharedLoad: Bool
+    let restSeconds: Int?
+    let clockMode: String
+    let prescribedDurationSeconds: Int?
+    let timeCapSeconds: Int?
+    let intervalSeconds: Int?
+    let scoreKind: String
+    var repetitionScheme: String? = nil
+    var repetitionStart: Int? = nil
+    var repetitionEnd: Int? = nil
+    var repetitionStep: Int? = nil
+    let sourceTemplateBlockID: String?
+    let definitionBlockKey: String?
 }
 
 nonisolated struct PlanWeekDTO: Codable {
@@ -659,7 +761,10 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     static let mobilityVersion = 7
     static let nutritionVersion = 8
     static let bodyWeightVersion = 9
-    static let currentVersion = bodyWeightVersion
+    static let strengthExpansionVersion = 10
+    static let advancedMetricsVersion = 11
+    static let formatSchemesVersion = 12
+    static let currentVersion = formatSchemesVersion
 
     init(
         version: Int,

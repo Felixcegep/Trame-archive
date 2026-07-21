@@ -11,6 +11,8 @@ class WorkoutTemplate {
     var name: String
     @Relationship(deleteRule: .cascade, inverse: \TemplateExercise.workoutTemplate)
     var templateExercises: [TemplateExercise] = []
+    @Relationship(deleteRule: .cascade, inverse: \TemplateExerciseBlock.workoutTemplate)
+    var executionBlocks: [TemplateExerciseBlock] = []
     @Relationship(deleteRule: .nullify, inverse: \WorkoutCollection.workoutTemplates)
     var workoutCollections: [WorkoutCollection] = []
     @Relationship(deleteRule: .nullify, inverse: \Workout.sourceTemplate)
@@ -37,6 +39,10 @@ class WorkoutTemplate {
 
     var exercises: [Exercise] {
         orderedTemplateExercises.map(\.exercise)
+    }
+
+    var orderedExecutionBlocks: [TemplateExerciseBlock] {
+        executionBlocks.sorted { $0.orderIndex < $1.orderIndex }
     }
 
     func normalizeTemplateExerciseOrder() {

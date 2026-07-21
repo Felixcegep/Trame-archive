@@ -57,12 +57,14 @@ enum PlanCoordinator {
             PlanWeek(
                 weekIndex: weekIndex,
                 plannedWorkouts: assignments.enumerated().map { workoutIndex, assignment in
-                    PlannedWorkout(
+                    let content = copiedWorkoutContent(from: assignment.template)
+                    return PlannedWorkout(
                         name: assignment.template.name,
                         orderIndex: workoutIndex,
                         dayOffset: assignment.dayOffset,
                         sourceTemplate: assignment.template,
-                        plannedExercises: copiedExercises(from: assignment.template)
+                        plannedExercises: content.exercises,
+                        executionBlocks: content.executionBlocks
                     )
                 }
             )
@@ -493,9 +495,34 @@ enum PlanCoordinator {
         }
     }
 
-    private static func copiedExercises(from template: WorkoutTemplate) -> [PlannedExercise] {
+    private static func copiedWorkoutContent(
+        from template: WorkoutTemplate
+    ) -> (exercises: [PlannedExercise], executionBlocks: [PlannedExerciseBlock]) {
         var copiedGroupIDs: [UUID: UUID] = [:]
-        return template.orderedTemplateExercises.enumerated().map { index, templateExercise in
+        var copiedBlockIDs: [UUID: UUID] = [:]
+        let executionBlocks = template.orderedExecutionBlocks.map { source in
+            let block = PlannedExerciseBlock(
+                orderIndex: source.orderIndex,
+                kind: source.kind,
+                name: source.name,
+                targetRounds: source.targetRounds,
+                isSharedLoad: source.isSharedLoad,
+                restSeconds: source.restSeconds,
+                clockMode: source.clockMode,
+                prescribedDurationSeconds: source.prescribedDurationSeconds,
+                timeCapSeconds: source.timeCapSeconds,
+                intervalSeconds: source.intervalSeconds,
+                scoreKind: source.scoreKind,
+                repetitionScheme: source.repetitionScheme,
+                repetitionStart: source.repetitionStart,
+                repetitionEnd: source.repetitionEnd,
+                repetitionStep: source.repetitionStep,
+                sourceTemplateBlockID: source.id
+            )
+            copiedBlockIDs[source.id] = block.id
+            return block
+        }
+        let exercises = template.orderedTemplateExercises.enumerated().map { index, templateExercise in
             let groupID: UUID?
             if let sourceID = templateExercise.supersetGroupID {
                 if let existingID = copiedGroupIDs[sourceID] {
@@ -508,7 +535,7 @@ enum PlanCoordinator {
             } else {
                 groupID = nil
             }
-            return PlannedExercise(
+            let exercise = PlannedExercise(
                 exercise: templateExercise.exercise,
                 orderIndex: index,
                 targetSets: templateExercise.targetSets,
@@ -522,7 +549,13 @@ enum PlanCoordinator {
                 supersetGroupID: groupID,
                 progressionKey: templateExercise.progressionKey
             )
+            if let sourceBlockID = templateExercise.executionBlockID {
+                exercise.executionBlockID = copiedBlockIDs[sourceBlockID]
+                exercise.executionBlockComponentOrder = templateExercise.executionBlockComponentOrder
+            }
+            return exercise
         }
+        return (exercises, executionBlocks)
     }
 
     private static func normalizedEquipment(_ equipment: [EquipmentType]) -> [EquipmentType] {

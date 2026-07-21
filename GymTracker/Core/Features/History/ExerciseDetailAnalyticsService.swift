@@ -9,6 +9,26 @@ struct ExerciseSessionSet: Equatable, Sendable {
     let weight: Float
     let weightType: WeightType
     let setType: SetType
+    let setMethod: SetMethod
+    let hasSegments: Bool
+
+    init(
+        orderIndex: Int,
+        repetitions: Float,
+        weight: Float,
+        weightType: WeightType,
+        setType: SetType,
+        setMethod: SetMethod = .standard,
+        hasSegments: Bool = false
+    ) {
+        self.orderIndex = orderIndex
+        self.repetitions = repetitions
+        self.weight = weight
+        self.weightType = weightType
+        self.setType = setType
+        self.setMethod = setMethod
+        self.hasSegments = hasSegments
+    }
 }
 
 struct ExerciseSession: Equatable, Sendable {
@@ -26,7 +46,7 @@ struct ExerciseSession: Equatable, Sendable {
 
     /// Sets that count toward strength metrics; a warm-up never does.
     var workingSets: [ExerciseSessionSet] {
-        sets.filter { $0.setType != .warmup }
+        sets.filter { $0.setType != .warmup && $0.setMethod == .standard && !$0.hasSegments }
     }
 }
 
@@ -198,7 +218,9 @@ struct ExerciseDetailAnalyticsService {
                         repetitions: $0.repetitions,
                         weight: $0.weight,
                         weightType: $0.weightType,
-                        setType: $0.setType
+                        setType: $0.setType,
+                        setMethod: $0.setMethod,
+                        hasSegments: !$0.segments.isEmpty
                     )
                 }
             guard !sets.isEmpty else { return nil }

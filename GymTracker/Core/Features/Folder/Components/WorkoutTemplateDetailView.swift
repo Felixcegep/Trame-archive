@@ -17,9 +17,38 @@ struct WorkoutTemplateDetailView: View {
 
     @State private var isShowingExercisePicker = false
     @State private var groupingExercise: TemplateExercise?
+    @State private var isShowingExecutionBlockBuilder = false
+    @State private var executionBlockToEdit: TemplateExerciseBlock?
 
     var body: some View {
         List {
+            if !template.orderedExecutionBlocks.isEmpty {
+                Section("Execution Blocks") {
+                    ForEach(template.orderedExecutionBlocks, id: \.persistentModelID) { block in
+                        HStack {
+                            Image(systemName: AppIcon.relationship)
+                                .foregroundStyle(Color.gymPrimary)
+                            VStack(alignment: .leading) {
+                                Text(block.name ?? block.kind.title)
+                                Text(templateBlockSummary(block))
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.gymSubduedText)
+                            }
+                            Spacer()
+                            Button("Edit") {
+                                executionBlockToEdit = block
+                            }
+                            .font(AppFont.captionBold)
+                            Button("Remove", role: .destructive) {
+                                TemplateExecutionBlockService.remove(block, from: template)
+                                modelContext.delete(block)
+                                saveModelContext(modelContext)
+                            }
+                            .font(AppFont.captionBold)
+                        }
+                    }
+                }
+            }
             Section("Exercises") {
                 if orderedTemplateExercises.isEmpty {
                     Text("No exercises in this workout")
@@ -65,12 +94,19 @@ struct WorkoutTemplateDetailView: View {
                 .disabled(orderedTemplateExercises.isEmpty)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isShowingExercisePicker = true
+                Menu {
+                    Button("Add exercise", systemImage: AppIcon.plus) {
+                        isShowingExercisePicker = true
+                    }
+                    Button("Add execution block", systemImage: AppIcon.relationship) {
+                        isShowingExecutionBlockBuilder = true
+                    }
+                    .disabled(orderedTemplateExercises.isEmpty)
+                    .accessibilityIdentifier("add-template-execution-block")
                 } label: {
-                    Image(systemName: "plus")
+                    Image(systemName: AppIcon.plus)
                 }
-                .disabled(exercisesToAdd.isEmpty)
+                .accessibilityIdentifier("template-add-menu")
             }
         }
         .sheet(isPresented: $isShowingExercisePicker) {
@@ -78,6 +114,16 @@ struct WorkoutTemplateDetailView: View {
                 ExercisePickerView(exercises: exercisesToAdd) { exercise in
                     addExercise(exercise)
                 }
+            }
+        }
+        .sheet(isPresented: $isShowingExecutionBlockBuilder) {
+            TemplateExecutionBlockBuilderSheet(template: template) {
+                saveModelContext(modelContext)
+            }
+        }
+        .sheet(item: $executionBlockToEdit) { block in
+            TemplateExecutionBlockBuilderSheet(template: template, blockToEdit: block) {
+                saveModelContext(modelContext)
             }
         }
         .confirmationDialog(
@@ -131,6 +177,7 @@ struct WorkoutTemplateDetailView: View {
         for prescription in prescriptionsToRemove {
             modelContext.delete(prescription)
         }
+        removeInvalidExecutionBlocks()
         template.normalizeTemplateExerciseOrder()
         saveModelContext(modelContext)
     }
@@ -171,5 +218,31 @@ struct WorkoutTemplateDetailView: View {
             components.append("RIR \(rir)")
         }
         return components.joined(separator: " · ")
+    }
+
+    private func templateBlockSummary(_ block: TemplateExerciseBlock) -> String {
+        let names = orderedTemplateExercises
+            .filter { $0.executionBlockID == block.id }
+            .sorted { ($0.executionBlockComponentOrder ?? .max) < ($1.executionBlockComponentOrder ?? .max) }
+            .map { $0.exercise.name }
+            .joined(separator: " · ")
+        return names
+    }
+
+    private func removeInvalidExecutionBlocks() {
+        let blocksToRemove = template.orderedExecutionBlocks.filter { block in
+            let count = template.templateExercises.filter { $0.executionBlockID == block.id }.count
+            return switch block.kind {
+            case .straight: count != 1
+            case .pairedSet: count != 2
+            case .triset: count != 3
+            case .giantSet: count < 4
+            default: count == 0
+            }
+        }
+        for block in blocksToRemove {
+            TemplateExecutionBlockService.remove(block, from: template)
+            modelContext.delete(block)
+        }
     }
 }

@@ -15,6 +15,11 @@ final class ExerciseEntry{
     /// Snapshot-local membership in a contiguous superset. It must never reuse
     /// a template or planned-workout identifier.
     var supersetGroupID: UUID?
+    /// Membership in a first-class execution block snapshot. This is separate
+    /// from the legacy superset identifier and enables circuits, complexes,
+    /// shared clocks, and scored work without changing progression ownership.
+    var executionBlockID: UUID?
+    var executionBlockComponentOrder: Int?
     var comment: String?
     var exercise: Exercise
     var usedMetric : UnitSystem
@@ -87,6 +92,8 @@ final class ExerciseEntry{
     ) {
         self.orderIndex = orderIndex
         self.supersetGroupID = supersetGroupID
+        self.executionBlockID = nil
+        self.executionBlockComponentOrder = nil
         self.comment = comment
         self.exercise = exercise
         self.sets = sets
@@ -306,6 +313,7 @@ final class ExerciseEntry{
     func normalizeSetOrder() {
         for (index, set) in orderedSets.enumerated() {
             set.orderIndex = index
+            set.normalizeSegmentOrder()
         }
     }
 

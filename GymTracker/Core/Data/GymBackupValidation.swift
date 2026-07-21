@@ -1,5 +1,21 @@
 import Foundation
 
+private struct ExecutionBlockValidationInput {
+    let id: String
+    let kind: String
+    let targetRounds: Int?
+    let restSeconds: Int?
+    let clockMode: String
+    let prescribedDurationSeconds: Int?
+    let timeCapSeconds: Int?
+    let intervalSeconds: Int?
+    let scoreKind: String
+    let repetitionScheme: String?
+    let repetitionStart: Int?
+    let repetitionEnd: Int?
+    let repetitionStep: Int?
+}
+
 enum BackupValidationError: LocalizedError {
     case unsupportedVersion(Int)
     case duplicateExerciseName(String)
@@ -46,7 +62,7 @@ enum BackupValidationError: LocalizedError {
 
 extension BackupDTO {
     func validate() throws {
-        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.mobilityVersion || version == Self.nutritionVersion || version == Self.currentVersion else {
+        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.mobilityVersion || version == Self.nutritionVersion || version == Self.bodyWeightVersion || version == Self.strengthExpansionVersion || version == Self.advancedMetricsVersion || version == Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
 
@@ -59,6 +75,27 @@ extension BackupDTO {
 
         let availableExerciseNames = Set(exerciseNames)
         for template in templates {
+            try validateExecutionBlockGraph(
+                template.executionBlocks?.map {
+                    ExecutionBlockValidationInput(
+                        id: $0.id,
+                        kind: $0.kind,
+                        targetRounds: $0.targetRounds,
+                        restSeconds: $0.restSeconds,
+                        clockMode: $0.clockMode,
+                        prescribedDurationSeconds: $0.prescribedDurationSeconds,
+                        timeCapSeconds: $0.timeCapSeconds,
+                        intervalSeconds: $0.intervalSeconds,
+                        scoreKind: $0.scoreKind,
+                        repetitionScheme: $0.repetitionScheme,
+                        repetitionStart: $0.repetitionStart,
+                        repetitionEnd: $0.repetitionEnd,
+                        repetitionStep: $0.repetitionStep
+                    )
+                } ?? [],
+                memberships: template.templateExercises.map { ($0.executionBlockID, $0.executionBlockComponentOrder) },
+                named: "template execution block"
+            )
             for templateExercise in template.templateExercises where !availableExerciseNames.contains(templateExercise.exerciseName) {
                 throw BackupValidationError.missingExercise(templateExercise.exerciseName)
             }
@@ -77,8 +114,36 @@ extension BackupDTO {
         }
 
         for workout in workouts {
+            try validateExecutionBlockGraph(
+                workout.executionBlocks?.map {
+                    ExecutionBlockValidationInput(
+                        id: $0.id,
+                        kind: $0.kind,
+                        targetRounds: $0.targetRounds,
+                        restSeconds: $0.restSeconds,
+                        clockMode: $0.clockMode,
+                        prescribedDurationSeconds: $0.prescribedDurationSeconds,
+                        timeCapSeconds: $0.timeCapSeconds,
+                        intervalSeconds: $0.intervalSeconds,
+                        scoreKind: $0.scoreKind,
+                        repetitionScheme: $0.repetitionScheme,
+                        repetitionStart: $0.repetitionStart,
+                        repetitionEnd: $0.repetitionEnd,
+                        repetitionStep: $0.repetitionStep
+                    )
+                } ?? [],
+                memberships: workout.exercises.map { ($0.executionBlockID, $0.executionBlockComponentOrder) },
+                named: "workout execution block"
+            )
             for entry in workout.exercises where !availableExerciseNames.contains(entry.exerciseName) {
                 throw BackupValidationError.missingExercise(entry.exerciseName)
+            }
+            if version >= Self.strengthExpansionVersion {
+                for entry in workout.exercises {
+                    for set in entry.sets {
+                        try validateStrengthExpansionEvidence(in: set)
+                    }
+                }
             }
         }
 
@@ -232,6 +297,28 @@ extension BackupDTO {
                             throw BackupValidationError.missingTemplate(templateName)
                         }
 
+                        try validateExecutionBlockGraph(
+                            plannedWorkout.executionBlocks?.map {
+                                ExecutionBlockValidationInput(
+                                    id: $0.id,
+                                    kind: $0.kind,
+                                    targetRounds: $0.targetRounds,
+                                    restSeconds: $0.restSeconds,
+                                    clockMode: $0.clockMode,
+                                    prescribedDurationSeconds: $0.prescribedDurationSeconds,
+                                    timeCapSeconds: $0.timeCapSeconds,
+                                    intervalSeconds: $0.intervalSeconds,
+                                    scoreKind: $0.scoreKind,
+                                    repetitionScheme: $0.repetitionScheme,
+                                    repetitionStart: $0.repetitionStart,
+                                    repetitionEnd: $0.repetitionEnd,
+                                    repetitionStep: $0.repetitionStep
+                                )
+                            } ?? [],
+                            memberships: plannedWorkout.plannedExercises.map { ($0.executionBlockID, $0.executionBlockComponentOrder) },
+                            named: "planned execution block"
+                        )
+
                         for plannedExercise in plannedWorkout.plannedExercises {
                             plannedExerciseIDs.append(plannedExercise.id)
                             guard availableExerciseNames.contains(plannedExercise.exerciseName) else {
@@ -295,6 +382,125 @@ extension BackupDTO {
             throw BackupValidationError.invalidIdentifier(name)
         }
         return uuid
+    }
+
+    private func validateExecutionBlockGraph(
+        _ blocks: [ExecutionBlockValidationInput],
+        memberships: [(String?, Int?)],
+        named: String
+    ) throws {
+        let blockIDs = blocks.map(\.id)
+        try validateUniqueIdentifiers(blockIDs, named: named)
+        for block in blocks {
+            guard UUID(uuidString: block.id) != nil,
+                  ExerciseBlockKind(rawValue: block.kind) != nil,
+                  BlockClockMode(rawValue: block.clockMode) != nil,
+                  BlockScoreKind(rawValue: block.scoreKind) != nil,
+                  block.repetitionScheme.map({ BlockRepetitionScheme(rawValue: $0) != nil }) ?? true,
+                  block.targetRounds.map({ $0 > 0 }) ?? true,
+                  block.restSeconds.map({ $0 >= 0 }) ?? true,
+                  block.prescribedDurationSeconds.map({ $0 > 0 }) ?? true,
+                  block.timeCapSeconds.map({ $0 > 0 }) ?? true,
+                  block.intervalSeconds.map({ $0 > 0 }) ?? true
+            else {
+                throw BackupValidationError.invalidIdentifier(named)
+            }
+            let scheme = block.repetitionScheme.flatMap(BlockRepetitionScheme.init(rawValue:)) ?? .fixed
+            guard let kind = ExerciseBlockKind(rawValue: block.kind),
+                  let clockMode = BlockClockMode(rawValue: block.clockMode)
+            else {
+                throw BackupValidationError.invalidIdentifier(named)
+            }
+            if ExecutionBlockConfigurationValidator.message(
+                kind: kind,
+                clockMode: clockMode,
+                prescribedDurationSeconds: block.prescribedDurationSeconds,
+                timeCapSeconds: block.timeCapSeconds,
+                intervalSeconds: block.intervalSeconds,
+                repetitionScheme: scheme,
+                repetitionStart: block.repetitionStart,
+                repetitionEnd: block.repetitionEnd,
+                repetitionStep: block.repetitionStep
+            ) != nil {
+                throw BackupValidationError.invalidIdentifier(named)
+            }
+            if scheme == .ascendingLadder || scheme == .descendingLadder {
+                guard let start = block.repetitionStart,
+                      let end = block.repetitionEnd,
+                      let step = block.repetitionStep,
+                      start > 0, end > 0, step > 0, start != end else {
+                    throw BackupValidationError.invalidIdentifier(named)
+                }
+            }
+        }
+
+        let validIDs = Set(blockIDs)
+        var componentOrders: [String: Set<Int>] = [:]
+        for (blockID, componentOrder) in memberships {
+            guard blockID != nil || componentOrder == nil else {
+                throw BackupValidationError.invalidIdentifier(named)
+            }
+            guard let blockID else { continue }
+            guard validIDs.contains(blockID),
+                  let componentOrder,
+                  componentOrder >= 0,
+                  componentOrders[blockID, default: []].insert(componentOrder).inserted
+            else {
+                throw BackupValidationError.invalidIdentifier(named)
+            }
+        }
+
+        for block in blocks {
+            let count = componentOrders[block.id]?.count ?? 0
+            guard let kind = ExerciseBlockKind(rawValue: block.kind) else {
+                throw BackupValidationError.invalidIdentifier(named)
+            }
+            let validCount: Bool
+            switch kind {
+            case .straight: validCount = count == 1
+            case .pairedSet: validCount = count == 2
+            case .triset: validCount = count == 3
+            case .giantSet: validCount = count >= 4
+            default: validCount = count > 0
+            }
+            guard validCount else { throw BackupValidationError.invalidIdentifier(named) }
+        }
+    }
+
+    private func validateStrengthExpansionEvidence(in set: ExerciseSetDTO) throws {
+        guard set.meanVelocity.map({ $0.isFinite && $0 > 0 }) ?? true,
+              set.peakVelocity.map({ $0.isFinite && $0 > 0 }) ?? true,
+              set.velocityMeasurementSource.map({ MeasurementSource(rawValue: $0) != nil }) ?? true,
+              set.specializedMetricKind.map({ SpecializedPerformanceMetricKind(rawValue: $0) != nil }) ?? true,
+              set.specializedMetricMeasurementSource.map({ MeasurementSource(rawValue: $0) != nil }) ?? true,
+              set.setMethod.map({ SetMethod(rawValue: $0) != nil }) ?? true,
+              [set.jumpHeightMeters, set.contactTimeMilliseconds, set.throwDistanceMeters, set.kettlebellCadenceRPM]
+                .allSatisfy({ $0.map { $0.isFinite && $0 > 0 } ?? true })
+        else {
+            throw BackupValidationError.invalidIdentifier("strength expansion set")
+        }
+
+        let method = set.setMethod.flatMap(SetMethod.init(rawValue:)) ?? .standard
+        let segments = set.segments ?? []
+        guard method == .standard || segments.count >= method.minimumSegmentCount else {
+            throw BackupValidationError.invalidIdentifier("strength expansion set")
+        }
+
+        var segmentIDs = Set<String>()
+        for segment in segments {
+            guard UUID(uuidString: segment.id) != nil,
+                  segmentIDs.insert(segment.id).inserted,
+                  segment.orderIndex >= 0,
+                  segment.repetitions >= 0,
+                  segment.weight >= 0,
+                  WeightType(rawValue: segment.weightType) != nil,
+                  segment.duration.map({ $0 >= 0 }) ?? true,
+                  segment.restAfterSeconds.map({ $0 >= 0 }) ?? true,
+                  segment.rpe.map({ (1...10).contains($0) }) ?? true,
+                  segment.rir.map({ $0 >= 0 }) ?? true else {
+                throw BackupValidationError.invalidIdentifier("exercise set segment")
+            }
+        }
     }
 
     private func isValidLocalDayKey(_ value: String) -> Bool {

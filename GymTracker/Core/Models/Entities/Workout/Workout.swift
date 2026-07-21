@@ -31,6 +31,8 @@ class Workout {
     var sourceProgramDefinitionVersion: Int?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseEntry.workout)
     var exercises: [ExerciseEntry] = []
+    @Relationship(deleteRule: .cascade, inverse: \WorkoutExecutionBlock.workout)
+    var executionBlocks: [WorkoutExecutionBlock] = []
     
     init(name: String?, endTime: Date? = nil) {
         self.status = endTime == nil ? .active : .completed
@@ -49,6 +51,7 @@ class Workout {
         self.sourcePlanName = nil
         self.sourceProgramDefinitionID = nil
         self.sourceProgramDefinitionVersion = nil
+        self.executionBlocks = []
     }
     init(template : WorkoutTemplate, unitSystem : UnitSystem){
         self.status = .active
@@ -67,6 +70,7 @@ class Workout {
         self.sourceProgramDefinitionID = nil
         self.sourceProgramDefinitionVersion = nil
         self.exercises = []
+        self.executionBlocks = []
         var snapshotGroupIDs: [UUID: UUID] = [:]
         for (index, templateExercise) in template.orderedTemplateExercises.enumerated() {
             let groupID: UUID?
@@ -90,6 +94,37 @@ class Workout {
                 )
             )
         }
+        snapshotExecutionBlocks(
+            from: template.orderedExecutionBlocks.map { block in
+                ExecutionBlockSnapshotSource(
+                    id: block.id,
+                    orderIndex: block.orderIndex,
+                    kind: block.kind,
+                    name: block.name,
+                    targetRounds: block.targetRounds,
+                    isSharedLoad: block.isSharedLoad,
+                    restSeconds: block.restSeconds,
+                    clockMode: block.clockMode,
+                    prescribedDurationSeconds: block.prescribedDurationSeconds,
+                    timeCapSeconds: block.timeCapSeconds,
+                    intervalSeconds: block.intervalSeconds,
+                    scoreKind: block.scoreKind,
+                    repetitionScheme: block.repetitionScheme,
+                    repetitionStart: block.repetitionStart,
+                    repetitionEnd: block.repetitionEnd,
+                    repetitionStep: block.repetitionStep,
+                    definitionBlockKey: nil,
+                    sourceTemplateBlockID: block.id,
+                    sourcePlannedBlockID: nil
+                )
+            },
+            sourceMembership: template.orderedTemplateExercises.map {
+                ExecutionBlockMembershipSnapshotSource(
+                    sourceBlockID: $0.executionBlockID,
+                    componentOrder: $0.executionBlockComponentOrder
+                )
+            }
+        )
     }
 
     convenience init(plannedWorkout: PlannedWorkout, planRun: PlanRun, unitSystem: UnitSystem) {
@@ -105,6 +140,7 @@ class Workout {
         self.sourceProgramDefinitionVersion = plannedWorkout.week?.block?.plan?.sourceProgramDefinitionVersion
 
         self.exercises = []
+        self.executionBlocks = []
         var snapshotGroupIDs: [UUID: UUID] = [:]
         #if !GYMTRACKER_EXTENSION
         let futureExercises = plannedWorkout.orderedPlannedExercises.filter {
@@ -153,6 +189,37 @@ class Workout {
 #endif
             exercises.append(entry)
         }
+        snapshotExecutionBlocks(
+            from: plannedWorkout.orderedExecutionBlocks.map { block in
+                ExecutionBlockSnapshotSource(
+                    id: block.id,
+                    orderIndex: block.orderIndex,
+                    kind: block.kind,
+                    name: block.name,
+                    targetRounds: block.targetRounds,
+                    isSharedLoad: block.isSharedLoad,
+                    restSeconds: block.restSeconds,
+                    clockMode: block.clockMode,
+                    prescribedDurationSeconds: block.prescribedDurationSeconds,
+                    timeCapSeconds: block.timeCapSeconds,
+                    intervalSeconds: block.intervalSeconds,
+                    scoreKind: block.scoreKind,
+                    repetitionScheme: block.repetitionScheme,
+                    repetitionStart: block.repetitionStart,
+                    repetitionEnd: block.repetitionEnd,
+                    repetitionStep: block.repetitionStep,
+                    definitionBlockKey: block.definitionBlockKey,
+                    sourceTemplateBlockID: block.sourceTemplateBlockID,
+                    sourcePlannedBlockID: block.id
+                )
+            },
+            sourceMembership: futureExercises.map {
+                ExecutionBlockMembershipSnapshotSource(
+                    sourceBlockID: $0.executionBlockID,
+                    componentOrder: $0.executionBlockComponentOrder
+                )
+            }
+        )
     }
 
     /// Single source of truth for what a workout is called across the save
@@ -183,12 +250,90 @@ class Workout {
         }
     }
 
+    var orderedExecutionBlocks: [WorkoutExecutionBlock] {
+        executionBlocks.sorted { lhs, rhs in
+            lhs.orderIndex == rhs.orderIndex
+                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
+                : lhs.orderIndex < rhs.orderIndex
+        }
+    }
+
     func normalizeExerciseOrder() {
         for (index, exercise) in orderedExercises.enumerated() {
             exercise.orderIndex = index
             exercise.normalizeSetOrder()
         }
         SupersetGrouping.dissolveInvalidGroups(in: orderedExercises)
+        for (index, block) in orderedExecutionBlocks.enumerated() {
+            block.orderIndex = index
+        }
+    }
+
+    private struct ExecutionBlockSnapshotSource {
+        let id: UUID
+        let orderIndex: Int
+        let kind: ExerciseBlockKind
+        let name: String?
+        let targetRounds: Int?
+        let isSharedLoad: Bool
+        let restSeconds: Int?
+        let clockMode: BlockClockMode
+        let prescribedDurationSeconds: Int?
+        let timeCapSeconds: Int?
+        let intervalSeconds: Int?
+        let scoreKind: BlockScoreKind
+        let repetitionScheme: BlockRepetitionScheme
+        let repetitionStart: Int?
+        let repetitionEnd: Int?
+        let repetitionStep: Int?
+        let definitionBlockKey: String?
+        let sourceTemplateBlockID: UUID?
+        let sourcePlannedBlockID: UUID?
+    }
+
+    private struct ExecutionBlockMembershipSnapshotSource {
+        let sourceBlockID: UUID?
+        let componentOrder: Int?
+    }
+
+    private func snapshotExecutionBlocks(
+        from sources: [ExecutionBlockSnapshotSource],
+        sourceMembership: [ExecutionBlockMembershipSnapshotSource]
+    ) {
+        guard !sources.isEmpty else { return }
+        var snapshotIDs: [UUID: UUID] = [:]
+        executionBlocks = sources.map { source in
+            let block = WorkoutExecutionBlock(
+                orderIndex: source.orderIndex,
+                kind: source.kind,
+                name: source.name,
+                targetRounds: source.targetRounds,
+                isSharedLoad: source.isSharedLoad,
+                restSeconds: source.restSeconds,
+                clockMode: source.clockMode,
+                prescribedDurationSeconds: source.prescribedDurationSeconds,
+                timeCapSeconds: source.timeCapSeconds,
+                intervalSeconds: source.intervalSeconds,
+                scoreKind: source.scoreKind,
+                repetitionScheme: source.repetitionScheme,
+                repetitionStart: source.repetitionStart,
+                repetitionEnd: source.repetitionEnd,
+                repetitionStep: source.repetitionStep
+            )
+            block.sourceTemplateBlockID = source.sourceTemplateBlockID
+            block.sourcePlannedBlockID = source.sourcePlannedBlockID
+            block.sourceDefinitionBlockKey = source.definitionBlockKey
+            snapshotIDs[source.id] = block.id
+            return block
+        }
+        for (index, membership) in sourceMembership.enumerated() {
+            guard index < exercises.count,
+                  let sourceID = membership.sourceBlockID,
+                  let snapshotID = snapshotIDs[sourceID]
+            else { continue }
+            exercises[index].executionBlockID = snapshotID
+            exercises[index].executionBlockComponentOrder = membership.componentOrder ?? index
+        }
     }
 
     var completedSetCount: Int {

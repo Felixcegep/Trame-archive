@@ -21,12 +21,15 @@ enum GymTrackerTestStore {
     private static func makeContext(configuration: ModelConfiguration) throws -> ModelContext {
         let container = try ModelContainer(
             for: Workout.self,
+            WorkoutExecutionBlock.self,
             Exercise.self,
             ExerciseRelationship.self,
             ExerciseEntry.self,
             ExerciseSet.self,
+            ExerciseSetSegment.self,
             WorkoutTemplate.self,
             TemplateExercise.self,
+            TemplateExerciseBlock.self,
             WorkoutCollection.self,
             PlanRun.self,
             PlanWorkoutProgress.self,
@@ -55,6 +58,7 @@ enum GymTrackerTestStore {
             PlanWeek.self,
             PlannedWorkout.self,
             PlannedExercise.self,
+            PlannedExerciseBlock.self,
             PlannedExerciseAlternative.self,
             PlannedSet.self,
             configurations: configuration

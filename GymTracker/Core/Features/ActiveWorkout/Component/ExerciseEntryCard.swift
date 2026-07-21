@@ -4,6 +4,7 @@ import SwiftData
 struct ExerciceEntryCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var exerciseEntry: ExerciseEntry
+    let executionBlock: WorkoutExecutionBlock?
 
     let viewModel: ActiveWorkoutViewModel
     let onButtonPress: () -> Void
@@ -33,7 +34,13 @@ struct ExerciceEntryCard: View {
 
     private var activeExerciseCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if exerciseEntry.supersetGroupID != nil {
+            if let executionBlock, executionBlock.kind != .straight {
+                Label(executionBlock.kind.title, systemImage: AppIcon.relationship)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymPrimary)
+                    .accessibilityIdentifier("execution-block-label-\(exerciseEntry.exercise.name)")
+                    .padding(.bottom, Spacing.xs)
+            } else if exerciseEntry.supersetGroupID != nil {
                 Label("Superset", systemImage: "link")
                     .font(AppFont.captionBold)
                     .foregroundStyle(Color.gymPrimary)
@@ -160,7 +167,7 @@ struct ExerciceEntryCard: View {
                     .accessibilityIdentifier("swap-exercise-\(exerciseEntry.exercise.name)")
                 }
 
-                if exerciseEntry.supersetGroupID == nil, !supersetCandidates.isEmpty {
+                if executionBlock == nil, exerciseEntry.supersetGroupID == nil, !supersetCandidates.isEmpty {
                     Menu("Superset with…") {
                         ForEach(supersetCandidates, id: \.persistentModelID) { candidate in
                             Button(candidate.nameSnapshot) {
@@ -228,6 +235,7 @@ struct ExerciceEntryCard: View {
                     previousSet: previousPerformance?.set(at: exerciseSet.orderIndex),
                     onRemove: { viewModel.removeSet(exerciseEntry, exerciseSet) }
                 )
+                .id(exerciseSet.persistentModelID)
             }
         }
     }

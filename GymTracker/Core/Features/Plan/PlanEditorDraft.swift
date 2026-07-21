@@ -58,6 +58,23 @@ struct PlanEditorDraft {
                 workout.dayOffset = workoutDraft.dayOffset
                 workout.isOptional = workoutDraft.isOptional
 
+                let retainedExecutionBlockIDs = Set(workoutDraft.executionBlocks.compactMap(\.existingID))
+                for existing in workout.executionBlocks where !retainedExecutionBlockIDs.contains(existing.id) {
+                    context.delete(existing)
+                }
+                var blockIDsByDraftID: [UUID: UUID] = [:]
+                workout.executionBlocks = workoutDraft.executionBlocks.enumerated().map { index, draft in
+                    if let existingID = draft.existingID,
+                       let existing = workout.executionBlocks.first(where: { $0.id == existingID }) {
+                        draft.apply(to: existing, orderIndex: index)
+                        blockIDsByDraftID[draft.id] = existing.id
+                        return existing
+                    }
+                    let block = draft.makeModel(orderIndex: index)
+                    blockIDsByDraftID[draft.id] = block.id
+                    return block
+                }
+
                 let retainedIDs = Set(workoutDraft.exercises.compactMap(\.existingID))
                 for existing in workout.plannedExercises where !retainedIDs.contains(existing.id) {
                     context.delete(existing)
@@ -67,9 +84,14 @@ struct PlanEditorDraft {
                     if let existingID = draft.existingID,
                        let existing = workout.plannedExercises.first(where: { $0.id == existingID }) {
                         draft.apply(to: existing, orderIndex: index, using: context)
+                        existing.executionBlockID = draft.executionBlockID.flatMap { blockIDsByDraftID[$0] }
+                        existing.executionBlockComponentOrder = draft.executionBlockComponentOrder
                         return existing
                     }
-                    return draft.makeModel(orderIndex: index)
+                    let created = draft.makeModel(orderIndex: index)
+                    created.executionBlockID = draft.executionBlockID.flatMap { blockIDsByDraftID[$0] }
+                    created.executionBlockComponentOrder = draft.executionBlockComponentOrder
+                    return created
                 }
                 workout.normalizePlannedExerciseOrder()
             }
@@ -160,6 +182,7 @@ struct PlanWorkoutDraft: Identifiable {
     var dayOffset: Int
     var isOptional: Bool
     var exercises: [PlanExerciseDraft]
+    var executionBlocks: [PlanExecutionBlockDraft]
 
     init(workout: PlannedWorkout) {
         id = workout.id
@@ -167,6 +190,130 @@ struct PlanWorkoutDraft: Identifiable {
         dayOffset = workout.dayOffset
         isOptional = workout.isOptional
         exercises = workout.orderedPlannedExercises.map(PlanExerciseDraft.init)
+        executionBlocks = workout.orderedExecutionBlocks.map(PlanExecutionBlockDraft.init)
+    }
+}
+
+@MainActor
+struct PlanExecutionBlockDraft: Identifiable {
+    let id: UUID
+    let existingID: UUID?
+    var kind: ExerciseBlockKind
+    var name: String
+    var targetRounds: Int?
+    var isSharedLoad: Bool
+    var restSeconds: Int?
+    var clockMode: BlockClockMode
+    var prescribedDurationSeconds: Int?
+    var timeCapSeconds: Int?
+    var intervalSeconds: Int?
+    var scoreKind: BlockScoreKind
+    var repetitionScheme: BlockRepetitionScheme
+    var repetitionStart: Int?
+    var repetitionEnd: Int?
+    var repetitionStep: Int?
+    var sourceTemplateBlockID: UUID?
+    var definitionBlockKey: String?
+
+    init(
+        kind: ExerciseBlockKind,
+        name: String = "",
+        targetRounds: Int? = nil,
+        isSharedLoad: Bool = false,
+        restSeconds: Int? = nil,
+        clockMode: BlockClockMode = .none,
+        prescribedDurationSeconds: Int? = nil,
+        timeCapSeconds: Int? = nil,
+        intervalSeconds: Int? = nil,
+        scoreKind: BlockScoreKind = .none,
+        repetitionScheme: BlockRepetitionScheme = .fixed,
+        repetitionStart: Int? = nil,
+        repetitionEnd: Int? = nil,
+        repetitionStep: Int? = nil,
+        sourceTemplateBlockID: UUID? = nil,
+        definitionBlockKey: String? = nil
+    ) {
+        id = UUID()
+        existingID = nil
+        self.kind = kind
+        self.name = name
+        self.targetRounds = targetRounds
+        self.isSharedLoad = isSharedLoad
+        self.restSeconds = restSeconds
+        self.clockMode = clockMode
+        self.prescribedDurationSeconds = prescribedDurationSeconds
+        self.timeCapSeconds = timeCapSeconds
+        self.intervalSeconds = intervalSeconds
+        self.scoreKind = scoreKind
+        self.repetitionScheme = repetitionScheme
+        self.repetitionStart = repetitionStart
+        self.repetitionEnd = repetitionEnd
+        self.repetitionStep = repetitionStep
+        self.sourceTemplateBlockID = sourceTemplateBlockID
+        self.definitionBlockKey = definitionBlockKey
+    }
+
+    init(block: PlannedExerciseBlock) {
+        id = block.id
+        existingID = block.id
+        kind = block.kind
+        name = block.name ?? ""
+        targetRounds = block.targetRounds
+        isSharedLoad = block.isSharedLoad
+        restSeconds = block.restSeconds
+        clockMode = block.clockMode
+        prescribedDurationSeconds = block.prescribedDurationSeconds
+        timeCapSeconds = block.timeCapSeconds
+        intervalSeconds = block.intervalSeconds
+        scoreKind = block.scoreKind
+        repetitionScheme = block.repetitionScheme
+        repetitionStart = block.repetitionStart
+        repetitionEnd = block.repetitionEnd
+        repetitionStep = block.repetitionStep
+        sourceTemplateBlockID = block.sourceTemplateBlockID
+        definitionBlockKey = block.definitionBlockKey
+    }
+
+    func makeModel(orderIndex: Int) -> PlannedExerciseBlock {
+        PlannedExerciseBlock(
+            orderIndex: orderIndex,
+            kind: kind,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : name,
+            targetRounds: targetRounds,
+            isSharedLoad: isSharedLoad,
+            restSeconds: restSeconds,
+            clockMode: clockMode,
+            prescribedDurationSeconds: prescribedDurationSeconds,
+            timeCapSeconds: timeCapSeconds,
+            intervalSeconds: intervalSeconds,
+            scoreKind: scoreKind,
+            repetitionScheme: repetitionScheme,
+            repetitionStart: repetitionStart,
+            repetitionEnd: repetitionEnd,
+            repetitionStep: repetitionStep,
+            sourceTemplateBlockID: sourceTemplateBlockID,
+            definitionBlockKey: definitionBlockKey
+        )
+    }
+
+    func apply(to block: PlannedExerciseBlock, orderIndex: Int) {
+        block.orderIndex = orderIndex
+        block.kind = kind
+        block.name = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : name
+        block.targetRounds = targetRounds
+        block.isSharedLoad = isSharedLoad
+        block.restSeconds = restSeconds
+        block.clockMode = clockMode
+        block.prescribedDurationSeconds = prescribedDurationSeconds
+        block.timeCapSeconds = timeCapSeconds
+        block.intervalSeconds = intervalSeconds
+        block.scoreKind = scoreKind
+        block.repetitionScheme = repetitionScheme
+        block.repetitionStart = repetitionStart
+        block.repetitionEnd = repetitionEnd
+        block.repetitionStep = repetitionStep
+        block.sourceTemplateBlockID = sourceTemplateBlockID
+        block.definitionBlockKey = definitionBlockKey
     }
 }
 
@@ -176,6 +323,8 @@ struct PlanExerciseDraft: Identifiable {
     let existingID: UUID?
     var progressionKey: String
     var supersetGroupID: UUID?
+    var executionBlockID: UUID?
+    var executionBlockComponentOrder: Int?
     var exercise: Exercise
     var role: ExerciseRole
     var isOptional: Bool
@@ -204,6 +353,8 @@ struct PlanExerciseDraft: Identifiable {
         existingID = nil
         progressionKey = UUID().uuidString
         supersetGroupID = nil
+        executionBlockID = nil
+        executionBlockComponentOrder = nil
         self.exercise = exercise
         role = .main
         isOptional = false
@@ -236,6 +387,8 @@ struct PlanExerciseDraft: Identifiable {
         existingID = plannedExercise.id
         progressionKey = plannedExercise.progressionKey
         supersetGroupID = plannedExercise.supersetGroupID
+        executionBlockID = plannedExercise.executionBlockID
+        executionBlockComponentOrder = plannedExercise.executionBlockComponentOrder
         exercise = plannedExercise.exercise
         role = plannedExercise.role
         isOptional = plannedExercise.isOptional
