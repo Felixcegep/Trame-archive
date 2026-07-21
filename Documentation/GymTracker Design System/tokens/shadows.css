@@ -1,0 +1,8 @@
+:root{
+/* Shadows are whisper-quiet: text color at 2–3% */
+--shadow-card:0 3px 6px rgba(39,38,53,0.03);
+--shadow-row:0 2px 4px rgba(39,38,53,0.02);
+--border-hairline:1px solid var(--gym-border); /* @kind shadow */
+--border-focus:1px solid rgba(61,114,226,0.42); /* @kind shadow */ /* expanded/current card */
+--border-outline:1.5px solid rgba(61,114,226,0.16); /* @kind shadow */ /* primary card idle */
+}

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Evening check-in (current)" description="Journal sheet: mood, sleep, workout difficulty, note — tweak the sheet state" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div style="min-height:100vh;background:rgba(39,38,53,0.32);font-family:-apple-system,'SF Pro Text',sans-serif;color:#272635;display:flex;align-items:flex-end;justify-content:center">
+<div style="width:390px;background:#F6F0E7;border-radius:24px 24px 0 0;padding:12px 20px 32px;display:flex;flex-direction:column;gap:16px">
+<div style="width:36px;height:5px;border-radius:3px;background:rgba(39,38,53,0.18);margin:0 auto"></div>
+
+<sc-if value="{{ isForm }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:15px;color:rgba(39,38,53,0.58);cursor:pointer">Skip</span>
+<div style="font-size:17px;font-weight:600;white-space:nowrap">Evening check-in</div>
+<span style="font-size:15px;font-weight:600;color:#3D72E2;cursor:pointer">Save</span>
+</div>
+<div>
+<div style="font-size:13px;font-weight:600;color:rgba(39,38,53,0.58);margin-bottom:8px">How was today?</div>
+<div style="display:flex;gap:8px">
+<sc-for list="{{ moods }}" as="m" hint-placeholder-count="5">
+<sc-if value="{{ m.selected }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;text-align:center;padding:10px 0;border-radius:14px;font-size:24px;background:#3D72E2;border:1px solid #3D72E2">{{ m.emoji }}</div>
+</sc-if>
+<sc-if value="{{ !m.selected }}" hint-placeholder-val="{{ true }}">
+<div style="flex:1;text-align:center;padding:10px 0;border-radius:14px;font-size:24px;background:#FFFCF7;border:1px solid rgba(39,38,53,0.09)">{{ m.emoji }}</div>
+</sc-if>
+</sc-for>
+</div>
+</div>
+<div>
+<div style="font-size:13px;font-weight:600;color:rgba(39,38,53,0.58);margin-bottom:8px">Sleep quality</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.SegmentedControl" options="{{ sleepOptions }}" value="{{ sleepValue }}" hint-size="100%,36px"></x-import>
+</div>
+<sc-if value="{{ hadWorkout }}" hint-placeholder-val="{{ true }}">
+<div>
+<div style="font-size:13px;font-weight:600;color:rgba(39,38,53,0.58);margin-bottom:8px">Workout difficulty</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.SegmentedControl" options="{{ difficultyOptions }}" value="{{ difficultyValue }}" hint-size="100%,36px"></x-import>
+</div>
+</sc-if>
+<div>
+<div style="font-size:13px;font-weight:600;color:rgba(39,38,53,0.58);margin-bottom:8px">Note (optional)</div>
+<div style="background:#FFFCF7;border:1px solid rgba(39,38,53,0.09);border-radius:14px;padding:12px;font-size:14px;color:rgba(39,38,53,0.4);min-height:56px">Anything worth remembering…</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isCompleted }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="font-size:17px;font-weight:600">Today's check-in</div>
+<span style="font-size:14px;font-weight:600;color:#3D72E2;cursor:pointer">Edit</span>
+</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="completed" radius="section" padding="16px" hint-size="100%,120px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:24px">😊 Bon</span><span style="font-size:13px;color:rgba(39,38,53,0.5)">7h30 sommeil</span></div>
+<div style="font-size:13px;color:rgba(39,38,53,0.65);margin-top:8px">Séance forte, énergie stable toute la journée.</div>
+</x-import>
+<span style="font-size:13px;color:#A1683A;text-align:center;cursor:pointer">Delete entry</span>
+</sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;430px&quot;,&quot;height&quot;:&quot;620px&quot;},&quot;sheetState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;form&quot;,&quot;options&quot;:[&quot;form&quot;,&quot;completed&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Sheet&quot;},&quot;selectedMood&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;good&quot;,&quot;options&quot;:[&quot;rough&quot;,&quot;low&quot;,&quot;ok&quot;,&quot;good&quot;,&quot;great&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Sheet&quot;},&quot;hadWorkout&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sheet&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const state = this.props.sheetState ?? "form";
+    const mood = this.props.selectedMood ?? "good";
+    const moodDefs = [
+      { key: "rough", emoji: "😔" }, { key: "low", emoji: "😕" }, { key: "ok", emoji: "😐" },
+      { key: "good", emoji: "🙂" }, { key: "great", emoji: "😄" }
+    ];
+    const moods = moodDefs.map(m => ({ emoji: m.emoji, selected: m.key === mood }));
+    return {
+      isForm: state === "form",
+      isCompleted: state === "completed",
+      hadWorkout: this.props.hadWorkout ?? true,
+      moods,
+      sleepOptions: ["Poor", "Okay", "Great"],
+      sleepValue: "Okay",
+      difficultyOptions: ["Easy", "Moderate", "Hard"],
+      difficultyValue: "Moderate"
+    };
+  }
+}
+</script>
+</body>
+</html>

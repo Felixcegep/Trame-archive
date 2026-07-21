@@ -1,0 +1,42 @@
+<!-- @dsCard group="Guidelines" viewport="760x560" name="Charts & insights" subtitle="Never color-only; every insight explainable" -->
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>body{margin:0;background:var(--gym-background);font-family:-apple-system,system-ui,sans-serif;color:var(--gym-text);padding:24px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.col{background:var(--surface-card);border-radius:16px;padding:18px}
+.h{font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:14px}
+.bad .h{color:#B4543C}.good .h{color:#3E7A54}
+.bars{display:flex;align-items:flex-end;gap:14px;height:120px;margin-bottom:8px}
+.bar{flex:1;display:flex;flex-direction:column-reverse;border-radius:6px;overflow:hidden}
+.seg{width:100%}
+.lbl{font-size:10px;color:rgba(39,38,53,0.5);text-align:center;margin-top:4px}
+.sel{outline:2px solid var(--gym-primary);outline-offset:2px;border-radius:6px}
+.tip{background:#272635;color:#fff;font-size:11px;border-radius:8px;padding:6px 10px;display:inline-block;margin-bottom:8px}
+.gap{flex:1;display:flex;align-items:center;justify-content:center;height:100%;color:rgba(39,38,53,0.3);font-size:10px;border:1px dashed rgba(39,38,53,0.2);border-radius:6px}
+.cap{font-size:12px;color:rgba(39,38,53,0.55);line-height:1.45;margin-top:6px}
+p{font-size:13px;color:rgba(39,38,53,0.6);line-height:1.5;margin:16px 0 0}
+a{color:var(--gym-primary)}a:hover{color:#2E5CBF}</style></head><body>
+<div class="g">
+<div class="col bad"><div class="h">Never</div>
+<div class="bars">
+<div class="bar"><div class="seg" style="height:22px;background:#3E7A54"></div><div class="seg" style="height:18px;background:#5F8F6E"></div><div class="seg" style="height:26px;background:#3D72E2"></div><div class="seg" style="height:14px;background:#6E93DE"></div><div class="seg" style="height:20px;background:#A1683A"></div><div class="seg" style="height:12px;background:#BE8A5C"></div></div>
+<div class="bar"><div class="seg" style="height:30px;background:#3E7A54"></div><div class="seg" style="height:12px;background:#5F8F6E"></div><div class="seg" style="height:22px;background:#3D72E2"></div><div class="seg" style="height:18px;background:#6E93DE"></div><div class="seg" style="height:14px;background:#A1683A"></div></div>
+<div class="bar"><div class="seg" style="height:16px;background:#3E7A54"></div><div class="seg" style="height:24px;background:#3D72E2"></div><div class="seg" style="height:20px;background:#A1683A"></div></div>
+</div>
+<div style="display:flex;gap:8px"><span class="lbl">Jun 21</span><span class="lbl">Jun 28</span><span class="lbl">Jul 12</span></div>
+<div class="cap">7 near-identical hues, legend elsewhere, and Jul 5 silently missing — unreadable for color-blind users, looks like a data bug.</div>
+</div>
+<div class="good"><div class="col good" style="padding:18px"><div class="h">Always</div>
+<span class="tip">Jun 28 — Chest 6 · Back 5 · Quads 4 sets</span>
+<div class="bars">
+<div class="bar"><div class="seg" style="height:40px;background:#3E7A54"></div><div class="seg" style="height:30px;background:#3D72E2"></div><div class="seg" style="height:20px;background:#A1683A"></div></div>
+<div class="bar sel"><div class="seg" style="height:34px;background:#3E7A54"></div><div class="seg" style="height:28px;background:#3D72E2"></div><div class="seg" style="height:22px;background:#A1683A"></div></div>
+<div class="gap">no data</div>
+<div class="bar"><div class="seg" style="height:26px;background:#3E7A54"></div><div class="seg" style="height:30px;background:#3D72E2"></div><div class="seg" style="height:16px;background:#A1683A"></div></div>
+</div>
+<div style="display:flex;gap:8px"><span class="lbl">Jun 21</span><span class="lbl">Jun 28</span><span class="lbl">Jul 5</span><span class="lbl">Jul 12</span></div>
+<div class="cap">Tap a bar → labeled values. Missing weeks render as dashed gaps. ≤4 distinct hues; beyond that, group into "Other".</div>
+</div></div>
+</div>
+<p><strong>Rule.</strong> Color is never the only channel: every series is reachable by tap-to-reveal labels or direct labels. Timelines never skip periods silently. Every insight sentence states its evidence ("you completed 3×8 at 50 kg last time") and duplicated findings merge into one line. A chart with no decision attached doesn't ship.</p>
+</body></html>

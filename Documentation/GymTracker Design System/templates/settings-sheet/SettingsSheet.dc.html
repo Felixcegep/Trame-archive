@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Settings gear sheet (current)" description="Future Settings: large sheet from Today's gear button — tweak sync status" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div style="min-height:100vh;background:#F6F0E7;font-family:-apple-system,'SF Pro Text',sans-serif;color:#272635;display:flex;justify-content:center">
+<div style="width:390px;padding:20px 20px 40px;display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:15px;font-weight:600;color:#3D72E2;cursor:pointer">Done</span>
+<div style="font-size:17px;font-weight:600">Settings</div>
+<span style="width:40px"></span>
+</div>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42)">Sync</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="{{ syncCardVariant }}" radius="section" padding="16px" hint-size="100%,70px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div>
+<div style="font-size:14px;font-weight:600">iCloud vault sync</div>
+<div style="font-size:12px;color:rgba(39,38,53,0.58);margin-top:2px">{{ syncDetail }}</div>
+</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Badge" color="{{ syncBadgeColor }}" hint-size="70px,22px">{{ syncBadge }}</x-import>
+</div>
+</x-import>
+<div style="font-size:12px;color:rgba(39,38,53,0.42)">Logging never depends on network — everything works fully offline first.</div>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42);margin-top:6px">Preferences</div>
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="large" padding="14px 16px" hint-size="100%,52px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:14px;white-space:nowrap">{{ r.label }}</span>
+<span style="font-size:14px;color:rgba(39,38,53,0.5);white-space:nowrap">{{ r.value }}</span>
+</div>
+</x-import>
+</sc-for>
+
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42);margin-top:6px">Data</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Button" variant="secondary" hint-size="100%,46px">Export data</x-import>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Button" variant="secondary" hint-size="100%,46px">Import data</x-import>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;430px&quot;,&quot;height&quot;:&quot;820px&quot;},&quot;syncStatus&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;off&quot;,&quot;options&quot;:[&quot;off&quot;,&quot;syncing&quot;,&quot;synced&quot;,&quot;conflict&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Sync&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const sync = this.props.syncStatus ?? "off";
+    const map = {
+      off: { variant: "muted", badge: "Off", color: "neutral", detail: "Not enabled. Your data stays on this device only." },
+      syncing: { variant: "standard", badge: "Syncing", color: "primary", detail: "Encrypting and syncing recent changes…" },
+      synced: { variant: "standard", badge: "Synced", color: "secondary", detail: "Last synced just now, end-to-end encrypted." },
+      conflict: { variant: "accent", badge: "Conflict", color: "accent", detail: "A change on another device needs your review." }
+    };
+    const s = map[sync] || map.off;
+    return {
+      syncCardVariant: s.variant, syncBadge: s.badge, syncBadgeColor: s.color, syncDetail: s.detail,
+      rows: [
+        { label: "Units", value: "Kilograms" },
+        { label: "Rest timer default", value: "90 s" },
+        { label: "Evening reminder", value: "8:30 PM" },
+        { label: "Appearance", value: "System" }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

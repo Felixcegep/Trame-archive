@@ -1,0 +1,10 @@
+:root{
+/* From Motion.swift — calm, fast, no bounce */
+--motion-press:140ms ease-out; /* @kind other */ /* press: scale .97, opacity .86 */
+--motion-compact:220ms cubic-bezier(0.2,0,0,1); /* @kind other */ /* snappy, no extra bounce */
+--motion-layout:300ms cubic-bezier(0.25,0.1,0.25,1); /* @kind other */ /* fully damped spring */
+--press-scale:0.97; /* @kind other */
+--press-opacity:0.86; /* @kind other */
+}
+.gym-press{transition:transform var(--motion-press),opacity var(--motion-press)}
+.gym-press:active{transform:scale(var(--press-scale));opacity:var(--press-opacity)}

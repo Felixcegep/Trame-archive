@@ -1,0 +1,39 @@
+<!-- @dsCard group="Components" viewport="700x520" name="Progress" subtitle="GitHub-style training heatmap + upcoming workout calendar" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--surface-page);font:var(--type-body);color:var(--text-body);padding:16px}</style>
+</head><body><div id="root"></div><script type="text/babel">
+const {ActivityHeatmap,UpcomingCalendar,SectionLabel,ComparisonPanel,StatusRow,RecommendationCard} = window.GymTrackerDesignSystem_9b15a7;
+let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+const weeks=Array.from({length:26},(w,i)=>Array.from({length:7},(d,j)=>{
+  if(j===2||j===6) return 0; // rest days
+  const r=rnd(); return r<0.28?0:r<0.55?1:r<0.78?2:r<0.93?3:4;
+}));
+const monthLabels=[{week:0,label:"Fév"},{week:4,label:"Mar"},{week:9,label:"Avr"},{week:13,label:"Mai"},{week:17,label:"Juin"},{week:22,label:"Juil"}];
+const days=[
+{label:"Mer",date:15,done:true},{label:"Jeu",date:16},{label:"Ven",date:17,done:true},
+{label:"Sam",date:18,isToday:true,workout:"Push"},{label:"Dim",date:19},
+{label:"Lun",date:20,workout:"Pull"},{label:"Mar",date:21,workout:"Legs"}];
+ReactDOM.createRoot(document.getElementById("root")).render(
+<div style={{display:"flex",flexDirection:"column",gap:12,maxWidth:600}}>
+  <SectionLabel>Cette semaine</SectionLabel>
+  <UpcomingCalendar days={days} onSelect={()=>{}}/>
+  <SectionLabel>Régularité</SectionLabel>
+  <ActivityHeatmap title="83 séances" subtitle="Série actuelle : 6 jours" weeks={weeks} monthLabels={monthLabels}/>
+  <SectionLabel>Comparaison</SectionLabel>
+  <ComparisonPanel planned="3 × 6-8" performed="3 sets · 8 reps · 52.5 kg" suggested="52.5 kg" checks={["Sets: Met","Reps: Met","Recommendation: Met"]}/>
+  <SectionLabel>Schedule</SectionLabel>
+  <div style={{display:"flex",flexDirection:"column"}}>
+    <StatusRow title="Wed 8 — Day 1 Lower Body" status="completed"/>
+    <StatusRow title="Sat 11 — Day 1 Lower Body" status="skipped"/>
+    <StatusRow title="Wed 15 — Day 1 Lower Body" status="missed"/>
+    <StatusRow title="Sat 18 — Day 1 Lower Body" status="in-progress" isToday/>
+    <StatusRow title="Wed 22 — Day 1 Lower Body" status="ready"/>
+  </div>
+  <SectionLabel>Recommendation</SectionLabel>
+  <RecommendationCard exercise="Bench Press" rationale="52.5 kg recommended — you completed 3×8 at 50 kg last time." acceptLabel="Accept 52.5 kg" keepLabel="Keep 50 kg"/>
+</div>);
+</script></body></html>

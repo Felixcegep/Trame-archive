@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Active Workout (current)" description="Root-owned logging surface, faithful to Screenshots/active-workout — tweak rest state, recommendation, set type and progress" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div style="min-height:100vh;background:#F6F0E7;font-family:-apple-system,'SF Pro Text',sans-serif;color:#272635;display:flex;justify-content:center">
+<div style="width:390px;padding:14px 16px 110px;display:flex;flex-direction:column;gap:14px;position:relative">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0">
+<div style="width:44px;height:44px;border-radius:50%;background:#FFFCF7;box-shadow:0 1px 3px rgba(39,38,53,0.06);display:flex;align-items:center;justify-content:center;font-size:18px;color:#272635;cursor:pointer">⌄</div>
+<div style="width:44px;height:44px;border-radius:50%;background:#FFFCF7;box-shadow:0 1px 3px rgba(39,38,53,0.06);display:flex;align-items:center;justify-content:center;font-size:17px;color:#272635;cursor:pointer">🗑</div>
+</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.SessionHeader" elapsed="{{ elapsed }}" completed-sets="{{ doneSets }}" total-sets="{{ totalSetsNum }}" exercises="{{ exerciseCount }}" hint-size="100%,96px"></x-import>
+<sc-if value="{{ showRest }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.RestTimer" state="{{ restState }}" remaining="{{ restTime }}" on-add-time="{{ noop }}" on-pause-resume="{{ noop }}" on-skip="{{ noop }}" on-continue="{{ noop }}" hint-size="100%,120px"></x-import>
+</sc-if>
+<sc-if value="{{ showReco }}" hint-placeholder-val="{{ false }}">
+<div style="background:#FFFCF7;border:1px solid rgba(39,38,53,0.08);border-radius:18px;padding:16px 18px">
+<div style="font-size:15px;font-weight:600;color:#3D72E2">📈 Progression recommendation</div>
+<div style="font-size:20px;font-weight:700;margin-top:8px">Bench Press</div>
+<div style="font-size:15px;color:rgba(39,38,53,0.75);margin-top:4px">52.5 kg recommended — you completed 3×8 at 50 kg last time.</div>
+<div style="display:flex;gap:10px;margin-top:14px">
+<div style="flex:1;background:#3D72E2;color:#fff;border-radius:999px;padding:12px;text-align:center;font-size:16px;font-weight:600;cursor:pointer">Accept 52.5 kg</div>
+<div style="flex:1;background:#DCE4F7;color:#272635;border-radius:999px;padding:12px;text-align:center;font-size:16px;font-weight:600;cursor:pointer">Keep 50 kg</div>
+</div>
+<div style="text-align:center;font-size:16px;margin-top:12px;cursor:pointer">Edit manually</div>
+</div>
+</sc-if>
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(39,38,53,0.45)">Session</span>
+<span style="font-size:15px;font-weight:600;color:#3D72E2;cursor:pointer;white-space:nowrap">＋ Add</span>
+</div>
+<span style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(39,38,53,0.45)">Exercises</span>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.ExerciseCard" name="Incline Dumbbell Press" state="completed" completed-sets="3" total-sets="3" last-time="Last time: 3 × 10 @ 22.5 kg · Jul 12" hint-size="100%,90px"></x-import>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.ExerciseCard" name="{{ exerciseName }}" state="current" prescription="{{ prescription }}" completed-sets="{{ completedSets }}" total-sets="{{ totalSets }}" on-add-set="{{ noop }}" hint-size="100%,220px">
+<sc-for list="{{ sets }}" as="s" hint-placeholder-count="4">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.SetRow" index="{{ s.index }}" values="{{ s.values }}" state="{{ s.state }}" note="{{ s.note }}" on-toggle="{{ noop }}" hint-size="100%,52px"></x-import>
+</sc-for>
+</x-import>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.ExerciseCard" name="Étirement pectoraux" state="collapsed" columns="{{ stretchColumns }}" prescription="2 × 45 s · étirement modéré" completed-sets="0" total-sets="2" hint-size="100%,90px"></x-import>
+<div style="position:sticky;bottom:16px;margin-top:6px">
+<sc-if value="{{ someDone }}" hint-placeholder-val="{{ true }}">
+<div style="background:#3D72E2;color:#fff;border-radius:999px;padding:16px;text-align:center;font-size:18px;font-weight:600;box-shadow:0 4px 14px rgba(61,114,226,0.3);cursor:pointer">✓ Review Workout</div>
+</sc-if>
+<sc-if value="{{ !someDone }}" hint-placeholder-val="{{ false }}">
+<div style="background:#C6D4F2;color:rgba(255,255,255,0.9);border-radius:999px;padding:16px;text-align:center;font-size:18px;font-weight:600">✓ Review Workout</div>
+</sc-if>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;430px&quot;,&quot;height&quot;:&quot;960px&quot;},&quot;restPhase&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;running&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;running&quot;,&quot;paused&quot;,&quot;ready&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Rest timer&quot;},&quot;showRecommendation&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Cards&quot;},&quot;currentSetType&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;working&quot;,&quot;options&quot;:[&quot;working&quot;,&quot;amrap&quot;,&quot;dropset&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Current exercise&quot;},&quot;exerciseProgress&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;min&quot;:0,&quot;max&quot;:3,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Current exercise&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const restPhase = this.props.restPhase ?? "running";
+    const setType = this.props.currentSetType ?? "working";
+    const progress = this.props.exerciseProgress ?? 1;
+    const setDefs = {
+      working: { name: "Flat Barbell Bench Press", rx: "3 × 6-8 · RPE 8", mk: () => ["8", "50"] },
+      amrap: { name: "Push-Up AMRAP", rx: "1 × AMRAP · RPE 9", mk: () => ["12", "—"] },
+      dropset: { name: "Lateral Raise (Drop Set)", rx: "3 × 12 → drop → 12", mk: () => ["12", "8"] }
+    };
+    const def = setDefs[setType] || setDefs.working;
+    const total = 3;
+    const done = Math.min(progress, total);
+    const sets = Array.from({ length: total }, (_, k) => ({
+      index: k + 1,
+      state: k < done ? "completed" : k === done ? "current" : "pending",
+      values: def.mk(),
+      note: k < done ? "RPE 8 · Could do 2 more reps" : undefined
+    }));
+    return {
+      elapsed: "0:53",
+      doneSets: done + 3,
+      totalSetsNum: total + 5,
+      exerciseCount: "3 exercises",
+      someDone: done > 0,
+      showRest: restPhase !== "none",
+      restState: restPhase,
+      restTime: restPhase === "paused" ? "0:47" : "0:39",
+      showReco: this.props.showRecommendation ?? false,
+      exerciseName: def.name,
+      prescription: def.rx,
+      stretchColumns: ["Durée (s)", "Intensité"],
+      completedSets: done,
+      totalSets: total,
+      sets,
+      noop: () => {}
+    };
+  }
+}
+</script>
+</body>
+</html>

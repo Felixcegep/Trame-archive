@@ -1,0 +1,42 @@
+<!-- @dsCard group="Guidelines" viewport="760x560" name="Primary action" subtitle="One filled pill per screen; rows are not buttons" -->
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>body{margin:0;background:var(--gym-background);font-family:-apple-system,system-ui,sans-serif;color:var(--gym-text);padding:24px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.col{border-radius:16px;padding:18px}
+.h{font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:12px}
+.bad{background:rgba(180,84,60,0.06)}.bad .h{color:#B4543C}
+.good{background:rgba(62,122,84,0.06)}.good .h{color:#3E7A54}
+.card{background:var(--surface-card);border-radius:14px;overflow:hidden;margin-bottom:10px}
+.r{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;font-size:15px;border-bottom:1px solid rgba(39,38,53,0.07)}
+.r:last-child{border:none}
+.blue{color:var(--gym-primary);font-weight:600}
+.red{color:#B4543C;font-weight:600}
+.pill{display:block;width:100%;text-align:center;background:var(--gym-primary);color:#fff;font-size:16px;font-weight:700;border-radius:999px;padding:14px;border:none;margin-top:4px}
+.chev{color:rgba(39,38,53,0.35)}
+.cap{font-size:12px;color:rgba(39,38,53,0.55);margin-top:8px;line-height:1.45}
+p{font-size:13px;color:rgba(39,38,53,0.6);line-height:1.5;margin:16px 0 0}
+a{color:var(--gym-primary)}a:hover{color:#2E5CBF}</style></head><body>
+<div class="g">
+<div class="col bad"><div class="h">Never — four styles, no hierarchy</div>
+<div class="card">
+<div class="r"><span>View Schedule</span><span class="chev">›</span></div>
+<div class="r"><span class="blue">▶ Start Day 1 – Lower Body</span></div>
+<div class="r"><span class="blue">Pause Program</span></div>
+<div class="r"><span class="red">Archive Program Run</span></div>
+</div>
+<div class="card"><div class="r"><span class="blue" style="width:100%;text-align:center">Start program</span></div></div>
+<div class="cap">Row-styled actions (blue text in a white row) read as navigation. The one true action drowns.</div>
+</div>
+<div class="col good"><div class="h">Always — one pill, rows navigate</div>
+<div class="card">
+<div class="r"><span>View Schedule</span><span class="chev">›</span></div>
+<div class="r"><span>See planned sets</span><span class="chev">›</span></div>
+<div class="r"><span>More (Pause · Archive)</span><span class="chev">⋯</span></div>
+</div>
+<button class="pill">Start Day 1 – Lower Body</button>
+<div class="cap">Exactly one filled-blue pill per screen = the primary action. Navigation stays in rows with chevrons; destructive/secondary actions group behind ⋯ or a grouped section.</div>
+</div>
+</div>
+<p><strong>Rule.</strong> Each screen declares one primary action as a filled-blue pill (Start, Save, Add). Never style an action as a plain list row ("Start program" in Configure, the action stack in Plan Run). Disabled primaries always say why, inline ("Name required"). Destructive actions never sit flush against the primary.</p>
+</body></html>

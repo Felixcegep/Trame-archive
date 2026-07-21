@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Today tab (current)" description="Post-pivot Today screen: week strip, workout, nutrition and journal cards — tweak day state, training day and program style" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div style="min-height:100vh;background:#F6F0E7;font-family:-apple-system,'SF Pro Text',sans-serif;color:#272635;display:flex;justify-content:center">
+<div style="width:390px;padding:24px 20px 40px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div>
+<div style="font-size:13px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42);white-space:nowrap">{{ dateLabel }}</div>
+<div style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:34px;font-weight:700;margin-top:2px">Today</div>
+</div>
+<div style="width:40px;height:40px;border-radius:50%;background:#FFFCF7;border:1px solid rgba(39,38,53,0.09);display:flex;align-items:center;justify-content:center;font-size:18px;color:rgba(39,38,53,0.58);cursor:pointer">⚙</div>
+</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.UpcomingCalendar" dc-props="{{ calendarProps }}" hint-size="100%,86px"></x-import>
+<sc-if value="{{ showResume }}" hint-placeholder-val="{{ false }}">
+<div style="background:linear-gradient(135deg,#3D72E2,#3567cf);border-radius:20px;padding:18px;color:#fff;cursor:pointer">
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;opacity:0.8">Workout in progress</div>
+<div style="display:flex;align-items:baseline;gap:10px;margin-top:8px">
+<span style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:30px;font-weight:700;font-variant-numeric:tabular-nums">{{ elapsed }}</span>
+<span style="font-size:14px;opacity:0.85">{{ workoutSub }}</span>
+</div>
+<div style="margin-top:12px;background:rgba(255,255,255,0.94);color:#3D72E2;border-radius:999px;padding:11px;text-align:center;font-size:16px;font-weight:600">Continue workout</div>
+</div>
+</sc-if>
+<sc-if value="{{ showPlanned }}" hint-placeholder-val="{{ true }}">
+<div style="background:#FFFCF7;border:1.5px solid rgba(61,114,226,0.16);border-radius:20px;padding:18px;box-shadow:0 1px 2px rgba(39,38,53,0.03)">
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42)">{{ workoutEyebrow }}</div>
+<div style="font-size:19px;font-weight:600;margin-top:6px">{{ workoutTitle }}</div>
+<div style="font-size:13px;color:rgba(39,38,53,0.58);margin-top:4px">{{ workoutSub }}</div>
+<div style="margin-top:14px;background:#3D72E2;color:#fff;border-radius:999px;padding:12px;text-align:center;font-size:16px;font-weight:600;cursor:pointer">{{ workoutCta }}</div>
+</div>
+</sc-if>
+<div style="background:#FFFCF7;border:1px solid rgba(39,38,53,0.09);border-radius:20px;padding:18px;box-shadow:0 1px 2px rgba(39,38,53,0.03)">
+<div style="display:flex;justify-content:space-between;align-items:baseline">
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42)">Nutrition</div>
+<div style="font-size:12px;color:#A1683A;background:rgba(161,104,58,0.12);border-radius:999px;padding:3px 10px;font-weight:600;white-space:nowrap">{{ dayTypeLabel }}</div>
+</div>
+<div style="display:flex;align-items:baseline;gap:6px;margin-top:8px">
+<span style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:28px;font-weight:700;font-variant-numeric:tabular-nums">{{ kcal }}</span>
+<span style="font-size:14px;color:rgba(39,38,53,0.58);white-space:nowrap">/ {{ kcalTarget }} kcal</span>
+</div>
+<div style="height:8px;border-radius:4px;background:#F2F1EF;margin-top:10px;overflow:hidden">
+<sc-if value="{{ isMorning }}" hint-placeholder-val="{{ true }}"><div style="height:100%;border-radius:4px;background:#487A6C;width:24%"></div></sc-if>
+<sc-if value="{{ isMidday }}" hint-placeholder-val="{{ false }}"><div style="height:100%;border-radius:4px;background:#487A6C;width:55%"></div></sc-if>
+<sc-if value="{{ isEvening }}" hint-placeholder-val="{{ false }}"><div style="height:100%;border-radius:4px;background:#487A6C;width:86%"></div></sc-if>
+</div>
+<div style="display:flex;gap:14px;margin-top:12px;font-variant-numeric:tabular-nums;font-size:13px;color:rgba(39,38,53,0.58);white-space:nowrap">
+<span><b style="color:#272635">{{ protein }}g</b> protein</span><span><b style="color:#272635">{{ carbs }}g</b> carbs</span><span><b style="color:#272635">{{ fat }}g</b> fat</span>
+</div>
+</div>
+<sc-if value="{{ showJournal }}" hint-placeholder-val="{{ false }}">
+<div style="background:#E7EAE1;border-radius:20px;padding:18px">
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#487A6C">Evening check-in</div>
+<div style="font-size:15px;margin-top:6px">How did today feel? One minute, honest answers.</div>
+<div style="margin-top:12px;display:inline-block;background:#487A6C;color:#fff;border-radius:999px;padding:9px 18px;font-size:14px;font-weight:600;cursor:pointer">Check in</div>
+</div>
+</sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;430px&quot;,&quot;height&quot;:&quot;900px&quot;},&quot;dayPhase&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;morning&quot;,&quot;options&quot;:[&quot;morning&quot;,&quot;midday&quot;,&quot;evening&quot;],&quot;tsType&quot;:&quot;\&quot;morning\&quot; | \&quot;midday\&quot; | \&quot;evening\&quot;&quot;,&quot;section&quot;:&quot;Day state&quot;},&quot;trainingDay&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Day state&quot;},&quot;workoutStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;push-pull-legs&quot;,&quot;options&quot;:[&quot;push-pull-legs&quot;,&quot;upper-lower&quot;,&quot;full-body&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Program&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const phase = this.props.dayPhase ?? "morning";
+    const training = this.props.trainingDay ?? true;
+    const style = this.props.workoutStyle ?? "push-pull-legs";
+    const plans = {
+      "push-pull-legs": { title: "Push Day", sub: "6 exercises · Bench, OHP, dips · ~55 min", next: ["Pull", "Legs"] },
+      "upper-lower": { title: "Upper Body", sub: "7 exercises · Rows, bench, curls · ~60 min", next: ["Lower", "Upper"] },
+      "full-body": { title: "Full Body A", sub: "5 exercises · Squat, bench, row · ~50 min", next: ["Full B", "Full A"] }
+    };
+    const plan = plans[style] || plans["push-pull-legs"];
+    const kcalTarget = training ? 2800 : 2300;
+    const eaten = phase === "morning" ? 0.24 : phase === "midday" ? 0.55 : 0.86;
+    const days = [
+      { label: "Mer", date: 15, done: true }, { label: "Jeu", date: 16 },
+      { label: "Ven", date: 17, done: true },
+      { label: "Sam", date: 18, isToday: true, workout: training ? plan.title.split(" ")[0] : undefined },
+      { label: "Dim", date: 19 },
+      { label: "Lun", date: 20, workout: plan.next[0] }, { label: "Mar", date: 21, workout: plan.next[1] }
+    ];
+    return {
+      dateLabel: "Saturday, July 18",
+      calendarProps: { days },
+      showResume: phase === "midday" && training,
+      showPlanned: !(phase === "midday" && training),
+      showJournal: phase === "evening",
+      isMorning: phase === "morning",
+      isMidday: phase === "midday",
+      isEvening: phase === "evening",
+      elapsed: "23:41",
+      workoutEyebrow: !training ? "Rest day" : phase === "evening" ? "Completed today" : "Today's workout",
+      workoutTitle: !training ? "Recovery" : plan.title,
+      workoutSub: !training ? "No workout scheduled. Stretch, walk, eat well." : phase === "midday" ? "Set 2 of 4 · Bench Press" : plan.sub,
+      workoutCta: !training ? "Start free workout" : phase === "evening" ? "Review workout" : "Start workout",
+      dayTypeLabel: training ? "Training day" : "Rest day",
+      kcal: Math.round(kcalTarget * eaten), kcalTarget,
+      kcalPct: Math.round(eaten * 100) + "%",
+      protein: Math.round((training ? 190 : 160) * eaten),
+      carbs: Math.round((training ? 320 : 220) * eaten),
+      fat: Math.round(80 * eaten)
+    };
+  }
+}
+</script>
+</body>
+</html>

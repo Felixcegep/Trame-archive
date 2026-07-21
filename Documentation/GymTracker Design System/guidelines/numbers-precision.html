@@ -1,0 +1,31 @@
+<!-- @dsCard group="Guidelines" viewport="760x520" name="Numbers & precision" subtitle="Integer-first display; no false decimals" -->
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>body{margin:0;background:var(--gym-background);font-family:-apple-system,system-ui,sans-serif;color:var(--gym-text);padding:24px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.col{background:var(--surface-card);border-radius:16px;padding:18px}
+.h{font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:12px}
+.bad .h{color:#B4543C}.good .h{color:#3E7A54}
+.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(39,38,53,0.07);font-size:15px}
+.row:last-child{border:none}
+.v{font-variant-numeric:tabular-nums;font-weight:600}
+.bad .v{color:#B4543C;text-decoration:line-through}
+.good .v{color:#3E7A54}
+p{font-size:13px;color:rgba(39,38,53,0.6);line-height:1.5;margin:16px 0 0}
+a{color:var(--gym-primary)}a:hover{color:#2E5CBF}</style></head><body>
+<div class="g">
+<div class="col bad"><div class="h">Never</div>
+<div class="row"><span>Calories</span><span class="v">347.8 kcal</span></div>
+<div class="row"><span>Protein</span><span class="v">63.5 g</span></div>
+<div class="row"><span>Estimated 1RM</span><span class="v">63.33 kg</span></div>
+<div class="row"><span>Weekly volume</span><span class="v">12450.0 kg</span></div>
+</div>
+<div class="col good"><div class="h">Always</div>
+<div class="row"><span>Calories</span><span class="v">348 kcal</span></div>
+<div class="row"><span>Protein</span><span class="v">64 g</span></div>
+<div class="row"><span>Estimated 1RM</span><span class="v">≈63 kg</span></div>
+<div class="row"><span>Weekly volume</span><span class="v">12 450 kg</span></div>
+</div>
+</div>
+<p><strong>Rule.</strong> Displayed numbers use the precision the user can act on: kcal and grams are integers; estimated values round to the nearest whole kg (≈ prefix allowed) — plates only exist in 0.5&nbsp;kg steps; logged loads keep the user's own entry ("50 kg", "52.5 kg", never "50.0"). Decimals imply a measurement accuracy the app doesn't have and erode trust.</p>
+</body></html>

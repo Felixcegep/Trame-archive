@@ -1,0 +1,15 @@
+:root{
+/* From Spacing.swift — note the non-8pt 10px step */
+--space-xxs:2px;
+--space-xs:4px;
+--space-s:8px;
+--space-md:10px;
+--space-m:12px;
+--space-l:16px;
+--space-xl:20px;
+--space-xxl:24px;
+--space-xxxl:32px;
+/* Layout constants seen in views */
+--screen-inset:20px; /* horizontal page padding (Spacing.xl) */
+--hit-target:44px;
+}

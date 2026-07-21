@@ -1,0 +1,32 @@
+:root{
+/* SF Rounded for large display numbers & titles; SF Pro for body/UI.
+   The system keywords (ui-rounded, -apple-system) resolve to SF Rounded / SF Pro on Apple
+   platforms — no webfont ships with the repo. If licensed SF webfonts are uploaded later,
+   add @font-face rules here and prepend the family names. */
+--font-display:ui-rounded,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+--font-body:-apple-system,BlinkMacSystemFont,system-ui,"Helvetica Neue",sans-serif;
+/* Type scale — from AppFont (iOS text styles, px = pt) */
+--type-display-large:700 34px/1.15 var(--font-display); /* + tabular-nums */
+--type-display-medium:700 32px/1.15 var(--font-display);
+--type-title:400 28px/1.2 var(--font-body);
+--type-title-medium:700 22px/1.25 var(--font-body); /* title2 bold */
+--type-title-small:700 20px/1.25 var(--font-body); /* title3 bold */
+--type-title-small-semibold:600 20px/1.25 var(--font-body);
+--type-headline:600 17px/1.3 var(--font-body);
+--type-body:400 17px/1.4 var(--font-body);
+--type-body-medium:500 17px/1.4 var(--font-body);
+--type-subheadline:400 15px/1.35 var(--font-body);
+--type-subheadline-semibold:600 15px/1.35 var(--font-body);
+--type-subheadline-bold:700 15px/1.35 var(--font-body);
+--type-footnote:400 13px/1.35 var(--font-body);
+--type-footnote-medium:500 13px/1.35 var(--font-body);
+--type-caption:400 12px/1.3 var(--font-body);
+--type-caption-bold:700 12px/1.3 var(--font-body);
+--type-caption2:400 11px/1.3 var(--font-body);
+--type-caption2-bold:700 11px/1.3 var(--font-body);
+/* Uppercase section labels use caption-bold + tracking */
+--tracking-label:0.8px;
+--tracking-label-tight:0.55px;
+}
+/* Monospaced digits ONLY where numbers must align: timers, loads, reps, stats */
+.gym-tabular{font-variant-numeric:tabular-nums}

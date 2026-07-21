@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Nutrition sheets (planned)" description="Add-meal / food search, food detail with serving, and targets editor — tweak which sheet shows" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div style="min-height:100vh;background:rgba(39,38,53,0.32);font-family:-apple-system,'SF Pro Text',sans-serif;color:#272635;display:flex;align-items:flex-end;justify-content:center">
+<div style="width:390px;max-height:88vh;overflow-y:auto;background:#F6F0E7;border-radius:24px 24px 0 0;padding:12px 20px 32px;display:flex;flex-direction:column;gap:16px">
+<div style="width:36px;height:5px;border-radius:3px;background:rgba(39,38,53,0.18);margin:0 auto"></div>
+
+<sc-if value="{{ isSearch }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:15px;color:rgba(39,38,53,0.58);cursor:pointer">Cancel</span>
+<div style="font-size:17px;font-weight:600;white-space:nowrap">Add to {{ mealSlot }}</div>
+<span style="width:50px"></span>
+</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.SearchField" placeholder="Search foods" hint-size="100%,46px"></x-import>
+<sc-if value="{{ showRecents }}" hint-placeholder-val="{{ true }}">
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42)">Recent</div>
+<sc-for list="{{ recents }}" as="f" hint-placeholder-count="4">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="large" padding="12px 16px" hint-size="100%,58px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.name }}</div><div style="font-size:12px;color:rgba(39,38,53,0.5);margin-top:2px;white-space:nowrap">{{ f.serving }} · {{ f.kcal }} kcal</div></div>
+<span style="font-size:22px;color:#3D72E2;cursor:pointer">+</span>
+</div>
+</x-import>
+</sc-for>
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42);margin-top:4px">Repeat a meal</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="accent" radius="large" padding="12px 16px" hint-size="100%,58px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Yesterday's {{ mealSlot }}</div><div style="font-size:12px;color:rgba(39,38,53,0.5);margin-top:2px;white-space:nowrap">Poulet, riz, brocoli · 610 kcal</div></div>
+<span style="font-size:13px;font-weight:600;color:#3D72E2">Repeat</span>
+</div>
+</x-import>
+</sc-if>
+<sc-if value="{{ showOffline }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="muted" radius="large" padding="18px" hint-size="100%,90px">
+<div style="font-size:14px;font-weight:600">Search unavailable</div>
+<div style="font-size:13px;color:rgba(39,38,53,0.58);margin-top:4px">You're offline. Log from recents, or enter a food manually.</div>
+</x-import>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:15px;color:rgba(39,38,53,0.58);cursor:pointer">Back</span>
+<div style="font-size:17px;font-weight:600">Poulet grillé</div>
+<span style="font-size:15px;font-weight:600;color:#3D72E2;cursor:pointer">Add</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px;background:#FFFCF7;border-radius:14px;padding:4px">
+<span style="flex:1;text-align:center;padding:9px 0;font-size:14px;border-radius:12px;background:#3D72E2;color:#fff;font-weight:600">100 g</span>
+<span style="flex:1;text-align:center;padding:9px 0;font-size:14px;color:rgba(39,38,53,0.58)">1 portion</span>
+<span style="flex:1;text-align:center;padding:9px 0;font-size:14px;color:rgba(39,38,53,0.58)">Custom</span>
+</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="section" padding="16px" hint-size="100%,120px">
+<div style="display:flex;justify-content:space-between"><span style="font-size:14px">Calories</span><b style="font-variant-numeric:tabular-nums">231 kcal</b></div>
+<div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:14px">Protein</span><b style="font-variant-numeric:tabular-nums">29 g</b></div>
+<div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:14px">Carbs</span><b style="font-variant-numeric:tabular-nums">0 g</b></div>
+<div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:14px">Fat</span><b style="font-variant-numeric:tabular-nums">9 g</b></div>
+</x-import>
+</sc-if>
+
+<sc-if value="{{ isTargets }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:17px;font-weight:600">Nutrition target</div>
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42)">Goal</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.SegmentedControl" options="{{ goalOptions }}" value="Maintenance" hint-size="100%,36px"></x-import>
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42);margin-top:4px">Training-day target</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="large" padding="14px 16px" hint-size="100%,52px">
+<div style="display:flex;justify-content:space-between"><span style="font-size:14px">Calories</span><b>2,800 kcal</b></div>
+</x-import>
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42);margin-top:4px">Rest-day target</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="large" padding="14px 16px" hint-size="100%,52px">
+<div style="display:flex;justify-content:space-between"><span style="font-size:14px">Calories</span><b>2,300 kcal</b></div>
+</x-import>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Button" variant="primary" hint-size="100%,48px">Save target</x-import>
+</sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;430px&quot;,&quot;height&quot;:&quot;780px&quot;},&quot;sheet&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;search&quot;,&quot;options&quot;:[&quot;search&quot;,&quot;detail&quot;,&quot;targets&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Sheet&quot;},&quot;searchState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;recents&quot;,&quot;options&quot;:[&quot;recents&quot;,&quot;offline&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Search&quot;},&quot;mealSlot&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Dîner&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Sheet&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const sheet = this.props.sheet ?? "search";
+    return {
+      isSearch: sheet === "search",
+      isDetail: sheet === "detail",
+      isTargets: sheet === "targets",
+      mealSlot: this.props.mealSlot ?? "Dîner",
+      showRecents: (this.props.searchState ?? "recents") === "recents",
+      showOffline: (this.props.searchState ?? "recents") === "offline",
+      goalOptions: ["Bulk", "Cut", "Maintenance"],
+      recents: [
+        { name: "Poulet grillé, 150g", serving: "150 g", kcal: 231 },
+        { name: "Riz basmati cuit", serving: "1 tasse", kcal: 205 },
+        { name: "Whey protein, 1 scoop", serving: "30 g", kcal: 120 },
+        { name: "Banane", serving: "1 moyenne", kcal: 105 }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+<!-- @dsCard group="Components" viewport="700x920" name="Workout" subtitle="Session header, rest timer, exercise cards \u2014 strength (RPE) and stretch (intensity, no RPE)" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--surface-page);font:var(--type-body);color:var(--text-body);padding:16px}</style>
+</head><body><div id="root"></div><script type="text/babel">
+const {SessionHeader,RestTimer,SetRow,ExerciseCard} = window.GymTrackerDesignSystem_9b15a7;
+function Demo(){const [sets,setSets]=React.useState([{v:[8,50],s:"completed"},{v:[8,50],s:"current"},{v:[8,50],s:"pending"}]);
+const toggle=i=>setSets(p=>p.map((x,j)=>j===i?{...x,s:x.s==="completed"?"current":"completed"}:x));
+return <div style={{display:"flex",flexDirection:"column",gap:12,maxWidth:600}}>
+<SessionHeader elapsed="0:50" completedSets={1} totalSets={3} exercises="1 exercise"/>
+<RestTimer state="running" remaining="1:07"/>
+<ExerciseCard name="Bench Press" state="current" completedSets={1} totalSets={3} elapsed="0:03" onAddSet={()=>{}}>
+{sets.map((x,i)=><SetRow key={i} index={i+1} values={x.v} state={x.s} locked={i===0} note={i===0?"RPE 8 \u00b7 Could do 2 more reps":null} onToggle={()=>toggle(i)}/>)}
+</ExerciseCard>
+<ExerciseCard name="Incline Dumbbell Press" state="completed" completedSets={3} totalSets={3} lastTime="Last time: 3 × 10 @ 22.5 kg · Jul 12"/>
+<ExerciseCard name="Étirement ischio-jambiers" state="current" columns={["Durée (s)","Intensité"]} prescription={"2 \u00d7 45 s \u00b7 étirement modéré"} completedSets={1} totalSets={2} onAddSet={()=>{}}>
+<SetRow index={1} values={[45,"Modéré"]} state="completed" note={"Étirement modéré \u00b7 sans douleur"} onToggle={()=>{}}/>
+<SetRow index={2} values={[45,""]} state="current" onToggle={()=>{}}/>
+</ExerciseCard>
+</div>;}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script></body></html>

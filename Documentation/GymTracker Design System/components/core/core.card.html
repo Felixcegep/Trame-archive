@@ -1,0 +1,33 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Core" subtitle="Buttons, cards, badges, chips, labels, icons" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--surface-page);font:var(--type-body);color:var(--text-body);padding:16px}</style>
+</head><body><div id="root"></div><script type="text/babel">
+const {Button,Card,Badge,SectionLabel,IconChip,Icon} = window.GymTrackerDesignSystem_9b15a7;
+function Demo(){return <div style={{display:"flex",flexDirection:"column",gap:14}}>
+<div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+<Button trailingIcon="chevronRight">Start workout</Button>
+<Button variant="bordered" color="accent">+15s</Button>
+<Button variant="text" icon="plus">Add set</Button>
+<Button variant="text" color="destructive" icon="trash">Discard</Button>
+<Badge variant="tint">Week 2</Badge>
+<Badge color="secondary">PR</Badge>
+<IconChip icon="workout" color="secondary" shape="rounded" surface/>
+<IconChip icon="history" color="accent"/>
+<IconChip icon="stack" color="primary"/>
+<Icon name="trophy" size={22} color="var(--gym-accent)"/>
+<Icon name="progression" size={22} color="var(--gym-primary)"/>
+</div>
+<Button variant="prominent" icon="checkmark">Review Workout</Button>
+<div style={{display:"flex",gap:10}}>
+<Card style={{flex:1}}><SectionLabel>Standard</SectionLabel></Card>
+<Card variant="current" style={{flex:1}}><SectionLabel color="var(--gym-primary)" icon="circleFill" iconColor="var(--gym-primary)">Current</SectionLabel></Card>
+<Card variant="completed" style={{flex:1}}><SectionLabel icon="checkmarkCircle">Completed</SectionLabel></Card>
+<Card variant="accent" radius="section" style={{flex:1}}><SectionLabel icon="timer" iconColor="var(--gym-accent)">Session</SectionLabel></Card>
+</div>
+</div>;}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script></body></html>

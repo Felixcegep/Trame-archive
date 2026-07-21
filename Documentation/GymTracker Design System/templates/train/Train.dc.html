@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Train (current)" description="Library evolved into Train: programs, prescription, deload, exercises — tweak the active section and program phase" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div style="min-height:100vh;background:#F6F0E7;font-family:-apple-system,'SF Pro Text',sans-serif;color:#272635;display:flex;justify-content:center">
+<div style="width:390px;padding:24px 20px 40px;display:flex;flex-direction:column;gap:16px">
+<div style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:34px;font-weight:700">Train</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.SegmentedControl" options="{{ sections }}" value="{{ section }}" hint-size="100%,36px"></x-import>
+
+<sc-if value="{{ isProgram }}" hint-placeholder-val="{{ true }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="accent" radius="section" padding="18px" hint-size="100%,120px">
+<div style="display:flex;justify-content:space-between;align-items:baseline">
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#A1683A;white-space:nowrap">{{ phaseLabel }} · Wk {{ week }}/8</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Badge" color="{{ phaseBadgeColor }}" hint-size="60px,22px">{{ phaseBadge }}</x-import>
+</div>
+<div style="font-size:19px;font-weight:600;margin-top:6px">{{ programName }}</div>
+<div style="font-size:13px;color:rgba(39,38,53,0.58);margin-top:4px">{{ nextSession }}</div>
+<div style="height:6px;border-radius:3px;background:rgba(39,38,53,0.08);margin-top:12px;overflow:hidden">
+<sc-if value="{{ isTestPhase }}" hint-placeholder-val="{{ false }}"><div style="height:100%;border-radius:3px;background:#3D72E2;width:100%"></div></sc-if>
+<sc-if value="{{ !isTestPhase }}" hint-placeholder-val="{{ true }}"><div style="height:100%;border-radius:3px;background:#3D72E2;width:62%"></div></sc-if>
+</div>
+</x-import>
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42)">This week</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="section" padding="4px 16px" hint-size="100%,340px">
+<sc-for list="{{ weekDays }}" as="d" hint-placeholder-count="7">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.StatusRow" title="{{ d.name }}" detail="{{ d.detail }}" status="{{ d.status }}" is-today="{{ d.isToday }}" hint-size="100%,58px"></x-import>
+</sc-for>
+</x-import>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="outlined" radius="large" padding="14px 16px" hint-size="100%,74px">
+<div style="font-size:13px;font-weight:600;color:#487A6C">Progression recommendation · Bench Press</div>
+<div style="font-size:13px;color:rgba(39,38,53,0.65);margin-top:4px">{{ recoText }}</div>
+</x-import>
+</sc-if>
+
+<sc-if value="{{ isExercises }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.SearchField" placeholder="Search exercises" hint-size="100%,44px"></x-import>
+<sc-for list="{{ exercises }}" as="ex" hint-placeholder-count="5">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="large" padding="12px 16px" hint-size="100%,60px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div>
+<div style="font-size:14px;font-weight:600">{{ ex.name }}</div>
+<div style="font-size:12px;color:rgba(39,38,53,0.5);margin-top:2px">{{ ex.muscle }} · {{ ex.equipment }}</div>
+</div>
+<span style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:14px;font-weight:700;color:#3D72E2">{{ ex.e1rm }}</span>
+</div>
+</x-import>
+</sc-for>
+</sc-if>
+
+<sc-if value="{{ isWorkouts }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Button" variant="primary" icon="plus" hint-size="100%,48px">Start free workout</x-import>
+<sc-for list="{{ templates }}" as="t" hint-placeholder-count="4">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="large" padding="14px 16px" hint-size="100%,64px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div>
+<div style="font-size:14px;font-weight:600">{{ t.name }}</div>
+<div style="font-size:12px;color:rgba(39,38,53,0.5);margin-top:2px">{{ t.detail }}</div>
+</div>
+<span style="font-size:18px;color:rgba(39,38,53,0.3)">›</span>
+</div>
+</x-import>
+</sc-for>
+</sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;430px&quot;,&quot;height&quot;:&quot;920px&quot;},&quot;section&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;programs&quot;,&quot;options&quot;:[&quot;programs&quot;,&quot;workouts&quot;,&quot;exercises&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;View&quot;},&quot;programPhase&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;build&quot;,&quot;options&quot;:[&quot;build&quot;,&quot;deload&quot;,&quot;test&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Program&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const section = this.props.section ?? "programs";
+    const phase = this.props.programPhase ?? "build";
+    const phases = {
+      build: { label: "Build phase", badge: "Building", color: "primary", reco: "Add 2.5 kg next session — last 2 sets both hit RPE 7 or below." },
+      deload: { label: "Deload week", badge: "Deload", color: "accent", reco: "Volume reduced 40% this week. Keep loads light, focus on form." },
+      test: { label: "Test week", badge: "Testing", color: "secondary", reco: "Retest e1RM this week to recalibrate next block." }
+    };
+    const p = phases[phase] || phases.build;
+    const weekDays = [
+      { name: "Push", detail: "Completed · 54 min", status: "completed", isToday: false },
+      { name: "Pull", detail: "Completed · 61 min", status: "completed", isToday: false },
+      { name: "Rest", detail: "Recovery day", status: "skipped", isToday: false },
+      { name: "Legs", detail: phase === "deload" ? "Reduced volume · today" : "Today · 5 exercises", status: "in-progress", isToday: true },
+      { name: "Rest", detail: "Recovery day", status: "skipped", isToday: false },
+      { name: "Push", detail: "Scheduled", status: "scheduled", isToday: false },
+      { name: "Pull", detail: "Scheduled", status: "scheduled", isToday: false }
+    ];
+    return {
+      sections: ["Programs", "Workouts", "Exercises"],
+      section: section[0].toUpperCase() + section.slice(1),
+      isProgram: section === "programs",
+      isWorkouts: section === "workouts",
+      isExercises: section === "exercises",
+      phaseLabel: p.label, phaseBadge: p.badge, phaseBadgeColor: p.color,
+      week: phase === "deload" ? 4 : phase === "test" ? 8 : 5,
+      programName: "Push / Pull / Legs — Hypertrophy",
+      nextSession: "Next: Legs · today · 5 exercises",
+      isTestPhase: phase === "test",
+      weekDays,
+      recoText: p.reco,
+      exercises: [
+        { name: "Flat Barbell Bench Press", muscle: "Chest", equipment: "Barbell", e1rm: "112 kg" },
+        { name: "Back Squat", muscle: "Legs", equipment: "Barbell", e1rm: "148 kg" },
+        { name: "Weighted Pull-Up", muscle: "Back", equipment: "Bodyweight+", e1rm: "+28 kg" },
+        { name: "Overhead Press", muscle: "Shoulders", equipment: "Barbell", e1rm: "68 kg" },
+        { name: "Romanian Deadlift", muscle: "Hamstrings", equipment: "Barbell", e1rm: "132 kg" }
+      ],
+      templates: [
+        { name: "Push Day A", detail: "6 exercises · from active program" },
+        { name: "Pull Day A", detail: "7 exercises · from active program" },
+        { name: "Full Body Quick", detail: "4 exercises · 30 min" },
+        { name: "Arms Focus", detail: "5 exercises · custom" }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!-- @dsCard group="iOS App" viewport="390x844" name="GymTracker app" subtitle="Interactive: start a workout, log sets, rest, review" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GymTracker</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>html,body{margin:0;height:100%}body{background:var(--surface-page);font:var(--type-body);color:var(--text-body)}#root{height:100%}a{color:var(--gym-primary)}a:hover{color:#2f5cc0}</style>
+</head><body><div id="root"></div>
+<script type="text/babel" src="chrome.jsx"></script>
+<script type="text/babel" src="HomeScreen.jsx"></script>
+<script type="text/babel" src="ActiveWorkoutScreen.jsx"></script>
+<script type="text/babel" src="LibraryScreen.jsx"></script>
+<script type="text/babel" src="HistoryScreen.jsx"></script>
+<script type="text/babel">
+const {TabBar}=window.GymTrackerDesignSystem_9b15a7;
+function App(){
+  const [tab,setTab]=React.useState("home");
+  const [workingOut,setWorkingOut]=React.useState(false);
+  const [hasHistory,setHasHistory]=React.useState(false);
+  return <div style={{maxWidth:430,height:"100%",margin:"0 auto",position:"relative",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <StatusBar/>
+    <div style={{flex:1,overflowY:"auto"}}>
+      {tab==="home"&&<HomeScreen onStartWorkout={()=>setWorkingOut(true)} hasHistory={hasHistory}/>}
+      {tab==="library"&&<LibraryScreen/>}
+      {tab==="history"&&<HistoryScreen/>}
+      {tab==="settings"&&<div style={{display:"flex",flexDirection:"column",gap:12,padding:"40px 20px",color:"var(--gym-text-subdued)",font:"var(--type-subheadline)"}}><div style={{font:"var(--type-display-medium)",color:"var(--gym-text)"}}>Settings</div>Not recreated in this kit \u2014 see assets/screenshots/04_Settings.png.</div>}
+    </div>
+    <div style={{position:"absolute",left:16,right:16,bottom:16}}><TabBar active={tab} onChange={setTab}/></div>
+    {workingOut&&<div style={{position:"absolute",inset:0,background:"var(--surface-page)",display:"flex",flexDirection:"column"}}>
+      <StatusBar/>
+      <div style={{flex:1,minHeight:0}}><ActiveWorkoutScreen onClose={()=>setWorkingOut(false)} onFinish={()=>{setWorkingOut(false);setHasHistory(true);}}/></div>
+    </div>}
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script></body></html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Save review (current)" description="Finish-workout review: planned vs performed, partial-save confirm — tweak completeness" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div style="min-height:100vh;background:#F6F0E7;font-family:-apple-system,'SF Pro Text',sans-serif;color:#272635;display:flex;justify-content:center">
+<div style="width:390px;padding:20px 20px 40px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:15px;color:rgba(39,38,53,0.58);cursor:pointer">Discard</span>
+<div style="font-size:17px;font-weight:600;white-space:nowrap">Review workout</div>
+<span style="font-size:15px;font-weight:600;color:#3D72E2;cursor:pointer">Save</span>
+</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="accent" radius="section" padding="18px" hint-size="100%,90px">
+<div style="font-size:19px;font-weight:600">Push Day</div>
+<div style="font-size:13px;color:rgba(39,38,53,0.58);margin-top:4px">54 min · 3 exercises · 12 sets</div>
+</x-import>
+<sc-if value="{{ isPartial }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="muted" radius="large" padding="14px 16px" hint-size="100%,66px">
+<div style="font-size:14px;font-weight:600">1 exercise not started</div>
+<div style="font-size:13px;color:rgba(39,38,53,0.58);margin-top:4px">Cable Tricep Pushdown will be saved as skipped. You can still add it later.</div>
+</x-import>
+</sc-if>
+<div style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42)">Planned vs. performed</div>
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="3">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.ComparisonPanel" title="{{ r.name }}" met="{{ r.met }}" planned="{{ r.planned }}" performed="{{ r.performed }}" hint-size="100%,120px"></x-import>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;430px&quot;,&quot;height&quot;:&quot;820px&quot;},&quot;completeness&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;complete&quot;,&quot;options&quot;:[&quot;complete&quot;,&quot;partial&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Review&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const partial = this.props.completeness === "partial";
+    return {
+      isPartial: partial,
+      rows: [
+        { name: "Flat Barbell Bench Press", planned: "3×8 @ 70 kg", performed: "3×8 @ 70 kg", met: true },
+        { name: "Incline Dumbbell Press", planned: "3×10 @ 22.5 kg", performed: "3×10 @ 25 kg", met: true },
+        { name: "Cable Tricep Pushdown", planned: "3×12 @ 25 kg", performed: partial ? "Skipped" : "3×12 @ 25 kg", met: !partial }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

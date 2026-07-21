@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="GymTracker iOS app" description="Post-pivot four-tab shell (Today, Train, Nutrition, Progress) with Settings gear and the interactive Active Workout flow" -->
+<helmet>
+<script src="./ds-base.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="./loader.js"></script>
+<style>html,body{margin:0;height:100%}a{color:#3D72E2}a:hover{color:#2f5cc0}</style>
+</helmet>
+<div style="height:100vh;background:#F6F0E7">
+<x-import component-from-global-scope="gym-app" hint-size="390px,844px" style="height:100%;display:block"></x-import>
+</div>
+</x-dc>
+</body>
+</html>

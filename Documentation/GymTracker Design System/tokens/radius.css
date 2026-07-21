@@ -1,0 +1,10 @@
+:root{
+/* From Radius.swift — rounded but never pill (capsules only for CTA button + tiny badges) */
+--radius-small:8px;
+--radius-medium:12px;
+--radius-large:16px;
+--radius-section:18px;
+--radius-button:18px;
+--radius-card:20px;
+--radius-pill:999px; /* Start-workout CTA, week capsule badges only */
+}

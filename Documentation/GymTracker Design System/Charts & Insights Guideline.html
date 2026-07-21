@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Bundled Page</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #F7EFE3; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    #__bundler_loading { position: fixed; bottom: 20px; right: 20px; font: 13px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; color: #666; background: #fff; padding: 8px 14px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.12); z-index: 10000; }
+    #__bundler_thumbnail { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #F7EFE3; z-index: 9999; }
+    #__bundler_thumbnail svg { width: 100%; height: 100%; object-fit: contain; }
+    #__bundler_placeholder { color: #999; font-size: 14px; }
+  </style>
+  <noscript>
+    <style>#__bundler_loading { display: none; }</style>
+    <div style="position:fixed;bottom:12px;left:12px;font:13px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;color:#999;background:rgba(255,255,255,0.9);padding:6px 12px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);z-index:10000;">
+      This page requires JavaScript to display.
+    </div>
+  </noscript>
+</head>
+<body>
+  <div id="__bundler_thumbnail"><svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg"><rect width="120" height="80" fill="#F7EFE3"></rect><g transform="translate(36,22)"><rect x="0" y="20" width="10" height="16" rx="2" fill="#3E7A54"></rect><rect x="0" y="10" width="10" height="9" rx="2" fill="#3D72E2"></rect><rect x="14" y="26" width="10" height="10" rx="2" fill="#3E7A54"></rect><rect x="14" y="14" width="10" height="11" rx="2" fill="#3D72E2"></rect><rect x="28" y="12" width="10" height="24" rx="2" fill="#A1683A"></rect><rect x="42" y="18" width="10" height="18" rx="2" fill="#3D72E2"></rect></g></svg></div>
+  <div id="__bundler_loading">Unpacking...</div>
+
+  <script>
+    
+document.addEventListener('DOMContentLoaded', async function() {
+  const loading = document.getElementById('__bundler_loading');
+  function setStatus(msg) { if (loading) loading.textContent = msg; }
+
+  const FONT_MIME = /^(font[/]|application[/](x-)?font-|application[/]vnd\.ms-fontobject)/i;
+  const MIME_TOKEN = /^[\w.+-]+[/][\w.+-]+$/;
+  function toBase64(bytes) {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(bin);
+  }
+
+  // Error sink persists across replaceWith since it's on window, not the DOM.
+  window.addEventListener('error', function(e) {
+    // Failed resource loads (CSP-blocked links, scripts, images) fire plain
+    // events at the element — warn only; real JS errors carry message/error.
+    if (!e.message && !e.error && e.target && e.target !== window) {
+      console.warn('[bundle] resource failed to load:',
+        e.target.tagName, String(e.target.src || e.target.href || ''));
+      return;
+    }
+    var p = document.body || document.documentElement;
+    var d = document.getElementById('__bundler_err') || p.appendChild(document.createElement('div'));
+    d.id = '__bundler_err';
+    d.style.cssText = 'position:fixed;bottom:12px;left:12px;right:12px;font:12px/1.4 ui-monospace,monospace;background:#2a1215;color:#ff8a80;padding:10px 14px;border-radius:8px;border:1px solid #5c2b2e;z-index:99999;white-space:pre-wrap;max-height:40vh;overflow:auto';
+    d.textContent = (d.textContent ? d.textContent + String.fromCharCode(10) : '') +
+      '[bundle] ' + (e.message || e.type) +
+      (e.filename ? ' (' + e.filename.slice(0, 60) + ':' + e.lineno + ')' : '');
+  }, true);
+
+  try {
+    const manifestEl = document.querySelector('script[type="__bundler/manifest"]');
+    const templateEl = document.querySelector('script[type="__bundler/template"]');
+    if (!manifestEl || !templateEl) {
+      setStatus('Error: missing bundle data');
+      console.error('[bundler] Missing script tags — manifestEl:', !!manifestEl, 'templateEl:', !!templateEl);
+      return;
+    }
+
+    const manifest = JSON.parse(manifestEl.textContent);
+    let template = JSON.parse(templateEl.textContent);
+
+    // Nested page bundles (iframe targets). Each ships ONCE, in the ROOT
+    // document's manifest; frame srcs carry an about:blank#<uuid> marker
+    // instead of a substitutable uuid. Every document mints the blobs for
+    // its OWN frames — from local text at the root, or text obtained from
+    // its DIRECT parent over the relay protocol below — so each frame
+    // navigation stays same-origin with its initiator and a deduped page
+    // loads at any depth on any host, including a file:// download's
+    // opaque origins (where a blob minted by one document cannot be
+    // navigated to by another).
+    const pageOrderEl = document.querySelector('script[type="__bundler/page_order"]');
+    const pageOrder = pageOrderEl ? JSON.parse(pageOrderEl.textContent) : [];
+    const pageSet = new Set(pageOrder);
+    const pageTexts = {};
+
+    // ── Nested-page text protocol (parent-chain relay) ──
+    // Page bundles ship once, in the ROOT document's manifest. Every
+    // document mints the blobs for its OWN frames, obtaining page text
+    // through a strict parent-chain relay: a document only ever SENDS to
+    // its direct parent (which, for every document the publisher's own
+    // runtime minted, is another publisher document) and only ACCEPTS
+    // text from that direct parent; requests from below are honored only
+    // for the document's own child frames, and the ROOT never sends
+    // upward at all. That last rule is load-bearing: the artifact host's
+    // frame-ancestors allows claude.ai (and friends) to frame an
+    // artifact, so window.top can be a FOREIGN document — a top-addressed
+    // protocol would hand page uuids to that ancestor and accept forged
+    // "page text" from it, minting attacker HTML as an artifact-origin
+    // blob document. The chain never touches the ancestor: requests stop
+    // at the root, replies are origin-addressed per hop (never '*' when
+    // an origin exists), and both directions are origin-gated (on https
+    // a foreign sender's origin can never equal this document's; in
+    // opaque contexts — file:// — everything serializes as 'null', where
+    // an embedded EXTERNAL frame still fails the gate by carrying its
+    // own real origin, and a sandboxed child of such a frame is excluded
+    // by the own-child-frames check plus uuid unguessability). Shape is
+    // deny-by-default: one request form, one reply form, no error
+    // replies.
+    // window.origin is the SERIALIZED SECURITY origin ('null' in opaque
+    // contexts such as a sandboxed preview iframe) — location.origin is
+    // computed from the URL and stays 'https://…' even when the document
+    // is sandboxed, which would misgate every opaque chain.
+    const OWN_TARGET = /^https?:[/][/]/.test(window.origin || '')
+      ? window.origin
+      : '*';
+    function trustedOrigin(e) {
+      if (e.origin === window.origin) return true; // https chains; opaque==opaque
+      // file:// trees: Chrome serializes the file document's origin as
+      // 'file://' while the blob: documents it mints serialize as 'null',
+      // so the two legitimate shapes can never string-match — accept the
+      // pair in both directions. https origins never serialize as either,
+      // and sender identity (own child frame / direct parent) is checked
+      // separately.
+      return (
+        (e.origin === 'null' &&
+          (window.origin === 'file://' ||
+            window.location.protocol === 'file:')) ||
+        (/^file:/.test(e.origin) && window.origin === 'null')
+      );
+    }
+    // Non-empty only in the root document (nested bundles ship an empty
+    // island), so it doubles as the root marker: the root answers from
+    // local text and treats a miss as authoritative — never relaying to
+    // its (possibly foreign) parent.
+    const isPageRoot = pageOrder.length > 0;
+    const blobUrls = {};
+    const resourceBlobs = {};
+    const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    const pendingFrames = {}; // uuid -> [{el, frag}] awaiting text for own frames
+    const pendingRelays = {}; // uuid -> [childWindow] awaiting text to pass down
+    function mountPage(el, frag, text) {
+      const pageBlob = new Blob([text], { type: 'text/html' });
+      const u = URL.createObjectURL(pageBlob);
+      resourceBlobs[u] = pageBlob;
+      el.src = u + frag;
+    }
+    function deliverPage(uuid, text) {
+      const frames = pendingFrames[uuid];
+      delete pendingFrames[uuid];
+      if (frames) for (const f of frames) mountPage(f.el, f.frag, text);
+      const relays = pendingRelays[uuid];
+      delete pendingRelays[uuid];
+      if (relays) {
+        for (const cw of relays) {
+          try { cw.postMessage({ __bundler_page: uuid, __bundler_text: text }, OWN_TARGET); } catch (err) { /* gone */ }
+        }
+      }
+    }
+    function ownFrameWindows() {
+      const out = [];
+      for (const f of Array.from(document.querySelectorAll('iframe'))) {
+        try { if (f.contentWindow) out.push(f.contentWindow); } catch (err) { /* detached */ }
+      }
+      return out;
+    }
+    window.addEventListener('message', function (e) {
+      const d = e.data;
+      if (!d || typeof d !== 'object' || !e.source) return;
+      // Origin gate first; the structural checks below (own-child-frames
+      // for requests, direct-parent + solicited-uuid for replies, the
+      // root's never-relay rule) are what hold in fully opaque chains
+      // where origin strings can't discriminate — a sandboxed root's
+      // FOREIGN wrapper still fails all three even though both serialize
+      // as real-vs-'null' rather than matching.
+      if (!trustedOrigin(e)) return;
+      if (typeof d.__bundler_need === 'string' && UUID_SHAPE.test(d.__bundler_need)) {
+        // Requests are honored only for this document's own child frames.
+        if (ownFrameWindows().indexOf(e.source) < 0) return;
+        const uuid = d.__bundler_need;
+        const text = pageTexts[uuid];
+        if (typeof text === 'string') {
+          try { e.source.postMessage({ __bundler_page: uuid, __bundler_text: text }, OWN_TARGET); } catch (err) { /* gone */ }
+          return;
+        }
+        if (isPageRoot || window.parent === window) return; // authoritative miss
+        const waiting = pendingRelays[uuid];
+        if (waiting) {
+          if (waiting.indexOf(e.source) < 0) waiting.push(e.source);
+          return;
+        }
+        // Never-answered uuids would otherwise accumulate forever under a
+        // request spray; past the cap (far above any real page count) new
+        // relays are dropped rather than remembered.
+        if (Object.keys(pendingRelays).length >= 128) return;
+        pendingRelays[uuid] = [e.source];
+        window.parent.postMessage({ __bundler_need: uuid }, OWN_TARGET);
+      } else if (
+        typeof d.__bundler_page === 'string' &&
+        UUID_SHAPE.test(d.__bundler_page) &&
+        typeof d.__bundler_text === 'string'
+      ) {
+        // The shape test is load-bearing beyond tidiness: the solicited
+        // check below uses the in operator, which matches prototype keys
+        // ('__proto__', 'constructor') — an unshaped key would reach
+        // deliverPage and throw, painting the error banner.
+        // Text is accepted only from the direct parent — the document
+        // that minted this one.
+        if (e.source !== window.parent || window.parent === window) return;
+        if (!(d.__bundler_page in pendingFrames) && !(d.__bundler_page in pendingRelays)) return;
+        deliverPage(d.__bundler_page, d.__bundler_text);
+      }
+    });
+
+    const uuids = Object.keys(manifest);
+    setStatus('Unpacking ' + uuids.length + ' assets...');
+
+    await Promise.all(uuids.map(async (uuid) => {
+      const entry = manifest[uuid];
+      try {
+        const binaryStr = atob(entry.data);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+        let finalBytes = bytes;
+        if (entry.compressed) {
+          if (typeof DecompressionStream !== 'undefined') {
+            const ds = new DecompressionStream('gzip');
+            const writer = ds.writable.getWriter();
+            const reader = ds.readable.getReader();
+            writer.write(bytes);
+            writer.close();
+            const chunks = [];
+            let totalLen = 0;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              totalLen += value.length;
+            }
+            finalBytes = new Uint8Array(totalLen);
+            let offset = 0;
+            for (const chunk of chunks) { finalBytes.set(chunk, offset); offset += chunk.length; }
+          } else {
+            console.warn('DecompressionStream not available, asset ' + uuid + ' may not render');
+          }
+        }
+
+        if (pageSet.has(uuid)) {
+          pageTexts[uuid] = new TextDecoder().decode(finalBytes);
+          return;
+        }
+        if (FONT_MIME.test(entry.mime) && MIME_TOKEN.test(entry.mime)) {
+          // Strict artifact hosts allow font-src data: but not blob:.
+          blobUrls[uuid] = 'data:' + entry.mime + ';base64,' +
+            (entry.compressed ? toBase64(finalBytes) : entry.data);
+        } else {
+          const blob = new Blob([finalBytes], { type: entry.mime });
+          blobUrls[uuid] = URL.createObjectURL(blob);
+          resourceBlobs[blobUrls[uuid]] = blob;
+        }
+      } catch (err) {
+        console.error('Failed to decode asset ' + uuid + ':', err);
+        const blob = new Blob([], { type: entry.mime });
+        blobUrls[uuid] = URL.createObjectURL(blob);
+        resourceBlobs[blobUrls[uuid]] = blob;
+      }
+    }));
+
+    const extResEl = document.querySelector('script[type="__bundler/ext_resources"]');
+    const extResources = extResEl ? JSON.parse(extResEl.textContent) : [];
+    const resourceMap = {};
+    for (const entry of extResources) {
+      if (blobUrls[entry.uuid]) resourceMap[entry.id] = blobUrls[entry.uuid];
+    }
+
+    // Artifact-host CSP (connect-src 'self') refuses fetch() of blob: URLs —
+    // consumers read these Blobs directly. Survives the swap like the error sink.
+    window.__resourceBlobs = resourceBlobs;
+
+    setStatus('Rendering...');
+    // Page uuids have no blob here — they ride inside about:blank#<uuid>
+    // frame markers the pass below resolves after the swap.
+    for (const uuid of uuids) {
+      if (pageSet.has(uuid)) continue;
+      template = template.split(uuid).join(blobUrls[uuid]);
+    }
+
+    // Strip integrity + crossorigin — blob URLs from a file:// document inherit
+    // a null origin, so crossorigin forces a CORS fetch that SRI then rejects.
+    // The manifest bytes are ours; SRI protects against CDN compromise, not this.
+    template = template.replace(/\s+integrity="[^"]*"/gi, '').replace(/\s+crossorigin="[^"]*"/gi, '');
+
+    const resourceScript = '<script>window.__resources = ' +
+      JSON.stringify(resourceMap).replace(/<\//g, '<\\/') +
+      ';</' + 'script>';
+    // Inject after <head> so the DOCTYPE stays first; prepending the script
+    // would push the parser into quirks mode. DOMParser always emits a <head>
+    // (synthesizing one if the source HTML omitted it) but may carry
+    // attributes through, so match the full opening tag. slice() rather than
+    // replace() keeps us clear of $-pattern substitution in resourceScript.
+    const headOpen = template.match(/<head[^>]*>/i);
+    if (headOpen) {
+      const i = headOpen.index + headOpen[0].length;
+      template = template.slice(0, i) + resourceScript + template.slice(i);
+    }
+
+    // Parse the template and swap the root element. Scripts inserted via
+    // DOMParser/replaceWith are inert per spec — re-create each with
+    // createElement so they execute, awaiting onload for src scripts to
+    // preserve ordering (React before ReactDOM before Babel before text/babel).
+    const doc = new DOMParser().parseFromString(template, 'text/html');
+    document.documentElement.replaceWith(doc.documentElement);
+
+    // Resolve page-frame markers: mint this document's own blob for each
+    // framed page — from local text when this is the root, otherwise by
+    // asking the direct parent over the relay protocol above. An
+    // unanswered request leaves the frame on about:blank, the same
+    // degraded state as a refused embed.
+    {
+      const MARKER = /^about:blank#([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(#.*)?$/;
+      const needed = [];
+      for (const el of Array.from(document.querySelectorAll('iframe'))) {
+        const m = MARKER.exec(el.getAttribute('src') || '');
+        if (!m) continue;
+        const text = pageTexts[m[1]];
+        if (typeof text === 'string') {
+          mountPage(el, m[2] || '', text);
+        } else if (window.parent !== window && !isPageRoot) {
+          const had = pendingFrames[m[1]];
+          (pendingFrames[m[1]] = had || []).push({ el: el, frag: m[2] || '' });
+          if (!had) needed.push(m[1]);
+        }
+      }
+      for (const uuid of needed) {
+        window.parent.postMessage({ __bundler_need: uuid }, OWN_TARGET);
+      }
+    }
+
+    const dead = Array.from(document.scripts);
+    for (const old of dead) {
+      const s = document.createElement('script');
+      for (const a of old.attributes) s.setAttribute(a.name, a.value);
+      s.textContent = old.textContent;
+      // text/babel scripts with a src: read and inline. transformScriptTags
+      // does XHR against the src, but blob:null/ from a file:// origin is
+      // silently dropped. Inlining makes it a plain inline babel script,
+      // which transformScriptTags handles unconditionally.
+      if ((s.type === 'text/babel' || s.type === 'text/jsx') && s.src) {
+        const pre = resourceBlobs[s.src.split('#')[0]];
+        s.textContent = pre ? await pre.text() : await (await fetch(s.src)).text();
+        s.removeAttribute('src');
+      }
+      const p = s.src ? new Promise(function(r) { s.onload = s.onerror = r; }) : null;
+      old.replaceWith(s);
+      if (p) await p;
+    }
+    // Babel standalone auto-transforms type=text/babel on DOMContentLoaded,
+    // which fired before we swapped the document. Trigger manually if present.
+    if (window.Babel && typeof window.Babel.transformScriptTags === 'function') {
+      window.Babel.transformScriptTags();
+    }
+  } catch (err) {
+    setStatus('Error unpacking: ' + err.message);
+    console.error('Bundle unpack error:', err);
+  }
+});
+
+  </script>
+
+  <script type="__bundler/manifest">
+{}
+  </script>
+
+  <script type="__bundler/ext_resources">
+[]
+  </script>
+
+  <script type="__bundler/page_order">
+[]
+  </script>
+
+  <script type="__bundler/template">
+"<!DOCTYPE html>\n<html><head><meta charset=\"utf-8\"><style>:root{\n/* Base palette — from GymTracker/Core/DesignSystem/Colors.swift */\n--gym-text:#272635; /* near-black warm navy */\n--gym-background:#F6F0E7; /* warm cream */\n--gym-card:#FFFCF7; /* near-white warm */\n--gym-card-elevated:#FFFFFF;\n--gym-primary:#3D72E2; /* mid blue — actions / current state */\n--gym-secondary:#487A6C; /* muted sage — success / completed */\n--gym-accent:#A1683A; /* warm tan — tertiary / context */\n--gym-destructive:#FF3B30; /* iOS system red */\n/* Pale desaturated surface tints — never the saturated color as a fill */\n--gym-primary-surface:#E7E9EF; /* blue-gray */\n--gym-secondary-surface:#E7EAE1; /* green-gray */\n--gym-accent-surface:#F2E9DD; /* tan */\n--gym-row-surface:#F2F1EF;\n--gym-current-set-surface:#E1E5EF;\n/* Derived opacities — from WorkoutPalette / FolderPalette */\n--gym-border:rgba(39,38,53,0.09);\n--gym-text-subdued:rgba(39,38,53,0.58);\n--gym-text-subtle:rgba(39,38,53,0.42);\n--gym-muted-surface:rgba(72,122,108,0.12);\n/* Icon chip tints: color at 12% */\n--gym-primary-tint:rgba(61,114,226,0.12);\n--gym-secondary-tint:rgba(72,122,108,0.12);\n--gym-accent-tint:rgba(161,104,58,0.12);\n/* Semantic aliases */\n--surface-page:var(--gym-background);\n--surface-card:var(--gym-card);\n--surface-current:var(--gym-current-set-surface);\n--surface-completed:var(--gym-secondary-surface);\n--text-body:var(--gym-text);\n--text-secondary:var(--gym-text-subdued);\n--text-tertiary:var(--gym-text-subtle);\n--action-primary:var(--gym-primary);\n--status-success:var(--gym-secondary);\n--status-destructive:var(--gym-destructive);\n/* Surface worlds (from screenshot audit) */\n  --surface-grouped: #F2F2F7; /* iOS systemGrouped — form sheets, catalogs */\n  --tint-current: #E7ECF8;    /* current-exercise card tint */\n  --tint-completed: #E3EDE4;  /* completed set-row tint */\n  --tint-rest: #EDE3D2;       /* rest panel / workout summary tan */\n  --tint-rest-chip: #DECBAF;  /* rest panel chips */\n}\n\n:root{\n/* SF Rounded for large display numbers & titles; SF Pro for body/UI.\n   The system keywords (ui-rounded, -apple-system) resolve to SF Rounded / SF Pro on Apple\n   platforms — no webfont ships with the repo. If licensed SF webfonts are uploaded later,\n   add @font-face rules here and prepend the family names. */\n--font-display:ui-rounded,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;\n--font-body:-apple-system,BlinkMacSystemFont,system-ui,\"Helvetica Neue\",sans-serif;\n/* Type scale — from AppFont (iOS text styles, px = pt) */\n--type-display-large:700 34px/1.15 var(--font-display); /* + tabular-nums */\n--type-display-medium:700 32px/1.15 var(--font-display);\n--type-title:400 28px/1.2 var(--font-body);\n--type-title-medium:700 22px/1.25 var(--font-body); /* title2 bold */\n--type-title-small:700 20px/1.25 var(--font-body); /* title3 bold */\n--type-title-small-semibold:600 20px/1.25 var(--font-body);\n--type-headline:600 17px/1.3 var(--font-body);\n--type-body:400 17px/1.4 var(--font-body);\n--type-body-medium:500 17px/1.4 var(--font-body);\n--type-subheadline:400 15px/1.35 var(--font-body);\n--type-subheadline-semibold:600 15px/1.35 var(--font-body);\n--type-subheadline-bold:700 15px/1.35 var(--font-body);\n--type-footnote:400 13px/1.35 var(--font-body);\n--type-footnote-medium:500 13px/1.35 var(--font-body);\n--type-caption:400 12px/1.3 var(--font-body);\n--type-caption-bold:700 12px/1.3 var(--font-body);\n--type-caption2:400 11px/1.3 var(--font-body);\n--type-caption2-bold:700 11px/1.3 var(--font-body);\n/* Uppercase section labels use caption-bold + tracking */\n--tracking-label:0.8px;\n--tracking-label-tight:0.55px;\n}\n/* Monospaced digits ONLY where numbers must align: timers, loads, reps, stats */\n.gym-tabular{font-variant-numeric:tabular-nums}\n\n:root{\n/* From Spacing.swift — note the non-8pt 10px step */\n--space-xxs:2px;\n--space-xs:4px;\n--space-s:8px;\n--space-md:10px;\n--space-m:12px;\n--space-l:16px;\n--space-xl:20px;\n--space-xxl:24px;\n--space-xxxl:32px;\n/* Layout constants seen in views */\n--screen-inset:20px; /* horizontal page padding (Spacing.xl) */\n--hit-target:44px;\n}\n\n:root{\n/* From Radius.swift — rounded but never pill (capsules only for CTA button + tiny badges) */\n--radius-small:8px;\n--radius-medium:12px;\n--radius-large:16px;\n--radius-section:18px;\n--radius-button:18px;\n--radius-card:20px;\n--radius-pill:999px; /* Start-workout CTA, week capsule badges only */\n}\n\n:root{\n/* Shadows are whisper-quiet: text color at 2–3% */\n--shadow-card:0 3px 6px rgba(39,38,53,0.03);\n--shadow-row:0 2px 4px rgba(39,38,53,0.02);\n--border-hairline:1px solid var(--gym-border); /* @kind shadow */\n--border-focus:1px solid rgba(61,114,226,0.42); /* @kind shadow */ /* expanded/current card */\n--border-outline:1.5px solid rgba(61,114,226,0.16); /* @kind shadow */ /* primary card idle */\n}\n\n:root{\n/* From Motion.swift — calm, fast, no bounce */\n--motion-press:140ms ease-out; /* @kind other */ /* press: scale .97, opacity .86 */\n--motion-compact:220ms cubic-bezier(0.2,0,0,1); /* @kind other */ /* snappy, no extra bounce */\n--motion-layout:300ms cubic-bezier(0.25,0.1,0.25,1); /* @kind other */ /* fully damped spring */\n--press-scale:0.97; /* @kind other */\n--press-opacity:0.86; /* @kind other */\n}\n.gym-press{transition:transform var(--motion-press),opacity var(--motion-press)}\n.gym-press:active{transform:scale(var(--press-scale));opacity:var(--press-opacity)}\n\n<\u002Fstyle>\n<style>body{margin:0;background:var(--gym-background);font-family:-apple-system,system-ui,sans-serif;color:var(--gym-text);padding:24px}\n.g{display:grid;grid-template-columns:1fr 1fr;gap:16px}\n.col{background:var(--surface-card);border-radius:16px;padding:18px}\n.h{font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:14px}\n.bad .h{color:#B4543C}.good .h{color:#3E7A54}\n.bars{display:flex;align-items:flex-end;gap:14px;height:120px;margin-bottom:8px}\n.bar{flex:1;display:flex;flex-direction:column-reverse;border-radius:6px;overflow:hidden}\n.seg{width:100%}\n.lbl{font-size:10px;color:rgba(39,38,53,0.5);text-align:center;margin-top:4px}\n.sel{outline:2px solid var(--gym-primary);outline-offset:2px;border-radius:6px}\n.tip{background:#272635;color:#fff;font-size:11px;border-radius:8px;padding:6px 10px;display:inline-block;margin-bottom:8px}\n.gap{flex:1;display:flex;align-items:center;justify-content:center;height:100%;color:rgba(39,38,53,0.3);font-size:10px;border:1px dashed rgba(39,38,53,0.2);border-radius:6px}\n.cap{font-size:12px;color:rgba(39,38,53,0.55);line-height:1.45;margin-top:6px}\np{font-size:13px;color:rgba(39,38,53,0.6);line-height:1.5;margin:16px 0 0}\na{color:var(--gym-primary)}a:hover{color:#2E5CBF}<\u002Fstyle><\u002Fhead><body>\n<div class=\"g\">\n<div class=\"col bad\"><div class=\"h\">Never<\u002Fdiv>\n<div class=\"bars\">\n<div class=\"bar\"><div class=\"seg\" style=\"height:22px;background:#3E7A54\"><\u002Fdiv><div class=\"seg\" style=\"height:18px;background:#5F8F6E\"><\u002Fdiv><div class=\"seg\" style=\"height:26px;background:#3D72E2\"><\u002Fdiv><div class=\"seg\" style=\"height:14px;background:#6E93DE\"><\u002Fdiv><div class=\"seg\" style=\"height:20px;background:#A1683A\"><\u002Fdiv><div class=\"seg\" style=\"height:12px;background:#BE8A5C\"><\u002Fdiv><\u002Fdiv>\n<div class=\"bar\"><div class=\"seg\" style=\"height:30px;background:#3E7A54\"><\u002Fdiv><div class=\"seg\" style=\"height:12px;background:#5F8F6E\"><\u002Fdiv><div class=\"seg\" style=\"height:22px;background:#3D72E2\"><\u002Fdiv><div class=\"seg\" style=\"height:18px;background:#6E93DE\"><\u002Fdiv><div class=\"seg\" style=\"height:14px;background:#A1683A\"><\u002Fdiv><\u002Fdiv>\n<div class=\"bar\"><div class=\"seg\" style=\"height:16px;background:#3E7A54\"><\u002Fdiv><div class=\"seg\" style=\"height:24px;background:#3D72E2\"><\u002Fdiv><div class=\"seg\" style=\"height:20px;background:#A1683A\"><\u002Fdiv><\u002Fdiv>\n<\u002Fdiv>\n<div style=\"display:flex;gap:8px\"><span class=\"lbl\">Jun 21<\u002Fspan><span class=\"lbl\">Jun 28<\u002Fspan><span class=\"lbl\">Jul 12<\u002Fspan><\u002Fdiv>\n<div class=\"cap\">7 near-identical hues, legend elsewhere, and Jul 5 silently missing — unreadable for color-blind users, looks like a data bug.<\u002Fdiv>\n<\u002Fdiv>\n<div class=\"good\"><div class=\"col good\" style=\"padding:18px\"><div class=\"h\">Always<\u002Fdiv>\n<span class=\"tip\">Jun 28 — Chest 6 · Back 5 · Quads 4 sets<\u002Fspan>\n<div class=\"bars\">\n<div class=\"bar\"><div class=\"seg\" style=\"height:40px;background:#3E7A54\"><\u002Fdiv><div class=\"seg\" style=\"height:30px;background:#3D72E2\"><\u002Fdiv><div class=\"seg\" style=\"height:20px;background:#A1683A\"><\u002Fdiv><\u002Fdiv>\n<div class=\"bar sel\"><div class=\"seg\" style=\"height:34px;background:#3E7A54\"><\u002Fdiv><div class=\"seg\" style=\"height:28px;background:#3D72E2\"><\u002Fdiv><div class=\"seg\" style=\"height:22px;background:#A1683A\"><\u002Fdiv><\u002Fdiv>\n<div class=\"gap\">no data<\u002Fdiv>\n<div class=\"bar\"><div class=\"seg\" style=\"height:26px;background:#3E7A54\"><\u002Fdiv><div class=\"seg\" style=\"height:30px;background:#3D72E2\"><\u002Fdiv><div class=\"seg\" style=\"height:16px;background:#A1683A\"><\u002Fdiv><\u002Fdiv>\n<\u002Fdiv>\n<div style=\"display:flex;gap:8px\"><span class=\"lbl\">Jun 21<\u002Fspan><span class=\"lbl\">Jun 28<\u002Fspan><span class=\"lbl\">Jul 5<\u002Fspan><span class=\"lbl\">Jul 12<\u002Fspan><\u002Fdiv>\n<div class=\"cap\">Tap a bar → labeled values. Missing weeks render as dashed gaps. ≤4 distinct hues; beyond that, group into \"Other\".<\u002Fdiv>\n<\u002Fdiv><\u002Fdiv>\n<\u002Fdiv>\n<p><strong>Rule.<\u002Fstrong> Color is never the only channel: every series is reachable by tap-to-reveal labels or direct labels. Timelines never skip periods silently. Every insight sentence states its evidence (\"you completed 3×8 at 50 kg last time\") and duplicated findings merge into one line. A chart with no decision attached doesn't ship.<\u002Fp>\n\n<\u002Fbody><\u002Fhtml>"
+  </script>
+</body>
+</html>

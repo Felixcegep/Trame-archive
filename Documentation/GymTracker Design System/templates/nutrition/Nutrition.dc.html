@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Nutrition (current)" description="Nutrition root: macro dial, meal-slot feed, quick-add — tweak day type, log completeness and goal phase" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div style="min-height:100vh;background:#F6F0E7;font-family:-apple-system,'SF Pro Text',sans-serif;color:#272635;display:flex;justify-content:center">
+<div style="width:390px;padding:24px 20px 40px;display:flex;flex-direction:column;gap:16px">
+<div>
+<div style="font-size:13px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42)">{{ dayTypeLabel }} · {{ phaseLabel }}</div>
+<div style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:34px;font-weight:700;margin-top:2px">Nutrition</div>
+</div>
+<sc-if value="{{ hasTarget }}" hint-placeholder-val="{{ true }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="section" padding="20px" hint-size="100%,150px">
+<div style="display:flex;align-items:center;gap:18px">
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="position:relative;width:92px;height:92px;flex-shrink:0;border-radius:50%;background:conic-gradient(#3D72E2 0deg,#F2F1EF 0deg);display:flex;align-items:center;justify-content:center">
+<div style="width:72px;height:72px;border-radius:50%;background:#FFFCF7;display:flex;flex-direction:column;align-items:center;justify-content:center">
+<span style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">{{ kcal }}</span>
+<span style="font-size:10px;color:rgba(39,38,53,0.5)">/ {{ kcalTarget }}</span>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ isPartial }}" hint-placeholder-val="{{ true }}">
+<div style="position:relative;width:92px;height:92px;flex-shrink:0;border-radius:50%;background:conic-gradient(#3D72E2 198deg,#F2F1EF 0deg);display:flex;align-items:center;justify-content:center">
+<div style="width:72px;height:72px;border-radius:50%;background:#FFFCF7;display:flex;flex-direction:column;align-items:center;justify-content:center">
+<span style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">{{ kcal }}</span>
+<span style="font-size:10px;color:rgba(39,38,53,0.5)">/ {{ kcalTarget }}</span>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ isComplete }}" hint-placeholder-val="{{ false }}">
+<div style="position:relative;width:92px;height:92px;flex-shrink:0;border-radius:50%;background:conic-gradient(#3D72E2 360deg,#F2F1EF 0deg);display:flex;align-items:center;justify-content:center">
+<div style="width:72px;height:72px;border-radius:50%;background:#FFFCF7;display:flex;flex-direction:column;align-items:center;justify-content:center">
+<span style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums">{{ kcal }}</span>
+<span style="font-size:10px;color:rgba(39,38,53,0.5)">/ {{ kcalTarget }}</span>
+</div>
+</div>
+</sc-if>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;justify-content:space-between;font-size:13px"><span>Protein</span><b style="font-variant-numeric:tabular-nums">{{ protein }}/{{ proteinTarget }}g</b></div>
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}"><div style="height:6px;border-radius:3px;background:#F2F1EF;overflow:hidden"><div style="height:100%;border-radius:3px;background:#3D72E2;width:0%"></div></div></sc-if>
+<sc-if value="{{ isPartial }}" hint-placeholder-val="{{ true }}"><div style="height:6px;border-radius:3px;background:#F2F1EF;overflow:hidden"><div style="height:100%;border-radius:3px;background:#3D72E2;width:55%"></div></div></sc-if>
+<sc-if value="{{ isComplete }}" hint-placeholder-val="{{ false }}"><div style="height:6px;border-radius:3px;background:#F2F1EF;overflow:hidden"><div style="height:100%;border-radius:3px;background:#3D72E2;width:100%"></div></div></sc-if>
+<div style="display:flex;justify-content:space-between;font-size:13px"><span>Carbs</span><b style="font-variant-numeric:tabular-nums">{{ carbs }}/{{ carbsTarget }}g</b></div>
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}"><div style="height:6px;border-radius:3px;background:#F2F1EF;overflow:hidden"><div style="height:100%;border-radius:3px;background:#487A6C;width:0%"></div></div></sc-if>
+<sc-if value="{{ isPartial }}" hint-placeholder-val="{{ true }}"><div style="height:6px;border-radius:3px;background:#F2F1EF;overflow:hidden"><div style="height:100%;border-radius:3px;background:#487A6C;width:55%"></div></div></sc-if>
+<sc-if value="{{ isComplete }}" hint-placeholder-val="{{ false }}"><div style="height:6px;border-radius:3px;background:#F2F1EF;overflow:hidden"><div style="height:100%;border-radius:3px;background:#487A6C;width:100%"></div></div></sc-if>
+<div style="display:flex;justify-content:space-between;font-size:13px"><span>Fat</span><b style="font-variant-numeric:tabular-nums">{{ fat }}/{{ fatTarget }}g</b></div>
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}"><div style="height:6px;border-radius:3px;background:#F2F1EF;overflow:hidden"><div style="height:100%;border-radius:3px;background:#A1683A;width:0%"></div></div></sc-if>
+<sc-if value="{{ isPartial }}" hint-placeholder-val="{{ true }}"><div style="height:6px;border-radius:3px;background:#F2F1EF;overflow:hidden"><div style="height:100%;border-radius:3px;background:#A1683A;width:55%"></div></div></sc-if>
+<sc-if value="{{ isComplete }}" hint-placeholder-val="{{ false }}"><div style="height:6px;border-radius:3px;background:#F2F1EF;overflow:hidden"><div style="height:100%;border-radius:3px;background:#A1683A;width:100%"></div></div></sc-if>
+</div>
+</div>
+</x-import>
+</sc-if>
+<sc-if value="{{ !hasTarget }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="outlined" radius="section" padding="18px" hint-size="100%,110px">
+<div style="font-size:15px;font-weight:600">No target set up yet</div>
+<div style="font-size:13px;color:rgba(39,38,53,0.58);margin-top:4px">Set a calorie and macro target based on your goal to start tracking.</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Button" variant="primary" style="margin-top:12px" hint-size="160px,44px">Set up target</x-import>
+</x-import>
+</sc-if>
+<div style="display:flex;justify-content:space-between;align-items:center">
+<span style="font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:rgba(39,38,53,0.42);white-space:nowrap">Today's log</span>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Button" variant="text" icon="plus" hint-size="100px,28px">Add meal</x-import>
+</div>
+<sc-if value="{{ logEmpty }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="muted" radius="large" padding="24px" hint-size="100%,90px">
+<div style="text-align:center;font-size:14px;color:rgba(39,38,53,0.58)">Nothing logged yet. Add your first meal or repeat one from your recents.</div>
+</x-import>
+</sc-if>
+<sc-for list="{{ meals }}" as="meal" hint-placeholder-count="3">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="large" padding="14px 16px" hint-size="100%,74px">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:baseline;gap:8px">
+<span style="font-size:12px;font-weight:700;color:#A1683A;white-space:nowrap">{{ meal.slot }}</span>
+<span style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ meal.name }}</span>
+</div>
+<div style="font-size:12px;color:rgba(39,38,53,0.5);margin-top:2px">{{ meal.macros }}</div>
+</div>
+<span style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums">{{ meal.kcal }}</span>
+</div>
+</x-import>
+</sc-for>
+<sc-if value="{{ showLater }}" hint-placeholder-val="{{ false }}">
+<div style="border:1.5px dashed rgba(39,38,53,0.18);border-radius:20px;padding:16px;display:flex;gap:10px;align-items:center">
+<span style="font-size:12px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:rgba(39,38,53,0.42);background:rgba(39,38,53,0.06);border-radius:999px;padding:3px 9px">Later</span>
+<span style="font-size:13px;color:rgba(39,38,53,0.58)">Barcode scan and photo-assisted logging — not yet built.</span>
+</div>
+</sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;430px&quot;,&quot;height&quot;:&quot;920px&quot;},&quot;trainingDay&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Day&quot;},&quot;logState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;partial&quot;,&quot;options&quot;:[&quot;no-target&quot;,&quot;empty&quot;,&quot;partial&quot;,&quot;complete&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Log&quot;},&quot;goalPhase&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;maintenance&quot;,&quot;options&quot;:[&quot;bulk&quot;,&quot;cut&quot;,&quot;maintenance&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Goal&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const training = this.props.trainingDay ?? true;
+    const logState = this.props.logState ?? "partial";
+    const phase = this.props.goalPhase ?? "maintenance";
+    const targets = {
+      bulk: { kcal: 3100, protein: 200, carbs: 380, fat: 90 },
+      cut: { kcal: 2100, protein: 190, carbs: 160, fat: 65 },
+      maintenance: { kcal: training ? 2800 : 2300, protein: training ? 190 : 160, carbs: training ? 320 : 220, fat: 80 }
+    };
+    const t = targets[phase] || targets.maintenance;
+    const fillPct = logState === "empty" ? 0 : logState === "partial" ? 0.55 : 1;
+    const kcal = Math.round(t.kcal * fillPct);
+    const allMeals = [
+      { slot: "Petit-déj", name: "Gruau, banane, whey", macros: "38g P · 62g C · 12g F", kcal: 480 },
+      { slot: "Dîner", name: "Poulet, riz, brocoli", macros: "52g P · 58g C · 14g F", kcal: 610 },
+      { slot: "Collation", name: "Yogourt grec, amandes", macros: "22g P · 14g C · 16g F", kcal: 260 }
+    ];
+    const meals = logState === "empty" ? [] : logState === "partial" ? allMeals.slice(0, 2) : allMeals;
+    return {
+      dayTypeLabel: training ? "Training day" : "Rest day",
+      phaseLabel: phase[0].toUpperCase() + phase.slice(1),
+      hasTarget: logState !== "no-target",
+      logEmpty: logState === "empty",
+      isEmpty: logState === "empty",
+      isPartial: logState === "partial",
+      isComplete: logState === "complete",
+      showLater: true,
+      kcal, kcalTarget: t.kcal,
+      kcalDeg: Math.round(fillPct * 360),
+      protein: Math.round(t.protein * fillPct), proteinTarget: t.protein, proteinPct: Math.round(fillPct * 100) + "%",
+      carbs: Math.round(t.carbs * fillPct), carbsTarget: t.carbs, carbsPct: Math.round(fillPct * 100) + "%",
+      fat: Math.round(t.fat * fillPct), fatTarget: t.fat, fatPct: Math.round(fillPct * 100) + "%",
+      meals
+    };
+  }
+}
+</script>
+</body>
+</html>

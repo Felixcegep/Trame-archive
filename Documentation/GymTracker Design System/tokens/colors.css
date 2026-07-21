@@ -1,0 +1,43 @@
+:root{
+/* Base palette — from GymTracker/Core/DesignSystem/Colors.swift */
+--gym-text:#272635; /* near-black warm navy */
+--gym-background:#F6F0E7; /* warm cream */
+--gym-card:#FFFCF7; /* near-white warm */
+--gym-card-elevated:#FFFFFF;
+--gym-primary:#3D72E2; /* mid blue — actions / current state */
+--gym-secondary:#487A6C; /* muted sage — success / completed */
+--gym-accent:#A1683A; /* warm tan — tertiary / context */
+--gym-destructive:#FF3B30; /* iOS system red */
+/* Pale desaturated surface tints — never the saturated color as a fill */
+--gym-primary-surface:#E7E9EF; /* blue-gray */
+--gym-secondary-surface:#E7EAE1; /* green-gray */
+--gym-accent-surface:#F2E9DD; /* tan */
+--gym-row-surface:#F2F1EF;
+--gym-current-set-surface:#E1E5EF;
+/* Derived opacities — from WorkoutPalette / FolderPalette */
+--gym-border:rgba(39,38,53,0.09);
+--gym-text-subdued:rgba(39,38,53,0.58);
+--gym-text-subtle:rgba(39,38,53,0.42);
+--gym-muted-surface:rgba(72,122,108,0.12);
+/* Icon chip tints: color at 12% */
+--gym-primary-tint:rgba(61,114,226,0.12);
+--gym-secondary-tint:rgba(72,122,108,0.12);
+--gym-accent-tint:rgba(161,104,58,0.12);
+/* Semantic aliases */
+--surface-page:var(--gym-background);
+--surface-card:var(--gym-card);
+--surface-current:var(--gym-current-set-surface);
+--surface-completed:var(--gym-secondary-surface);
+--text-body:var(--gym-text);
+--text-secondary:var(--gym-text-subdued);
+--text-tertiary:var(--gym-text-subtle);
+--action-primary:var(--gym-primary);
+--status-success:var(--gym-secondary);
+--status-destructive:var(--gym-destructive);
+/* Surface worlds (from screenshot audit) */
+  --surface-grouped: #F2F2F7; /* iOS systemGrouped — form sheets, catalogs */
+  --tint-current: #E7ECF8;    /* current-exercise card tint */
+  --tint-completed: #E3EDE4;  /* completed set-row tint */
+  --tint-rest: #EDE3D2;       /* rest panel / workout summary tan */
+  --tint-rest-chip: #DECBAF;  /* rest panel chips */
+}

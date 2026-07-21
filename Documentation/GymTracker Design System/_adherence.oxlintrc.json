@@ -1,0 +1,423 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/core/**",
+              "components/forms/**",
+              "components/lists/**",
+              "components/navigation/**",
+              "components/progress/**",
+              "components/workout/**",
+              "ui_kits/ios-app/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ActivityHeatmap'] > JSXAttribute > JSXIdentifier[name!=/^(?:weeks|monthLabels|title|subtitle|cell|gap|legend|style|key|ref|className|style|children)$/]",
+        "message": "<ActivityHeatmap> doesn't accept that prop. Declared props: weeks, monthLabels, title, subtitle, cell, gap, legend, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute > JSXIdentifier[name!=/^(?:color|variant|children|style|key|ref|className|style|children)$/]",
+        "message": "<Badge> doesn't accept that prop. Declared props: color, variant, children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:tint|card)$/]",
+        "message": "<Badge> variant must be one of 'tint' | 'card'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|color|icon|trailingIcon|fullWidth|disabled|onClick|children|style|key|ref|className|style|children)$/]",
+        "message": "<Button> doesn't accept that prop. Declared props: variant, color, icon, trailingIcon, fullWidth, disabled, onClick, children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:primary|prominent|bordered|text)$/]",
+        "message": "<Button> variant must be one of 'primary' | 'prominent' | 'bordered' | 'text'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Card'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|radius|padding|onClick|children|style|key|ref|className|style|children)$/]",
+        "message": "<Card> doesn't accept that prop. Declared props: variant, radius, padding, onClick, children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Card'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|elevated|outlined|current|completed|accent|muted)$/]",
+        "message": "<Card> variant must be one of 'standard' | 'elevated' | 'outlined' | 'current' | 'completed' | 'accent' | 'muted'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ComparisonPanel'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|met|planned|performed|suggested|checks|style|key|ref|className|style|children)$/]",
+        "message": "<ComparisonPanel> doesn't accept that prop. Declared props: title, met, planned, performed, suggested, checks, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ExerciseCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|state|columns|prescription|lastTime|completedSets|totalSets|elapsed|children|onAddSet|onClick|style|key|ref|className|style|children)$/]",
+        "message": "<ExerciseCard> doesn't accept that prop. Declared props: name, state, columns, prescription, lastTime, completedSets, totalSets, elapsed, children, onAddSet, onClick, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ExerciseCard'] > JSXAttribute[name.name='state'] > Literal[value!=/^(?:current|completed|collapsed)$/]",
+        "message": "<ExerciseCard> state must be one of 'current' | 'completed' | 'collapsed'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='HistoryRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|date|duration|exercises|sets|source|onClick|style|key|ref|className|style|children)$/]",
+        "message": "<HistoryRow> doesn't accept that prop. Declared props: title, date, duration, exercises, sets, source, onClick, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Icon'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|size|filled|weight|color|style|className|key|ref|className|style|children)$/]",
+        "message": "<Icon> doesn't accept that prop. Declared props: name, size, filled, weight, color, style, className."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IconChip'] > JSXAttribute > JSXIdentifier[name!=/^(?:icon|color|shape|size|surface|iconSize|filled|style|key|ref|className|style|children)$/]",
+        "message": "<IconChip> doesn't accept that prop. Declared props: icon, color, shape, size, surface, iconSize, filled, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IconChip'] > JSXAttribute[name.name='shape'] > Literal[value!=/^(?:circle|rounded)$/]",
+        "message": "<IconChip> shape must be one of 'circle' | 'rounded'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:icon|color|surface|title|subtitle|count|trailing|chevron|card|size|onClick|style|key|ref|className|style|children)$/]",
+        "message": "<ListRow> doesn't accept that prop. Declared props: icon, color, surface, title, subtitle, count, trailing, chevron, card, size, onClick, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='RecommendationCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:exercise|rationale|acceptLabel|keepLabel|onAccept|onKeep|onEdit|style|key|ref|className|style|children)$/]",
+        "message": "<RecommendationCard> doesn't accept that prop. Declared props: exercise, rationale, acceptLabel, keepLabel, onAccept, onKeep, onEdit, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='RestTimer'] > JSXAttribute > JSXIdentifier[name!=/^(?:state|remaining|onAddTime|onPauseResume|onSkip|onContinue|style|key|ref|className|style|children)$/]",
+        "message": "<RestTimer> doesn't accept that prop. Declared props: state, remaining, onAddTime, onPauseResume, onSkip, onContinue, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='RestTimer'] > JSXAttribute[name.name='state'] > Literal[value!=/^(?:running|paused|ready)$/]",
+        "message": "<RestTimer> state must be one of 'running' | 'paused' | 'ready'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SearchField'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|onChange|placeholder|style|key|ref|className|style|children)$/]",
+        "message": "<SearchField> doesn't accept that prop. Declared props: value, onChange, placeholder, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SectionLabel'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|icon|iconColor|detail|trailing|color|style|key|ref|className|style|children)$/]",
+        "message": "<SectionLabel> doesn't accept that prop. Declared props: children, icon, iconColor, detail, trailing, color, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SegmentedControl'] > JSXAttribute > JSXIdentifier[name!=/^(?:options|value|onChange|style|key|ref|className|style|children)$/]",
+        "message": "<SegmentedControl> doesn't accept that prop. Declared props: options, value, onChange, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SessionHeader'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|elapsed|completedSets|totalSets|exercises|style|key|ref|className|style|children)$/]",
+        "message": "<SessionHeader> doesn't accept that prop. Declared props: title, elapsed, completedSets, totalSets, exercises, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SetInput'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|onChange|width|disabled|style|key|ref|className|style|children)$/]",
+        "message": "<SetInput> doesn't accept that prop. Declared props: value, onChange, width, disabled, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SetRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:index|values|state|note|locked|onToggle|onChange|style|key|ref|className|style|children)$/]",
+        "message": "<SetRow> doesn't accept that prop. Declared props: index, values, state, note, locked, onToggle, onChange, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SetRow'] > JSXAttribute[name.name='state'] > Literal[value!=/^(?:pending|current|completed)$/]",
+        "message": "<SetRow> state must be one of 'pending' | 'current' | 'completed'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StatusRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|detail|status|isToday|style|key|ref|className|style|children)$/]",
+        "message": "<StatusRow> doesn't accept that prop. Declared props: title, detail, status, isToday, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StatusRow'] > JSXAttribute[name.name='status'] > Literal[value!=/^(?:completed|skipped|missed|in-progress|ready|scheduled)$/]",
+        "message": "<StatusRow> status must be one of 'completed' | 'skipped' | 'missed' | 'in-progress' | 'ready' | 'scheduled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StepperRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|variant|value|on|onIncrement|onDecrement|onToggle|onPress|last|style|key|ref|className|style|children)$/]",
+        "message": "<StepperRow> doesn't accept that prop. Declared props: label, variant, value, on, onIncrement, onDecrement, onToggle, onPress, last, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StepperRow'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:stepper|picker|toggle)$/]",
+        "message": "<StepperRow> variant must be one of 'stepper' | 'picker' | 'toggle'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TabBarTab'] > JSXAttribute > JSXIdentifier[name!=/^(?:key|icon|label|key|ref|className|style|children)$/]",
+        "message": "<TabBarTab> doesn't accept that prop. Declared props: key, icon, label."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='UpcomingCalendarDay'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|date|workout|done|isToday|key|ref|className|style|children)$/]",
+        "message": "<UpcomingCalendarDay> doesn't accept that prop. Declared props: label, date, workout, done, isToday."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "ActivityHeatmap": {
+        "replaces": []
+      },
+      "Badge": {
+        "replaces": []
+      },
+      "Button": {
+        "replaces": []
+      },
+      "Card": {
+        "replaces": []
+      },
+      "ComparisonPanel": {
+        "replaces": []
+      },
+      "ExerciseCard": {
+        "replaces": []
+      },
+      "HistoryRow": {
+        "replaces": []
+      },
+      "Icon": {
+        "replaces": []
+      },
+      "IconChip": {
+        "replaces": []
+      },
+      "ListRow": {
+        "replaces": []
+      },
+      "RecommendationCard": {
+        "replaces": []
+      },
+      "RestTimer": {
+        "replaces": []
+      },
+      "SearchField": {
+        "replaces": []
+      },
+      "SectionLabel": {
+        "replaces": []
+      },
+      "SegmentedControl": {
+        "replaces": []
+      },
+      "SessionHeader": {
+        "replaces": []
+      },
+      "SetInput": {
+        "replaces": []
+      },
+      "SetRow": {
+        "replaces": []
+      },
+      "StatusRow": {
+        "replaces": []
+      },
+      "StepperRow": {
+        "replaces": []
+      },
+      "TabBarTab": {
+        "replaces": []
+      },
+      "UpcomingCalendarDay": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--action-primary",
+      "--border-focus",
+      "--border-hairline",
+      "--border-outline",
+      "--font-body",
+      "--font-display",
+      "--gym-accent",
+      "--gym-accent-surface",
+      "--gym-accent-tint",
+      "--gym-background",
+      "--gym-border",
+      "--gym-card",
+      "--gym-card-elevated",
+      "--gym-current-set-surface",
+      "--gym-destructive",
+      "--gym-muted-surface",
+      "--gym-primary",
+      "--gym-primary-surface",
+      "--gym-primary-tint",
+      "--gym-row-surface",
+      "--gym-secondary",
+      "--gym-secondary-surface",
+      "--gym-secondary-tint",
+      "--gym-text",
+      "--gym-text-subdued",
+      "--gym-text-subtle",
+      "--hit-target",
+      "--motion-compact",
+      "--motion-layout",
+      "--motion-press",
+      "--press-opacity",
+      "--press-scale",
+      "--radius-button",
+      "--radius-card",
+      "--radius-large",
+      "--radius-medium",
+      "--radius-pill",
+      "--radius-section",
+      "--radius-small",
+      "--screen-inset",
+      "--shadow-card",
+      "--shadow-row",
+      "--space-l",
+      "--space-m",
+      "--space-md",
+      "--space-s",
+      "--space-xl",
+      "--space-xs",
+      "--space-xxl",
+      "--space-xxs",
+      "--space-xxxl",
+      "--status-destructive",
+      "--status-success",
+      "--surface-card",
+      "--surface-completed",
+      "--surface-current",
+      "--surface-grouped",
+      "--surface-page",
+      "--text-body",
+      "--text-secondary",
+      "--text-tertiary",
+      "--tint-completed",
+      "--tint-current",
+      "--tint-rest",
+      "--tint-rest-chip",
+      "--tracking-label",
+      "--tracking-label-tight",
+      "--type-body",
+      "--type-body-medium",
+      "--type-caption",
+      "--type-caption-bold",
+      "--type-caption2",
+      "--type-caption2-bold",
+      "--type-display-large",
+      "--type-display-medium",
+      "--type-footnote",
+      "--type-footnote-medium",
+      "--type-headline",
+      "--type-subheadline",
+      "--type-subheadline-bold",
+      "--type-subheadline-semibold",
+      "--type-title",
+      "--type-title-medium",
+      "--type-title-small",
+      "--type-title-small-semibold"
+    ],
+    "tokenKinds": {
+      "--gym-text": "font",
+      "--gym-background": "color",
+      "--gym-card": "color",
+      "--gym-card-elevated": "color",
+      "--gym-primary": "color",
+      "--gym-secondary": "color",
+      "--gym-accent": "color",
+      "--gym-destructive": "color",
+      "--gym-primary-surface": "color",
+      "--gym-secondary-surface": "color",
+      "--gym-accent-surface": "color",
+      "--gym-row-surface": "color",
+      "--gym-current-set-surface": "color",
+      "--gym-border": "color",
+      "--gym-text-subdued": "font",
+      "--gym-text-subtle": "font",
+      "--gym-muted-surface": "color",
+      "--gym-primary-tint": "color",
+      "--gym-secondary-tint": "color",
+      "--gym-accent-tint": "color",
+      "--surface-page": "color",
+      "--surface-card": "color",
+      "--surface-current": "color",
+      "--surface-completed": "color",
+      "--text-body": "font",
+      "--text-secondary": "font",
+      "--text-tertiary": "font",
+      "--action-primary": "color",
+      "--status-success": "color",
+      "--status-destructive": "color",
+      "--surface-grouped": "color",
+      "--tint-current": "color",
+      "--tint-completed": "color",
+      "--tint-rest": "color",
+      "--tint-rest-chip": "color",
+      "--font-display": "font",
+      "--font-body": "font",
+      "--type-display-large": "font",
+      "--type-display-medium": "font",
+      "--type-title": "font",
+      "--type-title-medium": "font",
+      "--type-title-small": "font",
+      "--type-title-small-semibold": "font",
+      "--type-headline": "font",
+      "--type-body": "font",
+      "--type-body-medium": "font",
+      "--type-subheadline": "font",
+      "--type-subheadline-semibold": "font",
+      "--type-subheadline-bold": "font",
+      "--type-footnote": "font",
+      "--type-footnote-medium": "font",
+      "--type-caption": "font",
+      "--type-caption-bold": "font",
+      "--type-caption2": "font",
+      "--type-caption2-bold": "font",
+      "--tracking-label": "font",
+      "--tracking-label-tight": "font",
+      "--space-xxs": "spacing",
+      "--space-xs": "spacing",
+      "--space-s": "spacing",
+      "--space-md": "spacing",
+      "--space-m": "spacing",
+      "--space-l": "spacing",
+      "--space-xl": "spacing",
+      "--space-xxl": "spacing",
+      "--space-xxxl": "spacing",
+      "--screen-inset": "spacing",
+      "--hit-target": "spacing",
+      "--radius-small": "radius",
+      "--radius-medium": "radius",
+      "--radius-large": "radius",
+      "--radius-section": "radius",
+      "--radius-button": "radius",
+      "--radius-card": "radius",
+      "--radius-pill": "radius",
+      "--shadow-card": "shadow",
+      "--shadow-row": "shadow",
+      "--border-hairline": "shadow",
+      "--border-focus": "shadow",
+      "--border-outline": "shadow",
+      "--motion-press": "other",
+      "--motion-compact": "other",
+      "--motion-layout": "other",
+      "--press-scale": "other",
+      "--press-opacity": "other"
+    },
+    "fontFamilies": []
+  }
+}

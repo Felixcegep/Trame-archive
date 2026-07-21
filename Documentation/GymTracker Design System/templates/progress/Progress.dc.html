@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Progress hub (current)" description="History evolved into Progress: filter chips, activity heatmap, records, journal timeline — tweak the active chip" -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div style="min-height:100vh;background:#F6F0E7;font-family:-apple-system,'SF Pro Text',sans-serif;color:#272635;display:flex;justify-content:center">
+<div style="width:390px;padding:24px 20px 40px;display:flex;flex-direction:column;gap:16px">
+<div style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:34px;font-weight:700">Progress</div>
+<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none">
+<sc-for list="{{ chips }}" as="chip" hint-placeholder-count="6">
+<sc-if value="{{ chip.active }}" hint-placeholder-val="{{ false }}">
+<span style="background:#3D72E2;color:#fff;border-radius:999px;padding:8px 16px;font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer">{{ chip.label }}</span>
+</sc-if>
+<sc-if value="{{ !chip.active }}" hint-placeholder-val="{{ true }}">
+<span style="background:#FFFCF7;color:rgba(39,38,53,0.7);border:1px solid rgba(39,38,53,0.1);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer">{{ chip.label }}</span>
+</sc-if>
+</sc-for>
+</div>
+<sc-if value="{{ showHeatmap }}" hint-placeholder-val="{{ true }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="section" padding="16px" hint-size="100%,180px">
+<div style="font-size:13px;font-weight:600;margin-bottom:10px">Activity</div>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.ActivityHeatmap" weeks="14" hint-size="100%,120px"></x-import>
+</x-import>
+</sc-if>
+<sc-if value="{{ showWorkouts }}" hint-placeholder-val="{{ false }}">
+<sc-for list="{{ workouts }}" as="w" hint-placeholder-count="3">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.HistoryRow" title="{{ w.title }}" date="{{ w.date }}" duration="{{ w.duration }}" exercises="{{ w.exercises }}" sets="{{ w.sets }}" hint-size="100%,90px"></x-import>
+</sc-for>
+</sc-if>
+<sc-if value="{{ showRecords }}" hint-placeholder-val="{{ false }}">
+<sc-for list="{{ records }}" as="r" hint-placeholder-count="4">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="large" padding="14px 16px" hint-size="100%,64px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div>
+<div style="font-size:14px;font-weight:600">{{ r.exercise }}</div>
+<div style="font-size:12px;color:rgba(39,38,53,0.5);margin-top:2px">{{ r.date }}</div>
+</div>
+<span style="font-family:ui-rounded,-apple-system,system-ui,sans-serif;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:#3D72E2">{{ r.value }}</span>
+</div>
+</x-import>
+</sc-for>
+</sc-if>
+<sc-if value="{{ showBalance }}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="large" padding="16px" hint-size="100%,110px">
+<div style="font-size:13px;font-weight:600;color:#3D72E2">ⓘ Estimated working sets</div>
+<div style="font-size:13px;color:rgba(39,38,53,0.65);margin-top:6px">Primary muscles count as 1.0 set, secondary as 0.5. Warm-ups excluded. Estimates, not a physiological measurement.</div>
+</x-import>
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="muted" radius="large" padding="14px 16px" hint-size="100%,80px">
+<div style="font-size:13px;font-weight:600">⚠ Glutes received much less estimated work than the previous four-week average.</div>
+</x-import>
+</sc-if>
+<sc-if value="{{ showJournal }}" hint-placeholder-val="{{ false }}">
+<sc-for list="{{ journal }}" as="j" hint-placeholder-count="4">
+<x-import component-from-global-scope="GymTrackerDesignSystem_9b15a7.Card" variant="standard" radius="large" padding="14px 16px" hint-size="100%,68px">
+<div style="display:flex;justify-content:space-between;align-items:baseline">
+<span style="font-size:14px;font-weight:600">{{ j.mood }} · {{ j.date }}</span>
+<span style="font-size:12px;color:rgba(39,38,53,0.5)">{{ j.sleep }}</span>
+</div>
+<div style="font-size:13px;color:rgba(39,38,53,0.58);margin-top:4px">{{ j.note }}</div>
+</x-import>
+</sc-for>
+</sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;430px&quot;,&quot;height&quot;:&quot;920px&quot;},&quot;activeChip&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;workouts&quot;,&quot;options&quot;:[&quot;workouts&quot;,&quot;charts&quot;,&quot;records&quot;,&quot;nutrition&quot;,&quot;journal&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;View&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const active = this.props.activeChip ?? "workouts";
+    const defs = [
+      { key: "workouts", label: "Workouts" }, { key: "charts", label: "Charts" },
+      { key: "records", label: "Records" }, { key: "balance", label: "Balance" }, { key: "nutrition", label: "Nutrition" }, { key: "journal", label: "Journal" }
+    ];
+    const chips = defs.map(d => ({ label: d.label, active: d.key === active }));
+    return {
+      chips,
+      showHeatmap: active === "charts",
+      showWorkouts: active === "workouts",
+      showRecords: active === "records",
+      showBalance: active === "balance",
+      showJournal: active === "journal",
+      workouts: [
+        { title: "Push Day", date: "Jul 17", duration: "54 min", exercises: "6 exercises", sets: "18 sets" },
+        { title: "Pull Day", date: "Jul 15", duration: "61 min", exercises: "7 exercises", sets: "21 sets" },
+        { title: "Legs", date: "Jul 13", duration: "58 min", exercises: "5 exercises", sets: "16 sets" }
+      ],
+      records: [
+        { exercise: "Bench Press", date: "Jul 17", value: "100 kg" },
+        { exercise: "Back Squat", date: "Jul 13", value: "140 kg" },
+        { exercise: "Deadlift", date: "Jul 10", value: "180 kg" },
+        { exercise: "OHP", date: "Jul 8", value: "62.5 kg" }
+      ],
+      journal: [
+        { mood: "Bon", date: "Jul 17", sleep: "7h30", note: "Séance forte, énergie stable toute la journée." },
+        { mood: "Fatigué", date: "Jul 15", sleep: "5h45", note: "Manque de sommeil, séance plus dure que prévu." },
+        { mood: "Excellent", date: "Jul 13", sleep: "8h10", note: "Nouveau record au squat, très motivé." }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
