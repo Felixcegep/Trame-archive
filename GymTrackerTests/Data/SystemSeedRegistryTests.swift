@@ -213,6 +213,66 @@ final class SystemSeedRegistryTests: XCTestCase {
         XCTAssertFalse(json.contains("SystemSeedRecord"))
     }
 
+    func testBackupRestoreRebuildsManifestTransactionallyAndPreservesCustomDuplicate() throws {
+        let source = try GymTrackerTestStore.makeInMemoryContext()
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: source)
+        let custom = Exercise(
+            name: "Bench Press",
+            primaryMuscles: [.bicep],
+            isFavorite: true,
+            isCustom: true
+        )
+        source.insert(custom)
+        try source.save()
+
+        let backup = try BackupDTO.create(
+            from: source,
+            restTimer: 90,
+            darkMode: false,
+            unitSystem: .metric
+        )
+        let restored = try GymTrackerTestStore.makeInMemoryContext()
+        try backup.restore(to: restored)
+
+        let manifest = try restored.fetch(FetchDescriptor<SystemSeedRecord>())
+        let matchingExercises = try restored.fetch(FetchDescriptor<Exercise>())
+            .filter { $0.name == "Bench Press" }
+        let restoredCustom = try XCTUnwrap(matchingExercises.first(where: \.isCustom))
+        let restoredSystem = try XCTUnwrap(matchingExercises.first(where: { !$0.isCustom }))
+
+        XCTAssertFalse(manifest.isEmpty)
+        XCTAssertTrue(manifest.contains { $0.seedKey == "exercise.bench-press" && $0.entityID == restoredSystem.id })
+        XCTAssertEqual(matchingExercises.count, 2)
+        XCTAssertEqual(restoredCustom.primaryMuscles, [.bicep])
+        XCTAssertTrue(restoredCustom.isFavorite)
+    }
+
+    func testInterruptedBackupRestoreRollsBackStagedManifest() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let sentinel = Exercise(name: "Keep During Restore", primaryMuscles: [.upperChest])
+        context.insert(sentinel)
+        try context.save()
+
+        let backup = BackupDTO(
+            version: BackupDTO.currentVersion,
+            preferences: PreferencesDTO(darkMode: false, restTimer: 90, unitSystem: UnitSystem.metric.rawValue),
+            exercises: [],
+            templates: [],
+            collections: [],
+            workouts: []
+        )
+
+        XCTAssertThrowsError(
+            try backup.restore(to: context, beforeCommit: {
+                throw NSError(domain: "SystemSeedRegistryTests", code: 1)
+            })
+        )
+        XCTAssertTrue(try context.fetch(FetchDescriptor<SystemSeedRecord>()).isEmpty)
+        XCTAssertTrue(
+            try context.fetch(FetchDescriptor<Exercise>()).contains { $0.id == sentinel.id }
+        )
+    }
+
     private func catalogueCounts(in context: ModelContext) throws -> [String: Int] {
         [
             "exercise": try context.fetchCount(FetchDescriptor<Exercise>()),

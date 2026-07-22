@@ -63,7 +63,7 @@ extension BackupDTO {
                 let rangeOfMotion = exerciseDTO.rangeOfMotion.flatMap { RangeOfMotion(rawValue: $0) }
                 let difficulty = exerciseDTO.difficulty.flatMap { Difficulty(rawValue: $0) } ?? .beginner
 
-                if let existing = exerciseMap[exerciseDTO.name] {
+                if !exerciseDTO.isCustom, let existing = exerciseMap[exerciseDTO.name] {
                     if let id = exerciseDTO.id.flatMap(UUID.init(uuidString:)) {
                         existing.id = id
                     }
@@ -100,7 +100,13 @@ extension BackupDTO {
                         id: exerciseDTO.id.flatMap(UUID.init(uuidString:)) ?? UUID()
                     )
                     context.insert(newExercise)
-                    exerciseMap[newExercise.name] = newExercise
+                    // Name-only references in legacy backups resolve to the
+                    // bundled definition when a custom exercise shares its
+                    // name. Keep that definition as the lookup target while
+                    // preserving the distinct custom record.
+                    if exerciseMap[newExercise.name] == nil {
+                        exerciseMap[newExercise.name] = newExercise
+                    }
                 }
             }
 
@@ -1062,6 +1068,13 @@ extension BackupDTO {
                 )
                 context.insert(target)
             }
+#if !GYMTRACKER_EXTENSION
+            // The manifest is rebuildable installation state, not backup
+            // payload. Stage it before the final save so an interrupted
+            // restore cannot leave restored user data without its catalogue
+            // installation metadata.
+            _ = try SystemSeedCatalogCoordinator.stageBundledCatalog(in: context)
+#endif
             try beforeCommit?()
             try context.save()
         } catch {

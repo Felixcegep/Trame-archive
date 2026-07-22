@@ -11,34 +11,44 @@ enum SystemSeedCatalogCoordinator {
         bundle: Bundle = .main
     ) throws -> SystemSeedInstallReport {
         do {
-            let registry = try SystemSeedRegistry(context: context)
-            var report = try ExerciseSystemSeedInstaller.install(in: context, registry: registry)
-
-            _ = try ExerciseRelationshipSeedData.seed(in: context, saveChanges: false)
-            report += try registerExerciseRelationships(in: context, registry: registry)
-
-            report += try installWorkoutTemplatesAndCollection(in: context, registry: registry)
-            report += try installWorkoutPlan(in: context, registry: registry)
-
-#if !GYMTRACKER_EXTENSION
-            _ = try ProgramLibrarySeedData.seedBundledCatalog(
-                in: context,
-                bundle: bundle,
-                saveChanges: false
-            )
-            report += try registerPrograms(in: context, registry: registry)
-#endif
-
-            try MobilitySeedData.stage(using: context, registry: registry)
-
-            try NutritionSeedData.stage(using: context, registry: registry)
-
+            let report = try stageBundledCatalog(in: context, bundle: bundle)
             try context.save()
             return report
         } catch {
             context.rollback()
             throw error
         }
+    }
+
+    /// Stages the complete bundled catalogue without saving. Callers that
+    /// already own a larger persistence transaction, such as backup restore,
+    /// use this so the catalogue and its manifest commit or roll back together.
+    static func stageBundledCatalog(
+        in context: ModelContext,
+        bundle: Bundle = .main
+    ) throws -> SystemSeedInstallReport {
+        let registry = try SystemSeedRegistry(context: context)
+        var report = try ExerciseSystemSeedInstaller.install(in: context, registry: registry)
+
+        _ = try ExerciseRelationshipSeedData.seed(in: context, saveChanges: false)
+        report += try registerExerciseRelationships(in: context, registry: registry)
+
+        report += try installWorkoutTemplatesAndCollection(in: context, registry: registry)
+        report += try installWorkoutPlan(in: context, registry: registry)
+
+#if !GYMTRACKER_EXTENSION
+        _ = try ProgramLibrarySeedData.seedBundledCatalog(
+            in: context,
+            bundle: bundle,
+            saveChanges: false
+        )
+        report += try registerPrograms(in: context, registry: registry)
+#endif
+
+        try MobilitySeedData.stage(using: context, registry: registry)
+        try NutritionSeedData.stage(using: context, registry: registry)
+
+        return report
     }
 
     private static func registerExerciseRelationships(
