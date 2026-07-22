@@ -276,7 +276,7 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         XCTAssertFalse(state.isDeloading)
     }
 
-    func testBundledCatalogSeedsValidatesPreviewsAndCompilesAllThirteenPrograms() throws {
+    func testBundledCatalogSeedsValidatesPreviewsAndCompilesAllFourteenPrograms() throws {
         let context = try makeContext()
         for exercise in ExerciseSeedData.templates() {
             context.insert(exercise)
@@ -286,15 +286,15 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         let data = try AuthoringProgramCatalogDecoder.bundledData()
         let decoded = try AuthoringProgramCatalogDecoder.decode(data)
         XCTAssertTrue(decoded.failures.isEmpty, decoded.failures.map { "\($0.programKey): \($0.message)" }.joined(separator: "\n"))
-        XCTAssertEqual(decoded.definitions.count, 13)
+        XCTAssertEqual(decoded.definitions.count, 14)
 
         let result = try ProgramLibrarySeedData.seed(data, in: context)
-        XCTAssertEqual(Set(result.importedProgramKeys).count, 13)
+        XCTAssertEqual(Set(result.importedProgramKeys).count, 14)
         let secondResult = try ProgramLibrarySeedData.seed(data, in: context)
-        XCTAssertEqual(Set(secondResult.importedProgramKeys).count, 13)
+        XCTAssertEqual(Set(secondResult.importedProgramKeys).count, 14)
 
         let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
-        XCTAssertEqual(records.count, 13)
+        XCTAssertEqual(records.count, 14)
         for record in records {
             let payload = try record.payload()
             XCTAssertTrue(
@@ -437,7 +437,7 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         _ = try ProgramLibrarySeedData.seed(data, in: context)
         let fetchedRecords: [ProgramDefinitionRecord] = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
         let records = fetchedRecords.sorted(by: { lhs, rhs in lhs.name < rhs.name })
-        XCTAssertEqual(records.count, 13)
+        XCTAssertEqual(records.count, 14)
 
         for record in records {
             try XCTContext.runActivity(named: record.name) { _ in
@@ -525,10 +525,10 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         let restoredContext = try makeContext()
         let roundTrippedBackup = try JSONDecoder().decode(BackupDTO.self, from: JSONEncoder().encode(backup))
         try roundTrippedBackup.restore(to: restoredContext)
-        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<ProgramDefinitionRecord>()).count, 13)
-        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<WorkoutPlan>()).count, 13)
-        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<PlanRun>()).count, 13)
-        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<Workout>()).filter { $0.status == .completed }.count, 13)
+        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<ProgramDefinitionRecord>()).count, 14)
+        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<WorkoutPlan>()).count, 14)
+        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<PlanRun>()).count, 14)
+        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<Workout>()).filter { $0.status == .completed }.count, 14)
         XCTAssertTrue(try restoredContext.fetch(FetchDescriptor<PlanRun>()).allSatisfy { !$0.progressionStates.isEmpty })
     }
 

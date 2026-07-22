@@ -275,6 +275,7 @@ class ActiveWorkoutViewModel {
         // independently counted top-level work. Their completion follows the
         // parent attempt so an undo restores a coherent in-progress state.
         set.synchronizeSegmentCompletion()
+        set.synchronizeComplexCompletion()
         if !set.done {
             // A selected source must remain a completed performed attempt.
             // Derived work falls back to the latest remaining completed

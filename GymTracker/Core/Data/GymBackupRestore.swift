@@ -549,6 +549,23 @@ extension BackupDTO {
                             segment.id = segmentID
                             return segment
                         }
+                        setObj.complexComponents = (setDTO.complexComponents ?? []).compactMap { componentDTO in
+                            guard let id = UUID(uuidString: componentDTO.id),
+                                  let exerciseID = UUID(uuidString: componentDTO.exerciseID),
+                                  let outcome = ComplexComponentOutcome(rawValue: componentDTO.outcome)
+                            else { return nil }
+                            let component = ComplexComponentResult(
+                                orderIndex: componentDTO.orderIndex,
+                                exerciseID: exerciseID,
+                                exerciseNameSnapshot: componentDTO.exerciseNameSnapshot,
+                                prescribedRepetitions: componentDTO.prescribedRepetitions,
+                                performedRepetitions: componentDTO.performedRepetitions,
+                                outcome: outcome,
+                                liftQuality: componentDTO.liftQuality.flatMap(LiftQuality.init(rawValue:))
+                            )
+                            component.id = id
+                            return component
+                        }
                         setObj.isSelectedDailyMaximum = setDTO.isSelectedDailyMaximum ?? false
                         setObj.generatedBackOffDefinitionID = setDTO.generatedBackOffDefinitionID.flatMap(UUID.init(uuidString:))
                         if let id = setDTO.id.flatMap(UUID.init(uuidString:)) {

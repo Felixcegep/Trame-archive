@@ -201,6 +201,18 @@ struct WorkoutDetailView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(accessibilityDescription(for: set, index: index))
+
+                if !set.orderedComplexComponents.isEmpty {
+                    GridRow {
+                        Text(complexComponentText(for: set))
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .gridCellColumns(tableColumns.count)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Complex components: \(complexComponentText(for: set))")
+                }
             }
         }
     }
@@ -231,6 +243,12 @@ struct WorkoutDetailView: View {
     private func setLabel(for set: ExerciseSet, index: Int) -> String {
         guard set.setType != .normal else { return "\(index + 1)" }
         return "\(index + 1) · \(set.setType.title)"
+    }
+
+    private func complexComponentText(for set: ExerciseSet) -> String {
+        set.orderedComplexComponents
+            .map { "\($0.exerciseNameSnapshot) ×\($0.performedRepetitions)/\($0.prescribedRepetitions): \($0.outcome.title)" }
+            .joined(separator: " · ")
     }
 
     private func weightText(for set: ExerciseSet) -> String {

@@ -1,9 +1,14 @@
 //
-//  ClassificationTypes.swift
+//  CoreTypes.swift
 //  GymTracker
 //
-//  Created by Felix Lachapelle on 2026-07-17.
-//
+
+import Foundation
+
+enum UnitSystem: String, CaseIterable, Codable {
+    case metric
+    case imperial
+}
 
 enum ExerciseMechanics: String, Codable, CaseIterable {
     case compound = "Compound"

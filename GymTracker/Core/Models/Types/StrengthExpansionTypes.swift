@@ -172,6 +172,36 @@ enum SetMethod: String, Codable, CaseIterable {
     }
 }
 
+/// The performed outcome of one ordered component in a prescribed Olympic
+/// complex. This stays distinct from `LiftQuality`: a component can be
+/// partially completed and still carry a technical-quality observation.
+enum ComplexComponentOutcome: String, Codable, CaseIterable {
+    case notStarted
+    case completed
+    case partial
+    case missed
+    case skipped
+
+    var title: String {
+        switch self {
+        case .notStarted: "Not logged"
+        case .completed: "Made"
+        case .partial: "Partial"
+        case .missed: "Missed"
+        case .skipped: "Skipped"
+        }
+    }
+}
+
+/// Snapshot input accepted by the persisted workout model. It intentionally
+/// does not depend on the Program Engine so the Live Activity extension can
+/// compile the workout schema independently.
+struct ComplexComponentSnapshot: Hashable {
+    let exerciseID: UUID
+    let exerciseNameSnapshot: String
+    let prescribedRepetitions: Int
+}
+
 enum MeasurementSource: String, Codable, CaseIterable {
     case manual
     case imported

@@ -389,6 +389,7 @@ struct ProgramDefinitionSetEditor: View {
                 guard case .sequence(var components) = set.repetitions,
                       components.indices.contains(index) else { return }
                 components[index].exerciseID = value
+                components[index].exerciseNameSnapshot = exercises.first(where: { $0.id == value })?.name
                 set.repetitions = .sequence(components)
             }
         )
@@ -412,7 +413,12 @@ struct ProgramDefinitionSetEditor: View {
 
     private func addComponent() {
         guard case .sequence(var components) = set.repetitions else { return }
-        components.append(RepComponent(exerciseID: exercises.first?.id ?? fallbackExerciseID, repetitions: 1))
+        let exercise = exercises.first
+        components.append(RepComponent(
+            exerciseID: exercise?.id ?? fallbackExerciseID,
+            repetitions: 1,
+            exerciseNameSnapshot: exercise?.name
+        ))
         set.repetitions = .sequence(components)
     }
 

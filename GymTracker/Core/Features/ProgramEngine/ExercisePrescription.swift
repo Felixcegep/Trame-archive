@@ -18,6 +18,15 @@ nonisolated enum ProgramSetRole: String, Codable, CaseIterable, Hashable {
 nonisolated struct RepComponent: Codable, Hashable {
     var exerciseID: UUID
     var repetitions: Int
+    /// Copied when the component is authored or compiled so completed history
+    /// does not depend on the current exercise-library name.
+    var exerciseNameSnapshot: String?
+
+    init(exerciseID: UUID, repetitions: Int, exerciseNameSnapshot: String? = nil) {
+        self.exerciseID = exerciseID
+        self.repetitions = repetitions
+        self.exerciseNameSnapshot = exerciseNameSnapshot
+    }
 }
 
 nonisolated indirect enum RepPrescription: Codable, Hashable {

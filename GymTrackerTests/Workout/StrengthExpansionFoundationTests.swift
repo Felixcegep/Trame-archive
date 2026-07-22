@@ -107,6 +107,36 @@ final class StrengthExpansionFoundationTests: XCTestCase {
         XCTAssertNotEqual(copy.orderedSegments.map(\.id), set.orderedSegments.map(\.id))
     }
 
+    func testStructuredComplexPreservesOrderedComponentOutcomesAndCopiesFreshAttempts() {
+        let cleanID = UUID()
+        let jerkID = UUID()
+        let set = ExerciseSet(repetitions: 2, weight: 80, usedMetric: .metric)
+        set.ensureComplexComponents(for: [
+            ComplexComponentSnapshot(exerciseID: cleanID, exerciseNameSnapshot: "Clean", prescribedRepetitions: 1),
+            ComplexComponentSnapshot(exerciseID: jerkID, exerciseNameSnapshot: "Jerk", prescribedRepetitions: 1)
+        ])
+
+        XCTAssertEqual(set.repetitions, 2)
+
+        set.complexComponents[0].outcome = .completed
+        set.complexComponents[0].performedRepetitions = 1
+        set.complexComponents[1].outcome = .missed
+        set.complexComponents[1].liftQuality = .missed
+        set.done = true
+        set.synchronizeComplexCompletion()
+
+        XCTAssertEqual(set.orderedComplexComponents.map(\.exerciseNameSnapshot), ["Clean", "Jerk"])
+        XCTAssertEqual(set.orderedComplexComponents.map(\.outcome), [.completed, .missed])
+        XCTAssertEqual(set.repetitions, 1)
+        XCTAssertEqual(set.liftQuality, .missed)
+        XCTAssertFalse(StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(set))
+
+        let copy = set.copy()
+        XCTAssertTrue(copy.orderedComplexComponents.allSatisfy { $0.outcome == .notStarted })
+        XCTAssertTrue(copy.orderedComplexComponents.allSatisfy { $0.performedRepetitions == 0 })
+        XCTAssertNotEqual(copy.orderedComplexComponents.map(\.id), set.orderedComplexComponents.map(\.id))
+    }
+
     func testSegmentedMethodRestoresItsMinimumStructureAndCannotBecomeTraditionalEvidence() {
         let set = ExerciseSet(
             repetitions: 8,
@@ -644,6 +674,10 @@ final class StrengthExpansionFoundationTests: XCTestCase {
             ExerciseSetSegment(orderIndex: 0, repetitions: 10, weight: 30, done: true),
             ExerciseSetSegment(orderIndex: 1, repetitions: 8, weight: 20, restAfterSeconds: 0, done: true)
         ]
+        set.complexComponents = [
+            ComplexComponentResult(orderIndex: 0, exerciseID: UUID(), exerciseNameSnapshot: "Power Jerk", prescribedRepetitions: 1, performedRepetitions: 1, outcome: .completed, liftQuality: .acceptable),
+            ComplexComponentResult(orderIndex: 1, exerciseID: UUID(), exerciseNameSnapshot: "Jerk", prescribedRepetitions: 1, performedRepetitions: 0, outcome: .missed, liftQuality: .missed)
+        ]
         let entry = ExerciseEntry(exercise: exercise, sets: [set], usedMetric: .metric)
         let workout = Workout(name: "Dropset")
         workout.exercises = [entry]
@@ -700,6 +734,8 @@ final class StrengthExpansionFoundationTests: XCTestCase {
         XCTAssertEqual(restoredSet.kettlebellCadenceRPM, 24)
         XCTAssertEqual(restoredSet.specializedMetricMeasurementSource, .device)
         XCTAssertEqual(restoredSet.orderedSegments.map(\.weight), [30, 20])
+        XCTAssertEqual(restoredSet.orderedComplexComponents.map(\.exerciseNameSnapshot), ["Power Jerk", "Jerk"])
+        XCTAssertEqual(restoredSet.orderedComplexComponents.map(\.outcome), [.completed, .missed])
         XCTAssertEqual(restoredWorkout.orderedExecutionBlocks.first?.kind, .ladder)
         XCTAssertEqual(restoredWorkout.orderedExecutionBlocks.first?.repetitionScheme, .ascendingLadder)
         XCTAssertEqual(restoredWorkout.orderedExecutionBlocks.first?.repetitionStart, 2)

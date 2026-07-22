@@ -27,6 +27,11 @@ nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
 }
 
 nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
+    struct ComplexComponent: Codable, Hashable {
+        var exercise: String
+        var reps: Int
+    }
+
     struct Velocity: Codable, Hashable {
         var zone: [Double]?
         var lossStopPercent: Double?
@@ -55,8 +60,15 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
     var optional: Bool?
     var deferred: Bool?
     var velocity: Velocity?
+    var complex: [ComplexComponent]?
 
-    func expand(path: String, orderIndex: Int, defaultRestSeconds: Int?, exposureKey: String) throws -> SetPrescriptionDefinition {
+    func expand(
+        path: String,
+        orderIndex: Int,
+        defaultRestSeconds: Int?,
+        exposureKey: String,
+        exerciseIDsByName: [String: UUID]
+    ) throws -> SetPrescriptionDefinition {
         let group = AuthoringSetGroupDefinition(
             count: 1,
             reps: reps,
@@ -79,6 +91,21 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
         result.isOptional = optional ?? false
         result.generatesAfterSourceCompletion = deferred ?? false
         result.velocity = velocity?.expanded
+        if let complex {
+            guard !complex.isEmpty else {
+                throw ProgramLibraryImportError.invalidSetGroup("\(path)/complex")
+            }
+            result.repetitions = try .sequence(complex.enumerated().map { componentIndex, component in
+                guard component.reps > 0, let exerciseID = exerciseIDsByName[component.exercise] else {
+                    throw ProgramLibraryImportError.missingExercise(component.exercise)
+                }
+                return RepComponent(
+                    exerciseID: exerciseID,
+                    repetitions: component.reps,
+                    exerciseNameSnapshot: component.exercise
+                )
+            })
+        }
         return result
     }
 }
@@ -238,7 +265,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                         path: "\(exercisePath)/direct/\(setIndex)",
                                         orderIndex: sets.count,
                                         defaultRestSeconds: exercise.restSeconds,
-                                        exposureKey: exercise.exposureKey
+                                        exposureKey: exercise.exposureKey,
+                                        exerciseIDsByName: exerciseIDsByName
                                     ))
                                 }
                                 for (groupIndex, group) in (exercise.extraSetGroups ?? []).enumerated() {

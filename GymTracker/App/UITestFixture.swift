@@ -18,6 +18,7 @@ enum UITestFixture: String {
     case activeSuperset = "active-superset"
     case activeExecutionBlock = "active-execution-block"
     case activeAdvancedSet = "active-advanced-set"
+    case activeComplexComponents = "active-complex-components"
     case historyBench = "history-bench"
     case exerciseInsights = "exercise-insights"
     case muscleBalance = "muscle-balance"
@@ -99,6 +100,8 @@ enum UITestFixture: String {
             try makeExecutionBlockWorkout(using: context)
         case .activeAdvancedSet:
             try makeAdvancedSetWorkout(using: context)
+        case .activeComplexComponents:
+            try makeComplexComponentWorkout(using: context)
         case .historyBench:
             try makeCompletedBenchHistory(using: context)
         case .exerciseInsights:
@@ -299,6 +302,38 @@ enum UITestFixture: String {
             ExerciseSetSegment(orderIndex: 0, repetitions: 8, weight: 50, done: false),
             ExerciseSetSegment(orderIndex: 1, repetitions: 6, weight: 40, restAfterSeconds: 0, done: false)
         ]
+        try makeActiveWorkout(exercises: [entry], using: context)
+    }
+
+    private static func makeComplexComponentWorkout(using context: ModelContext) throws {
+        let entry = try inProgressEntry(named: "Three-Position Snatch", using: context)
+        guard let set = entry.orderedSets.first else { throw FixtureError.invalidPlan }
+        set.prescribedRepetitions = 3
+        set.weight = 60
+        set.ensureComplexComponents(for: [
+            ComplexComponentSnapshot(
+                exerciseID: try exercise(named: "High-Hang Snatch", using: context).id,
+                exerciseNameSnapshot: "High-Hang Snatch",
+                prescribedRepetitions: 1
+            ),
+            ComplexComponentSnapshot(
+                exerciseID: try exercise(named: "Hang Snatch", using: context).id,
+                exerciseNameSnapshot: "Hang Snatch",
+                prescribedRepetitions: 1
+            ),
+            ComplexComponentSnapshot(
+                exerciseID: try exercise(named: "Snatch", using: context).id,
+                exerciseNameSnapshot: "Snatch",
+                prescribedRepetitions: 1
+            )
+        ])
+        guard set.complexComponents.count == 3 else { throw FixtureError.invalidPlan }
+        set.complexComponents[0].outcome = .completed
+        set.complexComponents[0].performedRepetitions = 1
+        set.complexComponents[1].outcome = .partial
+        set.complexComponents[1].performedRepetitions = 0
+        set.complexComponents[2].outcome = .missed
+
         try makeActiveWorkout(exercises: [entry], using: context)
     }
 

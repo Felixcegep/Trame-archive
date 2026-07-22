@@ -35,6 +35,7 @@ struct AppIcon {
     // Status & Feedback Icons
     static let checkmark = "checkmark"
     static let checkmarkCircle = "checkmark.circle.fill"
+    static let failureCircle = "xmark.circle.fill"
     static let circle = "circle"
     static let circleFill = "circle.fill"
     static let circleDashed = "circle.dashed"

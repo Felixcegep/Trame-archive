@@ -152,6 +152,15 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/07e_Set_Method_Segments")
     }
 
+    func testCaptureComplexComponentResultsScreenshot() {
+        let app = launchFixture("active-complex-components")
+        XCTAssertTrue(app.staticTexts["Three-Position Snatch"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["complex-component-0"].exists)
+        XCTAssertTrue(app.buttons["complex-component-1"].exists)
+        XCTAssertTrue(app.buttons["complex-component-2"].exists)
+        saveScreenshot("active-workout/07f_Complex_Component_Results")
+    }
+
     func testCaptureExerciseSwapScreenshot() {
         let app = launchFixture("active-draft")
         tapButton("exercise-menu-Bench Press", in: app)

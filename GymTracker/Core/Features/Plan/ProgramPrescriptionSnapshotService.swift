@@ -253,6 +253,13 @@ enum ProgramPrescriptionSnapshotService {
                 if set.repetitions <= 0 {
                     set.repetitions = Float(set.prescribedRepetitions ?? repetitions)
                 }
+                set.ensureComplexComponents(for: components.enumerated().map { index, component in
+                    ComplexComponentSnapshot(
+                        exerciseID: component.exerciseID,
+                        exerciseNameSnapshot: component.exerciseNameSnapshot ?? "Component \(index + 1)",
+                        prescribedRepetitions: component.repetitions
+                    )
+                })
                 let notation = components.map { String($0.repetitions) }.joined(separator: "+")
                 set.prescriptionNotes = ["Complex: \(notation)", definition.notes]
                     .compactMap { $0 }

@@ -89,7 +89,13 @@ final class AuthoringProgramTests: XCTestCase {
         }
         """
         let authoring = try JSONDecoder().decode(AuthoringDirectSetDefinition.self, from: Data(json.utf8))
-        let set = try authoring.expand(path: "velocity/s0", orderIndex: 0, defaultRestSeconds: 120, exposureKey: "squat")
+        let set = try authoring.expand(
+            path: "velocity/s0",
+            orderIndex: 0,
+            defaultRestSeconds: 120,
+            exposureKey: "squat",
+            exerciseIDsByName: [:]
+        )
 
         XCTAssertEqual(set.velocity?.targetMinimum, 0.5)
         XCTAssertEqual(set.velocity?.targetMaximum, 0.7)
@@ -97,5 +103,32 @@ final class AuthoringProgramTests: XCTestCase {
         XCTAssertEqual(set.velocity?.isProbe, true)
         let decoded = try JSONDecoder().decode(SetPrescriptionDefinition.self, from: JSONEncoder().encode(set))
         XCTAssertEqual(decoded.velocity, set.velocity)
+    }
+
+    func testAuthoringComplexResolvesOrderedNamedComponents() throws {
+        let authoring = try JSONDecoder().decode(AuthoringDirectSetDefinition.self, from: Data("""
+        {
+          "reps": 2,
+          "complex": [
+            {"exercise": "Hang Snatch", "reps": 1},
+            {"exercise": "Snatch", "reps": 1}
+          ]
+        }
+        """.utf8))
+        let hang = UUID()
+        let snatch = UUID()
+
+        let set = try authoring.expand(
+            path: "complex/s0",
+            orderIndex: 0,
+            defaultRestSeconds: nil,
+            exposureKey: "three-position-snatch",
+            exerciseIDsByName: ["Hang Snatch": hang, "Snatch": snatch]
+        )
+
+        XCTAssertEqual(set.repetitions, .sequence([
+            RepComponent(exerciseID: hang, repetitions: 1, exerciseNameSnapshot: "Hang Snatch"),
+            RepComponent(exerciseID: snatch, repetitions: 1, exerciseNameSnapshot: "Snatch")
+        ]))
     }
 }

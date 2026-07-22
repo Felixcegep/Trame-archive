@@ -62,7 +62,7 @@ enum BackupValidationError: LocalizedError {
 
 extension BackupDTO {
     func validate() throws {
-        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.mobilityVersion || version == Self.nutritionVersion || version == Self.bodyWeightVersion || version == Self.strengthExpansionVersion || version == Self.advancedMetricsVersion || version == Self.currentVersion else {
+        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.mobilityVersion || version == Self.nutritionVersion || version == Self.bodyWeightVersion || version == Self.strengthExpansionVersion || version == Self.advancedMetricsVersion || version == Self.formatSchemesVersion || version == Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
 
@@ -499,6 +499,23 @@ extension BackupDTO {
                   segment.rpe.map({ (1...10).contains($0) }) ?? true,
                   segment.rir.map({ $0 >= 0 }) ?? true else {
                 throw BackupValidationError.invalidIdentifier("exercise set segment")
+            }
+        }
+
+        var componentIDs = Set<String>()
+        for component in set.complexComponents ?? [] {
+            guard UUID(uuidString: component.id) != nil,
+                  componentIDs.insert(component.id).inserted,
+                  component.orderIndex >= 0,
+                  UUID(uuidString: component.exerciseID) != nil,
+                  !component.exerciseNameSnapshot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  component.prescribedRepetitions > 0,
+                  component.performedRepetitions >= 0,
+                  component.performedRepetitions <= component.prescribedRepetitions,
+                  ComplexComponentOutcome(rawValue: component.outcome) != nil,
+                  component.liftQuality.map({ LiftQuality(rawValue: $0) != nil }) ?? true
+            else {
+                throw BackupValidationError.invalidIdentifier("complex component result")
             }
         }
     }

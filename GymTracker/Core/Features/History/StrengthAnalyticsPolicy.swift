@@ -10,6 +10,7 @@ enum StrengthAnalyticsPolicy {
             && set.setType != .warmup
             && set.setMethod == .standard
             && set.segments.isEmpty
+            && set.complexComponents.isEmpty
             && set.specializedMetricKind == .none
             && !set.isVelocityProbe
     }

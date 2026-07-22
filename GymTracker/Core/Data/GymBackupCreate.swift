@@ -163,6 +163,18 @@ extension BackupDTO {
                                     rir: segment.rir
                                 )
                             },
+                            complexComponents: set.orderedComplexComponents.map { component in
+                                ComplexComponentResultDTO(
+                                    id: component.id.uuidString,
+                                    orderIndex: component.orderIndex,
+                                    exerciseID: component.exerciseID.uuidString,
+                                    exerciseNameSnapshot: component.exerciseNameSnapshot,
+                                    prescribedRepetitions: component.prescribedRepetitions,
+                                    performedRepetitions: component.performedRepetitions,
+                                    outcome: component.outcome.rawValue,
+                                    liftQuality: component.liftQuality?.rawValue
+                                )
+                            },
                             setType: set.setType.rawValue,
                             isSelectedDailyMaximum: set.isSelectedDailyMaximum,
                             generatedBackOffDefinitionID: set.generatedBackOffDefinitionID?.uuidString,

@@ -1,11 +1,14 @@
 //
-//  SetType.swift
+//  WorkoutTypes.swift
 //  GymTracker
-//
-//  Created by Felix Lachapelle on 2026-07-07.
 //
 
 import Foundation
+
+enum WorkoutStatus: String, Codable {
+    case active
+    case completed
+}
 
 enum SetType: String, Codable, CaseIterable {
     case warmup
@@ -36,8 +39,6 @@ enum SetType: String, Codable, CaseIterable {
         }
     }
 
-    /// Single-letter badge shown in place of the set number; nil for normal
-    /// sets, which display their position instead.
     var shortLabel: String? {
         switch self {
         case .normal: nil
@@ -53,4 +54,31 @@ enum SetType: String, Codable, CaseIterable {
         case .recovery: "R"
         }
     }
+}
+
+enum LiftQuality: String, Codable, CaseIterable, Hashable {
+    case excellent
+    case acceptable
+    case technicallyPoor
+    case missed
+
+    var title: String {
+        switch self {
+        case .excellent: String(localized: "Excellent")
+        case .acceptable: String(localized: "Acceptable")
+        case .technicallyPoor: String(localized: "Technically poor")
+        case .missed: String(localized: "Missed")
+        }
+    }
+}
+
+enum WeightType: String, Codable, CaseIterable {
+    case kg
+    case lbs
+}
+
+enum DistanceType: String, Codable, CaseIterable {
+    case meters
+    case kilometers
+    case miles
 }

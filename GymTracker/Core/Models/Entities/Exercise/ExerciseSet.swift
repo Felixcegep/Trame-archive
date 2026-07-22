@@ -87,6 +87,8 @@ final class ExerciseSet {
     var exerciseEntry: ExerciseEntry?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseSetSegment.exerciseSet)
     var segments: [ExerciseSetSegment] = []
+    @Relationship(deleteRule: .cascade, inverse: \ComplexComponentResult.exerciseSet)
+    var complexComponents: [ComplexComponentResult] = []
     init(
         repetitions: Float = 0,
         weight: Float = 0,
@@ -168,6 +170,7 @@ final class ExerciseSet {
         self.prescriptionDefinitionData = nil
         self.usedMetric = usedMetric
         self.segments = []
+        self.complexComponents = []
     }
 
     func copy() -> ExerciseSet {
@@ -241,6 +244,16 @@ final class ExerciseSet {
                 variationNote: segment.variationNote,
                 rpe: segment.rpe,
                 rir: segment.rir
+            )
+        }
+        copy.complexComponents = orderedComplexComponents.map { component in
+            ComplexComponentResult(
+                orderIndex: component.orderIndex,
+                exerciseID: component.exerciseID,
+                exerciseNameSnapshot: component.exerciseNameSnapshot,
+                prescribedRepetitions: component.prescribedRepetitions,
+                performedRepetitions: 0,
+                outcome: .notStarted
             )
         }
         return copy
@@ -329,5 +342,48 @@ final class ExerciseSet {
         for (index, segment) in orderedSegments.enumerated() {
             segment.orderIndex = index
         }
+    }
+
+    var orderedComplexComponents: [ComplexComponentResult] {
+        complexComponents.sorted { lhs, rhs in
+            lhs.orderIndex == rhs.orderIndex
+                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
+                : lhs.orderIndex < rhs.orderIndex
+        }
+    }
+
+    /// Creates performed component rows only for a structured complex. Existing
+    /// results are never replaced, preserving a partial active or historical
+    /// attempt across reconciliation and relaunch.
+    func ensureComplexComponents(for components: [ComplexComponentSnapshot]) {
+        guard complexComponents.isEmpty else { return }
+        repetitions = Float(components.reduce(0) { $0 + $1.prescribedRepetitions })
+        complexComponents = components.enumerated().map { index, component in
+            ComplexComponentResult(
+                orderIndex: index,
+                exerciseID: component.exerciseID,
+                exerciseNameSnapshot: component.exerciseNameSnapshot,
+                prescribedRepetitions: component.prescribedRepetitions
+            )
+        }
+    }
+
+    func synchronizeComplexCompletion() {
+        guard !complexComponents.isEmpty else { return }
+        if done {
+            for component in complexComponents where component.outcome == .notStarted {
+                component.outcome = .completed
+                component.performedRepetitions = component.prescribedRepetitions
+                component.liftQuality = component.liftQuality ?? .acceptable
+            }
+        } else {
+            for component in complexComponents {
+                component.outcome = .notStarted
+                component.performedRepetitions = 0
+                component.liftQuality = nil
+            }
+        }
+        repetitions = Float(complexComponents.reduce(0) { $0 + $1.performedRepetitions })
+        liftQuality = complexComponents.contains(where: { $0.outcome == .missed }) ? .missed : nil
     }
 }

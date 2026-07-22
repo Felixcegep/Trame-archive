@@ -93,10 +93,10 @@ final class ExerciseLibraryIntegrityTests: XCTestCase {
         let catalog = ExerciseCatalogSeedData.templates()
         let names = Set(catalog.map(\.name))
 
-        XCTAssertEqual(catalog.count, 65)
+        XCTAssertEqual(catalog.count, 139)
         XCTAssertEqual(names.count, catalog.count)
         XCTAssertEqual(catalog.first?.name, "Bench Press")
-        XCTAssertEqual(catalog.last?.name, "Power Clean")
+        XCTAssertEqual(catalog.last?.name, "Power Jerk + Split Jerk")
 
         let medicineBallPass = try XCTUnwrap(catalog.first { $0.name == "Medicine Ball Chest Pass" })
         XCTAssertEqual(medicineBallPass.displayCategory, .sport)

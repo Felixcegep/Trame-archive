@@ -117,6 +117,7 @@ nonisolated struct ExerciseSetDTO: Codable {
     var specializedMetricMeasurementSource: String? = nil
     var setMethod: String? = nil
     var segments: [ExerciseSetSegmentDTO]? = nil
+    var complexComponents: [ComplexComponentResultDTO]? = nil
     let setType: String
     var isSelectedDailyMaximum: Bool? = nil
     var generatedBackOffDefinitionID: String? = nil
@@ -158,6 +159,17 @@ nonisolated struct ExerciseSetSegmentDTO: Codable {
     let variationNote: String?
     let rpe: Int?
     let rir: Int?
+}
+
+nonisolated struct ComplexComponentResultDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let exerciseID: String
+    let exerciseNameSnapshot: String
+    let prescribedRepetitions: Int
+    let performedRepetitions: Int
+    let outcome: String
+    let liftQuality: String?
 }
 
 nonisolated struct ExerciseEntryDTO: Codable {
@@ -764,7 +776,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     static let strengthExpansionVersion = 10
     static let advancedMetricsVersion = 11
     static let formatSchemesVersion = 12
-    static let currentVersion = formatSchemesVersion
+    static let complexComponentResultsVersion = 13
+    static let currentVersion = complexComponentResultsVersion
 
     init(
         version: Int,

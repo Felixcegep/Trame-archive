@@ -28,6 +28,7 @@ enum GymTrackerTestStore {
             ExerciseEntry.self,
             ExerciseSet.self,
             ExerciseSetSegment.self,
+            ComplexComponentResult.self,
             WorkoutTemplate.self,
             TemplateExercise.self,
             TemplateExerciseBlock.self,
