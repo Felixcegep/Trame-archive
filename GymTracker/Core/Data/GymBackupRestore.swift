@@ -67,9 +67,8 @@ extension BackupDTO {
                     if let id = exerciseDTO.id.flatMap(UUID.init(uuidString:)) {
                         existing.id = id
                     }
-                    existing.isFavorite = exerciseDTO.isFavorite
-                    existing.isArchived = exerciseDTO.isArchived
-                    existing.isPlateLoaded = exerciseDTO.isPlateLoaded
+                    if let fr = exerciseDTO.frenchName { existing.frenchName = fr }
+                    if let aliases = exerciseDTO.searchAliases { existing.searchAliases = aliases }
                 } else {
                     let newExercise = Exercise(
                         name: exerciseDTO.name,
@@ -99,6 +98,8 @@ extension BackupDTO {
                         loadUnitCount: loadUnitCount,
                         id: exerciseDTO.id.flatMap(UUID.init(uuidString:)) ?? UUID()
                     )
+                    newExercise.frenchName = exerciseDTO.frenchName
+                    newExercise.searchAliases = exerciseDTO.searchAliases ?? []
                     context.insert(newExercise)
                     // Name-only references in legacy backups resolve to the
                     // bundled definition when a custom exercise shares its
@@ -960,6 +961,9 @@ extension BackupDTO {
                     createdAt: foodDTO.createdAt,
                     updatedAt: foodDTO.updatedAt
                 )
+                food.frenchName = foodDTO.frenchName
+                food.categoryName = foodDTO.categoryName
+                food.searchAliases = foodDTO.searchAliases ?? []
                 food.servings = try foodDTO.servings.map {
                     guard let unit = NutritionServingUnit(rawValue: $0.unit) else {
                         throw BackupValidationError.invalidIdentifier("food serving")

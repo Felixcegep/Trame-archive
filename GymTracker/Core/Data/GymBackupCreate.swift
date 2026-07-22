@@ -32,7 +32,9 @@ extension BackupDTO {
                 stance: exercise.stance?.rawValue,
                 rangeOfMotion: exercise.rangeOfMotion?.rawValue,
                 setupAngleDegrees: exercise.setupAngleDegrees,
-                variationFamilyID: exercise.variationFamilyID
+                variationFamilyID: exercise.variationFamilyID,
+                frenchName: exercise.frenchName,
+                searchAliases: exercise.searchAliases
             )
         }
 
@@ -684,6 +686,9 @@ extension BackupDTO {
                 isArchived: food.isArchived,
                 createdAt: food.createdAt,
                 updatedAt: food.updatedAt,
+                frenchName: food.frenchName,
+                categoryName: food.categoryName,
+                searchAliases: food.searchAliases,
                 servings: food.orderedServings.map {
                     FoodServingDTO(id: $0.id.uuidString, name: $0.name, amount: $0.amount, unit: $0.unit.rawValue, equivalentReferenceAmount: $0.equivalentReferenceAmount)
                 }

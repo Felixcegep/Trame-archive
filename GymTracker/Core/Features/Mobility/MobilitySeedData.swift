@@ -179,48 +179,143 @@ enum MobilitySeedData {
             // isFavorite and isArchived are user-owned.
         }
 
-        let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
-        let routineKey = "mobility-routine.daily-mobility-reset"
-        if let record = try registry.record(for: routineKey, expectedKind: .mobilityRoutine) {
-            guard routines.contains(where: { $0.id == record.entityID }) else {
-                throw SystemSeedError.danglingEntity(key: routineKey, entityID: record.entityID)
-            }
-        } else {
-            let candidates = routines.filter { $0.name == "Daily mobility reset" }
-            guard candidates.count <= 1 else {
-                throw SystemSeedError.ambiguousLegacyMatch(key: routineKey, count: candidates.count)
-            }
-            if let adopted = candidates.first {
-                try registry.register(
-                    key: routineKey,
-                    kind: .mobilityRoutine,
-                    entityID: adopted.id,
-                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
-                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
-                    sourceKind: .migratedLegacy
-                )
-                return
-            }
-            let allDefs = try context.fetch(FetchDescriptor<MobilityDefinition>())
-            if let hip = allDefs.first(where: { $0.name == "90/90 Hip Switch" }),
-               let couch = allDefs.first(where: { $0.name == "Couch Stretch" }),
-               let thoracic = allDefs.first(where: { $0.name == "Thoracic Rotation" }) {
-                let routine = MobilityRoutine(name: "Daily mobility reset")
-                routine.items = [
-                    MobilityRoutineItem(definition: hip, orderIndex: 0, targetRepetitions: 8, side: .alternating),
-                    MobilityRoutineItem(definition: couch, orderIndex: 1, targetDurationSeconds: 45, side: .bilateral),
-                    MobilityRoutineItem(definition: thoracic, orderIndex: 2, targetRepetitions: 8, side: .alternating)
+        struct RoutineSeedSpec {
+            let key: String
+            let name: String
+            let items: [(defName: String, reps: Int?, duration: Int?, side: MobilitySide)]
+        }
+
+        let routineSpecs: [RoutineSeedSpec] = [
+            RoutineSeedSpec(
+                key: "mobility-routine.daily-mobility-reset",
+                name: "Daily mobility reset",
+                items: [
+                    ("90/90 Hip Switch", 8, nil, .alternating),
+                    ("Couch Stretch", nil, 45, .bilateral),
+                    ("Thoracic Rotation", 8, nil, .alternating)
                 ]
-                context.insert(routine)
-                try registry.register(
-                    key: routineKey,
-                    kind: .mobilityRoutine,
-                    entityID: routine.id,
-                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
-                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
-                    sourceKind: .bundled
-                )
-                didInsert = true
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.post-leg-day-reset",
+                name: "Post-Leg Day Mobility Reset",
+                items: [
+                    ("90/90 Hip Switch", 10, nil, .alternating),
+                    ("Pigeon Stretch", nil, 60, .bilateral),
+                    ("Cossack Squat", 8, nil, .alternating),
+                    ("Standing Calf Stretch", nil, 45, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.upper-body-bench-warmup",
+                name: "Upper Body Bench Warmup",
+                items: [
+                    ("Shoulder Pass-Throughs", 10, nil, .bilateral),
+                    ("Thoracic Rotation", 8, nil, .alternating),
+                    ("Doorway Chest & Shoulder Opener", nil, 45, .bilateral),
+                    ("Prone Y-T-W Raises", 8, nil, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.lower-back-decompression",
+                name: "Lower Back & Hips Decompression",
+                items: [
+                    ("Cat-Cow", 10, nil, .bilateral),
+                    ("Puppy Dog Pose", nil, 45, .bilateral),
+                    ("Thread the Needle", 8, nil, .alternating),
+                    ("Child's Pose with Side Reach", nil, 45, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.overhead-shoulder-saver",
+                name: "Overhead & Shoulder Saver",
+                items: [
+                    ("Wall Slides", 10, nil, .bilateral),
+                    ("Scapular Pull-Ups", 10, nil, .bilateral),
+                    ("Banded Lat Distraction", nil, 45, .bilateral),
+                    ("Overhead Triceps & Lat Stretch", nil, 30, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.full-body-morning-flow",
+                name: "Full Body Morning Flow",
+                items: [
+                    ("World's Greatest Stretch", 6, nil, .alternating),
+                    ("Elephant Walks", 20, nil, .bilateral),
+                    ("Inchworms", 6, nil, .bilateral),
+                    ("Standing Side Bends", 10, nil, .alternating)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.ankle-foot-mobilization",
+                name: "Ankle & Foot Mobilization",
+                items: [
+                    ("Knee-to-Wall Ankle Mobilization", 10, nil, .alternating),
+                    ("Soleus Wall Stretch", nil, 45, .bilateral),
+                    ("Tibialis Raise", 15, nil, .bilateral),
+                    ("Ankle Circles", 12, nil, .alternating)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.desk-worker-reset",
+                name: "Desk Worker Reset",
+                items: [
+                    ("Chin Tucks", 10, nil, .bilateral),
+                    ("Upper Trap Stretch", nil, 30, .bilateral),
+                    ("Levator Scapulae Stretch", nil, 30, .bilateral),
+                    ("Quadruped Wrist Rocks", 10, nil, .bilateral)
+                ]
+            )
+        ]
+
+        let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
+        let allDefs = try context.fetch(FetchDescriptor<MobilityDefinition>())
+        let defsByName = Dictionary(uniqueKeysWithValues: allDefs.map { ($0.name, $0) })
+
+        for spec in routineSpecs {
+            if let record = try registry.record(for: spec.key, expectedKind: .mobilityRoutine) {
+                guard routines.contains(where: { $0.id == record.entityID }) else {
+                    throw SystemSeedError.danglingEntity(key: spec.key, entityID: record.entityID)
+                }
+            } else {
+                let candidates = routines.filter { $0.name == spec.name }
+                guard candidates.count <= 1 else {
+                    throw SystemSeedError.ambiguousLegacyMatch(key: spec.key, count: candidates.count)
+                }
+                if let adopted = candidates.first {
+                    try registry.register(
+                        key: spec.key,
+                        kind: .mobilityRoutine,
+                        entityID: adopted.id,
+                        seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                        contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                        sourceKind: .migratedLegacy
+                    )
+                } else {
+                    let routineItems = spec.items.enumerated().compactMap { idx, itemSpec -> MobilityRoutineItem? in
+                        guard let def = defsByName[itemSpec.defName] else { return nil }
+                        return MobilityRoutineItem(
+                            definition: def,
+                            orderIndex: idx,
+                            targetDurationSeconds: itemSpec.duration,
+                            targetRepetitions: itemSpec.reps,
+                            side: itemSpec.side
+                        )
+                    }
+                    if !routineItems.isEmpty {
+                        let routine = MobilityRoutine(name: spec.name)
+                        routine.items = routineItems
+                        context.insert(routine)
+                        try registry.register(
+                            key: spec.key,
+                            kind: .mobilityRoutine,
+                            entityID: routine.id,
+                            seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                            contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                            sourceKind: .bundled
+                        )
+                        didInsert = true
+                    }
+                }
             }
         }
 

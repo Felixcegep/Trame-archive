@@ -100,10 +100,16 @@ struct ExerciseFilterState: Equatable {
         let needsMuscles = !normalizedSearch.isEmpty || focus != nil || !bodyAreas.isEmpty
         let allMuscles = needsMuscles ? exercise.allMuscles : []
 
-        if !normalizedSearch.isEmpty,
-           !searchTerms(for: exercise, allMuscles: allMuscles)
-            .contains(where: { $0.localizedCaseInsensitiveContains(normalizedSearch) }) {
-            return false
+        if !normalizedSearch.isEmpty {
+            let terms = searchTerms(for: exercise, allMuscles: allMuscles)
+            if !SearchNormalization.matches(
+                query: normalizedSearch,
+                primaryName: exercise.name,
+                alternateName: exercise.frenchName,
+                aliases: exercise.searchAliases + terms
+            ) {
+                return false
+            }
         }
         if let focus, !matches(focus, exercise: exercise, allMuscles: allMuscles) { return false }
         if !bodyAreas.isEmpty && !bodyAreas.contains(where: { $0.matches(allMuscles) }) { return false }

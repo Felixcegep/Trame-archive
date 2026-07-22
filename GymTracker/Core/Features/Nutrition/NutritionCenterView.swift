@@ -278,8 +278,18 @@ struct FoodLibraryView: View {
     }
 
     private var visibleFoods: [FoodItem] {
-        foods.filter {
-            $0.isArchived == showsArchived && (searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText))
+        foods.filter { food in
+            guard food.isArchived == showsArchived else { return false }
+            guard !searchText.isEmpty else { return true }
+            var extraTerms: [String] = []
+            if let cat = food.categoryName { extraTerms.append(cat) }
+            extraTerms.append(contentsOf: food.searchAliases)
+            return SearchNormalization.matches(
+                query: searchText,
+                primaryName: food.name,
+                alternateName: food.frenchName,
+                aliases: extraTerms
+            )
         }
     }
 }

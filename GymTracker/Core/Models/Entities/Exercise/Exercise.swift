@@ -37,6 +37,8 @@ final class Exercise {
     var repCountingStyle: RepCountingStyle = RepCountingStyle.total
     var weightEntryStyle: WeightEntryStyle = WeightEntryStyle.totalLoad
     var loadUnitCount: Int = 1
+    var searchAliases: [String] = []
+    var frenchName: String?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseRelationship.sourceExercise)
     var outgoingRelationships: [ExerciseRelationship] = []
     @Relationship(deleteRule: .cascade, inverse: \ExerciseRelationship.targetExercise)

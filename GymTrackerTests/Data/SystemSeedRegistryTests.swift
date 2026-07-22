@@ -273,6 +273,50 @@ final class SystemSeedRegistryTests: XCTestCase {
         )
     }
 
+    func testExerciseAndFoodBackupV13PreservesSearchAliasesAndFrenchName() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = Exercise(
+            name: "Bench Press",
+            primaryMuscles: [.middleChest],
+            equipmentType: .barbell
+        )
+        exercise.frenchName = "Développé couché"
+        exercise.searchAliases = ["bench", "chest press"]
+        context.insert(exercise)
+
+        let food = FoodItem(
+            name: "Chicken breast",
+            calories: 165,
+            proteinGrams: 31
+        )
+        food.frenchName = "Poitrine de poulet"
+        food.categoryName = "Poultry"
+        food.searchAliases = ["poulet", "chix"]
+        context.insert(food)
+        try context.save()
+
+        let backup = try BackupDTO.create(
+            from: context,
+            restTimer: 90,
+            darkMode: false,
+            unitSystem: .metric
+        )
+
+        let restored = try GymTrackerTestStore.makeInMemoryContext()
+        try backup.restore(to: restored)
+
+        let restoredExercises = try restored.fetch(FetchDescriptor<Exercise>())
+        let restoredBench = try XCTUnwrap(restoredExercises.first { $0.name == "Bench Press" })
+        XCTAssertEqual(restoredBench.frenchName, "Développé couché")
+        XCTAssertEqual(restoredBench.searchAliases, ["bench", "chest press"])
+
+        let restoredFoods = try restored.fetch(FetchDescriptor<FoodItem>())
+        let restoredChicken = try XCTUnwrap(restoredFoods.first { $0.name == "Chicken breast" })
+        XCTAssertEqual(restoredChicken.frenchName, "Poitrine de poulet")
+        XCTAssertEqual(restoredChicken.categoryName, "Poultry")
+        XCTAssertEqual(restoredChicken.searchAliases, ["poulet", "chix"])
+    }
+
     private func catalogueCounts(in context: ModelContext) throws -> [String: Int] {
         [
             "exercise": try context.fetchCount(FetchDescriptor<Exercise>()),

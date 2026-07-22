@@ -16,6 +16,9 @@ final class FoodItem {
     var sourceKindRaw: String
     var confidenceRaw: String
     var preparationStateRaw: String
+    var searchAliases: [String] = []
+    var frenchName: String?
+    var categoryName: String?
     var isFavorite: Bool
     var isArchived: Bool
     var createdAt: Date

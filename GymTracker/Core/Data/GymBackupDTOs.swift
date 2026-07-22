@@ -35,6 +35,8 @@ nonisolated struct ExerciseTemplateDTO: Codable {
     var rangeOfMotion: String? = nil
     var setupAngleDegrees: Int? = nil
     var variationFamilyID: String? = nil
+    var frenchName: String? = nil
+    var searchAliases: [String]? = nil
 }
 
 nonisolated struct ExerciseRelationshipDTO: Codable {
@@ -665,6 +667,9 @@ nonisolated struct FoodItemDTO: Codable {
     let isArchived: Bool
     let createdAt: Date
     let updatedAt: Date
+    var frenchName: String? = nil
+    var categoryName: String? = nil
+    var searchAliases: [String]? = nil
     let servings: [FoodServingDTO]
 }
 
