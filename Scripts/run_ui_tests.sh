@@ -21,7 +21,6 @@ FAST_TESTS=(
   testStartSeededTemplateIncludesPrescription
   testPushFocusFiltersActiveExercisePicker
   testPlateCalculatorMatchesExerciseLoadingStyle
-  testKeyboardOffersCopyLastSetValuesForFocusedSet
   testActiveWorkoutSetMutationsAndRestTimer
   testCompletedSetRequiresExplicitEditingAction
   testRejectsEmptyWorkoutSave

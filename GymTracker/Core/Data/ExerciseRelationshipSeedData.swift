@@ -7,14 +7,14 @@ enum ExerciseRelationshipSeedData {
         var unresolvedNames: Set<String>
     }
 
-    private struct Definition {
+    struct Definition {
         let source: String
         let target: String
         let type: ExerciseRelationshipType
     }
 
     @MainActor
-    static func seed(in context: ModelContext) throws -> SeedResult {
+    static func seed(in context: ModelContext, saveChanges: Bool = true) throws -> SeedResult {
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
         let byName = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0) })
         let existing = try context.fetch(FetchDescriptor<ExerciseRelationship>())
@@ -44,7 +44,7 @@ enum ExerciseRelationshipSeedData {
         }
 
         assert(unresolvedNames.isEmpty, "Unresolved seeded exercise relationships: \(unresolvedNames.sorted())")
-        if insertedCount > 0 { try context.save() }
+        if insertedCount > 0 && saveChanges { try context.save() }
         return SeedResult(insertedCount: insertedCount, unresolvedNames: unresolvedNames)
     }
 
@@ -52,7 +52,7 @@ enum ExerciseRelationshipSeedData {
         "\(sourceID.uuidString)|\(targetID.uuidString)|\(type.rawValue)"
     }
 
-    private static let definitions: [Definition] = [
+    static let definitions: [Definition] = [
         .init(source: "Assisted Pull-Up", target: "Neutral-Grip Pull-Up", type: .progression),
         .init(source: "Neutral-Grip Pull-Up", target: "Pull-Up", type: .progression),
         .init(source: "Pull-Up", target: "Weighted Pull-Up", type: .progression),

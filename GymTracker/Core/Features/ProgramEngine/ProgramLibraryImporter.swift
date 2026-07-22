@@ -102,7 +102,8 @@ enum ProgramLibraryImporter {
     @MainActor
     static func importDocument(
         _ document: ProgramLibraryDocument,
-        into context: ModelContext
+        into context: ModelContext,
+        saveChanges: Bool = true
     ) throws -> ProgramLibraryImportResult {
         guard document.schemaVersion <= supportedSchemaVersion else {
             throw ProgramLibraryImportError.unsupportedSchemaVersion(
@@ -128,7 +129,7 @@ enum ProgramLibraryImporter {
             importedProgramKeys.append(payload.programKey)
         }
 
-        try context.save()
+        if saveChanges { try context.save() }
         return ProgramLibraryImportResult(
             importedProgramKeys: importedProgramKeys,
             skippedPrograms: skippedPrograms
@@ -139,19 +140,28 @@ enum ProgramLibraryImporter {
     static func importData(
         _ data: Data,
         into context: ModelContext,
-        decoder: JSONDecoder = JSONDecoder()
+        decoder: JSONDecoder = JSONDecoder(),
+        saveChanges: Bool = true
     ) throws -> ProgramLibraryImportResult {
-        try importDocument(decode(data, decoder: decoder), into: context)
+        try importDocument(decode(data, decoder: decoder), into: context, saveChanges: saveChanges)
     }
 }
 
 @MainActor
 enum ProgramLibrarySeedData {
-    static func seedBundledCatalog(in context: ModelContext, bundle: Bundle = .main) throws -> ProgramLibraryImportResult {
-        try seed(AuthoringProgramCatalogDecoder.bundledData(bundle: bundle), in: context)
+    static func seedBundledCatalog(
+        in context: ModelContext,
+        bundle: Bundle = .main,
+        saveChanges: Bool = true
+    ) throws -> ProgramLibraryImportResult {
+        try seed(AuthoringProgramCatalogDecoder.bundledData(bundle: bundle), in: context, saveChanges: saveChanges)
     }
 
-    static func seed(_ data: Data, in context: ModelContext) throws -> ProgramLibraryImportResult {
+    static func seed(
+        _ data: Data,
+        in context: ModelContext,
+        saveChanges: Bool = true
+    ) throws -> ProgramLibraryImportResult {
         let catalog = try AuthoringProgramCatalogDecoder.decode(data)
         guard catalog.failures.isEmpty else {
             for failure in catalog.failures {
@@ -171,7 +181,8 @@ enum ProgramLibrarySeedData {
         }
         return try ProgramLibraryImporter.importDocument(
             ProgramLibraryDocument(libraryVersion: 1, programDefinitions: payloads),
-            into: context
+            into: context,
+            saveChanges: saveChanges
         )
     }
 }

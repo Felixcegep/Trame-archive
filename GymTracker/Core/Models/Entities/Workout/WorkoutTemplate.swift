@@ -5,9 +5,11 @@
 //  Created by Felix Lachapelle on 2026-07-02.
 //
 
+import Foundation
 import SwiftData
 @Model
 class WorkoutTemplate {
+    var id = UUID()
     var name: String
     @Relationship(deleteRule: .cascade, inverse: \TemplateExercise.workoutTemplate)
     var templateExercises: [TemplateExercise] = []

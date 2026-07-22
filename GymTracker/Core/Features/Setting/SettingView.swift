@@ -354,31 +354,7 @@ struct SettingView: View {
     private func resetDevelopmentData() {
         do {
             try modelContext.clearAllGymData()
-
-            for template in ExerciseSeedData.templates() {
-                modelContext.insert(template)
-            }
-            try modelContext.save()
-
-            let exercises = try modelContext.fetch(FetchDescriptor<Exercise>())
-            for template in WorkoutTemplateSeedData.templates(using: exercises) {
-                modelContext.insert(template)
-            }
-            try modelContext.save()
-
-            let templates = try modelContext.fetch(FetchDescriptor<WorkoutTemplate>())
-            let seedNames = Set(WorkoutTemplateSeedData.seededTemplateNames)
-            let programTemplates = templates.filter { seedNames.contains($0.name) }
-            if !programTemplates.isEmpty {
-                let orderedTemplates = WorkoutTemplateSeedData.seededTemplateNames.compactMap { name in
-                    programTemplates.first { $0.name == name }
-                }
-                let collection = WorkoutCollection(name: WorkoutTemplateSeedData.collectionName, workoutTemplates: orderedTemplates)
-                modelContext.insert(collection)
-                try modelContext.save()
-            }
-            MobilitySeedData.seedIfNeeded(using: modelContext)
-            NutritionSeedData.seedIfNeeded(using: modelContext)
+            _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: modelContext)
         } catch {
             print("Failed to reset development data: \(error)")
         }

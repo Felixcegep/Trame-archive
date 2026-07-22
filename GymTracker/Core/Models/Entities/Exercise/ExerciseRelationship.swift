@@ -6,6 +6,7 @@ import SwiftData
 /// offer a replacement while a workout is in progress.
 @Model
 final class ExerciseRelationship {
+    var id = UUID()
     var type: ExerciseRelationshipType
     var sourceExercise: Exercise?
     var targetExercise: Exercise?

@@ -11,6 +11,9 @@ extension ModelContext {
         // Delete graph roots, never relationship children by batch request. This
         // lets SwiftData apply the same cascade and nullification rules that the
         // app uses for a real discard or deletion.
+#if !GYMTRACKER_EXTENSION
+        for record in try fetch(FetchDescriptor<SystemSeedRecord>()) { delete(record) }
+#endif
         for workout in workouts { delete(workout) }
         for session in try fetch(FetchDescriptor<MobilitySession>()) { delete(session) }
         for routine in try fetch(FetchDescriptor<MobilityRoutine>()) { delete(routine) }

@@ -20,7 +20,8 @@ enum GymTrackerTestStore {
 
     private static func makeContext(configuration: ModelConfiguration) throws -> ModelContext {
         let container = try ModelContainer(
-            for: Workout.self,
+            for: SystemSeedRecord.self,
+            Workout.self,
             WorkoutExecutionBlock.self,
             Exercise.self,
             ExerciseRelationship.self,

@@ -275,13 +275,7 @@ struct RootView: View {
                 resetDataForUITesting()
             }
             runDataMaintenance()
-            seedExerciseTemplatesIfNeeded()
-            seedProgramLibraryIfNeeded()
-            seedWorkoutTemplatesIfNeeded()
-            seedWorkoutCollectionsIfNeeded()
-            seedWorkoutPlansIfNeeded()
-            MobilitySeedData.seedIfNeeded(using: modelContext)
-            NutritionSeedData.seedIfNeeded(using: modelContext)
+            seedSystemCatalog()
             normalizePersistedWorkoutData()
             if fixture == nil || fixture?.refreshesPlanRunAvailability == true {
                 refreshActivePlanRuns()
@@ -351,6 +345,7 @@ struct RootView: View {
             templateToStart = nil
             plannedWorkoutToStart = nil
             isShowingActiveWorkout = false
+            seedSystemCatalog()
             workoutVM.restoreActiveWorkout(using: modelContext)
             Task {
                 await PlanNotificationScheduler.shared.reconcile(using: modelContext)
@@ -463,51 +458,12 @@ struct RootView: View {
         try? modelContext.fetch(FetchDescriptor<Exercise>()).first { $0.id == id }
     }
 
-    private func seedExerciseTemplatesIfNeeded() {
+    private func seedSystemCatalog() {
         do {
-            let existingExercises = try modelContext.fetch(FetchDescriptor<Exercise>())
-            let existingByName = Dictionary(uniqueKeysWithValues: existingExercises.map { ($0.name, $0) })
-            var didChangeTemplates = false
-
-            for template in ExerciseSeedData.templates() {
-                if let existingTemplate = existingByName[template.name] {
-                    if existingTemplate.equipmentType != template.equipmentType {
-                        existingTemplate.equipmentType = template.equipmentType
-                        didChangeTemplates = true
-                    }
-                    if existingTemplate.isPlateLoaded != template.isPlateLoaded {
-                        existingTemplate.isPlateLoaded = template.isPlateLoaded
-                        didChangeTemplates = true
-                    }
-                    // Leg Extension shipped with legacy calf-raise metadata.
-                    // This is a built-in catalogue correction; it neither
-                    // changes a performed workout snapshot nor creates a
-                    // duplicate exercise record.
-                    if template.name == "Leg Extension" {
-                        existingTemplate.primaryMuscles = template.primaryMuscles
-                        existingTemplate.secondaryMuscles = template.secondaryMuscles
-                        existingTemplate.movementPattern = template.movementPattern
-                        existingTemplate.forceType = template.forceType
-                        existingTemplate.mechanics = template.mechanics
-                        existingTemplate.stance = template.stance
-                        existingTemplate.rangeOfMotion = template.rangeOfMotion
-                        existingTemplate.variationFamilyID = template.variationFamilyID
-                        existingTemplate.tags = template.tags
-                        existingTemplate.isArchived = false
-                        didChangeTemplates = true
-                    }
-                } else {
-                    modelContext.insert(template)
-                    didChangeTemplates = true
-                }
-            }
-
-            if didChangeTemplates {
-                try modelContext.save()
-            }
-            _ = try ExerciseRelationshipSeedData.seed(in: modelContext)
+            _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: modelContext)
         } catch {
-            print("Failed to seed exercise templates: \(error)")
+            assertionFailure("Failed to install bundled system catalogue: \(error.localizedDescription)")
+            print("Failed to install bundled system catalogue: \(error)")
         }
     }
 
@@ -516,63 +472,6 @@ struct RootView: View {
             _ = try DataMaintenanceService.runOrphanCleanupIfNeeded(using: modelContext)
         } catch {
             print("Failed to clean orphaned workout data: \(error)")
-        }
-    }
-
-    private func seedProgramLibraryIfNeeded() {
-        do {
-            _ = try ProgramLibrarySeedData.seedBundledCatalog(in: modelContext)
-        } catch {
-            assertionFailure("Failed to seed bundled program library: \(error.localizedDescription)")
-        }
-    }
-
-    private func seedWorkoutTemplatesIfNeeded() {
-        do {
-            let exercises = try modelContext.fetch(FetchDescriptor<Exercise>())
-            let existingTemplates = try modelContext.fetch(FetchDescriptor<WorkoutTemplate>())
-            let existingNames = Set(existingTemplates.map(\.name))
-
-            for template in WorkoutTemplateSeedData.templates(using: exercises) where !existingNames.contains(template.name) {
-                modelContext.insert(template)
-            }
-            try modelContext.save()
-        } catch {
-            print("Failed to seed workout templates: \(error)")
-        }
-    }
-
-    private func seedWorkoutCollectionsIfNeeded() {
-        do {
-            let existingCollections = try modelContext.fetch(FetchDescriptor<WorkoutCollection>())
-            guard existingCollections.isEmpty else { return }
-
-            let templates = try modelContext.fetch(FetchDescriptor<WorkoutTemplate>())
-            let seedNames = Set(WorkoutTemplateSeedData.seededTemplateNames)
-            let programTemplates = templates.filter { seedNames.contains($0.name) }
-            guard !programTemplates.isEmpty else { return }
-
-            let orderedTemplates = WorkoutTemplateSeedData.seededTemplateNames.compactMap { name in
-                programTemplates.first { $0.name == name }
-            }
-            let collection = WorkoutCollection(name: WorkoutTemplateSeedData.collectionName, workoutTemplates: orderedTemplates)
-            modelContext.insert(collection)
-            try modelContext.save()
-        } catch {
-            print("Failed to seed workout collections: \(error)")
-        }
-    }
-
-    private func seedWorkoutPlansIfNeeded() {
-        do {
-            let plans = try modelContext.fetch(FetchDescriptor<WorkoutPlan>())
-            guard !plans.contains(where: { $0.name == SacroiliacRehabPlanSeedData.planName }) else { return }
-            let exercises = try modelContext.fetch(FetchDescriptor<Exercise>())
-            guard let plan = SacroiliacRehabPlanSeedData.makePlan(using: exercises) else { return }
-            modelContext.insert(plan)
-            try modelContext.save()
-        } catch {
-            print("Failed to seed sacroiliac rehabilitation plan: \(error)")
         }
     }
 

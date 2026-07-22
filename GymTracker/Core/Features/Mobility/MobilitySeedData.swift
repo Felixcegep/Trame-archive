@@ -1,22 +1,59 @@
+import Foundation
 import SwiftData
 
 enum MobilitySeedData {
     static func seedIfNeeded(using context: ModelContext) {
-        let existingFamilies = (try? context.fetch(FetchDescriptor<MobilityFamily>())) ?? []
+        do {
+            try stage(using: context, registry: SystemSeedRegistry(context: context))
+            try context.save()
+        } catch {
+            context.rollback()
+            print("Failed to seed mobility data: \(error)")
+        }
+    }
+
+    static func stage(using context: ModelContext, registry: SystemSeedRegistry) throws {
+        var existingFamilies = try context.fetch(FetchDescriptor<MobilityFamily>())
         var familyMap: [String: MobilityFamily] = Dictionary(uniqueKeysWithValues: existingFamilies.map { ($0.name, $0) })
 
-        func family(_ name: String) -> MobilityFamily {
+        func family(_ name: String) throws -> MobilityFamily {
+            let key = SystemSeedKey.make(namespace: "mobility-family", legacyName: name)
+            if let record = try registry.record(for: key, expectedKind: .mobilityFamily) {
+                guard let existing = existingFamilies.first(where: { $0.id == record.entityID }) else {
+                    throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
+                }
+                existing.name = name
+                existing.updatedAt = .now
+                familyMap[name] = existing
+                return existing
+            }
             if let f = familyMap[name] {
+                try registry.register(
+                    key: key,
+                    kind: .mobilityFamily,
+                    entityID: f.id,
+                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                    sourceKind: .migratedLegacy
+                )
                 return f
             }
             let f = MobilityFamily(name: name)
             context.insert(f)
+            existingFamilies.append(f)
             familyMap[name] = f
+            try registry.register(
+                key: key,
+                kind: .mobilityFamily,
+                entityID: f.id,
+                seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                sourceKind: .bundled
+            )
             return f
         }
 
-        let existingDefs = (try? context.fetch(FetchDescriptor<MobilityDefinition>())) ?? []
-        let existingNames = Set(existingDefs.map { $0.name.lowercased() })
+        var existingDefs = try context.fetch(FetchDescriptor<MobilityDefinition>())
 
         let seedItems: [(name: String, instructions: String, tracking: MobilityTrackingType, duration: Int?, reps: Int?, familyName: String)] = [
             // Hip mobility (12)
@@ -90,24 +127,81 @@ enum MobilitySeedData {
             ("Chin Tucks", "Draw chin straight back into neck without tilting head.", .repetitions, nil, 10, "Neck & Upper Traps")
         ]
 
+        var didInsert = false
         for item in seedItems {
-            guard !existingNames.contains(item.name.lowercased()) else { continue }
-            let fam = family(item.familyName)
-            let def = MobilityDefinition(
-                name: item.name,
-                instructions: item.instructions,
-                trackingType: item.tracking,
-                defaultDurationSeconds: item.duration,
-                defaultRepetitions: item.reps,
-                isCustom: false,
-                family: fam
-            )
-            context.insert(def)
+            let key = SystemSeedKey.make(namespace: "mobility-definition", legacyName: item.name)
+            let fam = try family(item.familyName)
+            let definition: MobilityDefinition
+            if let record = try registry.record(for: key, expectedKind: .mobilityDefinition) {
+                guard let existing = existingDefs.first(where: { $0.id == record.entityID }) else {
+                    throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
+                }
+                definition = existing
+            } else {
+                let candidates = existingDefs.filter {
+                    !$0.isCustom && $0.name.compare(item.name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+                }
+                guard candidates.count <= 1 else {
+                    throw SystemSeedError.ambiguousLegacyMatch(key: key, count: candidates.count)
+                }
+                if let adopted = candidates.first {
+                    definition = adopted
+                    try registry.register(
+                        key: key,
+                        kind: .mobilityDefinition,
+                        entityID: adopted.id,
+                        seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                        contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                        sourceKind: .migratedLegacy
+                    )
+                } else {
+                    definition = MobilityDefinition(name: item.name, isCustom: false)
+                    context.insert(definition)
+                    existingDefs.append(definition)
+                    try registry.register(
+                        key: key,
+                        kind: .mobilityDefinition,
+                        entityID: definition.id,
+                        seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                        contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                        sourceKind: .bundled
+                    )
+                    didInsert = true
+                }
+            }
+            definition.name = item.name
+            definition.instructions = item.instructions
+            definition.trackingType = item.tracking
+            definition.defaultDurationSeconds = item.duration
+            definition.defaultRepetitions = item.reps
+            definition.family = fam
+            definition.updatedAt = .now
+            // isFavorite and isArchived are user-owned.
         }
 
-        let routines = (try? context.fetch(FetchDescriptor<MobilityRoutine>())) ?? []
-        if routines.isEmpty {
-            let allDefs = (try? context.fetch(FetchDescriptor<MobilityDefinition>())) ?? []
+        let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
+        let routineKey = "mobility-routine.daily-mobility-reset"
+        if let record = try registry.record(for: routineKey, expectedKind: .mobilityRoutine) {
+            guard routines.contains(where: { $0.id == record.entityID }) else {
+                throw SystemSeedError.danglingEntity(key: routineKey, entityID: record.entityID)
+            }
+        } else {
+            let candidates = routines.filter { $0.name == "Daily mobility reset" }
+            guard candidates.count <= 1 else {
+                throw SystemSeedError.ambiguousLegacyMatch(key: routineKey, count: candidates.count)
+            }
+            if let adopted = candidates.first {
+                try registry.register(
+                    key: routineKey,
+                    kind: .mobilityRoutine,
+                    entityID: adopted.id,
+                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                    sourceKind: .migratedLegacy
+                )
+                return
+            }
+            let allDefs = try context.fetch(FetchDescriptor<MobilityDefinition>())
             if let hip = allDefs.first(where: { $0.name == "90/90 Hip Switch" }),
                let couch = allDefs.first(where: { $0.name == "Couch Stretch" }),
                let thoracic = allDefs.first(where: { $0.name == "Thoracic Rotation" }) {
@@ -118,9 +212,18 @@ enum MobilitySeedData {
                     MobilityRoutineItem(definition: thoracic, orderIndex: 2, targetRepetitions: 8, side: .alternating)
                 ]
                 context.insert(routine)
+                try registry.register(
+                    key: routineKey,
+                    kind: .mobilityRoutine,
+                    entityID: routine.id,
+                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                    sourceKind: .bundled
+                )
+                didInsert = true
             }
         }
-        try? context.save()
+
+        _ = didInsert
     }
 }
-

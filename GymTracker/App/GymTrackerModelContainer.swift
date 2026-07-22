@@ -57,6 +57,7 @@ enum GymTrackerModelContainer {
             NutritionTarget.self
         ]
 #if !GYMTRACKER_EXTENSION
+        types.append(SystemSeedRecord.self)
         types.append(ProgramDefinitionRecord.self)
         types.append(PlanProgressionRecommendationRecord.self)
 #endif

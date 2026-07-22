@@ -1,9 +1,20 @@
+import Foundation
 import SwiftData
 
 enum NutritionSeedData {
     static func seedIfNeeded(using context: ModelContext) {
-        let existing = (try? context.fetch(FetchDescriptor<FoodItem>())) ?? []
-        let existingNames = Set(existing.map { $0.name.lowercased() })
+        do {
+            try stage(using: context, registry: SystemSeedRegistry(context: context))
+            try context.save()
+        } catch {
+            context.rollback()
+            print("Failed to seed nutrition data: \(error)")
+        }
+    }
+
+    static func stage(using context: ModelContext, registry: SystemSeedRegistry) throws {
+        var existing = try context.fetch(FetchDescriptor<FoodItem>())
+
 
         struct FoodSeed {
             let name: String
@@ -14,7 +25,6 @@ enum NutritionSeedData {
             let carbs: Double
             let fat: Double
             let prep: FoodPreparationState
-            let isFav: Bool
             let servingName: String
             let servingAmount: Double
             let servingUnit: NutritionServingUnit
@@ -29,7 +39,6 @@ enum NutritionSeedData {
                 carbs: Double,
                 fat: Double,
                 prep: FoodPreparationState = .raw,
-                isFav: Bool = false,
                 servingName: String,
                 servingAmount: Double,
                 servingUnit: NutritionServingUnit = .grams,
@@ -43,7 +52,6 @@ enum NutritionSeedData {
                 self.carbs = carbs
                 self.fat = fat
                 self.prep = prep
-                self.isFav = isFav
                 self.servingName = servingName
                 self.servingAmount = servingAmount
                 self.servingUnit = servingUnit
@@ -53,36 +61,36 @@ enum NutritionSeedData {
 
         let seedList: [FoodSeed] = [
             // Dairy & Yogurt
-            FoodSeed(name: "Greek yogurt", calories: 59, protein: 10, carbs: 3.6, fat: 0.4, isFav: true, servingName: "170 g cup", servingAmount: 170, equivalentRefAmount: 170),
+            FoodSeed(name: "Greek yogurt", calories: 59, protein: 10, carbs: 3.6, fat: 0.4, servingName: "170 g cup", servingAmount: 170, equivalentRefAmount: 170),
             FoodSeed(name: "Low-fat cottage cheese", calories: 81, protein: 11, carbs: 4.7, fat: 2.3, servingName: "1 cup", servingAmount: 225, equivalentRefAmount: 225),
             FoodSeed(name: "Whole milk", calories: 61, protein: 3.2, carbs: 4.8, fat: 3.3, servingName: "1 cup", servingAmount: 244, equivalentRefAmount: 244),
             FoodSeed(name: "Skim milk", calories: 35, protein: 3.4, carbs: 5.0, fat: 0.1, servingName: "1 cup", servingAmount: 245, equivalentRefAmount: 245),
             FoodSeed(name: "Firm tofu", calories: 83, protein: 10, carbs: 2.0, fat: 5.0, servingName: "1/5 block", servingAmount: 85, equivalentRefAmount: 85),
 
             // Poultry & Meats
-            FoodSeed(name: "Cooked chicken breast", calories: 165, protein: 31, carbs: 0, fat: 3.6, prep: .cooked, isFav: true, servingName: "150 g portion", servingAmount: 150, equivalentRefAmount: 150),
+            FoodSeed(name: "Cooked chicken breast", calories: 165, protein: 31, carbs: 0, fat: 3.6, prep: .cooked, servingName: "150 g portion", servingAmount: 150, equivalentRefAmount: 150),
             FoodSeed(name: "Cooked turkey breast", calories: 135, protein: 30, carbs: 0, fat: 1.0, prep: .cooked, servingName: "150 g portion", servingAmount: 150, equivalentRefAmount: 150),
-            FoodSeed(name: "Cooked lean ground beef (90/10)", calories: 215, protein: 26, carbs: 0, fat: 11.0, prep: .cooked, isFav: true, servingName: "150 g patty", servingAmount: 150, equivalentRefAmount: 150),
+            FoodSeed(name: "Cooked lean ground beef (90/10)", calories: 215, protein: 26, carbs: 0, fat: 11.0, prep: .cooked, servingName: "150 g patty", servingAmount: 150, equivalentRefAmount: 150),
             FoodSeed(name: "Cooked lean ground turkey (93/7)", calories: 170, protein: 24, carbs: 0, fat: 8.0, prep: .cooked, servingName: "150 g portion", servingAmount: 150, equivalentRefAmount: 150),
             FoodSeed(name: "Cooked sirloin steak", calories: 200, protein: 27, carbs: 0, fat: 9.5, prep: .cooked, servingName: "200 g steak", servingAmount: 200, equivalentRefAmount: 200),
             FoodSeed(name: "Cooked pork tenderloin", calories: 145, protein: 26, carbs: 0, fat: 3.5, prep: .cooked, servingName: "150 g portion", servingAmount: 150, equivalentRefAmount: 150),
 
             // Fish & Seafood
-            FoodSeed(name: "Cooked salmon fillet", calories: 206, protein: 22, carbs: 0, fat: 12.0, prep: .cooked, isFav: true, servingName: "150 g fillet", servingAmount: 150, equivalentRefAmount: 150),
+            FoodSeed(name: "Cooked salmon fillet", calories: 206, protein: 22, carbs: 0, fat: 12.0, prep: .cooked, servingName: "150 g fillet", servingAmount: 150, equivalentRefAmount: 150),
             FoodSeed(name: "Canned tuna in water", calories: 116, protein: 26, carbs: 0, fat: 1.0, servingName: "1 can drained", servingAmount: 120, equivalentRefAmount: 120),
             FoodSeed(name: "Cooked shrimp", calories: 99, protein: 24, carbs: 0.2, fat: 0.3, prep: .cooked, servingName: "100 g serving", servingAmount: 100, equivalentRefAmount: 100),
             FoodSeed(name: "Cooked cod fillet", calories: 105, protein: 23, carbs: 0, fat: 0.9, prep: .cooked, servingName: "150 g fillet", servingAmount: 150, equivalentRefAmount: 150),
 
             // Eggs & Protein Powders
-            FoodSeed(name: "Whole egg", refAmount: 1, refUnit: .count, calories: 72, protein: 6.3, carbs: 0.4, fat: 4.8, isFav: true, servingName: "1 large egg", servingAmount: 1, servingUnit: .count, equivalentRefAmount: 1),
+            FoodSeed(name: "Whole egg", refAmount: 1, refUnit: .count, calories: 72, protein: 6.3, carbs: 0.4, fat: 4.8, servingName: "1 large egg", servingAmount: 1, servingUnit: .count, equivalentRefAmount: 1),
             FoodSeed(name: "Liquid egg whites", calories: 52, protein: 11, carbs: 0.7, fat: 0.2, servingName: "1/2 cup", servingAmount: 120, equivalentRefAmount: 120),
-            FoodSeed(name: "Whey protein powder", refAmount: 1, refUnit: .count, calories: 120, protein: 24, carbs: 2, fat: 1.5, isFav: true, servingName: "1 scoop", servingAmount: 1, servingUnit: .count, equivalentRefAmount: 1),
+            FoodSeed(name: "Whey protein powder", refAmount: 1, refUnit: .count, calories: 120, protein: 24, carbs: 2, fat: 1.5, servingName: "1 scoop", servingAmount: 1, servingUnit: .count, equivalentRefAmount: 1),
             FoodSeed(name: "Casein protein powder", refAmount: 1, refUnit: .count, calories: 120, protein: 24, carbs: 1, fat: 1.0, servingName: "1 scoop", servingAmount: 1, servingUnit: .count, equivalentRefAmount: 1),
 
             // Grains & Carbs
             FoodSeed(name: "Cooked rice", calories: 130, protein: 2.7, carbs: 28, fat: 0.3, prep: .cooked, servingName: "1 cup", servingAmount: 158, equivalentRefAmount: 158),
             FoodSeed(name: "Cooked brown rice", calories: 112, protein: 2.3, carbs: 24, fat: 0.8, prep: .cooked, servingName: "1 cup", servingAmount: 195, equivalentRefAmount: 195),
-            FoodSeed(name: "Dry rolled oats", calories: 389, protein: 16.9, carbs: 66, fat: 6.9, isFav: true, servingName: "1/2 cup", servingAmount: 40, equivalentRefAmount: 40),
+            FoodSeed(name: "Dry rolled oats", calories: 389, protein: 16.9, carbs: 66, fat: 6.9, servingName: "1/2 cup", servingAmount: 40, equivalentRefAmount: 40),
             FoodSeed(name: "Cooked sweet potato", calories: 86, protein: 1.6, carbs: 20, fat: 0.1, prep: .cooked, servingName: "1 medium", servingAmount: 130, equivalentRefAmount: 130),
             FoodSeed(name: "Cooked white potato", calories: 87, protein: 1.9, carbs: 20, fat: 0.1, prep: .cooked, servingName: "1 medium", servingAmount: 150, equivalentRefAmount: 150),
             FoodSeed(name: "Cooked quinoa", calories: 120, protein: 4.4, carbs: 21.3, fat: 1.9, prep: .cooked, servingName: "1 cup", servingAmount: 185, equivalentRefAmount: 185),
@@ -103,7 +111,7 @@ enum NutritionSeedData {
             FoodSeed(name: "Watermelon", calories: 30, protein: 0.6, carbs: 7.5, fat: 0.2, servingName: "1 cup diced", servingAmount: 152, equivalentRefAmount: 152),
 
             // Healthy Fats & Seeds
-            FoodSeed(name: "Peanut butter", calories: 588, protein: 25, carbs: 20, fat: 50.0, isFav: true, servingName: "2 tbsp", servingAmount: 32, equivalentRefAmount: 32),
+            FoodSeed(name: "Peanut butter", calories: 588, protein: 25, carbs: 20, fat: 50.0, servingName: "2 tbsp", servingAmount: 32, equivalentRefAmount: 32),
             FoodSeed(name: "Almonds", calories: 579, protein: 21, carbs: 22, fat: 50.0, servingName: "1 oz / 28 nuts", servingAmount: 28, equivalentRefAmount: 28),
             FoodSeed(name: "Avocado", refAmount: 1, refUnit: .count, calories: 160, protein: 2.0, carbs: 8.5, fat: 14.7, servingName: "1 medium", servingAmount: 1, servingUnit: .count, equivalentRefAmount: 1),
             FoodSeed(name: "Extra virgin olive oil", calories: 884, protein: 0, carbs: 0, fat: 100.0, servingName: "1 tbsp", servingAmount: 14, equivalentRefAmount: 14),
@@ -119,39 +127,106 @@ enum NutritionSeedData {
             FoodSeed(name: "Cooked chickpeas", calories: 164, protein: 8.9, carbs: 27.0, fat: 2.6, prep: .cooked, servingName: "1 cup", servingAmount: 164, equivalentRefAmount: 164)
         ]
 
+        var didInsert = false
         for seed in seedList {
-            guard !existingNames.contains(seed.name.lowercased()) else { continue }
-            let food = FoodItem(
-                name: seed.name,
-                referenceAmount: seed.refAmount,
-                referenceUnit: seed.refUnit,
-                calories: seed.calories,
-                proteinGrams: seed.protein,
-                carbohydrateGrams: seed.carbs,
-                fatGrams: seed.fat,
-                sourceKind: .curated,
-                confidence: .verified,
-                preparationState: seed.prep,
-                isFavorite: seed.isFav
-            )
-            food.servings = [
-                FoodServing(
+            let key = SystemSeedKey.make(namespace: "food", legacyName: seed.name)
+            let food: FoodItem
+            let ownsSystemFields: Bool
+            if let record = try registry.record(for: key, expectedKind: .foodItem) {
+                guard let matched = existing.first(where: { $0.id == record.entityID }) else {
+                    throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
+                }
+                food = matched
+                ownsSystemFields = record.isSystemProvided
+            } else if let matched = existing.first(where: {
+                $0.name.compare(seed.name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+            }) {
+                food = matched
+                ownsSystemFields = matched.sourceKind == .curated
+                try registry.register(
+                    key: key,
+                    kind: .foodItem,
+                    entityID: matched.id,
+                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                    sourceKind: .migratedLegacy,
+                    isSystemProvided: ownsSystemFields
+                )
+            } else {
+                food = FoodItem(name: seed.name, sourceKind: .curated, confidence: .verified)
+                context.insert(food)
+                existing.append(food)
+                ownsSystemFields = true
+                try registry.register(
+                    key: key,
+                    kind: .foodItem,
+                    entityID: food.id,
+                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                    sourceKind: .bundled
+                )
+                didInsert = true
+            }
+            guard ownsSystemFields else { continue }
+            food.name = seed.name
+            food.referenceAmount = seed.refAmount
+            food.referenceUnit = seed.refUnit
+            food.calories = seed.calories
+            food.proteinGrams = seed.protein
+            food.carbohydrateGrams = seed.carbs
+            food.fatGrams = seed.fat
+            food.sourceKind = .curated
+            food.confidence = .verified
+            food.preparationState = seed.prep
+            food.updatedAt = .now
+            // isFavorite and isArchived are user-owned.
+
+            let servingKey = "food-serving.\(key.dropFirst("food.".count)).primary"
+            let serving: FoodServing
+            if let record = try registry.record(for: servingKey, expectedKind: .foodServing) {
+                guard let matched = food.servings.first(where: { $0.id == record.entityID }) else {
+                    throw SystemSeedError.danglingEntity(key: servingKey, entityID: record.entityID)
+                }
+                serving = matched
+            } else if let existingServing = food.servings.first {
+                serving = existingServing
+                try registry.register(
+                    key: servingKey,
+                    kind: .foodServing,
+                    entityID: serving.id,
+                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                    sourceKind: .migratedLegacy
+                )
+            } else {
+                serving = FoodServing(
                     name: seed.servingName,
                     amount: seed.servingAmount,
                     unit: seed.servingUnit,
                     equivalentReferenceAmount: seed.equivalentRefAmount
                 )
-            ]
-            context.insert(food)
+                food.servings.append(serving)
+                try registry.register(
+                    key: servingKey,
+                    kind: .foodServing,
+                    entityID: serving.id,
+                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                    sourceKind: .bundled
+                )
+            }
+            serving.name = seed.servingName
+            serving.amount = seed.servingAmount
+            serving.unit = seed.servingUnit
+            serving.equivalentReferenceAmount = seed.equivalentRefAmount
         }
 
-        try? context.save()
+        _ = didInsert
 
-        let existingTemplates = (try? context.fetch(FetchDescriptor<MealTemplate>())) ?? []
-        let existingTemplateNames = Set(existingTemplates.map { $0.name.lowercased() })
-
-        let allFoods = (try? context.fetch(FetchDescriptor<FoodItem>())) ?? []
+        let existingTemplates = try context.fetch(FetchDescriptor<MealTemplate>())
+        let allFoods = try context.fetch(FetchDescriptor<FoodItem>())
         let foodByName: [String: FoodItem] = Dictionary(uniqueKeysWithValues: allFoods.map { ($0.name.lowercased(), $0) })
+
 
         struct RecipeSeed {
             let name: String
@@ -226,9 +301,8 @@ enum NutritionSeedData {
             )
         ]
 
+        var didInsertRecipe = false
         for recipe in recipeList {
-            guard !existingTemplateNames.contains(recipe.name.lowercased()) else { continue }
-            let template = MealTemplate(name: recipe.name, preparationState: recipe.prepState, finalCookedWeightGrams: recipe.finalWeight)
             var templateItems: [MealTemplateItem] = []
             for (idx, item) in recipe.items.enumerated() {
                 if let food = foodByName[item.foodName.lowercased()] {
@@ -237,12 +311,45 @@ enum NutritionSeedData {
                 }
             }
             guard !templateItems.isEmpty else { continue }
-            template.items = templateItems
-            context.insert(template)
+            let key = SystemSeedKey.make(namespace: "meal-template", legacyName: recipe.name)
+            if let record = try registry.record(for: key, expectedKind: .mealTemplate) {
+                guard existingTemplates.contains(where: { $0.id == record.entityID }) else {
+                    throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
+                }
+                continue
+            }
+            let expectedFoodIDs = templateItems.map { $0.food.id }
+            let candidates = existingTemplates.filter {
+                $0.name == recipe.name && $0.orderedItems.map { $0.food.id } == expectedFoodIDs
+            }
+            guard candidates.count <= 1 else {
+                throw SystemSeedError.ambiguousLegacyMatch(key: key, count: candidates.count)
+            }
+            if let adopted = candidates.first {
+                try registry.register(
+                    key: key,
+                    kind: .mealTemplate,
+                    entityID: adopted.id,
+                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                    sourceKind: .migratedLegacy
+                )
+            } else {
+                let template = MealTemplate(name: recipe.name, preparationState: recipe.prepState, finalCookedWeightGrams: recipe.finalWeight)
+                template.items = templateItems
+                context.insert(template)
+                try registry.register(
+                    key: key,
+                    kind: .mealTemplate,
+                    entityID: template.id,
+                    seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+                    contentVersion: SystemSeedCatalogCoordinator.contentVersion,
+                    sourceKind: .bundled
+                )
+                didInsertRecipe = true
+            }
         }
 
-        try? context.save()
+        _ = didInsertRecipe
     }
 }
-
-
