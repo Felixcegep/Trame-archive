@@ -89,7 +89,7 @@ enum PlanProgressionEvaluationService {
                 metrics[.duration] = completedSets.compactMap(\.duration).reduce(0, +)
                 metrics[.distance] = completedSets.compactMap { $0.distance.map(Double.init) }.reduce(0, +)
                 metrics[.calories] = completedSets.compactMap(\.calories).reduce(0, +)
-                if let rpe = completedSets.compactMap(\.rpe).map(Double.init).average { metrics[.rpe] = rpe }
+                if let rpe = completedSets.compactMap(\.rpe).average { metrics[.rpe] = rpe }
                 if let rir = completedSets.compactMap(\.rir).map(Double.init).average { metrics[.rir] = rir }
                 formulaContext.completedMetricsByExposure[key] = metrics
                 let topSets = completedSets.filter { $0.prescribedSetType == .topSet }
@@ -309,7 +309,7 @@ enum PlanProgressionEvaluationService {
         }.count
         let totalVolume = completedSets.reduce(0) { $0 + Double($1.repetitions) * Double($1.weight) }
         let completedCalories = completedSets.compactMap(\.calories).reduce(0, +)
-        let actualRPE = completedSets.compactMap { $0.rpe }.map(Double.init).average
+        let actualRPE = completedSets.compactMap { $0.rpe }.average
         let actualRIR = completedSets.compactMap { $0.rir }
             .map(Double.init)
             .average

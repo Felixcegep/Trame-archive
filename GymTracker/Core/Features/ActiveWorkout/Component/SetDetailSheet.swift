@@ -11,15 +11,27 @@ import SwiftData
 /// Plain-language meaning of each RPE value, shown alongside the slider so
 /// lifters don't need to memorize the scale.
 enum RPEScale {
-    static func meaning(for value: Int) -> String {
+    static func meaning(for value: Double) -> String {
         switch value {
-        case 10: String(localized: "Max effort — nothing left")
-        case 9: String(localized: "Could do 1 more rep")
-        case 8: String(localized: "Could do 2 more reps")
-        case 7: String(localized: "Could do 3 more reps")
-        case 6: String(localized: "Could do 4 more reps")
-        case 5: String(localized: "Could do 5+ more reps")
-        default: String(localized: "Very light — warm-up effort")
+        case 10.0: return String(localized: "Max effort — nothing left")
+        case 9.5: return String(localized: "No reps left — could maybe load slightly more")
+        case 9.0: return String(localized: "Could do 1 more rep")
+        case 8.5: return String(localized: "Definitely 1, maybe 2 more reps")
+        case 8.0: return String(localized: "Could do 2 more reps")
+        case 7.5: return String(localized: "Definitely 2, maybe 3 more reps")
+        case 7.0: return String(localized: "Could do 3 more reps")
+        case 6.5: return String(localized: "Definitely 3, maybe 4 more reps")
+        case 6.0: return String(localized: "Could do 4 more reps")
+        case 5.5: return String(localized: "Could do 4–5 more reps")
+        case 5.0: return String(localized: "Could do 5+ more reps")
+        default:
+            if value >= 10.0 {
+                return String(localized: "Max effort — nothing left")
+            } else if value <= 5.0 {
+                return String(localized: "Very light — warm-up effort")
+            } else {
+                return String(localized: "RPE \(Formatters.formatFloat(Float(value)))")
+            }
         }
     }
 }
@@ -483,7 +495,7 @@ struct SetDetailSheet: View {
                 .accessibilityLabel("Effort measure: \(effortMeasure.title)")
                 .accessibilityHint("Switches between RIR and RPE")
 
-                if activeEffortValue != nil {
+                if hasActiveEffortValue {
                     Button("Clear") {
                         clearActiveEffortValue()
                         onPersist()
@@ -495,17 +507,17 @@ struct SetDetailSheet: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
-                Text(activeEffortValue.map(String.init) ?? "—")
+                Text(formattedActiveEffortValue)
                     .font(AppFont.displayMedium)
                     .monospacedDigit()
-                    .foregroundStyle(activeEffortValue == nil ? Color.gymSubduedText : Color.gymText)
+                    .foregroundStyle(hasActiveEffortValue ? Color.gymText : Color.gymSubduedText)
                     .contentTransition(.numericText())
                 Text(activeEffortMeaning)
                     .font(AppFont.subheadline)
                     .foregroundStyle(Color.gymSubduedText)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .animation(reduceMotion ? nil : AppMotion.compact, value: activeEffortValue)
+            .animation(reduceMotion ? nil : AppMotion.compact, value: hasActiveEffortValue)
 
             if effortMeasure == .rir {
                 Slider(value: rirBinding, in: 0...6, step: 1) {
@@ -518,7 +530,7 @@ struct SetDetailSheet: View {
                 .tint(Color.gymSecondary)
                 .accessibilityIdentifier("rir-slider")
             } else {
-                Slider(value: rpeBinding, in: 1...10, step: 1) {
+                Slider(value: rpeBinding, in: 1...10, step: 0.5) {
                     Text("RPE")
                 } minimumValueLabel: {
                     sliderBound("1")
@@ -539,27 +551,45 @@ struct SetDetailSheet: View {
         .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
     }
 
-    private var activeEffortValue: Int? {
-        effortMeasure == .rir ? exerciseSet.rir : exerciseSet.rpe
+    private var hasActiveEffortValue: Bool {
+        effortMeasure == .rir ? exerciseSet.rir != nil : exerciseSet.rpe != nil
+    }
+
+    private var formattedActiveEffortValue: String {
+        if effortMeasure == .rir {
+            return exerciseSet.rir.map(String.init) ?? "—"
+        } else {
+            return exerciseSet.rpe.map { Formatters.formatFloat(Float($0)) } ?? "—"
+        }
     }
 
     private var activeEffortValueText: String {
-        guard let activeEffortValue else { return effortMeasure == .rir ? "an RIR value" : "an RPE value" }
-        return "\(effortMeasure == .rir ? "RIR" : "RPE") \(activeEffortValue)"
+        if effortMeasure == .rir {
+            guard let rir = exerciseSet.rir else { return "an RIR value" }
+            return "RIR \(rir)"
+        } else {
+            guard let rpe = exerciseSet.rpe else { return "an RPE value" }
+            return "RPE \(Formatters.formatFloat(Float(rpe)))"
+        }
     }
 
     private var activeEffortMeaning: String {
-        guard let activeEffortValue else {
-            return effortMeasure == .rir
-                ? String(localized: "Slide to record reps left after this set")
-                : String(localized: "Slide to rate how hard this set felt")
+        if effortMeasure == .rir {
+            guard let rir = exerciseSet.rir else {
+                return String(localized: "Slide to record reps left after this set")
+            }
+            return RIRScale.meaning(for: rir)
+        } else {
+            guard let rpe = exerciseSet.rpe else {
+                return String(localized: "Slide to rate how hard this set felt")
+            }
+            return RPEScale.meaning(for: rpe)
         }
-        return effortMeasure == .rir ? RIRScale.meaning(for: activeEffortValue) : RPEScale.meaning(for: activeEffortValue)
     }
 
     private var historicalEffortCaption: String? {
         if effortMeasure == .rir, let rpe = exerciseSet.rpe {
-            return "RPE \(rpe) recorded earlier on this set"
+            return "RPE \(Formatters.formatFloat(Float(rpe))) recorded earlier on this set"
         }
         if effortMeasure == .rpe, let rir = exerciseSet.rir {
             return "RIR \(rir) recorded earlier on this set"
@@ -579,9 +609,9 @@ struct SetDetailSheet: View {
 
     private var rpeBinding: Binding<Double> {
         Binding(
-            get: { Double(exerciseSet.rpe ?? 7) },
+            get: { exerciseSet.rpe ?? 7.0 },
             set: {
-                exerciseSet.recordRPE(Int($0.rounded()))
+                exerciseSet.recordRPE($0)
                 onPersist()
             }
         )
@@ -589,7 +619,7 @@ struct SetDetailSheet: View {
 
     private func selectEffortMeasure(_ measure: EffortMeasure) {
         guard measure != effortMeasure else { return }
-        if activeEffortValue != nil {
+        if hasActiveEffortValue {
             pendingEffortMeasure = measure
             isShowingEffortSwitchConfirmation = true
         } else {

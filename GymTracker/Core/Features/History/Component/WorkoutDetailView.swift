@@ -196,7 +196,7 @@ struct WorkoutDetailView: View {
                         tableValue(caloriesText(for: set))
                     }
                     if showsRPE {
-                        tableValue(set.rpe.map { "\($0)" } ?? "—")
+                        tableValue(set.rpe.map { Formatters.formatFloat(Float($0)) } ?? "—")
                     }
                 }
                 .accessibilityElement(children: .combine)
@@ -277,7 +277,7 @@ struct WorkoutDetailView: View {
         if exercise.trackingTypeSnapshot.usesDuration { values.append(durationText(for: set)) }
         if exercise.trackingTypeSnapshot.usesDistance { values.append(distanceText(for: set)) }
         if exercise.trackingTypeSnapshot.usesCalories { values.append(caloriesText(for: set)) }
-        if let rpe = set.rpe { values.append("RPE \(rpe)") }
+        if let rpe = set.rpe { values.append("RPE \(Formatters.formatFloat(Float(rpe)))") }
         if let tempo = set.prescribedTempo,
            !tempo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             values.append("prescribed tempo \(tempo)")

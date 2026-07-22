@@ -18,7 +18,7 @@ final class WorkoutIntentServiceTests: XCTestCase {
         let result = ActiveWorkoutMutationService(modelContext: context, defaultRestSeconds: 90)
             .logCurrentSet(
                 workoutID: workout.id,
-                log: .init(repetitions: 8, weight: 100, rpe: 8)
+                log: .init(repetitions: 8, weight: 100, rpe: 8.5)
             )
 
         guard case .applied = result else {
@@ -27,7 +27,7 @@ final class WorkoutIntentServiceTests: XCTestCase {
         XCTAssertTrue(set.done)
         XCTAssertEqual(set.repetitions, 8)
         XCTAssertEqual(set.weight, 100)
-        XCTAssertEqual(set.rpe, 8)
+        XCTAssertEqual(set.rpe, 8.5)
         XCTAssertNil(set.rir)
         XCTAssertNotNil(workout.restEndDate)
     }

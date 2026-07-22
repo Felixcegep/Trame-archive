@@ -496,7 +496,7 @@ extension BackupDTO {
                   WeightType(rawValue: segment.weightType) != nil,
                   segment.duration.map({ $0 >= 0 }) ?? true,
                   segment.restAfterSeconds.map({ $0 >= 0 }) ?? true,
-                  segment.rpe.map({ (1...10).contains($0) }) ?? true,
+                  segment.rpe.map({ (1.0...10.0).contains($0) }) ?? true,
                   segment.rir.map({ $0 >= 0 }) ?? true else {
                 throw BackupValidationError.invalidIdentifier("exercise set segment")
             }

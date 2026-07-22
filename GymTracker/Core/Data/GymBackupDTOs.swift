@@ -105,7 +105,7 @@ nonisolated struct ExerciseSetDTO: Codable {
     var isUserOverridden: Bool = false
     var userOverrideReason: String? = nil
     var userOverrideAffectsFuture: Bool = false
-    let rpe: Int?
+    let rpe: Double?
     var rir: Int? = nil
     var tempo: String? = nil
     var movementQuality: Int? = nil
@@ -163,7 +163,7 @@ nonisolated struct ExerciseSetSegmentDTO: Codable {
     let restAfterSeconds: Int?
     let done: Bool
     let variationNote: String?
-    let rpe: Int?
+    let rpe: Double?
     let rir: Int?
 }
 

@@ -29,15 +29,25 @@ final class StrengthExpansionFoundationTests: XCTestCase {
     }
 
     func testPerformedEffortWritesAreExclusive() {
-        let set = ExerciseSet(repetitions: 8, weight: 80, rpe: 8, rir: 2, usedMetric: .metric)
+        let set = ExerciseSet(repetitions: 8, weight: 80, rpe: 8.5, rir: 2, usedMetric: .metric)
 
         set.recordRIR(2)
         XCTAssertEqual(set.rir, 2)
         XCTAssertNil(set.rpe)
 
-        set.recordRPE(8)
-        XCTAssertEqual(set.rpe, 8)
+        set.recordRPE(8.5)
+        XCTAssertEqual(set.rpe, 8.5)
         XCTAssertNil(set.rir)
+    }
+
+    func testHalfStepPerformedRPEAndScaleMeanings() {
+        let set = ExerciseSet(repetitions: 5, weight: 140, rpe: 9.5, usedMetric: .metric)
+        XCTAssertEqual(set.rpe, 9.5)
+
+        XCTAssertEqual(RPEScale.meaning(for: 9.5), "No reps left — could maybe load slightly more")
+        XCTAssertEqual(RPEScale.meaning(for: 8.5), "Definitely 1, maybe 2 more reps")
+        XCTAssertEqual(RPEScale.meaning(for: 7.5), "Definitely 2, maybe 3 more reps")
+        XCTAssertEqual(RPEScale.meaning(for: 6.5), "Definitely 3, maybe 4 more reps")
     }
 
     func testLegExtensionIsSeededOnceWithMachineQuadricepsMetadata() throws {

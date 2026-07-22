@@ -4,7 +4,7 @@ extension ExerciseSet {
     /// Records one performed effort scale and clears the inverse scale. This
     /// preserves the meaning of a newly logged set regardless of which UI
     /// entry point recorded it.
-    func recordRPE(_ value: Int?) {
+    func recordRPE(_ value: Double?) {
         rpe = value
         if value != nil {
             rir = nil

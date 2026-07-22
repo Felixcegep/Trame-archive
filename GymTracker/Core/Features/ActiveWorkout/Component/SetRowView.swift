@@ -118,16 +118,17 @@ struct SetRowView: View {
             }
 
             if let rpe = exerciseSet.rpe {
+                let formattedRPE = Formatters.formatFloat(Float(rpe))
                 Button {
                     isShowingSetDetails = true
                 } label: {
-                    Text("RPE \(rpe) · \(RPEScale.meaning(for: rpe))")
+                    Text("RPE \(formattedRPE) · \(RPEScale.meaning(for: rpe))")
                         .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
                 }
                 .buttonStyle(.borderless)
                 .padding(.leading, 45)
-                .accessibilityLabel("RPE \(rpe), \(RPEScale.meaning(for: rpe))")
+                .accessibilityLabel("RPE \(formattedRPE), \(RPEScale.meaning(for: rpe))")
                 .accessibilityHint("Edit set details")
                 .accessibilityIdentifier("rpe-badge-\(exerciseEntry.exercise.name)-\(index)")
             } else if let rir = exerciseSet.rir {

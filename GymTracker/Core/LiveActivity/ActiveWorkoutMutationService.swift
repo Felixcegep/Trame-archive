@@ -10,13 +10,13 @@ struct ActiveWorkoutMutationService {
     struct CurrentSetLog {
         var repetitions: Int?
         var weight: Double?
-        var rpe: Int?
+        var rpe: Double?
         var rir: Int?
 
         init(
             repetitions: Int? = nil,
             weight: Double? = nil,
-            rpe: Int? = nil,
+            rpe: Double? = nil,
             rir: Int? = nil
         ) {
             self.repetitions = repetitions
@@ -107,7 +107,7 @@ struct ActiveWorkoutMutationService {
         }
         guard log.repetitions.map({ $0 > 0 }) ?? true,
               log.weight.map({ $0 >= 0 }) ?? true,
-              log.rpe.map({ (1...10).contains($0) }) ?? true,
+              log.rpe.map({ (1.0...10.0).contains($0) }) ?? true,
               log.rir.map({ (0...6).contains($0) }) ?? true
         else {
             return .invalid(LiveActivityProjection(workout: workout, now: now))

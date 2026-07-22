@@ -15,7 +15,7 @@ final class ExerciseSetSegment {
     var restAfterSeconds: Int?
     var done: Bool
     var variationNote: String?
-    var rpe: Int?
+    var rpe: Double?
     var rir: Int?
     var exerciseSet: ExerciseSet?
 
@@ -28,7 +28,7 @@ final class ExerciseSetSegment {
         restAfterSeconds: Int? = nil,
         done: Bool = false,
         variationNote: String? = nil,
-        rpe: Int? = nil,
+        rpe: Double? = nil,
         rir: Int? = nil
     ) {
         self.orderIndex = orderIndex

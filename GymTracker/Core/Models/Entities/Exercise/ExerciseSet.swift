@@ -27,7 +27,7 @@ final class ExerciseSet {
     var isUserOverridden: Bool = false
     var userOverrideReason: String?
     var userOverrideAffectsFuture: Bool = false
-    var rpe: Int?
+    var rpe: Double?
     var rir: Int?
     var tempo: String?
     var movementQuality: Int?
@@ -105,7 +105,7 @@ final class ExerciseSet {
         isUserOverridden: Bool = false,
         userOverrideReason: String? = nil,
         userOverrideAffectsFuture: Bool = false,
-        rpe: Int? = nil,
+        rpe: Double? = nil,
         rir: Int? = nil,
         tempo: String? = nil,
         movementQuality: Int? = nil,

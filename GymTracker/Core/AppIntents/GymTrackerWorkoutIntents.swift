@@ -219,12 +219,12 @@ struct LogCurrentSetIntent: AppIntent {
     /// measurement parameter can be added later without changing persisted
     /// workout truth or shortcut phrases.
     @Parameter(title: "Weight") var weight: Double?
-    @Parameter(title: "RPE") var rpe: Int?
+    @Parameter(title: "RPE") var rpe: Double?
     @Parameter(title: "RIR") var rir: Int?
 
     init() {}
 
-    init(repetitions: Int? = nil, weight: Double? = nil, rpe: Int? = nil, rir: Int? = nil) {
+    init(repetitions: Int? = nil, weight: Double? = nil, rpe: Double? = nil, rir: Int? = nil) {
         self.repetitions = repetitions
         self.weight = weight
         self.rpe = rpe
