@@ -153,15 +153,17 @@ final class MobilitySessionTests: XCTestCase {
 
         XCTAssertEqual(definitions.count, 54)
         XCTAssertEqual(families.count, 8)
-        XCTAssertEqual(routines.count, 1)
+        XCTAssertEqual(routines.count, 10)
 
         // Running seed again should be idempotent and not create duplicate definitions or families
         MobilitySeedData.seedIfNeeded(using: context)
         let reFetchedDefinitions = try context.fetch(FetchDescriptor<MobilityDefinition>())
         let reFetchedFamilies = try context.fetch(FetchDescriptor<MobilityFamily>())
+        let reFetchedRoutines = try context.fetch(FetchDescriptor<MobilityRoutine>())
 
         XCTAssertEqual(reFetchedDefinitions.count, 54)
         XCTAssertEqual(reFetchedFamilies.count, 8)
+        XCTAssertEqual(reFetchedRoutines.count, 10)
     }
 }
 

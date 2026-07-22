@@ -74,11 +74,21 @@ final class ExerciseEntry{
     var variationSourceExerciseIDSnapshot: UUID?
     var variationSelectedExerciseIDSnapshot: UUID?
     var trackingTypeSnapshot: TrackingType = TrackingType.weightAndReps
+    var stimulusSnapshotRaw: String?
     var lateralitySnapshot: Laterality = Laterality.bilateral
     var repCountingStyleSnapshot: RepCountingStyle = RepCountingStyle.total
     var weightEntryStyleSnapshot: WeightEntryStyle = WeightEntryStyle.totalLoad
     var loadUnitCountSnapshot: Int = 1
     var workout: Workout?
+
+    var stimulusSnapshot: TrainingStimulus? {
+        get {
+            stimulusSnapshotRaw.flatMap(TrainingStimulus.init(rawValue:))
+        }
+        set {
+            stimulusSnapshotRaw = newValue?.rawValue
+        }
+    }
     @Relationship(deleteRule: .cascade, inverse: \ExerciseSet.exerciseEntry)
     var sets: [ExerciseSet]
 
@@ -158,6 +168,8 @@ final class ExerciseEntry{
             usedMetric: usedMetric,
             supersetGroupID: supersetGroupID
         )
+        trackingTypeSnapshot = templateExercise.resolvedTrackingType
+        stimulusSnapshot = .hypertrophy
         prescribedSets = templateExercise.targetSets
         prescribedRepRangeMinimum = templateExercise.repRangeMinimum
         prescribedRepRangeMaximum = templateExercise.repRangeMaximum
@@ -182,6 +194,8 @@ final class ExerciseEntry{
             usedMetric: usedMetric,
             supersetGroupID: supersetGroupID
         )
+        trackingTypeSnapshot = plannedExercise.resolvedTrackingType
+        stimulusSnapshot = plannedExercise.resolvedStimulus
         prescribedSets = plannedExercise.targetSets
         prescribedRepRangeMinimum = plannedExercise.repRangeMinimum
         prescribedRepRangeMaximum = plannedExercise.repRangeMaximum

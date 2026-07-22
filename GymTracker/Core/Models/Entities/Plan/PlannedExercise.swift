@@ -43,8 +43,22 @@ final class PlannedExercise {
     // Optional for compatibility with plans persisted before stimulus was added.
     // Callers should use resolvedStimulus when a concrete value is required.
     var stimulus: TrainingStimulus?
+    var trackingTypeOverrideRaw: String?
     var exercise: Exercise
     var plannedWorkout: PlannedWorkout?
+
+    var trackingTypeOverride: TrackingType? {
+        get {
+            trackingTypeOverrideRaw.flatMap(TrackingType.init(rawValue:))
+        }
+        set {
+            trackingTypeOverrideRaw = newValue?.rawValue
+        }
+    }
+
+    var resolvedTrackingType: TrackingType {
+        trackingTypeOverride ?? exercise.trackingType
+    }
     @Relationship(deleteRule: .cascade, inverse: \PlannedExerciseAlternative.plannedExercise)
     var alternatives: [PlannedExerciseAlternative] = []
     @Relationship(deleteRule: .cascade, inverse: \PlannedSet.plannedExercise)
@@ -66,6 +80,7 @@ final class PlannedExercise {
         notes: String? = nil,
         progressionRule: ProgressionRule = .none,
         stimulus: TrainingStimulus = .strength,
+        trackingTypeOverride: TrackingType? = nil,
         alternatives: [PlannedExerciseAlternative] = [],
         plannedSets: [PlannedSet] = [],
         supersetGroupID: UUID? = nil,
@@ -111,6 +126,7 @@ final class PlannedExercise {
         self.initialVariationExerciseID = initialVariationExerciseID
         self.initialVelocityBaseline = initialVelocityBaseline
         self.stimulus = stimulus
+        self.trackingTypeOverrideRaw = trackingTypeOverride?.rawValue
         self.alternatives = alternatives
         self.plannedSets = plannedSets
         self.supersetGroupID = supersetGroupID

@@ -18,7 +18,7 @@ struct SavedWorkoutTemplatePicker: View {
                 )
                 .listRowBackground(Color.clear)
             } else {
-                ForEach(templates, id: \.self) { template in
+                ForEach(templates, id: \.persistentModelID) { template in
                     Button {
                         dismiss()
                         onStartWorkout(template)

@@ -18,9 +18,23 @@ final class TemplateExercise {
     var targetRPE: Double?
     var targetRIR: Int?
     var notes: String?
+    var trackingTypeOverrideRaw: String?
     var progressionRule: ProgressionRule = ProgressionRule.doubleProgression
     var exercise: Exercise
     var workoutTemplate: WorkoutTemplate?
+
+    var trackingTypeOverride: TrackingType? {
+        get {
+            trackingTypeOverrideRaw.flatMap(TrackingType.init(rawValue:))
+        }
+        set {
+            trackingTypeOverrideRaw = newValue?.rawValue
+        }
+    }
+
+    var resolvedTrackingType: TrackingType {
+        trackingTypeOverride ?? exercise.trackingType
+    }
 
     init(
         exercise: Exercise,
@@ -33,6 +47,7 @@ final class TemplateExercise {
         targetRIR: Int? = nil,
         notes: String? = nil,
         progressionRule: ProgressionRule = .doubleProgression,
+        trackingTypeOverride: TrackingType? = nil,
         supersetGroupID: UUID? = nil,
         progressionKey: String? = nil
     ) {
@@ -46,6 +61,7 @@ final class TemplateExercise {
         self.targetRPE = targetRPE
         self.targetRIR = targetRIR
         self.notes = notes
+        self.trackingTypeOverrideRaw = trackingTypeOverride?.rawValue
         self.progressionRule = progressionRule
         self.supersetGroupID = supersetGroupID
         self.executionBlockID = nil

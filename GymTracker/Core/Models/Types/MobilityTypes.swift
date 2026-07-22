@@ -65,3 +65,33 @@ enum MobilitySessionContext: String, Codable, CaseIterable, Hashable {
         }
     }
 }
+
+enum MobilityLoadUnit: String, Codable, CaseIterable, Hashable {
+    case kilograms
+    case pounds
+
+    var abbreviation: String {
+        switch self {
+        case .kilograms: "kg"
+        case .pounds: "lbs"
+        }
+    }
+
+    func convert(_ value: Double, to targetUnit: MobilityLoadUnit) -> Double {
+        switch (self, targetUnit) {
+        case (.kilograms, .kilograms), (.pounds, .pounds):
+            return value
+        case (.kilograms, .pounds):
+            return value * 2.20462
+        case (.pounds, .kilograms):
+            return value / 2.20462
+        }
+    }
+}
+
+enum MobilityResistanceMode: String, Codable, CaseIterable, Hashable {
+    case bodyweight
+    case externalLoad
+    case bandResistance
+    case bandAssistance
+}

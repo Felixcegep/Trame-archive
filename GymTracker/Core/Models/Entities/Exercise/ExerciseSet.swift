@@ -29,6 +29,10 @@ final class ExerciseSet {
     var userOverrideAffectsFuture: Bool = false
     var rpe: Int?
     var rir: Int?
+    var tempo: String?
+    var movementQuality: Int?
+    var descriptiveROM: String?
+    var discomfortScore: Int?
     var liftQuality: LiftQuality?
     var meanVelocity: Double?
     /// Peak concentric velocity in metres per second. It is optional because
@@ -103,6 +107,10 @@ final class ExerciseSet {
         userOverrideAffectsFuture: Bool = false,
         rpe: Int? = nil,
         rir: Int? = nil,
+        tempo: String? = nil,
+        movementQuality: Int? = nil,
+        descriptiveROM: String? = nil,
+        discomfortScore: Int? = nil,
         liftQuality: LiftQuality? = nil,
         meanVelocity: Double? = nil,
         peakVelocity: Double? = nil,
@@ -132,6 +140,10 @@ final class ExerciseSet {
         self.userOverrideAffectsFuture = userOverrideAffectsFuture
         self.rpe = rpe
         self.rir = rir
+        self.tempo = tempo
+        self.movementQuality = movementQuality
+        self.descriptiveROM = descriptiveROM
+        self.discomfortScore = discomfortScore
         self.liftQuality = liftQuality
         self.meanVelocity = meanVelocity
         self.peakVelocity = peakVelocity
@@ -185,6 +197,10 @@ final class ExerciseSet {
             done: false,
             rpe: rpe,
             rir: rir,
+            tempo: tempo,
+            movementQuality: movementQuality,
+            descriptiveROM: descriptiveROM,
+            discomfortScore: discomfortScore,
             liftQuality: liftQuality,
             meanVelocity: meanVelocity,
             peakVelocity: peakVelocity,

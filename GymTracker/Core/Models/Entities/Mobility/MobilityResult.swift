@@ -10,6 +10,8 @@ final class MobilityResult {
     var prescribedRepetitions: Int?
     var performedDurationSeconds: Int?
     var performedRepetitions: Int?
+    var performedLoadValue: Double?
+    var performedLoadUnitRaw: String?
     var perceivedIntensity: Int?
     var discomfortNote: String?
     var startedAt: Date?
@@ -24,6 +26,11 @@ final class MobilityResult {
     var status: MobilityResultStatus {
         get { MobilityResultStatus(rawValue: statusRaw) ?? .notStarted }
         set { statusRaw = newValue.rawValue }
+    }
+
+    var performedLoadUnit: MobilityLoadUnit? {
+        get { performedLoadUnitRaw.flatMap(MobilityLoadUnit.init(rawValue:)) }
+        set { performedLoadUnitRaw = newValue?.rawValue }
     }
 
     init(

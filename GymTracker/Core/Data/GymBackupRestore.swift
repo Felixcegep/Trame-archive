@@ -42,7 +42,7 @@ extension BackupDTO {
                 context.insert(exercise)
             }
 
-            var exerciseMap = Dictionary(uniqueKeysWithValues: builtInExercises.map { ($0.name, $0) })
+            var exerciseMap = Dictionary(builtInExercises.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
 
             for exerciseDTO in self.exercises {
                 let primaryMuscles = exerciseDTO.primaryMuscles.compactMap { Muscle(rawValue: $0) }
@@ -857,16 +857,35 @@ extension BackupDTO {
                           let side = MobilitySide(rawValue: itemDTO.side) else {
                         throw BackupValidationError.invalidIdentifier("mobility routine item")
                     }
-                    return MobilityRoutineItem(
+                    let item = MobilityRoutineItem(
                         definition: definition,
                         orderIndex: itemDTO.orderIndex,
                         targetDurationSeconds: itemDTO.targetDurationSeconds,
                         targetRepetitions: itemDTO.targetRepetitions,
+                        targetLoadValue: itemDTO.targetLoadValue,
+                        targetLoadUnit: itemDTO.targetLoadUnit.flatMap(MobilityLoadUnit.init(rawValue:)),
                         side: side,
                         restSeconds: itemDTO.restSeconds,
                         notes: itemDTO.notes,
                         id: try requiredUUID(itemDTO.id, named: "mobility routine item")
                     )
+                    item.cycleCount = itemDTO.cycleCount ?? 1
+                    item.phases = try (itemDTO.phases ?? []).map { phaseDTO in
+                        guard let phaseType = PNFPhaseType(rawValue: phaseDTO.phaseType),
+                              let phaseSide = MobilitySide(rawValue: phaseDTO.side) else {
+                            throw BackupValidationError.invalidIdentifier("mobility phase prescription")
+                        }
+                        return MobilityPhasePrescription(
+                            orderIndex: phaseDTO.orderIndex,
+                            phaseType: phaseType,
+                            durationSeconds: phaseDTO.durationSeconds,
+                            contractionIntensity: phaseDTO.contractionIntensity.flatMap(ContractionIntensity.init(rawValue:)),
+                            instructions: phaseDTO.instructions,
+                            side: phaseSide,
+                            id: try requiredUUID(phaseDTO.id, named: "mobility phase prescription")
+                        )
+                    }
+                    return item
                 }
                 context.insert(routine)
             }
@@ -902,6 +921,8 @@ extension BackupDTO {
                         trackingType: trackingType,
                         targetDurationSeconds: entryDTO.targetDurationSeconds,
                         targetRepetitions: entryDTO.targetRepetitions,
+                        prescribedLoadValue: entryDTO.prescribedLoadValue,
+                        prescribedLoadUnit: entryDTO.prescribedLoadUnit.flatMap(MobilityLoadUnit.init(rawValue:)),
                         side: side,
                         restSeconds: entryDTO.restSeconds,
                         notesSnapshot: entryDTO.notesSnapshot,
@@ -909,6 +930,10 @@ extension BackupDTO {
                         orderIndex: entryDTO.orderIndex,
                         id: try requiredUUID(entryDTO.id, named: "mobility entry")
                     )
+                    entry.cycleCount = entryDTO.cycleCount ?? 1
+                    entry.currentCycleIndex = entryDTO.currentCycleIndex ?? 0
+                    entry.currentPhaseIndex = entryDTO.currentPhaseIndex ?? 0
+                    entry.pausedElapsedSeconds = entryDTO.pausedElapsedSeconds ?? 0
                     entry.results = try entryDTO.results.map { resultDTO in
                         guard let resultSide = MobilitySide(rawValue: resultDTO.side),
                               let resultStatus = MobilityResultStatus(rawValue: resultDTO.status) else {
@@ -923,11 +948,35 @@ extension BackupDTO {
                         result.status = resultStatus
                         result.performedDurationSeconds = resultDTO.performedDurationSeconds
                         result.performedRepetitions = resultDTO.performedRepetitions
+                        result.performedLoadValue = resultDTO.performedLoadValue
+                        result.performedLoadUnit = resultDTO.performedLoadUnit.flatMap(MobilityLoadUnit.init(rawValue:))
                         result.perceivedIntensity = resultDTO.perceivedIntensity
                         result.discomfortNote = resultDTO.discomfortNote
                         result.startedAt = resultDTO.startedAt
                         result.completedAt = resultDTO.completedAt
                         return result
+                    }
+                    entry.phaseResults = try (entryDTO.phaseResults ?? []).map { phaseResultDTO in
+                        guard let phaseType = PNFPhaseType(rawValue: phaseResultDTO.phaseType),
+                              let phaseSide = MobilitySide(rawValue: phaseResultDTO.side),
+                              let phaseStatus = MobilityResultStatus(rawValue: phaseResultDTO.status) else {
+                            throw BackupValidationError.invalidIdentifier("mobility phase result")
+                        }
+                        let phaseResult = MobilityPhaseResult(
+                            orderIndex: phaseResultDTO.orderIndex,
+                            phaseType: phaseType,
+                            prescribedDurationSeconds: phaseResultDTO.prescribedDurationSeconds,
+                            cycleIndex: phaseResultDTO.cycleIndex,
+                            side: phaseSide,
+                            prescribedIntensity: phaseResultDTO.prescribedIntensity.flatMap(ContractionIntensity.init(rawValue:)),
+                            id: try requiredUUID(phaseResultDTO.id, named: "mobility phase result")
+                        )
+                        phaseResult.performedDurationSeconds = phaseResultDTO.performedDurationSeconds
+                        phaseResult.performedIntensity = phaseResultDTO.performedIntensity.flatMap(ContractionIntensity.init(rawValue:))
+                        phaseResult.status = phaseStatus
+                        phaseResult.startedAt = phaseResultDTO.startedAt
+                        phaseResult.completedAt = phaseResultDTO.completedAt
+                        return phaseResult
                     }
                     return entry
                 }

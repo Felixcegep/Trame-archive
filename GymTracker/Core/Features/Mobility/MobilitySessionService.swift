@@ -4,6 +4,8 @@ import SwiftData
 struct MobilityResultInput {
     var performedDurationSeconds: Int?
     var performedRepetitions: Int?
+    var performedLoadValue: Double?
+    var performedLoadUnit: MobilityLoadUnit?
     var perceivedIntensity: Int?
     var discomfortNote: String?
 }
@@ -175,6 +177,8 @@ enum MobilitySessionService {
             result.status = status
             result.performedDurationSeconds = input?.performedDurationSeconds ?? (entry.trackingType == .duration ? elapsed : nil)
             result.performedRepetitions = input?.performedRepetitions
+            result.performedLoadValue = input?.performedLoadValue ?? entry.prescribedLoadValue
+            result.performedLoadUnit = input?.performedLoadUnit ?? entry.prescribedLoadUnit
             result.perceivedIntensity = input?.perceivedIntensity
             result.discomfortNote = input?.discomfortNote?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
             result.completedAt = .now

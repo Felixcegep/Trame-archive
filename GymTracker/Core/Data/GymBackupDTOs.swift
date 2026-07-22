@@ -107,6 +107,10 @@ nonisolated struct ExerciseSetDTO: Codable {
     var userOverrideAffectsFuture: Bool = false
     let rpe: Int?
     var rir: Int? = nil
+    var tempo: String? = nil
+    var movementQuality: Int? = nil
+    var descriptiveROM: String? = nil
+    var discomfortScore: Int? = nil
     var liftQuality: String? = nil
     var meanVelocity: Double? = nil
     var peakVelocity: Double? = nil
@@ -205,6 +209,7 @@ nonisolated struct ExerciseEntryDTO: Codable {
     let recommendationPriorWorkoutDate: Date?
     let accumulatedActiveDuration: Double?
     let activeDurationStartedAt: Date?
+    var stimulusSnapshot: String? = nil
     var supersetGroupID: String? = nil
     var executionBlockID: String? = nil
     var executionBlockComponentOrder: Int? = nil
@@ -288,6 +293,7 @@ nonisolated struct PlannedExerciseDTO: Codable {
     let notes: String?
     let progressionRule: String
     var stimulus: String? = nil
+    var trackingTypeOverride: String? = nil
     var alternativeExerciseNames: [String]? = nil
     var supersetGroupID: String? = nil
     var executionBlockID: String? = nil
@@ -574,15 +580,29 @@ nonisolated struct MobilityDefinitionDTO: Codable {
     let updatedAt: Date
 }
 
+nonisolated struct MobilityPhasePrescriptionDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let phaseType: String
+    let durationSeconds: Int
+    let contractionIntensity: String?
+    let instructions: String?
+    let side: String
+}
+
 nonisolated struct MobilityRoutineItemDTO: Codable {
     let id: String
     let definitionID: String
     let orderIndex: Int
     let targetDurationSeconds: Int?
     let targetRepetitions: Int?
+    var targetLoadValue: Double? = nil
+    var targetLoadUnit: String? = nil
+    var cycleCount: Int? = 1
     let side: String
     let restSeconds: Int?
     let notes: String?
+    var phases: [MobilityPhasePrescriptionDTO]? = nil
 }
 
 nonisolated struct MobilityRoutineDTO: Codable {
@@ -595,6 +615,21 @@ nonisolated struct MobilityRoutineDTO: Codable {
     let items: [MobilityRoutineItemDTO]
 }
 
+nonisolated struct MobilityPhaseResultDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let phaseType: String
+    let prescribedDurationSeconds: Int
+    let performedDurationSeconds: Int?
+    let cycleIndex: Int
+    let side: String
+    let prescribedIntensity: String?
+    let performedIntensity: String?
+    let status: String
+    let startedAt: Date?
+    let completedAt: Date?
+}
+
 nonisolated struct MobilityResultDTO: Codable {
     let id: String
     let side: String
@@ -603,6 +638,8 @@ nonisolated struct MobilityResultDTO: Codable {
     let prescribedRepetitions: Int?
     let performedDurationSeconds: Int?
     let performedRepetitions: Int?
+    var performedLoadValue: Double? = nil
+    var performedLoadUnit: String? = nil
     let perceivedIntensity: Int?
     let discomfortNote: String?
     let startedAt: Date?
@@ -618,11 +655,18 @@ nonisolated struct MobilityEntryDTO: Codable {
     let trackingType: String
     let targetDurationSeconds: Int?
     let targetRepetitions: Int?
+    var prescribedLoadValue: Double? = nil
+    var prescribedLoadUnit: String? = nil
+    var cycleCount: Int? = 1
+    var currentCycleIndex: Int? = 0
+    var currentPhaseIndex: Int? = 0
     let side: String
     let restSeconds: Int?
     let notesSnapshot: String?
     let timerStartedAt: Date?
+    var pausedElapsedSeconds: Int? = 0
     let results: [MobilityResultDTO]
+    var phaseResults: [MobilityPhaseResultDTO]? = nil
 }
 
 nonisolated struct MobilitySessionDTO: Codable {

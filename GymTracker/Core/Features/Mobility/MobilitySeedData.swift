@@ -264,6 +264,23 @@ enum MobilitySeedData {
                     ("Levator Scapulae Stretch", nil, 30, .bilateral),
                     ("Quadruped Wrist Rocks", 10, nil, .bilateral)
                 ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.loaded-mobility-foundations",
+                name: "Loaded Mobility Foundations",
+                items: [
+                    ("Jefferson Curl", 5, nil, .bilateral),
+                    ("Cossack Squat", 8, nil, .alternating),
+                    ("Knee-to-Wall Ankle Mobilization", 10, nil, .alternating),
+                    ("Deep Squat Pry", nil, 30, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.hamstring-contract-relax",
+                name: "Hamstring Contract-Relax PNF",
+                items: [
+                    ("Standing Hamstring Fold", nil, 20, .bilateral)
+                ]
             )
         ]
 
