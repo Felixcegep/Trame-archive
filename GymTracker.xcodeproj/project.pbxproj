@@ -53,7 +53,7 @@
 /* Begin PBXFileReference section */
 		4401F650300ED6640000E624 /* GymTracker.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = GymTracker.xctestplan; sourceTree = "<group>"; };
 		4406369A300194FD0084434D /* GymTrackerUITEST.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GymTrackerUITEST.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		44E0063A2FF6E3C000BF7D2B /* GymTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GymTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		44E0063A2FF6E3C000BF7D2B /* Trame.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Trame.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		44E0076C2FFAEB0600BF7D2B /* GymTrackerExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GymTrackerExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		44E0076E2FFAEB0600BF7D2B /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		44E007702FFAEB0600BF7D2B /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -193,7 +193,7 @@
 		44E0063B2FF6E3C000BF7D2B /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				44E0063A2FF6E3C000BF7D2B /* GymTracker.app */,
+				44E0063A2FF6E3C000BF7D2B /* Trame.app */,
 				44E0076C2FFAEB0600BF7D2B /* GymTrackerExtensionExtension.appex */,
 				4406369A300194FD0084434D /* GymTrackerUITEST.xctest */,
 				A10000000000000000000001 /* GymTrackerTests.xctest */,
@@ -257,7 +257,7 @@
 			packageProductDependencies = (
 			);
 			productName = GymTracker;
-			productReference = 44E0063A2FF6E3C000BF7D2B /* GymTracker.app */;
+			productReference = 44E0063A2FF6E3C000BF7D2B /* Trame.app */;
 			productType = "com.apple.product-type.application";
 		};
 		44E0076B2FFAEB0600BF7D2B /* GymTrackerExtensionExtension */ = {
@@ -618,14 +618,14 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = felix.GymTracker;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Trame;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -651,14 +651,14 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = felix.GymTracker;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Trame;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
