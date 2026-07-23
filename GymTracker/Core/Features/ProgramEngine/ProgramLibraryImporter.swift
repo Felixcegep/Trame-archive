@@ -171,7 +171,10 @@ enum ProgramLibrarySeedData {
         }
 
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
-        let exerciseIDsByName = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0.id) })
+        let exerciseIDsByName = Dictionary(
+            exercises.uniquedByNamePreferringSystem().map { ($0.name, $0.id) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let payloads = try catalog.definitions.map { try $0.expand(exerciseIDsByName: exerciseIDsByName) }
         for payload in payloads {
             let issues = ProgramDefinitionValidator.validate(payload, isBuiltIn: true)

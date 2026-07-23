@@ -207,6 +207,68 @@ class WorkoutViewModel {
         }
     }
 
+    /// Reconciles a mutation committed through a possibly different
+    /// `ModelContext` — an App Intent or Live Activity button executes
+    /// in-process but constructs its own context — into this view model's
+    /// own context-bound state. There is a single root-owned subscriber to
+    /// `.activeWorkoutMutated`, so this should only ever be called from
+    /// there, never from individual rows or sheets.
+    @discardableResult
+    func handleExternalWorkoutChange(workoutID: UUID, using modelContext: ModelContext) -> Bool {
+        // `modelContext` already has this workout's graph registered from an
+        // earlier fetch (e.g. `restoreActiveWorkout`), and re-fetching on the
+        // same context returns that same cached instance unchanged —
+        // SwiftData has no cross-context merge notification, so a plain
+        // `rollback()` + refetch does not pick up another context's commit
+        // either (verified empirically; there is no public refresh API).
+        // A throwaway context on the same store always reads the true
+        // committed state. Copying just the fields
+        // `ActiveWorkoutMutationService` can change onto the already-bound
+        // objects — rather than swapping `activeWorkout` to belong to this
+        // throwaway context — keeps every other in-app binding and save path
+        // working against the same context and object identity they always
+        // have.
+        let freshContext = ModelContext(modelContext.container)
+        guard let freshWorkout = (try? freshContext.fetch(FetchDescriptor<Workout>()))?
+            .first(where: { $0.id == workoutID && $0.status == .active })
+        else {
+            if activeWorkout?.id == workoutID {
+                activeWorkout = nil
+                Task { await LiveActivityManager.shared.endOrphanedActivities() }
+            }
+            return false
+        }
+
+        guard let boundWorkout = activeWorkout, boundWorkout.id == workoutID else {
+            // No bound object for this id yet — e.g. the workout was started
+            // entirely elsewhere — so a normal restore is the correct path.
+            return restoreActiveWorkout(using: modelContext)
+        }
+
+        boundWorkout.restEndDate = freshWorkout.restEndDate
+        boundWorkout.pausedRemainingTime = freshWorkout.pausedRemainingTime
+
+        let freshSetsByID = Dictionary(
+            uniqueKeysWithValues: freshWorkout.exercises.flatMap { entry in entry.sets.map { ($0.id, $0) } }
+        )
+        for entry in boundWorkout.exercises {
+            for set in entry.sets {
+                guard let freshSet = freshSetsByID[set.id] else { continue }
+                set.done = freshSet.done
+                set.repetitions = freshSet.repetitions
+                set.weight = freshSet.weight
+                set.rpe = freshSet.rpe
+                set.rir = freshSet.rir
+            }
+        }
+
+        // Idempotent by design (see `LiveActivityManager`'s doc comment), so
+        // reconciling again here even when the command layer already did is
+        // a harmless no-op rather than a duplicate mutation.
+        reconcileLiveActivity()
+        return true
+    }
+
     private func persistAndActivate(_ workout: Workout, using modelContext: ModelContext) -> Bool {
         modelContext.insert(workout)
         do {

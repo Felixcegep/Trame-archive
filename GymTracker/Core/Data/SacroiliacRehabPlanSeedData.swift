@@ -80,7 +80,10 @@ enum SacroiliacRehabPlanSeedData {
     ]
 
     static func makePlan(using exercises: [Exercise]) -> WorkoutPlan? {
-        let byName = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0) })
+        let byName = Dictionary(
+            exercises.uniquedByNamePreferringSystem().map { ($0.name, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         guard sessions.allSatisfy({ session in
             session.exercises.allSatisfy { byName[$0.name] != nil }
         }) else { return nil }

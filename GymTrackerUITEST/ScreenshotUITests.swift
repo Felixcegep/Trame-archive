@@ -97,6 +97,21 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("overview/04d_Settings_Shortcuts")
     }
 
+    func testCaptureSettingsBetaFeedbackScreenshot() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
+        app.launch()
+
+        let feedbackRow = app.descendants(matching: .any)["settings-beta-feedback"]
+        scrollToElement(feedbackRow, in: app)
+        feedbackRow.tap()
+
+        let feedbackScreen = app.descendants(matching: .any)["beta-feedback-screen"]
+        XCTAssertTrue(feedbackScreen.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["beta-feedback-diagnostics-preview"].exists)
+        saveScreenshot("overview/04e_Settings_Beta_Feedback")
+    }
+
     func testCaptureActiveEmptyAndResumeScreenshots() {
         let empty = launchFixture("active-empty")
         saveScreenshot("active-workout/05_Active_Workout_Empty")

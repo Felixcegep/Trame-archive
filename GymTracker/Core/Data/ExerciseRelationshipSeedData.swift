@@ -16,7 +16,10 @@ enum ExerciseRelationshipSeedData {
     @MainActor
     static func seed(in context: ModelContext, saveChanges: Bool = true) throws -> SeedResult {
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
-        let byName = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0) })
+        let byName = Dictionary(
+            exercises.uniquedByNamePreferringSystem().map { ($0.name, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let existing = try context.fetch(FetchDescriptor<ExerciseRelationship>())
         var existingKeys = Set(existing.compactMap { relationship -> String? in
             guard let source = relationship.sourceExercise, let target = relationship.targetExercise else { return nil }

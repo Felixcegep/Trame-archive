@@ -12,6 +12,9 @@ import UniformTypeIdentifiers
 import UserNotifications
 
 struct SettingView: View {
+    var currentScreen: AppScreen = .settings
+    private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
+    @State private var isShowingBetaFeedback = false
     @Environment(\.modelContext) private var modelContext
     @AppStorage(DefaultsKey.darkMode) private var darkMode: Bool = false
     @AppStorage(DefaultsKey.restTimer) private var restTimer: Int = 20
@@ -144,6 +147,21 @@ struct SettingView: View {
                 .accessibilityIdentifier("settings-import-data")
             }
 
+            if featureFlags.isEnabled(.betaFeedback) {
+                Section {
+                    Button {
+                        isShowingBetaFeedback = true
+                    } label: {
+                        Label("Send Beta Feedback", systemImage: AppIcon.feedback)
+                    }
+                    .accessibilityIdentifier("settings-beta-feedback")
+                } header: {
+                    Text("Beta")
+                } footer: {
+                    Text("Share what's working or broken. Technical details like app version and enabled features are attached by default; your workouts, meals, and health data are never included.")
+                }
+            }
+
             #if DEBUG
             Section {
                 Button(role: .destructive) {
@@ -186,6 +204,9 @@ struct SettingView: View {
             ImportPreviewView(backup: backup) {
                 restoreBackup(backup)
             }
+        }
+        .sheet(isPresented: $isShowingBetaFeedback) {
+            BetaFeedbackScreen(context: BetaFeedbackContextProvider.makeContext(screen: currentScreen))
         }
         .alert("Import Error", isPresented: $isShowingImportError) {
             Button("OK", role: .cancel) {}

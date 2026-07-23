@@ -482,6 +482,34 @@ extension BackupDTO {
                     entry.prescriptionRulesData = entryDTO.prescriptionRulesData
                     entry.deferredBackOffDefinitionsData = entryDTO.deferredBackOffDefinitionsData
 
+                    // The designated initializer above already seeded these
+                    // snapshot fields from `exerciseTemplate` (today's newly
+                    // linked exercise). A v15+ backup instead carries the
+                    // entry's own historical identity, which must win so a
+                    // rename between export and restore can never leak into
+                    // completed history. Backups older than v15 have none of
+                    // these fields, so the designated-init fallback stands.
+                    if let historicalName = entryDTO.nameSnapshot, !historicalName.isEmpty {
+                        entry.nameSnapshot = historicalName
+                    }
+                    entry.exerciseIDSnapshot = entryDTO.exerciseIDSnapshot
+                        .flatMap(UUID.init(uuidString:)) ?? exerciseTemplate.id
+                    if let raw = entryDTO.trackingTypeSnapshot, let tracking = TrackingType(rawValue: raw) {
+                        entry.trackingTypeSnapshot = tracking
+                    }
+                    if let raw = entryDTO.lateralitySnapshot, let laterality = Laterality(rawValue: raw) {
+                        entry.lateralitySnapshot = laterality
+                    }
+                    if let raw = entryDTO.repCountingStyleSnapshot, let style = RepCountingStyle(rawValue: raw) {
+                        entry.repCountingStyleSnapshot = style
+                    }
+                    if let raw = entryDTO.weightEntryStyleSnapshot, let style = WeightEntryStyle(rawValue: raw) {
+                        entry.weightEntryStyleSnapshot = style
+                    }
+                    if let count = entryDTO.loadUnitCountSnapshot {
+                        entry.loadUnitCountSnapshot = count
+                    }
+
                     var sets: [ExerciseSet] = []
                     for setDTO in entryDTO.sets {
                         let weightType = WeightType(rawValue: setDTO.weightType) ?? .kg

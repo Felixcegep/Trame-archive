@@ -128,3 +128,16 @@ final class Exercise {
         )
     }
 }
+
+extension Sequence where Element == Exercise {
+    /// Orders exercises so a name-keyed lookup can safely take the first
+    /// match per name. A custom exercise may legitimately share a built-in
+    /// one's display name (backups preserve both as distinct records via
+    /// their own ids), so system-content resolution — seeded plans,
+    /// templates, relationships, and program imports — must always resolve
+    /// a shared name to the canonical system definition, never a user's
+    /// same-named custom record.
+    func uniquedByNamePreferringSystem() -> [Exercise] {
+        sorted { !$0.isCustom && $1.isCustom }
+    }
+}

@@ -1,5 +1,15 @@
 import SwiftData
 
+/// Diagnostic-only label for the shape of the persisted SwiftData schema
+/// below. This is distinct from `BackupDTO.currentVersion` (the portable
+/// backup/export format) and from the Program Engine's own schema version —
+/// none of the three should be conflated. Bump this whenever a persisted
+/// model's stored shape changes, so a beta feedback report can distinguish
+/// testers running different schema generations.
+enum GymTrackerAppSchema {
+    static let diagnosticVersion = "1"
+}
+
 /// The one persistent store used by both the SwiftUI scene and
 /// `LiveActivityIntent` executions. A Live Activity intent runs in the app
 /// process, so it can safely use this container without an App Group store.

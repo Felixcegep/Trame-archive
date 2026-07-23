@@ -31,6 +31,7 @@ struct AppIcon {
     static let archive = "archivebox"
     static let export = "square.and.arrow.up"
     static let `import` = "square.and.arrow.down"
+    static let feedback = "envelope"
     
     // Status & Feedback Icons
     static let checkmark = "checkmark"

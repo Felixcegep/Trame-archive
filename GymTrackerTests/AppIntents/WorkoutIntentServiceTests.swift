@@ -7,8 +7,11 @@ final class WorkoutIntentServiceTests: XCTestCase {
     func testLogCurrentSetPersistsValuesStartsRestAndKeepsOneEffortMeasure() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let exercise = Exercise(name: "Bench Press", primaryMuscles: [.upperChest])
-        let set = ExerciseSet(repetitions: 0, weight: 0, usedMetric: .metric)
-        let nextSet = ExerciseSet(repetitions: 8, weight: 100, usedMetric: .metric)
+        // Explicit, distinct order indices: both defaulting to 0 makes which
+        // one `WorkoutSetSelector` treats as "current" depend on an
+        // unspecified tiebreak (persistent identity hash), not intent.
+        let set = ExerciseSet(repetitions: 0, weight: 0, orderIndex: 0, usedMetric: .metric)
+        let nextSet = ExerciseSet(repetitions: 8, weight: 100, orderIndex: 1, usedMetric: .metric)
         let entry = ExerciseEntry(exercise: exercise, sets: [set, nextSet], usedMetric: .metric)
         let workout = Workout(name: "Shortcut workout")
         workout.exercises = [entry]

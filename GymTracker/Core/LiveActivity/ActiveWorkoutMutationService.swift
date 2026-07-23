@@ -239,10 +239,28 @@ struct ActiveWorkoutMutationService {
     private func saveAndProject(_ workout: Workout, now: Date) -> Result {
         do {
             try modelContext.save()
+            // Every mutation here can run against a `ModelContext` distinct
+            // from the one the root SwiftUI scene observes (an App Intent or
+            // Live Activity button executes in-process but constructs its
+            // own context). Post only the identifiers a foreground observer
+            // needs to refetch its own copy — never the model object itself,
+            // which belongs to this context and must not cross the boundary.
+            NotificationCenter.default.post(
+                name: .activeWorkoutMutated,
+                object: workout.id
+            )
             return .applied(LiveActivityProjection(workout: workout, now: now))
         } catch {
             modelContext.rollback()
             return .stale(LiveActivityProjection(workout: workout, now: now))
         }
     }
+}
+
+extension Notification.Name {
+    /// Posted after `ActiveWorkoutMutationService` commits a successful
+    /// mutation, carrying the affected workout's `UUID` as `object`. A save
+    /// failure never posts this — only a fully durable state change should
+    /// prompt the foreground UI to reconcile.
+    static let activeWorkoutMutated = Notification.Name("activeWorkoutMutated")
 }

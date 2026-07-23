@@ -60,6 +60,13 @@ final class ExerciseEntry{
     // interpretation (name, tracking, per-side/per-unit logging) stays fixed
     // even if the library exercise is edited afterward.
     var nameSnapshot: String = ""
+    /// The identity of the exercise this entry was created against. This is
+    /// the historical source of truth for completed-history grouping and
+    /// display — the `exercise` relationship is only a convenience link that
+    /// may later be renamed, archived, or (once nullable) removed. `nil` only
+    /// for rows persisted before this field existed; `historicalExerciseID`
+    /// is the accessor every consumer should use instead of this raw field.
+    var exerciseIDSnapshot: UUID?
     /// When an unstarted entry is substituted, preserve the original and
     /// selected identities instead of rewriting the historical meaning.
     var originalExerciseIDSnapshot: UUID?
@@ -109,6 +116,7 @@ final class ExerciseEntry{
         self.sets = sets
         self.usedMetric = usedMetric
         self.nameSnapshot = exercise.name
+        self.exerciseIDSnapshot = exercise.id
         self.trackingTypeSnapshot = exercise.trackingType
         self.lateralitySnapshot = exercise.laterality
         self.repCountingStyleSnapshot = exercise.repCountingStyle
@@ -281,6 +289,7 @@ final class ExerciseEntry{
     func updateExerciseSnapshot(from exercise: Exercise) {
         self.exercise = exercise
         nameSnapshot = exercise.name
+        exerciseIDSnapshot = exercise.id
         trackingTypeSnapshot = exercise.trackingType
         lateralitySnapshot = exercise.laterality
         repCountingStyleSnapshot = exercise.repCountingStyle
@@ -306,6 +315,16 @@ final class ExerciseEntry{
         copiedSet.orderIndex = nextSetOrderIndex
         sets.append(copiedSet)
     }
+
+    /// The stable identity for completed-history grouping, analytics, and
+    /// records. Falls back to the live relationship only for rows persisted
+    /// before `exerciseIDSnapshot` existed.
+    var historicalExerciseID: UUID { exerciseIDSnapshot ?? exercise.id }
+
+    /// The name to show for this entry once a workout is completed. Falls
+    /// back to the live relationship's name only if the snapshot was never
+    /// captured (legacy rows created before `nameSnapshot` existed).
+    var displayName: String { nameSnapshot.isEmpty ? exercise.name : nameSnapshot }
 
     var loggingSemanticsSnapshot: LoggingSemantics {
         LoggingSemantics(

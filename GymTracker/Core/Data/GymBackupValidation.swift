@@ -65,15 +65,29 @@ enum BackupValidationError: LocalizedError {
 
 extension BackupDTO {
     func validate() throws {
-        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.mobilityVersion || version == Self.nutritionVersion || version == Self.bodyWeightVersion || version == Self.strengthExpansionVersion || version == Self.advancedMetricsVersion || version == Self.formatSchemesVersion || version == Self.complexComponentResultsVersion || version == Self.currentVersion else {
+        // A plain `version == Self.xVersion || ...` chain silently stops
+        // accepting the previous version whenever a new constant is added
+        // without also appending it here. Every version from the legacy
+        // baseline through the current one is supported, so a range check
+        // cannot regress that way on the next bump.
+        guard version >= Self.legacyVersion && version <= Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
 
+        // A duplicate display name is only genuinely ambiguous when nothing
+        // else can tell the exercises apart. From `programVersion` onward,
+        // every exercise carries a required, separately-validated unique id
+        // (below), so a custom exercise may legitimately share a built-in
+        // one's name — its id remains its true, distinct identity. Older
+        // backups never carry ids, so duplicate names there are unresolvable
+        // and must still be rejected.
         let exerciseNames = exercises.map(\.name)
-        guard Set(exerciseNames).count == exerciseNames.count else {
-            let duplicate: String = Dictionary(grouping: exerciseNames, by: \.self)
-                .first(where: { $0.value.count > 1 })?.key ?? "Unknown"
-            throw BackupValidationError.duplicateExerciseName(duplicate)
+        if version < Self.programVersion {
+            guard Set(exerciseNames).count == exerciseNames.count else {
+                let duplicate: String = Dictionary(grouping: exerciseNames, by: \.self)
+                    .first(where: { $0.value.count > 1 })?.key ?? "Unknown"
+                throw BackupValidationError.duplicateExerciseName(duplicate)
+            }
         }
 
         let availableExerciseNames = Set(exerciseNames)

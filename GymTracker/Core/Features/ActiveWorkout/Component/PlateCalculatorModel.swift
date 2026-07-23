@@ -4,9 +4,61 @@ import Foundation
 
 struct DiagramPlate: Identifiable, Equatable {
     let weight: Float
+    let count: Int
     let occurrence: Int
 
-    var id: String { "\(weight)-\(occurrence)" }
+    var id: String { "\(weight)-\(count)-\(occurrence)" }
+}
+
+enum PlateDiagramLayout {
+    static let compactThreshold = 8
+
+    static func items(for plates: [Float]) -> [DiagramPlate] {
+        guard plates.count > compactThreshold else {
+            var occurrences: [Float: Int] = [:]
+            return plates.map { weight in
+                let occurrence = occurrences[weight, default: 0]
+                occurrences[weight] = occurrence + 1
+                return DiagramPlate(weight: weight, count: 1, occurrence: occurrence)
+            }
+        }
+
+        var items: [DiagramPlate] = []
+        for weight in plates {
+            if let last = items.last, last.weight == weight {
+                items[items.count - 1] = DiagramPlate(
+                    weight: weight,
+                    count: last.count + 1,
+                    occurrence: last.occurrence
+                )
+            } else {
+                let occurrence = items.filter { $0.weight == weight }.count
+                items.append(DiagramPlate(weight: weight, count: 1, occurrence: occurrence))
+            }
+        }
+        return items
+    }
+}
+
+struct PlateLoadComposition: Equatable {
+    private(set) var plates: [Float]
+
+    init(plates: [Float] = []) {
+        self.plates = plates
+    }
+
+    mutating func add(_ plate: Float) {
+        plates.append(plate)
+    }
+
+    mutating func remove(_ plate: Float) {
+        guard let index = plates.lastIndex(of: plate) else { return }
+        plates.remove(at: index)
+    }
+
+    func totalWeight(barWeight: Float) -> Float {
+        barWeight + plates.reduce(0, +) * 2
+    }
 }
 
 struct PlateEquipment {

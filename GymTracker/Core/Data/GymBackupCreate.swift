@@ -249,7 +249,14 @@ extension BackupDTO {
                         variationSelectedExerciseIDSnapshot: exercise.variationSelectedExerciseIDSnapshot?.uuidString,
                         prescriptionDefinitionData: exercise.prescriptionDefinitionData,
                         prescriptionRulesData: exercise.prescriptionRulesData,
-                        deferredBackOffDefinitionsData: exercise.deferredBackOffDefinitionsData
+                        deferredBackOffDefinitionsData: exercise.deferredBackOffDefinitionsData,
+                        nameSnapshot: exercise.nameSnapshot,
+                        exerciseIDSnapshot: exercise.historicalExerciseID.uuidString,
+                        trackingTypeSnapshot: exercise.trackingTypeSnapshot.rawValue,
+                        lateralitySnapshot: exercise.lateralitySnapshot.rawValue,
+                        repCountingStyleSnapshot: exercise.repCountingStyleSnapshot.rawValue,
+                        weightEntryStyleSnapshot: exercise.weightEntryStyleSnapshot.rawValue,
+                        loadUnitCountSnapshot: exercise.loadUnitCountSnapshot
                     )
                 },
                 executionBlocks: workout.orderedExecutionBlocks.map { block in

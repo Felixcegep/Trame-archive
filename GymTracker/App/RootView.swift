@@ -63,7 +63,7 @@ struct RootView: View {
                             }
                         )
                     case .settings:
-                        SettingView()
+                        SettingView(currentScreen: currentAppScreen)
                     }
                 }
             }
@@ -348,7 +348,11 @@ struct RootView: View {
             templateToStart = nil
             plannedWorkoutToStart = nil
             isShowingActiveWorkout = false
-            seedSystemCatalog()
+            // The restore transaction already staged and committed the
+            // bundled catalog as part of its single save (see
+            // `GymBackupRestore.restore(to:beforeCommit:)`). Reinstalling it
+            // here would be a second, non-atomic transaction whose failure
+            // could not roll back the already-committed restore.
             workoutVM.restoreActiveWorkout(using: modelContext)
             Task {
                 await PlanNotificationScheduler.shared.reconcile(using: modelContext)
@@ -357,6 +361,13 @@ struct RootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .planScheduleDidChange)) { _ in
             Task { await PlanNotificationScheduler.shared.reconcile(using: modelContext) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .activeWorkoutMutated)) { notification in
+            // The sole subscriber to App Intent / Live Activity mutations, so
+            // the open Active Workout UI reflects an externally-committed
+            // change without relaunching or duplicating the mutation itself.
+            guard let workoutID = notification.object as? UUID else { return }
+            workoutVM.handleExternalWorkoutChange(workoutID: workoutID, using: modelContext)
         }
         .onReceive(NotificationCenter.default.publisher(for: .planNotificationOpened)) { notification in
             guard let destination = notification.object as? PlanNotificationDestination else { return }
@@ -381,6 +392,19 @@ struct RootView: View {
                 }
             }
         }
+    }
+
+    /// The coarse product destination currently visible, derived from
+    /// existing root-owned navigation state rather than tracked imperatively
+    /// at every boundary. Used only for beta feedback diagnostics.
+    private var currentAppScreen: AppScreen {
+        AppScreen.current(
+            selectedTab: selectedTab,
+            isSettingsPresented: todayPath.last == .settings,
+            isShowingActiveWorkout: isShowingActiveWorkout,
+            isShowingWorkoutSave: activeWorkoutPath.last == .saveWorkout,
+            isShowingActiveMobility: isShowingActiveMobility
+        )
     }
 
     private func plan(id: UUID) -> WorkoutPlan? {
@@ -569,6 +593,13 @@ struct RootView: View {
                 for (exerciseIndex, exercise) in orderedExercises.enumerated() {
                     if exercise.orderIndex != exerciseIndex {
                         exercise.orderIndex = exerciseIndex
+                        didChange = true
+                    }
+                    // Rows persisted before `exerciseIDSnapshot` existed derive
+                    // it once from their still-live relationship. Later renames
+                    // or archival must never overwrite it again.
+                    if exercise.exerciseIDSnapshot == nil {
+                        exercise.exerciseIDSnapshot = exercise.exercise.id
                         didChange = true
                     }
                     let exerciseSets = exercise.sets

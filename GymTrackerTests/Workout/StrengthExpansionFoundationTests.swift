@@ -28,6 +28,47 @@ final class StrengthExpansionFoundationTests: XCTestCase {
         XCTAssertLessThan(closest.totalWeight, 212.5)
     }
 
+    func testManualPlateCompositionPreservesChosenDenominationsAndOrder() {
+        var composition = PlateLoadComposition()
+        composition.add(25)
+        composition.add(20)
+        composition.add(15)
+
+        XCTAssertEqual(composition.plates, [25, 20, 15])
+        XCTAssertEqual(composition.totalWeight(barWeight: 20), 140)
+
+        composition.remove(20)
+        XCTAssertEqual(composition.plates, [25, 15])
+        XCTAssertEqual(composition.totalWeight(barWeight: 20), 100)
+    }
+
+    func testManualPlateCompositionRemovesOnlyOneMatchingPlate() {
+        var composition = PlateLoadComposition(plates: [25, 25, 10])
+
+        composition.remove(25)
+
+        XCTAssertEqual(composition.plates, [25, 10])
+        XCTAssertEqual(composition.totalWeight(barWeight: 20), 90)
+    }
+
+    func testPlateDiagramGroupsLargeRepeatedLoadsWithoutChangingTheirMeaning() {
+        let plates = Array(repeating: Float(25), count: 20)
+
+        let items = PlateDiagramLayout.items(for: plates)
+
+        XCTAssertEqual(items, [DiagramPlate(weight: 25, count: 20, occurrence: 0)])
+    }
+
+    func testPlateDiagramKeepsNormalAndMixedManualLoadsInOrder() {
+        let normal = PlateDiagramLayout.items(for: [25, 25, 10, 2.5])
+        XCTAssertEqual(normal.map(\.weight), [25, 25, 10, 2.5])
+        XCTAssertTrue(normal.allSatisfy { $0.count == 1 })
+
+        let largeMixed = PlateDiagramLayout.items(for: [25, 25, 20, 20, 15, 15, 10, 10, 5])
+        XCTAssertEqual(largeMixed.map(\.weight), [25, 20, 15, 10, 5])
+        XCTAssertEqual(largeMixed.map(\.count), [2, 2, 2, 2, 1])
+    }
+
     func testPerformedEffortWritesAreExclusive() {
         let set = ExerciseSet(repetitions: 8, weight: 80, rpe: 8.5, rir: 2, usedMetric: .metric)
 

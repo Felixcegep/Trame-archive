@@ -226,6 +226,18 @@ nonisolated struct ExerciseEntryDTO: Codable {
     var prescriptionDefinitionData: Data? = nil
     var prescriptionRulesData: Data? = nil
     var deferredBackOffDefinitionsData: Data? = nil
+    /// The entry's own historical identity, distinct from `exerciseName`
+    /// (which stays the live name and is restore's join key). `nil` only for
+    /// backups older than `BackupDTO.historicalIdentitySnapshotVersion`; a
+    /// restored entry then falls back to today's newly-linked exercise, same
+    /// as pre-v15 behavior.
+    var nameSnapshot: String? = nil
+    var exerciseIDSnapshot: String? = nil
+    var trackingTypeSnapshot: String? = nil
+    var lateralitySnapshot: String? = nil
+    var repCountingStyleSnapshot: String? = nil
+    var weightEntryStyleSnapshot: String? = nil
+    var loadUnitCountSnapshot: Int? = nil
 }
 
 nonisolated struct WorkoutDTO: Codable {
@@ -832,7 +844,12 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     // Adds the optional explicit template-exercise stimulus to portable
     // template semantics.
     static let templateStimulusVersion = 14
-    static let currentVersion = templateStimulusVersion
+    // Adds each completed exercise entry's own historical identity snapshot
+    // (name, exercise ID, tracking/laterality/rep-counting/weight-entry/
+    // load-unit) so completed History survives a source rename, archival, or
+    // duplicate-name coexistence independently of the live `exercise` link.
+    static let historicalIdentitySnapshotVersion = 15
+    static let currentVersion = historicalIdentitySnapshotVersion
 
     init(
         version: Int,

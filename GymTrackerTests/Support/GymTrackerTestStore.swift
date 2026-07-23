@@ -8,18 +8,28 @@ import SwiftData
 @MainActor
 enum GymTrackerTestStore {
     static func makeInMemoryContext() throws -> ModelContext {
-        try makeContext(configuration: ModelConfiguration(isStoredInMemoryOnly: true))
+        ModelContext(try makeInMemoryContainer())
+    }
+
+    /// A second `ModelContext(container)` call against the returned container
+    /// simulates an App Intent or Live Activity executing against the same
+    /// persistent store the app-side UI observes, without a disk-backed
+    /// fixture — the two contexts see each other's committed saves the same
+    /// way two real in-process contexts on `GymTrackerModelContainer.shared`
+    /// would.
+    static func makeInMemoryContainer() throws -> ModelContainer {
+        try makeContainer(configuration: ModelConfiguration(isStoredInMemoryOnly: true))
     }
 
     static func withDiskContext<T>(
         at url: URL,
         _ body: (ModelContext) throws -> T
     ) throws -> T {
-        try body(try makeContext(configuration: ModelConfiguration(url: url)))
+        try body(ModelContext(try makeContainer(configuration: ModelConfiguration(url: url))))
     }
 
-    private static func makeContext(configuration: ModelConfiguration) throws -> ModelContext {
-        let container = try ModelContainer(
+    private static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {
+        try ModelContainer(
             for: SystemSeedRecord.self,
             Workout.self,
             WorkoutExecutionBlock.self,
@@ -65,6 +75,5 @@ enum GymTrackerTestStore {
             PlannedSet.self,
             configurations: configuration
         )
-        return ModelContext(container)
     }
 }
