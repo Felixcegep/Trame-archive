@@ -14,7 +14,7 @@ enum TrackingProfileValidationError: Error, Equatable, LocalizedError {
 /// One structured tracking-profile problem found while validating a
 /// prescription graph. `path` identifies the entity inside its graph so
 /// program authoring and backup errors can point at the exact payload node.
-struct TrackingProfileIssue: Equatable, Identifiable, Sendable {
+nonisolated struct TrackingProfileIssue: Equatable, Identifiable, Sendable {
     let path: String
     let exerciseName: String
     let stimulus: TrainingStimulus
@@ -41,7 +41,7 @@ struct TrackingProfileIssue: Equatable, Identifiable, Sendable {
 /// A tracking-profile validation failure raised at a persistence boundary.
 /// It carries every structured issue so UI can keep the draft open and list
 /// the exact incompatible combinations.
-struct TrackingProfileValidationFailure: Error, Equatable, LocalizedError {
+nonisolated struct TrackingProfileValidationFailure: Error, Equatable, LocalizedError {
     let issues: [TrackingProfileIssue]
 
     var errorDescription: String? {
@@ -49,7 +49,7 @@ struct TrackingProfileValidationFailure: Error, Equatable, LocalizedError {
     }
 }
 
-struct TrackingProfileValidator {
+nonisolated struct TrackingProfileValidator {
     // MARK: Rule engine
 
     static func validate(

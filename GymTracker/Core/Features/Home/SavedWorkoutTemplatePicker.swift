@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 #if !GYMTRACKER_EXTENSION
 
