@@ -95,20 +95,16 @@ struct SetDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var pendingEffortMeasure: EffortMeasure?
     @State private var isShowingEffortSwitchConfirmation = false
+    @State private var isShowingAdvancedOptions = false
+    @State private var isRecordingVelocity = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 header
                 setTypeSection
-                setMethodSection
-                if showsVelocity { velocitySection }
-                specializedMetricsSection
                 effortSection
-                liftQualitySection
-                if exerciseSet.prescriptionDefinitionData != nil || exerciseSet.prescribedCalories != nil {
-                    overrideSection
-                }
+                advancedOptionsSection
                 deleteButton
             }
             .padding(.horizontal, Spacing.l)
@@ -119,6 +115,10 @@ struct SetDetailSheet: View {
         .background(Color.gymBackground)
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("set-details-screen", label: "Set details open")
+        }
+        .onAppear {
+            isRecordingVelocity = hasVelocityDataOrPrescription
+            isShowingAdvancedOptions = hasRecordedOrPrescribedAdvancedData
         }
         .confirmationDialog(
             "Switch to \(pendingEffortMeasure == .rpe ? "RPE" : "RIR")?",
@@ -141,7 +141,89 @@ struct SetDetailSheet: View {
     }
 
     private var showsVelocity: Bool {
-        true
+        isRecordingVelocity || hasVelocityDataOrPrescription
+    }
+
+    private var hasVelocityDataOrPrescription: Bool {
+        exerciseSet.isVelocityProbe
+            || exerciseSet.meanVelocity != nil
+            || exerciseSet.peakVelocity != nil
+            || exerciseSet.velocityMeasurementSource != nil
+            || exerciseSet.prescribedVelocityMinimum != nil
+            || exerciseSet.prescribedVelocityMaximum != nil
+            || exerciseSet.prescribedVelocityLossStopPercent != nil
+    }
+
+    private var hasRecordedOrPrescribedAdvancedData: Bool {
+        exerciseSet.setMethod != .standard
+            || showsVelocity
+            || exerciseSet.specializedMetricKind != .none
+            || exerciseSet.liftQuality != nil
+            || exerciseSet.isUserOverridden
+    }
+
+    private var advancedSummary: String {
+        var values: [String] = []
+
+        if exerciseSet.setMethod != .standard {
+            values.append(exerciseSet.setMethod.title)
+        }
+        if showsVelocity {
+            values.append(String(localized: "Velocity"))
+        }
+        if exerciseSet.specializedMetricKind != .none {
+            values.append(exerciseSet.specializedMetricKind.title)
+        }
+        if exerciseSet.liftQuality != nil {
+            values.append(String(localized: "Lift quality"))
+        }
+        if exerciseSet.isUserOverridden {
+            values.append(String(localized: "Override"))
+        }
+
+        return values.isEmpty
+            ? String(localized: "Optional methods and performance measurements")
+            : values.joined(separator: " · ")
+    }
+
+    private var advancedOptionsSection: some View {
+        DisclosureGroup(isExpanded: $isShowingAdvancedOptions) {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
+                setMethodSection
+                if showsVelocity {
+                    velocitySection
+                } else {
+                    Button("Record velocity") {
+                        isRecordingVelocity = true
+                    }
+                    .font(AppFont.footnoteMedium)
+                    .foregroundStyle(Color.gymPrimary)
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("record-set-velocity")
+                }
+                specializedMetricsSection
+                liftQualitySection
+                if exerciseSet.prescriptionDefinitionData != nil || exerciseSet.prescribedCalories != nil {
+                    overrideSection
+                }
+            }
+            .padding(.top, Spacing.s)
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text("Advanced options")
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
+                Text(advancedSummary)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        }
+        .accessibilityIdentifier("set-advanced-options")
+        .accessibilityHint("Reveals set method and optional performance measurements")
+        .padding(Spacing.l)
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
     }
 
     private var velocitySection: some View {
@@ -257,20 +339,30 @@ struct SetDetailSheet: View {
     private var setMethodSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             eyebrow("Set method")
-            Picker("Method", selection: Binding(
-                get: { exerciseSet.setMethod },
-                set: { method in
-                    exerciseSet.setMethod = method
-                    exerciseSet.ensureSegmentsForMethod()
-                    onPersist()
+            if exerciseSet.setMethod == .dropSet {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("Drop set structure")
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.gymText)
+                    Text("Configured by the Drop set type above.")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
-            )) {
-                ForEach(SetMethod.allCases, id: \.self) { method in
-                    Text(method.title).tag(method)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("drop-set-structure")
+            } else {
+                Picker("Method", selection: Binding(
+                    get: { exerciseSet.setMethod },
+                    set: selectSetMethod
+                )) {
+                    ForEach(SetMethod.allCases.filter { $0 != .dropSet }, id: \.self) { method in
+                        Text(method.title).tag(method)
+                    }
                 }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("set-method-picker")
             }
-            .pickerStyle(.menu)
-            .accessibilityIdentifier("set-method-picker")
 
             if exerciseSet.setMethod != .standard {
                 Text(exerciseSet.setMethod.detail)
@@ -448,8 +540,7 @@ struct SetDetailSheet: View {
         let accent = type.accentColor ?? Color.gymPrimary
 
         return Button {
-            exerciseSet.setType = type
-            onPersist()
+            selectSetType(type)
         } label: {
             Label(type.title, systemImage: type.icon)
                 .font(AppFont.footnoteMedium)
@@ -466,6 +557,24 @@ struct SetDetailSheet: View {
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("set-type-option-\(type.rawValue)")
+    }
+
+    private func selectSetType(_ type: SetType) {
+        exerciseSet.setType = type
+        if type == .dropSet {
+            exerciseSet.setMethod = .dropSet
+            exerciseSet.ensureSegmentsForMethod()
+            isShowingAdvancedOptions = true
+        } else if exerciseSet.setMethod == .dropSet {
+            exerciseSet.setMethod = .standard
+        }
+        onPersist()
+    }
+
+    private func selectSetMethod(_ method: SetMethod) {
+        exerciseSet.setMethod = method
+        exerciseSet.ensureSegmentsForMethod()
+        onPersist()
     }
 
     private var effortSection: some View {

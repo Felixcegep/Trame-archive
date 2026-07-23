@@ -20,8 +20,7 @@ struct RootView: View {
     @State private var progressPath: [ProgressRoute] = []
     @State private var activeWorkoutPath: [ActiveWorkoutRoute] = []
     @State private var isShowingActiveWorkout = false
-    @State private var isShowingActiveMobility = false
-    @State private var activeMobilitySessionID: UUID?
+    @State private var activeMobilitySession: MobilitySession?
     @State private var shouldDiscardActiveWorkout = false
     @State private var selectedTab: AppTab = .today
     @State private var requestedRescheduleProgressID: UUID?
@@ -207,19 +206,10 @@ struct RootView: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: $isShowingActiveMobility, onDismiss: {
-            activeMobilitySessionID = nil
-        }) {
+        .fullScreenCover(item: $activeMobilitySession) { session in
             NavigationStack {
-                if let session = mobilitySession(id: activeMobilitySessionID) {
-                    MobilitySessionView(session: session) {
-                        isShowingActiveMobility = false
-                    }
-                } else {
-                    ContentUnavailableView(
-                        "Mobility session unavailable",
-                        systemImage: AppIcon.warning,
-                        description: Text("The session may have been removed."))
+                MobilitySessionView(session: session) {
+                    activeMobilitySession = nil
                 }
             }
         }
@@ -314,8 +304,7 @@ struct RootView: View {
                 workoutVM.restoreActiveWorkout(using: modelContext)
             }
             if let session = MobilitySessionService.activeSession(using: modelContext) {
-                activeMobilitySessionID = session.id
-                isShowingActiveMobility = true
+                activeMobilitySession = session
             }
             if CommandLine.arguments.contains("-ui-testing-open-exercise-detail"),
                let benchPress = try? modelContext.fetch(
@@ -403,7 +392,7 @@ struct RootView: View {
             isSettingsPresented: todayPath.last == .settings,
             isShowingActiveWorkout: isShowingActiveWorkout,
             isShowingWorkoutSave: activeWorkoutPath.last == .saveWorkout,
-            isShowingActiveMobility: isShowingActiveMobility
+            isShowingActiveMobility: activeMobilitySession != nil
         )
     }
 
@@ -455,11 +444,6 @@ struct RootView: View {
         }
     }
 
-    private func mobilitySession(id: UUID?) -> MobilitySession? {
-        guard let id else { return nil }
-        return try? modelContext.fetch(FetchDescriptor<MobilitySession>()).first { $0.id == id }
-    }
-
     private func startMobility(_ routine: MobilityRoutine, _ context: MobilitySessionContext, _ workoutID: UUID?) {
         guard let session = MobilitySessionService.start(
             routine: routine,
@@ -467,13 +451,11 @@ struct RootView: View {
             workoutID: workoutID,
             using: modelContext
         ) else { return }
-        activeMobilitySessionID = session.id
-        isShowingActiveMobility = true
+        activeMobilitySession = session
     }
 
     private func resumeMobility(_ session: MobilitySession) {
-        activeMobilitySessionID = session.id
-        isShowingActiveMobility = true
+        activeMobilitySession = session
     }
 
     /// Central gate for every path that can navigate to Mobility. An
