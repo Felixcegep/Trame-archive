@@ -30,6 +30,7 @@ struct RootView: View {
     @State private var isShowingActiveWorkoutConflictAlert = false
     @State private var isPreparingApp = true
     @State private var appIntentRouteStore = AppIntentRouteStore.shared
+    private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -40,7 +41,7 @@ struct RootView: View {
                     onStartPlannedWorkout: startPlannedWorkout,
                     onStartMobility: startMobility,
                     onResumeMobility: resumeMobility,
-                    onOpenNutrition: { selectedTab = .nutrition },
+                    onOpenNutrition: openNutrition,
                     onOpenTrainMobility: openTrainMobility,
                     onOpenTrainingCalendar: { todayPath.append(.trainingCalendar) },
                     onOpenSettings: { todayPath.append(.settings) },
@@ -51,7 +52,7 @@ struct RootView: View {
                     case .trainingCalendar:
                         TrainingCalendarView(
                             onStartPlannedWorkout: startPlannedWorkout,
-                            onOpenNutrition: { selectedTab = .nutrition },
+                            onOpenNutrition: openNutrition,
                             onOpenMobilityHistory: {
                                 selectedTab = .progress
                                 progressPath = [.mobilityHistory]
@@ -120,24 +121,26 @@ struct RootView: View {
             }
             .tag(AppTab.train)
 
-            NavigationStack(path: $nutritionPath) {
-                NutritionCenterView()
-                    .navigationDestination(for: NutritionRoute.self) { route in
-                        switch route {
-                        case .foodLibrary:
-                            FoodLibraryView()
-                        case .mealTemplates:
-                            MealTemplateLibraryView()
-                        case .targets:
-                            NutritionTargetsView()
+            if featureFlags.isEnabled(.nutrition) {
+                NavigationStack(path: $nutritionPath) {
+                    NutritionCenterView()
+                        .navigationDestination(for: NutritionRoute.self) { route in
+                            switch route {
+                            case .foodLibrary:
+                                FoodLibraryView()
+                            case .mealTemplates:
+                                MealTemplateLibraryView()
+                            case .targets:
+                                NutritionTargetsView()
+                            }
                         }
-                    }
+                }
+                .tabItem {
+                    Label(AppTab.nutrition.title, systemImage: AppTab.nutrition.icon)
+                        .accessibilityIdentifier(AppTab.nutrition.accessibilityIdentifier)
+                }
+                .tag(AppTab.nutrition)
             }
-            .tabItem {
-                Label(AppTab.nutrition.title, systemImage: AppTab.nutrition.icon)
-                    .accessibilityIdentifier(AppTab.nutrition.accessibilityIdentifier)
-            }
-            .tag(AppTab.nutrition)
 
             NavigationStack(path: $progressPath) {
                 ProgressHubView()
@@ -449,9 +452,22 @@ struct RootView: View {
         isShowingActiveMobility = true
     }
 
+    /// Central gate for every path that can navigate to Mobility. An
+    /// already-active session still resumes through `startMobility`/
+    /// `resumeMobility` regardless of this flag: disabling a domain must
+    /// never strand in-progress work, only hide new entry points.
     private func openTrainMobility() {
+        guard featureFlags.isEnabled(.mobility) else { return }
         selectedTab = .train
         trainPath = [.mobility]
+    }
+
+    /// Central gate for every path that can navigate to the Nutrition tab.
+    /// Disabled destinations simply stay on the current parent screen rather
+    /// than navigating into an unavailable tab.
+    private func openNutrition() {
+        guard featureFlags.isEnabled(.nutrition) else { return }
+        selectedTab = .nutrition
     }
 
     private func exercise(id: UUID) -> Exercise? {

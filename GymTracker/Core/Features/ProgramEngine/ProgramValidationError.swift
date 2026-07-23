@@ -31,12 +31,21 @@ nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case invalidStage
         case formulaCycle
         case referenceCycle
+        case trackingProfileConflict
     }
 
     var id: UUID = UUID()
     var path: String
     var code: Code
     var message: String
+}
+
+extension TrackingProfileIssue {
+    /// Surfaces this tracking-profile conflict at the precise payload path
+    /// instead of a generic persistence error.
+    var asProgramValidationIssue: ProgramValidationIssue {
+        ProgramValidationIssue(path: path, code: .trackingProfileConflict, message: message)
+    }
 }
 
 nonisolated enum ProgramDefinitionValidator {

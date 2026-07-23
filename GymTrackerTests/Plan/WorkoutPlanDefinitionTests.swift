@@ -262,7 +262,7 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
 
         var draft = PlanEditorDraft(plan: plan)
         draft.requiredEquipment = [.cable, .barbell, .cable]
-        draft.apply(to: plan, using: context)
+        try draft.apply(to: plan, using: context)
 
         XCTAssertEqual(plan.requiredEquipment, [.barbell, .cable])
     }
@@ -285,7 +285,7 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
 
         var draft = PlanEditorDraft(plan: plan)
         draft.blocks[0].orderIndex = 4
-        draft.apply(to: plan, using: context)
+        try draft.apply(to: plan, using: context)
 
         XCTAssertEqual(plan.orderedBlocks.first?.orderIndex, 4)
     }
@@ -333,7 +333,7 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
 
         var draft = PlanEditorDraft(plan: plan)
         draft.weeks[0].workouts[0].exercises[0].plannedSets = [warmup, working]
-        draft.apply(to: plan, using: context)
+        try draft.apply(to: plan, using: context)
 
         let savedExercise = try XCTUnwrap(
             plan.orderedWeeks.first?.orderedPlannedWorkouts.first?.orderedPlannedExercises.first

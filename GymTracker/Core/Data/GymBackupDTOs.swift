@@ -60,6 +60,9 @@ nonisolated struct TemplateExerciseDTO: Codable {
     var progressionKey: String? = nil
     var executionBlockID: String? = nil
     var executionBlockComponentOrder: Int? = nil
+    // Explicit author intent only. Older backups omit it and restore as nil;
+    // a missing value must never be replaced with an invented default.
+    var stimulus: String? = nil
 }
 
 nonisolated struct TemplateExerciseBlockDTO: Codable {
@@ -826,7 +829,10 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     static let advancedMetricsVersion = 11
     static let formatSchemesVersion = 12
     static let complexComponentResultsVersion = 13
-    static let currentVersion = complexComponentResultsVersion
+    // Adds the optional explicit template-exercise stimulus to portable
+    // template semantics.
+    static let templateStimulusVersion = 14
+    static let currentVersion = templateStimulusVersion
 
     init(
         version: Int,

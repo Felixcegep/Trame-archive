@@ -479,6 +479,10 @@ enum PlanCoordinator {
         startDate: Date = .now,
         using modelContext: ModelContext
     ) -> PlanRun? {
+        // No path may activate a run against an invalid tracking profile, even
+        // one that reached persistence through a route other than the plan
+        // editor (seeded content, a future importer, direct model mutation).
+        guard TrackingProfileValidator.validate(plan: plan).isEmpty else { return nil }
         guard let run = startRun(for: plan, startDate: startDate) else { return nil }
         modelContext.insert(run)
         return saveAndNotify(using: modelContext) ? run : nil

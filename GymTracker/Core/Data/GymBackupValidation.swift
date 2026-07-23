@@ -29,6 +29,7 @@ enum BackupValidationError: LocalizedError {
     case missingWorkout(String)
     case invalidExerciseRelationship
     case invalidProgramDefinition(String)
+    case invalidTrackingProfile(String)
 
     var errorDescription: String? {
         switch self {
@@ -56,13 +57,15 @@ enum BackupValidationError: LocalizedError {
             return "The backup contains an invalid exercise relationship."
         case .invalidProgramDefinition(let message):
             return "The backup contains an invalid program definition: \(message)"
+        case .invalidTrackingProfile(let message):
+            return "The backup contains an invalid tracking profile: \(message)"
         }
     }
 }
 
 extension BackupDTO {
     func validate() throws {
-        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.mobilityVersion || version == Self.nutritionVersion || version == Self.bodyWeightVersion || version == Self.strengthExpansionVersion || version == Self.advancedMetricsVersion || version == Self.formatSchemesVersion || version == Self.currentVersion else {
+        guard version == Self.legacyVersion || version == Self.planVersion || version == Self.supersetVersion || version == Self.programVersion || version == Self.dailyContextVersion || version == Self.mobilityVersion || version == Self.nutritionVersion || version == Self.bodyWeightVersion || version == Self.strengthExpansionVersion || version == Self.advancedMetricsVersion || version == Self.formatSchemesVersion || version == Self.complexComponentResultsVersion || version == Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
 
@@ -98,6 +101,11 @@ extension BackupDTO {
             )
             for templateExercise in template.templateExercises where !availableExerciseNames.contains(templateExercise.exerciseName) {
                 throw BackupValidationError.missingExercise(templateExercise.exerciseName)
+            }
+            for templateExercise in template.templateExercises {
+                guard templateExercise.stimulus.map({ TrainingStimulus(rawValue: $0) != nil }) ?? true else {
+                    throw BackupValidationError.invalidIdentifier("template exercise stimulus")
+                }
             }
         }
 
@@ -247,6 +255,12 @@ extension BackupDTO {
 
         if version >= Self.nutritionVersion {
             try validateNutrition()
+        }
+
+        // No stimulus/tracking combination may enter persistence through a
+        // restore, regardless of the backup's format version.
+        if let issue = TrackingProfileValidator.validate(backup: self).first {
+            throw BackupValidationError.invalidTrackingProfile(issue.message)
         }
 
         guard version != Self.legacyVersion else { return }

@@ -5,9 +5,24 @@ struct TemplateExerciseEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var templateExercise: TemplateExercise
+    @State private var validationMessage: String?
 
     var body: some View {
         Form {
+            Section {
+                Picker("Primary stimulus", selection: $templateExercise.stimulus) {
+                    Text("Not specified").tag(TrainingStimulus?.none)
+                    ForEach(selectableStimuli, id: \.self) { stimulus in
+                        Text(stimulus.title).tag(Optional(stimulus))
+                    }
+                }
+                .accessibilityIdentifier("template-stimulus-picker")
+            } header: {
+                Text("Classification")
+            } footer: {
+                Text("Not specified keeps this prescription unclassified. Workouts started from this template only record a stimulus when one is chosen here or the exercise implies one unambiguously.")
+            }
+
             Section("Prescription") {
                 Stepper("Sets: \(templateExercise.targetSets)", value: $templateExercise.targetSets, in: 1...12)
                 Stepper("Minimum reps: \(templateExercise.repRangeMinimum)", value: minimumReps, in: 1...30)
@@ -54,11 +69,36 @@ struct TemplateExerciseEditorView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") {
-                    save()
-                    dismiss()
+                    if save() {
+                        dismiss()
+                    }
                 }
             }
         }
+        .alert(
+            Text("Incompatible tracking"),
+            isPresented: isShowingValidationError
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(validationMessage ?? "")
+        }
+    }
+
+    private var selectableStimuli: [TrainingStimulus] {
+        // Offering only compatible stimuli keeps an invalid combination from
+        // ever being written through this editor; the save-time check still
+        // guards state that arrived invalid from elsewhere.
+        TrackingProfileValidator.compatibleStimuli(
+            for: templateExercise.resolvedTrackingType
+        )
+    }
+
+    private var isShowingValidationError: Binding<Bool> {
+        Binding(
+            get: { validationMessage != nil },
+            set: { if !$0 { validationMessage = nil } }
+        )
     }
 
     private var minimumReps: Binding<Int> {
@@ -104,7 +144,16 @@ struct TemplateExerciseEditorView: View {
         }
     }
 
-    private func save() {
+    @discardableResult
+    private func save() -> Bool {
+        let issues = TrackingProfileValidator.validate(templateExercise: templateExercise)
+        guard issues.isEmpty else {
+            let message = issues.map(\.message).joined(separator: "\n")
+            validationMessage = message
+            AccessibilityNotification.Announcement(message).post()
+            return false
+        }
         saveModelContext(modelContext)
+        return true
     }
 }

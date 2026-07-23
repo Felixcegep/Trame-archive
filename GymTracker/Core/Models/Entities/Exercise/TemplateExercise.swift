@@ -19,6 +19,10 @@ final class TemplateExercise {
     var targetRIR: Int?
     var notes: String?
     var trackingTypeOverrideRaw: String?
+    // Optional for compatibility with templates persisted before stimulus was
+    // added. Absence means the author never classified this prescription; it
+    // must never be backfilled with a concrete value.
+    var stimulusRaw: String?
     var progressionRule: ProgressionRule = ProgressionRule.doubleProgression
     var exercise: Exercise
     var workoutTemplate: WorkoutTemplate?
@@ -36,6 +40,22 @@ final class TemplateExercise {
         trackingTypeOverride ?? exercise.trackingType
     }
 
+    var stimulus: TrainingStimulus? {
+        get {
+            stimulusRaw.flatMap(TrainingStimulus.init(rawValue:))
+        }
+        set {
+            stimulusRaw = newValue?.rawValue
+        }
+    }
+
+    /// Explicit template stimulus, then an unambiguous exercise-derived
+    /// default, then nil. A nil result means "not classified" and is a valid
+    /// snapshot value — never substitute a placeholder for it.
+    var resolvedStimulus: TrainingStimulus? {
+        stimulus ?? TrainingStimulusResolver.inferredStimulus(for: exercise)
+    }
+
     init(
         exercise: Exercise,
         order: Int,
@@ -48,6 +68,7 @@ final class TemplateExercise {
         notes: String? = nil,
         progressionRule: ProgressionRule = .doubleProgression,
         trackingTypeOverride: TrackingType? = nil,
+        stimulus: TrainingStimulus? = nil,
         supersetGroupID: UUID? = nil,
         progressionKey: String? = nil
     ) {
@@ -62,6 +83,7 @@ final class TemplateExercise {
         self.targetRIR = targetRIR
         self.notes = notes
         self.trackingTypeOverrideRaw = trackingTypeOverride?.rawValue
+        self.stimulusRaw = stimulus?.rawValue
         self.progressionRule = progressionRule
         self.supersetGroupID = supersetGroupID
         self.executionBlockID = nil

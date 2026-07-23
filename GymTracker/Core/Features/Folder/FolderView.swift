@@ -10,6 +10,7 @@ struct FolderView: View {
 
     @State private var activeSheet: FolderSheet?
     @State private var searchText = ""
+    private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     let onStartWorkout: (WorkoutTemplate) -> Void
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
@@ -209,36 +210,40 @@ struct FolderView: View {
 
             LibraryGroupDivider()
 
-            NavigationLink {
-                ProgramCatalogView()
-            } label: {
-                LibraryItemRow(
-                    title: "Program Catalog",
-                    subtitle: nil,
-                    icon: AppIcon.progression,
-                    color: Color.gymPrimary,
-                    surface: Color.gymPrimarySurface,
-                    count: 13,
-                    showsCard: false
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("program-catalog-browser")
+            if featureFlags.isEnabled(.programBuilder) {
+                NavigationLink {
+                    ProgramCatalogView()
+                } label: {
+                    LibraryItemRow(
+                        title: "Program Catalog",
+                        subtitle: nil,
+                        icon: AppIcon.progression,
+                        color: Color.gymPrimary,
+                        surface: Color.gymPrimarySurface,
+                        count: 13,
+                        showsCard: false
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("program-catalog-browser")
 
-            LibraryGroupDivider()
-
-            NavigationLink(value: LibraryRoute.mobility) {
-                LibraryItemRow(
-                    title: "Mobility",
-                    subtitle: "Routines and movement library",
-                    icon: AppIcon.mobility,
-                    color: Color.gymSecondary,
-                    surface: Color.gymSecondarySurface,
-                    showsCard: false
-                )
+                LibraryGroupDivider()
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("train-mobility-library")
+
+            if featureFlags.isEnabled(.mobility) {
+                NavigationLink(value: LibraryRoute.mobility) {
+                    LibraryItemRow(
+                        title: "Mobility",
+                        subtitle: "Routines and movement library",
+                        icon: AppIcon.mobility,
+                        color: Color.gymSecondary,
+                        surface: Color.gymSecondarySurface,
+                        showsCard: false
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("train-mobility-library")
+            }
         }
     }
 

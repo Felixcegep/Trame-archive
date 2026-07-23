@@ -169,7 +169,7 @@ final class ExerciseEntry{
             supersetGroupID: supersetGroupID
         )
         trackingTypeSnapshot = templateExercise.resolvedTrackingType
-        stimulusSnapshot = .hypertrophy
+        stimulusSnapshot = templateExercise.resolvedStimulus
         prescribedSets = templateExercise.targetSets
         prescribedRepRangeMinimum = templateExercise.repRangeMinimum
         prescribedRepRangeMaximum = templateExercise.repRangeMaximum

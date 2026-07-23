@@ -8346,6 +8346,72 @@
           }
         }
       }
+    },
+    "“%1$@” pairs a %2$@ stimulus with %3$@ tracking, which cannot be logged. Compatible tracking types: %4$@.": {
+      "comment": "Tracking-profile validation failure. 1: exercise name, 2: stimulus, 3: tracking type, 4: compatible tracking types",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "« %1$@ » associe un stimulus %2$@ à un suivi %3$@, ce qui ne peut pas être enregistré. Types de suivi compatibles : %4$@."
+          }
+        }
+      }
+    },
+    "The program could not be saved. Please try again.": {
+      "comment": "Fallback error shown when saving an edited program fails for a reason other than an invalid tracking profile.",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le programme n’a pas pu être enregistré. Veuillez réessayer."
+          }
+        }
+      }
+    },
+    "Incompatible tracking": {
+      "comment": "Alert title shown when a template exercise's stimulus and tracking type cannot be logged together.",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivi incompatible"
+          }
+        }
+      }
+    },
+    "Changes not saved": {
+      "comment": "Alert title shown when confirming plan changes fails and the review sheet stays open.",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifications non enregistrées"
+          }
+        }
+      }
+    },
+    "Not specified": {
+      "comment": "Picker option meaning no primary stimulus has been chosen for this template exercise.",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non spécifié"
+          }
+        }
+      }
+    },
+    "Not specified keeps this prescription unclassified. Workouts started from this template only record a stimulus when one is chosen here or the exercise implies one unambiguously.": {
+      "comment": "Footer explaining the template exercise stimulus picker's \"Not specified\" option.",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non spécifié laisse cette prescription non classée. Les séances démarrées à partir de ce modèle n’enregistrent un stimulus que si un choix est fait ici ou si l’exercice l’implique sans ambiguïté."
+          }
+        }
+      }
     }
   },
   "version": "1.2"

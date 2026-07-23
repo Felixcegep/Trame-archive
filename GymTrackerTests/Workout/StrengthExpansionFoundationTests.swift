@@ -753,4 +753,44 @@ final class StrengthExpansionFoundationTests: XCTestCase {
         XCTAssertEqual(restoredWorkout.orderedExecutionBlocks.first?.completedRounds, 3)
         XCTAssertEqual(restoredWorkout.orderedExecutionBlocks.first?.additionalRepetitions, 8)
     }
+
+    /// `ExerciseSet.tempo`, `movementQuality`, `descriptiveROM`, and
+    /// `discomfortScore` are unsupported performed fields: they exist for
+    /// storage/backup compatibility only and must never gain a production
+    /// input control. This is a source-level regression guard rather than a
+    /// UI snapshot test because the app has no view-inspection dependency;
+    /// it fails the moment any active-workout view binds one of these
+    /// properties, before it can ship silently.
+    func testActiveWorkoutSetDetailExposesNoReservedPerformedFields() throws {
+        let reservedFields = ["movementQuality", "descriptiveROM", "discomfortScore"]
+        let activeWorkoutSourceRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Workout
+            .deletingLastPathComponent() // GymTrackerTests
+            .deletingLastPathComponent() // repository root
+            .appendingPathComponent("GymTracker/Core/Features/ActiveWorkout")
+
+        let sourceFiles = try FileManager.default
+            .contentsOfDirectory(
+                at: activeWorkoutSourceRoot.appendingPathComponent("Component"),
+                includingPropertiesForKeys: nil
+            )
+            .filter { $0.pathExtension == "swift" }
+        XCTAssertFalse(sourceFiles.isEmpty, "Expected to find active workout component sources to scan.")
+
+        for file in sourceFiles {
+            let source = try String(contentsOf: file, encoding: .utf8)
+            for field in reservedFields {
+                XCTAssertFalse(
+                    source.contains(field),
+                    "\(file.lastPathComponent) must not reference reserved performed field '\(field)'."
+                )
+            }
+            // Performed tempo is unsupported; prescribed tempo is separate,
+            // supported evidence and must remain untouched by this check.
+            XCTAssertFalse(
+                source.contains("exerciseSet.tempo") || source.contains("$exerciseSet.tempo"),
+                "\(file.lastPathComponent) must not bind ExerciseSet.tempo (unsupported performed tempo)."
+            )
+        }
+    }
 }

@@ -68,7 +68,8 @@ extension BackupDTO {
                         supersetGroupID: te.supersetGroupID?.uuidString,
                         progressionKey: te.progressionKey,
                         executionBlockID: te.executionBlockID?.uuidString,
-                        executionBlockComponentOrder: te.executionBlockComponentOrder
+                        executionBlockComponentOrder: te.executionBlockComponentOrder,
+                        stimulus: te.stimulus?.rawValue
                     )
                 },
                 executionBlocks: template.orderedExecutionBlocks.map { block in

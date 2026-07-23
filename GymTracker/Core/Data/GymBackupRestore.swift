@@ -149,6 +149,7 @@ extension BackupDTO {
                     te.orderIndex = teDTO.orderIndex
                     te.executionBlockID = teDTO.executionBlockID.flatMap(UUID.init(uuidString:))
                     te.executionBlockComponentOrder = teDTO.executionBlockComponentOrder
+                    te.stimulus = teDTO.stimulus.flatMap(TrainingStimulus.init(rawValue:))
                     templateExercises.append(te)
                 }
 
@@ -1128,6 +1129,17 @@ extension BackupDTO {
             // installation metadata.
             _ = try SystemSeedCatalogCoordinator.stageBundledCatalog(in: context)
 #endif
+            // Validate the restored graph itself immediately before the single
+            // final commit. DTO validation and model materialization could
+            // disagree, and rolling back here keeps the replacement atomic.
+            let trackingIssues = try context.fetch(FetchDescriptor<WorkoutTemplate>())
+                .flatMap { TrackingProfileValidator.validate(template: $0) }
+                + context.fetch(FetchDescriptor<WorkoutPlan>())
+                .flatMap { TrackingProfileValidator.validate(plan: $0) }
+            guard trackingIssues.isEmpty else {
+                throw TrackingProfileValidationFailure(issues: trackingIssues)
+            }
+
             try beforeCommit?()
             try context.save()
         } catch {

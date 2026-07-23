@@ -5,7 +5,11 @@ struct PlanReviewView: View {
     @Environment(\.dismiss) private var dismiss
 
     let draft: PlanEditorDraft
-    let onConfirm: () -> Void
+    /// Applies the draft; returns a user-facing message when persistence
+    /// refused the changes so the sheet can stay open with edits preserved.
+    let onConfirm: () -> String?
+
+    @State private var confirmErrorMessage: String?
 
     var body: some View {
         List {
@@ -77,11 +81,25 @@ struct PlanReviewView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Confirm Changes") {
-                    onConfirm()
+                    if let message = onConfirm() {
+                        confirmErrorMessage = message
+                        AccessibilityNotification.Announcement(message).post()
+                    }
                 }
                 .disabled(!warnings.isEmpty)
                 .accessibilityIdentifier("confirm-plan-changes")
             }
+        }
+        .alert(
+            Text("Changes not saved"),
+            isPresented: Binding(
+                get: { confirmErrorMessage != nil },
+                set: { if !$0 { confirmErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(confirmErrorMessage ?? "")
         }
     }
 
@@ -97,6 +115,7 @@ struct PlanReviewView: View {
                 }
             }
         }
+        results += draft.trackingProfileIssues.map(\.message)
         return results
     }
 

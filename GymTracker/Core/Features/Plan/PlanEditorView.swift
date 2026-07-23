@@ -104,10 +104,21 @@ struct PlanEditorView: View {
         .sheet(isPresented: $isShowingReview) {
             NavigationStack {
                 PlanReviewView(draft: draft) {
-                    draft.apply(to: plan, using: modelContext)
-                    saveModelContext(modelContext)
+                    do {
+                        try draft.apply(to: plan, using: modelContext)
+                    } catch let failure as TrackingProfileValidationFailure {
+                        modelContext.rollback()
+                        return failure.errorDescription
+                    } catch {
+                        modelContext.rollback()
+                        return error.localizedDescription
+                    }
+                    guard saveModelContext(modelContext) else {
+                        return String(localized: "The program could not be saved. Please try again.")
+                    }
                     isShowingReview = false
                     dismiss()
+                    return nil
                 }
             }
         }

@@ -23,7 +23,15 @@ struct PlanEditorDraft {
         weeks = plan.orderedWeeks.map(PlanWeekDraft.init)
     }
 
-    func apply(to plan: WorkoutPlan, using context: ModelContext) {
+    func apply(to plan: WorkoutPlan, using context: ModelContext) throws {
+        // The review screen blocks confirmation on these issues, but the plan
+        // graph itself is the persistence boundary: intents, importers, and
+        // future editors must receive the same protection as the sheet.
+        let issues = trackingProfileIssues
+        guard issues.isEmpty else {
+            throw TrackingProfileValidationFailure(issues: issues)
+        }
+
         plan.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         plan.goal = goal
         plan.experienceLevel = experienceLevel
@@ -371,7 +379,7 @@ struct PlanExerciseDraft: Identifiable {
             && exercise.trackingType != .assistedBodyweight
             ? .doubleProgression
             : .none
-        stimulus = exercise.defaultTrainingStimulus
+        stimulus = TrainingStimulusResolver.inferredStimulus(for: exercise) ?? .strength
         alternatives = []
         plannedSets = []
         progressionRulesData = nil
@@ -499,6 +507,33 @@ struct PlanExerciseDraft: Identifiable {
         model.plannedSets = plannedSets.enumerated().map { index, set in
             set.makeModel(orderIndex: index)
         }
+    }
+}
+
+extension PlanEditorDraft {
+    /// Structured stimulus/tracking conflicts in the draft. Non-empty issues
+    /// must block applying the draft to the persisted plan graph.
+    var trackingProfileIssues: [TrackingProfileIssue] {
+        var issues: [TrackingProfileIssue] = []
+        for (weekIndex, week) in weeks.enumerated() {
+            for (workoutIndex, workout) in week.workouts.enumerated() {
+                for (exerciseIndex, exercise) in workout.exercises.enumerated()
+                where !TrackingProfileValidator.isValid(
+                    stimulus: exercise.stimulus,
+                    trackingType: exercise.exercise.trackingType
+                ) {
+                    issues.append(
+                        TrackingProfileIssue(
+                            path: "weeks[\(weekIndex)].workouts[\(workoutIndex)].exercises[\(exerciseIndex)]",
+                            exerciseName: exercise.exercise.name,
+                            stimulus: exercise.stimulus,
+                            trackingType: exercise.exercise.trackingType
+                        )
+                    )
+                }
+            }
+        }
+        return issues
     }
 }
 
@@ -638,14 +673,6 @@ struct PlanSetDraft: Identifiable {
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes,
             definitionData: definitionData
         )
-    }
-}
-
-private extension Exercise {
-    var defaultTrainingStimulus: TrainingStimulus {
-        if category == .mobility || category == .flexibility { return .mobility }
-        if trackingType.usesDuration && !trackingType.usesWeight { return .endurance }
-        return .strength
     }
 }
 

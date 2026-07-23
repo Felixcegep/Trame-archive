@@ -102,6 +102,11 @@ enum ProgramDefinitionCompiler {
         guard issues.isEmpty else { throw ProgramDefinitionStoreError.invalid(issues) }
         try validateCatalogReferences(in: definition, exercisesByID: exercisesByID)
 
+        let trackingIssues = TrackingProfileValidator.validate(payload: definition, exercisesByID: exercisesByID)
+        guard trackingIssues.isEmpty else {
+            throw ProgramDefinitionStoreError.invalid(trackingIssues.map(\.asProgramValidationIssue))
+        }
+
         var blocks: [PlanBlock] = []
         for blockDefinition in definition.blocks.sorted(by: { $0.orderIndex < $1.orderIndex }) {
             let weeks = try blockDefinition.weeks.sorted(by: { $0.weekIndex < $1.weekIndex }).map { weekDefinition in
@@ -264,6 +269,7 @@ enum ProgramDefinitionCompiler {
             targetRPE: first?.targetRPE,
             targetRIR: first?.targetRIR,
             progressionRule: .none,
+            stimulus: TrainingStimulusResolver.inferredStimulus(for: exercise) ?? .strength,
             alternatives: alternatives,
             plannedSets: plannedSets,
             progressionKey: definition.exposureKey,
@@ -359,6 +365,7 @@ enum ProgramRunLifecycleService {
             return nil
         }
         guard previousRun.sourcePlanID == plan.id else { return nil }
+        guard TrackingProfileValidator.validate(plan: plan).isEmpty else { return nil }
         guard let run = PlanCoordinator.startRun(for: plan, startDate: startDate) else { return nil }
 
         if carryState {
