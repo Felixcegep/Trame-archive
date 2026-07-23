@@ -508,12 +508,14 @@ struct SetRowView: View {
                     .accessibilityIdentifier("plate-calculator-\(exerciseEntry.exercise.name)")
                 }
 
-                if !isCurrentSet, previousSet != nil {
+                if index > 0, focusedInput.wrappedValue == nil {
                     Button {
-                        viewModel.applyPreviousPerformance(to: exerciseSet, in: exerciseEntry, index: index)
+                        viewModel.copyPreviousSetValue(exerciseEntry: exerciseEntry, currentSetIndex: index)
                     } label: {
-                        Label("Copy previous set", systemImage: AppIcon.copy)
+                        Label("Copy last set", systemImage: AppIcon.copy)
                     }
+                    .accessibilityIdentifier("copy-last-set-\(exerciseEntry.exercise.name)-\(index)")
+                    .accessibilityHint("Copies the values from the preceding set in this workout")
                 }
 
                 Button {

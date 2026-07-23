@@ -157,6 +157,14 @@ struct ActiveWorkoutView: View {
                 }
                 .disabled(nextInput == nil)
 
+                Button {
+                    viewModel.copyValuesForFocusedSet(focusedInput)
+                } label: {
+                    Label("Copy last set", systemImage: AppIcon.copy)
+                }
+                .disabled(!viewModel.canCopyValuesForFocusedSet(focusedInput))
+                .accessibilityHint("Copies the values from the preceding set in this workout")
+
                 Spacer()
 
                 Button("Done") {

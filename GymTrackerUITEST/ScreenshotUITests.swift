@@ -140,9 +140,12 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(inProgress.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(inProgress.staticTexts["Set 1"].exists)
         XCTAssertTrue(inProgress.sliders["rir-slider"].exists)
-        XCTAssertTrue(inProgress.descendants(matching: .any)["set-method-picker"].exists)
+        XCTAssertTrue(inProgress.descendants(matching: .any)["set-advanced-options"].exists)
+        XCTAssertFalse(inProgress.descendants(matching: .any)["set-method-picker"].exists)
         saveScreenshot("active-workout/07b_Set_Details")
-        scrollToElement(inProgress.buttons["lift-quality-excellent"], in: inProgress)
+        tapButton("set-advanced-options", in: inProgress)
+        XCTAssertTrue(inProgress.descendants(matching: .any)["set-method-picker"].waitForExistence(timeout: 5))
+        XCTAssertTrue(inProgress.buttons["record-set-velocity"].exists)
     }
 
     func testCaptureExecutionBlockScreenshots() {
@@ -161,7 +164,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let advancedSet = launchFixture("active-advanced-set")
         tapButton("set-menu-Bench Press-0", in: advancedSet)
         tapButton("Set details", in: advancedSet)
-        XCTAssertTrue(advancedSet.descendants(matching: .any)["set-method-picker"].waitForExistence(timeout: 5))
+        XCTAssertTrue(advancedSet.descendants(matching: .any)["drop-set-structure"].waitForExistence(timeout: 5))
+        XCTAssertFalse(advancedSet.descendants(matching: .any)["set-method-picker"].exists)
         XCTAssertTrue(advancedSet.descendants(matching: .any)["specialized-metric-picker"].exists)
         XCTAssertTrue(advancedSet.descendants(matching: .any)["add-set-segment"].exists)
         saveScreenshot("active-workout/07e_Set_Method_Segments")

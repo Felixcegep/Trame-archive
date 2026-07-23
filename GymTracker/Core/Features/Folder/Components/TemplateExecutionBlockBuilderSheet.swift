@@ -35,9 +35,13 @@ struct TemplateExecutionBlockBuilderSheet: View {
         self.blockToEdit = blockToEdit
         self.onPersist = onPersist
 
+        let editingBlockID = blockToEdit?.id
         _kind = State(initialValue: blockToEdit?.kind ?? .circuit)
-        _selectedIDs = State(initialValue: Set(template.orderedTemplateExercises
-            .filter { $0.executionBlockID == blockToEdit?.id }
+        // A new block starts empty; only an existing block pre-fills its
+        // members. Filtering by a nil id would pre-select every unassigned
+        // exercise.
+        _selectedIDs = State(initialValue: editingBlockID == nil ? [] : Set(template.orderedTemplateExercises
+            .filter { $0.executionBlockID == editingBlockID }
             .map(\.persistentModelID)))
         _name = State(initialValue: blockToEdit?.name ?? "")
         _targetRounds = State(initialValue: blockToEdit?.targetRounds.map(String.init) ?? "")
@@ -67,25 +71,17 @@ struct TemplateExecutionBlockBuilderSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Format") {
+                Section {
                     Picker("Format", selection: $kind) {
                         ForEach(ExerciseBlockKind.allCases, id: \.self) { kind in
                             Text(kind.title).tag(kind)
                         }
                     }
-                    TextField("Optional block name", text: $name)
-                    Picker("Clock", selection: $clockMode) {
-                        ForEach(BlockClockMode.allCases, id: \.self) { clock in
-                            Text(clock.title).tag(clock)
-                        }
-                    }
-                    if supportsRounds {
+                    TextField("Name this block (optional)", text: $name)
+                    if kind.supportsRounds {
                         TextField("Target rounds (optional)", text: $targetRounds)
                             .keyboardType(.numberPad)
                     }
-                    Toggle("Use one shared load", isOn: $isSharedLoad)
-                    TextField("Rest after each round (seconds, optional)", text: $restSeconds)
-                        .keyboardType(.numberPad)
                     if kind == .ladder {
                         Picker("Repetition pattern", selection: $repetitionScheme) {
                             Text(BlockRepetitionScheme.ascendingLadder.title).tag(BlockRepetitionScheme.ascendingLadder)
@@ -95,17 +91,42 @@ struct TemplateExecutionBlockBuilderSheet: View {
                         TextField("Ending repetitions", text: $repetitionEnd).keyboardType(.numberPad)
                         TextField("Step", text: $repetitionStep).keyboardType(.numberPad)
                     }
-                    if clockMode == .countdown {
-                        TextField("Duration (minutes)", text: $durationMinutes)
-                            .keyboardType(.numberPad)
-                    }
-                    if clockMode != .none {
-                        TextField("Time cap (minutes, optional)", text: $timeCapMinutes)
-                            .keyboardType(.numberPad)
-                    }
-                    if clockMode == .repeatingInterval {
+                    if kind.requiresInterval {
                         TextField("Interval (seconds)", text: $intervalSeconds)
                             .keyboardType(.numberPad)
+                    }
+                    if kind.isTimed {
+                        TextField(kind.requiresTimeCap ? "Time cap (minutes)" : "Time cap (minutes, optional)", text: $timeCapMinutes)
+                            .keyboardType(.numberPad)
+                    }
+                } header: {
+                    Text("Format")
+                } footer: {
+                    Text(kind.summary)
+                }
+
+                Section("Advanced options") {
+                    Toggle("Use one shared load", isOn: $isSharedLoad)
+                    TextField("Rest after each round (seconds, optional)", text: $restSeconds)
+                        .keyboardType(.numberPad)
+                    if !kind.isTimed {
+                        Picker("Clock", selection: $clockMode) {
+                            ForEach(BlockClockMode.allCases, id: \.self) { clock in
+                                Text(clock.title).tag(clock)
+                            }
+                        }
+                        if clockMode == .countdown {
+                            TextField("Duration (minutes)", text: $durationMinutes)
+                                .keyboardType(.numberPad)
+                        }
+                        if clockMode != .none {
+                            TextField("Time cap (minutes, optional)", text: $timeCapMinutes)
+                                .keyboardType(.numberPad)
+                        }
+                        if clockMode == .repeatingInterval {
+                            TextField("Interval (seconds)", text: $intervalSeconds)
+                                .keyboardType(.numberPad)
+                        }
                     }
                     Picker("Score", selection: $scoreKind) {
                         ForEach(BlockScoreKind.allCases, id: \.self) { score in
@@ -159,28 +180,21 @@ struct TemplateExecutionBlockBuilderSheet: View {
         .onChange(of: kind) { _, kind in applyDefaults(for: kind) }
     }
 
-    private var supportsRounds: Bool {
-        switch kind {
-        case .pairedSet, .triset, .giantSet, .circuit, .olympicComplex, .ladder, .interval, .medley: true
-        case .straight, .amrap, .emom, .forTime, .chipper: false
-        }
-    }
-
     private func applyDefaults(for kind: ExerciseBlockKind) {
         switch kind {
         case .amrap:
-            clockMode = .countUp; scoreKind = .roundsAndRepetitions
+            clockMode = .countUp; scoreKind = .roundsAndRepetitions; repetitionScheme = .fixed
         case .emom:
-            clockMode = .repeatingInterval; intervalSeconds = intervalSeconds.isEmpty ? "60" : intervalSeconds; scoreKind = .completedWork
+            clockMode = .repeatingInterval; intervalSeconds = intervalSeconds.isEmpty ? "60" : intervalSeconds; scoreKind = .completedWork; repetitionScheme = .fixed
         case .forTime:
-            clockMode = .countUp; scoreKind = .duration
+            clockMode = .countUp; scoreKind = .duration; repetitionScheme = .fixed
         case .interval:
-            clockMode = .repeatingInterval; scoreKind = .completedWork
+            clockMode = .repeatingInterval; scoreKind = .completedWork; repetitionScheme = .fixed
         case .ladder:
-            repetitionScheme = .ascendingLadder
+            repetitionScheme = .ascendingLadder; clockMode = .none; scoreKind = .none
         case .chipper:
-            repetitionScheme = .chipper
-        default: repetitionScheme = .fixed
+            repetitionScheme = .chipper; clockMode = .none; scoreKind = .none
+        default: repetitionScheme = .fixed; clockMode = .none; scoreKind = .none
         }
     }
 

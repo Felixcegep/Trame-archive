@@ -187,41 +187,60 @@ struct SetDetailSheet: View {
     }
 
     private var advancedOptionsSection: some View {
-        DisclosureGroup(isExpanded: $isShowingAdvancedOptions) {
-            VStack(alignment: .leading, spacing: Spacing.xl) {
-                setMethodSection
-                if showsVelocity {
-                    velocitySection
-                } else {
-                    Button("Record velocity") {
-                        isRecordingVelocity = true
+        // An explicit expander instead of DisclosureGroup: the header is a real
+        // Button that owns the `set-advanced-options` identifier (so UI tests can
+        // tap it), and the content is a sibling. A group-level identifier on a
+        // DisclosureGroup would otherwise propagate to every child and clobber
+        // their own identifiers (drop-set-structure, set-method-picker, …).
+        VStack(alignment: .leading, spacing: Spacing.l) {
+            Button {
+                withAnimation { isShowingAdvancedOptions.toggle() }
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("Advanced options")
+                            .font(AppFont.subheadlineSemibold)
+                            .foregroundStyle(Color.gymText)
+                        Text(advancedSummary)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                            .lineLimit(2)
                     }
-                    .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymPrimary)
-                    .frame(minHeight: 44)
-                    .accessibilityIdentifier("record-set-velocity")
+                    Spacer(minLength: 0)
+                    Image(systemName: AppIcon.chevronRight)
+                        .font(AppFont.footnoteMedium)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .rotationEffect(.degrees(isShowingAdvancedOptions ? 90 : 0))
                 }
-                specializedMetricsSection
-                liftQualitySection
-                if exerciseSet.prescriptionDefinitionData != nil || exerciseSet.prescribedCalories != nil {
-                    overrideSection
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("set-advanced-options")
+            .accessibilityHint("Reveals set method and optional performance measurements")
+
+            if isShowingAdvancedOptions {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    setMethodSection
+                    if showsVelocity {
+                        velocitySection
+                    } else {
+                        Button("Record velocity") {
+                            isRecordingVelocity = true
+                        }
+                        .font(AppFont.footnoteMedium)
+                        .foregroundStyle(Color.gymPrimary)
+                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("record-set-velocity")
+                    }
+                    specializedMetricsSection
+                    liftQualitySection
+                    if exerciseSet.prescriptionDefinitionData != nil || exerciseSet.prescribedCalories != nil {
+                        overrideSection
+                    }
                 }
             }
-            .padding(.top, Spacing.s)
-        } label: {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text("Advanced options")
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
-                Text(advancedSummary)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .lineLimit(2)
-            }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         }
-        .accessibilityIdentifier("set-advanced-options")
-        .accessibilityHint("Reveals set method and optional performance measurements")
         .padding(Spacing.l)
         .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
     }

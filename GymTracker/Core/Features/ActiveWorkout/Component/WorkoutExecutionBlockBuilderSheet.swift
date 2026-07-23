@@ -26,6 +26,7 @@ struct WorkoutExecutionBlockBuilderSheet: View {
     @State private var repetitionStep = ""
     @State private var isSharedLoad = false
     @State private var restSeconds = ""
+    @State private var advancedExpanded = false
     @State private var validationMessage: String?
 
     init(
@@ -37,9 +38,13 @@ struct WorkoutExecutionBlockBuilderSheet: View {
         self.blockToEdit = blockToEdit
         self.onPersist = onPersist
 
+        let editingBlockID = blockToEdit?.id
         _kind = State(initialValue: blockToEdit?.kind ?? .circuit)
-        _selectedEntryIDs = State(initialValue: Set(workout.orderedExercises
-            .filter { $0.executionBlockID == blockToEdit?.id }
+        // A brand-new block starts with nothing selected; only an existing
+        // block pre-fills its current members. Filtering by a nil id would
+        // otherwise pre-select every unassigned exercise.
+        _selectedEntryIDs = State(initialValue: editingBlockID == nil ? [] : Set(workout.orderedExercises
+            .filter { $0.executionBlockID == editingBlockID }
             .map(\.persistentModelID)))
         _name = State(initialValue: blockToEdit?.name ?? "")
         _targetRounds = State(initialValue: blockToEdit?.targetRounds.map(String.init) ?? "")
@@ -54,6 +59,9 @@ struct WorkoutExecutionBlockBuilderSheet: View {
         _repetitionStep = State(initialValue: blockToEdit?.repetitionStep.map(String.init) ?? "")
         _isSharedLoad = State(initialValue: blockToEdit?.isSharedLoad ?? false)
         _restSeconds = State(initialValue: blockToEdit?.restSeconds.map(String.init) ?? "")
+        // Reveal advanced options up front only when an existing block already
+        // uses one of them, so the default authoring view stays uncluttered.
+        _advancedExpanded = State(initialValue: blockToEdit.map { $0.isSharedLoad || $0.restSeconds != nil } ?? false)
     }
 
     private var availableEntries: [ExerciseEntry] {
@@ -107,7 +115,7 @@ struct WorkoutExecutionBlockBuilderSheet: View {
 
     private var configurationSection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            sectionTitle("FORMAT", detail: "Defines the shared execution and score")
+            sectionTitle("FORMAT", detail: "How this block is performed")
 
             Picker("Format", selection: $kind) {
                 ForEach(ExerciseBlockKind.allCases, id: \.self) { format in
@@ -115,60 +123,129 @@ struct WorkoutExecutionBlockBuilderSheet: View {
                 }
             }
             .pickerStyle(.menu)
+            .accessibilityIdentifier("block-format-picker")
 
-            TextField("Optional block name", text: $name)
+            Text(kind.summary)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("block-format-summary")
+
+            TextField("Name this block (optional)", text: $name)
                 .textFieldStyle(.roundedBorder)
 
-            if supportsRounds {
+            if kind.supportsRounds {
                 numericField("Target rounds (optional)", text: $targetRounds)
             }
 
             if kind == .ladder {
-                Picker("Repetition pattern", selection: $repetitionScheme) {
-                    Text(BlockRepetitionScheme.ascendingLadder.title).tag(BlockRepetitionScheme.ascendingLadder)
-                    Text(BlockRepetitionScheme.descendingLadder.title).tag(BlockRepetitionScheme.descendingLadder)
-                }
-                .pickerStyle(.menu)
-                numericField("Starting repetitions", text: $repetitionStart)
-                numericField("Ending repetitions", text: $repetitionEnd)
-                numericField("Step", text: $repetitionStep)
+                ladderFields
             }
 
-            Toggle("Use a shared load", isOn: $isSharedLoad)
-            numericField("Rest after each round (seconds, optional)", text: $restSeconds)
-
-            Picker("Clock", selection: $clockMode) {
-                ForEach(BlockClockMode.allCases, id: \.self) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.menu)
-
-            if clockMode == .countdown {
-                numericField("Duration (minutes)", text: $durationMinutes)
-            }
-            if clockMode != .none {
-                numericField("Time cap (minutes, optional)", text: $timeCapMinutes)
-            }
-            if clockMode == .repeatingInterval {
-                numericField("Interval (seconds)", text: $intervalSeconds)
+            if kind.isTimed {
+                timedFormatFields
             }
 
-            Picker("Primary score", selection: $scoreKind) {
-                ForEach(BlockScoreKind.allCases, id: \.self) { kind in
-                    Text(kind.title).tag(kind)
-                }
-            }
-            .pickerStyle(.menu)
+            advancedOptions
         }
         .padding(Spacing.l)
         .background(Color.gymCard)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
+    private var ladderFields: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            Picker("Repetition pattern", selection: $repetitionScheme) {
+                Text(BlockRepetitionScheme.ascendingLadder.title).tag(BlockRepetitionScheme.ascendingLadder)
+                Text(BlockRepetitionScheme.descendingLadder.title).tag(BlockRepetitionScheme.descendingLadder)
+            }
+            .pickerStyle(.menu)
+            numericField("Starting repetitions", text: $repetitionStart)
+            numericField("Ending repetitions", text: $repetitionEnd)
+            numericField("Step", text: $repetitionStep)
+        }
+    }
+
+    private var timedFormatFields: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            if !clockDescription.isEmpty {
+                Label(clockDescription, systemImage: AppIcon.timer)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+            if kind.requiresInterval {
+                numericField("Interval (seconds)", text: $intervalSeconds)
+            }
+            numericField(kind.requiresTimeCap ? "Time cap (minutes)" : "Time cap (minutes, optional)", text: $timeCapMinutes)
+        }
+    }
+
+    private var advancedOptions: some View {
+        DisclosureGroup(isExpanded: $advancedExpanded) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                Toggle("Use a shared load", isOn: $isSharedLoad)
+                numericField("Rest after each round (seconds)", text: $restSeconds)
+
+                if !kind.isTimed {
+                    Picker("Clock", selection: $clockMode) {
+                        ForEach(BlockClockMode.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    if clockMode == .countdown {
+                        numericField("Duration (minutes)", text: $durationMinutes)
+                    }
+                    if clockMode != .none {
+                        numericField("Time cap (minutes, optional)", text: $timeCapMinutes)
+                    }
+                    if clockMode == .repeatingInterval {
+                        numericField("Interval (seconds)", text: $intervalSeconds)
+                    }
+                }
+
+                Picker("Score", selection: $scoreKind) {
+                    ForEach(BlockScoreKind.allCases, id: \.self) { kind in
+                        Text(kind.title).tag(kind)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            .padding(.top, Spacing.s)
+        } label: {
+            Text("Advanced options")
+                .font(AppFont.body)
+                .foregroundStyle(Color.gymText)
+                // Identifier on the label only — a group-level identifier would
+                // propagate to the disclosure's children.
+                .accessibilityIdentifier("block-advanced-options")
+        }
+        .tint(Color.gymPrimary)
+    }
+
+    private var clockDescription: String {
+        switch kind {
+        case .amrap: "Counts up until the time cap."
+        case .forTime: "Counts up until you finish."
+        case .emom: "Repeats every interval until the cap."
+        case .interval: "Repeats the interval throughout."
+        default: ""
+        }
+    }
+
     private var exerciseSelectionSection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            sectionTitle("EXERCISES", detail: selectionHint)
+            HStack(alignment: .firstTextBaseline) {
+                sectionTitle("EXERCISES", detail: kind.exerciseSelectionHint)
+                Spacer(minLength: Spacing.m)
+                if !availableEntries.isEmpty {
+                    Text("\(selectedEntries.count) selected")
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(selectedEntries.isEmpty ? Color.gymSubduedText : Color.gymPrimary)
+                        .accessibilityIdentifier("block-selected-count")
+                }
+            }
 
             if availableEntries.isEmpty {
                 Text("All session exercises already belong to a block.")
@@ -195,25 +272,6 @@ struct WorkoutExecutionBlockBuilderSheet: View {
                     .accessibilityLabel("\(selectedEntryIDs.contains(entry.persistentModelID) ? "Remove" : "Add") \(entry.nameSnapshot)")
                 }
             }
-        }
-    }
-
-    private var supportsRounds: Bool {
-        switch kind {
-        case .pairedSet, .triset, .giantSet, .circuit, .olympicComplex, .ladder, .interval, .medley:
-            true
-        case .straight, .amrap, .emom, .forTime, .chipper:
-            false
-        }
-    }
-
-    private var selectionHint: String {
-        switch kind {
-        case .pairedSet: "Choose exactly two exercises"
-        case .triset: "Choose exactly three exercises"
-        case .giantSet: "Choose four or more exercises"
-        case .straight: "Choose one exercise"
-        default: "Choose the exercises that belong to this block"
         }
     }
 
@@ -248,22 +306,32 @@ struct WorkoutExecutionBlockBuilderSheet: View {
         case .amrap:
             clockMode = .countUp
             scoreKind = .roundsAndRepetitions
+            repetitionScheme = .fixed
         case .emom:
             clockMode = .repeatingInterval
             intervalSeconds = intervalSeconds.isEmpty ? "60" : intervalSeconds
             scoreKind = .completedWork
+            repetitionScheme = .fixed
         case .forTime:
             clockMode = .countUp
             scoreKind = .duration
+            repetitionScheme = .fixed
         case .interval:
             clockMode = .repeatingInterval
             scoreKind = .completedWork
+            repetitionScheme = .fixed
         case .ladder:
             repetitionScheme = .ascendingLadder
+            clockMode = .none
+            scoreKind = .none
         case .chipper:
             repetitionScheme = .chipper
+            clockMode = .none
+            scoreKind = .none
         default:
             repetitionScheme = .fixed
+            clockMode = .none
+            scoreKind = .none
         }
     }
 

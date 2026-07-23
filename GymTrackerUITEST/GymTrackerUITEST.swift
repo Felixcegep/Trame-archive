@@ -259,8 +259,10 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["plate-calculator-Leg Press"].waitForExistence(timeout: 5))
     }
 
-    func testKeyboardNavigatesFocusedSetFields() {
+    func testKeyboardNavigatesFocusedSetFieldsAndCopiesLastSet() {
         let app = launchFixture("active-in-progress")
+
+        enterValidValues(for: "Bench Press", set: 0, repsValue: "10", in: app)
 
         let secondWeightField = app.textFields["weight-field-Bench Press-1"]
         XCTAssertTrue(secondWeightField.waitForExistence(timeout: 5))
@@ -272,6 +274,27 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(nextButton.exists)
         XCTAssertTrue(previousButton.isEnabled)
         previousButton.tap()
+
+        secondWeightField.tap()
+        let copyLastSet = app.buttons["Copy last set"]
+        XCTAssertTrue(copyLastSet.waitForExistence(timeout: 5))
+        XCTAssertTrue(copyLastSet.isEnabled)
+        copyLastSet.tap()
+        XCTAssertEqual(app.textFields["reps-field-Bench Press-1"].value as? String, "10")
+    }
+
+    func testCopyLastSetIsNotDuplicatedWhileEditing() {
+        let app = launchFixture("active-in-progress")
+        let secondWeightField = app.textFields["weight-field-Bench Press-1"]
+
+        XCTAssertTrue(secondWeightField.waitForExistence(timeout: 5))
+        secondWeightField.tap()
+        XCTAssertTrue(app.buttons["Copy last set"].waitForExistence(timeout: 5))
+
+        tapButton("set-menu-Bench Press-1", in: app)
+
+        XCTAssertTrue(app.buttons["Set details"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["copy-last-set-Bench Press-1"].exists)
     }
 
     func testActiveWorkoutSetMutationsAndRestTimer() {
@@ -291,6 +314,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let setMenu = app.buttons["set-menu-Bench Press-1"]
         XCTAssertTrue(setMenu.waitForExistence(timeout: 5))
         setMenu.tap()
+        XCTAssertTrue(app.buttons["copy-last-set-Bench Press-1"].exists)
         tapButton("Set details", in: app)
         XCTAssertTrue(app.buttons["delete-set-Bench Press-1"].waitForExistence(timeout: 5))
         app.buttons["delete-set-Bench Press-1"].tap()
@@ -303,6 +327,18 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["remove-exercise-Bench Press"].waitForExistence(timeout: 5))
         app.buttons["remove-exercise-Bench Press"].tap()
         XCTAssertFalse(app.staticTexts["Bench Press"].exists)
+    }
+
+    func testDropSetTypeConfiguresOneSegmentedChoice() {
+        let app = launchFixture("active-in-progress")
+
+        tapButton("set-menu-Bench Press-0", in: app)
+        tapButton("Set details", in: app)
+        tapButton("set-type-option-dropSet", in: app)
+
+        XCTAssertTrue(app.descendants(matching: .any)["drop-set-structure"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["add-set-segment"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["set-method-picker"].exists)
     }
 
     func testCompletedSetRequiresExplicitEditingAction() {

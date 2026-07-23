@@ -31,7 +31,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "44E006392FF6E3C000BF7D2B"
-               BuildableName = "GymTracker.app"
+               BuildableName = "Trame.app"
                BlueprintName = "GymTracker"
                ReferencedContainer = "container:GymTracker.xcodeproj">
             </BuildableReference>
@@ -86,7 +86,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "44E006392FF6E3C000BF7D2B"
-            BuildableName = "GymTracker.app"
+            BuildableName = "Trame.app"
             BlueprintName = "GymTracker"
             ReferencedContainer = "container:GymTracker.xcodeproj">
          </BuildableReference>
@@ -127,7 +127,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "44E006392FF6E3C000BF7D2B"
-            BuildableName = "GymTracker.app"
+            BuildableName = "Trame.app"
             BlueprintName = "GymTracker"
             ReferencedContainer = "container:GymTracker.xcodeproj">
          </BuildableReference>

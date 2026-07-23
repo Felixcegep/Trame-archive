@@ -35,6 +35,62 @@ enum ExerciseBlockKind: String, Codable, CaseIterable {
         }
     }
 
+    /// A short, plain-language description of how the format is performed. It is
+    /// shown beneath the format picker so a lifter does not need to already know
+    /// the jargon before choosing.
+    var summary: String {
+        switch self {
+        case .straight: "One exercise performed on its own."
+        case .pairedSet: "Two exercises alternated back to back."
+        case .triset: "Three exercises performed back to back."
+        case .giantSet: "Four or more exercises performed back to back."
+        case .circuit: "Cycle through the exercises for a number of rounds."
+        case .olympicComplex: "An ordered lift sequence scored per component."
+        case .amrap: "As many rounds as possible before the time cap."
+        case .emom: "Start a new round on every interval."
+        case .forTime: "Finish all the work as fast as possible."
+        case .ladder: "Repetitions climb or drop each round."
+        case .chipper: "Work through every exercise once, in order."
+        case .interval: "Alternate fixed work and rest intervals."
+        case .medley: "Move through mixed stations in sequence."
+        }
+    }
+
+    /// Whether the format repeats for a configurable number of rounds.
+    var supportsRounds: Bool {
+        switch self {
+        case .pairedSet, .triset, .giantSet, .circuit, .olympicComplex, .ladder, .interval, .medley: true
+        case .straight, .amrap, .emom, .forTime, .chipper: false
+        }
+    }
+
+    /// Formats whose execution is bound to a shared clock. Their timing inputs
+    /// are surfaced directly rather than hidden behind the optional clock
+    /// override, because the clock is intrinsic to the format.
+    var isTimed: Bool {
+        switch self {
+        case .amrap, .emom, .forTime, .interval: true
+        default: false
+        }
+    }
+
+    /// A time cap is a required — not optional — input for these formats.
+    var requiresTimeCap: Bool { self == .amrap || self == .emom }
+
+    /// A repeating-interval length is a required input for these formats.
+    var requiresInterval: Bool { self == .emom || self == .interval }
+
+    /// Guidance for how many exercises the format expects, shown above the
+    /// exercise picker.
+    var exerciseSelectionHint: String {
+        switch self {
+        case .straight: "Choose exactly one exercise."
+        case .pairedSet: "Choose exactly two exercises."
+        case .triset: "Choose exactly three exercises."
+        case .giantSet: "Choose four or more exercises."
+        default: "Choose the exercises that belong to this block."
+        }
+    }
 }
 
 enum WorkoutBlockStatus: String, Codable, CaseIterable {

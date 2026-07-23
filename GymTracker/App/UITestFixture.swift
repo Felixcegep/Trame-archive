@@ -291,6 +291,7 @@ enum UITestFixture: String {
     private static func makeAdvancedSetWorkout(using context: ModelContext) throws {
         let entry = try inProgressEntry(named: "Bench Press", using: context)
         guard let set = entry.orderedSets.first else { throw FixtureError.invalidPlan }
+        set.setType = .dropSet
         set.setMethod = .dropSet
         set.meanVelocity = 0.56
         set.peakVelocity = 0.71
