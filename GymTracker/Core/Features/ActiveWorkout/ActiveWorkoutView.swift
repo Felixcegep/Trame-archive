@@ -190,7 +190,7 @@ struct ActiveWorkoutView: View {
                         )
                     }
 
-                    if viewModel.isTimerVisible {
+                    if viewModel.isTimerVisible && viewModel.hasIncompleteSet {
                         // A paused timer intentionally has no end date. Keep its
                         // controls visible by supplying an unused placeholder; the
                         // paused branch of `restTimer` renders the saved remaining
@@ -219,6 +219,13 @@ struct ActiveWorkoutView: View {
                 guard let focus else { return }
                 withAnimation(reduceMotion ? nil : AppMotion.layout) {
                     proxy.scrollTo(focus.setID, anchor: .center)
+                }
+            }
+            .onChange(of: workout.completedSetCount) { _, _ in
+                // Completing the final set (even mid-rest) ends the workout, so
+                // end any running rest and let the rest card fall away.
+                if viewModel.isTimerVisible && !viewModel.hasIncompleteSet {
+                    viewModel.cancelTimer()
                 }
             }
         }
@@ -353,12 +360,13 @@ struct ActiveWorkoutView: View {
             }
 
             if viewModel.isRestReady {
-                Button("Continue workout") {
-                    viewModel.cancelTimer()
+                Button("Start next set") {
+                    startNextSet()
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Color.gymPrimary)
                 .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("start-next-set")
             } else {
                 HStack(spacing: Spacing.s) {
                     Button("+15s") {
@@ -401,12 +409,49 @@ struct ActiveWorkoutView: View {
 
     private var restStatusMessage: String {
         if viewModel.isRestReady {
-            return "Rest complete. Your next set is ready."
+            if let next = nextSetDescription {
+                return String(localized: "Rest complete · \(next)")
+            }
+            return String(localized: "Rest complete")
         }
         if viewModel.isTimerPaused {
-            return "Rest paused."
+            return String(localized: "Rest paused.")
         }
-        return "Take a breath. Your next set is ready when you are."
+        if let next = nextSetDescription {
+            return next
+        }
+        return String(localized: "Take a breath.")
+    }
+
+    /// "Next: Lat Pulldown · Set 2" — names the exercise and set the lifter will
+    /// resume with, derived from the same next-incomplete-set selector the rest
+    /// of Active Workout uses. Returns nil when nothing is left to do.
+    private var nextSetDescription: String? {
+        guard let next = viewModel.getNextExerciseToDo() else { return nil }
+        let setNumber = (next.exercise.orderedSets.firstIndex {
+            $0.persistentModelID == next.set.persistentModelID
+        } ?? 0) + 1
+        return String(localized: "Next: \(next.exercise.exercise.name) · Set \(setNumber)")
+    }
+
+    /// Ends the rest period and moves the lifter to the next incomplete set:
+    /// expands that exercise and focuses its first editable value. Setting
+    /// `focusedInput` also drives the existing scroll-to-focus behavior.
+    private func startNextSet() {
+        guard let next = viewModel.getNextExerciseToDo() else {
+            viewModel.cancelTimer()
+            return
+        }
+        viewModel.cancelTimer()
+        withAnimation(reduceMotion ? nil : AppMotion.layout) {
+            expandedExerciseID = next.exercise.persistentModelID
+        }
+        let firstField = inputFields(for: next.exercise).first ?? .repetitions
+        focusedInput = SetInputFocus(
+            exerciseID: next.exercise.persistentModelID,
+            setID: next.set.persistentModelID,
+            field: firstField
+        )
     }
 
     private var restAccessibilityIdentifier: String {

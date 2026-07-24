@@ -1058,6 +1058,9 @@ extension BackupDTO {
                 context.insert(food)
             }
 
+            // Maps an original recipe-photo filename to the freshly stored one
+            // so revisions that shared a photo don't each write a duplicate.
+            var restoredRecipePhotoIdentifiers: [String: String] = [:]
             for templateDTO in mealTemplates {
                 guard let preparationState = FoodPreparationState(rawValue: templateDTO.preparationState) else {
                     throw BackupValidationError.invalidIdentifier("meal template")
@@ -1085,6 +1088,16 @@ extension BackupDTO {
                         quantity: itemDTO.quantity,
                         id: try requiredUUID(itemDTO.id, named: "meal template item")
                     )
+                }
+                // Recreate the recognition photo on this device. Bytes travel in
+                // the backup; the on-disk filename is regenerated per install.
+                if let originalID = templateDTO.photoIdentifier {
+                    if let existing = restoredRecipePhotoIdentifiers[originalID] {
+                        template.photoIdentifier = existing
+                    } else if let data = templateDTO.photoData, let stored = RecipePhotoStore.store(data) {
+                        restoredRecipePhotoIdentifiers[originalID] = stored
+                        template.photoIdentifier = stored
+                    }
                 }
                 context.insert(template)
             }

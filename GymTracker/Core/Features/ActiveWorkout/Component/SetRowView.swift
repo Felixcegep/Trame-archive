@@ -21,6 +21,11 @@ struct SetRowView: View {
     @State private var isShowingIncompleteConfirmation = false
     @State private var isTimerRunning = false
     @State private var completedEditSnapshot: CompletedSetEditSnapshot?
+    // In-progress decimal text, kept separate from the numeric model value so a
+    // partially typed value (".", "0.", ",5") survives instead of being erased.
+    // Cleared when focus leaves the field, which re-derives normalized display.
+    @State private var weightEditingText: String?
+    @State private var distanceEditingText: String?
 
     private var trackingType: TrackingType {
         exerciseEntry.trackingTypeSnapshot
@@ -309,23 +314,14 @@ struct SetRowView: View {
 
     private var weightField: some View {
         HStack(spacing: 0) {
-            TextField("Weight", text: Binding(
-                get: { exerciseSet.weight == 0 ? "" : Formatters.formatFloat(exerciseSet.weight) },
-                set: {
-                    if let value = Float($0) {
-                        exerciseSet.weight = max(value, 0)
-                        markUserOverride()
-                    } else if $0.isEmpty {
-                        exerciseSet.weight = 0
-                        markUserOverride()
-                    }
-                    viewModel.persistChanges()
-                }
-            ), prompt: Text(previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? prescribedWeightPrompt))
+            TextField("Weight", text: weightTextBinding, prompt: Text(previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? prescribedWeightPrompt))
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
             .font(AppFont.titleSmallSemiboldMonospaced)
             .focused(focusedInput, equals: inputFocus(.weight))
+            .onChange(of: focusedInput.wrappedValue) { _, focus in
+                if focus != inputFocus(.weight) { weightEditingText = nil }
+            }
             .accessibilityIdentifier("weight-field-\(exerciseEntry.exercise.name)-\(index)")
             .disabled(isCompletedAndLocked)
 
@@ -382,18 +378,56 @@ struct SetRowView: View {
 
 
     private var distanceField: some View {
-        numberField("Distance", text: Binding(
+        numberField("Distance", text: distanceTextBinding, focusID: inputFocus(.distance), prompt: previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) })
+        .onChange(of: focusedInput.wrappedValue) { _, focus in
+            if focus != inputFocus(.distance) { distanceEditingText = nil }
+        }
+        .disabled(isCompletedAndLocked)
+    }
+
+    /// Locale-aware decimal binding for the weight field. Keeps in-progress text
+    /// so ".", "0.", ",5" survive; commits a parsed value to the model.
+    private var weightTextBinding: Binding<String> {
+        Binding(
             get: {
+                if let weightEditingText { return weightEditingText }
+                return exerciseSet.weight == 0 ? "" : Formatters.formatFloat(exerciseSet.weight)
+            },
+            set: { candidate in
+                guard let sanitized = DecimalParser.sanitizedEditingText(candidate) else { return }
+                weightEditingText = sanitized
+                if sanitized.isEmpty {
+                    exerciseSet.weight = 0
+                    markUserOverride()
+                } else if let parsed = DecimalParser.value(from: sanitized) {
+                    exerciseSet.weight = Float(max(parsed, 0))
+                    markUserOverride()
+                }
+                viewModel.persistChanges()
+            }
+        )
+    }
+
+    private var distanceTextBinding: Binding<String> {
+        Binding(
+            get: {
+                if let distanceEditingText { return distanceEditingText }
                 guard let distance = exerciseSet.distance, distance > 0 else { return "" }
                 return Formatters.formatFloat(distance)
             },
-            set: {
-                exerciseSet.distance = $0.isEmpty ? nil : Float($0)
-                markUserOverride()
+            set: { candidate in
+                guard let sanitized = DecimalParser.sanitizedEditingText(candidate) else { return }
+                distanceEditingText = sanitized
+                if sanitized.isEmpty {
+                    exerciseSet.distance = nil
+                    markUserOverride()
+                } else if let parsed = DecimalParser.value(from: sanitized) {
+                    exerciseSet.distance = Float(max(parsed, 0))
+                    markUserOverride()
+                }
                 viewModel.persistChanges()
             }
-        ), focusID: inputFocus(.distance), prompt: previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) })
-        .disabled(isCompletedAndLocked)
+        )
     }
 
     private var doneButton: some View {

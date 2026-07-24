@@ -9,6 +9,10 @@ final class MealTemplate {
     var name: String
     var preparationStateRaw: String
     var finalCookedWeightGrams: Double?
+    /// Filename of an optional recognition photo stored outside SwiftData by
+    /// `RecipePhotoStore`. Multiple revisions in one lineage may share the same
+    /// file, so the file is only removed once no revision references it.
+    var photoIdentifier: String?
     var isCurrent: Bool
     var isArchived: Bool
     var createdAt: Date
@@ -25,6 +29,7 @@ final class MealTemplate {
         name: String,
         preparationState: FoodPreparationState = .cooked,
         finalCookedWeightGrams: Double? = nil,
+        photoIdentifier: String? = nil,
         lineageID: UUID = UUID(),
         version: Int = 1,
         isCurrent: Bool = true,
@@ -39,6 +44,7 @@ final class MealTemplate {
         self.name = name
         self.preparationStateRaw = preparationState.rawValue
         self.finalCookedWeightGrams = finalCookedWeightGrams
+        self.photoIdentifier = photoIdentifier
         self.isCurrent = isCurrent
         self.isArchived = isArchived
         self.createdAt = createdAt

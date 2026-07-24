@@ -752,6 +752,12 @@ nonisolated struct MealTemplateDTO: Codable {
     let createdAt: Date
     let updatedAt: Date
     let items: [MealTemplateItemDTO]
+    /// Recipe recognition photo (v16+). `photoIdentifier` is the original
+    /// per-install filename; `photoData` carries the compressed bytes so the
+    /// image survives a restore onto a different device. Both are `nil` for
+    /// recipes without a photo and for pre-v16 backups.
+    var photoIdentifier: String? = nil
+    var photoData: Data? = nil
 }
 
 nonisolated struct LoggedMealItemDTO: Codable {
@@ -849,7 +855,11 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     // load-unit) so completed History survives a source rename, archival, or
     // duplicate-name coexistence independently of the live `exercise` link.
     static let historicalIdentitySnapshotVersion = 15
-    static let currentVersion = historicalIdentitySnapshotVersion
+    // Adds an optional recipe recognition photo (identifier + compressed bytes)
+    // to portable recipe data. Photos are non-nutrition thumbnails; older
+    // backups simply restore with no photo.
+    static let recipePhotoVersion = 16
+    static let currentVersion = recipePhotoVersion
 
     init(
         version: Int,

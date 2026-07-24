@@ -36,6 +36,18 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.descendants(matching: .any)["settings-shortcuts-link"].exists)
     }
 
+    func testNutritionTargetsEmptyStateOffersCreationWithoutDuplicateDismissal() {
+        let app = launchFreshApp()
+        selectTab(.nutrition, in: app)
+        tapButton("open-nutrition-targets", in: app)
+
+        XCTAssertTrue(app.navigationBars["Nutrition targets"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Close"].exists)
+
+        tapButton("create-nutrition-target-empty", in: app)
+        XCTAssertTrue(app.navigationBars["New target"].waitForExistence(timeout: 5))
+    }
+
     func testStartFreeWorkout() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]

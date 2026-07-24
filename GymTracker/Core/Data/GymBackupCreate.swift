@@ -716,7 +716,9 @@ extension BackupDTO {
                 updatedAt: template.updatedAt,
                 items: template.orderedItems.map {
                     MealTemplateItemDTO(id: $0.id.uuidString, foodID: $0.food.id.uuidString, orderIndex: $0.orderIndex, servingID: $0.servingID?.uuidString, quantity: $0.quantity)
-                }
+                },
+                photoIdentifier: template.photoIdentifier,
+                photoData: RecipePhotoStore.loadData(template.photoIdentifier)
             )
         }
         let loggedMealDTOs = try context.fetch(FetchDescriptor<LoggedMeal>()).map { meal in

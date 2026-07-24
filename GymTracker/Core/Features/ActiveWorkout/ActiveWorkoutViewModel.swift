@@ -47,6 +47,13 @@ class ActiveWorkoutViewModel {
             (exercise: $0.entry, set: $0.set)
         }
     }
+
+    /// True while at least one set still needs to be performed. Once this is
+    /// false the whole workout is complete, so no rest is owed and the rest
+    /// card must not be shown.
+    var hasIncompleteSet: Bool {
+        getNextExerciseToDo() != nil
+    }
     
     func addExercise(_ template: Exercise) {
         guard let activeWorkout = workoutVM.activeWorkout else { return }
@@ -354,7 +361,11 @@ class ActiveWorkoutViewModel {
     private func startRest(seconds: Int?) {
         guard let workout = workoutVM.activeWorkout else { return }
 
-        guard let seconds, seconds > 0 else {
+        // There is nothing to rest for after the final set: never start a rest
+        // (or leave a stale one running) once every set is complete.
+        let hasNextSet = WorkoutSetSelector.nextIncompleteSet(in: workout) != nil
+
+        guard let seconds, seconds > 0, hasNextSet else {
             workout.restEndDate = nil
             workout.pausedRemainingTime = nil
             persistChanges()
@@ -382,6 +393,14 @@ class ActiveWorkoutViewModel {
     }
 
     func restorePersistedRestTimer() {
+        // A rest timer persisted before the app was backgrounded is stale once
+        // every set is complete; clear it instead of resurfacing a rest card
+        // for a finished workout.
+        if let workout = workoutVM.activeWorkout,
+           WorkoutSetSelector.nextIncompleteSet(in: workout) == nil {
+            cancelTimer()
+            return
+        }
         if let timerEndDate = workoutVM.activeWorkout?.restEndDate {
             guard timerEndDate > .now else {
                 workoutVM.activeWorkout?.restEndDate = nil

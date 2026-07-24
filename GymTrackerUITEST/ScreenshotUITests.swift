@@ -538,6 +538,107 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("nutrition/20_Nutrition_Today")
     }
 
+    func testCaptureNutritionTargetsEmptyScreenshot() {
+        let app = launchFreshApp()
+        selectTab(.nutrition, in: app)
+        tapButton("open-nutrition-targets", in: app)
+        XCTAssertTrue(app.navigationBars["Nutrition targets"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["create-nutrition-target-empty"].waitForExistence(timeout: 5))
+        saveScreenshot("nutrition/20b_Nutrition_Targets_Empty")
+    }
+
+    private func openNewRecipeEditorForScreenshot(_ app: XCUIApplication) {
+        selectTab(.nutrition, in: app)
+        tapButton("open-meal-templates", in: app)
+        tapButton("create-meal-template", in: app)
+    }
+
+    func testCaptureRecipeGenerationControlsScreenshot() {
+        let app = launchFreshApp(additionalArguments: [
+            "-ui-test-recipe-generation-availability", "textOnly",
+        ])
+        openNewRecipeEditorForScreenshot(app)
+        XCTAssertTrue(app.buttons["generate-recipe"].waitForExistence(timeout: 5))
+        saveScreenshot("nutrition/20c_Recipe_Generation_Controls")
+    }
+
+    func testCaptureRecipeGeneratingScreenshot() {
+        let app = launchFreshApp(additionalArguments: [
+            "-ui-test-recipe-generation-availability", "textOnly",
+            "-ui-test-recipe-generation-result", "slow",
+        ])
+        openNewRecipeEditorForScreenshot(app)
+        app.textFields["Name"].tap()
+        app.textFields["Name"].typeText("Chicken burrito bowl")
+        tapButton("generate-recipe", in: app)
+        XCTAssertTrue(app.staticTexts["Generating recipe…"].waitForExistence(timeout: 5))
+        saveScreenshot("nutrition/20d_Recipe_Generating")
+    }
+
+    func testCaptureRecipeGeneratedDraftScreenshot() {
+        let app = launchFreshApp(additionalArguments: [
+            "-ui-test-recipe-generation-availability", "textOnly",
+            "-ui-test-recipe-generation-result", "success",
+        ])
+        openNewRecipeEditorForScreenshot(app)
+        app.textFields["Name"].tap()
+        app.textFields["Name"].typeText("Chicken burrito bowl")
+        tapButton("generate-recipe", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["recipe-generation-notice"].waitForExistence(timeout: 10))
+        saveScreenshot("nutrition/20e_Recipe_Generated_Draft")
+    }
+
+    func testCaptureRecipePartialMatchScreenshot() {
+        let app = launchFreshApp(additionalArguments: [
+            "-ui-test-recipe-generation-availability", "textOnly",
+            "-ui-test-recipe-generation-result", "partial-match",
+        ])
+        openNewRecipeEditorForScreenshot(app)
+        app.textFields["Name"].tap()
+        app.textFields["Name"].typeText("High-protein breakfast")
+        tapButton("generate-recipe", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["recipe-generation-notice"].waitForExistence(timeout: 10))
+        saveScreenshot("nutrition/20f_Recipe_Partial_Match")
+    }
+
+    func testCaptureRecipeManualFallbackScreenshot() {
+        let app = launchFreshApp(additionalArguments: [
+            "-ui-test-recipe-generation-availability", "unsupportedDevice",
+        ])
+        openNewRecipeEditorForScreenshot(app)
+        XCTAssertFalse(app.buttons["generate-recipe"].exists)
+        saveScreenshot("nutrition/20g_Recipe_Manual_Fallback")
+    }
+
+    func testCaptureFoodPickerScreenshot() {
+        let app = launchFreshApp(additionalArguments: [
+            "-ui-test-recipe-generation-availability", "unsupportedDevice",
+        ])
+        openNewRecipeEditorForScreenshot(app)
+        tapButton("recipe-add-foods", in: app)
+        XCTAssertTrue(app.navigationBars["Add foods"].waitForExistence(timeout: 5))
+        saveScreenshot("nutrition/20h_Food_Picker")
+    }
+
+    func testCaptureRecipeDetailAndLogScreenshots() {
+        let app = launchFreshApp(additionalArguments: [
+            "-ui-test-recipe-generation-availability", "unsupportedDevice",
+        ])
+        selectTab(.nutrition, in: app)
+        tapButton("open-meal-templates", in: app)
+        // The seeded catalogue ships recipes; open the first one's detail.
+        let firstRecipe = app.cells.firstMatch
+        XCTAssertTrue(firstRecipe.waitForExistence(timeout: 5))
+        firstRecipe.tap()
+        let addToToday = app.buttons["recipe-add-to-today"]
+        XCTAssertTrue(addToToday.waitForExistence(timeout: 5))
+        saveScreenshot("nutrition/20i_Recipe_Detail")
+
+        addToToday.tap()
+        XCTAssertTrue(app.navigationBars["Add to today"].waitForExistence(timeout: 5))
+        saveScreenshot("nutrition/20j_Log_Recipe")
+    }
+
     func testTodayCanQuickLogFood() {
         let app = launchFixture(
             "nutrition-today",

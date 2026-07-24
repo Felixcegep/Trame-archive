@@ -1,5 +1,7 @@
+import PhotosUI
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct NutritionCenterView: View {
     @Environment(\.modelContext) private var modelContext
@@ -388,19 +390,19 @@ struct FoodEditorView: View {
     @Environment(\.modelContext) private var modelContext
     let food: FoodItem?
     @State private var name = ""
-    @State private var referenceAmount = "100"
+    @State private var referenceAmount: Double? = 100
     @State private var referenceUnit: NutritionServingUnit = .grams
-    @State private var calories = ""
-    @State private var protein = ""
-    @State private var carbohydrates = ""
-    @State private var fat = ""
-    @State private var caffeine = ""
+    @State private var calories: Double?
+    @State private var protein: Double?
+    @State private var carbohydrates: Double?
+    @State private var fat: Double?
+    @State private var caffeine: Double?
     @State private var npn = ""
     @State private var confidence: FoodConfidence = .userProvided
     @State private var preparation: FoodPreparationState = .raw
     @State private var servingName = ""
-    @State private var servingAmount = ""
-    @State private var servingEquivalentReferenceAmount = ""
+    @State private var servingAmount: Double?
+    @State private var servingEquivalentReferenceAmount: Double?
     @State private var servingUnit: NutritionServingUnit = .serving
     @State private var removesQuickServing = false
     @State private var errorMessage: String?
@@ -413,7 +415,7 @@ struct FoodEditorView: View {
                 Section("Food") {
                     TextField("Name", text: $name)
                     HStack {
-                        TextField("Reference amount", text: $referenceAmount).keyboardType(.decimalPad)
+                        DecimalField("Reference amount", value: $referenceAmount, range: 0...100000)
                         Picker("Unit", selection: $referenceUnit) {
                             ForEach(NutritionServingUnit.allCases, id: \.self) { Text($0.displayName).tag($0) }
                         }.labelsHidden()
@@ -426,31 +428,31 @@ struct FoodEditorView: View {
                     }
                 }
                 Section("Macros per reference amount") {
-                    TextField("Calories (optional)", text: $calories).keyboardType(.decimalPad)
-                    TextField("Protein g (optional)", text: $protein).keyboardType(.decimalPad)
-                    TextField("Carbohydrates g (optional)", text: $carbohydrates).keyboardType(.decimalPad)
-                    TextField("Fat g (optional)", text: $fat).keyboardType(.decimalPad)
-                    TextField("Caffeine mg (optional)", text: $caffeine).keyboardType(.decimalPad)
+                    DecimalField("Calories (optional)", value: $calories, range: 0...100000)
+                    DecimalField("Protein g (optional)", value: $protein, range: 0...100000)
+                    DecimalField("Carbohydrates g (optional)", value: $carbohydrates, range: 0...100000)
+                    DecimalField("Fat g (optional)", value: $fat, range: 0...100000)
+                    DecimalField("Caffeine mg (optional)", value: $caffeine, range: 0...100000)
                     TextField("NPN (optional, Canadian products)", text: $npn)
                 }
                 Section("Quick serving") {
                     TextField("Serving name (optional)", text: $servingName)
                     HStack {
-                        TextField("Serving amount", text: $servingAmount).keyboardType(.decimalPad)
+                        DecimalField("Serving amount", value: $servingAmount, range: 0...100000)
                         Picker("Serving unit", selection: $servingUnit) {
                             ForEach(NutritionServingUnit.allCases, id: \.self) { Text($0.displayName).tag($0) }
                         }
                         .labelsHidden()
                     }
-                    TextField("Equivalent reference amount", text: $servingEquivalentReferenceAmount).keyboardType(.decimalPad)
+                    DecimalField("Equivalent reference amount", value: $servingEquivalentReferenceAmount, range: 0...100000)
                     Text("For example, a 1 cup serving can represent 240 reference grams. Leave this blank when the reference amount is the only serving.")
                         .font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
                     if food?.orderedServings.isEmpty == false {
                         Button("Remove saved serving", role: .destructive) {
                             removesQuickServing = true
                             servingName = ""
-                            servingAmount = ""
-                            servingEquivalentReferenceAmount = ""
+                            servingAmount = nil
+                            servingEquivalentReferenceAmount = nil
                         }
                     }
                 }
@@ -475,25 +477,25 @@ struct FoodEditorView: View {
 
     private func load() {
         guard let food else { return }
-        name = food.name; referenceAmount = FoodLibraryService.format(food.referenceAmount); referenceUnit = food.referenceUnit
-        calories = string(food.calories); protein = string(food.proteinGrams); carbohydrates = string(food.carbohydrateGrams); fat = string(food.fatGrams); caffeine = string(food.caffeineMilligrams)
+        name = food.name; referenceAmount = food.referenceAmount; referenceUnit = food.referenceUnit
+        calories = food.calories; protein = food.proteinGrams; carbohydrates = food.carbohydrateGrams; fat = food.fatGrams; caffeine = food.caffeineMilligrams
         npn = food.npn ?? ""
         confidence = food.confidence; preparation = food.preparationState
         if let serving = food.orderedServings.first {
-            servingName = serving.name; servingAmount = FoodLibraryService.format(serving.amount); servingEquivalentReferenceAmount = FoodLibraryService.format(serving.equivalentReferenceAmount); servingUnit = serving.unit
+            servingName = serving.name; servingAmount = serving.amount; servingEquivalentReferenceAmount = serving.equivalentReferenceAmount; servingUnit = serving.unit
         }
     }
 
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let amount = Double(referenceAmount), amount > 0 else { errorMessage = "Enter a positive reference amount."; return }
+        guard let amount = referenceAmount, amount > 0 else { errorMessage = "Enter a positive reference amount."; return }
         let allFoods = (try? modelContext.fetch(FetchDescriptor<FoodItem>())) ?? []
         guard allFoods.allSatisfy({ $0.id == food?.id || $0.name.localizedCaseInsensitiveCompare(trimmed) != .orderedSame }) else { errorMessage = "A food with that name already exists."; return }
-        guard [calories, protein, carbohydrates, fat, caffeine].allSatisfy(validOptionalNumber) else { errorMessage = "Nutrition values must be positive numbers or left blank."; return }
+        guard [calories, protein, carbohydrates, fat, caffeine].allSatisfy({ ($0 ?? 0) >= 0 }) else { errorMessage = "Nutrition values must be positive numbers or left blank."; return }
         let target = food ?? FoodItem(name: trimmed)
         target.name = trimmed; target.referenceAmount = amount; target.referenceUnit = referenceUnit
-        target.calories = optionalNumber(calories); target.proteinGrams = optionalNumber(protein); target.carbohydrateGrams = optionalNumber(carbohydrates); target.fatGrams = optionalNumber(fat)
-        target.caffeineMilligrams = optionalNumber(caffeine)
+        target.calories = calories; target.proteinGrams = protein; target.carbohydrateGrams = carbohydrates; target.fatGrams = fat
+        target.caffeineMilligrams = caffeine
         let trimmedNPN = npn.trimmingCharacters(in: .whitespacesAndNewlines)
         target.npn = trimmedNPN.isEmpty ? nil : trimmedNPN
         target.confidence = confidence; target.preparationState = preparation; target.updatedAt = .now
@@ -503,8 +505,8 @@ struct FoodEditorView: View {
             for serving in target.servings { modelContext.delete(serving) }
             target.servings = []
         } else if trimmedServing.isEmpty == false {
-            guard let servingAmount = Double(servingAmount), servingAmount > 0,
-                  let equivalent = Double(servingEquivalentReferenceAmount), equivalent > 0 else { errorMessage = "Enter positive serving and equivalent reference amounts."; return }
+            guard let servingAmount, servingAmount > 0,
+                  let equivalent = servingEquivalentReferenceAmount, equivalent > 0 else { errorMessage = "Enter positive serving and equivalent reference amounts."; return }
             let priorServings = target.servings
             target.servings = [FoodServing(name: trimmedServing, amount: servingAmount, unit: servingUnit, equivalentReferenceAmount: equivalent)]
             for serving in priorServings { modelContext.delete(serving) }
@@ -514,11 +516,9 @@ struct FoodEditorView: View {
 }
 
 struct MealTemplateLibraryView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MealTemplate.updatedAt, order: .reverse) private var templates: [MealTemplate]
     @Query(sort: \FoodItem.name) private var foods: [FoodItem]
-    @State private var editingTemplate: MealTemplate?
     @State private var isCreatingTemplate = false
 
     var body: some View {
@@ -527,12 +527,18 @@ struct MealTemplateLibraryView: View {
                 ContentUnavailableView("No recipes", systemImage: AppIcon.routine, description: Text("Create a simple recipe from foods in your library."))
             } else {
                 ForEach(currentTemplates) { template in
-                    Button { editingTemplate = template } label: {
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text(template.name).font(AppFont.subheadlineSemibold).foregroundStyle(Color.gymText)
-                            Text("\(template.items.count) foods · v\(template.version) · \(template.preparationState.displayName)").font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                    NavigationLink {
+                        MealTemplateDetailView(template: template)
+                    } label: {
+                        HStack(spacing: Spacing.m) {
+                            recipeThumbnail(for: template)
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text(template.name).font(AppFont.subheadlineSemibold).foregroundStyle(Color.gymText)
+                                Text("\(template.items.count) foods · v\(template.version) · \(template.preparationState.displayName)").font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                            }
                         }
                     }
+                    .accessibilityIdentifier("recipe-row-\(template.id)")
                     .swipeActions { Button(role: .destructive) { template.isArchived = true; template.updatedAt = .now; try? modelContext.save() } label: { Label("Archive", systemImage: AppIcon.archive) } }
                 }
             }
@@ -540,14 +546,49 @@ struct MealTemplateLibraryView: View {
         .scrollContentBackground(.hidden).background(Color.gymBackground)
         .navigationTitle("Recipes")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { Button { isCreatingTemplate = true } label: { Label("New recipe", systemImage: AppIcon.plus) }.disabled(foods.filter { !$0.isArchived }.isEmpty) }
-            ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+            ToolbarItem(placement: .topBarTrailing) { Button { isCreatingTemplate = true } label: { Label("New recipe", systemImage: AppIcon.plus) }.disabled(foods.filter { !$0.isArchived }.isEmpty).accessibilityIdentifier("create-meal-template") }
         }
         .sheet(isPresented: $isCreatingTemplate) { MealTemplateEditorView() }
-        .sheet(item: $editingTemplate) { MealTemplateEditorView(template: $0) }
+    }
+
+    @ViewBuilder
+    private func recipeThumbnail(for template: MealTemplate) -> some View {
+        if let image = RecipePhotoStore.loadImage(template.photoIdentifier) {
+            Image(uiImage: image)
+                .resizable().scaledToFill()
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                .accessibilityHidden(true)
+        } else {
+            Image(systemName: AppIcon.routine)
+                .foregroundStyle(Color.gymSecondary)
+                .frame(width: 44, height: 44)
+                .background(Color.gymMutedSurface)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                .accessibilityHidden(true)
+        }
     }
 
     private var currentTemplates: [MealTemplate] { templates.filter { $0.isCurrent && !$0.isArchived } }
+}
+
+private enum RecipeGenerationNotice: Equatable {
+    case draftGenerated
+    case noMatches
+    case partialMatch
+    case generationFailed
+    case unclearImage
+    case unsafeImage
+}
+
+private enum RecipeField: Hashable {
+    case name
+    case yield
+}
+
+/// Identifies which ingredient row the ingredient editor sheet is editing.
+private struct IngredientEditContext: Identifiable {
+    let id: Int
 }
 
 struct MealTemplateEditorView: View {
@@ -555,74 +596,471 @@ struct MealTemplateEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \FoodItem.name) private var foods: [FoodItem]
     let template: MealTemplate?
+    let generator: RecipeDraftGenerator
+
     @State private var name = ""
     @State private var preparation: FoodPreparationState = .cooked
-    @State private var cookedWeight = ""
+    @State private var recipeYield: Double?
+    @State private var yieldEditingText: String?
     @State private var selected: [(FoodItem, UUID?, Double)] = []
     @State private var errorMessage: String?
+    @FocusState private var focusedField: RecipeField?
 
-    init(template: MealTemplate? = nil) { self.template = template }
+    // Persisted recipe photo (recognition thumbnail), distinct from the
+    // transient generation photo below.
+    @State private var recipePhotoIdentifier: String?
+    @State private var pendingRecipePhotoData: Data?
+    @State private var recipePhotoPickerItem: PhotosPickerItem?
+    @State private var isShowingFoodPicker = false
+    @State private var editingIngredient: IngredientEditContext?
+
+    @State private var availability: RecipeGenerationAvailabilityStatus = .unsupportedDevice
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedImageData: Data?
+    @State private var isGenerating = false
+    @State private var generationTask: Task<Void, Never>?
+    @State private var hasGeneratedDraft = false
+    @State private var lastAppliedDraftSnapshot: [UUID: Double]?
+    @State private var pendingReplaceConfirmation = false
+    @State private var generationNotice: RecipeGenerationNotice?
+    @State private var draftGeneratedFeedbackTrigger = false
+
+    init(template: MealTemplate? = nil, generator: RecipeDraftGenerator = MealTemplateEditorView.defaultGenerator()) {
+        self.template = template
+        self.generator = generator
+    }
+
+    private static func defaultGenerator() -> RecipeDraftGenerator {
+        if let scripted = UITestRecipeDraftGenerationResult.launchOverride {
+            return ScriptedRecipeDraftGenerator(result: scripted)
+        }
+        return FoundationRecipeDraftGenerator()
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Recipe") {
-                    TextField("Name", text: $name)
+                    TextField("Name", text: $name).focused($focusedField, equals: .name)
+                    generationControls
                     Picker("Preparation", selection: $preparation) { ForEach(FoodPreparationState.allCases, id: \.self) { Text($0.displayName).tag($0) } }
-                    TextField("Final cooked weight g (optional)", text: $cookedWeight).keyboardType(.decimalPad)
+                    TextField("Recipe yield g (optional)", text: yieldTextBinding, prompt: Text("—"))
+                        .keyboardType(.decimalPad)
+                        .focused($focusedField, equals: .yield)
+                        .accessibilityIdentifier("recipe-yield-field")
+                    Text("Total weight after cooking. This lets you log part of the recipe in grams.")
+                        .font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
                 }
+                recipePhotoSection
                 Section("Foods") {
+                    if let generationNotice {
+                        noticeText(generationNotice)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                            .accessibilityIdentifier("recipe-generation-notice")
+                    }
+                    if selected.isEmpty {
+                        Text("Add foods from your library to build this recipe.")
+                            .font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                    }
                     ForEach(Array(selected.enumerated()), id: \.element.0.id) { index, item in
-                        HStack {
-                            VStack(alignment: .leading) { Text(item.0.name); Text("\(FoodLibraryService.format(item.2)) serving").font(AppFont.caption).foregroundStyle(Color.gymSubduedText) }
-                            Spacer()
-                            Stepper("", value: Binding(get: { selected[index].2 }, set: { selected[index].2 = $0 }), in: 0.25...20, step: 0.25).labelsHidden()
+                        Button {
+                            editingIngredient = IngredientEditContext(id: index)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text(item.0.name).foregroundStyle(Color.gymText)
+                                    Text(ingredientAmountText(item)).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                                }
+                                Spacer()
+                                Text(ingredientCaloriesText(item)).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                            }
                         }
+                        .accessibilityLabel("\(item.0.name), \(ingredientAmountText(item))")
+                        .accessibilityHint("Edit amount or remove")
+                        .accessibilityIdentifier("recipe-ingredient-\(item.0.id)")
                     }
                     .onDelete { selected.remove(atOffsets: $0) }
-                    Menu {
-                        ForEach(availableFoods) { food in Button(food.name) { selected.append((food, FoodLibraryService.portions(for: food).first?.id, 1)) } }
-                    } label: { Label("Add food", systemImage: AppIcon.plus) }
+                    Button { isShowingFoodPicker = true } label: { Label("Add foods", systemImage: AppIcon.plus) }
+                        .accessibilityIdentifier("recipe-add-foods")
                 }
             }
             .scrollContentBackground(.hidden).background(Color.gymBackground)
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(template == nil ? "New recipe" : "Revise recipe")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear(perform: load)
+            .onAppear {
+                load()
+                availability = RecipeGenerationAvailability.status()
+            }
+            .onDisappear { generationTask?.cancel() }
+            .onChange(of: selectedPhotoItem) { _, newValue in
+                guard let newValue else { return }
+                Task {
+                    if let data = try? await newValue.loadTransferable(type: Data.self) {
+                        selectedImageData = data
+                    }
+                }
+            }
+            .onChange(of: recipePhotoPickerItem) { _, newValue in
+                guard let newValue else { return }
+                Task {
+                    if let data = try? await newValue.loadTransferable(type: Data.self) {
+                        pendingRecipePhotoData = data
+                    }
+                }
+            }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selected.isEmpty) }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        generationTask?.cancel()
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save)
+                        .disabled(isGenerating || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selected.isEmpty)
+                        .accessibilityIdentifier("save-meal-template")
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Button { focusedField = .name } label: { Label("Previous field", systemImage: "chevron.left") }
+                        .disabled(focusedField == .name)
+                    Button { focusedField = .yield } label: { Label("Next field", systemImage: "chevron.right") }
+                        .disabled(focusedField == .yield)
+                    Spacer()
+                    Button("Done") { focusedField = nil }
+                }
+            }
+            .sheet(isPresented: $isShowingFoodPicker) {
+                FoodPickerSheet(existingSelection: Set(selected.map { $0.0.id })) { additions in
+                    for food in additions {
+                        selected.append((food, FoodLibraryService.defaultPortion(for: food).id, 1))
+                    }
+                }
+            }
+            .sheet(item: $editingIngredient) { context in
+                if selected.indices.contains(context.id) {
+                    IngredientEditorSheet(
+                        food: selected[context.id].0,
+                        servingID: Binding(get: { selected[context.id].1 }, set: { selected[context.id].1 = $0 }),
+                        quantity: Binding(get: { selected[context.id].2 }, set: { selected[context.id].2 = $0 }),
+                        onRemove: { selected.remove(at: context.id) }
+                    )
+                }
             }
             .alert("Couldn’t save recipe", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) { Button("OK", role: .cancel) { errorMessage = nil } } message: { Text(errorMessage ?? "Try again.") }
+            .alert("Replace the current draft?", isPresented: $pendingReplaceConfirmation) {
+                Button("Replace", role: .destructive) { runGeneration() }
+                Button("Keep editing", role: .cancel) {}
+            }
+            .sensoryFeedback(.success, trigger: draftGeneratedFeedbackTrigger) { _, newValue in newValue }
         }
     }
 
-    private var availableFoods: [FoodItem] {
-        let selectedIDs = Set(selected.map { $0.0.id })
-        return foods.filter { !$0.isArchived && !selectedIDs.contains($0.id) }
+    // MARK: - Recipe photo
+
+    @ViewBuilder
+    private var recipePhotoSection: some View {
+        Section("Photo") {
+            if let image = currentRecipePhoto {
+                HStack(spacing: Spacing.m) {
+                    Image(uiImage: image)
+                        .resizable().scaledToFill()
+                        .frame(width: 56, height: 56)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        PhotosPicker(selection: $recipePhotoPickerItem, matching: .images) { Text("Replace photo") }
+                            .accessibilityIdentifier("recipe-replace-photo")
+                        Button("Remove photo", role: .destructive) {
+                            pendingRecipePhotoData = nil
+                            recipePhotoIdentifier = nil
+                            recipePhotoPickerItem = nil
+                        }
+                        .accessibilityIdentifier("recipe-remove-photo")
+                    }
+                }
+            } else {
+                PhotosPicker(selection: $recipePhotoPickerItem, matching: .images) {
+                    Label("Add recipe photo", systemImage: AppIcon.recipePhoto)
+                }
+                .accessibilityIdentifier("recipe-add-photo")
+                if let data = selectedImageData, UIImage(data: data) != nil {
+                    Button {
+                        pendingRecipePhotoData = data
+                    } label: {
+                        Label("Keep generation photo with recipe", systemImage: "photo.on.rectangle")
+                    }
+                    .accessibilityIdentifier("recipe-keep-generation-photo")
+                }
+                Text("Optional recognition photo. It is never used as nutrition evidence.")
+                    .font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+            }
+        }
     }
+
+    /// The recipe photo currently shown: a freshly picked one takes precedence
+    /// over the persisted file.
+    private var currentRecipePhoto: UIImage? {
+        if let pendingRecipePhotoData { return UIImage(data: pendingRecipePhotoData) }
+        return RecipePhotoStore.loadImage(recipePhotoIdentifier)
+    }
+
+    /// Locale-aware decimal binding for the recipe-yield field, preserving
+    /// partial input like "." while editing.
+    private var yieldTextBinding: Binding<String> {
+        Binding(
+            get: { yieldEditingText ?? DecimalParser.displayText(for: recipeYield) },
+            set: { candidate in
+                guard let sanitized = DecimalParser.sanitizedEditingText(candidate) else { return }
+                yieldEditingText = sanitized
+                if sanitized.isEmpty {
+                    recipeYield = nil
+                } else if let parsed = DecimalParser.value(from: sanitized) {
+                    recipeYield = parsed
+                }
+            }
+        )
+    }
+
+    private func ingredientAmountText(_ item: (FoodItem, UUID?, Double)) -> String {
+        let portions = FoodLibraryService.portions(for: item.0)
+        let portion = portions.first { $0.id == item.1 } ?? portions[0]
+        return FoodLibraryService.amountDescription(portion: portion, quantity: item.2)
+    }
+
+    private func ingredientCaloriesText(_ item: (FoodItem, UUID?, Double)) -> String {
+        let portions = FoodLibraryService.portions(for: item.0)
+        let portion = portions.first { $0.id == item.1 } ?? portions[0]
+        let multiplier = item.2 * portion.equivalentReferenceAmount / item.0.referenceAmount
+        return item.0.calories.map { "\(FoodLibraryService.format($0 * multiplier)) kcal" } ?? String(localized: "kcal unknown")
+    }
+
+    // MARK: - Generation controls
+
+    @ViewBuilder
+    private var generationControls: some View {
+        switch availability {
+        case .fullyAvailable, .textOnly:
+            photoControl
+            Text("Prototype — generated results may be inaccurate. Review all foods and quantities before saving.")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+                .accessibilityLabel("Prototype. Generated results may be inaccurate. Review all foods and quantities before saving.")
+            generateButton
+        case .modelDownloading:
+            Text("Recipe generation will be available when setup finishes.")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+        case .unsupportedDevice, .unsupportedLocale:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var photoControl: some View {
+        if let currentImageData = selectedImageData, let uiImage = UIImage(data: currentImageData) {
+            HStack(spacing: Spacing.m) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("Selected recipe photo").font(AppFont.footnote).foregroundStyle(Color.gymSubduedText)
+                    HStack(spacing: Spacing.l) {
+                        PhotosPicker(selection: $selectedPhotoItem, matching: .images) { Text("Replace") }
+                            .disabled(isGenerating)
+                            .accessibilityLabel("Replace photo")
+                            .accessibilityHint("Choose a different recipe photo")
+                            .accessibilityIdentifier("replace-recipe-photo")
+                        Button(role: .destructive) {
+                            selectedImageData = nil
+                            selectedPhotoItem = nil
+                        } label: { Text("Remove") }
+                        .disabled(isGenerating)
+                        .accessibilityLabel("Remove photo")
+                        .accessibilityHint("Removes the selected recipe photo")
+                        .accessibilityIdentifier("remove-recipe-photo")
+                    }
+                }
+                Spacer()
+            }
+        } else if availability.allowsImageInput {
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                Label("Add one photo", systemImage: AppIcon.recipePhoto)
+            }
+            .disabled(isGenerating)
+            .accessibilityHint("Optional. Helps identify the recipe and ingredients.")
+            .accessibilityIdentifier("add-recipe-photo")
+            Text("Optional — helps identify the recipe and ingredients.")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+        } else {
+            Label("Add one photo", systemImage: AppIcon.recipePhoto)
+                .foregroundStyle(Color.gymSubduedText)
+            Text("Recipe generation from photos isn’t available on this device.")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+        }
+    }
+
+    private var generateButton: some View {
+        Button {
+            requestGeneration()
+        } label: {
+            if isGenerating {
+                HStack(spacing: Spacing.s) {
+                    ProgressView()
+                    Text("Generating recipe…")
+                }
+            } else {
+                Text(hasGeneratedDraft ? "Generate again" : "Generate recipe")
+            }
+        }
+        .disabled(isGenerating || (name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedImageData == nil))
+        .accessibilityLabel(isGenerating ? "Generating recipe" : (hasGeneratedDraft ? "Generate again" : "Generate recipe"))
+        .accessibilityIdentifier("generate-recipe")
+    }
+
+    @ViewBuilder
+    private func noticeText(_ notice: RecipeGenerationNotice) -> some View {
+        switch notice {
+        case .draftGenerated:
+            Text("Generated draft. Check the ingredients and quantities.")
+        case .noMatches:
+            Text("No matching foods were found in your library. Add foods manually.")
+        case .partialMatch:
+            Text("Some ingredients could not be matched. Review the draft and add missing foods.")
+        case .generationFailed:
+            Text("The recipe couldn’t be generated. Try again or add foods manually.")
+        case .unclearImage:
+            Text("The photo didn’t contain enough detail. Try another photo or enter a recipe name.")
+        case .unsafeImage:
+            Text("The photo couldn’t be used to generate a recipe. Try a different photo.")
+        }
+    }
+
+    private func requestGeneration() {
+        if hasGeneratedDraft, let snapshot = lastAppliedDraftSnapshot, snapshot != currentSelectionSnapshot() {
+            pendingReplaceConfirmation = true
+            return
+        }
+        runGeneration()
+    }
+
+    private func runGeneration() {
+        guard isGenerating == false else { return }
+        focusedField = nil
+        isGenerating = true
+        generationNotice = nil
+        draftGeneratedFeedbackTrigger = false
+        announce(String(localized: "Generating recipe."))
+        let input = RecipeGenerationInput(
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            imageData: selectedImageData,
+            availableFoods: RecipeGenerationCatalogue.build(from: foods)
+        )
+        generationTask = Task {
+            do {
+                let validated = try await RecipeGenerationCoordinator.generateAndValidate(input: input, currentFoods: foods, using: generator)
+                apply(validated)
+            } catch is CancellationError {
+                // Preserve current input; no notice for a user-initiated cancel.
+            } catch let error as RecipeDraftGeneratorError {
+                handle(error)
+            } catch {
+                generationNotice = .generationFailed
+            }
+            isGenerating = false
+        }
+    }
+
+    private func apply(_ validated: ValidatedRecipeDraft) {
+        if let newName = validated.name { name = newName }
+        if let preparationState = validated.preparationState { preparation = preparationState }
+        if let cookedWeightGrams = validated.finalCookedWeightGrams { recipeYield = cookedWeightGrams; yieldEditingText = nil }
+        selected = validated.items
+        hasGeneratedDraft = true
+        lastAppliedDraftSnapshot = currentSelectionSnapshot()
+
+        let imageOnly = selectedImageData != nil && name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if validated.isEmpty {
+            generationNotice = imageOnly ? .unclearImage : .noMatches
+        } else if validated.hasUnmatchedIngredients {
+            generationNotice = .partialMatch
+        } else {
+            generationNotice = .draftGenerated
+            draftGeneratedFeedbackTrigger = true
+            announce(String(localized: "Recipe draft generated. Review ingredients and quantities."))
+        }
+    }
+
+    private func handle(_ error: RecipeDraftGeneratorError) {
+        switch error {
+        case .modelUnavailable, .generationFailed:
+            generationNotice = .generationFailed
+        case .imageUnsupported:
+            generationNotice = .generationFailed
+        case .unclearImage:
+            generationNotice = .unclearImage
+        case .unsafeImage:
+            generationNotice = .unsafeImage
+        case .cancelled:
+            break
+        }
+    }
+
+    private func announce(_ message: String) {
+        UIAccessibility.post(notification: .announcement, argument: message)
+    }
+
+    private func currentSelectionSnapshot() -> [UUID: Double] {
+        Dictionary(uniqueKeysWithValues: selected.map { ($0.0.id, $0.2) })
+    }
+
     private func load() {
         guard let template else { return }
-        name = template.name; preparation = template.preparationState; cookedWeight = string(template.finalCookedWeightGrams)
+        name = template.name; preparation = template.preparationState; recipeYield = template.finalCookedWeightGrams
+        recipePhotoIdentifier = template.photoIdentifier
         selected = template.orderedItems.map { ($0.food, $0.servingID, $0.quantity) }
     }
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard cookedWeight.isEmpty || (Double(cookedWeight) ?? 0) > 0 else { errorMessage = "Final cooked weight must be positive or blank."; return }
+        guard (recipeYield ?? 1) > 0 else { errorMessage = "Recipe yield must be positive or blank."; return }
+        let photoIdentifier = resolvedPhotoIdentifier()
         if let template {
-            guard MealTemplateService.revise(template, name: trimmed, preparationState: preparation, finalCookedWeightGrams: optionalNumber(cookedWeight), items: selected, using: modelContext) != nil else { errorMessage = "The recipe could not be saved."; return }
+            guard MealTemplateService.revise(template, name: trimmed, preparationState: preparation, finalCookedWeightGrams: recipeYield, photoIdentifier: photoIdentifier, items: selected, using: modelContext) != nil else { errorMessage = "The recipe could not be saved."; return }
         } else {
-            let newTemplate = MealTemplate(name: trimmed, preparationState: preparation, finalCookedWeightGrams: optionalNumber(cookedWeight))
+            let newTemplate = MealTemplate(name: trimmed, preparationState: preparation, finalCookedWeightGrams: recipeYield, photoIdentifier: photoIdentifier)
             newTemplate.items = selected.enumerated().map { MealTemplateItem(food: $0.element.0, orderIndex: $0.offset, servingID: $0.element.1, quantity: $0.element.2) }
             modelContext.insert(newTemplate)
             do { try modelContext.save() } catch { errorMessage = "The recipe could not be saved."; return }
         }
         dismiss()
     }
+
+    /// Persists a newly picked photo to disk, or keeps/clears the existing one.
+    /// The prior revision retains its own reference, so an orphaned file is only
+    /// cleaned up when no revision points at it.
+    private func resolvedPhotoIdentifier() -> String? {
+        if let pendingRecipePhotoData, let image = UIImage(data: pendingRecipePhotoData) {
+            return RecipePhotoStore.store(image)
+        }
+        if recipePhotoIdentifier == nil, let previous = template?.photoIdentifier {
+            // The user removed the photo; drop the file if no revision uses it.
+            RecipePhotoStore.deleteIfUnreferenced(previous, in: modelContext)
+        }
+        return recipePhotoIdentifier
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
 
 struct NutritionTargetsView: View {
-    @Environment(\.dismiss) private var dismiss
     @Query(sort: \NutritionTarget.effectiveStartDayKey, order: .reverse) private var targets: [NutritionTarget]
     @State private var editingTarget: NutritionTarget?
     @State private var isCreatingTarget = false
@@ -630,7 +1068,17 @@ struct NutritionTargetsView: View {
     var body: some View {
         List {
             if targets.filter({ !$0.isArchived }).isEmpty {
-                ContentUnavailableView("No targets", systemImage: AppIcon.chart, description: Text("Add a training and rest-day target when you are ready."))
+                ContentUnavailableView {
+                    Label("No targets", systemImage: AppIcon.chart)
+                } description: {
+                    Text("Add a training and rest-day target when you are ready.")
+                } actions: {
+                    Button("Add target") {
+                        isCreatingTarget = true
+                    }
+                    .buttonStyle(.gymPrimary)
+                    .accessibilityIdentifier("create-nutrition-target-empty")
+                }
             } else {
                 ForEach(targets.filter { !$0.isArchived }) { target in
                     Button { editingTarget = target } label: {
@@ -646,7 +1094,6 @@ struct NutritionTargetsView: View {
         .navigationTitle("Nutrition targets")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { Button { isCreatingTarget = true } label: { Label("New target", systemImage: AppIcon.plus) } }
-            ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
         }
         .sheet(isPresented: $isCreatingTarget) { NutritionTargetEditorView() }
         .sheet(item: $editingTarget) { NutritionTargetEditorView(target: $0) }
@@ -661,8 +1108,8 @@ struct NutritionTargetEditorView: View {
     @State private var startDate = Date.now
     @State private var endEnabled = false
     @State private var endDate = Date.now
-    @State private var training = ["", "", "", ""]
-    @State private var rest = ["", "", "", ""]
+    @State private var training: [Double?] = [nil, nil, nil, nil]
+    @State private var rest: [Double?] = [nil, nil, nil, nil]
     @State private var errorMessage: String?
 
     init(target: NutritionTarget? = nil) { self.target = target }
@@ -698,12 +1145,12 @@ struct NutritionTargetEditorView: View {
         }
     }
 
-    @ViewBuilder private func macroFields(title: String, values: Binding<[String]>) -> some View {
+    @ViewBuilder private func macroFields(title: String, values: Binding<[Double?]>) -> some View {
         Section(title) {
-            TextField("Calories (optional)", text: values[0]).keyboardType(.decimalPad)
-            TextField("Protein g (optional)", text: values[1]).keyboardType(.decimalPad)
-            TextField("Carbohydrates g (optional)", text: values[2]).keyboardType(.decimalPad)
-            TextField("Fat g (optional)", text: values[3]).keyboardType(.decimalPad)
+            DecimalField("Calories (optional)", value: values[0], range: 0...100000)
+            DecimalField("Protein g (optional)", value: values[1], range: 0...100000)
+            DecimalField("Carbohydrates g (optional)", value: values[2], range: 0...100000)
+            DecimalField("Fat g (optional)", value: values[3], range: 0...100000)
         }
     }
 
@@ -711,15 +1158,15 @@ struct NutritionTargetEditorView: View {
         guard let target else { return }
         phase = target.phase; startDate = dayDate(target.effectiveStartDayKey) ?? .now
         if let end = target.effectiveEndDayKey { endEnabled = true; endDate = dayDate(end) ?? .now }
-        training = [string(target.trainingCalories), string(target.trainingProteinGrams), string(target.trainingCarbohydrateGrams), string(target.trainingFatGrams)]
-        rest = [string(target.restCalories), string(target.restProteinGrams), string(target.restCarbohydrateGrams), string(target.restFatGrams)]
+        training = [target.trainingCalories, target.trainingProteinGrams, target.trainingCarbohydrateGrams, target.trainingFatGrams]
+        rest = [target.restCalories, target.restProteinGrams, target.restCarbohydrateGrams, target.restFatGrams]
     }
     private func save() {
-        guard training.allSatisfy(validOptionalNumber), rest.allSatisfy(validOptionalNumber) else { errorMessage = "Targets must be positive numbers or left blank."; return }
+        guard training.allSatisfy({ ($0 ?? 0) >= 0 }), rest.allSatisfy({ ($0 ?? 0) >= 0 }) else { errorMessage = "Targets must be positive numbers or left blank."; return }
         let start = LocalDay(date: startDate), end = endEnabled ? LocalDay(date: endDate) : nil
         guard end.map({ $0 >= start }) ?? true else { errorMessage = "The end date must be on or after the start date."; return }
-        let trainingValues = NutritionTargetValues(calories: optionalNumber(training[0]), protein: optionalNumber(training[1]), carbohydrates: optionalNumber(training[2]), fat: optionalNumber(training[3]))
-        let restValues = NutritionTargetValues(calories: optionalNumber(rest[0]), protein: optionalNumber(rest[1]), carbohydrates: optionalNumber(rest[2]), fat: optionalNumber(rest[3]))
+        let trainingValues = NutritionTargetValues(calories: training[0], protein: training[1], carbohydrates: training[2], fat: training[3])
+        let restValues = NutritionTargetValues(calories: rest[0], protein: rest[1], carbohydrates: rest[2], fat: rest[3])
         if let target {
             guard NutritionTargetService.revise(target, phase: phase, requestedStartDay: start, requestedEndDay: end, training: trainingValues, rest: restValues, using: modelContext) != nil else {
                 errorMessage = "The target revision could not be saved."
@@ -738,18 +1185,6 @@ private func foodMacroDescription(_ food: FoodItem) -> String {
     let protein = food.proteinGrams.map { "\(FoodLibraryService.format($0))g protein" } ?? "protein unknown"
     return "\(energy) · \(protein)"
 }
-
-private func optionalNumber(_ value: String) -> Double? {
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard trimmed.isEmpty == false else { return nil }
-    return Double(trimmed)
-}
-
-private func validOptionalNumber(_ value: String) -> Bool {
-    optionalNumber(value).map { $0 >= 0 } ?? value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-}
-
-private func string(_ value: Double?) -> String { value.map(FoodLibraryService.format) ?? "" }
 
 private func dayDate(_ key: String) -> Date? {
     let formatter = DateFormatter(); formatter.calendar = Calendar(identifier: .gregorian); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyy-MM-dd"

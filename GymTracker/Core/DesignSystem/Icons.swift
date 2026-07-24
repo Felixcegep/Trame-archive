@@ -49,6 +49,7 @@ struct AppIcon {
     static let favoriteFilled = "star.fill"
     static let favoriteRemove = "star.slash"
     static let restore = "arrow.uturn.backward"
+    static let remove = "xmark.circle.fill"
     
     // Specific Features
     static let workout = "dumbbell.fill"
@@ -66,4 +67,7 @@ struct AppIcon {
     static let advanced = "slider.horizontal.3"
     static let warmup = "flame"
     static let relationship = "arrow.triangle.branch"
+    static let recipePhoto = "photo.badge.plus"
+    static let recipePhotoReplace = "arrow.triangle.2.circlepath"
+    static let recipeGenerate = "wand.and.stars"
 }

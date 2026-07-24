@@ -249,7 +249,7 @@ final class NutritionTests: XCTestCase {
         try source.save()
 
         let logged = try XCTUnwrap(NutritionLoggingService.log(template: recipe, using: source))
-        let revision = try XCTUnwrap(MealTemplateService.revise(recipe, name: "Chicken bowl", preparationState: .cooked, finalCookedWeightGrams: 450, items: [(food, food.servings.first?.id, 2)], using: source))
+        let revision = try XCTUnwrap(MealTemplateService.revise(recipe, name: "Chicken bowl", preparationState: .cooked, finalCookedWeightGrams: 450, photoIdentifier: nil, items: [(food, food.servings.first?.id, 2)], using: source))
         XCTAssertFalse(recipe.isCurrent)
         XCTAssertEqual(revision.version, 2)
         XCTAssertEqual(try XCTUnwrap(logged.items.first?.proteinGramsSnapshot), 46.5, accuracy: 0.001)

@@ -12,6 +12,7 @@ enum FeatureFlag: String, CaseIterable, Codable, Sendable {
     case programBuilder
     case advancedExecution
     case betaFeedback
+    case recipeGeneration
 }
 
 /// The rollout matrix a build was produced for. `internalDevelopment` is the
