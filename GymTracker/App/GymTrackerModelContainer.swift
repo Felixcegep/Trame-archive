@@ -1,3 +1,4 @@
+import Foundation
 import SwiftData
 
 /// Diagnostic-only label for the shape of the persisted SwiftData schema
@@ -15,14 +16,27 @@ enum GymTrackerAppSchema {
 /// process, so it can safely use this container without an App Group store.
 @MainActor
 enum GymTrackerModelContainer {
-    static let shared: ModelContainer = {
+    enum BootstrapState {
+        case ready(ModelContainer)
+        case unavailable(String)
+    }
+
+    /// A failed store open must not terminate the process. The app renders a
+    /// recovery state without attaching a context, so it cannot overwrite a
+    /// recoverable on-disk store with a fresh empty one.
+    static let bootstrapState: BootstrapState = {
         do {
-            return try ModelContainer(for: schema)
+            return .ready(try ModelContainer(for: schema))
         } catch {
-            fatalError("Unable to create GymTracker's persistent model container: \(error)")
+            print("Unable to create GymTracker's persistent model container: \(error)")
+            return .unavailable(error.localizedDescription)
         }
-        
     }()
+
+    static var shared: ModelContainer? {
+        guard case let .ready(container) = bootstrapState else { return nil }
+        return container
+    }
 
     static let schema: Schema = {
         var types: [any PersistentModel.Type] = [

@@ -18,6 +18,9 @@ struct PlanExerciseEditorView: View {
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
         .navigationTitle("Prescription")
+        .onAppear {
+            exercise.normalizeRepRangeForEditing()
+        }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 EditButton()

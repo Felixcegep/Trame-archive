@@ -29,6 +29,15 @@ final class WorkoutProgressionTests: XCTestCase {
         XCTAssertFalse(controller.isVisible)
     }
 
+    func testRestTimerControllerRestoresExpiredDeadlineAsReady() {
+        let controller = RestTimerController()
+
+        controller.restore(endDate: Date.now.addingTimeInterval(-1), pausedRemaining: nil)
+
+        XCTAssertTrue(controller.isReady)
+        XCTAssertTrue(controller.isVisible)
+    }
+
     func testExerciseActiveDurationAccumulatesAcrossSelectionsAndRelaunches() throws {
         let context = try makeContext()
         let exercise = makeExercise()

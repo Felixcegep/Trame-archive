@@ -32,11 +32,12 @@ class WorkoutTemplate {
     }
 
     var orderedTemplateExercises: [TemplateExercise] {
-        templateExercises.sorted { lhs, rhs in
-            lhs.orderIndex == rhs.orderIndex
-                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
-                : lhs.orderIndex < rhs.orderIndex
-        }
+        templateExercises.sorted(by: { lhs, rhs in
+            if lhs.orderIndex != rhs.orderIndex {
+                return lhs.orderIndex < rhs.orderIndex
+            }
+            return lhs.progressionKey < rhs.progressionKey
+        })
     }
 
     var exercises: [Exercise] {

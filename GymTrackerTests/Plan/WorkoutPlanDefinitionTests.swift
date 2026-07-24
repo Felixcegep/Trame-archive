@@ -5,6 +5,21 @@ import XCTest
 
 @MainActor
 final class WorkoutPlanDefinitionTests: XCTestCase {
+    func testPlanExerciseDraftNormalizesCorruptRepRangeForEditor() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Squat", primaryMuscles: [.quadriceps])
+        let draft = PlanExerciseDraft(exercise: exercise, orderIndex: 0)
+        var invalidDraft = draft
+        invalidDraft.repRangeMinimum = 150
+        invalidDraft.repRangeMaximum = -3
+
+        invalidDraft.normalizeRepRangeForEditing()
+
+        XCTAssertEqual(invalidDraft.repRangeMinimum, 100)
+        XCTAssertEqual(invalidDraft.repRangeMaximum, 100)
+        _ = context
+    }
+
     func testPlannedWorkoutSnapshotsProgressionAndPreservesRule() throws {
         let context = try makeContext()
         let exercise = makeExercise()

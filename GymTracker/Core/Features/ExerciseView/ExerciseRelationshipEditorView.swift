@@ -107,11 +107,7 @@ struct ExerciseRelationshipEditorView: View {
     }
 
     private func saveChanges() {
-        do {
-            try modelContext.save()
-        } catch {
-            print("Failed to save exercise relationship: \(error)")
-        }
+        _ = modelContext.saveOrRollback()
     }
 }
 

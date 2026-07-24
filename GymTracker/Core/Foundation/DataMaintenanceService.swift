@@ -32,32 +32,37 @@ enum DataMaintenanceService {
 
     @discardableResult
     static func cleanupOrphans(using context: ModelContext) throws -> OrphanCleanupResult {
-        let orphanSets = try context.fetch(FetchDescriptor<ExerciseSet>())
-            .filter { $0.exerciseEntry == nil }
-        for set in orphanSets {
-            context.delete(set)
-        }
+        do {
+            let orphanSets = try context.fetch(FetchDescriptor<ExerciseSet>())
+                .filter { $0.exerciseEntry == nil }
+            for set in orphanSets {
+                context.delete(set)
+            }
 
-        let orphanEntries = try context.fetch(FetchDescriptor<ExerciseEntry>())
-            .filter { $0.workout == nil }
-        for entry in orphanEntries {
-            context.delete(entry)
-        }
+            let orphanEntries = try context.fetch(FetchDescriptor<ExerciseEntry>())
+                .filter { $0.workout == nil }
+            for entry in orphanEntries {
+                context.delete(entry)
+            }
 
-        let orphanTemplateExercises = try context.fetch(FetchDescriptor<TemplateExercise>())
-            .filter { $0.workoutTemplate == nil }
-        for templateExercise in orphanTemplateExercises {
-            context.delete(templateExercise)
-        }
+            let orphanTemplateExercises = try context.fetch(FetchDescriptor<TemplateExercise>())
+                .filter { $0.workoutTemplate == nil }
+            for templateExercise in orphanTemplateExercises {
+                context.delete(templateExercise)
+            }
 
-        if !orphanSets.isEmpty || !orphanEntries.isEmpty || !orphanTemplateExercises.isEmpty {
-            try context.save()
-        }
+            if !orphanSets.isEmpty || !orphanEntries.isEmpty || !orphanTemplateExercises.isEmpty {
+                try context.save()
+            }
 
-        return OrphanCleanupResult(
-            deletedExercises: orphanEntries.count,
-            deletedSets: orphanSets.count,
-            deletedTemplateExercises: orphanTemplateExercises.count
-        )
+            return OrphanCleanupResult(
+                deletedExercises: orphanEntries.count,
+                deletedSets: orphanSets.count,
+                deletedTemplateExercises: orphanTemplateExercises.count
+            )
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 }

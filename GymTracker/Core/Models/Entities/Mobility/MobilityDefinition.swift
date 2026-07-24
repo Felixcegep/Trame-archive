@@ -15,7 +15,9 @@ final class MobilityDefinition {
     var createdAt: Date
     var updatedAt: Date
     var family: MobilityFamily?
-    @Relationship(deleteRule: .nullify, inverse: \MobilityRoutineItem.definition)
+    // Routine items require a definition. Referenced definitions are archived
+    // in normal UI flows; cascade keeps an explicit deletion graph-valid.
+    @Relationship(deleteRule: .cascade, inverse: \MobilityRoutineItem.definition)
     var routineItems: [MobilityRoutineItem] = []
 
     var trackingType: MobilityTrackingType {

@@ -575,11 +575,7 @@ class ActiveWorkoutViewModel {
     }
 
     func persistChanges() {
-        do {
-            try modelContext.save()
-        } catch {
-            print("Failed to persist active workout changes: \(error)")
-        }
+        _ = modelContext.saveOrRollback()
     }
 
     private func loadPreviousPerformance(for exercise: ExerciseEntry) {

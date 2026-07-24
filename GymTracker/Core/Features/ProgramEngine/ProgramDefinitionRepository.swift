@@ -38,9 +38,14 @@ enum ProgramDefinitionRepository {
     }
 
     static func archive(_ record: ProgramDefinitionRecord, in context: ModelContext) throws {
-        record.isArchived = true
-        record.updatedAt = .now
-        try context.save()
+        do {
+            record.isArchived = true
+            record.updatedAt = .now
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 
     static func activeDefinitions(in context: ModelContext) throws -> [ProgramDefinitionRecord] {

@@ -21,7 +21,8 @@ struct ExerciseIntentEntity: AppEntity, Identifiable, Hashable {
 struct ExerciseIntentQuery: EntityStringQuery {
     func entities(for identifiers: [UUID]) async throws -> [ExerciseIntentEntity] {
         await MainActor.run {
-            let context = ModelContext(GymTrackerModelContainer.shared)
+            guard let container = GymTrackerModelContainer.shared else { return [] }
+            let context = ModelContext(container)
             let requested = Set(identifiers)
             let exercises = (try? context.fetch(FetchDescriptor<Exercise>())) ?? []
             return exercises
@@ -33,8 +34,9 @@ struct ExerciseIntentQuery: EntityStringQuery {
 
     func entities(matching string: String) async throws -> [ExerciseIntentEntity] {
         await MainActor.run {
+            guard let container = GymTrackerModelContainer.shared else { return [] }
             let normalized = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            let exercises = (try? ModelContext(GymTrackerModelContainer.shared)
+            let exercises = (try? ModelContext(container)
                 .fetch(FetchDescriptor<Exercise>())) ?? []
             return exercises
                 .filter { exercise in
@@ -87,7 +89,10 @@ struct StartTodaysWorkoutIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        let context = ModelContext(container)
         guard let workout = WorkoutIntentService.startToday(using: context) else {
             return .result(dialog: "GymTracker could not start a workout.")
         }
@@ -104,7 +109,10 @@ struct ShowTodayPlanIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        let context = ModelContext(container)
         let plan = WorkoutIntentProjectionService.todayPlan(using: context)
         switch plan.state {
         case .activeWorkout:
@@ -131,7 +139,10 @@ struct StartFreeWorkoutIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        let context = ModelContext(container)
         let result = WorkoutIntentService.startFree(using: context)
         guard let workout = result.workout else {
             return .result(dialog: "GymTracker could not start a free workout.")
@@ -182,7 +193,10 @@ struct ShowWeeklyVolumeIntent: AppIntent {
             return .result(dialog: "Choose a muscle group for a muscle-group volume summary.")
         }
 
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        let context = ModelContext(container)
         let unit: WeightType = UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
         let projection = WorkoutIntentProjectionService.weeklyVolume(
             using: context,
@@ -233,7 +247,10 @@ struct LogCurrentSetIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        let context = ModelContext(container)
         guard let workout = WorkoutIntentService.activeWorkout(using: context) else {
             return .result(dialog: "There is no active workout to log.")
         }
@@ -277,7 +294,10 @@ struct ControlRestIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        let context = ModelContext(container)
         guard let workout = WorkoutIntentService.activeWorkout(using: context) else {
             return .result(dialog: "There is no active workout with a rest timer.")
         }
@@ -334,7 +354,10 @@ struct ViewPreviousPerformanceIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        let context = ModelContext(container)
         let selectedExercise = exercise ?? activeExerciseEntity(using: context)
         guard let selectedExercise else {
             return .result(dialog: "Choose an exercise to view its previous performance.")

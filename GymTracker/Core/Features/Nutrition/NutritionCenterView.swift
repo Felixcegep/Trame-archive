@@ -5,13 +5,22 @@ import UIKit
 
 struct NutritionCenterView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var loggedMeals: [LoggedMeal]
+    @Query private var loggedMeals: [LoggedMeal]
     @Query(sort: \FoodItem.name) private var foods: [FoodItem]
     @Query(sort: \MealTemplate.updatedAt, order: .reverse) private var mealTemplates: [MealTemplate]
     @Query(sort: \NutritionTarget.effectiveStartDayKey, order: .reverse) private var targets: [NutritionTarget]
     @Query private var planRuns: [PlanRun]
     @State private var selectedFood: FoodItem?
     @State private var selectedMealToRepeat: LoggedMeal?
+    @State private var recentFoodIDs: [UUID] = []
+
+    init() {
+        let todayKey = LocalDay.today.rawValue
+        _loggedMeals = Query(
+            filter: #Predicate<LoggedMeal> { $0.dayKey == todayKey },
+            sort: [SortDescriptor(\LoggedMeal.loggedAt, order: .reverse)]
+        )
+    }
 
     private var summary: NutritionDaySummary { .resolve(day: .today, meals: loggedMeals) }
     private var targetResolution: (target: NutritionTarget?, kind: NutritionDayKind, values: NutritionTargetValues) {
@@ -19,31 +28,36 @@ struct NutritionCenterView: View {
     }
 
     var body: some View {
+        let daySummary = summary
+        let resolvedTarget = targetResolution
+        let favorites = favoriteFoods
+        let recents = recentFoods
+
         List {
             Section {
-                NutritionTotalsView(totals: summary.totals, target: targetResolution.values, dayKind: targetResolution.kind)
+                NutritionTotalsView(totals: daySummary.totals, target: resolvedTarget.values, dayKind: resolvedTarget.kind)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: Spacing.s, leading: Spacing.l, bottom: Spacing.s, trailing: Spacing.l))
                     .accessibilityIdentifier("nutrition-today-totals")
             } header: {
-                Text("Today · \(targetResolution.kind.displayName)")
+                Text("Today · \(resolvedTarget.kind.displayName)")
             } footer: {
-                if summary.totals.hasUnknownValues {
+                if daySummary.totals.hasUnknownValues {
                     Text("Known totals exclude foods with missing nutrients. Unknown values are never treated as zero.")
                 }
             }
 
             Section("Log food") {
-                if recentFoods.isEmpty && favoriteFoods.isEmpty {
+                if recents.isEmpty && favorites.isEmpty {
                     ContentUnavailableView("No foods ready to log", systemImage: AppIcon.nutrition, description: Text("Create a food in your library, then it will be available here offline."))
                 } else {
-                    if favoriteFoods.isEmpty == false {
-                        ForEach(favoriteFoods) { food in
+                    if favorites.isEmpty == false {
+                        ForEach(favorites) { food in
                             foodLogButton(food, detail: "Favorite")
                         }
                     }
-                    if recentFoods.isEmpty == false {
-                        ForEach(recentFoods) { food in
+                    if recents.isEmpty == false {
+                        ForEach(recents) { food in
                             foodLogButton(food, detail: "Recent")
                         }
                     }
@@ -54,9 +68,9 @@ struct NutritionCenterView: View {
                 .accessibilityIdentifier("open-food-library")
             }
 
-            if summary.meals.isEmpty == false {
+            if daySummary.meals.isEmpty == false {
                 Section("Today’s log") {
-                    ForEach(summary.meals) { meal in
+                    ForEach(daySummary.meals) { meal in
                         Button {
                             selectedMealToRepeat = meal
                         } label: {
@@ -101,6 +115,9 @@ struct NutritionCenterView: View {
         .sheet(item: $selectedMealToRepeat) { meal in
             RepeatMealSheet(meal: meal)
         }
+        .task(id: loggedMeals.map(\.id)) {
+            updateRecentFoodIDs()
+        }
     }
 
     private var favoriteFoods: [FoodItem] {
@@ -109,14 +126,26 @@ struct NutritionCenterView: View {
 
     private var recentFoods: [FoodItem] {
         let available = Dictionary(uniqueKeysWithValues: foods.filter { $0.isArchived == false }.map { ($0.id, $0) })
+        return recentFoodIDs
+            .compactMap { available[$0] }
+            .filter { $0.isFavorite == false }
+            .prefix(4)
+            .map { $0 }
+    }
+
+    private func updateRecentFoodIDs() {
+        var descriptor = FetchDescriptor<LoggedMeal>(
+            sortBy: [SortDescriptor(\LoggedMeal.loggedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 100
+        let meals = (try? modelContext.fetch(descriptor)) ?? []
         var seen = Set<UUID>()
-        return loggedMeals
+        recentFoodIDs = meals
             .flatMap(\.orderedItems)
             .compactMap { item in
                 guard let id = item.sourceFoodID, seen.insert(id).inserted else { return nil }
-                return available[id]
+                return id
             }
-            .filter { $0.isFavorite == false }
             .prefix(4)
             .map { $0 }
     }
@@ -245,7 +274,7 @@ struct FoodLibraryView: View {
                         Button {
                             food.isFavorite.toggle()
                             food.updatedAt = .now
-                            try? modelContext.save()
+                            _ = modelContext.saveOrRollback()
                         } label: {
                             Label(food.isFavorite ? "Remove favorite" : "Favorite", systemImage: food.isFavorite ? AppIcon.favoriteRemove : AppIcon.favorite)
                         }
@@ -255,7 +284,7 @@ struct FoodLibraryView: View {
                         Button(role: food.isArchived ? nil : .destructive) {
                             food.isArchived.toggle()
                             food.updatedAt = .now
-                            try? modelContext.save()
+                            _ = modelContext.saveOrRollback()
                         } label: { Label(food.isArchived ? "Restore" : "Archive", systemImage: food.isArchived ? AppIcon.restore : AppIcon.archive) }
                     }
                 }
@@ -511,7 +540,11 @@ struct FoodEditorView: View {
             target.servings = [FoodServing(name: trimmedServing, amount: servingAmount, unit: servingUnit, equivalentReferenceAmount: equivalent)]
             for serving in priorServings { modelContext.delete(serving) }
         }
-        do { try modelContext.save(); dismiss() } catch { errorMessage = "The food could not be saved. Try again." }
+        guard modelContext.saveOrRollback() else {
+            errorMessage = "The food could not be saved. Try again."
+            return
+        }
+        dismiss()
     }
 }
 
@@ -539,7 +572,7 @@ struct MealTemplateLibraryView: View {
                         }
                     }
                     .accessibilityIdentifier("recipe-row-\(template.id)")
-                    .swipeActions { Button(role: .destructive) { template.isArchived = true; template.updatedAt = .now; try? modelContext.save() } label: { Label("Archive", systemImage: AppIcon.archive) } }
+                    .swipeActions { Button(role: .destructive) { template.isArchived = true; template.updatedAt = .now; _ = modelContext.saveOrRollback() } label: { Label("Archive", systemImage: AppIcon.archive) } }
                 }
             }
         }
@@ -553,20 +586,18 @@ struct MealTemplateLibraryView: View {
 
     @ViewBuilder
     private func recipeThumbnail(for template: MealTemplate) -> some View {
-        if let image = RecipePhotoStore.loadImage(template.photoIdentifier) {
-            Image(uiImage: image)
+        RecipePhotoImage(identifier: template.photoIdentifier, content: { image in
+            image
                 .resizable().scaledToFill()
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                 .accessibilityHidden(true)
-        } else {
+        }, placeholder: {
             Image(systemName: AppIcon.routine)
                 .foregroundStyle(Color.gymSecondary)
                 .frame(width: 44, height: 44)
                 .background(Color.gymMutedSurface)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.small))
-                .accessibilityHidden(true)
-        }
+        })
     }
 
     private var currentTemplates: [MealTemplate] { templates.filter { $0.isCurrent && !$0.isArchived } }
@@ -610,6 +641,7 @@ struct MealTemplateEditorView: View {
     // transient generation photo below.
     @State private var recipePhotoIdentifier: String?
     @State private var pendingRecipePhotoData: Data?
+    @State private var recipePhotoPreview: UIImage?
     @State private var recipePhotoPickerItem: PhotosPickerItem?
     @State private var isShowingFoodPicker = false
     @State private var editingIngredient: IngredientEditContext?
@@ -617,7 +649,9 @@ struct MealTemplateEditorView: View {
     @State private var availability: RecipeGenerationAvailabilityStatus = .unsupportedDevice
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedImageData: Data?
+    @State private var selectedImagePreview: UIImage?
     @State private var isGenerating = false
+    @State private var isSaving = false
     @State private var generationTask: Task<Void, Never>?
     @State private var hasGeneratedDraft = false
     @State private var lastAppliedDraftSnapshot: [UUID: Double]?
@@ -694,11 +728,17 @@ struct MealTemplateEditorView: View {
                 availability = RecipeGenerationAvailability.status()
             }
             .onDisappear { generationTask?.cancel() }
+            .task(id: recipePhotoIdentifier) {
+                guard pendingRecipePhotoData == nil else { return }
+                recipePhotoPreview = await RecipePhotoStore.loadImageAsync(recipePhotoIdentifier)
+            }
             .onChange(of: selectedPhotoItem) { _, newValue in
                 guard let newValue else { return }
                 Task {
                     if let data = try? await newValue.loadTransferable(type: Data.self) {
+                        guard !Task.isCancelled else { return }
                         selectedImageData = data
+                        selectedImagePreview = await RecipePhotoStore.decodeImageAsync(data)
                     }
                 }
             }
@@ -706,7 +746,9 @@ struct MealTemplateEditorView: View {
                 guard let newValue else { return }
                 Task {
                     if let data = try? await newValue.loadTransferable(type: Data.self) {
+                        guard !Task.isCancelled else { return }
                         pendingRecipePhotoData = data
+                        recipePhotoPreview = await RecipePhotoStore.decodeImageAsync(data)
                     }
                 }
             }
@@ -719,7 +761,7 @@ struct MealTemplateEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: save)
-                        .disabled(isGenerating || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selected.isEmpty)
+                        .disabled(isGenerating || isSaving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selected.isEmpty)
                         .accessibilityIdentifier("save-meal-template")
                 }
                 ToolbarItemGroup(placement: .keyboard) {
@@ -762,7 +804,7 @@ struct MealTemplateEditorView: View {
     @ViewBuilder
     private var recipePhotoSection: some View {
         Section("Photo") {
-            if let image = currentRecipePhoto {
+            if let image = recipePhotoPreview {
                 HStack(spacing: Spacing.m) {
                     Image(uiImage: image)
                         .resizable().scaledToFill()
@@ -775,6 +817,7 @@ struct MealTemplateEditorView: View {
                         Button("Remove photo", role: .destructive) {
                             pendingRecipePhotoData = nil
                             recipePhotoIdentifier = nil
+                            recipePhotoPreview = nil
                             recipePhotoPickerItem = nil
                         }
                         .accessibilityIdentifier("recipe-remove-photo")
@@ -785,9 +828,10 @@ struct MealTemplateEditorView: View {
                     Label("Add recipe photo", systemImage: AppIcon.recipePhoto)
                 }
                 .accessibilityIdentifier("recipe-add-photo")
-                if let data = selectedImageData, UIImage(data: data) != nil {
+                if let selectedImageData, selectedImagePreview != nil {
                     Button {
-                        pendingRecipePhotoData = data
+                        pendingRecipePhotoData = selectedImageData
+                        recipePhotoPreview = selectedImagePreview
                     } label: {
                         Label("Keep generation photo with recipe", systemImage: "photo.on.rectangle")
                     }
@@ -797,13 +841,6 @@ struct MealTemplateEditorView: View {
                     .font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
             }
         }
-    }
-
-    /// The recipe photo currently shown: a freshly picked one takes precedence
-    /// over the persisted file.
-    private var currentRecipePhoto: UIImage? {
-        if let pendingRecipePhotoData { return UIImage(data: pendingRecipePhotoData) }
-        return RecipePhotoStore.loadImage(recipePhotoIdentifier)
     }
 
     /// Locale-aware decimal binding for the recipe-yield field, preserving
@@ -859,7 +896,7 @@ struct MealTemplateEditorView: View {
 
     @ViewBuilder
     private var photoControl: some View {
-        if let currentImageData = selectedImageData, let uiImage = UIImage(data: currentImageData) {
+        if selectedImageData != nil, let uiImage = selectedImagePreview {
             HStack(spacing: Spacing.m) {
                 Image(uiImage: uiImage)
                     .resizable()
@@ -877,6 +914,7 @@ struct MealTemplateEditorView: View {
                             .accessibilityIdentifier("replace-recipe-photo")
                         Button(role: .destructive) {
                             selectedImageData = nil
+                            selectedImagePreview = nil
                             selectedPhotoItem = nil
                         } label: { Text("Remove") }
                         .disabled(isGenerating)
@@ -1029,30 +1067,43 @@ struct MealTemplateEditorView: View {
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard (recipeYield ?? 1) > 0 else { errorMessage = "Recipe yield must be positive or blank."; return }
-        let photoIdentifier = resolvedPhotoIdentifier()
+        guard isSaving == false else { return }
+        isSaving = true
+        let pendingPhotoData = pendingRecipePhotoData
+
+        Task {
+            let photoIdentifier: String?
+            if let pendingPhotoData {
+                guard let stored = await RecipePhotoStore.storeImageDataAsync(pendingPhotoData) else {
+                    guard !Task.isCancelled else { return }
+                    errorMessage = "The recipe photo could not be saved. Try another image."
+                    isSaving = false
+                    return
+                }
+                photoIdentifier = stored
+            } else {
+                photoIdentifier = recipePhotoIdentifier
+            }
+
+            guard !Task.isCancelled else {
+                isSaving = false
+                return
+            }
+            persistRecipe(named: trimmed, photoIdentifier: photoIdentifier)
+            isSaving = false
+        }
+    }
+
+    private func persistRecipe(named trimmed: String, photoIdentifier: String?) {
         if let template {
             guard MealTemplateService.revise(template, name: trimmed, preparationState: preparation, finalCookedWeightGrams: recipeYield, photoIdentifier: photoIdentifier, items: selected, using: modelContext) != nil else { errorMessage = "The recipe could not be saved."; return }
         } else {
             let newTemplate = MealTemplate(name: trimmed, preparationState: preparation, finalCookedWeightGrams: recipeYield, photoIdentifier: photoIdentifier)
             newTemplate.items = selected.enumerated().map { MealTemplateItem(food: $0.element.0, orderIndex: $0.offset, servingID: $0.element.1, quantity: $0.element.2) }
             modelContext.insert(newTemplate)
-            do { try modelContext.save() } catch { errorMessage = "The recipe could not be saved."; return }
+            guard modelContext.saveOrRollback() else { errorMessage = "The recipe could not be saved."; return }
         }
         dismiss()
-    }
-
-    /// Persists a newly picked photo to disk, or keeps/clears the existing one.
-    /// The prior revision retains its own reference, so an orphaned file is only
-    /// cleaned up when no revision points at it.
-    private func resolvedPhotoIdentifier() -> String? {
-        if let pendingRecipePhotoData, let image = UIImage(data: pendingRecipePhotoData) {
-            return RecipePhotoStore.store(image)
-        }
-        if recipePhotoIdentifier == nil, let previous = template?.photoIdentifier {
-            // The user removed the photo; drop the file if no revision uses it.
-            RecipePhotoStore.deleteIfUnreferenced(previous, in: modelContext)
-        }
-        return recipePhotoIdentifier
     }
 }
 
@@ -1174,7 +1225,7 @@ struct NutritionTargetEditorView: View {
             }
         } else {
             modelContext.insert(NutritionTarget(phase: phase, effectiveStartDay: start, effectiveEndDay: end, training: trainingValues, rest: restValues))
-            do { try modelContext.save() } catch { errorMessage = "The target could not be saved."; return }
+            guard modelContext.saveOrRollback() else { errorMessage = "The target could not be saved."; return }
         }
         dismiss()
     }

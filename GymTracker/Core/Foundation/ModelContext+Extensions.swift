@@ -2,6 +2,22 @@ import Foundation
 import SwiftData
 
 extension ModelContext {
+    /// Keeps a failed persistence operation from leaving deleted or edited
+    /// models registered in this context for a later unrelated save. Callers
+    /// that need to present an error can use the Boolean result while the
+    /// rollback restores the last committed graph immediately.
+    @discardableResult
+    func saveOrRollback() -> Bool {
+        do {
+            try save()
+            return true
+        } catch {
+            rollback()
+            print("Failed to save SwiftData changes: \(error)")
+            return false
+        }
+    }
+
     func clearAllGymData(saveChanges: Bool = true) throws {
         let workouts = try fetch(FetchDescriptor<Workout>())
         for workout in workouts {

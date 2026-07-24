@@ -14,6 +14,7 @@ enum RecipePhotoStore {
     static let maxDimension: CGFloat = 512
     private static let compressionQuality: CGFloat = 0.7
     private static let directoryName = "RecipePhotos"
+    private static let imageCache = NSCache<NSString, UIImage>()
 
     private static var directoryURL: URL {
         let base = (try? FileManager.default.url(
@@ -52,13 +53,57 @@ enum RecipePhotoStore {
     }
 
     static func loadImage(_ identifier: String?) -> UIImage? {
+        if let identifier, let cached = imageCache.object(forKey: identifier as NSString) {
+            return cached
+        }
         guard let data = loadData(identifier) else { return nil }
-        return UIImage(data: data)
+        let image = UIImage(data: data)
+        if let identifier, let image {
+            imageCache.setObject(image, forKey: identifier as NSString)
+        }
+        return image
     }
 
     static func loadData(_ identifier: String?) -> Data? {
         guard let identifier else { return nil }
         return try? Data(contentsOf: url(for: identifier))
+    }
+
+    static func loadImageAsync(_ identifier: String?) async -> UIImage? {
+        guard let identifier else { return nil }
+        if let cached = imageCache.object(forKey: identifier as NSString) {
+            return cached
+        }
+        let data = await Task.detached(priority: .utility) {
+            try? Data(contentsOf: url(for: identifier))
+        }.value
+        guard let data else { return nil }
+        let image = UIImage(data: data)
+        if let image {
+            imageCache.setObject(image, forKey: identifier as NSString)
+        }
+        return image
+    }
+
+    /// Decodes, downscales, encodes, and writes a newly selected photo away
+    /// from the main actor. The editor keeps only the original picker bytes
+    /// until this completes, so tapping Save cannot stall form interaction.
+    static func storeImageDataAsync(_ sourceData: Data) async -> String? {
+        await Task.detached(priority: .utility) {
+            guard let image = UIImage(data: sourceData),
+                  let data = compressedData(from: image)
+            else {
+                return nil
+            }
+            return store(data)
+        }.value
+    }
+
+    static func decodeImageAsync(_ data: Data?) async -> UIImage? {
+        guard let data else { return nil }
+        return await Task.detached(priority: .utility) {
+            UIImage(data: data)
+        }.value
     }
 
     /// Deletes the file for `identifier` only when no `MealTemplate` in the
@@ -70,6 +115,7 @@ enum RecipePhotoStore {
             .contains { $0.photoIdentifier == identifier }
         guard stillReferenced == false else { return }
         try? FileManager.default.removeItem(at: url(for: identifier))
+        imageCache.removeObject(forKey: identifier as NSString)
     }
 
     /// Reduces an image to a JPEG no larger than `maxDimension` on its longest

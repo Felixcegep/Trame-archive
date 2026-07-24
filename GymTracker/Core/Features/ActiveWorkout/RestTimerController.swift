@@ -37,8 +37,8 @@ final class RestTimerController {
     }
 
     func restore(endDate: Date?, pausedRemaining: TimeInterval?) {
-        if let endDate, endDate > .now {
-            state = .running(endDate)
+        if let endDate {
+            state = endDate > .now ? .running(endDate) : .ready
         } else if let pausedRemaining, pausedRemaining > 0 {
             state = .paused(pausedRemaining)
         } else {

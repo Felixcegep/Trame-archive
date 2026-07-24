@@ -755,7 +755,7 @@ struct HomeView: View {
         if creatineOccurrence == nil {
             modelContext.insert(occurrence)
         }
-        try? modelContext.save()
+        _ = modelContext.saveOrRollback()
     }
 
     private var primaryCardSubtitle: LocalizedStringKey {

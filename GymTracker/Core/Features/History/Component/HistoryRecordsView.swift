@@ -5,6 +5,13 @@ struct HistoryRecordsView: View {
     let workouts: [Workout]
 
     var body: some View {
+        let loadRecords = bestLoadRecords
+        let repRecords = bestRepRecords
+        let velocity = velocityRecords
+        let specialized = specializedMetricRecords
+        let blockScores = blockScoreRecords
+        let notable = notableSessions
+
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -15,30 +22,30 @@ struct HistoryRecordsView: View {
                         .foregroundStyle(Color.gymSubduedText)
                 }
 
-                if bestLoadRecords.isEmpty && bestRepRecords.isEmpty && velocityRecords.isEmpty && specializedMetricRecords.isEmpty && blockScoreRecords.isEmpty && notableSessions.isEmpty {
+                if loadRecords.isEmpty && repRecords.isEmpty && velocity.isEmpty && specialized.isEmpty && blockScores.isEmpty && notable.isEmpty {
                     ContentUnavailableView(
                         "No records yet",
                         systemImage: AppIcon.trophy,
                         description: Text("Complete weighted or rep-based sets to establish personal bests.")
                     )
                 } else {
-                    if !bestLoadRecords.isEmpty {
-                        recordsSection("Best load", icon: AppIcon.workout, records: bestLoadRecords)
+                    if !loadRecords.isEmpty {
+                        recordsSection("Best load", icon: AppIcon.workout, records: loadRecords)
                     }
-                    if !bestRepRecords.isEmpty {
-                        recordsSection("Best reps", icon: AppIcon.number, records: bestRepRecords)
+                    if !repRecords.isEmpty {
+                        recordsSection("Best reps", icon: AppIcon.number, records: repRecords)
                     }
-                    if !velocityRecords.isEmpty {
-                        recordsSection("Velocity records", icon: AppIcon.progression, records: velocityRecords)
+                    if !velocity.isEmpty {
+                        recordsSection("Velocity records", icon: AppIcon.progression, records: velocity)
                     }
-                    if !specializedMetricRecords.isEmpty {
-                        recordsSection("Power & implement records", icon: AppIcon.trophy, records: specializedMetricRecords)
+                    if !specialized.isEmpty {
+                        recordsSection("Power & implement records", icon: AppIcon.trophy, records: specialized)
                     }
-                    if !blockScoreRecords.isEmpty {
-                        recordsSection("Format records", icon: AppIcon.relationship, records: blockScoreRecords)
+                    if !blockScores.isEmpty {
+                        recordsSection("Format records", icon: AppIcon.relationship, records: blockScores)
                     }
-                    if !notableSessions.isEmpty {
-                        notableSection
+                    if !notable.isEmpty {
+                        notableSection(notable)
                     }
                 }
             }
@@ -58,11 +65,11 @@ struct HistoryRecordsView: View {
         }
     }
 
-    private var notableSection: some View {
+    private func notableSection(_ sessions: [HistorySessionRecord]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Label("Notable sessions", systemImage: AppIcon.favoriteFilled)
                 .font(AppFont.titleSmallSemibold)
-            ForEach(notableSessions) { session in
+            ForEach(sessions) { session in
                 HStack {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(session.title)
@@ -155,16 +162,17 @@ struct HistoryRecordsView: View {
             for exercise in workout.orderedExercises {
                 for set in exercise.orderedSets where StrengthAnalyticsPolicy.isEligibleForSpecializedMetricRecord(set) {
                     guard let metric = StrengthAnalyticsPolicy.specializedMetricValue(for: set) else { continue }
-                    let key = "\(exercise.nameSnapshot)|\(set.specializedMetricKind.rawValue)"
+                    let kind = set.resolvedSpecializedMetricKind
+                    let key = "\(exercise.nameSnapshot)|\(kind.rawValue)"
                     let candidate = HistoryRecord(
-                        exercise: "\(exercise.nameSnapshot) · \(set.specializedMetricKind.title)",
+                        exercise: "\(exercise.nameSnapshot) · \(kind.title)",
                         value: Float(metric.value),
                         unit: metric.unit,
                         date: workout.startTime,
-                        kind: "specialized-\(set.specializedMetricKind.rawValue)"
+                        kind: "specialized-\(kind.rawValue)"
                     )
                     guard let prior = best[key] else { best[key] = candidate; continue }
-                    let isImprovement = StrengthAnalyticsPolicy.prefersLowerSpecializedMetric(set.specializedMetricKind)
+                    let isImprovement = StrengthAnalyticsPolicy.prefersLowerSpecializedMetric(kind)
                         ? candidate.value < prior.value
                         : candidate.value > prior.value
                     if isImprovement { best[key] = candidate }

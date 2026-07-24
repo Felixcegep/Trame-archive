@@ -22,13 +22,8 @@ class WorkoutViewModel {
         activeWorkout != nil
     }
     func removeWorkout(using modelContext: ModelContext, workout: Workout){
-       do {
-            modelContext.delete(workout)
-           try modelContext.save()
-       }catch{
-           return
-       }
-        
+        modelContext.delete(workout)
+        _ = modelContext.saveOrRollback()
     }
 
     func saveWorkout(using modelContext: ModelContext) -> Bool {
@@ -85,14 +80,10 @@ class WorkoutViewModel {
         activeWorkout.endTime = Date.now
         activeWorkout.restEndDate = nil
         completePlannedWorkoutIfNeeded(activeWorkout, using: modelContext)
-        do {
-            try modelContext.save()
-        } catch {
+        if modelContext.saveOrRollback() == false {
             // The active workout remains recoverable after a persistence failure.
             // SwiftData's rollback also undoes planned-run advancement and child
             // pruning performed above.
-            modelContext.rollback()
-            print("Failed to save workout: \(error)")
             return false
         }
 
@@ -109,15 +100,12 @@ class WorkoutViewModel {
 
         restorePlannedWorkoutAvailabilityIfNeeded(activeWorkout, using: modelContext)
         modelContext.delete(activeWorkout)
-        do {
-            try modelContext.save()
+        if modelContext.saveOrRollback() {
             workout = nil
             NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-        } catch {
-            modelContext.rollback()
+        } else {
             self.activeWorkout = try? modelContext.fetch(FetchDescriptor<Workout>())
                 .first { $0.status == .active }
-            print("Failed to discard active workout: \(error)")
         }
     }
 
@@ -271,16 +259,12 @@ class WorkoutViewModel {
 
     private func persistAndActivate(_ workout: Workout, using modelContext: ModelContext) -> Bool {
         modelContext.insert(workout)
-        do {
-            try modelContext.save()
+        if modelContext.saveOrRollback() {
             activeWorkout = workout
             reconcileLiveActivity()
             return true
-        } catch {
-            modelContext.rollback()
-            print("Failed to start workout: \(error)")
-            return false
         }
+        return false
     }
 
     func reconcileLiveActivity() {

@@ -6,6 +6,9 @@ struct HistoryProgressView: View {
     let workouts: [Workout]
 
     var body: some View {
+        let series = exerciseSeries
+        let frequency = frequencyPoints
+
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -16,9 +19,9 @@ struct HistoryProgressView: View {
                         .foregroundStyle(Color.gymSubduedText)
                 }
 
-                HistoryFrequencyChart(points: frequencyPoints)
+                HistoryFrequencyChart(points: frequency)
 
-                if exerciseSeries.isEmpty {
+                if series.isEmpty {
                     ContentUnavailableView(
                         "No measurable progress yet",
                         systemImage: AppIcon.chart,
@@ -29,8 +32,8 @@ struct HistoryProgressView: View {
                         Text("Exercise trends")
                             .font(AppFont.titleSmallSemibold)
 
-                        ForEach(Array(exerciseSeries.prefix(5))) { series in
-                            HistoryExerciseProgressCard(series: series)
+                        ForEach(Array(series.prefix(5))) { item in
+                            HistoryExerciseProgressCard(series: item)
                         }
                     }
                 }
@@ -91,12 +94,20 @@ struct HistoryProgressView: View {
     private var frequencyPoints: [HistoryFrequencyPoint] {
         let calendar = Calendar.autoupdatingCurrent
         guard let currentStart = calendar.dateInterval(of: .weekOfYear, for: Date.now)?.start else { return [] }
-
-        return (0..<8).compactMap { offset in
+        let starts: [(start: Date, end: Date)] = (0..<8).compactMap { offset in
             guard let start = calendar.date(byAdding: .weekOfYear, value: offset - 7, to: currentStart),
                   let end = calendar.date(byAdding: .weekOfYear, value: 1, to: start) else { return nil }
-            let count = workouts.filter { $0.startTime >= start && $0.startTime < end }.count
-            return HistoryFrequencyPoint(start: start, count: count)
+            return (start, end)
+        }
+        var counts = Array(repeating: 0, count: starts.count)
+        for workout in workouts {
+            for (index, interval) in starts.enumerated() where workout.startTime >= interval.0 && workout.startTime < interval.1 {
+                counts[index] += 1
+                break
+            }
+        }
+        return starts.enumerated().map { index, interval in
+            HistoryFrequencyPoint(start: interval.0, count: counts[index])
         }
     }
 }

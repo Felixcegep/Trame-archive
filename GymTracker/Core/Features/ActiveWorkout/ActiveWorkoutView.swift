@@ -352,10 +352,17 @@ struct ActiveWorkoutView: View {
                     Text(formatRemainingTime(viewModel.pausedTimeRemaining))
                         .font(.headline.monospacedDigit())
                         .foregroundStyle(Color.gymAccent)
-                } else {
-                    Text(timerInterval: Date.now...endDate, countsDown: true)
+                } else if let interval = LiveActivityTimeRange.restInterval(now: .now, end: endDate) {
+                    Text(timerInterval: interval, countsDown: true)
                         .font(.headline.monospacedDigit())
                         .foregroundStyle(Color.gymAccent)
+                } else {
+                    // The persisted deadline can expire while SwiftUI is
+                    // waiting for the rest-state task to mark it ready.
+                    // Never construct an invalid timer range in that gap.
+                    Text("Ready")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(Color.gymSecondary)
                 }
             }
 

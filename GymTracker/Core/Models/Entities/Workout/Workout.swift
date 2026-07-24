@@ -243,19 +243,24 @@ class Workout {
     }
 
     var orderedExercises: [ExerciseEntry] {
-        exercises.sorted { lhs, rhs in
-            lhs.orderIndex == rhs.orderIndex
-                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
-                : lhs.orderIndex < rhs.orderIndex
-        }
+        exercises.sorted(by: { lhs, rhs in
+            if lhs.orderIndex != rhs.orderIndex {
+                return lhs.orderIndex < rhs.orderIndex
+            }
+            if lhs.nameSnapshot != rhs.nameSnapshot {
+                return lhs.nameSnapshot.localizedStandardCompare(rhs.nameSnapshot) == .orderedAscending
+            }
+            return lhs.exercise.id.uuidString < rhs.exercise.id.uuidString
+        })
     }
 
     var orderedExecutionBlocks: [WorkoutExecutionBlock] {
-        executionBlocks.sorted { lhs, rhs in
-            lhs.orderIndex == rhs.orderIndex
-                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
-                : lhs.orderIndex < rhs.orderIndex
-        }
+        executionBlocks.sorted(by: { lhs, rhs in
+            if lhs.orderIndex != rhs.orderIndex {
+                return lhs.orderIndex < rhs.orderIndex
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
+        })
     }
 
     func normalizeExerciseOrder() {

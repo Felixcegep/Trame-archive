@@ -20,6 +20,8 @@ struct WorkoutTemplateFormView: View {
     @State private var filter = ExerciseFilterState()
 
     var body: some View {
+        let results = filteredExercises
+
         Form {
             Section("Workout") {
                 TextField("Name", text: $name)
@@ -31,11 +33,11 @@ struct WorkoutTemplateFormView: View {
                     Text("Create an exercise first")
                         .foregroundStyle(.secondary)
                 } else {
-                    ExerciseFilterControls(filter: $filter, resultCount: filteredExercises.count)
+                    ExerciseFilterControls(filter: $filter, resultCount: results.count)
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
 
-                    if filteredExercises.isEmpty {
+                    if results.isEmpty {
                         VStack(alignment: .leading, spacing: Spacing.s) {
                             Text("No exercises match your search or filters.")
                                 .foregroundStyle(Color.gymSubduedText)
@@ -46,7 +48,7 @@ struct WorkoutTemplateFormView: View {
                             .font(AppFont.subheadlineSemibold)
                         }
                     } else {
-                        ForEach(filteredExercises, id: \.self) { exercise in
+                        ForEach(results, id: \.id) { exercise in
                             ExerciseSelectionRow(
                                 exercise: exercise,
                                 isSelected: selectedExerciseNames.contains(exercise.name),

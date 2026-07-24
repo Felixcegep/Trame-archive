@@ -4,6 +4,17 @@ import XCTest
 
 @MainActor
 final class LiveActivityMutationServiceTests: XCTestCase {
+    func testExpiredRestIntervalIsNotRepresentedAsAnInvalidRange() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+        XCTAssertNil(LiveActivityTimeRange.restInterval(now: now, end: now))
+        XCTAssertNil(LiveActivityTimeRange.restInterval(now: now, end: now.addingTimeInterval(-1)))
+        XCTAssertEqual(
+            LiveActivityTimeRange.restInterval(now: now, end: now.addingTimeInterval(30)),
+            now...now.addingTimeInterval(30)
+        )
+    }
+
     func testCompletingExpectedCurrentSetStartsRestAndProjectsNextSet() throws {
         let context = try makeContext()
         let fixture = try makeActiveWorkout(in: context, firstSetRepetitions: 8)

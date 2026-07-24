@@ -5,6 +5,21 @@ import XCTest
 
 @MainActor
 final class StrengthExpansionFoundationTests: XCTestCase {
+    func testMissingPersistedSetMethodUsesStandardSemantics() {
+        let set = ExerciseSet(repetitions: 5, weight: 100, done: true, usedMetric: .metric)
+        set.setMethod = nil
+
+        XCTAssertEqual(set.resolvedSetMethod, .standard)
+    }
+
+    func testMissingPersistedSpecializedMetricUsesNoMetricSemantics() {
+        let set = ExerciseSet(repetitions: 5, weight: 100, done: true, usedMetric: .metric)
+        set.specializedMetricKind = nil
+
+        XCTAssertEqual(set.resolvedSpecializedMetricKind, .none)
+        XCTAssertTrue(StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(set))
+    }
+
     func testPlateCalculatorUsesDescendingPerSidePlatesFor215Pounds() {
         let calculation = PlateCalculation(
             target: 215,
@@ -150,7 +165,7 @@ final class StrengthExpansionFoundationTests: XCTestCase {
 
         let copy = set.copy()
 
-        XCTAssertEqual(copy.setMethod, .dropSet)
+        XCTAssertEqual(copy.resolvedSetMethod, .dropSet)
         XCTAssertEqual(copy.peakVelocity, 0.81)
         XCTAssertEqual(copy.velocityMeasurementSource, .manual)
         XCTAssertEqual(copy.orderedSegments.map(\.weight), [30, 22, 16])
@@ -778,10 +793,10 @@ final class StrengthExpansionFoundationTests: XCTestCase {
 
         let restoredWorkout = try XCTUnwrap(restored.fetch(FetchDescriptor<Workout>()).first)
         let restoredSet = try XCTUnwrap(restoredWorkout.orderedExercises.first?.orderedSets.first)
-        XCTAssertEqual(restoredSet.setMethod, .dropSet)
+        XCTAssertEqual(restoredSet.resolvedSetMethod, .dropSet)
         XCTAssertEqual(restoredSet.peakVelocity, 0.72)
         XCTAssertEqual(restoredSet.velocityMeasurementSource, .manual)
-        XCTAssertEqual(restoredSet.specializedMetricKind, .kettlebellCadence)
+        XCTAssertEqual(restoredSet.resolvedSpecializedMetricKind, .kettlebellCadence)
         XCTAssertEqual(restoredSet.kettlebellCadenceRPM, 24)
         XCTAssertEqual(restoredSet.specializedMetricMeasurementSource, .device)
         XCTAssertEqual(restoredSet.orderedSegments.map(\.weight), [30, 20])

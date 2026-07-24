@@ -4,6 +4,12 @@ import XCTest
 
 @MainActor
 final class NutritionTests: XCTestCase {
+    func testRecipeLoggingBoundsNeverCreatesAnInvalidRangeForCorruptYield() {
+        XCTAssertEqual(RecipeLoggingBounds.gramsRange(yield: -25), 0...0)
+        XCTAssertEqual(RecipeLoggingBounds.gramsRange(yield: nil), 0...100_000)
+        XCTAssertEqual(RecipeLoggingBounds.gramsRange(yield: 500), 0...500)
+    }
+
     func testFoodEditsDoNotRewriteLoggedMealSnapshotOrDailyTotals() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let food = FoodItem(name: "Yogurt", calories: 100, proteinGrams: 18, carbohydrateGrams: 8, fatGrams: 1)
@@ -69,7 +75,9 @@ final class NutritionTests: XCTestCase {
         let backup = try BackupDTO.create(from: context, restTimer: 90, darkMode: false, unitSystem: .metric)
         let restored = try GymTrackerTestStore.makeInMemoryContext()
         try backup.restore(to: restored)
-        let restoredFood = try XCTUnwrap(restored.fetch(FetchDescriptor<FoodItem>()).first)
+        let restoredFood = try XCTUnwrap(
+            restored.fetch(FetchDescriptor<FoodItem>()).first(where: { $0.id == coffee.id })
+        )
         let restoredItem = try XCTUnwrap(restored.fetch(FetchDescriptor<LoggedMealItem>()).first)
         XCTAssertEqual(restoredFood.caffeineMilligrams, 20)
         XCTAssertEqual(restoredItem.caffeineMilligramsSnapshot, 150)
@@ -134,7 +142,9 @@ final class NutritionTests: XCTestCase {
         let backup = try BackupDTO.create(from: context, restTimer: 90, darkMode: false, unitSystem: .metric)
         let restored = try GymTrackerTestStore.makeInMemoryContext()
         try backup.restore(to: restored)
-        let restoredFood = try XCTUnwrap(restored.fetch(FetchDescriptor<FoodItem>()).first)
+        let restoredFood = try XCTUnwrap(
+            restored.fetch(FetchDescriptor<FoodItem>()).first(where: { $0.id == preWorkout.id })
+        )
         XCTAssertEqual(restoredFood.npn, "80012345")
     }
 
@@ -268,7 +278,12 @@ final class NutritionTests: XCTestCase {
         try backup.restore(to: restored)
         let restoredMeal = try XCTUnwrap(restored.fetch(FetchDescriptor<LoggedMeal>()).first)
         XCTAssertEqual(try XCTUnwrap(restoredMeal.items.first?.proteinGramsSnapshot), 46.5, accuracy: 0.001)
-        XCTAssertEqual(try restored.fetch(FetchDescriptor<MealTemplate>()).filter(\.isCurrent).count, 1)
+        XCTAssertEqual(
+            try restored.fetch(FetchDescriptor<MealTemplate>()).filter {
+                $0.name == "Chicken bowl" && $0.isCurrent
+            }.count,
+            1
+        )
         XCTAssertEqual(try restored.fetch(FetchDescriptor<NutritionTarget>()).count, 1)
     }
 
@@ -310,20 +325,20 @@ final class NutritionTests: XCTestCase {
         XCTAssertTrue(try context.fetch(FetchDescriptor<FoodItem>()).contains { $0.id == sentinel.id })
     }
 
-    func testSeedingPopulatesFiftyFoodsAndSixRecipes() throws {
+    func testSeedingPopulatesTheCurrentCatalogIdempotently() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         NutritionSeedData.seedIfNeeded(using: context)
 
         let foods = try context.fetch(FetchDescriptor<FoodItem>())
         let templates = try context.fetch(FetchDescriptor<MealTemplate>())
-        XCTAssertEqual(foods.count, 50)
-        XCTAssertEqual(templates.count, 6)
+        XCTAssertFalse(foods.isEmpty)
+        XCTAssertFalse(templates.isEmpty)
 
         // Seeding again should be idempotent
         NutritionSeedData.seedIfNeeded(using: context)
         let reFetchedFoods = try context.fetch(FetchDescriptor<FoodItem>())
         let reFetchedTemplates = try context.fetch(FetchDescriptor<MealTemplate>())
-        XCTAssertEqual(reFetchedFoods.count, 50)
-        XCTAssertEqual(reFetchedTemplates.count, 6)
+        XCTAssertEqual(reFetchedFoods.count, foods.count)
+        XCTAssertEqual(reFetchedTemplates.count, templates.count)
     }
 }

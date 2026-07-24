@@ -5,6 +5,15 @@ import XCTest
 
 @MainActor
 final class SystemSeedRegistryTests: XCTestCase {
+    func testCatalogInstallationIsSkippedWhenCurrentManifestExists() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        XCTAssertTrue(try SystemSeedCatalogCoordinator.needsInstallation(in: context))
+
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+
+        XCTAssertFalse(try SystemSeedCatalogCoordinator.needsInstallation(in: context))
+    }
+
     private final class EmptyBundleToken {}
 
     func testExerciseSeedInstallIsIdempotentAndUsesStableKeys() throws {

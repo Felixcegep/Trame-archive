@@ -91,7 +91,9 @@ struct BodyWeightHistoryView: View {
 
     private func delete(_ entry: BodyWeightEntry) {
         modelContext.delete(entry)
-        do { try modelContext.save() } catch { saveError = "Your measurement could not be deleted." }
+        if modelContext.saveOrRollback() == false {
+            saveError = "Your measurement could not be deleted."
+        }
     }
 }
 
@@ -175,10 +177,9 @@ struct BodyWeightEditorSheet: View {
         target.dayKey = day.rawValue
         target.update(value: parsedValue, unit: unit, source: source, measuredAt: measuredAt)
         if entry == nil && sameDay == nil { modelContext.insert(target) }
-        do {
-            try modelContext.save()
+        if modelContext.saveOrRollback() {
             dismiss()
-        } catch {
+        } else {
             errorMessage = "Your value is still here. Please try saving again."
         }
     }

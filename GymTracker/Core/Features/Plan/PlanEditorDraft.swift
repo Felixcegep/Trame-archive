@@ -437,6 +437,13 @@ struct PlanExerciseDraft: Identifiable {
         return alternatives.map(\.name).joined(separator: ", ")
     }
 
+    /// Imported or legacy plan data may predate current editor constraints.
+    /// Normalize it before binding it to controls that require a valid range.
+    mutating func normalizeRepRangeForEditing() {
+        repRangeMinimum = min(max(repRangeMinimum, 1), 100)
+        repRangeMaximum = min(max(repRangeMaximum, repRangeMinimum), 100)
+    }
+
     func makeModel(orderIndex: Int) -> PlannedExercise {
         PlannedExercise(
             exercise: exercise,

@@ -11,10 +11,15 @@ enum PlanProgressionRecommendationService {
     ) throws {
         guard !recommendation.isResolved else { return }
         guard let state = state(for: recommendation, in: run) else { return }
-        try accept(recommendation, using: state, overridingLoadWith: nil, in: run)
-        recommendation.isResolved = true
-        recommendation.resolvedAt = .now
-        try context.save()
+        do {
+            try accept(recommendation, using: state, overridingLoadWith: nil, in: run)
+            recommendation.isResolved = true
+            recommendation.resolvedAt = .now
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 
     static func accept(
@@ -25,16 +30,26 @@ enum PlanProgressionRecommendationService {
     ) throws {
         guard !recommendation.isResolved else { return }
         guard let state = state(for: recommendation, in: run) else { return }
-        try accept(recommendation, using: state, overridingLoadWith: load, in: run)
-        recommendation.isResolved = true
-        recommendation.resolvedAt = .now
-        try context.save()
+        do {
+            try accept(recommendation, using: state, overridingLoadWith: load, in: run)
+            recommendation.isResolved = true
+            recommendation.resolvedAt = .now
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 
     static func decline(_ recommendation: PlanProgressionRecommendationRecord, context: ModelContext) throws {
-        recommendation.isResolved = true
-        recommendation.resolvedAt = .now
-        try context.save()
+        do {
+            recommendation.isResolved = true
+            recommendation.resolvedAt = .now
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 
     private static func apply(

@@ -39,7 +39,10 @@ final class ExerciseSet {
     /// manual and device capture are both opt-in and absent data is never zero.
     var peakVelocity: Double?
     var velocityMeasurementSource: MeasurementSource?
-    var specializedMetricKind: SpecializedPerformanceMetricKind = SpecializedPerformanceMetricKind.none
+    /// Optional for compatibility with workouts created before specialized
+    /// performance metrics were persisted. Missing legacy values mean no
+    /// specialized metric and are resolved at the domain boundary.
+    var specializedMetricKind: SpecializedPerformanceMetricKind?
     /// Measured vertically in metres; presentation can convert to the user's
     /// preferred unit without losing a stable analytical unit.
     var jumpHeightMeters: Double?
@@ -51,7 +54,11 @@ final class ExerciseSet {
     var kettlebellCadenceRPM: Double?
     var specializedMetricMeasurementSource: MeasurementSource?
     /// Independent from `setType`: describes how the work was performed.
-    var setMethod: SetMethod = SetMethod.standard
+    /// Optional for compatibility with workouts created before the strength
+    /// expansion added persisted set methods. Missing legacy values are
+    /// semantically equivalent to a standard set and are resolved through
+    /// `resolvedSetMethod` at the domain boundary.
+    var setMethod: SetMethod?
     var setType: SetType = SetType.normal
     /// For a daily-maximum exposure, the lifter can choose which completed
     /// attempt supplies same-session derived back-off work.
@@ -185,6 +192,14 @@ final class ExerciseSet {
         self.complexComponents = []
     }
 
+    var resolvedSetMethod: SetMethod {
+        setMethod ?? .standard
+    }
+
+    var resolvedSpecializedMetricKind: SpecializedPerformanceMetricKind {
+        specializedMetricKind ?? .none
+    }
+
     func copy() -> ExerciseSet {
         let copy = ExerciseSet(
             repetitions: repetitions,
@@ -205,13 +220,13 @@ final class ExerciseSet {
             meanVelocity: meanVelocity,
             peakVelocity: peakVelocity,
             velocityMeasurementSource: velocityMeasurementSource,
-            specializedMetricKind: specializedMetricKind,
+            specializedMetricKind: resolvedSpecializedMetricKind,
             jumpHeightMeters: jumpHeightMeters,
             contactTimeMilliseconds: contactTimeMilliseconds,
             throwDistanceMeters: throwDistanceMeters,
             kettlebellCadenceRPM: kettlebellCadenceRPM,
             specializedMetricMeasurementSource: specializedMetricMeasurementSource,
-            setMethod: setMethod,
+            setMethod: resolvedSetMethod,
             setType: setType,
             orderIndex: 0,
             usedMetric: usedMetric
@@ -279,7 +294,8 @@ final class ExerciseSet {
     /// Existing segments are never overwritten by a method change, preserving
     /// recorded work instead of silently fabricating or deleting history.
     func ensureSegmentsForMethod() {
-        let requiredCount = setMethod.minimumSegmentCount
+        let method = resolvedSetMethod
+        let requiredCount = method.minimumSegmentCount
         guard requiredCount > 0, segments.count < requiredCount else { return }
         for index in segments.count..<requiredCount {
             segments.append(ExerciseSetSegment(
@@ -287,7 +303,7 @@ final class ExerciseSet {
                 repetitions: repetitions,
                 weight: weight,
                 weightType: weightType,
-                restAfterSeconds: index + 1 < requiredCount ? setMethod.defaultInterSegmentRestSeconds : nil
+                restAfterSeconds: index + 1 < requiredCount ? method.defaultInterSegmentRestSeconds : nil
             ))
         }
         normalizeSegmentOrder()
@@ -347,11 +363,12 @@ final class ExerciseSet {
     }
 
     var orderedSegments: [ExerciseSetSegment] {
-        segments.sorted { lhs, rhs in
-            lhs.orderIndex == rhs.orderIndex
-                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
-                : lhs.orderIndex < rhs.orderIndex
-        }
+        segments.sorted(by: { lhs, rhs in
+            if lhs.orderIndex != rhs.orderIndex {
+                return lhs.orderIndex < rhs.orderIndex
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
+        })
     }
 
     func normalizeSegmentOrder() {
@@ -361,11 +378,12 @@ final class ExerciseSet {
     }
 
     var orderedComplexComponents: [ComplexComponentResult] {
-        complexComponents.sorted { lhs, rhs in
-            lhs.orderIndex == rhs.orderIndex
-                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
-                : lhs.orderIndex < rhs.orderIndex
-        }
+        complexComponents.sorted(by: { lhs, rhs in
+            if lhs.orderIndex != rhs.orderIndex {
+                return lhs.orderIndex < rhs.orderIndex
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
+        })
     }
 
     /// Creates performed component rows only for a structured complex. Existing

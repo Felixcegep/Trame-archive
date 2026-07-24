@@ -6,6 +6,15 @@ enum SystemSeedCatalogCoordinator {
     static let seedVersion = 1
     static let contentVersion = 1
 
+    /// The catalogue is immutable between bundled content versions. Avoid a
+    /// full graph scan and save on every launch once this version is present.
+    static func needsInstallation(in context: ModelContext) throws -> Bool {
+        let records = try context.fetch(FetchDescriptor<SystemSeedRecord>())
+        return records.isEmpty || records.contains {
+            $0.seedVersion < seedVersion || $0.contentVersion < contentVersion
+        }
+    }
+
     static func installBundledCatalog(
         in context: ModelContext,
         bundle: Bundle = .main

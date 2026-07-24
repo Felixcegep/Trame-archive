@@ -1,6 +1,12 @@
 import Foundation
 import SwiftData
 
+enum RecipeLoggingBounds {
+    static func gramsRange(yield: Double?) -> ClosedRange<Double> {
+        0...max(0, yield ?? 100_000)
+    }
+}
+
 struct FoodPortion: Hashable {
     let id: UUID?
     let name: String
@@ -55,7 +61,12 @@ enum FoodLibraryService {
         } else {
             context.delete(food)
         }
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 
     static func format(_ amount: Double) -> String {

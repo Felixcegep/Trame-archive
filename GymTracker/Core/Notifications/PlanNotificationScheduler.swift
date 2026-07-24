@@ -284,7 +284,7 @@ final class GymTrackerNotificationDelegate: NSObject, UIApplicationDelegate, UNU
         switch response.actionIdentifier {
         case PlanNotificationActionIdentifier.snooze:
             await MainActor.run {
-                let modelContext = GymTrackerModelContainer.shared.mainContext
+                guard let modelContext = GymTrackerModelContainer.shared?.mainContext else { return }
                 guard let resolved = PlanReminderActionService.resolve(destination, using: modelContext) else { return }
                 Task {
                     _ = await PlanNotificationScheduler.shared.snooze(
@@ -296,7 +296,7 @@ final class GymTrackerNotificationDelegate: NSObject, UIApplicationDelegate, UNU
             }
         case PlanNotificationActionIdentifier.skipToday:
             await MainActor.run {
-                let modelContext = GymTrackerModelContainer.shared.mainContext
+                guard let modelContext = GymTrackerModelContainer.shared?.mainContext else { return }
                 guard PlanReminderActionService.skipToday(destination, using: modelContext) else { return }
                 Task { await PlanNotificationScheduler.shared.reconcile(using: modelContext) }
             }

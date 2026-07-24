@@ -100,18 +100,73 @@ enum TrainingCalendarBuilder {
         let finalDay = calendar.date(byAdding: .day, value: -1, to: monthEnd) ?? monthStart
         let finalWeekStart = calendar.dateInterval(of: .weekOfYear, for: finalDay)?.start ?? finalDay
         let visibleEnd = calendar.date(byAdding: .day, value: 7, to: finalWeekStart) ?? monthEnd
-        let days = dates(from: visibleStart, until: visibleEnd, calendar: calendar).map { date in
-            day(
-                for: date,
+        let dates = dates(from: visibleStart, until: visibleEnd, calendar: calendar)
+
+        let plannedByDay = Dictionary(grouping: planRuns.flatMap { run in
+            run.orderedWorkoutProgress.compactMap { progress -> (String, TrainingCalendarPlannedWorkout)? in
+                guard let scheduledDate = progress.scheduledDate else { return nil }
+                let day = LocalDay(date: scheduledDate, calendar: calendar)
+                return (
+                    day.rawValue,
+                    TrainingCalendarPlannedWorkout(
+                        id: progress.id,
+                        runID: run.id,
+                        planID: run.sourcePlanID,
+                        workoutName: progress.plannedWorkoutName,
+                        planName: run.sourcePlanName,
+                        state: PlanCalendarBuilder.displayState(
+                            status: progress.status,
+                            scheduledDate: scheduledDate,
+                            today: today,
+                            calendar: calendar
+                        ),
+                        completedWorkoutID: progress.completedWorkout?.id
+                    )
+                )
+            }
+        }, by: \.0)
+        let workoutsByDay = Dictionary(grouping: workouts) { LocalDay(date: $0.startTime, calendar: calendar).rawValue }
+        let mobilityByDay = Dictionary(grouping: mobilitySessions) { LocalDay(date: $0.startTime, calendar: calendar).rawValue }
+        let mealsByDay = Dictionary(grouping: meals, by: \.dayKey)
+        let checkInsByDay = Dictionary(grouping: checkIns, by: \.dayKey)
+        let supplementsByDay = Dictionary(grouping: supplementOccurrences, by: \.dayKey)
+
+        let days = dates.map { date in
+            let day = LocalDay(date: date, calendar: calendar)
+            let plannedWorkouts = (plannedByDay[day.rawValue] ?? [])
+                .map(\.1)
+                .sorted { lhs, rhs in
+                    if lhs.planName != rhs.planName { return lhs.planName.localizedStandardCompare(rhs.planName) == .orderedAscending }
+                    return lhs.workoutName.localizedStandardCompare(rhs.workoutName) == .orderedAscending
+                }
+            let pairedWorkoutIDs = Set(plannedWorkouts.compactMap(\.completedWorkoutID))
+            let freeWorkouts = (workoutsByDay[day.rawValue] ?? []).compactMap { workout -> TrainingCalendarWorkout? in
+                guard !pairedWorkoutIDs.contains(workout.id), workout.status == .active || workout.status == .completed else { return nil }
+                return TrainingCalendarWorkout(id: workout.id, title: workout.displayTitle, status: workout.status, startedAt: workout.startTime)
+            }
+            .sorted { $0.startedAt < $1.startedAt }
+            let projectedMobility = (mobilityByDay[day.rawValue] ?? []).compactMap { session -> TrainingCalendarMobilitySession? in
+                guard session.status == .active || session.status == .completed else { return nil }
+                return TrainingCalendarMobilitySession(id: session.id, name: session.nameSnapshot, status: session.status, startedAt: session.startTime)
+            }
+            .sorted { $0.startedAt < $1.startedAt }
+            let dayMeals = mealsByDay[day.rawValue] ?? []
+            let nutrition = dayMeals.isEmpty ? nil : TrainingCalendarNutritionSummary(
+                totals: NutritionDaySummary.resolve(day: day, meals: dayMeals).totals,
+                mealCount: dayMeals.count
+            )
+            let checkIn = checkInsByDay[day.rawValue]?.first.map { TrainingCalendarCheckInSummary(status: $0.status) }
+            let creatine = supplementsByDay[day.rawValue]?.first(where: { $0.kind == .creatine })?.status
+            return TrainingCalendarDay(
+                date: calendar.startOfDay(for: date),
+                day: day,
                 isInDisplayedMonth: calendar.isDate(date, equalTo: monthStart, toGranularity: .month),
-                planRuns: planRuns,
-                workouts: workouts,
-                mobilitySessions: mobilitySessions,
-                meals: meals,
-                checkIns: checkIns,
-                supplementOccurrences: supplementOccurrences,
-                today: today,
-                calendar: calendar
+                plannedWorkouts: plannedWorkouts,
+                freeWorkouts: freeWorkouts,
+                mobilitySessions: projectedMobility,
+                nutrition: nutrition,
+                checkIn: checkIn,
+                creatine: creatine
             )
         }
 

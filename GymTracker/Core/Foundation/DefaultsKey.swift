@@ -5,6 +5,7 @@ struct DefaultsKey {
     static let restTimer = "restTimer"
     static let useMetric = "useMetric"
     static let orphanCleanupVersion = "orphanCleanupVersion"
+    static let workoutNormalizationVersion = "workoutNormalizationVersion"
     static let planRemindersEnabled = "planRemindersEnabled"
     static let planReminderHour = "planReminderHour"
     static let planReminderMinute = "planReminderMinute"

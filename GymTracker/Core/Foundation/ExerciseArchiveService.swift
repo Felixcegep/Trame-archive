@@ -10,12 +10,22 @@ enum ExerciseArchiveService {
             context.delete(exercise)
         }
 
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 
     static func restore(_ exercise: Exercise, using context: ModelContext) throws {
         exercise.isArchived = false
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 
     private static func isReferenced(

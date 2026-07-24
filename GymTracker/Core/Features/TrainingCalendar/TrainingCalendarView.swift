@@ -36,17 +36,20 @@ struct TrainingCalendarView: View {
         )
     }
 
-    private var selectedCalendarDay: TrainingCalendarDay? {
-        calendarMonth.weeks.flatMap { $0 }.first { $0.day == selectedDay }
+    private func selectedCalendarDay(in month: TrainingCalendarMonth) -> TrainingCalendarDay? {
+        month.weeks.flatMap { $0 }.first { $0.day == selectedDay }
     }
 
     var body: some View {
+        let month = calendarMonth
+        let selectedCalendarDay = selectedCalendarDay(in: month)
+
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 monthControls
-                monthSummary
+                monthSummary(month)
                 weekdayHeader
-                monthGrid
+                monthGrid(month)
 
                 if let selectedCalendarDay {
                     TrainingCalendarDayAgenda(
@@ -169,8 +172,8 @@ struct TrainingCalendarView: View {
         }
     }
 
-    private var monthSummary: some View {
-        let days = calendarMonth.weeks.flatMap { $0 }.filter(\.isInDisplayedMonth)
+    private func monthSummary(_ month: TrainingCalendarMonth) -> some View {
+        let days = month.weeks.flatMap { $0 }.filter(\.isInDisplayedMonth)
         let planned = days.reduce(0) { $0 + $1.plannedWorkouts.count }
         let completed = days.reduce(0) { $0 + $1.completedWorkoutCount }
         let activeDays = days.filter { $0.completedWorkoutCount > 0 }.count
@@ -195,9 +198,9 @@ struct TrainingCalendarView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var monthGrid: some View {
+    private func monthGrid(_ month: TrainingCalendarMonth) -> some View {
         LazyVGrid(columns: columns, spacing: Spacing.xs) {
-            ForEach(calendarMonth.weeks.flatMap { $0 }) { day in
+            ForEach(month.weeks.flatMap { $0 }) { day in
                 TrainingCalendarDayButton(
                     day: day,
                     isSelected: day.day == selectedDay,
@@ -217,6 +220,7 @@ struct TrainingCalendarView: View {
     private var orderedWeekdaySymbols: [String] {
         let calendar = Calendar.current
         let symbols = calendar.shortStandaloneWeekdaySymbols
+        guard symbols.isEmpty == false else { return [] }
         let firstIndex = max(0, min(symbols.count - 1, calendar.firstWeekday - 1))
         return Array(symbols[firstIndex...]) + Array(symbols[..<firstIndex])
     }

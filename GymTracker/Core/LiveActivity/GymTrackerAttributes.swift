@@ -20,6 +20,13 @@ enum WorkoutActivityPresentationState: Hashable, Sendable {
     case readyForReview
 }
 
+enum LiveActivityTimeRange {
+    static func restInterval(now: Date, end: Date) -> ClosedRange<Date>? {
+        guard end > now else { return nil }
+        return now...end
+    }
+}
+
 /// A Codable display projection of persisted `Workout` truth. It deliberately
 /// contains no independently mutable workout state.
 struct LiveActivityProjection: Hashable, Sendable {

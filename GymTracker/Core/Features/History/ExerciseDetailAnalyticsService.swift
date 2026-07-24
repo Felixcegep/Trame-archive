@@ -219,7 +219,7 @@ struct ExerciseDetailAnalyticsService {
                         weight: $0.weight,
                         weightType: $0.weightType,
                         setType: $0.setType,
-                        setMethod: $0.setMethod,
+                        setMethod: $0.resolvedSetMethod,
                         hasSegments: !$0.segments.isEmpty
                     )
                 }

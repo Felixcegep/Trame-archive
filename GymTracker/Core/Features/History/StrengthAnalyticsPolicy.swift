@@ -8,10 +8,10 @@ enum StrengthAnalyticsPolicy {
     static func isEligibleForTraditionalSetRecord(_ set: ExerciseSet) -> Bool {
         set.done
             && set.setType != .warmup
-            && set.setMethod == .standard
+            && set.resolvedSetMethod == .standard
             && set.segments.isEmpty
             && set.complexComponents.isEmpty
-            && set.specializedMetricKind == .none
+            && set.resolvedSpecializedMetricKind == .none
             && !set.isVelocityProbe
     }
 
@@ -25,7 +25,7 @@ enum StrengthAnalyticsPolicy {
 
     static func isEligibleForSpecializedMetricRecord(_ set: ExerciseSet) -> Bool {
         guard set.done,
-              set.specializedMetricKind != .none,
+              set.resolvedSpecializedMetricKind != .none,
               let source = set.specializedMetricMeasurementSource,
               source != .estimated,
               let metric = specializedMetricValue(for: set),
@@ -35,7 +35,7 @@ enum StrengthAnalyticsPolicy {
     }
 
     static func specializedMetricValue(for set: ExerciseSet) -> (value: Double, unit: String)? {
-        switch set.specializedMetricKind {
+        switch set.resolvedSpecializedMetricKind {
         case .jumpHeight:
             return set.jumpHeightMeters.map { ($0, "m") }
         case .contactTime:

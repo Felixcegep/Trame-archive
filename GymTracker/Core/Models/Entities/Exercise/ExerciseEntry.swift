@@ -336,11 +336,12 @@ final class ExerciseEntry{
     }
 
     var orderedSets: [ExerciseSet] {
-        sets.sorted { lhs, rhs in
-            lhs.orderIndex == rhs.orderIndex
-                ? lhs.persistentModelID.hashValue < rhs.persistentModelID.hashValue
-                : lhs.orderIndex < rhs.orderIndex
-        }
+        sets.sorted(by: { lhs, rhs in
+            if lhs.orderIndex != rhs.orderIndex {
+                return lhs.orderIndex < rhs.orderIndex
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
+        })
     }
 
     func normalizeSetOrder() {

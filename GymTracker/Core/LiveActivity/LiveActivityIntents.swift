@@ -27,7 +27,8 @@ struct CompleteCurrentSetIntent: LiveActivityIntent {
             return .result()
         }
 
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else { return .result() }
+        let context = ModelContext(container)
         let result = ActiveWorkoutMutationService(modelContext: context).completeCurrentSet(
             workoutID: workoutID,
             expectedExerciseOrderIndex: expectedExerciseOrderIndex,
@@ -54,7 +55,8 @@ struct PauseRestIntent: LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         guard let workoutID = UUID(uuidString: workoutID) else { return .result() }
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else { return .result() }
+        let context = ModelContext(container)
         let result = ActiveWorkoutMutationService(modelContext: context).pauseRest(workoutID: workoutID)
         await LiveActivityIntentCoordinator.reconcile(result)
         return .result()
@@ -77,7 +79,8 @@ struct ResumeRestIntent: LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         guard let workoutID = UUID(uuidString: workoutID) else { return .result() }
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else { return .result() }
+        let context = ModelContext(container)
         let result = ActiveWorkoutMutationService(modelContext: context).resumeRest(workoutID: workoutID)
         await LiveActivityIntentCoordinator.reconcile(result)
         return .result()
@@ -102,7 +105,8 @@ struct ExtendRestIntent: LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         guard let workoutID = UUID(uuidString: workoutID) else { return .result() }
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else { return .result() }
+        let context = ModelContext(container)
         let result = ActiveWorkoutMutationService(modelContext: context)
             .extendRest(workoutID: workoutID, by: TimeInterval(seconds))
         await LiveActivityIntentCoordinator.reconcile(result)
@@ -126,7 +130,8 @@ struct SkipRestIntent: LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         guard let workoutID = UUID(uuidString: workoutID) else { return .result() }
-        let context = ModelContext(GymTrackerModelContainer.shared)
+        guard let container = GymTrackerModelContainer.shared else { return .result() }
+        let context = ModelContext(container)
         let result = ActiveWorkoutMutationService(modelContext: context).skipRest(workoutID: workoutID)
         await LiveActivityIntentCoordinator.reconcile(result)
         return .result()

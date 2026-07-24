@@ -121,13 +121,13 @@ struct MobilityLibraryView: View {
             .map { $0 }
     }
 
-    private func createRoutine() -> MobilityRoutine {
+    private func createRoutine() -> MobilityRoutine? {
         let routine = MobilityRoutine(name: "New mobility routine")
         if let definition = definitions.first(where: { $0.isArchived == false }) {
             routine.items = [MobilityRoutineItem(definition: definition, orderIndex: 0)]
         }
         modelContext.insert(routine)
-        try? modelContext.save()
+        guard modelContext.saveOrRollback() else { return nil }
         return routine
     }
 }
@@ -166,7 +166,7 @@ struct MobilityDefinitionsView: View {
                         Button {
                             definition.isFavorite.toggle()
                             definition.updatedAt = .now
-                            try? modelContext.save()
+                            _ = modelContext.saveOrRollback()
                         } label: {
                             Label(
                                 definition.isFavorite ? "Remove favorite" : "Favorite",
@@ -178,7 +178,7 @@ struct MobilityDefinitionsView: View {
                         Button(role: definition.isArchived ? nil : .destructive) {
                             definition.isArchived.toggle()
                             definition.updatedAt = .now
-                            try? modelContext.save()
+                            _ = modelContext.saveOrRollback()
                         } label: {
                             Label(
                                 definition.isArchived ? "Restore" : "Archive",
@@ -310,10 +310,9 @@ struct MobilityDefinitionForm: View {
         target.updatedAt = .now
         if definition == nil { modelContext.insert(target) }
 
-        do {
-            try modelContext.save()
+        if modelContext.saveOrRollback() {
             dismiss()
-        } catch {
+        } else {
             self.error = ValidationIssue(severity: .error, message: "The movement could not be saved. Try again.")
         }
     }
@@ -376,7 +375,7 @@ struct MobilityRoutineEditorView: View {
     private func add(_ definition: MobilityDefinition) {
         routine.items.append(MobilityRoutineItem(definition: definition, orderIndex: routine.items.count))
         routine.normalizeItemOrder()
-        try? modelContext.save()
+        _ = modelContext.saveOrRollback()
     }
 
     private var availableDefinitions: [MobilityDefinition] {
@@ -394,14 +393,14 @@ struct MobilityRoutineEditorView: View {
             modelContext.delete(ordered[index])
         }
         routine.normalizeItemOrder()
-        try? modelContext.save()
+        _ = modelContext.saveOrRollback()
     }
 
     private func save() {
         routine.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         routine.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes
         routine.updatedAt = .now
-        guard (try? modelContext.save()) != nil else { return }
+        guard modelContext.saveOrRollback() else { return }
         dismiss()
     }
 }
@@ -436,5 +435,5 @@ private struct MobilityRoutineItemEditorRow: View {
         Binding(get: { item.targetRepetitions ?? item.definition.defaultRepetitions ?? 8 }, set: { item.targetRepetitions = $0; save() })
     }
 
-    private func save() { try? modelContext.save() }
+    private func save() { _ = modelContext.saveOrRollback() }
 }

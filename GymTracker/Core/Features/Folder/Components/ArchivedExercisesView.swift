@@ -13,21 +13,23 @@ struct ArchivedExercisesView: View {
     }
 
     var body: some View {
+        let results = filteredExercises
+
         LibraryBrowserList(title: "Hidden Exercises", searchText: $searchText) {
             Text("Hidden exercises stay out of workout and program pickers. History remains unchanged.")
                 .font(AppFont.subheadline)
                 .foregroundStyle(Color.gymSubduedText)
                 .padding(.horizontal, Spacing.xxs)
 
-            if filteredExercises.isEmpty {
+            if results.isEmpty {
                 ContentUnavailableView(
                     "No hidden exercises",
                     systemImage: AppIcon.archive,
                     description: Text(searchText.isEmpty ? "Exercises you hide or archive will appear here." : "Try a different search.")
                 )
             } else {
-                LibraryListSectionHeader(title: "Hidden Exercises", count: filteredExercises.count)
-                ForEach(filteredExercises, id: \.self) { exercise in
+                LibraryListSectionHeader(title: "Hidden Exercises", count: results.count)
+                ForEach(results, id: \.id) { exercise in
                     HStack(spacing: Spacing.m) {
                         LibraryItemRow(
                             title: exercise.name,

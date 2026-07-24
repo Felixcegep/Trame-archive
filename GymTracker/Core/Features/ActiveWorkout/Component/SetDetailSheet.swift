@@ -155,9 +155,9 @@ struct SetDetailSheet: View {
     }
 
     private var hasRecordedOrPrescribedAdvancedData: Bool {
-        exerciseSet.setMethod != .standard
+        exerciseSet.resolvedSetMethod != .standard
             || showsVelocity
-            || exerciseSet.specializedMetricKind != .none
+            || exerciseSet.resolvedSpecializedMetricKind != .none
             || exerciseSet.liftQuality != nil
             || exerciseSet.isUserOverridden
     }
@@ -165,14 +165,14 @@ struct SetDetailSheet: View {
     private var advancedSummary: String {
         var values: [String] = []
 
-        if exerciseSet.setMethod != .standard {
-            values.append(exerciseSet.setMethod.title)
+        if exerciseSet.resolvedSetMethod != .standard {
+            values.append(exerciseSet.resolvedSetMethod.title)
         }
         if showsVelocity {
             values.append(String(localized: "Velocity"))
         }
-        if exerciseSet.specializedMetricKind != .none {
-            values.append(exerciseSet.specializedMetricKind.title)
+        if exerciseSet.resolvedSpecializedMetricKind != .none {
+            values.append(exerciseSet.resolvedSpecializedMetricKind.title)
         }
         if exerciseSet.liftQuality != nil {
             values.append(String(localized: "Lift quality"))
@@ -358,7 +358,7 @@ struct SetDetailSheet: View {
     private var setMethodSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             eyebrow("Set method")
-            if exerciseSet.setMethod == .dropSet {
+            if exerciseSet.resolvedSetMethod == .dropSet {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text("Drop set structure")
                         .font(AppFont.subheadlineSemibold)
@@ -372,7 +372,7 @@ struct SetDetailSheet: View {
                 .accessibilityIdentifier("drop-set-structure")
             } else {
                 Picker("Method", selection: Binding(
-                    get: { exerciseSet.setMethod },
+                    get: { exerciseSet.resolvedSetMethod },
                     set: selectSetMethod
                 )) {
                     ForEach(SetMethod.allCases.filter { $0 != .dropSet }, id: \.self) { method in
@@ -383,8 +383,8 @@ struct SetDetailSheet: View {
                 .accessibilityIdentifier("set-method-picker")
             }
 
-            if exerciseSet.setMethod != .standard {
-                Text(exerciseSet.setMethod.detail)
+            if exerciseSet.resolvedSetMethod != .standard {
+                Text(exerciseSet.resolvedSetMethod.detail)
                     .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
                 segmentEditor
@@ -399,7 +399,7 @@ struct SetDetailSheet: View {
             ForEach(exerciseSet.orderedSegments, id: \.persistentModelID) { segment in
                 SetSegmentEditorRow(
                     segment: segment,
-                    canDelete: exerciseSet.orderedSegments.count > exerciseSet.setMethod.minimumSegmentCount,
+                    canDelete: exerciseSet.orderedSegments.count > exerciseSet.resolvedSetMethod.minimumSegmentCount,
                     onPersist: onPersist
                 ) {
                     exerciseSet.segments.removeAll { $0 === segment }
@@ -431,7 +431,7 @@ struct SetDetailSheet: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             eyebrow("Specialized performance")
             Picker("Metric", selection: Binding(
-                get: { exerciseSet.specializedMetricKind },
+                get: { exerciseSet.resolvedSpecializedMetricKind },
                 set: { kind in
                     exerciseSet.specializedMetricKind = kind
                     if kind == .none {
@@ -449,7 +449,7 @@ struct SetDetailSheet: View {
             .pickerStyle(.menu)
             .accessibilityIdentifier("specialized-metric-picker")
 
-            if exerciseSet.specializedMetricKind != .none {
+            if exerciseSet.resolvedSpecializedMetricKind != .none {
                 HStack(spacing: Spacing.s) {
                     TextField(metricPlaceholder, text: specializedMetricBinding)
                         .keyboardType(.decimalPad)
@@ -472,7 +472,7 @@ struct SetDetailSheet: View {
     }
 
     private var metricPlaceholder: String {
-        switch exerciseSet.specializedMetricKind {
+        switch exerciseSet.resolvedSpecializedMetricKind {
         case .jumpHeight: "0.00"
         case .contactTime: "0"
         case .throwDistance: "0.00"
@@ -482,7 +482,7 @@ struct SetDetailSheet: View {
     }
 
     private var metricUnit: String {
-        switch exerciseSet.specializedMetricKind {
+        switch exerciseSet.resolvedSpecializedMetricKind {
         case .jumpHeight, .throwDistance: "m"
         case .contactTime: "ms"
         case .kettlebellCadence: "rpm"
@@ -494,7 +494,7 @@ struct SetDetailSheet: View {
         Binding(
             get: {
                 let value: Double?
-                switch exerciseSet.specializedMetricKind {
+                switch exerciseSet.resolvedSpecializedMetricKind {
                 case .jumpHeight: value = exerciseSet.jumpHeightMeters
                 case .contactTime: value = exerciseSet.contactTimeMilliseconds
                 case .throwDistance: value = exerciseSet.throwDistanceMeters
@@ -505,7 +505,7 @@ struct SetDetailSheet: View {
             },
             set: { text in
                 let value = Double(text.replacingOccurrences(of: ",", with: ".")).flatMap { $0 > 0 ? $0 : nil }
-                switch exerciseSet.specializedMetricKind {
+                switch exerciseSet.resolvedSpecializedMetricKind {
                 case .jumpHeight: exerciseSet.jumpHeightMeters = value
                 case .contactTime: exerciseSet.contactTimeMilliseconds = value
                 case .throwDistance: exerciseSet.throwDistanceMeters = value
@@ -584,7 +584,7 @@ struct SetDetailSheet: View {
             exerciseSet.setMethod = .dropSet
             exerciseSet.ensureSegmentsForMethod()
             isShowingAdvancedOptions = true
-        } else if exerciseSet.setMethod == .dropSet {
+        } else if exerciseSet.resolvedSetMethod == .dropSet {
             exerciseSet.setMethod = .standard
         }
         onPersist()

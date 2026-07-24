@@ -24,6 +24,8 @@ struct SettingView: View {
     @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var bodyWeightEntries: [BodyWeightEntry]
     @State private var isShowingResetConfirmation = false
     @State private var isShowingFileImporter = false
+    @State private var exportURL: URL?
+    @State private var isPreparingExport = false
     @State private var importBackup: BackupDTO? = nil
     @State private var importErrorMessage: String? = nil
     @State private var isShowingImportError = false
@@ -133,11 +135,23 @@ struct SettingView: View {
             checkInRemindersSection
 
             Section("Backup & Restore") {
-                if let url = exportURL() {
-                    ShareLink(item: url) {
+                if let exportURL {
+                    ShareLink(item: exportURL) {
+                        Label("Share Export", systemImage: AppIcon.export)
+                    }
+                }
+
+                Button {
+                    prepareExport()
+                } label: {
+                    if isPreparingExport {
+                        Label("Preparing export", systemImage: AppIcon.export)
+                    } else {
                         Label("Export Data", systemImage: AppIcon.export)
                     }
                 }
+                .disabled(isPreparingExport)
+                .accessibilityIdentifier("settings-export-data")
 
                 Button {
                     isShowingFileImporter = true
@@ -381,21 +395,32 @@ struct SettingView: View {
         }
     }
 
-    private func exportURL() -> URL? {
+    private func prepareExport() {
+        guard isPreparingExport == false else { return }
+        isPreparingExport = true
         do {
             let backup = try BackupDTO.create(from: modelContext, restTimer: restTimer, darkMode: darkMode, unitSystem: unitSystem)
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = .prettyPrinted
-            encoder.dateEncodingStrategy = .iso8601
-            let data = try encoder.encode(backup)
-
-            let tempDir = FileManager.default.temporaryDirectory
-            let fileURL = tempDir.appendingPathComponent("GymTrackerBackup.json")
-            try data.write(to: fileURL)
-            return fileURL
+            Task {
+                do {
+                    let fileURL = try await Task.detached(priority: .utility) {
+                        let encoder = JSONEncoder()
+                        encoder.outputFormatting = .prettyPrinted
+                        encoder.dateEncodingStrategy = .iso8601
+                        let data = try encoder.encode(backup)
+                        let fileURL = FileManager.default.temporaryDirectory
+                            .appendingPathComponent("GymTrackerBackup.json")
+                        try data.write(to: fileURL, options: .atomic)
+                        return fileURL
+                    }.value
+                    exportURL = fileURL
+                } catch {
+                    showImportError("The backup could not be exported. \(error.localizedDescription)")
+                }
+                isPreparingExport = false
+            }
         } catch {
-            print("Failed to export data: \(error)")
-            return nil
+            isPreparingExport = false
+            showImportError("The backup could not be exported. \(error.localizedDescription)")
         }
     }
 
@@ -404,13 +429,17 @@ struct SettingView: View {
             showImportError("Cannot access the selected file.")
             return
         }
-        defer { url.stopAccessingSecurityScopedResource() }
-
-        do {
-            let data = try Data(contentsOf: url)
-            self.importBackup = try BackupImportService.decodeAndValidate(data)
-        } catch {
-            showImportError("This backup could not be read. \(error.localizedDescription)")
+        Task {
+            do {
+                let backup = try await Task.detached(priority: .utility) {
+                    defer { url.stopAccessingSecurityScopedResource() }
+                    let data = try Data(contentsOf: url)
+                    return try BackupImportService.decodeAndValidate(data)
+                }.value
+                importBackup = backup
+            } catch {
+                showImportError("This backup could not be read. \(error.localizedDescription)")
+            }
         }
     }
 

@@ -25,7 +25,10 @@ final class FoodItem {
     var updatedAt: Date
     @Relationship(deleteRule: .cascade, inverse: \FoodServing.food)
     var servings: [FoodServing] = []
-    @Relationship(deleteRule: .nullify, inverse: \MealTemplateItem.food)
+    // A recipe item has a required food reference. Foods referenced by a
+    // recipe are archived, not deleted, but cascade keeps a forced deletion
+    // graph-valid and compatible with the unique-name constraint.
+    @Relationship(deleteRule: .cascade, inverse: \MealTemplateItem.food)
     var mealTemplateItems: [MealTemplateItem] = []
 
     var referenceUnit: NutritionServingUnit {

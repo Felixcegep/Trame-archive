@@ -235,9 +235,10 @@ struct MealTemplateDetailView: View {
 
     var body: some View {
         List {
-            if let image = RecipePhotoStore.loadImage(template.photoIdentifier) {
+            if template.photoIdentifier != nil {
                 Section {
-                    Image(uiImage: image)
+                    RecipePhotoImage(identifier: template.photoIdentifier, content: { image in
+                        image
                         .resizable()
                         .scaledToFill()
                         .frame(maxWidth: .infinity)
@@ -247,6 +248,14 @@ struct MealTemplateDetailView: View {
                         .accessibilityHidden(true)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
+                    }, placeholder: {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 200)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                            .accessibilityLabel("Loading recipe photo")
+                    })
                 }
             }
 
@@ -300,7 +309,7 @@ struct MealTemplateDetailView: View {
                     Button(role: .destructive) {
                         template.isArchived = true
                         template.updatedAt = .now
-                        try? modelContext.save()
+                        _ = modelContext.saveOrRollback()
                     } label: { Label("Archive recipe", systemImage: AppIcon.archive) }
                 } label: {
                     Label("More", systemImage: "ellipsis.circle")
@@ -393,7 +402,7 @@ struct LogRecipeSheet: View {
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("log-recipe-amount")
                     if amount == .grams {
-                        DecimalField("Grams", value: $grams, range: 0...(yield ?? 100000))
+                        DecimalField("Grams", value: $grams, range: RecipeLoggingBounds.gramsRange(yield: yield))
                             .accessibilityIdentifier("log-recipe-grams")
                         if let yield {
                             Text("Recipe yield is \(FoodLibraryService.format(yield)) g.")

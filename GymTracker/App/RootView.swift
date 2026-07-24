@@ -371,6 +371,7 @@ struct RootView: View {
                 do {
                     try modelContext.save()
                 } catch {
+                    modelContext.rollback()
                     print("Failed to save modelContext on backgrounding: \(error)")
                 }
             } else if newPhase == .active {
@@ -482,9 +483,9 @@ struct RootView: View {
 
     private func seedSystemCatalog() {
         do {
+            guard try SystemSeedCatalogCoordinator.needsInstallation(in: modelContext) else { return }
             _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: modelContext)
         } catch {
-            assertionFailure("Failed to install bundled system catalogue: \(error.localizedDescription)")
             print("Failed to install bundled system catalogue: \(error)")
         }
     }
@@ -558,6 +559,10 @@ struct RootView: View {
     }
 
     private func normalizePersistedWorkoutData() {
+        let normalizationVersion = 1
+        guard UserDefaults.standard.integer(forKey: DefaultsKey.workoutNormalizationVersion) < normalizationVersion else {
+            return
+        }
         do {
             var didChange = false
 
@@ -597,7 +602,9 @@ struct RootView: View {
             if didChange {
                 try modelContext.save()
             }
+            UserDefaults.standard.set(normalizationVersion, forKey: DefaultsKey.workoutNormalizationVersion)
         } catch {
+            modelContext.rollback()
             print("Failed to normalize persisted workout data: \(error)")
         }
     }

@@ -144,13 +144,13 @@ extension BackupDTO {
                             meanVelocity: set.meanVelocity,
                             peakVelocity: set.peakVelocity,
                             velocityMeasurementSource: set.velocityMeasurementSource?.rawValue,
-                            specializedMetricKind: set.specializedMetricKind.rawValue,
+                            specializedMetricKind: set.resolvedSpecializedMetricKind.rawValue,
                             jumpHeightMeters: set.jumpHeightMeters,
                             contactTimeMilliseconds: set.contactTimeMilliseconds,
                             throwDistanceMeters: set.throwDistanceMeters,
                             kettlebellCadenceRPM: set.kettlebellCadenceRPM,
                             specializedMetricMeasurementSource: set.specializedMetricMeasurementSource?.rawValue,
-                            setMethod: set.setMethod.rawValue,
+                            setMethod: set.resolvedSetMethod.rawValue,
                             segments: set.orderedSegments.map { segment in
                                 ExerciseSetSegmentDTO(
                                     id: segment.id.uuidString,

@@ -186,11 +186,10 @@ struct DailyCheckInSheet: View {
             if existing == nil { modelContext.insert(weight) }
         }
 
-        do {
-            try modelContext.save()
+        if modelContext.saveOrRollback() {
             onSaved()
             dismiss()
-        } catch {
+        } else {
             saveError = ValidationIssue(severity: .error, message: "Your answers are still here. Please try saving again.")
         }
     }

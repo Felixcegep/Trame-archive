@@ -36,15 +36,17 @@ struct ExerciseLibraryView : View {
     }
 
     var body: some View {
+        let results = filteredExercises
+
         List {
             Section {
-                ExerciseFilterControls(filter: $filter, resultCount: filteredExercises.count)
+                ExerciseFilterControls(filter: $filter, resultCount: results.count)
             }
 
-            if filteredExercises.isEmpty {
+            if results.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             } else {
-                ForEach(filteredExercises, id: \.self) { exercise in
+                ForEach(results, id: \.id) { exercise in
                     exerciseRow(for: exercise)
                 }
             }

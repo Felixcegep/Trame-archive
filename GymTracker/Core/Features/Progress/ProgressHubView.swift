@@ -177,16 +177,17 @@ struct NutritionHistoryView: View {
     }
 
     private var daySummaries: [NutritionHistoryDay] {
-        Array(Set(meals.map(\.dayKey)))
+        let selectedKeys = Set(meals.map(\.dayKey))
             .sorted(by: >)
             .prefix(7)
-            .map { key in
-                let day = LocalDay(rawValue: key)
-                return NutritionHistoryDay(
-                    day: day,
-                    totals: NutritionDaySummary.resolve(day: day, meals: meals).totals
-                )
-            }
+        let mealsByDay = Dictionary(grouping: meals, by: \.dayKey)
+        return selectedKeys.map { key in
+            let day = LocalDay(rawValue: key)
+            return NutritionHistoryDay(
+                day: day,
+                totals: NutritionDaySummary.resolve(day: day, meals: mealsByDay[key] ?? []).totals
+            )
+        }
     }
 }
 

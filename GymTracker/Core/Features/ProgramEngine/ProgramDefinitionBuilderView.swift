@@ -16,6 +16,7 @@ struct ProgramDefinitionBuilderView: View {
     @State private var validationMessages: [String] = []
     @State private var isShowingPreview = false
     @State private var isImporting = false
+    @State private var isLoadingImport = false
     @State private var isExporting = false
     @State private var exportDocument: ProgramDefinitionDocument?
 
@@ -154,12 +155,17 @@ struct ProgramDefinitionBuilderView: View {
                     Button("Import JSON", systemImage: AppIcon.import) {
                         isImporting = true
                     }
+                    .disabled(isLoadingImport)
                     Button("Export JSON", systemImage: AppIcon.export) {
                         exportDocument = try? ProgramDefinitionDocument(definition: definition)
                         isExporting = exportDocument != nil
                     }
                 } label: {
-                    Image(systemName: AppIcon.ellipsis)
+                    if isLoadingImport {
+                        ProgressView()
+                    } else {
+                        Image(systemName: AppIcon.ellipsis)
+                    }
                 }
                 .accessibilityLabel("Recipe actions")
             }
@@ -327,9 +333,27 @@ struct ProgramDefinitionBuilderView: View {
     private func importDefinition(_ result: Result<[URL], Error>) {
         do {
             guard let url = try result.get().first else { return }
-            let data = try Data(contentsOf: url)
-            definition = try ProgramDefinitionCodec.decode(data)
-            validationMessages = []
+            guard url.startAccessingSecurityScopedResource() else {
+                validationMessages = ["Cannot access the selected file."]
+                return
+            }
+            isLoadingImport = true
+            Task {
+                defer { isLoadingImport = false }
+                do {
+                    let importedDefinition = try await Task.detached(priority: .utility) {
+                        defer { url.stopAccessingSecurityScopedResource() }
+                        let data = try Data(contentsOf: url)
+                        return try ProgramDefinitionCodec.decode(data)
+                    }.value
+                    guard !Task.isCancelled else { return }
+                    definition = importedDefinition
+                    validationMessages = []
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    validationMessages = [error.localizedDescription]
+                }
+            }
         } catch {
             validationMessages = [error.localizedDescription]
         }

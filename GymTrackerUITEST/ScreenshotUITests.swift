@@ -305,7 +305,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureReadyRestScreenshot() {
         let ready = launchFixture("active-rest-ready")
         XCTAssertTrue(ready.descendants(matching: .any)["rest-ready"].waitForExistence(timeout: 5))
-        XCTAssertTrue(ready.buttons["Continue workout"].waitForExistence(timeout: 5))
+        XCTAssertTrue(ready.buttons["Start next set"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08c_Rest_Ready")
     }
 

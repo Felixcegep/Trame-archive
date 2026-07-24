@@ -143,8 +143,14 @@ struct GymTrackerExtensionLiveActivity: Widget {
 
     @ViewBuilder
     private func activityTime(for context: ActivityViewContext<GymTrackerAttributes>) -> some View {
-        if context.state.restPhase == .running, let restEnd = context.state.restEndDate {
-            Text(timerInterval: Date.now...restEnd, countsDown: true)
+        if context.state.restPhase == .running,
+           let restEnd = context.state.restEndDate,
+           let interval = LiveActivityTimeRange.restInterval(now: .now, end: restEnd) {
+            Text(timerInterval: interval, countsDown: true)
+        } else if context.state.restPhase == .running {
+            // A stale ActivityKit update can outlive its persisted rest
+            // deadline. Never construct an invalid ClosedRange for the timer.
+            Text("Ready")
         } else if context.state.restPhase == .paused, let remaining = context.state.pausedRemainingTime {
             Text("Paused · \(Int(remaining))s")
         } else {
