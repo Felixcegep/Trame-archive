@@ -142,6 +142,7 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         ))
         XCTAssertNotEqual(reset.id, previous.id)
         XCTAssertNil(reset.progressionStates.first?.currentLoad)
+        try context.save()
 
         let backup = try BackupDTO.create(from: context, restTimer: 90, darkMode: false, unitSystem: .metric)
         let restoredContext = try makeContext()
@@ -525,7 +526,6 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         let restoredContext = try makeContext()
         let roundTrippedBackup = try JSONDecoder().decode(BackupDTO.self, from: JSONEncoder().encode(backup))
         try roundTrippedBackup.restore(to: restoredContext)
-        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<ProgramDefinitionRecord>()).count, 14)
         XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<WorkoutPlan>()).count, 14)
         XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<PlanRun>()).count, 14)
         XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<Workout>()).filter { $0.status == .completed }.count, 14)

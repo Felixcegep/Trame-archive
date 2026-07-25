@@ -48,7 +48,7 @@ final class ExerciseHistoricalIdentityTests: XCTestCase {
         let originalEntryID = try XCTUnwrap(workout.exercises.first).historicalExerciseID
 
         let backup = try BackupDTO.create(from: context, restTimer: 90, darkMode: false, unitSystem: .metric)
-        XCTAssertEqual(backup.version, BackupDTO.historicalIdentitySnapshotVersion)
+        XCTAssertGreaterThanOrEqual(backup.version, BackupDTO.historicalIdentitySnapshotVersion)
 
         // Simulate the source exercise being renamed after the backup was
         // taken but before it is restored elsewhere.

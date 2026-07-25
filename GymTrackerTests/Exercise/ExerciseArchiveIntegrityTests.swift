@@ -21,8 +21,8 @@ final class ExerciseArchiveIntegrityTests: XCTestCase {
 
     func testExerciseRelationshipBackupRoundTripAndArchiveProtection() throws {
         let context = try makeContext()
-        let source = Exercise(name: "Barbell Bench Press", primaryMuscles: [.middleChest], isCustom: true)
-        let target = Exercise(name: "Dumbbell Bench Press", primaryMuscles: [.middleChest], isCustom: true)
+        let source = Exercise(name: "Barbell Bench Press", primaryMuscles: [.middleChest], isCustom: false)
+        let target = Exercise(name: "Dumbbell Bench Press", primaryMuscles: [.middleChest], isCustom: false)
         let relationship = ExerciseRelationship(
             sourceExercise: source,
             targetExercise: target,
