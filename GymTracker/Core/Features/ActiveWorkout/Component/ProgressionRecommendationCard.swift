@@ -1,19 +1,18 @@
 import SwiftUI
 
+/// The single progression recommendation surface. It renders inside the
+/// exercise it belongs to, so it names the decision and its evidence but not
+/// the exercise — the card that contains it already does.
 struct ProgressionRecommendationCard: View {
     let exerciseName: String
     let state: RecommendationPresentationState
     let onAction: (RecommendationAction) -> Void
 
     var body: some View {
-        GymCard(variant: .current, radius: Radius.section) {
+        GymCard(variant: .current, radius: Radius.medium) {
             Label("Progression recommendation", systemImage: AppIcon.progression)
-                .font(AppFont.subheadlineSemibold)
+                .font(AppFont.captionBold)
                 .foregroundStyle(Color.gymPrimary)
-
-            Text(exerciseName)
-                .font(AppFont.titleSmallSemibold)
-                .foregroundStyle(Color.gymText)
 
             switch state {
             case .recommendation(let presentation):

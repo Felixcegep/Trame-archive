@@ -16,6 +16,10 @@ struct ExerciceEntryCard: View {
     let onExerciseCompleted: () -> Void
     let onSwapRequested: () -> Void
     let supersetCandidates: [ExerciseEntry]
+    /// Non-nil only for the one exercise the workout's recommendation belongs
+    /// to. The root owns that selection so no second card can appear.
+    let recommendationState: RecommendationPresentationState?
+    let onRecommendationAction: (RecommendationAction) -> Void
 
     @State private var horizontalOffset: CGFloat = 0
 
@@ -49,6 +53,7 @@ struct ExerciceEntryCard: View {
             }
             DisclosureGroup(isExpanded: disclosureBinding) {
                 VStack(alignment: .leading, spacing: Spacing.m) {
+                    recommendationCard
                     setHeader
                     setRows
                     setActions
@@ -56,6 +61,14 @@ struct ExerciceEntryCard: View {
                 .padding(.top, Spacing.m)
             } label: {
                 exerciseHeader
+            }
+
+            // A recommendation for a collapsed exercise still has to be
+            // readable, so it follows the header instead of disappearing with
+            // the sets. Only one of the two placements ever renders.
+            if !isCurrentExercise {
+                recommendationCard
+                    .padding(.top, Spacing.m)
             }
         }
         .padding(isCurrentExercise ? Spacing.l : Spacing.m)
@@ -88,9 +101,9 @@ struct ExerciceEntryCard: View {
     private var exerciseHeader: some View {
         HStack(spacing: Spacing.m) {
             if exerciseIsDone {
-                Image(systemName: "checkmark.circle.fill")
+                Image(systemName: AppIcon.checkmarkCircle)
                     .foregroundStyle(Color.gymSecondary)
-                    .font(.title3)
+                    .font(AppFont.titleSmall)
             }
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -127,10 +140,6 @@ struct ExerciceEntryCard: View {
                         .foregroundStyle(Color.gymPrimary)
                         .lineLimit(1)
                         .accessibilityIdentifier("prescription-summary-\(exerciseEntry.exercise.name)")
-                }
-
-                if let recommendationPresentation, !exerciseIsDone {
-                    recommendationRow(recommendationPresentation)
                 }
 
                 if let previousPerformance {
@@ -212,12 +221,13 @@ struct ExerciceEntryCard: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             }
 
-            Spacer().frame(width: 58)
+            // Matches the fixed trailing slot each set row reserves.
+            Spacer().frame(width: 44)
         }
         .font(AppFont.caption2Bold)
         .tracking(0.55)
         .foregroundStyle(Color.gymSubduedText)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, Spacing.xs)
     }
 
     private var setRows: some View {
@@ -365,49 +375,17 @@ struct ExerciceEntryCard: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    private var recommendationPresentation: RecommendationPresentation? {
-        RecommendationPresentation(entry: exerciseEntry)
-    }
-
+    /// The workout's single progression recommendation, rendered inside the
+    /// exercise it describes. Applying, holding, or overriding it changes
+    /// incomplete set loads only; completed sets stay historical truth.
     @ViewBuilder
-    private func recommendationRow(_ presentation: RecommendationPresentation) -> some View {
-        HStack(alignment: .center, spacing: Spacing.s) {
-            Text(presentation.explanation)
-                .font(AppFont.caption)
-                .foregroundStyle(
-                    presentation.decision == .increase
-                        ? Color.gymPrimary
-                        : Color.gymSubduedText
-                )
-                .lineLimit(2)
-                .accessibilityIdentifier("recommendation-\(exerciseEntry.exercise.name)")
-
-            Spacer(minLength: 0)
-
-            if shouldShowApplyRecommendation(presentation) {
-                Button {
-                    viewModel.applyRecommendation(to: exerciseEntry)
-                } label: {
-                    Text("Apply \(presentation.appliedLoadText)")
-                        .font(AppFont.captionBold)
-                        .frame(minHeight: 44)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityIdentifier("apply-recommendation-\(exerciseEntry.exercise.name)")
-            }
-        }
-    }
-
-    private func shouldShowApplyRecommendation(_ presentation: RecommendationPresentation) -> Bool {
-        let incompleteSets = exerciseEntry.orderedSets.filter { !$0.done }
-        guard !incompleteSets.isEmpty else { return false }
-        return incompleteSets.contains { set in
-            let convertedLoad = UnitConversion.weight(
-                presentation.recommendedLoad,
-                from: presentation.unit,
-                to: set.weightType
+    private var recommendationCard: some View {
+        if let recommendationState, !exerciseIsDone {
+            ProgressionRecommendationCard(
+                exerciseName: exerciseEntry.exercise.name,
+                state: recommendationState,
+                onAction: onRecommendationAction
             )
-            return abs(set.weight - convertedLoad) > 0.0001
         }
     }
 

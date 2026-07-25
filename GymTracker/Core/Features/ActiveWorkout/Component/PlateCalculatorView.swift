@@ -122,7 +122,7 @@ struct PlateCalculatorView: View {
                             .lineLimit(2)
                             .multilineTextAlignment(.trailing)
                     } icon: {
-                        Image(systemName: "chevron.down")
+                        Image(systemName: AppIcon.minimize)
                     }
                     .font(AppFont.captionSemiboldMonospaced)
                     .foregroundStyle(Color.gymPrimary)
@@ -311,7 +311,7 @@ struct PlateCalculatorView: View {
                 Circle()
                     .fill(plateColor(for: plate))
                     .frame(width: 10, height: 10)
-                    .overlay { Circle().stroke(Color.black.opacity(0.18), lineWidth: 0.5) }
+                    .overlay { Circle().stroke(Color.gymText.opacity(0.18), lineWidth: 0.5) }
                 Text("\(formatted(plate))")
                     .font(AppFont.headlineMonospaced)
                     .lineLimit(1)
@@ -531,7 +531,7 @@ private struct PlateDiagramView: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .stroke(Color.black.opacity(0.18), lineWidth: 1)
+                    .stroke(Color.gymText.opacity(0.18), lineWidth: 1)
             }
     }
 }
