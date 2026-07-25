@@ -195,6 +195,52 @@ enum NutritionLoggingService {
     }
 }
 
+/// Shared write path for a sized caffeine-preset log (coffee/tea/energy-drink
+/// presets keyed by name). `CaffeineQuickLogSheet` and `LogCaffeineIntent`
+/// both funnel through this so a shortcut-logged drink and a manually logged
+/// one create or reuse the exact same `FoodItem`.
+@MainActor
+enum CaffeineLoggingService {
+    @discardableResult
+    static func logPreset(
+        name: String,
+        defaultMediumMilligrams: Double,
+        sizedMilligrams: Double,
+        sizeTitle: String,
+        using context: ModelContext
+    ) -> LoggedMeal? {
+        let food = existingOrNewFood(name: name, defaultMediumMilligrams: defaultMediumMilligrams, using: context)
+        let ratio = defaultMediumMilligrams > 0 ? (sizedMilligrams / defaultMediumMilligrams) : 1.0
+        let portion = FoodPortion(
+            id: nil,
+            name: sizeTitle,
+            amount: 1,
+            unit: .serving,
+            equivalentReferenceAmount: food.referenceAmount * ratio
+        )
+        return NutritionLoggingService.log(food: food, portion: portion, slot: .snack, using: context)
+    }
+
+    private static func existingOrNewFood(name: String, defaultMediumMilligrams: Double, using context: ModelContext) -> FoodItem {
+        if let existing = (try? context.fetch(FetchDescriptor<FoodItem>()))?.first(where: { $0.name == name }) {
+            existing.isArchived = false
+            existing.updatedAt = .now
+            return existing
+        }
+        let food = FoodItem(
+            name: name,
+            referenceAmount: 1,
+            referenceUnit: .serving,
+            caffeineMilligrams: defaultMediumMilligrams,
+            sourceKind: .curated,
+            confidence: .estimated,
+            preparationState: .cooked
+        )
+        context.insert(food)
+        return food
+    }
+}
+
 @MainActor
 enum MealTemplateService {
     @discardableResult

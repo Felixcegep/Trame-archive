@@ -390,6 +390,312 @@ struct ViewPreviousPerformanceIntent: AppIntent {
     }
 }
 
+enum CaffeineDrinkAppEnum: String, AppEnum {
+    case espresso
+    case brewed
+    case coldBrew
+    case latte
+
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Coffee drink")
+    static let caseDisplayRepresentations: [CaffeineDrinkAppEnum: DisplayRepresentation] = [
+        .espresso: DisplayRepresentation(title: "Espresso"),
+        .brewed: DisplayRepresentation(title: "Brewed"),
+        .coldBrew: DisplayRepresentation(title: "Cold brew"),
+        .latte: DisplayRepresentation(title: "Latte")
+    ]
+
+    var preset: CaffeineDrinkPreset {
+        switch self {
+        case .espresso: .espresso
+        case .brewed: .brewed
+        case .coldBrew: .coldBrew
+        case .latte: .latte
+        }
+    }
+}
+
+enum CaffeineSizeAppEnum: String, AppEnum {
+    case small
+    case medium
+    case large
+
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Size")
+    static let caseDisplayRepresentations: [CaffeineSizeAppEnum: DisplayRepresentation] = [
+        .small: DisplayRepresentation(title: "Small"),
+        .medium: DisplayRepresentation(title: "Medium"),
+        .large: DisplayRepresentation(title: "Large")
+    ]
+
+    var size: CaffeineDrinkSize {
+        switch self {
+        case .small: .small
+        case .medium: .medium
+        case .large: .large
+        }
+    }
+}
+
+struct LogCaffeineIntent: AppIntent {
+    static let title: LocalizedStringResource = "Log caffeine"
+    static let description = IntentDescription("Logs a coffee preset as a caffeine estimate.")
+    static var parameterSummary: some ParameterSummary {
+        Summary("Log caffeine") {
+            \.$drink
+            \.$size
+        }
+    }
+
+    @Parameter(title: "Drink") var drink: CaffeineDrinkAppEnum
+    @Parameter(title: "Size") var size: CaffeineSizeAppEnum
+
+    init() {
+        drink = .brewed
+        size = .medium
+    }
+
+    init(drink: CaffeineDrinkAppEnum, size: CaffeineSizeAppEnum) {
+        self.drink = drink
+        self.size = size
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        guard FeatureFlags.current.isCaffeineQuickLoggingAvailable else {
+            return .result(dialog: "Caffeine logging is not available in this build.")
+        }
+        let context = ModelContext(container)
+        let preset = drink.preset
+        let sizeValue = size.size
+        guard CaffeineLoggingService.logPreset(
+            name: preset.foodName,
+            defaultMediumMilligrams: preset.mediumMilligrams,
+            sizedMilligrams: preset.caffeineMilligrams(for: sizeValue),
+            sizeTitle: sizeValue.title,
+            using: context
+        ) != nil else {
+            return .result(dialog: "GymTracker could not log that caffeine.")
+        }
+        let mg = FoodLibraryService.format(preset.caffeineMilligrams(for: sizeValue))
+        return .result(dialog: "Logged \(mg) mg of caffeine.")
+    }
+}
+
+struct ConfirmCreatineIntent: AppIntent {
+    static let title: LocalizedStringResource = "Confirm creatine"
+    static let description = IntentDescription("Marks today's creatine dose as taken.")
+
+    init() {}
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        let context = ModelContext(container)
+        guard SupplementOccurrenceService.confirmCreatine(using: context) != nil else {
+            return .result(dialog: "GymTracker could not confirm today's creatine.")
+        }
+        return .result(dialog: "Today's creatine is confirmed.")
+    }
+}
+
+/// A deliberately small system-facing representation of a saved recipe, so
+/// Siri and Shortcuts can resolve one by name without exposing ingredients.
+struct MealTemplateIntentEntity: AppEntity, Identifiable, Hashable {
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Recipe")
+    static let defaultQuery = MealTemplateIntentQuery()
+
+    let id: UUID
+    let name: String
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(name)")
+    }
+}
+
+struct MealTemplateIntentQuery: EntityStringQuery {
+    func entities(for identifiers: [UUID]) async throws -> [MealTemplateIntentEntity] {
+        await MainActor.run {
+            guard let container = GymTrackerModelContainer.shared else { return [] }
+            let requested = Set(identifiers)
+            let templates = (try? ModelContext(container).fetch(FetchDescriptor<MealTemplate>())) ?? []
+            return templates
+                .filter { requested.contains($0.id) && eligible($0) }
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                .map { MealTemplateIntentEntity(id: $0.id, name: $0.name) }
+        }
+    }
+
+    func entities(matching string: String) async throws -> [MealTemplateIntentEntity] {
+        await MainActor.run {
+            guard let container = GymTrackerModelContainer.shared else { return [] }
+            let normalized = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            let templates = (try? ModelContext(container).fetch(FetchDescriptor<MealTemplate>())) ?? []
+            return templates
+                .filter { eligible($0) && (normalized.isEmpty || $0.name.localizedCaseInsensitiveContains(normalized)) }
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                .prefix(20)
+                .map { MealTemplateIntentEntity(id: $0.id, name: $0.name) }
+        }
+    }
+
+    func suggestedEntities() async throws -> [MealTemplateIntentEntity] {
+        try await entities(matching: "")
+    }
+
+    /// Non-private so `LogMealIntent`'s eligibility filtering can be verified
+    /// without depending on `GymTrackerModelContainer.shared`.
+    func eligible(_ template: MealTemplate) -> Bool {
+        template.isArchived == false && template.isCurrent && template.orderedItems.isEmpty == false
+    }
+}
+
+struct LogMealIntent: AppIntent {
+    static let title: LocalizedStringResource = "Log a meal"
+    static let description = IntentDescription("Logs a saved recipe to today's meals.")
+    static var parameterSummary: some ParameterSummary {
+        Summary("Log a meal") {
+            \.$meal
+        }
+    }
+
+    @Parameter(title: "Recipe") var meal: MealTemplateIntentEntity
+
+    init() {}
+
+    init(meal: MealTemplateIntentEntity) {
+        self.meal = meal
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        guard FeatureFlags.current.isEnabled(.nutrition) else {
+            return .result(dialog: "Nutrition logging is not available in this build.")
+        }
+        let context = ModelContext(container)
+        guard let template = (try? context.fetch(FetchDescriptor<MealTemplate>()))?
+            .first(where: { $0.id == meal.id && $0.isArchived == false && $0.isCurrent })
+        else {
+            return .result(dialog: "\(meal.name) is no longer available.")
+        }
+        guard NutritionLoggingService.log(template: template, using: context) != nil else {
+            return .result(dialog: "GymTracker could not log \(template.name).")
+        }
+        let totals = MealTemplateNutrition.totals(for: template)
+        let calories = FoodLibraryService.format(totals.calories)
+        return .result(dialog: "Logged \(template.name) — \(calories) kcal.")
+    }
+}
+
+/// A deliberately small system-facing representation of a mobility routine,
+/// so Siri and Shortcuts can resolve one by name without exposing its items.
+struct MobilityRoutineIntentEntity: AppEntity, Identifiable, Hashable {
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Mobility routine")
+    static let defaultQuery = MobilityRoutineIntentQuery()
+
+    let id: UUID
+    let name: String
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(name)")
+    }
+}
+
+struct MobilityRoutineIntentQuery: EntityStringQuery {
+    func entities(for identifiers: [UUID]) async throws -> [MobilityRoutineIntentEntity] {
+        await MainActor.run {
+            guard let container = GymTrackerModelContainer.shared else { return [] }
+            let requested = Set(identifiers)
+            let routines = (try? ModelContext(container).fetch(FetchDescriptor<MobilityRoutine>())) ?? []
+            return routines
+                .filter { requested.contains($0.id) && eligible($0) }
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                .map { MobilityRoutineIntentEntity(id: $0.id, name: $0.name) }
+        }
+    }
+
+    func entities(matching string: String) async throws -> [MobilityRoutineIntentEntity] {
+        await MainActor.run {
+            guard let container = GymTrackerModelContainer.shared else { return [] }
+            let normalized = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            let routines = (try? ModelContext(container).fetch(FetchDescriptor<MobilityRoutine>())) ?? []
+            return routines
+                .filter { eligible($0) && (normalized.isEmpty || $0.name.localizedCaseInsensitiveContains(normalized)) }
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                .prefix(20)
+                .map { MobilityRoutineIntentEntity(id: $0.id, name: $0.name) }
+        }
+    }
+
+    func suggestedEntities() async throws -> [MobilityRoutineIntentEntity] {
+        try await entities(matching: "")
+    }
+
+    /// Non-private so `StartMobilityRoutineIntent`'s eligibility filtering
+    /// can be verified without depending on `GymTrackerModelContainer.shared`.
+    func eligible(_ routine: MobilityRoutine) -> Bool {
+        routine.isArchived == false && routine.orderedItems.isEmpty == false
+    }
+}
+
+struct StartMobilityRoutineIntent: AppIntent {
+    static let title: LocalizedStringResource = "Start mobility routine"
+    static let description = IntentDescription("Starts a mobility routine, or resumes the current active session.")
+    static let openAppWhenRun = true
+    static var parameterSummary: some ParameterSummary {
+        Summary("Start mobility routine") {
+            \.$routine
+        }
+    }
+
+    @Parameter(title: "Routine") var routine: MobilityRoutineIntentEntity?
+
+    init() {}
+
+    init(routine: MobilityRoutineIntentEntity? = nil) {
+        self.routine = routine
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "GymTracker data is temporarily unavailable.")
+        }
+        guard FeatureFlags.current.isEnabled(.mobility) else {
+            return .result(dialog: "Mobility is not available in this build.")
+        }
+        let context = ModelContext(container)
+
+        if let activeSession = MobilitySessionService.activeSession(using: context) {
+            AppIntentRouteStore.shared.submit(.activeMobility(activeSession.id))
+            return .result(dialog: "Resuming \(activeSession.nameSnapshot).")
+        }
+
+        let resolvedRoutine: MobilityRoutine?
+        if let routine {
+            resolvedRoutine = (try? context.fetch(FetchDescriptor<MobilityRoutine>()))?
+                .first(where: { $0.id == routine.id && $0.isArchived == false && $0.orderedItems.isEmpty == false })
+        } else {
+            resolvedRoutine = (try? context.fetch(FetchDescriptor<MobilityRoutine>()))?
+                .first(where: { $0.isArchived == false && $0.orderedItems.isEmpty == false })
+        }
+        guard let resolvedRoutine else {
+            return .result(dialog: "No mobility routine is available to start.")
+        }
+        guard let session = MobilitySessionService.start(routine: resolvedRoutine, using: context) else {
+            return .result(dialog: "GymTracker could not start that mobility routine.")
+        }
+        AppIntentRouteStore.shared.submit(.activeMobility(session.id))
+        return .result(dialog: "\(resolvedRoutine.name) is ready.")
+    }
+}
+
 struct GymTrackerAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(

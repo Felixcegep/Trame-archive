@@ -88,6 +88,50 @@ struct LibraryItemRow: View {
     }
 }
 
+/// A workout row whose primary tap immediately starts a session, with the
+/// workout editor demoted to a small trailing button. This mirrors the
+/// one-tap-to-start behavior already used by `SavedWorkoutTemplatePicker`,
+/// removing the extra "open detail → find Start" step from browse flows.
+struct StartableWorkoutRow<RowContent: View, Editor: View>: View {
+    let accessibilityName: String
+    var isStartDisabled = false
+    let onStart: () -> Void
+    @ViewBuilder let rowContent: () -> RowContent
+    @ViewBuilder let editor: () -> Editor
+
+    var body: some View {
+        HStack(spacing: Spacing.s) {
+            Button(action: onStart) {
+                rowContent()
+            }
+            .buttonStyle(.plain)
+            .disabled(isStartDisabled)
+            .accessibilityIdentifier("start-workout-\(accessibilityName)")
+            .accessibilityHint(isStartDisabled
+                ? "Add an exercise before starting this workout."
+                : "Starts a new session from this workout.")
+
+            NavigationLink {
+                editor()
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.gymSubduedText)
+                    .frame(width: 38, height: 38)
+                    .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Radius.medium)
+                            .stroke(Color.gymBorder, lineWidth: 1)
+                    }
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Edit \(accessibilityName)")
+            .accessibilityIdentifier("edit-workout-\(accessibilityName)")
+        }
+    }
+}
+
 struct LibraryGroupCard<Content: View>: View {
     @ViewBuilder let content: Content
 

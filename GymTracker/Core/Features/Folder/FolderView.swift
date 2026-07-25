@@ -283,19 +283,24 @@ struct FolderView: View {
                         if index > 0 || !sortedCollections.isEmpty {
                             LibraryGroupDivider()
                         }
-                        NavigationLink {
-                            WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
-                        } label: {
+                        StartableWorkoutRow(
+                            accessibilityName: template.name,
+                            isStartDisabled: template.exercises.isEmpty,
+                            onStart: { onStartWorkout(template) }
+                        ) {
                             LibraryItemRow(
                                 title: template.name,
                                 subtitle: "\(template.exercises.count) exercises",
                                 icon: "list.bullet.rectangle",
                                 color: Color.gymPrimary,
                                 surface: Color.gymPrimarySurface,
-                                showsCard: false
+                                showsCard: false,
+                                showsChevron: false
                             )
+                        } editor: {
+                            WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                         }
-                        .buttonStyle(.plain)
+                        .padding(.trailing, Spacing.l - 2)
                     }
                 }
             }

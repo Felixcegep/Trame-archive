@@ -501,32 +501,17 @@ struct CaffeineQuickLogSheet: View {
     }
 
     private func logSizedPreset(name: String, defaultMedium: Double, defaultSizeValue: Double) {
-        let food: FoodItem
-        if let existing = foods.first(where: { $0.name == name }) {
-            food = existing
-            food.isArchived = false
-            food.updatedAt = .now
+        if CaffeineLoggingService.logPreset(
+            name: name,
+            defaultMediumMilligrams: defaultMedium,
+            sizedMilligrams: defaultSizeValue,
+            sizeTitle: size.title,
+            using: modelContext
+        ) != nil {
+            dismiss()
         } else {
-            food = FoodItem(
-                name: name,
-                referenceAmount: 1,
-                referenceUnit: .serving,
-                caffeineMilligrams: defaultMedium,
-                sourceKind: .curated,
-                confidence: .estimated,
-                preparationState: .cooked
-            )
-            modelContext.insert(food)
+            errorMessage = "Your selection is still here. Please try again."
         }
-        let ratio = defaultMedium > 0 ? (defaultSizeValue / defaultMedium) : 1.0
-        let portion = FoodPortion(
-            id: nil,
-            name: size.title,
-            amount: 1,
-            unit: .serving,
-            equivalentReferenceAmount: food.referenceAmount * ratio
-        )
-        complete(food: food, portion: portion)
     }
 
     private func logPreWorkout() {

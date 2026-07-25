@@ -166,6 +166,19 @@ class GymTrackerUITestCase: XCTestCase {
         return app
     }
 
+    /// Starts a blank session from Home. The primary card now opens the unified
+    /// "Start a workout" sheet, so an empty workout is one tap deeper: open the
+    /// sheet, then choose "Start empty workout".
+    func startEmptyWorkout(in app: XCUIApplication) {
+        let card = app.buttons["start-free-workout"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        card.tap()
+
+        let empty = app.buttons["start-empty-workout"]
+        XCTAssertTrue(empty.waitForExistence(timeout: 5))
+        empty.tap()
+    }
+
     func launchFixture(
         _ fixture: String,
         additionalArguments: [String] = [],

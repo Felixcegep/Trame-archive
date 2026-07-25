@@ -53,6 +53,11 @@ struct SettingView: View {
 
     var body: some View {
         Form {
+            Section("Appearance") {
+                Toggle("Dark Mode", isOn: $darkMode)
+                    .accessibilityIdentifier("settings-dark-mode-toggle")
+            }
+
             Section("Units") {
                 Picker("Units", selection: $unitSystem) {
                     ForEach(UnitSystem.allCases, id: \.self) { system in

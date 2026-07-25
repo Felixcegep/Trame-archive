@@ -27,6 +27,7 @@ struct RootView: View {
     @State private var templateToStart: WorkoutTemplate? = nil
     @State private var plannedWorkoutToStart: PendingPlannedWorkout? = nil
     @State private var isShowingActiveWorkoutConflictAlert = false
+    @AppStorage(DefaultsKey.darkMode) private var darkMode: Bool = false
     @State private var isPreparingApp = true
     @State private var appIntentRouteStore = AppIntentRouteStore.shared
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
@@ -168,6 +169,7 @@ struct RootView: View {
             }
             .tag(AppTab.progress)
         }
+        .preferredColorScheme(darkMode ? .dark : nil)
         .accessibilityHidden(isPreparingApp)
         .overlay {
             if isPreparingApp {
@@ -330,6 +332,7 @@ struct RootView: View {
             consumePendingPlanNotificationDestination()
             consumePendingAppIntentDestination()
             isPreparingApp = false
+            WidgetSnapshotService.refresh(using: modelContext)
             await PlanNotificationScheduler.shared.reconcile(using: modelContext)
             await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
         }
@@ -374,6 +377,7 @@ struct RootView: View {
                     modelContext.rollback()
                     print("Failed to save modelContext on backgrounding: \(error)")
                 }
+                WidgetSnapshotService.refresh(using: modelContext)
             } else if newPhase == .active {
                 workoutVM.reconcileLiveActivity()
                 Task {
@@ -417,6 +421,16 @@ struct RootView: View {
             selectedTab = .today
             activeWorkoutPath.removeAll()
             isShowingActiveWorkout = true
+        case .activeMobility(let sessionID):
+            guard featureFlags.isEnabled(.mobility),
+                  let session = (try? modelContext.fetch(FetchDescriptor<MobilitySession>()))?
+                    .first(where: { $0.id == sessionID && $0.status == .active })
+            else {
+                selectedTab = .today
+                return
+            }
+            selectedTab = .train
+            activeMobilitySession = session
         }
     }
 

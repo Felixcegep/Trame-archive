@@ -25,14 +25,18 @@ struct WorkoutCollectionDetailView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(collection.workoutTemplates, id: \.self) { template in
-                        NavigationLink {
-                            WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
-                        } label: {
+                        StartableWorkoutRow(
+                            accessibilityName: template.name,
+                            isStartDisabled: template.exercises.isEmpty,
+                            onStart: { onStartWorkout(template) }
+                        ) {
                             FolderRow(
                                 title: template.name,
                                 subtitle: String(localized: "\(template.exercises.count) exercises"),
                                 systemImage: "list.bullet.rectangle"
                             )
+                        } editor: {
+                            WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
                         }
                     }
                     .onDelete(perform: removeTemplates)

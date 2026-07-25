@@ -11,6 +11,7 @@ final class AppIntentRouteStore {
 
     enum Destination: Equatable {
         case activeWorkout(UUID)
+        case activeMobility(UUID)
         case today
     }
 

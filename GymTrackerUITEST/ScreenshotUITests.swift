@@ -243,7 +243,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             object: startWorkout
         )
         XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 10), .completed)
-        startWorkout.tap()
+        startEmptyWorkout(in: app)
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
         addExercise("Plank", in: app)
 
@@ -437,8 +437,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
 
     func testCaptureHomeTemplateSheetScreenshot() {
         let templatePicker = launchFreshApp()
-        tapButton("start-from-template", in: templatePicker)
-        XCTAssertTrue(templatePicker.navigationBars["Start a saved workout"].waitForExistence(timeout: 5))
+        tapButton("start-free-workout", in: templatePicker)
+        XCTAssertTrue(templatePicker.navigationBars["Start a workout"].waitForExistence(timeout: 5))
         saveScreenshot("overview/01b_Home_Template_Sheet")
     }
 

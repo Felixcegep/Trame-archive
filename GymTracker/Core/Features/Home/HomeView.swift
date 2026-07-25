@@ -43,7 +43,6 @@ struct HomeView: View {
                 dailyContext
                 nutritionContext
                 mobilityContext
-                quickActions
                 recentActivity
             }
             .padding(.horizontal, Spacing.xl)
@@ -85,6 +84,11 @@ struct HomeView: View {
                     isShowingTemplatePicker = false
                     DispatchQueue.main.async {
                         startWorkout(from: template)
+                    }
+                } onStartEmpty: {
+                    isShowingTemplatePicker = false
+                    DispatchQueue.main.async {
+                        startEmptyWorkout()
                     }
                 }
             }
@@ -340,32 +344,6 @@ struct HomeView: View {
         }
     }
 
-    private var quickActions: some View {
-        Group {
-            if !workoutVM.hasActiveWorkout {
-                VStack(alignment: .leading, spacing: Spacing.s) {
-                    Text("QUICK ACTIONS")
-                        .font(AppFont.captionBold)
-                        .tracking(0.8)
-                        .foregroundStyle(Color.gymSubduedText)
-
-                    Button {
-                        isShowingTemplatePicker = true
-                    } label: {
-                        quickActionRow(
-                            icon: "rectangle.stack",
-                            iconColor: Color.gymPrimary,
-                            title: "Use a Saved Workout",
-                            detail: "Follow a reusable session"
-                        )
-                    }
-                    .buttonStyle(.gymPress)
-                    .accessibilityIdentifier("start-from-template")
-                }
-            }
-        }
-    }
-
     private var dailyContext: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text("TODAY")
@@ -577,45 +555,6 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
     }
 
-    private func quickActionRow(
-        icon: String,
-        iconColor: Color,
-        title: String,
-        detail: String,
-        isInformational: Bool = false
-    ) -> some View {
-        HStack(spacing: Spacing.m) {
-            Image(systemName: icon)
-                .font(AppFont.headline)
-                .frame(width: 38, height: 38)
-                .foregroundStyle(iconColor)
-                .background(iconColor.opacity(0.12))
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(title)
-                    .font(AppFont.subheadlineSemibold)
-                Text(detail)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-            }
-
-            Spacer()
-
-            Image(systemName: isInformational ? "info.circle" : "chevron.right")
-                .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymSubduedText)
-        }
-        .padding(Spacing.m)
-        .background(Color.gymCard)
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
-        .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)
-    }
-
     private var recentActivity: some View {
         let completedWorkouts = workouts.filter { $0.status == .completed }
 
@@ -707,7 +646,7 @@ struct HomeView: View {
         if let progress = activePlanProgress {
             return LocalizedStringKey(progress.plannedWorkoutName)
         }
-        return "Free Workout"
+        return "Start a workout"
     }
 
     private var todayDay: LocalDay { .today }
@@ -745,17 +684,7 @@ struct HomeView: View {
     }
 
     private func toggleCreatine() {
-        let occurrence = creatineOccurrence ?? SupplementOccurrence(
-            kind: .creatine,
-            day: todayDay,
-            status: .skipped,
-            completedAt: nil
-        )
-        occurrence.update(status: creatineTaken ? .skipped : .completed)
-        if creatineOccurrence == nil {
-            modelContext.insert(occurrence)
-        }
-        _ = modelContext.saveOrRollback()
+        _ = SupplementOccurrenceService.setCreatine(taken: !creatineTaken, day: todayDay, using: modelContext)
     }
 
     private var primaryCardSubtitle: LocalizedStringKey {
@@ -775,7 +704,7 @@ struct HomeView: View {
             }
             return "Week \(week) · Start early when you are ready"
         }
-        return "Jump in and add exercises as you go."
+        return "Pick a saved workout or start fresh."
     }
 
     private func nextExerciseDescription(in workout: Workout) -> String {
@@ -795,9 +724,17 @@ struct HomeView: View {
         } else if let run = activePlanRun, let progress = activePlanProgress {
             onStartPlannedWorkout(run, progress)
         } else {
-            workoutVM.startWorkout(using: modelContext)
-            isShowingActiveWorkout = true
+            isShowingTemplatePicker = true
         }
+    }
+
+    private func startEmptyWorkout() {
+        guard !workoutVM.hasActiveWorkout else {
+            isShowingActiveWorkout = true
+            return
+        }
+        workoutVM.startWorkout(using: modelContext)
+        isShowingActiveWorkout = true
     }
 
     private func saveReschedule(_ progress: PlanWorkoutProgress) {
@@ -881,7 +818,7 @@ struct HomeView: View {
     private var primaryCardLabel: LocalizedStringKey {
         if workoutVM.hasActiveWorkout { return "ACTIVE WORKOUT" }
         if activePlanProgress != nil { return "PLANNED WORKOUT" }
-        return "FREE WORKOUT"
+        return "START WORKOUT"
     }
 
     private var primaryCardIcon: String {
@@ -893,7 +830,7 @@ struct HomeView: View {
     private var primaryCardHint: String {
         if workoutVM.hasActiveWorkout { return "Returns to your active workout." }
         if activePlanProgress != nil { return "Starts the next workout in your active program." }
-        return "Starts a blank workout."
+        return "Opens your saved workouts, or start an empty one."
     }
 
     private var primaryCardAccessibilityIdentifier: String {

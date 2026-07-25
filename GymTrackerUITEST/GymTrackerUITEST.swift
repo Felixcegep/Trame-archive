@@ -55,8 +55,15 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         let startButton = app.buttons["start-free-workout"]
         XCTAssertTrue(startButton.waitForExistence(timeout: 5))
-
         startButton.tap()
+
+        // The primary card now opens the unified "Start a workout" sheet, where
+        // an empty session is one explicit choice among the saved workouts.
+        XCTAssertTrue(app.navigationBars["Start a workout"].waitForExistence(timeout: 5))
+
+        let empty = app.buttons["start-empty-workout"]
+        XCTAssertTrue(empty.waitForExistence(timeout: 5))
+        empty.tap()
 
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
     }
@@ -96,9 +103,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.launchArguments = ["-ui-testing", "-reset-data"]
         app.launch()
 
-        let startButton = app.buttons["start-free-workout"]
-        XCTAssertTrue(startButton.waitForExistence(timeout: 5))
-        startButton.tap()
+        startEmptyWorkout(in: app)
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
 
         app.buttons["minimize-workout"].tap()
@@ -132,7 +137,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testPrepareRunningRestForSimulatorReboot() {
         let app = launchFreshApp()
 
-        tapButton("start-free-workout", in: app)
+        startEmptyWorkout(in: app)
         addExercise("Bench Press", in: app)
         enterValidValues(for: "Bench Press", set: 0, in: app)
         completeSet("Bench Press", index: 0, dismissRest: false, in: app)
@@ -208,7 +213,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.launchArguments = ["-ui-testing", "-reset-data"]
         app.launch()
 
-        let startFromTemplate = app.buttons["start-from-template"]
+        let startFromTemplate = app.buttons["start-free-workout"]
         XCTAssertTrue(startFromTemplate.waitForExistence(timeout: 5))
         startFromTemplate.tap()
 
@@ -228,9 +233,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.launchArguments = ["-ui-testing", "-reset-data"]
         app.launch()
 
-        let startWorkout = app.buttons["start-free-workout"]
-        XCTAssertTrue(startWorkout.waitForExistence(timeout: 5))
-        startWorkout.tap()
+        startEmptyWorkout(in: app)
 
         let addExercise = app.buttons["add-active-exercise"]
         XCTAssertTrue(addExercise.waitForExistence(timeout: 5))
@@ -366,7 +369,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
     func testRejectsEmptyWorkoutSave() {
         let app = launchFreshApp()
-        app.buttons["start-free-workout"].tap()
+        startEmptyWorkout(in: app)
 
         let finishButton = app.buttons["Review Workout"]
         XCTAssertFalse(finishButton.exists)
@@ -400,7 +403,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
     func testShowsAndAppliesPreviousSessionPerformance() {
         let app = launchFreshApp()
-        app.buttons["start-free-workout"].tap()
+        startEmptyWorkout(in: app)
         addExercise("Bench Press", in: app)
         enterValidValues(for: "Bench Press", set: 0, in: app)
         app.buttons["complete-set-Bench Press-0"].tap()
@@ -411,8 +414,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             app.buttons["Save completed sets"].tap()
         }
 
-        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
-        app.buttons["start-free-workout"].tap()
+        startEmptyWorkout(in: app)
         addExercise("Bench Press", in: app)
 
         XCTAssertTrue(app.staticTexts["previous-performance-Bench Press"].waitForExistence(timeout: 5))

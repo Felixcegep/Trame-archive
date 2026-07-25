@@ -12,5 +12,9 @@ import SwiftUI
 struct GymTrackerExtensionBundle: WidgetBundle {
     var body: some Widget {
         GymTrackerExtensionLiveActivity()
+        TodayWorkoutWidget()
+        WeeklyVolumeWidget()
+        CaffeineWidget()
+        CreatineWidget()
     }
 }
