@@ -17,7 +17,7 @@ struct PlanCalendarView: View {
                 ContentUnavailableView(
                     "No scheduled workouts",
                     systemImage: AppIcon.plan,
-                    description: Text("Start this program to see its schedule.")
+                    description: Text("Start this plan to see its schedule.")
                 )
             }
 
@@ -47,7 +47,7 @@ struct PlanCalendarView: View {
         .background(Color.gymBackground)
         .navigationTitle("Schedule")
         .overlay(alignment: .topLeading) {
-            screenshotStateMarker("plan-calendar-screen", label: "Program schedule")
+            screenshotStateMarker("plan-calendar-screen", label: "Plan schedule")
         }
         .sheet(item: $selectedEntry) { entry in
             ScheduleUnscheduledWorkoutSheet(entry: entry) { date in

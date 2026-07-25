@@ -6,7 +6,7 @@ struct PlanPhaseEditorView: View {
     var body: some View {
         Form {
             Section {
-                Text("Phases organize the program weeks. A deload reduces the prescribed sets and suggested load only when that planned workout starts; completed workouts stay unchanged.")
+                Text("Phases organize the plan weeks. A deload reduces the prescribed sets and suggested load only when that planned workout starts; completed workouts stay unchanged.")
                     .font(AppFont.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -55,7 +55,7 @@ struct PlanPhaseEditorView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Program Phases")
+        .navigationTitle("Plan Phases")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 EditButton()

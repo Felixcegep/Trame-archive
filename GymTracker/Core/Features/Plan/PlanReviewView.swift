@@ -25,14 +25,14 @@ struct PlanReviewView: View {
             }
 
             Section("Schedule summary") {
-                LabeledContent("Program", value: draft.name)
+                LabeledContent("Plan", value: draft.name)
                 LabeledContent("Weeks", value: "\(draft.weeks.count)")
                 LabeledContent("Training days", value: trainingDaysText)
                 LabeledContent("Equipment", value: draft.equipmentSummary)
                 LabeledContent("Phases", value: draft.phaseSummary)
             }
 
-            Section("Program phases") {
+            Section("Plan phases") {
                 ForEach(draft.blocks) { block in
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text("\(block.normalizedName) · \(block.weekSummary)")
@@ -74,7 +74,7 @@ struct PlanReviewView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Review Program")
+        .navigationTitle("Review Plan")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Back") { dismiss() }

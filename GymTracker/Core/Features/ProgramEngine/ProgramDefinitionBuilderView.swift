@@ -58,7 +58,7 @@ struct ProgramDefinitionBuilderView: View {
 
     var body: some View {
         Form {
-            Section("Program") {
+            Section("Plan") {
                 TextField("Name", text: binding(\.name))
                     .accessibilityIdentifier("definition-name-field")
 
@@ -142,7 +142,7 @@ struct ProgramDefinitionBuilderView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Custom Program")
+        .navigationTitle("Plan Builder")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }

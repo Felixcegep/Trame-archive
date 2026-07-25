@@ -11,17 +11,17 @@ struct PlansBrowserView: View {
         List {
             if activePlans.isEmpty && archivedPlans.isEmpty {
                 ContentUnavailableView {
-                    Label("No programs yet", systemImage: AppIcon.planAdd)
+                    Label("No training plans yet", systemImage: AppIcon.planAdd)
                 } description: {
-                    Text("Build a multi-week program from your saved workouts.")
+                    Text("A training plan schedules your saved workouts across the week so you always know what to train next.")
                 } actions: {
-                    Button("Create program", action: onCreateProgram)
+                    Button("Create a plan", action: onCreateProgram)
                         .buttonStyle(.borderedProminent)
                         .tint(Color.gymPrimary)
                         .accessibilityIdentifier("create-program-empty-state")
                 }
             } else {
-                Section("Programs") {
+                Section("Active") {
                     ForEach(activePlans) { plan in
                         NavigationLink {
                             PlanDetailView(plan: plan, onStartPlannedWorkout: onStartPlannedWorkout)
@@ -47,7 +47,7 @@ struct PlansBrowserView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Programs")
+        .navigationTitle("My Plans")
     }
 
     private var activePlans: [WorkoutPlan] {

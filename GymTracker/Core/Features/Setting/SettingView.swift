@@ -192,7 +192,7 @@ struct SettingView: View {
             } header: {
                 Text("Development")
             } footer: {
-                Text("Removes workout history, saved workouts, programs, and custom exercises, then restores the built-in exercise catalogue.")
+                Text("Removes workout history, saved workouts, training plans, and custom exercises, then restores the built-in exercise catalogue.")
             }
             #endif
         }
@@ -317,7 +317,7 @@ struct SettingView: View {
         } header: {
             Text("Workout Reminders")
         } footer: {
-            Text("GymTracker schedules reminders only for future workouts in your active program.")
+            Text("GymTracker schedules reminders only for future workouts in your active plan.")
         }
     }
 
@@ -514,8 +514,8 @@ struct ImportPreviewView: View {
                     LabeledContent("Custom Exercises", value: "\(backup.exercises.filter(\.isCustom).count)")
                     LabeledContent("Saved Workouts", value: "\(backup.templates.count)")
                     LabeledContent("Workout Folders", value: "\(backup.collections.count)")
-                    LabeledContent("Programs", value: "\(backup.plans.count)")
-                    LabeledContent("Program Runs", value: "\(backup.planRuns.count)")
+                    LabeledContent("Training plans", value: "\(backup.plans.count)")
+                    LabeledContent("Plan runs", value: "\(backup.planRuns.count)")
                     LabeledContent("Workout History", value: "\(backup.workouts.count)")
                     LabeledContent("Daily Check-ins", value: "\(backup.dailyLogEntries.count)")
                     LabeledContent("Creatine Confirmations", value: "\(backup.supplementOccurrences.filter { $0.status == SupplementOccurrenceStatus.completed.rawValue }.count)")
@@ -552,7 +552,7 @@ struct ImportPreviewView: View {
                 }
                 .accessibilityIdentifier("restore-replace-all-data")
             } message: {
-                Text("This will delete your workout history, saved workouts, workout folders, programs, program runs, and custom exercises. This cannot be undone.")
+                Text("This will delete your workout history, saved workouts, workout folders, training plans, plan runs, and custom exercises. This cannot be undone.")
             }
         }
         .accessibilityIdentifier("import-preview")

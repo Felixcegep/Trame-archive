@@ -74,8 +74,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         tapButton("program-catalog-browser", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["program-catalog"].waitForExistence(timeout: 8))
 
-        app.searchFields["Search programs"].tap()
-        app.searchFields["Search programs"].typeText("Double Progression")
+        app.searchFields["Search plans"].tap()
+        app.searchFields["Search plans"].typeText("Double Progression")
         let program = app.descendants(matching: .any)["program-catalog-Double Progression Builder"]
         XCTAssertTrue(program.waitForExistence(timeout: 5))
         program.tap()
@@ -95,7 +95,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         }
         tapButton("start-program", in: app)
         XCTAssertTrue(app.buttons["use-program"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["use-program"].label.contains("Program added"))
+        XCTAssertTrue(app.buttons["use-program"].label.contains("Plan added"))
     }
 
     func testResumesPersistedActiveWorkoutAfterRelaunch() {
@@ -477,8 +477,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.tabBars.buttons.element(boundBy: 1).tap()
 
         app.buttons["Create library item"].tap()
-        XCTAssertTrue(app.buttons["New Program"].waitForExistence(timeout: 5))
-        app.buttons["New Program"].tap()
+        XCTAssertTrue(app.buttons["New Training Plan"].waitForExistence(timeout: 5))
+        app.buttons["New Training Plan"].tap()
 
         let nameField = app.textFields["plan-name-field"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))

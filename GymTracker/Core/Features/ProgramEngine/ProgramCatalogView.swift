@@ -27,20 +27,20 @@ struct ProgramCatalogView: View {
         Group {
             if availableRecords.isEmpty {
                 ContentUnavailableView(
-                    "No programs available",
+                    "No plans available",
                     systemImage: AppIcon.plan,
-                    description: Text("The built-in program catalog could not be loaded.")
+                    description: Text("The built-in plans could not be loaded.")
                 )
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Spacing.md) {
                         filterChips
 
-                        LibraryListSectionHeader(title: "Programs", count: builtIns.count)
+                        LibraryListSectionHeader(title: "Plans", count: builtIns.count)
 
                         if builtIns.isEmpty {
                             VStack(alignment: .leading, spacing: Spacing.s) {
-                                Text("No programs match your search or filters.")
+                                Text("No plans match your search or filters.")
                                     .font(AppFont.subheadline)
                                     .foregroundStyle(Color.gymSubduedText)
                                 Button("Clear filters") {
@@ -72,9 +72,9 @@ struct ProgramCatalogView: View {
         .searchable(
             text: $searchText,
             placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Search programs"
+            prompt: "Search plans"
         )
-        .navigationTitle("Program Catalog")
+        .navigationTitle("Ready-Made Plans")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("program-catalog")
     }
@@ -285,7 +285,7 @@ struct ProgramCatalogDetailView: View {
                     }
                 }
                 if rows.count > previewRows.count {
-                    Text("Plus \(rows.count - previewRows.count) more prescribed exercises across the program")
+                    Text("Plus \(rows.count - previewRows.count) more prescribed exercises across the plan")
                         .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
                 }
@@ -340,7 +340,7 @@ struct ProgramCatalogDetailView: View {
             Button {
                 isShowingSetup = true
             } label: {
-                Label(didActivate ? "Program added" : "Use this program", systemImage: didActivate ? AppIcon.checkmark : AppIcon.play)
+                Label(didActivate ? "Plan added" : "Use this plan", systemImage: didActivate ? AppIcon.checkmark : AppIcon.play)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -386,7 +386,7 @@ private struct ProgramActivationSetupView: View {
 
             if payload.intakeInputs.isEmpty {
                 Section {
-                    Text("This program does not require starting values. You can adjust loads during your first workout.")
+                    Text("This plan does not require starting values. You can adjust loads during your first workout.")
                         .foregroundStyle(Color.gymSubduedText)
                 }
             } else {
@@ -439,7 +439,7 @@ private struct ProgramActivationSetupView: View {
                     HStack {
                         Spacer()
                         if isSaving { ProgressView() }
-                        Text("Start program")
+                        Text("Start plan")
                         Spacer()
                     }
                 }
@@ -447,7 +447,7 @@ private struct ProgramActivationSetupView: View {
                 .accessibilityIdentifier("start-program")
             }
         }
-        .navigationTitle("Configure Program")
+        .navigationTitle("Set Up Plan")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

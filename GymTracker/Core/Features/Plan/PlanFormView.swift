@@ -23,7 +23,7 @@ struct PlanFormView: View {
 
     var body: some View {
         Form {
-            Section("Program") {
+            Section("Plan") {
                 TextField("Name", text: $name)
                     .accessibilityIdentifier("plan-name-field")
 
@@ -42,7 +42,7 @@ struct PlanFormView: View {
                 Stepper("\(durationWeeks) weeks", value: $durationWeeks, in: 1...52)
             }
 
-            Section("Program equipment") {
+            Section("Plan equipment") {
                 NavigationLink {
                     PlanEquipmentPickerView(selectedEquipment: $requiredEquipment)
                 } label: {
@@ -50,7 +50,7 @@ struct PlanFormView: View {
                 }
                 .accessibilityIdentifier("plan-equipment-picker")
 
-                Text("This records the equipment this program needs. It does not change your saved workouts or completed history.")
+                Text("This records the equipment this plan needs. It does not change your saved workouts or completed history.")
                     .font(AppFont.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -131,14 +131,14 @@ struct PlanFormView: View {
                 }
 
                 if availableTemplates.isEmpty {
-                    Text("Create a non-empty saved workout before creating a program.")
+                    Text("Create a workout with at least one exercise before building a plan.")
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("New Program")
+        .navigationTitle("New Training Plan")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }

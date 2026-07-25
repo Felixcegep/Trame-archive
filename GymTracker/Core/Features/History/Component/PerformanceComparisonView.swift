@@ -7,7 +7,7 @@ struct PerformanceComparisonView: View {
         if comparison.hasTargets {
             GymCard(variant: .completed, radius: Radius.medium) {
                 HStack {
-                    Text("Program vs performed")
+                    Text("Planned vs performed")
                         .font(AppFont.subheadlineSemibold)
                         .foregroundStyle(Color.gymText)
                     Spacer()
@@ -87,6 +87,6 @@ struct PerformanceComparisonView: View {
         let dimensions = comparison.dimensions
             .map { "\($0.name): \($0.status.title)" }
             .joined(separator: ", ")
-        return "Program versus performed: \(comparison.overall.title). Planned: \(comparison.plannedSummary). Performed: \(comparison.performedSummary). \(dimensions)"
+        return "Planned versus performed: \(comparison.overall.title). Planned: \(comparison.plannedSummary). Performed: \(comparison.performedSummary). \(dimensions)"
     }
 }

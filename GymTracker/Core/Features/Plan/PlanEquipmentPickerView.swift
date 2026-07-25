@@ -6,7 +6,7 @@ struct PlanEquipmentPickerView: View {
     var body: some View {
         List {
             Section {
-                Text("Choose the equipment this program uses. You can change this later; completed workouts stay unchanged.")
+                Text("Choose the equipment this plan uses. You can change this later; completed workouts stay unchanged.")
                     .font(AppFont.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -35,7 +35,7 @@ struct PlanEquipmentPickerView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Program Equipment")
+        .navigationTitle("Plan Equipment")
     }
 
     private func toggle(_ equipment: EquipmentType) {

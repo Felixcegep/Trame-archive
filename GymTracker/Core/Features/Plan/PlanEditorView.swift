@@ -20,7 +20,7 @@ struct PlanEditorView: View {
 
     var body: some View {
         Form {
-            Section("Program overview") {
+            Section("Plan overview") {
                 TextField("Name", text: $draft.name)
                 Picker("Goal", selection: $draft.goal) {
                     ForEach(PlanGoal.allCases, id: \.self) { goal in
@@ -35,13 +35,13 @@ struct PlanEditorView: View {
                 NavigationLink {
                     PlanEquipmentPickerView(selectedEquipment: $draft.requiredEquipment)
                 } label: {
-                    LabeledContent("Program equipment", value: draft.equipmentSummary)
+                    LabeledContent("Plan equipment", value: draft.equipmentSummary)
                 }
                 .accessibilityIdentifier("edit-plan-equipment-picker")
                 NavigationLink {
                     PlanPhaseEditorView(blocks: $draft.blocks)
                 } label: {
-                    LabeledContent("Program phases", value: draft.phaseSummary)
+                    LabeledContent("Plan phases", value: draft.phaseSummary)
                 }
                 .accessibilityIdentifier("edit-plan-phases")
             }
@@ -76,7 +76,7 @@ struct PlanEditorView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Edit Program")
+        .navigationTitle("Edit Plan")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
@@ -114,7 +114,7 @@ struct PlanEditorView: View {
                         return error.localizedDescription
                     }
                     guard saveModelContext(modelContext) else {
-                        return String(localized: "The program could not be saved. Please try again.")
+                        return String(localized: "The plan could not be saved. Please try again.")
                     }
                     isShowingReview = false
                     dismiss()

@@ -131,7 +131,7 @@ struct HomeView: View {
                 .accessibilityIdentifier("today-confirm-skip-workout")
             Button("Cancel", role: .cancel) { progressToSkip = nil }
         } message: {
-            Text("This session will remain in the program schedule as skipped. Your plan and workout history will not change.")
+            Text("This session will remain in the plan schedule as skipped. Your plan and workout history will not change.")
         }
         .alert("Couldn’t update workout", isPresented: Binding(
             get: { scheduleActionError != nil },
@@ -220,7 +220,7 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Active program: \(run.sourcePlanName), week \(run.currentWeekIndex + 1)")
+        .accessibilityLabel("Active plan: \(run.sourcePlanName), week \(run.currentWeekIndex + 1)")
         .accessibilityIdentifier("active-plan-badge")
     }
 
@@ -829,7 +829,7 @@ struct HomeView: View {
 
     private var primaryCardHint: String {
         if workoutVM.hasActiveWorkout { return "Returns to your active workout." }
-        if activePlanProgress != nil { return "Starts the next workout in your active program." }
+        if activePlanProgress != nil { return "Starts the next workout in your active plan." }
         return "Opens your saved workouts, or start an empty one."
     }
 

@@ -7,6 +7,7 @@ struct FolderView: View {
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
     @Query private var workoutPlans: [WorkoutPlan]
+    @Query private var programDefinitions: [ProgramDefinitionRecord]
 
     @State private var activeSheet: FolderSheet?
     @State private var searchText = ""
@@ -42,12 +43,18 @@ struct FolderView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Section {
-                        Button("New Workout", systemImage: "list.bullet.rectangle") {
+                        Button {
                             activeSheet = .workoutTemplate
+                        } label: {
+                            Label("New Workout", systemImage: "list.bullet.rectangle")
+                            Text("One session, like Leg Day")
                         }
                         .accessibilityIdentifier("new-workout-template")
-                        Button("New Exercise", systemImage: "dumbbell.fill") {
+                        Button {
                             activeSheet = .exercise
+                        } label: {
+                            Label("New Exercise", systemImage: "dumbbell.fill")
+                            Text("Add a move you do at the gym")
                         }
                         .accessibilityIdentifier("new-exercise")
                     }
@@ -55,21 +62,24 @@ struct FolderView: View {
                         Button {
                             activeSheet = .plan
                         } label: {
-                            Label("New Program", systemImage: AppIcon.planAdd)
-                            Text("Schedule multi-week training")
+                            Label("New Training Plan", systemImage: AppIcon.planAdd)
+                            Text("A weekly schedule of workouts")
                         }
                         .accessibilityIdentifier("new-plan")
                         Button {
                             activeSheet = .programDefinition
                         } label: {
-                            Label("Program Builder", systemImage: AppIcon.progression)
-                            Text("Design a reusable program")
+                            Label("Plan Builder", systemImage: AppIcon.progression)
+                            Text("Advanced: sets, reps and weight rules")
                         }
                         .accessibilityIdentifier("new-program-definition")
                     }
                     Section {
-                        Button("New Workout Folder", systemImage: "folder.badge.plus") {
+                        Button {
                             activeSheet = .workoutCollection
+                        } label: {
+                            Label("New Folder", systemImage: "folder.badge.plus")
+                            Text("Group workouts together")
                         }
                     }
                 } label: {
@@ -111,7 +121,7 @@ struct FolderView: View {
         HStack(spacing: Spacing.s) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(Color.gymSubduedText)
-            TextField("Search your library", text: $searchText)
+            TextField("Search workouts, plans, exercises", text: $searchText)
                 .textInputAutocapitalization(.never)
                 .accessibilityIdentifier("library-search")
                 .autocorrectionDisabled()
@@ -136,115 +146,130 @@ struct FolderView: View {
 
     private var browseSection: some View {
         VStack(alignment: .leading, spacing: Spacing.xxl) {
-            quickActionsCard
+            createSection
+            browseLibrarySection
             myWorkoutsSection
         }
     }
 
-    private var quickActionsCard: some View {
-        LibraryGroupCard {
-            Button {
-                activeSheet = .workoutTemplate
-            } label: {
-                LibraryCreateRow(
-                    title: "New Workout…",
-                    subtitle: "e.g. Upper Body, Leg Day",
-                    icon: AppIcon.plus
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("library-new-workout")
+    private var createSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            LibrarySectionTitle("Create")
 
-            LibraryGroupDivider()
-
-            Button {
-                activeSheet = .plan
-            } label: {
-                LibraryCreateRow(
-                    title: "New Program…",
-                    subtitle: "Schedule multi-week training",
-                    icon: AppIcon.planAdd
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("library-new-program")
-
-            LibraryGroupDivider()
-
-            NavigationLink {
-                ExerciseBrowserView(onShowArchivedExercises: onShowArchivedExercises)
-            } label: {
-                LibraryItemRow(
-                    title: "My Exercises",
-                    subtitle: nil,
-                    icon: "dumbbell.fill",
-                    color: Color.gymSecondary,
-                    surface: Color.gymSecondarySurface,
-                    count: exerciseTemplates.count,
-                    showsCard: false
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("exercises-browser")
-
-            LibraryGroupDivider()
-
-            NavigationLink {
-                PlansBrowserView(
-                    onStartPlannedWorkout: onStartPlannedWorkout,
-                    onCreateProgram: { activeSheet = .plan }
-                )
-            } label: {
-                LibraryItemRow(
-                    title: "My Programs",
-                    subtitle: nil,
-                    icon: AppIcon.plan,
-                    color: Color.gymAccent,
-                    surface: Color.gymAccentSurface,
-                    count: workoutPlans.filter { !$0.isArchived }.count,
-                    showsCard: false
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("plans-browser")
-
-            LibraryGroupDivider()
-
-            if featureFlags.isEnabled(.programBuilder) {
-                NavigationLink {
-                    ProgramCatalogView()
+            LibraryGroupCard {
+                Button {
+                    activeSheet = .workoutTemplate
                 } label: {
-                    LibraryItemRow(
-                        title: "Program Catalog",
-                        subtitle: nil,
-                        icon: AppIcon.progression,
-                        color: Color.gymPrimary,
-                        surface: Color.gymPrimarySurface,
-                        count: 13,
-                        showsCard: false
+                    LibraryCreateRow(
+                        title: "Build a Workout",
+                        subtitle: "One session you can start any time",
+                        icon: AppIcon.plus
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("program-catalog-browser")
+                .accessibilityIdentifier("library-new-workout")
 
                 LibraryGroupDivider()
-            }
 
-            if featureFlags.isEnabled(.mobility) {
-                NavigationLink(value: LibraryRoute.mobility) {
+                Button {
+                    activeSheet = .plan
+                } label: {
+                    LibraryCreateRow(
+                        title: "Build a Training Plan",
+                        subtitle: "Schedule your workouts across the week",
+                        icon: AppIcon.planAdd
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("library-new-program")
+            }
+        }
+    }
+
+    private var browseLibrarySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            LibrarySectionTitle("Browse")
+
+            LibraryGroupCard {
+                if featureFlags.isEnabled(.programBuilder) {
+                    NavigationLink {
+                        ProgramCatalogView()
+                    } label: {
+                        LibraryItemRow(
+                            title: "Ready-Made Plans",
+                            subtitle: "Proven plans — pick one and start",
+                            icon: AppIcon.planCatalog,
+                            color: Color.gymPrimary,
+                            surface: Color.gymPrimarySurface,
+                            count: readyMadePlanCount,
+                            showsCard: false
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("program-catalog-browser")
+
+                    LibraryGroupDivider()
+                }
+
+                NavigationLink {
+                    PlansBrowserView(
+                        onStartPlannedWorkout: onStartPlannedWorkout,
+                        onCreateProgram: { activeSheet = .plan }
+                    )
+                } label: {
                     LibraryItemRow(
-                        title: "Mobility",
-                        subtitle: "Routines and movement library",
-                        icon: AppIcon.mobility,
-                        color: Color.gymSecondary,
-                        surface: Color.gymSecondarySurface,
+                        title: "My Plans",
+                        subtitle: "Plans you built or started",
+                        icon: AppIcon.plan,
+                        color: Color.gymAccent,
+                        surface: Color.gymAccentSurface,
+                        count: workoutPlans.filter { !$0.isArchived }.count,
                         showsCard: false
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("train-mobility-library")
+                .accessibilityIdentifier("plans-browser")
+
+                LibraryGroupDivider()
+
+                NavigationLink {
+                    ExerciseBrowserView(onShowArchivedExercises: onShowArchivedExercises)
+                } label: {
+                    LibraryItemRow(
+                        title: "All Exercises",
+                        subtitle: "Every move you can add to a workout",
+                        icon: "dumbbell.fill",
+                        color: Color.gymSecondary,
+                        surface: Color.gymSecondarySurface,
+                        count: exerciseTemplates.count,
+                        showsCard: false
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("exercises-browser")
+
+                if featureFlags.isEnabled(.mobility) {
+                    LibraryGroupDivider()
+
+                    NavigationLink(value: LibraryRoute.mobility) {
+                        LibraryItemRow(
+                            title: "Stretch & Mobility",
+                            subtitle: "Warm-ups, cool-downs and recovery",
+                            icon: AppIcon.mobility,
+                            color: Color.gymSecondary,
+                            surface: Color.gymSecondarySurface,
+                            showsCard: false
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("train-mobility-library")
+                }
             }
         }
+    }
+
+    private var readyMadePlanCount: Int {
+        programDefinitions.filter { $0.isBuiltIn && !$0.isArchived }.count
     }
 
     private var myWorkoutsSection: some View {
@@ -253,7 +278,7 @@ struct FolderView: View {
 
             if sortedCollections.isEmpty && sortedTemplates.isEmpty {
                 LibraryGroupCard {
-                    Text("No workouts yet — tap New Workout… above to build your first.")
+                    Text("No workouts yet — tap Build a Workout above to create your first one.")
                         .font(.subheadline)
                         .foregroundStyle(Color.gymSubduedText)
                         .padding(Spacing.l)
@@ -328,7 +353,7 @@ struct FolderView: View {
         } else {
             VStack(alignment: .leading, spacing: 18) {
                 if !matchingCollections.isEmpty {
-                    searchResultsCard(title: "Workout folders") {
+                    searchResultsCard(title: "Folders") {
                         ForEach(matchingCollections) { collection in
                             NavigationLink {
                                 WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
@@ -362,14 +387,14 @@ struct FolderView: View {
                     }
                 }
                 if !matchingPlans.isEmpty {
-                    searchResultsCard(title: "Programs") {
+                    searchResultsCard(title: "Training Plans") {
                         ForEach(matchingPlans) { plan in
                             NavigationLink {
                                 PlanDetailView(plan: plan, onStartPlannedWorkout: onStartPlannedWorkout)
                             } label: {
                                 RecentLibraryRow(
                                     title: plan.name,
-                                    type: "PROGRAM",
+                                    type: "PLAN",
                                     icon: AppIcon.plan,
                                     color: Color.gymAccent,
                                     surface: Color.gymAccentSurface

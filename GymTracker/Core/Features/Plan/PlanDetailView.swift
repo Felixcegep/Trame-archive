@@ -22,7 +22,7 @@ struct PlanDetailView: View {
                         .font(AppFont.subheadline)
                         .foregroundStyle(.secondary)
                     if pausedRun != nil {
-                        Text("Program paused")
+                        Text("Plan paused")
                             .font(AppFont.subheadlineSemibold)
                             .foregroundStyle(.secondary)
                     } else if testDayRun != nil {
@@ -59,7 +59,7 @@ struct PlanDetailView: View {
             }
 
             if let run = activeRun, let progress = nextProgress(in: run) {
-                Section("Current program") {
+                Section("In progress") {
                     NavigationLink {
                         PlanCalendarView(run: run)
                     } label: {
@@ -79,16 +79,16 @@ struct PlanDetailView: View {
                     }
                     .accessibilityIdentifier("start-planned-workout")
 
-                    Button("Pause Program") {
+                    Button("Pause Plan") {
                         PlanCoordinator.pause(run, using: modelContext)
                     }
 
-                    Button("Archive Program Run", role: .destructive) {
+                    Button("Stop Following This Plan", role: .destructive) {
                         isShowingArchiveConfirmation = true
                     }
                 }
             } else if let run = pausedRun {
-                Section("Program paused") {
+                Section("Plan paused") {
                     NavigationLink {
                         PlanCalendarView(run: run)
                     } label: {
@@ -96,12 +96,12 @@ struct PlanDetailView: View {
                     }
                     .accessibilityIdentifier("view-plan-schedule")
 
-                    Button("Resume Program") {
+                    Button("Resume Plan") {
                         PlanCoordinator.resume(run, using: modelContext)
                     }
                     .accessibilityIdentifier("resume-plan")
 
-                    Button("Archive Program Run", role: .destructive) {
+                    Button("Stop Following This Plan", role: .destructive) {
                         isShowingArchiveConfirmation = true
                     }
                 }
@@ -124,7 +124,7 @@ struct PlanDetailView: View {
                         startDate = .now
                         isShowingStartDate = true
                     } label: {
-                        Label(canOfferRestart ? "Restart Program" : "Start Program", systemImage: AppIcon.play)
+                        Label(canOfferRestart ? "Restart Plan" : "Start Plan", systemImage: AppIcon.play)
                     }
                     .accessibilityIdentifier(canOfferRestart ? "restart-plan" : "start-plan")
                     .disabled(plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts).isEmpty)
@@ -171,7 +171,7 @@ struct PlanDetailView: View {
                 Form {
                     DatePicker("Start date", selection: $startDate, displayedComponents: .date)
                 }
-                .navigationTitle("Start Program")
+                .navigationTitle("Start Plan")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { isShowingStartDate = false }
@@ -231,16 +231,16 @@ struct PlanDetailView: View {
             }
         }
         .confirmationDialog(
-            "Archive this program run?",
+            "Stop following this plan?",
             isPresented: $isShowingArchiveConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Archive Program Run", role: .destructive) {
+            Button("Stop Following This Plan", role: .destructive) {
                 guard let run = currentRun else { return }
                 PlanCoordinator.archive(run, using: modelContext)
             }
         } message: {
-            Text("Your completed workouts remain in History. You can start this program again later.")
+            Text("Your completed workouts remain in History. You can start this plan again later.")
         }
     }
 

@@ -127,7 +127,7 @@ struct PlanCalendarDayView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The workout will remain visible in the program schedule as skipped.")
+            Text("The workout will remain visible in the plan schedule as skipped.")
         }
         .alert("Schedule Error", isPresented: Binding(
             get: { errorMessage != nil },

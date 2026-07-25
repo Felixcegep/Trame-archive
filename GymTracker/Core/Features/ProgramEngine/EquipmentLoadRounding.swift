@@ -29,7 +29,10 @@ enum EquipmentLoadRounding {
         )
     }
 
-    private static func increment(
+    /// The smallest load change this equipment can actually make. Also drives
+    /// the set-entry panel's coarse +/- stepper, so a barbell moves in plate
+    /// jumps while a dumbbell moves in rack jumps.
+    static func increment(
         equipment: EquipmentType?,
         resistance: ResistanceType?,
         isPlateLoaded: Bool,

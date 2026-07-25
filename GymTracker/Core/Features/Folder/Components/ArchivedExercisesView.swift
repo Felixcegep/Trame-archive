@@ -16,7 +16,7 @@ struct ArchivedExercisesView: View {
         let results = filteredExercises
 
         LibraryBrowserList(title: "Hidden Exercises", searchText: $searchText) {
-            Text("Hidden exercises stay out of workout and program pickers. History remains unchanged.")
+            Text("Hidden exercises stay out of workout and plan pickers. History remains unchanged.")
                 .font(AppFont.subheadline)
                 .foregroundStyle(Color.gymSubduedText)
                 .padding(.horizontal, Spacing.xxs)

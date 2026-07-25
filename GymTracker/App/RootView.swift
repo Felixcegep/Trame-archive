@@ -103,9 +103,9 @@ struct RootView: View {
                             )
                         } else {
                             ContentUnavailableView(
-                                "Program unavailable",
+                                "Plan unavailable",
                                 systemImage: AppIcon.warning,
-                                description: Text("This program may have been removed or replaced.")
+                                description: Text("This plan may have been removed or replaced.")
                             )
                         }
                     case .mobility:
