@@ -7,7 +7,7 @@ struct SetDurationCountdownView: View {
     let exerciseSet: ExerciseSet
     let exerciseEntry: ExerciseEntry
     let viewModel: ActiveWorkoutViewModel
-    let focusedInput: FocusState<SetInputFocus?>.Binding
+    let coordinator: SetInputCoordinator
     @Binding var completionValidationMessage: String?
     @Binding var isTimerRunning: Bool
 
@@ -166,10 +166,10 @@ struct SetDurationCountdownView: View {
     private func startCountdown() {
         guard countdownTargetSeconds > 0 else {
             completionValidationMessage = "Enter seconds before starting the timer."
-            focusedInput.wrappedValue = setFocus
+            coordinator.focus = setFocus
             return
         }
-        focusedInput.wrappedValue = nil
+        coordinator.focus = nil
         completionValidationMessage = nil
         countdownFinished = false
         pausedCountdownRemaining = nil

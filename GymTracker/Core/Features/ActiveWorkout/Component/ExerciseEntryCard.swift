@@ -9,7 +9,7 @@ struct ExerciceEntryCard: View {
     let viewModel: ActiveWorkoutViewModel
     let onButtonPress: () -> Void
     let unitSystem: UnitSystem
-    let focusedInput: FocusState<SetInputFocus?>.Binding
+    let coordinator: SetInputCoordinator
     @Binding var expandedExerciseID: PersistentIdentifier?
     @Binding var editingCompletedSetID: PersistentIdentifier?
     let previousPerformance: PreviousExercisePerformance?
@@ -228,7 +228,7 @@ struct ExerciceEntryCard: View {
                     exerciseSet: exerciseSet,
                     exerciseEntry: exerciseEntry,
                     viewModel: viewModel,
-                    focusedInput: focusedInput,
+                    coordinator: coordinator,
                     editingCompletedSetID: $editingCompletedSetID,
                     onButtonPress: onButtonPress,
                     onSetCompleted: handleSetCompletion,

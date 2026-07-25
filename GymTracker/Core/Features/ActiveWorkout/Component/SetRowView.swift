@@ -8,7 +8,7 @@ struct SetRowView: View {
     @Bindable var exerciseSet: ExerciseSet
     let exerciseEntry: ExerciseEntry
     let viewModel: ActiveWorkoutViewModel
-    let focusedInput: FocusState<SetInputFocus?>.Binding
+    let coordinator: SetInputCoordinator
     @Binding var editingCompletedSetID: PersistentIdentifier?
     let onButtonPress: () -> Void
     let onSetCompleted: () -> Void
@@ -89,7 +89,7 @@ struct SetRowView: View {
                     exerciseSet: exerciseSet,
                     exerciseEntry: exerciseEntry,
                     viewModel: viewModel,
-                    focusedInput: focusedInput,
+                    coordinator: coordinator,
                     completionValidationMessage: $completionValidationMessage,
                     isTimerRunning: $isTimerRunning
                 )
@@ -106,7 +106,7 @@ struct SetRowView: View {
             if let previousSet, !exerciseSet.done, isCurrentSet {
                 Button {
                     viewModel.applyPreviousPerformance(to: exerciseSet, in: exerciseEntry, index: index)
-                    focusedInput.wrappedValue = SetInputFocus(
+                    coordinator.focus = SetInputFocus(
                         exerciseID: exerciseEntry.persistentModelID,
                         setID: exerciseSet.persistentModelID,
                         field: firstInputField
@@ -297,12 +297,15 @@ struct SetRowView: View {
     private var repsField: some View {
         numberField("Reps", text: Binding(
             get: { exerciseSet.repetitions == 0 ? "" : Formatters.formatFloat(exerciseSet.repetitions) },
-            set: {
-                if let value = Float($0) {
-                    exerciseSet.repetitions = value
-                    markUserOverride()
-                } else if $0.isEmpty {
+            set: { candidate in
+                // Routed through DecimalParser like the weight field so a typed
+                // "," is not silently dropped in comma-decimal locales.
+                guard let sanitized = DecimalParser.sanitizedEditingText(candidate) else { return }
+                if sanitized.isEmpty {
                     exerciseSet.repetitions = 0
+                    markUserOverride()
+                } else if let parsed = DecimalParser.value(from: sanitized) {
+                    exerciseSet.repetitions = Float(max(parsed, 0))
                     markUserOverride()
                 }
                 viewModel.persistChanges()
@@ -314,17 +317,17 @@ struct SetRowView: View {
 
     private var weightField: some View {
         HStack(spacing: 0) {
-            TextField("Weight", text: weightTextBinding, prompt: Text(previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? prescribedWeightPrompt))
-            .keyboardType(.decimalPad)
-            .multilineTextAlignment(.center)
-            .font(AppFont.titleSmallSemiboldMonospaced)
-            .focused(focusedInput, equals: inputFocus(.weight))
-            .onChange(of: focusedInput.wrappedValue) { _, focus in
+            KeypadTextField(
+                text: weightTextBinding,
+                focus: Bindable(coordinator).focus,
+                focusValue: inputFocus(.weight),
+                prompt: previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? prescribedWeightPrompt,
+                isEnabled: !isCompletedAndLocked
+            )
+            .onChange(of: coordinator.focus) { _, focus in
                 if focus != inputFocus(.weight) { weightEditingText = nil }
             }
             .accessibilityIdentifier("weight-field-\(exerciseEntry.exercise.name)-\(index)")
-            .disabled(isCompletedAndLocked)
-
         }
         .frame(maxWidth: .infinity)
         .padding(.leading, Spacing.xs)
@@ -379,7 +382,7 @@ struct SetRowView: View {
 
     private var distanceField: some View {
         numberField("Distance", text: distanceTextBinding, focusID: inputFocus(.distance), prompt: previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) })
-        .onChange(of: focusedInput.wrappedValue) { _, focus in
+        .onChange(of: coordinator.focus) { _, focus in
             if focus != inputFocus(.distance) { distanceEditingText = nil }
         }
         .disabled(isCompletedAndLocked)
@@ -542,7 +545,7 @@ struct SetRowView: View {
                     .accessibilityIdentifier("plate-calculator-\(exerciseEntry.exercise.name)")
                 }
 
-                if index > 0, focusedInput.wrappedValue == nil {
+                if index > 0, coordinator.focus == nil {
                     Button {
                         viewModel.copyPreviousSetValue(exerciseEntry: exerciseEntry, currentSetIndex: index)
                     } label: {
@@ -603,7 +606,7 @@ struct SetRowView: View {
         editingCompletedSetID = exerciseSet.persistentModelID
         completionValidationMessage = nil
         UIAccessibility.post(notification: .announcement, argument: "Editing set \(index + 1)")
-        focusedInput.wrappedValue = SetInputFocus(
+        coordinator.focus = SetInputFocus(
             exerciseID: exerciseEntry.persistentModelID,
             setID: exerciseSet.persistentModelID,
             field: firstInputField
@@ -618,7 +621,7 @@ struct SetRowView: View {
         completionValidationMessage = nil
         completedEditSnapshot = nil
         editingCompletedSetID = nil
-        focusedInput.wrappedValue = nil
+        coordinator.focus = nil
         viewModel.persistChanges()
     }
 
@@ -627,7 +630,7 @@ struct SetRowView: View {
         completedEditSnapshot = nil
         editingCompletedSetID = nil
         completionValidationMessage = nil
-        focusedInput.wrappedValue = nil
+        coordinator.focus = nil
         viewModel.persistChanges()
     }
 
@@ -668,11 +671,12 @@ struct SetRowView: View {
         focusID: SetInputFocus,
         prompt: String? = nil
     ) -> some View {
-        TextField(title, text: text, prompt: Text(prompt ?? "—"))
-            .keyboardType(.decimalPad)
-            .multilineTextAlignment(.center)
-            .font(AppFont.titleSmallSemiboldMonospaced)
-            .focused(focusedInput, equals: focusID)
+        KeypadTextField(
+            text: text,
+            focus: Bindable(coordinator).focus,
+            focusValue: focusID,
+            prompt: prompt ?? "—"
+        )
             .frame(minWidth: 70, maxWidth: .infinity)
             .frame(minHeight: 44)
             .background(Color.gymCard.opacity(0.9))
@@ -691,11 +695,15 @@ struct SetRowView: View {
         prompt: String? = nil
     ) -> some View {
         HStack(spacing: Spacing.xxs) {
-            TextField(title, text: text, prompt: Text(prompt ?? "0"))
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.center)
-                .font(AppFont.titleSmallSemiboldMonospaced)
-                .focused(focusedInput, equals: focusID)
+            KeypadTextField(
+                text: text,
+                focus: Bindable(coordinator).focus,
+                focusValue: focusID,
+                prompt: prompt ?? "0",
+                // Seconds and calories are whole numbers; a decimal key here only
+                // produces values the model rounds away.
+                showsDecimalKey: false
+            )
 
             Text(unit)
                 .font(AppFont.captionBold)
@@ -737,30 +745,22 @@ struct SetRowView: View {
     }
 
     private func toggleDone() {
-        let shouldStartRestTimer = !exerciseSet.done
-        guard !shouldStartRestTimer || viewModel.canComplete(exerciseSet, for: exerciseEntry) else {
-            completionValidationMessage = validationMessage
-            focusedInput.wrappedValue = inputFocus(firstInputField)
-            return
-        }
-
-        completionValidationMessage = nil
-        guard viewModel.switchStateDoneSet(exerciseEntry, exerciseSet) else { return }
-
-        if shouldStartRestTimer {
+        // Validation, persistence, and focus advancement live on the view model
+        // so this button and the set-entry panel's confirm button behave
+        // identically.
+        switch viewModel.completeSet(exerciseSet, in: exerciseEntry) {
+        case .blocked(let message, let focus):
+            completionValidationMessage = message
+            coordinator.focus = focus
+        case .completed(let nextFocus):
+            completionValidationMessage = nil
             onButtonPress()
             onSetCompleted()
-
-            // Auto-advance focus to the next incomplete set in this exercise
-            if let nextSet = exerciseEntry.orderedSets.first(where: { !$0.done }) {
-                focusedInput.wrappedValue = SetInputFocus(
-                    exerciseID: exerciseEntry.persistentModelID,
-                    setID: nextSet.persistentModelID,
-                    field: firstInputField
-                )
-            } else {
-                focusedInput.wrappedValue = nil
-            }
+            coordinator.focus = nextFocus
+        case .reopened:
+            completionValidationMessage = nil
+        case .failed:
+            break
         }
     }
 

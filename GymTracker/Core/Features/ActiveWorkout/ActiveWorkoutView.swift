@@ -17,7 +17,7 @@ struct ActiveWorkoutView: View {
     @State private var expandedExerciseID: PersistentIdentifier?
     @State private var isShowingDiscardConfirmation = false
     @State private var isShowingExercisePicker = false
-    @FocusState private var focusedInput: SetInputFocus?
+    @State private var coordinator = SetInputCoordinator()
     @State private var draggedExercise: ExerciseEntry? = nil
     @State private var handledRecommendationExerciseIDs: Set<PersistentIdentifier> = []
     @State private var editingCompletedSetID: PersistentIdentifier?
@@ -141,37 +141,6 @@ struct ActiveWorkoutView: View {
                 viewModel.restorePersistedRestTimer()
             }
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Button {
-                    moveFocusedInput(by: -1)
-                } label: {
-                    Label("Previous field", systemImage: "chevron.left")
-                }
-                .disabled(previousInput == nil)
-
-                Button {
-                    moveFocusedInput(by: 1)
-                } label: {
-                    Label("Next field", systemImage: "chevron.right")
-                }
-                .disabled(nextInput == nil)
-
-                Button {
-                    viewModel.copyValuesForFocusedSet(focusedInput)
-                } label: {
-                    Label("Copy last set", systemImage: AppIcon.copy)
-                }
-                .disabled(!viewModel.canCopyValuesForFocusedSet(focusedInput))
-                .accessibilityHint("Copies the values from the preceding set in this workout")
-
-                Spacer()
-
-                Button("Done") {
-                    focusedInput = nil
-                }
-            }
-        }
     }
 
     private func workoutContent(for workout: Workout) -> some View {
@@ -211,14 +180,30 @@ struct ActiveWorkoutView: View {
             .scrollIndicators(.hidden)
             .background(Color.gymBackground)
             .safeAreaInset(edge: .bottom) {
-                if focusedInput == nil {
+                if coordinator.focus == nil {
                     finishButton(for: workout)
+                } else {
+                    // SwiftUI's keyboard avoidance lifts a bottom safe-area inset
+                    // above the keypad, so the panel rides on top of it without
+                    // any manual height math.
+                    SetInputAccessoryPanel(
+                        viewModel: viewModel,
+                        coordinator: coordinator,
+                        unitSystem: unitSystem,
+                        onSetCompleted: { exercise in
+                            viewModel.startTime(after: exercise)
+                            advanceDisclosure(after: exercise, in: workout)
+                        }
+                    )
                 }
             }
-            .onChange(of: focusedInput) { _, focus in
+            .onChange(of: coordinator.focus) { _, focus in
                 guard let focus else { return }
+                coordinator.refreshOrder(in: viewModel.activeWorkout)
                 withAnimation(reduceMotion ? nil : AppMotion.layout) {
-                    proxy.scrollTo(focus.setID, anchor: .center)
+                    // Anchor at the top: the panel plus keypad claims roughly half
+                    // the screen, so centering would hide the row being edited.
+                    proxy.scrollTo(focus.setID, anchor: .top)
                 }
             }
             .onChange(of: workout.completedSetCount) { _, _ in
@@ -236,48 +221,8 @@ struct ActiveWorkoutView: View {
         }
     }
 
-    private var allInputs: [SetInputFocus] {
-        guard let workout = viewModel.activeWorkout else { return [] }
-        return workout.orderedExercises.flatMap { exercise in
-            exercise.orderedSets.flatMap { set in
-                inputFields(for: exercise).map {
-                    SetInputFocus(
-                        exerciseID: exercise.persistentModelID,
-                        setID: set.persistentModelID,
-                        field: $0
-                    )
-                }
-            }
-        }
-    }
-
-    private var previousInput: SetInputFocus? {
-        guard let focusedInput,
-              let index = allInputs.firstIndex(of: focusedInput),
-              index > 0 else { return nil }
-        return allInputs[index - 1]
-    }
-
-    private var nextInput: SetInputFocus? {
-        guard let focusedInput,
-              let index = allInputs.firstIndex(of: focusedInput),
-              allInputs.indices.contains(index + 1) else { return nil }
-        return allInputs[index + 1]
-    }
-
-    private func moveFocusedInput(by offset: Int) {
-        focusedInput = offset < 0 ? previousInput : nextInput
-    }
-
     private func inputFields(for exercise: ExerciseEntry) -> [SetInputFocus.Field] {
-        let type = exercise.trackingTypeSnapshot
-        var fields: [SetInputFocus.Field] = []
-        if type.usesReps { fields.append(.repetitions) }
-        if type.usesWeight { fields.append(.weight) }
-        if type.usesDuration { fields.append(.duration) }
-        if type.usesDistance { fields.append(.distance) }
-        if type.usesCalories { fields.append(.calories) }
-        return fields
+        SetInputCoordinator.inputFields(for: exercise.trackingTypeSnapshot)
     }
 
     private func sessionHeader(for workout: Workout) -> some View {
@@ -454,7 +399,7 @@ struct ActiveWorkoutView: View {
             expandedExerciseID = next.exercise.persistentModelID
         }
         let firstField = inputFields(for: next.exercise).first ?? .repetitions
-        focusedInput = SetInputFocus(
+        coordinator.focus = SetInputFocus(
             exerciseID: next.exercise.persistentModelID,
             setID: next.set.persistentModelID,
             field: firstField
@@ -589,7 +534,7 @@ struct ActiveWorkoutView: View {
                 viewModel: viewModel,
                 onButtonPress: { viewModel.startTime(after: exercise) },
                 unitSystem: unitSystem,
-                focusedInput: $focusedInput,
+                coordinator: coordinator,
                 expandedExerciseID: $expandedExerciseID,
                 editingCompletedSetID: $editingCompletedSetID,
                 previousPerformance: viewModel.previousPerformance(for: exercise),
@@ -740,7 +685,7 @@ struct ActiveWorkoutView: View {
         case .edit:
             expandedExerciseID = exercise.persistentModelID
             if let set = exercise.orderedSets.first(where: { !$0.done }) {
-                focusedInput = SetInputFocus(
+                coordinator.focus = SetInputFocus(
                     exerciseID: exercise.persistentModelID,
                     setID: set.persistentModelID,
                     field: exercise.trackingTypeSnapshot.usesWeight ? .weight : .repetitions

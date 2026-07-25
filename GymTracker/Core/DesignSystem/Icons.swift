@@ -32,7 +32,8 @@ struct AppIcon {
     static let export = "square.and.arrow.up"
     static let `import` = "square.and.arrow.down"
     static let feedback = "envelope"
-    
+    static let backspace = "delete.left"
+
     // Status & Feedback Icons
     static let checkmark = "checkmark"
     static let checkmarkCircle = "checkmark.circle.fill"
@@ -57,6 +58,7 @@ struct AppIcon {
     static let nutrition = "fork.knife"
     static let caffeine = "cup.and.saucer.fill"
     static let routine = "list.bullet.rectangle"
+    static let planCatalog = "books.vertical.fill"
     static let stop = "stop.fill"
     static let timer = "timer"
     static let chart = "chart.xyaxis.line"

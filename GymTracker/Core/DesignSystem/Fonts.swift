@@ -11,7 +11,10 @@ struct AppFont {
     static let titleSmall = Font.title3.weight(.bold)
     static let titleSmallSemibold = Font.title3.weight(.semibold)
     static let titleSmallSemiboldMonospaced = Font.title3.monospacedDigit().weight(.semibold)
-    
+    /// Keypad digits. Regular weight and monospaced so the keys read like a
+    /// system keyboard rather than a row of headings.
+    static let titleMediumMonospaced = Font.title2.monospacedDigit()
+
     // Headings
     static let headline = Font.headline
     static let headlineSemibold = Font.headline.weight(.semibold)

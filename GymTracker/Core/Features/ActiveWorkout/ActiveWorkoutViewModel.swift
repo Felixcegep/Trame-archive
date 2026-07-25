@@ -617,4 +617,86 @@ class ActiveWorkoutViewModel {
         return setIndex > 0
     }
 
+    /// Resolves a focus value back into the models it points at. The set-entry
+    /// panel renders outside the row that owns the set, so it only ever holds a
+    /// `SetInputFocus` and needs this to read or mutate the underlying set.
+    func models(for focus: SetInputFocus?) -> (exercise: ExerciseEntry, set: ExerciseSet)? {
+        guard
+            let focus,
+            let exercise = workoutVM.activeWorkout?.orderedExercises
+                .first(where: { $0.persistentModelID == focus.exerciseID }),
+            let set = exercise.orderedSets
+                .first(where: { $0.persistentModelID == focus.setID })
+        else {
+            return nil
+        }
+
+        return (exercise, set)
+    }
+
+    enum SetCompletionOutcome: Equatable {
+        /// Required values are missing; the message explains what and the focus
+        /// points at the field to fix.
+        case blocked(message: String, focus: SetInputFocus)
+        /// The set was marked done. `nextFocus` is the next incomplete set in the
+        /// same exercise, or `nil` when the exercise is finished.
+        case completed(nextFocus: SetInputFocus?)
+        /// A completed set was toggled back to incomplete.
+        case reopened
+        case failed
+    }
+
+    /// The single completion path, shared by the row's ○ button and the
+    /// set-entry panel's confirm button so both validate, persist, and advance
+    /// focus identically.
+    func completeSet(_ set: ExerciseSet, in exercise: ExerciseEntry) -> SetCompletionOutcome {
+        let isCompleting = !set.done
+        let fields = SetInputCoordinator.inputFields(for: exercise.trackingTypeSnapshot)
+        let firstField = fields.first ?? .repetitions
+
+        if isCompleting, !canComplete(set, for: exercise) {
+            return .blocked(
+                message: validationMessage(for: set, in: exercise),
+                focus: SetInputFocus(
+                    exerciseID: exercise.persistentModelID,
+                    setID: set.persistentModelID,
+                    field: firstField
+                )
+            )
+        }
+
+        guard switchStateDoneSet(exercise, set) else { return .failed }
+        guard isCompleting else { return .reopened }
+
+        let nextSet = exercise.orderedSets.first(where: { !$0.done })
+        return .completed(nextFocus: nextSet.map {
+            SetInputFocus(
+                exerciseID: exercise.persistentModelID,
+                setID: $0.persistentModelID,
+                field: firstField
+            )
+        })
+    }
+
+    func validationMessage(for set: ExerciseSet, in exercise: ExerciseEntry) -> String {
+        let trackingType = exercise.trackingTypeSnapshot
+
+        if trackingType.usesReps, set.repetitions <= 0 {
+            return "Enter reps before completing this set."
+        }
+
+        if trackingType.usesDuration, (set.duration ?? 0) <= 0 {
+            return "Enter a duration before completing this set."
+        }
+
+        if trackingType.usesCalories, (set.calories ?? 0) <= 0 {
+            return "Enter calories before completing this set."
+        }
+
+        if trackingType.usesDistance, (set.distance ?? 0) <= 0 {
+            return "Enter a distance before completing this set."
+        }
+
+        return "Enter a value before completing this set."
+    }
 }
