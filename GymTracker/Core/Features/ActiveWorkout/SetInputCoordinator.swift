@@ -15,7 +15,28 @@ import SwiftData
 @Observable
 @MainActor
 final class SetInputCoordinator {
-    var focus: SetInputFocus?
+    /// Written through a computed property rather than a stored one with a
+    /// `didSet`: `@Observable` only tracks plain stored properties, and adding
+    /// an observer to `focus` would silently stop every view from updating when
+    /// the selection changes.
+    var focus: SetInputFocus? {
+        get { focusStorage }
+        set {
+            guard newValue != focusStorage else { return }
+            focusStorage = newValue
+            // Every selection starts a fresh entry: the stored value stays
+            // visible and the first digit replaces it, which is how a lifter
+            // retypes a load mid-set.
+            entryText = nil
+        }
+    }
+
+    private var focusStorage: SetInputFocus?
+
+    /// Digits typed since the focused value was selected, or `nil` when nothing
+    /// has been typed yet. The displayed value comes from the set until this
+    /// holds something, so selecting a field never rewrites it.
+    private(set) var entryText: String?
 
     private var orderedInputs: [SetInputFocus] = []
 
@@ -73,6 +94,81 @@ final class SetInputCoordinator {
             setID: focus.setID,
             field: field
         )
+    }
+
+    /// Applies one keypad press to the in-progress entry and returns the text to
+    /// commit, or `nil` when the press changes nothing. The coordinator owns the
+    /// text so the keypad never needs a text field, a first responder, or a
+    /// system keyboard to drive.
+    func applyKey(_ key: KeypadKey, decimalSeparator: String) -> String? {
+        var text = entryText ?? ""
+
+        switch key {
+        case .digit(let value):
+            // Longer than this is a mistyped value, not a real load or rep count.
+            guard text.filter(\.isNumber).count < 6 else { return nil }
+            text += "\(value)"
+        case .decimal:
+            guard !text.contains(decimalSeparator) else { return nil }
+            text += text.isEmpty ? "0\(decimalSeparator)" : decimalSeparator
+        case .backspace:
+            // Backspacing an untouched value clears it outright rather than
+            // deleting a digit the lifter never typed.
+            guard !text.isEmpty else {
+                entryText = ""
+                return ""
+            }
+            text.removeLast()
+        }
+
+        entryText = text
+        return text
+    }
+
+    /// The text a field should display: the in-progress entry while this field
+    /// is the one being typed into, and the stored value otherwise.
+    func displayText(for input: SetInputFocus, storedValue: String) -> String {
+        guard focus == input, let entryText else { return storedValue }
+        return entryText
+    }
+
+    /// The field a whole-row tap should land on. Tapping a row means "let me log
+    /// this set", so focus goes to the first value the lifter still owes: a
+    /// required value that would block completion first, then any tracked value
+    /// with nothing entered yet (added or assisted load is optional but still
+    /// worth offering), and finally the first field when nothing is missing.
+    ///
+    /// This chooses focus only. It never writes a value and never infers a
+    /// missing value as zero.
+    static func firstMissingField(
+        in set: ExerciseSet,
+        for type: TrackingType
+    ) -> SetInputFocus.Field {
+        let fields = inputFields(for: type)
+        let blocking = fields.first { isRequiredForCompletion($0) && !hasEnteredValue($0, in: set) }
+        return blocking
+            ?? fields.first { !hasEnteredValue($0, in: set) }
+            ?? fields.first
+            ?? .repetitions
+    }
+
+    /// Mirrors `ActiveWorkoutMutationService.canComplete`: load is never
+    /// required, because a bodyweight set legitimately carries no added weight.
+    private static func isRequiredForCompletion(_ field: SetInputFocus.Field) -> Bool {
+        field != .weight
+    }
+
+    private static func hasEnteredValue(
+        _ field: SetInputFocus.Field,
+        in set: ExerciseSet
+    ) -> Bool {
+        switch field {
+        case .repetitions: set.repetitions > 0
+        case .weight: set.weight > 0
+        case .duration: (set.duration ?? 0) > 0
+        case .distance: (set.distance ?? 0) > 0
+        case .calories: (set.calories ?? 0) > 0
+        }
     }
 
     static func inputFields(for type: TrackingType) -> [SetInputFocus.Field] {

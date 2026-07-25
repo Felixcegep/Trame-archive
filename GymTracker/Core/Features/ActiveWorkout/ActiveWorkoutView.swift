@@ -74,13 +74,21 @@ struct ActiveWorkoutView: View {
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .destructive) {
-                    isShowingDiscardConfirmation = true
+                // Discard lives behind this menu rather than as a permanent
+                // trash button: losing the session is the rarest action here
+                // and must not sit one mistaken tap from the set logging.
+                Menu {
+                    Button(role: .destructive) {
+                        isShowingDiscardConfirmation = true
+                    } label: {
+                        Label("Discard workout", systemImage: AppIcon.trash)
+                    }
+                    .accessibilityIdentifier("discard-workout")
                 } label: {
-                    Image(systemName: AppIcon.trash)
+                    Image(systemName: AppIcon.ellipsis)
                         .fontWeight(.semibold)
                 }
-                .accessibilityLabel("Discard workout")
+                .accessibilityLabel("Workout actions")
                 .accessibilityIdentifier("active-workout-menu")
             }
         }
@@ -90,6 +98,7 @@ struct ActiveWorkoutView: View {
             titleVisibility: .visible
         ) {
             Button("Discard workout", role: .destructive, action: discardWorkout)
+                .accessibilityIdentifier("confirm-discard-workout")
         } message: {
             Text("Your logged sets will not be saved.")
         }
@@ -148,16 +157,6 @@ struct ActiveWorkoutView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     sessionHeader(for: workout)
-
-                    if let recommendation = firstRecommendation(in: workout) {
-                        ProgressionRecommendationCard(
-                            exerciseName: recommendation.exercise.exercise.name,
-                            state: recommendation.state,
-                            onAction: { action in
-                                handleRecommendationAction(action, for: recommendation.exercise)
-                            }
-                        )
-                    }
 
                     if viewModel.isTimerVisible && viewModel.hasIncompleteSet {
                         // A paused timer intentionally has no end date. Keep its
@@ -225,69 +224,72 @@ struct ActiveWorkoutView: View {
         SetInputCoordinator.inputFields(for: exercise.trackingTypeSnapshot)
     }
 
+    /// Session identity and progress in two lines of page chrome rather than a
+    /// card. The workout name, elapsed time, and remaining work are supporting
+    /// metadata; the current exercise is the screen's subject and should be
+    /// reachable without scrolling past a tall summary.
     private func sessionHeader(for workout: Workout) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                 Text(workout.name?.isEmpty == false ? workout.name! : "Today’s workout")
-                    .font(.title2.weight(.bold))
+                    .font(AppFont.titleSmall)
+                    .lineLimit(2)
                     .accessibilityIdentifier("active-workout-title")
 
                 if workout.sourceTemplate?.isBuiltIn == true {
                     BuiltInBadge()
                 }
 
-                Spacer()
+                Spacer(minLength: Spacing.s)
 
                 Text(workout.startTime, style: .timer)
-                    .font(.title3.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(Color.gymText)
+                    .font(AppFont.subheadlineSemiboldMonospaced)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .accessibilityLabel("Elapsed time")
             }
 
-            HStack {
-                if workout.totalSetCount == 0 {
-                    Text("No exercises yet.")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(Color.gymSubduedText)
-                } else {
-                    Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(Color.gymSubduedText)
-                }
-                Spacer()
-                if !workout.exercises.isEmpty {
-                    Text("^[\(workout.exercises.count) exercise](inflect: true)")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(Color.gymSubduedText)
-                }
-            }
+            sessionProgressSummary(for: workout)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
 
             ProgressView(value: Double(workout.completedSetCount), total: Double(max(workout.totalSetCount, 1)))
                 .tint(Color.gymSecondary)
+                // The summary line above states the same progress in words, so
+                // the bar is a visual restatement rather than a second stop.
+                .accessibilityHidden(true)
         }
-        .padding(Spacing.m + 2)
-        .background(Color.gymAccentSurface)
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.section, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
+    }
+
+    /// Built as `Text` rather than `String` so the exercise count keeps its
+    /// automatic grammatical agreement in every localization.
+    @ViewBuilder
+    private func sessionProgressSummary(for workout: Workout) -> some View {
+        if workout.totalSetCount == 0 {
+            Text("No exercises yet.")
+        } else if workout.exercises.isEmpty {
+            Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
+        } else {
+            Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
+                + Text(" · ")
+                + Text("^[\(workout.exercises.count) exercise](inflect: true)")
         }
-        .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
     }
 
     private func restTimer(endDate: Date) -> some View {
         VStack(spacing: Spacing.m) {
             HStack(spacing: Spacing.s) {
                 Image(systemName: AppIcon.timer)
-                    .font(.headline.weight(.semibold))
+                    .font(AppFont.headlineSemibold)
                     .frame(width: 42, height: 42)
                     .foregroundStyle(Color.gymAccent)
                     .background(Color.gymAccentSurface)
                     .clipShape(Circle())
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text("Rest between sets")
-                        .font(.subheadline.weight(.semibold))
+                        .font(AppFont.subheadlineSemibold)
                     Text(restStatusMessage)
-                        .font(.caption)
+                        .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
                 }
 
@@ -295,22 +297,22 @@ struct ActiveWorkoutView: View {
 
                 if viewModel.isRestReady {
                     Text("Ready")
-                        .font(.headline.weight(.semibold))
+                        .font(AppFont.headlineSemibold)
                         .foregroundStyle(Color.gymSecondary)
                 } else if viewModel.isTimerPaused {
                     Text(formatRemainingTime(viewModel.pausedTimeRemaining))
-                        .font(.headline.monospacedDigit())
+                        .font(AppFont.headlineMonospaced)
                         .foregroundStyle(Color.gymAccent)
                 } else if let interval = LiveActivityTimeRange.restInterval(now: .now, end: endDate) {
                     Text(timerInterval: interval, countsDown: true)
-                        .font(.headline.monospacedDigit())
+                        .font(AppFont.headlineMonospaced)
                         .foregroundStyle(Color.gymAccent)
                 } else {
                     // The persisted deadline can expire while SwiftUI is
                     // waiting for the rest-state task to mark it ready.
                     // Never construct an invalid timer range in that gap.
                     Text("Ready")
-                        .font(.headline.weight(.semibold))
+                        .font(AppFont.headlineSemibold)
                         .foregroundStyle(Color.gymSecondary)
                 }
             }
@@ -349,7 +351,7 @@ struct ActiveWorkoutView: View {
                     Button {
                         viewModel.cancelTimer()
                     } label: {
-                        Image(systemName: "forward.fill")
+                        Image(systemName: AppIcon.fastForward)
                     }
                     .accessibilityLabel("Skip rest")
                 }
@@ -425,7 +427,7 @@ struct ActiveWorkoutView: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             HStack {
                 Text("SESSION")
-                    .font(.caption.weight(.bold))
+                    .font(AppFont.captionBold)
                     .tracking(0.8)
                     .foregroundStyle(Color.gymSubduedText)
 
@@ -436,7 +438,7 @@ struct ActiveWorkoutView: View {
                         isShowingExecutionBlockBuilder = true
                     } label: {
                         Label("Block", systemImage: AppIcon.relationship)
-                            .font(.subheadline.weight(.semibold))
+                            .font(AppFont.subheadlineSemibold)
                             .foregroundStyle(Color.gymPrimary)
                     }
                     .buttonStyle(.plain)
@@ -446,7 +448,7 @@ struct ActiveWorkoutView: View {
                         isShowingExercisePicker = true
                     } label: {
                         Label("Add", systemImage: AppIcon.plus)
-                            .font(.subheadline.weight(.semibold))
+                            .font(AppFont.subheadlineSemibold)
                             .foregroundStyle(Color.gymPrimary)
                     }
                     .buttonStyle(.plain)
@@ -531,6 +533,8 @@ struct ActiveWorkoutView: View {
 
     @ViewBuilder
     private func exerciseCards(for exercises: [ExerciseEntry], in workout: Workout) -> some View {
+        let recommendation = firstRecommendation(in: workout)
+
         ForEach(exercises, id: \.persistentModelID) { exercise in
             ExerciceEntryCard(
                 exerciseEntry: exercise,
@@ -550,6 +554,15 @@ struct ActiveWorkoutView: View {
                 },
                 supersetCandidates: workout.orderedExercises.filter {
                     $0.persistentModelID != exercise.persistentModelID && $0.supersetGroupID == nil
+                },
+                // At most one exercise carries the recommendation, so the
+                // evidence appears exactly once and inside the exercise it
+                // describes.
+                recommendationState: recommendation?.exercise.persistentModelID == exercise.persistentModelID
+                    ? recommendation?.state
+                    : nil,
+                onRecommendationAction: { action in
+                    handleRecommendationAction(action, for: exercise)
                 }
             )
             .onDrag {
@@ -569,16 +582,16 @@ struct ActiveWorkoutView: View {
     private var emptyExerciseState: some View {
         VStack(spacing: Spacing.m) {
             Image(systemName: AppIcon.workout)
-                .font(.largeTitle)
+                .font(AppFont.displayLarge)
                 .foregroundStyle(Color.gymSecondary)
             Text("Add your first exercise.")
-                .font(.headline)
+                .font(AppFont.headline)
                 .foregroundStyle(Color.gymText)
             Button {
                 isShowingExercisePicker = true
             } label: {
                 Text("Browse exercise library")
-                    .font(.subheadline.weight(.semibold))
+                    .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, Spacing.m)
                     .padding(.vertical, Spacing.s)
@@ -605,7 +618,7 @@ struct ActiveWorkoutView: View {
                     navigationPath.append(.saveWorkout)
                 } label: {
                     Label("Review Workout", systemImage: AppIcon.checkmark)
-                        .font(.headline)
+                        .font(AppFont.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 17)
                         .foregroundStyle(.white)

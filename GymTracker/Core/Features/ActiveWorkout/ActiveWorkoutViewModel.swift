@@ -256,6 +256,48 @@ class ActiveWorkoutViewModel {
         persistChanges()
     }
     
+    /// The single write path for keypad entry. Empty or partial text ("", ".")
+    /// clears the value back to "not entered" instead of writing a zero, so an
+    /// untouched input keeps presenting as "—" rather than becoming performed
+    /// truth the lifter never logged.
+    func commitTypedValue(
+        _ text: String,
+        field: SetInputFocus.Field,
+        in set: ExerciseSet
+    ) {
+        let parsed = DecimalParser.value(from: text).map { max($0, 0) }
+
+        switch field {
+        case .repetitions:
+            set.repetitions = parsed.map(Float.init) ?? 0
+        case .weight:
+            set.weight = parsed.map(Float.init) ?? 0
+        case .duration:
+            set.duration = parsed
+        case .distance:
+            set.distance = parsed.map(Float.init)
+        case .calories:
+            set.calories = parsed
+        }
+
+        markUserOverride(on: set)
+        persistChanges()
+    }
+
+    /// A typed value replaces a prescription, so the set stops tracking it.
+    /// Sets with no prescription have nothing to override.
+    private func markUserOverride(on set: ExerciseSet) {
+        guard set.prescribedSetType != nil
+            || set.prescribedRepetitions != nil
+            || set.prescribedRepRangeMinimum != nil
+            || set.prescribedRepRangeMaximum != nil
+            || set.prescribedSuggestedLoad != nil
+            || set.prescribedCalories != nil
+            || set.prescriptionDefinitionData != nil
+        else { return }
+        set.isUserOverridden = true
+    }
+
     @discardableResult
     func switchStateDoneSet(
         _ selectedExercise: ExerciseEntry,

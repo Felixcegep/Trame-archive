@@ -37,7 +37,12 @@ enum SystemSeedCatalogCoordinator {
         bundle: Bundle = .main
     ) throws -> SystemSeedInstallReport {
         let registry = try SystemSeedRegistry(context: context)
-        var report = try ExerciseSystemSeedInstaller.install(in: context, registry: registry)
+        var report = try ExerciseSystemSeedInstaller.install(
+            in: context,
+            registry: registry,
+            seedVersion: seedVersion,
+            contentVersion: contentVersion
+        )
 
         _ = try ExerciseRelationshipSeedData.seed(in: context, saveChanges: false)
         report += try registerExerciseRelationships(in: context, registry: registry)
@@ -271,7 +276,10 @@ enum SystemSeedCatalogCoordinator {
                 kind: .programDefinition,
                 entityID: definition.id,
                 seedVersion: seedVersion,
-                contentVersion: payload.templateVersion,
+                // Manifest content version tracks the bundled catalogue as a
+                // whole. The program's own template version remains on its
+                // definition record and is not a manifest version.
+                contentVersion: contentVersion,
                 sourceKind: existed ? .bundled : .migratedLegacy
             )
             if existed { report.updated += 1 } else { report.adopted += 1 }

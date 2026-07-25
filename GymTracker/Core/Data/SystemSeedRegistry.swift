@@ -145,14 +145,37 @@ enum ExerciseSystemSeedInstaller {
     static let seedVersion = 1
     static let contentVersion = 1
 
-    static func install(in context: ModelContext, registry: SystemSeedRegistry) throws -> SystemSeedInstallReport {
+    static func install(
+        in context: ModelContext,
+        registry: SystemSeedRegistry
+    ) throws -> SystemSeedInstallReport {
+        try install(
+            in: context,
+            registry: registry,
+            seedVersion: seedVersion,
+            contentVersion: contentVersion
+        )
+    }
+
+    static func install(
+        in context: ModelContext,
+        registry: SystemSeedRegistry,
+        seedVersion: Int,
+        contentVersion: Int
+    ) throws -> SystemSeedInstallReport {
         let desired = ExerciseSeedData.templates().map {
             SystemExerciseSeed(
                 seedKey: SystemSeedKey.make(namespace: "exercise", legacyName: $0.name),
                 template: $0
             )
         }
-        return try install(desired, in: context, registry: registry)
+        return try install(
+            desired,
+            in: context,
+            registry: registry,
+            seedVersion: seedVersion,
+            contentVersion: contentVersion
+        )
     }
 
     static func install(

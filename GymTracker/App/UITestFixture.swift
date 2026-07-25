@@ -14,6 +14,7 @@ enum UITestFixture: String {
     case activeRestPaused = "active-rest-paused"
     case activeRestReady = "active-rest-ready"
     case activeDraft = "active-draft"
+    case activeAllTrackingTypes = "active-all-tracking-types"
     case activeLoadingStyles = "active-loading-styles"
     case activeSuperset = "active-superset"
     case activeExecutionBlock = "active-execution-block"
@@ -92,6 +93,8 @@ enum UITestFixture: String {
             try makeRestWorkout(state: .ready, using: context)
         case .activeDraft:
             try makeActiveDraftWorkout(using: context)
+        case .activeAllTrackingTypes:
+            try makeAllTrackingTypesWorkout(using: context)
         case .activeLoadingStyles:
             try makeLoadingStyleWorkout(using: context)
         case .activeSuperset:
@@ -354,6 +357,32 @@ enum UITestFixture: String {
         try context.save()
         context.processPendingChanges()
         try makeActiveWorkout(exercises: [entry], using: context)
+    }
+
+    /// One exercise per `TrackingType`, each with its default empty sets, so
+    /// every keypad configuration (reps, weight, duration, distance, calories,
+    /// and their bodyweight variants) is reachable in a single manual pass
+    /// without hunting through the exercise library for a matching exercise.
+    private static func makeAllTrackingTypesWorkout(using context: ModelContext) throws {
+        let exerciseNames = [
+            "Bench Press",       // weightAndReps
+            "Push-Up",           // repsOnly
+            "Weighted Pull-Up",  // weightedBodyweight
+            "Assisted Pull-Up",  // assistedBodyweight
+            "Plank",             // duration
+            "Treadmill Run",     // durationAndDistance
+            "Stationary Bike"    // calories
+        ]
+        let entries = try exerciseNames.enumerated().map { orderIndex, name in
+            let entry = ExerciseEntry(
+                exercise: try exercise(named: name, using: context),
+                orderIndex: orderIndex,
+                usedMetric: .metric
+            )
+            entry.addDefaultSets(count: 2)
+            return entry
+        }
+        try makeActiveWorkout(exercises: entries, using: context)
     }
 
     private static func makeCompletedBenchHistory(using context: ModelContext) throws {
