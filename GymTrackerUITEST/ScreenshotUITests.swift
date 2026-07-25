@@ -127,16 +127,15 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/06_Add_Exercise_Sheet")
         tapButton("close-exercise-picker", in: inProgress)
         XCTAssertFalse(inProgress.descendants(matching: .any)["exercise-picker-screen"].waitForExistence(timeout: 2))
-        // Plate calculator is a child action of the set's native Menu, so it
-        // is not present in the accessibility tree until that menu is open.
-        tapButton("set-menu-Bench Press-0", in: inProgress)
-        tapButton("plate-calculator-Bench Press", in: inProgress)
+        // Plate calculation, set details, and the other per-set actions belong
+        // to the set-entry panel, which opens when a value is selected.
+        tapButton("weight-field-Bench Press-0", in: inProgress)
+        tapButton("panel-chip-plates", in: inProgress)
         XCTAssertTrue(inProgress.descendants(matching: .any)["plate-calculator-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(inProgress.navigationBars["Plate calculator"].exists)
         saveScreenshot("active-workout/07_Plate_Calculator")
         tapFirstAvailableButton(["Done", "Terminé"], in: inProgress)
-        tapButton("set-menu-Bench Press-0", in: inProgress)
-        tapButton("Set details", in: inProgress)
+        tapButton("panel-details", in: inProgress)
         XCTAssertTrue(inProgress.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(inProgress.staticTexts["Set 1"].exists)
         XCTAssertTrue(inProgress.sliders["rir-slider"].exists)
@@ -162,8 +161,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/07d_Execution_Block_Active")
 
         let advancedSet = launchFixture("active-advanced-set")
-        tapButton("set-menu-Bench Press-0", in: advancedSet)
-        tapButton("Set details", in: advancedSet)
+        tapButton("reps-field-Bench Press-0", in: advancedSet)
+        tapButton("panel-details", in: advancedSet)
         XCTAssertTrue(advancedSet.descendants(matching: .any)["drop-set-structure"].waitForExistence(timeout: 5))
         XCTAssertFalse(advancedSet.descendants(matching: .any)["set-method-picker"].exists)
         XCTAssertTrue(advancedSet.descendants(matching: .any)["specialized-metric-picker"].exists)
@@ -231,7 +230,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureDiscardWorkoutScreenshot() {
         let discard = launchFixture("active-in-progress")
         tapButton("active-workout-menu", in: discard)
-        XCTAssertTrue(discard.buttons["Discard workout"].waitForExistence(timeout: 5))
+        tapButton("discard-workout", in: discard)
+        XCTAssertTrue(discard.buttons["confirm-discard-workout"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08e_Discard_Workout")
     }
 
@@ -253,11 +253,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         start.tap()
         XCTAssertTrue(app.staticTexts["Enter seconds before starting the timer."].waitForExistence(timeout: 3))
 
-        let duration = app.textFields["duration-field-Plank-0"]
-        XCTAssertTrue(duration.waitForExistence(timeout: 5))
-        duration.tap()
-        duration.typeText("45")
-        app.buttons["Done"].tap()
+        enterValue("45", field: "duration", for: "Plank", set: 0, in: app)
+        dismissKeypadIfPresent(in: app)
         XCTAssertTrue(
             app.staticTexts["Enter seconds before starting the timer."].waitForNonExistence(timeout: 3)
         )
@@ -272,13 +269,12 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["Resume timer"].waitForExistence(timeout: 3))
         saveScreenshot("active-workout/08h_Duration_Timer_Paused")
 
-        // Reset, shorten the target, and let the countdown finish.
+        // Reset, shorten the target, and let the countdown finish. Selecting the
+        // value starts a fresh entry, so "2" replaces the 45 already there.
         app.buttons["Reset timer"].tap()
         XCTAssertTrue(start.waitForExistence(timeout: 3))
-        duration.tap()
-        duration.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 2))
-        duration.typeText("2")
-        app.buttons["Done"].tap()
+        enterValue("2", field: "duration", for: "Plank", set: 0, in: app)
+        dismissKeypadIfPresent(in: app)
         start.tap()
         XCTAssertTrue(app.staticTexts["Time complete"].waitForExistence(timeout: 8))
         saveScreenshot("active-workout/08i_Duration_Timer_Complete")
@@ -382,7 +378,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(increase.buttons["accept-recommendation-Bench Press"].waitForExistence(timeout: 5))
         saveScreenshot("progression/10_Previous_Performance")
         tapButton("accept-recommendation-Bench Press", in: increase)
-        XCTAssertEqual(increase.textFields["weight-field-Bench Press-0"].value as? String, "52.5")
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: increase), "52.5")
         saveScreenshot("progression/10e_Progression_Applied_Weight")
     }
 
@@ -397,21 +393,28 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(insufficient.buttons["enter-starting-weight-Bench Press"].waitForExistence(timeout: 5))
         saveScreenshot("progression/10c_Progression_Starting_Weight")
         tapButton("enter-starting-weight-Bench Press", in: insufficient)
-        XCTAssertTrue(insufficient.keyboards.firstMatch.waitForExistence(timeout: 5))
+        // The keypad is part of the set-entry panel, not a system keyboard.
+        XCTAssertTrue(insufficient.buttons["keypad-key-1"].waitForExistence(timeout: 5))
         saveScreenshot("progression/10d_Progression_Manual_Edit")
     }
 
     func testCaptureRecommendationWithRunningRestScreenshot() {
         let running = launchFixture("progression-rest-running")
-        XCTAssertTrue(running.descendants(matching: .any)["progression-recommendation-card-Bench Press"].waitForExistence(timeout: 5))
         XCTAssertTrue(running.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
+        // The recommendation now lives inside the exercise it describes, which
+        // is the next one down while rest belongs to the completed exercise.
+        let card = running.descendants(matching: .any)["progression-recommendation-card-Bench Press"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        scrollToElement(card, in: running)
         saveScreenshot("progression/10f_Progression_With_Rest_Running")
     }
 
     func testCaptureRecommendationWithPausedRestScreenshot() {
         let paused = launchFixture("progression-rest-paused")
-        XCTAssertTrue(paused.descendants(matching: .any)["progression-recommendation-card-Bench Press"].waitForExistence(timeout: 5))
         XCTAssertTrue(paused.descendants(matching: .any)["rest-paused"].waitForExistence(timeout: 5))
+        let card = paused.descendants(matching: .any)["progression-recommendation-card-Bench Press"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        scrollToElement(card, in: paused)
         saveScreenshot("progression/10g_Progression_With_Rest_Paused")
     }
 
@@ -984,6 +987,65 @@ final class ScreenshotUITests: GymTrackerUITestCase {
                 line: line
             )
         }
+    }
+
+    // MARK: - Manual keypad review (not part of the ScreenshotCoverage.md catalog)
+
+    /// Walks the `active-all-tracking-types` fixture — one exercise per
+    /// `TrackingType` — and captures its set-entry panel, the keypad it opens,
+    /// and Set Details with Advanced options both collapsed and expanded. This
+    /// is a debug aid for reviewing every keypad configuration in one pass, not
+    /// a canonical product screenshot: it is not wired into any
+    /// `capture_screenshots.sh` scene and is not listed in
+    /// `ScreenshotCoverage.md`. Run it directly:
+    /// `-only-testing:GymTrackerUITEST/ScreenshotUITests/testReviewKeypadForEveryTrackingType`.
+    func testReviewKeypadForEveryTrackingType() {
+        let app = launchFixture("active-all-tracking-types")
+
+        func review(_ exerciseName: String, field: String, slug: String) {
+            let target = app.buttons["\(field)-field-\(exerciseName)-0"]
+            if !target.exists {
+                let card = activeExerciseCard(exerciseName, in: app)
+                scrollToElement(card, in: app)
+                card.tap()
+            }
+            scrollToElement(target, in: app)
+            target.tap()
+
+            let pill = app.buttons["panel-value-\(field)"]
+            XCTAssertTrue(pill.waitForExistence(timeout: 5), "Panel did not select \(field) for \(exerciseName)")
+            XCTAssertTrue(pill.isSelected)
+            saveScreenshot("debug/keypad-\(slug)")
+
+            // Set Details — same destination the panel's "Details" chip and a
+            // set row's advanced entry paths both open — first with Advanced
+            // options collapsed, then expanded.
+            tapButton("panel-details", in: app)
+            XCTAssertTrue(app.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
+            saveScreenshot("debug/details-\(slug)")
+
+            tapButton("set-advanced-options", in: app)
+            XCTAssertTrue(app.buttons["record-set-velocity"].waitForExistence(timeout: 5))
+            saveScreenshot("debug/details-advanced-\(slug)")
+
+            tapButton("close-set-details", in: app)
+            // Wait for the sheet's dismissal animation to finish before acting
+            // again — a tap thrown immediately after can land on the closing
+            // sheet instead of the panel underneath it.
+            XCTAssertTrue(
+                app.descendants(matching: .any)["set-details-screen"].waitForNonExistence(timeout: 5)
+            )
+            dismissKeypadIfPresent(in: app)
+        }
+
+        review("Bench Press", field: "reps", slug: "01-weight-and-reps")
+        review("Push-Up", field: "reps", slug: "02-reps-only")
+        review("Weighted Pull-Up", field: "reps", slug: "03-weighted-bodyweight")
+        review("Assisted Pull-Up", field: "reps", slug: "04-assisted-bodyweight")
+        review("Plank", field: "duration", slug: "05-duration")
+        review("Treadmill Run", field: "duration", slug: "06-duration-and-distance-duration-field")
+        review("Treadmill Run", field: "distance", slug: "07-duration-and-distance-distance-field")
+        review("Stationary Bike", field: "calories", slug: "08-calories")
     }
 
 }

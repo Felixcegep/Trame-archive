@@ -107,11 +107,10 @@ class GymTrackerUITestCase: XCTestCase {
         }
     }
 
+    /// Completing a set moves the keypad on to the next one, so "dismissing
+    /// rest" means closing that panel to get the workout list back.
     func dismissRestIfPresent(in app: XCUIApplication) {
-        let done = app.buttons["Done"]
-        if done.waitForExistence(timeout: 2) {
-            done.tap()
-        }
+        dismissKeypadIfPresent(in: app)
     }
 
     func openUpperBodyTemplateEditor(in app: XCUIApplication) {
@@ -274,34 +273,67 @@ class GymTrackerUITestCase: XCTestCase {
         closeExercisePicker.tap()
     }
 
+    /// Set values are buttons that select themselves, and the panel's keypad is
+    /// what writes them. Selecting a value starts a fresh entry, so typing
+    /// replaces whatever was there without a delete key.
+    func enterValue(
+        _ value: String,
+        field: String,
+        for exercise: String,
+        set: Int,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let target = app.buttons["\(field)-field-\(exercise)-\(set)"]
+        XCTAssertTrue(
+            target.waitForExistence(timeout: 5),
+            "Expected \(field) value for \(exercise) set \(set)",
+            file: file,
+            line: line
+        )
+        target.tap()
+
+        for character in value {
+            let key = character == "." || character == ","
+                ? "keypad-key-decimal"
+                : "keypad-key-\(character)"
+            tapButton(key, in: app, file: file, line: line)
+        }
+    }
+
     func enterValidValues(
         for exercise: String,
         set: Int,
         repsValue: String = "8",
         in app: XCUIApplication
     ) {
-        let reps = app.textFields["reps-field-\(exercise)-\(set)"]
-        XCTAssertTrue(reps.waitForExistence(timeout: 5))
-        reps.tap()
-        reps.typeText(XCUIKeyboardKey.delete.rawValue)
-        reps.typeText(repsValue)
-
-        let weight = app.textFields["weight-field-\(exercise)-\(set)"]
-        XCTAssertTrue(weight.waitForExistence(timeout: 5))
-        weight.tap()
-        weight.typeText(XCUIKeyboardKey.delete.rawValue)
-        weight.typeText("50")
-
-        app.buttons["Done"].tap()
+        enterValue(repsValue, field: "reps", for: exercise, set: set, in: app)
+        enterValue("50", field: "weight", for: exercise, set: set, in: app)
+        dismissKeypadIfPresent(in: app)
     }
 
     func enterReps(_ value: String, for exercise: String, set: Int, in app: XCUIApplication) {
-        let reps = app.textFields["reps-field-\(exercise)-\(set)"]
-        XCTAssertTrue(reps.waitForExistence(timeout: 5))
-        reps.tap()
-        reps.typeText(XCUIKeyboardKey.delete.rawValue)
-        reps.typeText(value)
-        app.buttons["Done"].tap()
+        enterValue(value, field: "reps", for: exercise, set: set, in: app)
+        dismissKeypadIfPresent(in: app)
+    }
+
+    func dismissKeypadIfPresent(in app: XCUIApplication) {
+        let dismiss = app.buttons["panel-dismiss"]
+        if dismiss.waitForExistence(timeout: 2) {
+            dismiss.tap()
+        }
+    }
+
+    /// The displayed value of a set field. Reads the button's accessibility
+    /// value, which is `nil`-safe for an untouched input announced as "—".
+    func setValue(
+        _ field: String,
+        for exercise: String,
+        set: Int,
+        in app: XCUIApplication
+    ) -> String? {
+        app.buttons["\(field)-field-\(exercise)-\(set)"].value as? String
     }
 
     func scrollToElement(

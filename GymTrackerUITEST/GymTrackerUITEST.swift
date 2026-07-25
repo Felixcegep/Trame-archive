@@ -126,8 +126,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         resumeActiveWorkout(in: app)
 
         XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.textFields["reps-field-Bench Press-0"].value as? String, "8")
-        XCTAssertEqual(app.textFields["weight-field-Bench Press-0"].value as? String, "50")
+        XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "8")
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
     }
 
     // This is intentionally only the first phase of the reboot test. The
@@ -166,8 +166,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Pause rest"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Bench Press"].exists)
-        XCTAssertEqual(app.textFields["reps-field-Bench Press-0"].value as? String, "8")
-        XCTAssertEqual(app.textFields["weight-field-Bench Press-0"].value as? String, "50")
+        XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "8")
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
 
         // Confirm the restored countdown is live, not merely a stale card.
         tapButton("Pause rest", in: app)
@@ -179,23 +179,16 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testPersistsDraftSetValuesAfterTermination() {
         let app = launchFixture("active-draft")
 
-        let reps = app.textFields["reps-field-Bench Press-0"]
-        XCTAssertTrue(reps.waitForExistence(timeout: 5))
-        reps.tap()
-        reps.typeText("7")
+        enterValue("7", field: "reps", for: "Bench Press", set: 0, in: app)
+        enterValue("42", field: "weight", for: "Bench Press", set: 0, in: app)
 
-        let weight = app.textFields["weight-field-Bench Press-0"]
-        XCTAssertTrue(weight.waitForExistence(timeout: 5))
-        weight.tap()
-        weight.typeText("42")
-
-        // Deliberately terminate with the field still being edited. Each input
-        // binding must persist independently of keyboard dismissal or scene phase.
+        // Deliberately terminate with the keypad still open. Each keystroke must
+        // persist independently of dismissal or scene phase.
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
-        XCTAssertEqual(reps.value as? String, "7")
-        XCTAssertEqual(weight.value as? String, "42")
+        XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "7")
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "42")
     }
 
     func testResumesPausedRestTimerAfterRelaunch() {
@@ -248,30 +241,117 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
     }
 
+    /// The plate calculator is offered by the set-entry panel, and only for
+    /// equipment whose load is actually assembled from plates.
     func testPlateCalculatorMatchesExerciseLoadingStyle() {
         let app = launchFixture("active-loading-styles")
 
-        tapButton("set-menu-Bench Press-0", in: app)
-        tapButton("plate-calculator-Bench Press", in: app)
+        tapButton("weight-field-Bench Press-0", in: app)
+        tapButton("panel-chip-plates", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["plate-calculator-screen"].waitForExistence(timeout: 5))
         tapButton("Done", in: app)
+        dismissKeypadIfPresent(in: app)
 
         let dumbbellExercise = activeExerciseCard("Dumbbell Bench Press", in: app)
         scrollToElement(dumbbellExercise, in: app)
         dumbbellExercise.tap()
-        tapButton("set-menu-Dumbbell Bench Press-0", in: app)
-        XCTAssertFalse(app.buttons["plate-calculator-Dumbbell Bench Press"].exists)
+        tapButton("weight-field-Dumbbell Bench Press-0", in: app)
+        XCTAssertTrue(app.buttons["panel-details"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["panel-chip-plates"].exists)
 
-        // Relaunch the deterministic fixture so the open context menu and
-        // disclosure scroll position cannot obscure the final style check.
+        // Relaunch the deterministic fixture so the open panel and disclosure
+        // scroll position cannot obscure the final style check.
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
         let legPressExercise = activeExerciseCard("Leg Press", in: app)
         scrollToElement(legPressExercise, in: app)
         legPressExercise.tap()
-        tapButton("set-menu-Leg Press-0", in: app)
-        XCTAssertTrue(app.buttons["plate-calculator-Leg Press"].waitForExistence(timeout: 5))
+        tapButton("weight-field-Leg Press-0", in: app)
+        XCTAssertTrue(app.buttons["panel-chip-plates"].waitForExistence(timeout: 5))
+    }
+
+    /// Whole-row selection: tapping a row outside any value opens the keypad on
+    /// the first value the lifter still owes, then on the next one once that is
+    /// supplied. Direct selection of a specific value keeps working alongside it.
+    func testRowAndFieldSelectionOpenTheKeypadOnTheRightValue() {
+        let app = launchFixture("active-draft")
+
+        // Tap in the row's padding just below the status circle: inside the
+        // row, outside every value and button, which is exactly the area a
+        // whole-row target adds. Rows sit 6 points apart, so this stays well
+        // inside the row it belongs to.
+        let statusButton = app.buttons["complete-set-Bench Press-0"]
+        XCTAssertTrue(statusButton.waitForExistence(timeout: 5))
+        statusButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1.06)).tap()
+
+        // Nothing is entered yet, so the row hands the keypad its reps.
+        let repsPill = app.buttons["panel-value-reps"]
+        XCTAssertTrue(repsPill.waitForExistence(timeout: 5))
+        XCTAssertTrue(repsPill.isSelected)
+        XCTAssertFalse(app.buttons["panel-value-weight"].isSelected)
+
+        tapButton("keypad-key-8", in: app)
+        XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "8")
+
+        // Aiming at one specific value selects that value instead. Which value
+        // an untouched row opens on is covered by `SetInputFocusSelectionTests`.
+        tapButton("weight-field-Bench Press-0", in: app)
+        XCTAssertTrue(app.buttons["panel-value-weight"].isSelected)
+        XCTAssertFalse(app.buttons["panel-value-reps"].isSelected)
+    }
+
+    /// The keypad writes the selected value in place, and backspace removes the
+    /// digits it added rather than the stored value it never touched.
+    func testKeypadEditsTheSelectedValue() {
+        let app = launchFixture("active-draft")
+
+        tapButton("weight-field-Bench Press-0", in: app)
+        tapButton("keypad-key-6", in: app)
+        tapButton("keypad-key-0", in: app)
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "60")
+
+        tapButton("keypad-key-decimal", in: app)
+        tapButton("keypad-key-5", in: app)
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "60.5")
+
+        tapButton("keypad-key-backspace", in: app)
+        tapButton("keypad-key-backspace", in: app)
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "60")
+
+        // Selecting a different value starts a fresh entry instead of appending.
+        tapButton("panel-value-reps", in: app)
+        tapButton("keypad-key-5", in: app)
+        XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "5")
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "60")
+    }
+
+    func testWeightAdjustmentUsesOneSelectableIncrement() {
+        let app = launchFixture("active-draft")
+
+        tapButton("weight-field-Bench Press-0", in: app)
+
+        let stepMenu = app.buttons["panel-weight-step"]
+        XCTAssertTrue(stepMenu.waitForExistence(timeout: 5))
+        XCTAssertEqual(stepMenu.value as? String, "2.5 kg")
+        XCTAssertEqual(app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Increase weight by")
+        ).count, 1)
+        XCTAssertEqual(app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Decrease weight by")
+        ).count, 1)
+
+        app.buttons["Increase weight by 2.5"].tap()
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "2.5")
+
+        stepMenu.tap()
+        let fineStep = app.buttons["1 kg"]
+        XCTAssertTrue(fineStep.waitForExistence(timeout: 2))
+        fineStep.tap()
+
+        XCTAssertEqual(stepMenu.value as? String, "1 kg")
+        app.buttons["Decrease weight by 1"].tap()
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "1.5")
     }
 
     func testKeyboardNavigatesFocusedSetFieldsAndCopiesLastSet() {
@@ -279,7 +359,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         enterValidValues(for: "Bench Press", set: 0, repsValue: "10", in: app)
 
-        let secondWeightField = app.textFields["weight-field-Bench Press-1"]
+        let secondWeightField = app.buttons["weight-field-Bench Press-1"]
         XCTAssertTrue(secondWeightField.waitForExistence(timeout: 5))
         secondWeightField.tap()
 
@@ -291,24 +371,27 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         previousButton.tap()
 
         secondWeightField.tap()
-        let copyLastSet = app.buttons["Copy last set"]
+        let copyLastSet = app.buttons["panel-chip-last set"]
         XCTAssertTrue(copyLastSet.waitForExistence(timeout: 5))
         XCTAssertTrue(copyLastSet.isEnabled)
         copyLastSet.tap()
-        XCTAssertEqual(app.textFields["reps-field-Bench Press-1"].value as? String, "10")
+        XCTAssertEqual(setValue("reps", for: "Bench Press", set: 1, in: app), "10")
     }
 
-    func testCopyLastSetIsNotDuplicatedWhileEditing() {
+    /// Copying the last set, the plate calculator, and set details are offered
+    /// once, by the set-entry panel. The row itself carries no actions menu.
+    func testSetActionsAreOfferedOnlyByThePanel() {
         let app = launchFixture("active-in-progress")
-        let secondWeightField = app.textFields["weight-field-Bench Press-1"]
+        let secondWeightField = app.buttons["weight-field-Bench Press-1"]
 
         XCTAssertTrue(secondWeightField.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["set-menu-Bench Press-1"].exists)
+
         secondWeightField.tap()
-        XCTAssertTrue(app.buttons["Copy last set"].waitForExistence(timeout: 5))
-
-        tapButton("set-menu-Bench Press-1", in: app)
-
-        XCTAssertTrue(app.buttons["Set details"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["panel-chip-last set"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["panel-details"].exists)
+        XCTAssertTrue(app.buttons["panel-set-type"].exists)
+        XCTAssertFalse(app.buttons["set-menu-Bench Press-1"].exists)
         XCTAssertFalse(app.buttons["copy-last-set-Bench Press-1"].exists)
     }
 
@@ -326,11 +409,10 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.buttons["complete-set-Bench Press-0"].tap()
         XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
 
-        let setMenu = app.buttons["set-menu-Bench Press-1"]
-        XCTAssertTrue(setMenu.waitForExistence(timeout: 5))
-        setMenu.tap()
-        XCTAssertTrue(app.buttons["copy-last-set-Bench Press-1"].exists)
-        tapButton("Set details", in: app)
+        // Completing a set moves the keypad to the next one, which is the set
+        // whose details the deletion below belongs to.
+        XCTAssertTrue(app.buttons["panel-chip-last set"].waitForExistence(timeout: 5))
+        tapButton("panel-details", in: app)
         XCTAssertTrue(app.buttons["delete-set-Bench Press-1"].waitForExistence(timeout: 5))
         app.buttons["delete-set-Bench Press-1"].tap()
         XCTAssertTrue(app.buttons["complete-set-Bench Press-3"].waitForExistence(timeout: 5))
@@ -347,8 +429,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testDropSetTypeConfiguresOneSegmentedChoice() {
         let app = launchFixture("active-in-progress")
 
-        tapButton("set-menu-Bench Press-0", in: app)
-        tapButton("Set details", in: app)
+        tapButton("reps-field-Bench Press-0", in: app)
+        tapButton("panel-details", in: app)
         tapButton("set-type-option-dropSet", in: app)
 
         XCTAssertTrue(app.descendants(matching: .any)["drop-set-structure"].waitForExistence(timeout: 5))
@@ -359,7 +441,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testCompletedSetRequiresExplicitEditingAction() {
         let app = launchFixture("active-completed-set")
 
-        let weightField = app.textFields["weight-field-Bench Press-0"]
+        let weightField = app.buttons["weight-field-Bench Press-0"]
         XCTAssertTrue(weightField.waitForExistence(timeout: 5))
         XCTAssertFalse(weightField.isEnabled)
 
@@ -407,7 +489,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         addExercise("Bench Press", in: app)
         enterValidValues(for: "Bench Press", set: 0, in: app)
         app.buttons["complete-set-Bench Press-0"].tap()
-        app.buttons["Done"].tap()
+        dismissKeypadIfPresent(in: app)
         app.buttons["Review Workout"].tap()
         app.buttons["save-workout"].tap()
         if app.buttons["Save completed sets"].waitForExistence(timeout: 2) {
@@ -422,17 +504,20 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(usePrevious.waitForExistence(timeout: 5))
         usePrevious.tap()
 
-        XCTAssertEqual(app.textFields["reps-field-Bench Press-0"].value as? String, "8")
-        XCTAssertEqual(app.textFields["weight-field-Bench Press-0"].value as? String, "50")
+        XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "8")
+        XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
     }
 
     func testDiscardsActiveWorkout() {
         let app = launchFixture("active-in-progress")
 
-        app.buttons["active-workout-menu"].tap()
-        // The toolbar trash button and the dialog action share the
-        // "Discard workout" label; the dialog action appears second.
-        let confirmDiscard = app.buttons.matching(identifier: "Discard workout").element(boundBy: 1)
+        // Discard is no longer a permanent toolbar control: it lives in the
+        // workout menu and still requires an explicit destructive confirmation.
+        tapButton("active-workout-menu", in: app)
+        tapButton("discard-workout", in: app)
+        // The dismissed menu item and the dialog action briefly share the
+        // identifier, so take the action the dialog is presenting now.
+        let confirmDiscard = app.sheets.buttons["confirm-discard-workout"].firstMatch
         XCTAssertTrue(confirmDiscard.waitForExistence(timeout: 5))
         confirmDiscard.tap()
 
@@ -552,10 +637,10 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let app = launchFixture("progression-increase")
 
         tapButton("edit-recommendation-Bench Press", in: app)
-        let firstIncompleteWeight = app.textFields["weight-field-Bench Press-0"]
+        let firstIncompleteWeight = app.buttons["weight-field-Bench Press-0"]
         XCTAssertTrue(firstIncompleteWeight.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        XCTAssertEqual(firstIncompleteWeight.value(forKey: "hasKeyboardFocus") as? Bool, true)
+        XCTAssertTrue(app.buttons["keypad-key-1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["panel-value-weight"].isSelected)
         XCTAssertFalse(app.buttons["progression-recommendation-card-Bench Press"].exists)
     }
 
