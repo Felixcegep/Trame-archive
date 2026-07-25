@@ -374,7 +374,7 @@ struct CaffeineQuickLogSheet: View {
                             }
                             Spacer()
                             if preWorkoutIntensity == intensity {
-                                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.gymPrimary)
+                                Image(systemName: AppIcon.checkmarkCircle).foregroundStyle(Color.gymPrimary)
                             }
                         }
                         .padding(Spacing.m)
