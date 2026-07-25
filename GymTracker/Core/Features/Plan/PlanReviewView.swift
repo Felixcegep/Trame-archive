@@ -39,11 +39,11 @@ struct PlanReviewView: View {
                             .font(AppFont.subheadlineSemibold)
                         Text(block.phaseType.title)
                             .font(AppFont.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.gymSubduedText)
                         if block.phaseType == .deload {
                             Text(block.deloadSummary)
                                 .font(AppFont.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.gymSubduedText)
                         }
                     }
                     .padding(.vertical, Spacing.xxs)
@@ -141,7 +141,7 @@ struct PlanReviewWorkoutRow: View {
                 Spacer()
                 Text(dayName)
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             if workout.exercises.isEmpty {
@@ -172,7 +172,7 @@ struct PlanReviewExerciseRow: View {
                 .font(AppFont.captionBold)
             Text(exercise.summary)
                 .font(AppFont.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.gymSubduedText)
             if !exercise.plannedSets.isEmpty {
                 ForEach(Array(exercise.plannedSets.enumerated()), id: \.element.id) { index, set in
                     Label("Set \(index + 1) · \(set.summary)", systemImage: set.setType.icon)

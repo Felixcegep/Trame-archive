@@ -147,7 +147,7 @@ private struct ProgramCatalogCard: View {
 
             Spacer(minLength: Spacing.s)
 
-            Image(systemName: "chevron.right")
+            Image(systemName: AppIcon.chevronRight)
                 .font(AppFont.captionBold)
                 .foregroundStyle(Color.gymSubtleText)
         }

@@ -73,4 +73,7 @@ struct AppIcon {
     static let recipePhoto = "photo.badge.plus"
     static let recipePhotoReplace = "arrow.triangle.2.circlepath"
     static let recipeGenerate = "wand.and.stars"
+    static let search = "magnifyingglass"
+    static let fastForward = "forward.fill"
+    static let warningFill = "exclamationmark.triangle.fill"
 }

@@ -19,7 +19,7 @@ struct ExercisePickerView: View {
         List {
             if exercises.isEmpty {
                 Text("No exercises to add")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             } else {
                 ForEach(exercises, id: \.self) { exercise in
                     let isAdded = addedExerciseIDs.contains(ObjectIdentifier(exercise))
@@ -38,7 +38,7 @@ struct ExercisePickerView: View {
                             Spacer()
 
                             if isAdded {
-                                Image(systemName: "checkmark")
+                                Image(systemName: AppIcon.checkmark)
                                     .foregroundStyle(Color.accentColor)
                             } else {
                                 Text("Add")

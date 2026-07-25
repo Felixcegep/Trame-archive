@@ -52,7 +52,7 @@ struct WorkoutTemplateDetailView: View {
             Section("Exercises") {
                 if orderedTemplateExercises.isEmpty {
                     Text("No exercises in this workout")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                 } else {
                     ForEach(orderedTemplateExercises, id: \.persistentModelID) { templateExercise in
                         NavigationLink {

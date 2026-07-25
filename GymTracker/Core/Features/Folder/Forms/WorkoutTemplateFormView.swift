@@ -31,7 +31,7 @@ struct WorkoutTemplateFormView: View {
             Section {
                 if availableExercises.isEmpty {
                     Text("Create an exercise first")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                 } else {
                     ExerciseFilterControls(filter: $filter, resultCount: results.count)
                         .listRowBackground(Color.clear)

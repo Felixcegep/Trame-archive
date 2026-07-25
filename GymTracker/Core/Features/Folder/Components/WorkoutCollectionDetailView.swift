@@ -22,7 +22,7 @@ struct WorkoutCollectionDetailView: View {
             Section("Workouts") {
                 if collection.workoutTemplates.isEmpty {
                     Text("No workouts in this folder")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                 } else {
                     ForEach(collection.workoutTemplates, id: \.self) { template in
                         StartableWorkoutRow(
@@ -51,7 +51,7 @@ struct WorkoutCollectionDetailView: View {
                 Button {
                     isShowingTemplatePicker = true
                 } label: {
-                    Image(systemName: "plus")
+                    Image(systemName: AppIcon.plus)
                 }
                 .disabled(templatesToAdd.isEmpty)
             }

@@ -504,7 +504,7 @@ private struct TrainingCalendarDayAgenda: View {
                 Text(detail).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
             }
             Spacer()
-            Image(systemName: "chevron.right").font(AppFont.captionBold).foregroundStyle(Color.gymSubduedText)
+            Image(systemName: AppIcon.chevronRight).font(AppFont.captionBold).foregroundStyle(Color.gymSubduedText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

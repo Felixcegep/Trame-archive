@@ -19,22 +19,22 @@ struct FolderRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.m) {
             if let systemImage {
                 Image(systemName: systemImage)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(Color.gymPrimary)
                     .frame(width: 30, height: 30)
-                    .background(Color.gymPrimarySurface, in: RoundedRectangle(cornerRadius: 9))
+                    .background(Color.gymPrimarySurface, in: RoundedRectangle(cornerRadius: Radius.small))
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(title)
-                    .font(.body)
+                    .font(AppFont.body)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.gymText)
                 Text(subtitle)
-                    .font(.caption)
+                    .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
             }
         }

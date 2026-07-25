@@ -18,7 +18,7 @@ struct ExerciseSelectionRow: View {
             Button(action: onSelect) {
                 HStack(alignment: .center, spacing: Spacing.m) {
                     Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
-                        .font(.system(size: 22))
+                        .font(AppFont.titleSmall)
                         .foregroundStyle(isSelected ? Color.gymSecondary : Color.gymText.opacity(0.25))
 
                     VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -44,7 +44,7 @@ struct ExerciseSelectionRow: View {
 
             Button(action: onShowDetail) {
                 Image(systemName: AppIcon.info)
-                    .font(.system(size: 18))
+                    .font(AppFont.headline)
                     .foregroundStyle(Color.gymPrimary)
                     .frame(width: 34, height: 44)
                     .contentShape(Rectangle())

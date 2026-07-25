@@ -8,7 +8,7 @@ struct PlanPhaseEditorView: View {
             Section {
                 Text("Phases organize the plan weeks. A deload reduces the prescribed sets and suggested load only when that planned workout starts; completed workouts stay unchanged.")
                     .font(AppFont.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             ForEach($blocks) { $block in

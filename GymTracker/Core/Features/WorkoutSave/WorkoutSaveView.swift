@@ -56,8 +56,8 @@ struct WorkoutSaveView: View {
         VStack(spacing: Spacing.xl) {
             Spacer()
             
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 64))
+            Image(systemName: AppIcon.warningFill)
+                .font(AppFont.displayLarge)
                 .foregroundStyle(Color.gymAccent)
                 
             VStack(spacing: Spacing.s) {
@@ -322,7 +322,7 @@ struct WorkoutSaveView: View {
                                     .font(AppFont.captionSemiboldMonospaced)
 
                                 Image(systemName: AppIcon.checkmark)
-                                    .font(.caption2.bold())
+                                    .font(AppFont.caption2Bold)
                                     .foregroundStyle(Color.gymSecondary)
                             }
                             .padding(.horizontal, Spacing.m + 2)

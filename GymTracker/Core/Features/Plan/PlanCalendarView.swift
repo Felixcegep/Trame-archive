@@ -81,10 +81,10 @@ private struct PlanCalendarDayRow: View {
             VStack(spacing: Spacing.xxs) {
                 Text(day.date.formatted(.dateTime.weekday(.abbreviated)))
                     .font(AppFont.caption2Bold)
-                    .foregroundStyle(isToday ? Color.white : .secondary)
+                    .foregroundStyle(isToday ? Color.gymCard : Color.gymSubduedText)
                 Text(day.date.formatted(.dateTime.day()))
                     .font(AppFont.headlineSemibold)
-                    .foregroundStyle(isToday ? Color.white : Color.gymText)
+                    .foregroundStyle(isToday ? Color.gymCard : Color.gymText)
             }
             .frame(width: 44, height: 44)
             .background(isToday ? Color.gymPrimary : Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
@@ -95,7 +95,7 @@ private struct PlanCalendarDayRow: View {
                     .foregroundStyle(Color.gymText)
                 Text(day.entries.map(\.workoutName).joined(separator: " · "))
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
                     .lineLimit(2)
             }
 
@@ -127,7 +127,7 @@ private struct PlanCalendarUnscheduledRow: View {
                         .font(AppFont.subheadlineSemibold)
                     Text("Unscheduled · Tap to choose a date")
                         .font(AppFont.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
                 Spacer()
                 Image(systemName: AppIcon.reschedule)

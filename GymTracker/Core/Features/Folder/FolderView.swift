@@ -119,7 +119,7 @@ struct FolderView: View {
 
     private var searchField: some View {
         HStack(spacing: Spacing.s) {
-            Image(systemName: "magnifyingglass")
+            Image(systemName: AppIcon.search)
                 .foregroundStyle(Color.gymSubduedText)
             TextField("Search workouts, plans, exercises", text: $searchText)
                 .textInputAutocapitalization(.never)
@@ -129,7 +129,7 @@ struct FolderView: View {
                 Button {
                     searchText = ""
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
+                    Image(systemName: AppIcon.failureCircle)
                         .foregroundStyle(Color.gymSubtleText)
                 }
                 .accessibilityLabel("Clear search")
@@ -137,9 +137,9 @@ struct FolderView: View {
         }
         .padding(.horizontal, Spacing.m)
         .frame(height: 46)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
         .overlay {
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: Radius.medium)
                 .stroke(Color.gymBorder, lineWidth: 1)
         }
     }
@@ -279,7 +279,7 @@ struct FolderView: View {
             if sortedCollections.isEmpty && sortedTemplates.isEmpty {
                 LibraryGroupCard {
                     Text("No workouts yet — tap Build a Workout above to create your first one.")
-                        .font(.subheadline)
+                        .font(AppFont.subheadline)
                         .foregroundStyle(Color.gymSubduedText)
                         .padding(Spacing.l)
                 }
@@ -353,7 +353,7 @@ struct FolderView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, 56)
         } else {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
                 if !matchingCollections.isEmpty {
                     searchResultsCard(title: "Folders") {
                         ForEach(matchingCollections) { collection in

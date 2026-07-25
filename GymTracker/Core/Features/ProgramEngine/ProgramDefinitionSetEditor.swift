@@ -45,7 +45,7 @@ struct ProgramDefinitionSetEditor: View {
                 Spacer()
                 Text("Set \(set.orderIndex + 1)")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             Picker("Target", selection: repKindBinding) {
@@ -174,7 +174,7 @@ struct ProgramDefinitionSetEditor: View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text("Complex components")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
                 ForEach(components.indices, id: \.self) { index in
                     HStack {
                         Picker("Exercise \(index + 1)", selection: componentExerciseBinding(at: index)) {
@@ -201,7 +201,7 @@ struct ProgramDefinitionSetEditor: View {
         case .open:
             Text("Open target")
                 .font(AppFont.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.gymSubduedText)
         }
     }
 

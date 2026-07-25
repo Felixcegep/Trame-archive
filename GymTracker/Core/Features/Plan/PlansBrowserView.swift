@@ -69,7 +69,7 @@ struct PlansBrowserView: View {
                     .font(AppFont.subheadlineSemibold)
                 Text("\(plan.durationWeeks) weeks · \(plan.daysPerWeek) days per week")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
     }

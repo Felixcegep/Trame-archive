@@ -16,13 +16,13 @@ struct LibraryBrowserList<Content: View>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(spacing: Spacing.s) {
-                    Image(systemName: "magnifyingglass")
+                    Image(systemName: AppIcon.search)
                         .foregroundStyle(Color.gymSubduedText)
                     TextField(String(localized: "Search \(NSLocalizedString(title.lowercased(), comment: ""))"), text: $searchText)
                 }
                 .padding(.horizontal, Spacing.m)
                 .frame(height: 46)
-                .background(Color.gymCard, in: RoundedRectangle(cornerRadius: 14))
+                .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
 
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     content
@@ -49,7 +49,7 @@ struct BuiltInBadge: View {
             .tracking(0.3)
             .foregroundStyle(Color.gymSecondary)
             .padding(.horizontal, Spacing.xs)
-            .padding(.vertical, 2)
+            .padding(.vertical, Spacing.xxs)
             .background(Color.gymSecondarySurface, in: Capsule())
     }
 }
@@ -68,14 +68,14 @@ struct LibraryItemRow: View {
     var body: some View {
         HStack(spacing: Spacing.m) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
+                .font(AppFont.subheadlineSemibold)
                 .foregroundStyle(color)
                 .frame(width: 34, height: 34)
                 .background(surface, in: RoundedRectangle(cornerRadius: Radius.medium))
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 HStack(spacing: Spacing.xs) {
                     Text(title)
-                        .font(.body.weight(.medium))
+                        .font(AppFont.bodyMedium)
                         .foregroundStyle(Color.gymText)
                         .multilineTextAlignment(.leading)
                         .lineLimit(2)
@@ -84,17 +84,17 @@ struct LibraryItemRow: View {
                     }
                 }
                 if let subtitle {
-                    Text(subtitle).font(.caption).foregroundStyle(Color.gymSubduedText).lineLimit(1)
+                    Text(subtitle).font(AppFont.caption).foregroundStyle(Color.gymSubduedText).lineLimit(1)
                 }
             }
             Spacer()
             if let count {
                 Text("\(count)")
-                    .font(.subheadline.monospacedDigit())
+                    .font(AppFont.subheadlineMonospaced)
                     .foregroundStyle(Color.gymSubduedText)
             }
             if showsChevron {
-                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(Color.gymSubtleText)
+                Image(systemName: AppIcon.chevronRight).font(AppFont.captionBold).foregroundStyle(Color.gymSubtleText)
             }
         }
         .padding(.horizontal, Spacing.l - 2)
@@ -136,8 +136,8 @@ struct StartableWorkoutRow<RowContent: View, Editor: View>: View {
             NavigationLink {
                 editor()
             } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.subheadline.weight(.semibold))
+                Image(systemName: AppIcon.advanced)
+                    .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(Color.gymSubduedText)
                     .frame(width: 38, height: 38)
                     .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
@@ -186,15 +186,15 @@ struct LibraryCreateRow: View {
     var body: some View {
         HStack(spacing: Spacing.m) {
             Image(systemName: icon)
-                .font(.system(size: 17, weight: .semibold))
+                .font(AppFont.bodyMedium)
                 .foregroundStyle(Color.gymPrimary)
                 .frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
-                    .font(.body.weight(.semibold))
+                    .font(AppFont.bodyMedium)
                     .foregroundStyle(Color.gymPrimary)
                 if let subtitle {
-                    Text(subtitle).font(.caption).foregroundStyle(Color.gymSubduedText)
+                    Text(subtitle).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
                 }
             }
             Spacer()
@@ -255,7 +255,7 @@ struct RecentLibraryRow: View {
 
             Spacer()
 
-            Image(systemName: "chevron.right")
+            Image(systemName: AppIcon.chevronRight)
                 .font(AppFont.captionBold)
                 .foregroundStyle(Color.gymSubtleText)
         }

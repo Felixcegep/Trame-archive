@@ -39,12 +39,12 @@ struct PlanPrescriptionPreviewView: View {
                                     .font(AppFont.subheadlineSemibold)
                                 Text(phaseTitle(for: week))
                                     .font(AppFont.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.gymSubduedText)
                             }
                             Spacer()
                             Text("\(week.orderedPlannedWorkouts.count) sessions")
                                 .font(AppFont.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.gymSubduedText)
                         }
                     }
                 }
@@ -105,7 +105,7 @@ private struct PlanPrescriptionPreviewWorkout: View {
                 Spacer()
                 Text("Day \(workout.dayOffset + 1)")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             ForEach(workout.orderedPlannedExercises) { exercise in
@@ -122,14 +122,14 @@ private struct PlanPrescriptionPreviewWorkout: View {
                         if exercise.isOptional {
                             Text("Optional")
                                 .font(AppFont.caption2Bold)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.gymSubduedText)
                         }
                     }
 
                     if exercise.orderedPlannedSets.isEmpty {
                         Text(fallbackSummary(for: exercise))
                             .font(AppFont.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.gymSubduedText)
                     } else {
                         ForEach(exercise.orderedPlannedSets, id: \.orderIndex) { plannedSet in
                             Label(setSummary(for: plannedSet), systemImage: plannedSet.setType.icon)

@@ -23,7 +23,6 @@ struct SavedWorkoutTemplatePicker: View {
                 } else {
                     ForEach(templates, id: \.persistentModelID) { template in
                         Button {
-                            dismiss()
                             onStartWorkout(template)
                         } label: {
                             HStack {
@@ -43,7 +42,7 @@ struct SavedWorkoutTemplatePicker: View {
 
                                 Spacer()
 
-                                Image(systemName: "play.circle.fill")
+                                Image(systemName: AppIcon.play)
                                     .font(AppFont.titleSmall)
                                     .foregroundStyle(Color.gymPrimary)
                             }
@@ -58,7 +57,6 @@ struct SavedWorkoutTemplatePicker: View {
 
             Section {
                 Button {
-                    dismiss()
                     onStartEmpty()
                 } label: {
                     HStack {
@@ -73,7 +71,7 @@ struct SavedWorkoutTemplatePicker: View {
 
                         Spacer()
 
-                        Image(systemName: "plus.circle.fill")
+                        Image(systemName: AppIcon.plus)
                             .font(AppFont.titleSmall)
                             .foregroundStyle(Color.gymSecondary)
                     }

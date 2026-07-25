@@ -187,7 +187,7 @@ struct SettingView: View {
                     isShowingResetConfirmation = true
                 } label: {
                     Label("Reset development data", systemImage: AppIcon.trash)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.gymDestructive)
                 }
             } header: {
                 Text("Development")
@@ -308,7 +308,7 @@ struct SettingView: View {
             if reminderAuthorization == .denied {
                 Text("Notifications are disabled in System Settings.")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
                 Button("Open System Settings") {
                     guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
                     UIApplication.shared.open(url)
@@ -362,7 +362,7 @@ struct SettingView: View {
             if reminderAuthorization == .denied {
                 Text("Notifications are disabled in System Settings.")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         } header: {
             Text("Daily check-in")

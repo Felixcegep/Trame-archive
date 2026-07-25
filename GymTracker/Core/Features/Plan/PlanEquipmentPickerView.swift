@@ -8,7 +8,7 @@ struct PlanEquipmentPickerView: View {
             Section {
                 Text("Choose the equipment this plan uses. You can change this later; completed workouts stay unchanged.")
                     .font(AppFont.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             Section("Equipment") {

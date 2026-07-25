@@ -1,6 +1,7 @@
 import Foundation
 
 enum ComponentSize {
+    static let minimumTouchTarget: CGFloat = 44
     static let iconChip: CGFloat = 36
     static let compactChartHeight: CGFloat = 180
     static let standardChartHeight: CGFloat = 210

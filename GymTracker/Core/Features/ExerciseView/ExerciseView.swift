@@ -137,7 +137,7 @@ struct ExerciseView : View {
                                 .font(AppFont.subheadlineSemibold)
                             Text("History, estimated 1RM, volume, records, notes, and progression")
                                 .font(AppFont.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.gymSubduedText)
                         }
                     }
                     .accessibilityIdentifier("exercise-stats")

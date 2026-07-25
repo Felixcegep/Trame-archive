@@ -46,7 +46,7 @@ struct ProgramDefinitionBlockEditor: View {
             } else {
                 Text("\(block.weeks.count) weeks")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             ForEach($block.weeks) { $week in
@@ -204,7 +204,7 @@ struct ProgramDefinitionWorkoutEditor: View {
                 Spacer()
                 Text("Day \(workout.dayOffset + 1)")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
     }

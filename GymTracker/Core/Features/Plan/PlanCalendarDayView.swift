@@ -44,7 +44,7 @@ struct PlanCalendarDayView: View {
 
                         Text(exerciseCountText(for: entry))
                             .font(AppFont.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.gymSubduedText)
 
                         if let progress = progress(for: entry),
                            entry.isReschedulable,

@@ -55,7 +55,12 @@ struct NumericKeypad: View {
                 if showsDecimalKey {
                     keyButton(.decimal)
                 } else {
-                    Color.clear.frame(maxWidth: .infinity)
+                    // `Color` fills any unconstrained space it's given, so
+                    // without an explicit height this placeholder would expand
+                    // to whatever height the row is proposed — stretching the
+                    // whole keypad and pushing 0/backspace toward the bottom of
+                    // the screen instead of sitting directly under row three.
+                    Color.clear.frame(maxWidth: .infinity, maxHeight: 48)
                 }
                 keyButton(.digit(0))
                 keyButton(.backspace)

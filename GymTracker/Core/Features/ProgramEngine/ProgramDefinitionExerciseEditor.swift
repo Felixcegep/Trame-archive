@@ -192,7 +192,7 @@ struct ProgramDefinitionExerciseEditor: View {
                 Spacer()
                 Text("\(exercise.plannedSets.count) sets")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
     }
@@ -400,7 +400,7 @@ struct ProgramDefinitionStageEditor: View {
                 Spacer()
                 Text("\(stage.plannedSets.count) sets")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
     }
@@ -472,7 +472,7 @@ struct ProgramDefinitionWaveEditor: View {
                 Spacer()
                 Text("\(wave.plannedSets.count) sets")
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
     }

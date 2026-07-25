@@ -20,11 +20,11 @@ struct PlanDetailView: View {
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Text("\(plan.durationWeeks) weeks · \(plan.daysPerWeek) days per week")
                         .font(AppFont.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                     if pausedRun != nil {
                         Text("Plan paused")
                             .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.gymSubduedText)
                     } else if testDayRun != nil {
                         Text("Test day ready")
                             .font(AppFont.subheadlineSemibold)
@@ -35,7 +35,7 @@ struct PlanDetailView: View {
                     } else {
                         Text("Your schedule repeats each week.")
                             .font(AppFont.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.gymSubduedText)
                     }
                 }
             }
@@ -295,7 +295,7 @@ struct PlanDetailView: View {
                 _ = PlanCoordinator.skip(progress, in: run, using: modelContext)
             }
             .font(AppFont.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.gymSubduedText)
             .accessibilityIdentifier("skip-planned-workout")
         case .inProgress:
             Text("In progress")
@@ -308,11 +308,11 @@ struct PlanDetailView: View {
         case .skipped:
             Text("Skipped")
                 .font(AppFont.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.gymSubduedText)
         case .upcoming:
             Text("Upcoming")
                 .font(AppFont.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.gymSubduedText)
         }
     }
 
@@ -333,7 +333,7 @@ struct PlanDetailView: View {
                     .font(AppFont.subheadlineSemibold)
                 Text(summary)
                     .font(AppFont.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
                 if workout.isOptional {
                     Text("Optional session")
                         .font(AppFont.caption2Bold)
@@ -345,19 +345,19 @@ struct PlanDetailView: View {
                         .foregroundStyle(Color.gymPrimary)
                     Text(preparation.map { $0.exercise.name }.joined(separator: " · "))
                         .font(AppFont.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                         .lineLimit(2)
                 }
                 if let notes = workout.notes, !notes.isEmpty {
                     Text(notes)
                         .font(AppFont.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                         .lineLimit(2)
                 }
                 if let scheduledDate = progress?.scheduledDate {
                     Text(scheduledDate.formatted(date: .abbreviated, time: .omitted))
                         .font(AppFont.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                         .accessibilityIdentifier("planned-workout-date-\(workout.id)")
                 }
             }

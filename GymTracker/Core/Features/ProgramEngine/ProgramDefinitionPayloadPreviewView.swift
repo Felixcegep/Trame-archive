@@ -24,7 +24,7 @@ struct ProgramDefinitionPayloadPreviewView: View {
                                 .font(AppFont.subheadlineSemibold)
                             Text("\(row.exposureKey) · \(row.setCount) sets · \(row.progressionRuleCount) progression rules")
                                 .font(AppFont.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.gymSubduedText)
                             if !row.stageNames.isEmpty {
                                 Text("Stages: \(row.stageNames.joined(separator: " → "))")
                                     .font(AppFont.caption)

@@ -52,7 +52,7 @@ struct PlanFormView: View {
 
                 Text("This records the equipment this plan needs. It does not change your saved workouts or completed history.")
                     .font(AppFont.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             Section("Recovery") {
@@ -83,7 +83,7 @@ struct PlanFormView: View {
 
                     Text("The deload changes only the prescription snapshot for that future week's workouts. Your completed workouts stay unchanged.")
                         .font(AppFont.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                         .accessibilityIdentifier("plan-deload-description")
                 }
             }
@@ -105,7 +105,7 @@ struct PlanFormView: View {
                     ? "Choose each training day and the saved workout assigned to it."
                     : "Choose the session sequence. Calendar dates are derived from session order.")
                     .font(AppFont.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
 
                 ForEach(weekdayOptions, id: \.offset) { day in
                     VStack(alignment: .leading, spacing: Spacing.s) {
@@ -119,7 +119,7 @@ struct PlanFormView: View {
                                         Text(template.name)
                                         Text(exerciseCountText(for: template))
                                             .font(AppFont.caption)
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(Color.gymSubduedText)
                                     }
                                     .tag(template.persistentModelID)
                                 }
@@ -132,7 +132,7 @@ struct PlanFormView: View {
 
                 if availableTemplates.isEmpty {
                     Text("Create a workout with at least one exercise before building a plan.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
             }
         }

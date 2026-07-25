@@ -19,7 +19,7 @@ struct TemplatePickerView: View {
         List {
             if templates.isEmpty {
                 Text("No workouts to add")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.gymSubduedText)
             } else {
                 ForEach(templates, id: \.self) { template in
                     let isAdded = addedTemplateIDs.contains(ObjectIdentifier(template))
@@ -38,7 +38,7 @@ struct TemplatePickerView: View {
                             Spacer()
 
                             if isAdded {
-                                Image(systemName: "checkmark")
+                                Image(systemName: AppIcon.checkmark)
                                     .foregroundStyle(Color.accentColor)
                             } else {
                                 Text("Add")

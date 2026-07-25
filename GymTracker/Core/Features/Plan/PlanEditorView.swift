@@ -61,11 +61,11 @@ struct PlanEditorView: View {
                                         .foregroundStyle(Color.gymText)
                                     Text("Day \(workout.dayOffset + 1) · \(workout.exercises.count) exercises")
                                         .font(AppFont.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Color.gymSubduedText)
                                 }
                                 Spacer()
                                 Image(systemName: AppIcon.chevronRight)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.gymSubduedText)
                             }
                         }
                         .buttonStyle(.plain)

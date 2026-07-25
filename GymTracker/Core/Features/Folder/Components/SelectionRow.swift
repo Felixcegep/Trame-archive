@@ -18,10 +18,10 @@ struct SelectionRow: View {
         } label: {
             HStack {
                 Text(LocalizedStringKey(title))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Color.gymText)
                 Spacer()
                 if isSelected {
-                    Image(systemName: "checkmark")
+                    Image(systemName: AppIcon.checkmark)
                         .foregroundStyle(Color.accentColor)
                 }
             }

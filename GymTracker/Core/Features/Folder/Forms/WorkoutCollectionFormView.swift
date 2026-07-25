@@ -25,7 +25,7 @@ struct WorkoutCollectionFormView: View {
             Section("Workouts") {
                 if availableTemplates.isEmpty {
                     Text("Create a saved workout first")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                 } else {
                     ForEach(availableTemplates, id: \.self) { template in
                         SelectionRow(

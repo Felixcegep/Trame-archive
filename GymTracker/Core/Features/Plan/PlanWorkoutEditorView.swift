@@ -35,7 +35,7 @@ struct PlanWorkoutEditorView: View {
                                     .foregroundStyle(Color.gymText)
                                 Text(exercise.summary)
                                     .font(AppFont.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.gymSubduedText)
                             }
                         }
                         .buttonStyle(.plain)
@@ -227,7 +227,7 @@ struct PlanExercisePickerView: View {
                         .foregroundStyle(Color.gymText)
                     Text(exercise.subtitle)
                         .font(AppFont.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
             }
         }
