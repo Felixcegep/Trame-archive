@@ -85,12 +85,20 @@ final class ContextualTrackingAndLoadedMobilityTests: XCTestCase {
             perceivedIntensity: 3,
             discomfortNote: nil
         )
-        let resultID = try XCTUnwrap(entry.results.first?.id)
-        XCTAssertTrue(MobilitySessionService.completeCurrent(in: session, resultInputs: [resultID: resultInput], using: context))
+        // `.bilateral` produces two `MobilityResult`s (left and right) with no
+        // orderIndex to break a tie, so `entry.results.first` is not a stable
+        // way to pick "the" result -- which element sorts first can flip
+        // between runs (same class of bug as the `orderedSets` tiebreak fixed
+        // in WorkoutIntentServiceTests). Look the target up by side instead
+        // and hold a direct reference to it, so the assertions below check
+        // the exact result we fed the input to rather than whichever one
+        // `.first` happens to return.
+        let resultsBySide = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.side, $0) })
+        let target = try XCTUnwrap(resultsBySide[.left])
+        XCTAssertTrue(MobilitySessionService.completeCurrent(in: session, resultInputs: [target.id: resultInput], using: context))
 
-        let completedResult = try XCTUnwrap(entry.results.first)
-        XCTAssertEqual(completedResult.performedLoadValue, 12.5)
-        XCTAssertEqual(completedResult.performedLoadUnit, .kilograms)
+        XCTAssertEqual(target.performedLoadValue, 12.5)
+        XCTAssertEqual(target.performedLoadUnit, .kilograms)
     }
 
     func testPNFPhasesPrescriptionAndSnapshot() throws {

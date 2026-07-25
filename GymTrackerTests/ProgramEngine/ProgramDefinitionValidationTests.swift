@@ -259,4 +259,206 @@ final class ProgramDefinitionValidationTests: XCTestCase {
         XCTAssertEqual(issues.filter { $0.code == .invalidPrescriptionValue }.count, 2)
     }
 
+    // MARK: - Validator-cycle coverage (moved from ProgramEngineTypesTests)
+
+    func testValidatorReportsInvalidPrescriptionAndDuplicateExposure() {
+        let first = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "bench",
+            orderIndex: 0,
+            plannedSets: [
+                SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .range(minimum: 12, maximum: 8),
+                    load: LoadPrescription(percentage: 3.5),
+                    targetRPE: 11,
+                    restSeconds: -1
+                )
+            ]
+        )
+        let second = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "bench",
+            orderIndex: 1,
+            plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))]
+        )
+        let issues = ProgramDefinitionValidator.validate(ProgramDefinitionFixture.make(exercises: [first, second]))
+
+        XCTAssertTrue(issues.contains { $0.code == .invalidRepRange })
+        XCTAssertTrue(issues.contains { $0.code == .invalidPercentage })
+        XCTAssertTrue(issues.contains { $0.code == .invalidRest })
+        XCTAssertTrue(issues.contains { $0.code == .invalidRPE })
+        XCTAssertTrue(issues.contains { $0.code == .duplicateExposureKey })
+    }
+
+    func testValidatorRejectsCrossExerciseLoadReferenceCycles() {
+        let first = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "volume",
+            orderIndex: 0,
+            plannedSets: [
+                SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .fixed(5),
+                    load: LoadPrescription(reference: .init(kind: .anotherPlannedExercise, exposureKey: "intensity"), percentage: 0.8)
+                )
+            ]
+        )
+        let second = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "intensity",
+            orderIndex: 1,
+            plannedSets: [
+                SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .fixed(5),
+                    load: LoadPrescription(reference: .init(kind: .anotherPlannedExercise, exposureKey: "volume"), percentage: 0.8)
+                )
+            ]
+        )
+        let issues = ProgramDefinitionValidator.validate(ProgramDefinitionFixture.make(exercises: [first, second]))
+        XCTAssertTrue(issues.contains { $0.code == .referenceCycle })
+    }
+
+    func testValidatorRejectsInvalidConditioningValuesAndReferences() {
+        let exercise = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "conditioning",
+            orderIndex: 0,
+            plannedSets: [
+                SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .duration(seconds: -1),
+                    load: LoadPrescription(reference: .init(kind: .trainingMax))
+                )
+            ]
+        )
+        let issues = ProgramDefinitionValidator.validate(ProgramDefinitionFixture.make(exercises: [exercise]))
+        XCTAssertTrue(issues.contains { $0.code == .invalidPrescriptionValue })
+        XCTAssertTrue(issues.contains { $0.code == .invalidLoadReference })
+    }
+
+    func testValidatorRejectsUnknownExposureReferencesBeforeActivation() {
+        let loadExercise = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "squat",
+            orderIndex: 0,
+            plannedSets: [
+                SetPrescriptionDefinition(
+                    orderIndex: 0,
+                    repetitions: .fixed(5),
+                    load: LoadPrescription(
+                        reference: .init(kind: .anotherPlannedExercise, exposureKey: "missing-bench"),
+                        percentage: 0.8
+                    )
+                )
+            ]
+        )
+        let formulaExercise = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "press",
+            orderIndex: 1,
+            plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))],
+            progressionRules: [
+                ProgressionRuleDefinition(
+                    metric: .trainingMax,
+                    trigger: .cycleCompleted,
+                    successAction: .updateTrainingMax(.add(
+                        .source(.anotherExposure(exposureKey: "missing-squat")),
+                        .source(.completedMetric(exposureKey: "missing-volume", metric: .totalVolume))
+                    )),
+                    cadence: .nextCycle,
+                    scope: .cycle
+                )
+            ]
+        )
+
+        let issues = ProgramDefinitionValidator.validate(ProgramDefinitionFixture.make(exercises: [loadExercise, formulaExercise]))
+
+        XCTAssertTrue(issues.contains { $0.code == .invalidLoadReference && $0.message.contains("missing-bench") })
+        XCTAssertTrue(issues.contains { $0.code == .invalidFormula && $0.message.contains("missing-squat") })
+        XCTAssertTrue(issues.contains { $0.code == .invalidFormula && $0.message.contains("missing-volume") })
+    }
+
+    func testValidatorRejectsDuplicateSetOrder() {
+        let exercise = ProgramExerciseDefinition(
+            exerciseID: UUID(),
+            exposureKey: "squat",
+            orderIndex: 0,
+            plannedSets: [
+                SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5)),
+                SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5))
+            ]
+        )
+        let issues = ProgramDefinitionValidator.validate(ProgramDefinitionFixture.make(exercises: [exercise]))
+        XCTAssertTrue(issues.contains { $0.code == .invalidSetOrder })
+    }
+
+    func testValidatorRejectsCrossExposureFormulaCycles() {
+        let ruleA = ProgressionRuleDefinition(
+            metric: .load,
+            trigger: .manualApproval,
+            successAction: .noChange,
+            cadence: .nextWorkout,
+            scope: .exerciseExposure,
+            formula: .source(.anotherExposure(exposureKey: "b"))
+        )
+        let ruleB = ProgressionRuleDefinition(
+            metric: .load,
+            trigger: .manualApproval,
+            successAction: .noChange,
+            cadence: .nextWorkout,
+            scope: .exerciseExposure,
+            formula: .source(.anotherExposure(exposureKey: "a"))
+        )
+        let definition = ProgramDefinitionFixture.make(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "a",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(1))],
+                progressionRules: [ruleA]
+            ),
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "b",
+                orderIndex: 1,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(1))],
+                progressionRules: [ruleB]
+            )
+        ])
+
+        XCTAssertTrue(ProgramDefinitionValidator.validate(definition).contains { $0.code == .formulaCycle })
+    }
+
+    func testValidatorChecksFormulaReferencesInsideTrainingMaxActions() {
+        let ruleA = ProgressionRuleDefinition(
+            metric: .trainingMax,
+            trigger: .cycleCompleted,
+            successAction: .updateTrainingMax(.source(.anotherExposure(exposureKey: "b"))),
+            cadence: .nextCycle,
+            scope: .cycle
+        )
+        let ruleB = ProgressionRuleDefinition(
+            metric: .trainingMax,
+            trigger: .cycleCompleted,
+            successAction: .updateTrainingMax(.source(.anotherExposure(exposureKey: "a"))),
+            cadence: .nextCycle,
+            scope: .cycle
+        )
+        let definition = ProgramDefinitionFixture.make(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(), exposureKey: "a", orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(1))],
+                progressionRules: [ruleA]
+            ),
+            ProgramExerciseDefinition(
+                exerciseID: UUID(), exposureKey: "b", orderIndex: 1,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(1))],
+                progressionRules: [ruleB]
+            )
+        ])
+        XCTAssertTrue(ProgramDefinitionValidator.validate(definition).contains { $0.code == .formulaCycle })
+    }
+
 }

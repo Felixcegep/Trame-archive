@@ -144,6 +144,34 @@ final class LiveActivityMutationServiceTests: XCTestCase {
         XCTAssertNil(fixture.workout.pausedRemainingTime)
     }
 
+    func testLiveActivityPresentationNeverCreatesOneOfZero() {
+        let empty = GymTrackerAttributes.ContentState(
+            currentExerciseName: nil,
+            currentSet: nil,
+            totalSeries: nil,
+            currentExerciseOrderIndex: nil,
+            currentSetOrderIndex: nil,
+            hasAnySets: false,
+            restPhase: .inactive,
+            restEndDate: nil,
+            pausedRemainingTime: nil
+        )
+        XCTAssertEqual(empty.presentationState, .emptyWorkout)
+
+        let active = GymTrackerAttributes.ContentState(
+            currentExerciseName: "Bench Press",
+            currentSet: 2,
+            totalSeries: 3,
+            currentExerciseOrderIndex: 0,
+            currentSetOrderIndex: 1,
+            hasAnySets: true,
+            restPhase: .inactive,
+            restEndDate: nil,
+            pausedRemainingTime: nil
+        )
+        XCTAssertEqual(active.presentationState, .activeSet(exercise: "Bench Press", set: 2, total: 3))
+    }
+
     private func makeContext() throws -> ModelContext {
         try GymTrackerTestStore.makeInMemoryContext()
     }

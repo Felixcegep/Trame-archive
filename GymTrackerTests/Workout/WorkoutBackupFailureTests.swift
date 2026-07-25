@@ -265,13 +265,21 @@ final class WorkoutBackupFailureTests: XCTestCase {
     }
 
     private func makeExercise() -> Exercise {
-        Exercise(name: "Bench Press", primaryMuscles: [.upperChest])
+        WorkoutTestFixture.makeExercise()
     }
 
     private func makeContext() throws -> ModelContext {
         try GymTrackerTestStore.makeInMemoryContext()
     }
 
+    // Each disk-backed test below calls through to this, which mints a fresh
+    // FileManager.default.temporaryDirectory subdirectory keyed by a new UUID
+    // per call (see WorkoutTestFixture.makeDiskStoreURL). That is what keeps
+    // this file's disk-backed tests from colliding when scheduled adjacently
+    // in the same run — the flakiness FeaturesList.md:156 documents. Every
+    // test also removes its own directory in a `defer`, so nothing leaks
+    // between runs either. Verified by running this suite twice in one
+    // invocation (see PR notes).
     private func makeDiskStoreURL() throws -> URL {
         try WorkoutTestFixture.makeDiskStoreURL()
     }

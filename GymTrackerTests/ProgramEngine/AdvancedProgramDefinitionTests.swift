@@ -227,28 +227,8 @@ final class AdvancedProgramDefinitionTests: XCTestCase {
         )
     }
 
-    func testPlanRunBackupRoundTripsEndedExposureKeysAndLegacyData() throws {
-        let ended = try JSONEncoder().encode(Set(["accessory"]))
-        let dto = PlanRunDTO(
-            id: UUID().uuidString,
-            sourcePlanID: UUID().uuidString,
-            sourcePlanName: "Run",
-            planID: nil,
-            startDate: .now,
-            endDate: nil,
-            status: PlanRunStatus.active.rawValue,
-            currentWeekIndex: 0,
-            currentWorkoutIndex: 0,
-            endedProgressionKeysData: ended,
-            createdAt: .now,
-            updatedAt: .now,
-            workoutProgress: []
-        )
-        XCTAssertEqual(try JSONDecoder().decode(PlanRunDTO.self, from: JSONEncoder().encode(dto)).endedProgressionKeysData, ended)
-
-        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(dto)) as? [String: Any])
-        legacy.removeValue(forKey: "endedProgressionKeysData")
-        XCTAssertNil(try JSONDecoder().decode(PlanRunDTO.self, from: JSONSerialization.data(withJSONObject: legacy)).endedProgressionKeysData)
-    }
+    // testPlanRunBackupRoundTripsEndedExposureKeysAndLegacyData moved to
+    // ProgramBackupDTORoundTripTests.swift, alongside the rest of the
+    // pure-DTO backup round-trip coverage.
 
 }

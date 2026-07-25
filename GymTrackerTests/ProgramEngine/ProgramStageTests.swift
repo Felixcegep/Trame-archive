@@ -161,40 +161,8 @@ final class ProgramStageTests: XCTestCase {
         XCTAssertTrue(issues.contains { $0.code == .invalidStage && $0.message.contains("missing stage") })
     }
 
-    func testPlannedExerciseBackupPreservesStageConfiguration() throws {
-        let configuration = ProgramStageConfiguration(
-            stages: [
-                ProgramStageDefinition(
-                    stageID: "volume",
-                    name: "Volume",
-                    plannedSets: [.init(orderIndex: 0, repetitions: .fixed(8))]
-                )
-            ],
-            initialStageID: "volume"
-        )
-        let data = try JSONEncoder().encode(configuration)
-        let dto = PlannedExerciseDTO(
-            id: UUID().uuidString,
-            exerciseName: "Squat",
-            orderIndex: 0,
-            role: ExerciseRole.main.rawValue,
-            isOptional: false,
-            targetSets: 1,
-            repRangeMinimum: 8,
-            repRangeMaximum: 8,
-            suggestedLoad: 100,
-            suggestedLoadType: WeightType.kg.rawValue,
-            restSeconds: 90,
-            targetRPE: nil,
-            targetRIR: nil,
-            notes: nil,
-            progressionRule: ProgressionRule.none.rawValue,
-            progressionStagesData: data
-        )
-
-        let restored = try JSONDecoder().decode(PlannedExerciseDTO.self, from: JSONEncoder().encode(dto))
-        let restoredData = try XCTUnwrap(restored.progressionStagesData)
-        XCTAssertEqual(try JSONDecoder().decode(ProgramStageConfiguration.self, from: restoredData), configuration)
-    }
+    // testPlannedExerciseBackupPreservesStageConfiguration moved to
+    // ProgramBackupDTORoundTripTests.swift, alongside the rest of the
+    // pure-DTO backup round-trip coverage.
 
 }

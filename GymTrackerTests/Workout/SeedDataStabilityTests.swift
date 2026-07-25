@@ -50,4 +50,16 @@ final class SeedDataStabilityTests: XCTestCase {
             )
         }
     }
+
+    func testLegExtensionIsSeededOnceWithMachineQuadricepsMetadata() throws {
+        let matches = ExerciseSeedData.templates().filter { $0.name == "Leg Extension" }
+        let legExtension = try XCTUnwrap(matches.first)
+
+        XCTAssertEqual(matches.count, 1)
+        XCTAssertEqual(legExtension.equipmentType, .machine)
+        XCTAssertEqual(legExtension.primaryMuscles, [.quadriceps])
+        XCTAssertEqual(legExtension.stance, .seated)
+        XCTAssertEqual(legExtension.variationFamilyID, "leg-extension")
+        XCTAssertFalse(legExtension.isArchived)
+    }
 }

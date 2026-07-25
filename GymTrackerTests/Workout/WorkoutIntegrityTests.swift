@@ -286,94 +286,25 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     private func makeDiskStoreURL() throws -> URL {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("GymTrackerBackupTests-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("GymTracker.store")
+        try WorkoutTestFixture.makeDiskStoreURL()
     }
 
     private func withDiskContext<T>(
         at url: URL,
         _ body: (ModelContext) throws -> T
     ) throws -> T {
-        try GymTrackerTestStore.withDiskContext(at: url, body)
-    }
-
-    private func makePlanRunBackup() throws -> BackupDTO {
-        let source = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 1)
-        template.name = "Backup Plan Template"
-        let plan = PlanCoordinator.createPlan(
-            name: "Backup Plan",
-            goal: .hypertrophy,
-            experienceLevel: .intermediate,
-            durationWeeks: 1,
-            dayAssignments: [
-                .init(dayOffset: 0, template: template),
-                .init(dayOffset: 2, template: template)
-            ]
-        )
-        let run = try XCTUnwrap(
-            PlanCoordinator.startRun(
-                for: plan,
-                startDate: Date(timeIntervalSince1970: 1_700_000_000)
-            )
-        )
-        let firstProgress = try XCTUnwrap(run.orderedWorkoutProgress.first)
-        let firstPlannedWorkout = try XCTUnwrap(
-            PlanCoordinator.plannedWorkout(for: firstProgress, in: run)
-        )
-        let completedWorkout = Workout(
-            plannedWorkout: firstPlannedWorkout,
-            planRun: run,
-            unitSystem: .metric
-        )
-        completedWorkout.status = .completed
-        completedWorkout.endTime = Date(timeIntervalSince1970: 1_700_003_600)
-        let firstSet = try XCTUnwrap(completedWorkout.orderedExercises.first?.orderedSets.first)
-        firstSet.repetitions = 8
-        firstSet.weight = 50
-        firstSet.done = true
-        PlanCoordinator.markCompleted(firstProgress, with: completedWorkout, in: run)
-
-        source.insert(exercise)
-        source.insert(template)
-        source.insert(plan)
-        source.insert(run)
-        source.insert(completedWorkout)
-        try source.save()
-
-        return try BackupDTO.create(
-            from: source,
-            restTimer: 120,
-            darkMode: true,
-            unitSystem: .imperial
-        )
+        try WorkoutTestFixture.withDiskContext(at: url, body)
     }
 
     private func makeExercise() -> Exercise {
-        Exercise(name: "Bench Press", primaryMuscles: [.upperChest])
+        WorkoutTestFixture.makeExercise()
     }
 
     private func makeTemplate(
         exercise: Exercise,
         targetSets: Int
     ) -> WorkoutTemplate {
-        WorkoutTemplate(
-            name: "Bench Template",
-            exercises: [exercise],
-            templateExercises: [
-                TemplateExercise(
-                    exercise: exercise,
-                    order: 0,
-                    targetSets: targetSets,
-                    repRangeMinimum: 6,
-                    repRangeMaximum: 8,
-                    progressionRule: .doubleProgression
-                )
-            ]
-        )
+        WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: targetSets)
     }
 
     private func makeWorkout(
@@ -381,24 +312,7 @@ final class WorkoutIntegrityTests: XCTestCase {
         reps: Float = 8,
         weight: Float = 50
     ) -> Workout {
-        let set = ExerciseSet(repetitions: reps, weight: weight, done: true, usedMetric: .metric)
-        let entry = ExerciseEntry(exercise: exercise, sets: [set], usedMetric: .metric)
-        let workout = Workout(name: "Test Workout", endTime: .now)
-        workout.exercises = [entry]
-        return workout
-    }
-
-    private func previousSet(order: Int, reps: Float, weight: Float) -> PreviousSetPerformance {
-        PreviousSetPerformance(
-            orderIndex: order,
-            repetitions: reps,
-            weight: weight,
-            weightType: .lbs,
-            duration: nil,
-            distance: nil,
-            distanceType: .miles,
-            setType: .normal
-        )
+        WorkoutTestFixture.makeWorkout(with: exercise, reps: reps, weight: weight)
     }
 
     func testBackupExportKeysRemainUnchanged() throws {
@@ -606,15 +520,12 @@ final class WorkoutIntegrityTests: XCTestCase {
         try context.save()
 
         let seededTemplates = WorkoutTemplateSeedData.templates(using: exercises)
-        XCTAssertEqual(seededTemplates.count, 4)
-
-        let expectedNames = [
-            "Day 1 – Lower Body (Squat Focus)",
-            "Day 2 – Upper Body (Push/Pull)",
-            "Day 3 – Lower Body (Posterior Chain)",
-            "Day 4 – Upper Body (Vertical Push/Pull)"
-        ]
-        XCTAssertEqual(seededTemplates.map(\.name), expectedNames)
+        // The exact-order name match below already implies the count matches
+        // `seededTemplateNames`, so no separate literal count assertion is
+        // needed; comparing against the production list (rather than a
+        // hand-copied literal) keeps this test moving in lockstep with the
+        // program's actual day count instead of silently drifting from it.
+        XCTAssertEqual(seededTemplates.map(\.name), WorkoutTemplateSeedData.seededTemplateNames)
 
         for template in seededTemplates {
             context.insert(template)
@@ -624,7 +535,16 @@ final class WorkoutIntegrityTests: XCTestCase {
         let templates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
         let seedNames = Set(WorkoutTemplateSeedData.seededTemplateNames)
         let programTemplates = templates.filter { seedNames.contains($0.name) }
-        XCTAssertEqual(programTemplates.count, 4)
+        XCTAssertEqual(
+            Set(programTemplates.map(\.name)),
+            seedNames,
+            "Every seeded template name must be present after seeding."
+        )
+        XCTAssertEqual(
+            programTemplates.count,
+            seedNames.count,
+            "Seeding must not insert more than one template per seed name."
+        )
 
         let orderedTemplates = WorkoutTemplateSeedData.seededTemplateNames.compactMap { name in
             programTemplates.first { $0.name == name }
@@ -634,10 +554,10 @@ final class WorkoutIntegrityTests: XCTestCase {
         try context.save()
 
         let fetchedCollections = try context.fetch(FetchDescriptor<WorkoutCollection>())
-        XCTAssertEqual(fetchedCollections.count, 1)
+        XCTAssertEqual(fetchedCollections.count, 1, "A single insert must yield a single collection.")
         let firstCollection = try XCTUnwrap(fetchedCollections.first)
         XCTAssertEqual(firstCollection.name, WorkoutTemplateSeedData.collectionName)
-        XCTAssertEqual(Set(firstCollection.workoutTemplates.map(\.name)), Set(expectedNames))
+        XCTAssertEqual(Set(firstCollection.workoutTemplates.map(\.name)), seedNames)
 
         let existingTemplates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
         let existingNames = Set(existingTemplates.map(\.name))
@@ -648,7 +568,11 @@ final class WorkoutIntegrityTests: XCTestCase {
         try context.save()
 
         let afterReSeedTemplates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
-        XCTAssertEqual(afterReSeedTemplates.count, 4)
+        XCTAssertEqual(
+            afterReSeedTemplates.count,
+            templates.count,
+            "Re-seeding an already-seeded catalogue must not create duplicate templates."
+        )
     }
 
     private func makeContext() throws -> ModelContext {

@@ -69,25 +69,25 @@ EOF
 
 tests_for_scene() {
   case "$1" in
-    overview) echo "testCaptureOverviewScreenshots" ;;
-    pages) echo "testCaptureHomeTemplateSheetScreenshot testCaptureHomeConflictScreenshot testCaptureDailyCheckInScreenshot testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCaptureTodayRescheduleScreenshot testCaptureNotificationRescheduleScreenshot testCaptureMobilityLibraryScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureLibrarySecondaryStatesScreenshots testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsScreenshot testCaptureSettingsBetaFeedbackScreenshot" ;;
-    mobility) echo "testCaptureMobilityLibraryScreenshot testCaptureActiveMobilityScreenshot" ;;
-    nutrition) echo "testCaptureNutritionTodayScreenshot testCaptureNutritionTargetsEmptyScreenshot testCaptureCaffeineQuickLogScreenshot testCaptureRecipeGenerationControlsScreenshot testCaptureRecipeGeneratingScreenshot testCaptureRecipeGeneratedDraftScreenshot testCaptureRecipePartialMatchScreenshot testCaptureRecipeManualFallbackScreenshot testCaptureFoodPickerScreenshot testCaptureRecipeDetailAndLogScreenshots" ;;
-    active) echo "testCaptureActiveEmptyAndResumeScreenshots testCaptureActiveToolScreenshots testCaptureExecutionBlockScreenshots testCaptureComplexComponentResultsScreenshot testCaptureExerciseSwapScreenshot testCaptureCompletedSetScreenshot testCaptureSupersetScreenshot testCaptureCompletedExerciseCollapsedScreenshot testCapturePartialSaveScreenshots testCaptureDiscardWorkoutScreenshot testCaptureDurationTimerScreenshots" ;;
-    rest) echo "testCaptureRunningRestScreenshot testCapturePausedRestScreenshot testCaptureReadyRestScreenshot" ;;
+    overview) echo "testCaptureOverviewAndLibraryTourScreenshots" ;;
+    pages) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureHomeConflictScreenshot testCaptureTodayCompleteTourScreenshots testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCapturePlanActiveRunScreenshots testCaptureNotificationRescheduleScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsAndBetaFeedbackScreenshots" ;;
+    mobility) echo "testCaptureTodayCompleteTourScreenshots testCaptureActiveMobilityScreenshot" ;;
+    nutrition) echo "testCaptureNutritionTodayScreenshot testCaptureNutritionTargetsEmptyScreenshot testCaptureTodayCompleteTourScreenshots testCaptureRecipeGenerationControlsScreenshot testCaptureRecipeGeneratingScreenshot testCaptureRecipeGeneratedDraftScreenshot testCaptureRecipePartialMatchScreenshot testCaptureRecipeManualFallbackAndCatalogScreenshots" ;;
+    active) echo "testCaptureActiveWorkoutStatesScreenshots testCaptureDurationTimerScreenshots" ;;
+    rest) echo "testCaptureRestScreenshots" ;;
     history) echo "testCaptureHistoryScreenshots" ;;
-    recommendation) echo "testCaptureIncreaseRecommendationScreenshots testCaptureHoldRecommendationScreenshot testCaptureInsufficientHistoryRecommendationScreenshots testCaptureRecommendationWithRunningRestScreenshot testCaptureRecommendationWithPausedRestScreenshot" ;;
+    recommendation) echo "testCaptureIncreaseRecommendationScreenshots testCaptureHoldRecommendationScreenshot testCaptureInsufficientHistoryRecommendationScreenshots testCaptureRecommendationWithRestScreenshots" ;;
     performance) echo "testCapturePerformanceComparisonReviewScreenshot testCapturePerformanceComparisonHistoryScreenshot" ;;
     template-progression) echo "testCaptureTemplateProgressionScreenshot testCaptureTemplateExecutionBlockScreenshot" ;;
-    workout-form) echo "testCaptureNewWorkoutFormScreenshot" ;;
-    plan-review) echo "testCapturePlanReviewScreenshot testCaptureActivePlanRunScreenshot" ;;
-    program-builder) echo "testCaptureProgramDefinitionBuilderScreenshot" ;;
-    program-catalog) echo "testCaptureProgramCatalogScreenshots" ;;
+    workout-form) echo "testCaptureLibraryFormsScreenshots" ;;
+    plan-review) echo "testCapturePlanReviewScreenshot testCapturePlanActiveRunScreenshots" ;;
+    program-builder) echo "testCaptureProgramDefinitionAndCatalogScreenshots" ;;
+    program-catalog) echo "testCaptureProgramDefinitionAndCatalogScreenshots" ;;
     plan-calendar) echo "testCapturePlanCalendarScreenshots" ;;
     training-calendar) echo "testCaptureTrainingCalendarScreenshots testCaptureTrainingCalendarEmptyScreenshot" ;;
-    hidden) echo "testCaptureHiddenExercisesScreenshot" ;;
-    exercise-insights) echo "testCaptureExerciseDetailVariationsScreenshot testCaptureExerciseRelationshipsScreenshot testCaptureExercisePerformanceInsightsScreenshot" ;;
-    exercise-form) echo "testCaptureNewExerciseFormScreenshots" ;;
+    hidden) echo "testCaptureLibraryFormsScreenshots" ;;
+    exercise-insights) echo "testCaptureExerciseInsightsScreenshots" ;;
+    exercise-form) echo "testCaptureLibraryFormsScreenshots" ;;
     muscle-balance) echo "testCaptureMuscleBalanceScreenshot" ;;
     *) return 1 ;;
   esac

@@ -412,7 +412,11 @@ final class ProgramEngineSimulationTests: XCTestCase {
         ]
         let ids = Dictionary(uniqueKeysWithValues: names.map { ($0, UUID()) })
         let fixtures = ProgramFixtureCatalog.all(exerciseIDs: ids)
-        XCTAssertEqual(fixtures.count, 13)
+        XCTAssertFalse(fixtures.isEmpty)
+        // The catalog's contract is that every fixture is unique and
+        // individually valid — not a specific headcount that breaks every
+        // time a fixture is added.
+        XCTAssertEqual(Set(fixtures.map(\.name)).count, fixtures.count)
 
         for fixture in fixtures {
             XCTAssertTrue(ProgramDefinitionValidator.validate(fixture).isEmpty, fixture.name)
@@ -425,32 +429,212 @@ final class ProgramEngineSimulationTests: XCTestCase {
         }
     }
 
-    func testEveryCatalogFixtureValidatesAndPreviews() throws {
-        let ids = [
-            "squat": UUID(), "bench": UUID(), "row": UUID(), "press": UUID(), "deadlift": UUID(),
-            "plank": UUID(), "carry": UUID(), "snatch": UUID(), "pull": UUID(), "complex": UUID(),
-            "clean": UUID(), "jerk": UUID(), "assisted": UUID(), "band": UUID(), "bodyweight": UUID(),
-            "weighted": UUID()
-        ]
-        let fixtures = [
-            ProgramFixtureCatalog.beginnerFiveByFive(exerciseIDs: ids),
-            ProgramFixtureCatalog.doubleProgression(exerciseIDs: ids),
-            ProgramFixtureCatalog.stageProgression(exerciseIDs: ids),
-            ProgramFixtureCatalog.trainingMaxCycle(exerciseIDs: ids),
-            ProgramFixtureCatalog.topSetBackOff(exerciseIDs: ids),
-            ProgramFixtureCatalog.bodyweightVariation(exerciseIDs: ids),
-            ProgramFixtureCatalog.olympicWeightlifting(exerciseIDs: ids),
-            ProgramFixtureCatalog.mixedAcceptance(exerciseIDs: ids),
-            ProgramFixtureCatalog.weeklyHeavyLightMedium(exerciseIDs: ids),
-            ProgramFixtureCatalog.amrapWave(exerciseIDs: ids),
-            ProgramFixtureCatalog.blockPeriodized(exerciseIDs: ids),
-            ProgramFixtureCatalog.conditioningProgression(exerciseIDs: ids),
-            ProgramFixtureCatalog.waveLoading(exerciseIDs: ids)
-        ]
+    // MARK: - Progression evaluator unit coverage (moved from ProgramEngineTypesTests)
 
-        for fixture in fixtures {
-            XCTAssertTrue(ProgramDefinitionValidator.validate(fixture).isEmpty, fixture.name)
-            XCTAssertFalse(try ProgramDefinitionPreview.rows(for: fixture).isEmpty, fixture.name)
-        }
+    func testProgressionEvaluatorAppliesLinearSuccessAndFailureActions() throws {
+        let rules = [
+            ProgressionRuleDefinition(
+                metric: .load,
+                trigger: .allRequiredSetsCompleted,
+                successAction: .addLoad(2.5),
+                failureAction: .repeatPrescription,
+                cadence: .nextExerciseOccurrence,
+                scope: .exerciseExposure,
+                applicationMode: .automatic
+            )
+        ]
+        let state = ProgressionEvaluationState(currentLoad: 100)
+        let success = try ProgramProgressionEvaluator.evaluate(
+            rules: rules,
+            performance: ProgressionPerformance(requiredSets: 3, completedSets: 3),
+            state: state
+        )
+        XCTAssertEqual(success.state.currentLoad, 102.5)
+        XCTAssertEqual(success.recommendations.count, 1)
+        XCTAssertEqual(success.recommendations.first?.applicationMode, .automatic)
+        XCTAssertEqual(success.recommendations.first?.performance.completedSets, 3)
+
+        let failure = try ProgramProgressionEvaluator.evaluate(
+            rules: rules,
+            performance: ProgressionPerformance(requiredSets: 3, completedSets: 2, didFail: true),
+            state: state
+        )
+        XCTAssertEqual(failure.state.currentLoad, 100)
+        XCTAssertEqual(failure.recommendations.first?.action, .repeatPrescription)
+    }
+
+    func testProgressionEvaluatorGeneratesRPERecommendationOnlyWhenAboveTarget() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .rpe,
+            trigger: .actualRPEAboveTarget(tolerance: 1),
+            successAction: .generateRecommendation,
+            failureAction: .noChange,
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .recommendation
+        )
+
+        let aboveTarget = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(targetRPE: 8, actualRPE: 9.5),
+            state: ProgressionEvaluationState(currentLoad: 100)
+        )
+        XCTAssertEqual(aboveTarget.recommendations.count, 1)
+        XCTAssertEqual(aboveTarget.recommendations.first?.action, .generateRecommendation)
+        XCTAssertEqual(aboveTarget.recommendations.first?.applicationMode, .recommendation)
+
+        let withinTolerance = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(targetRPE: 8, actualRPE: 8.5),
+            state: ProgressionEvaluationState(currentLoad: 100)
+        )
+        XCTAssertTrue(withinTolerance.recommendations.isEmpty)
+        XCTAssertEqual(withinTolerance.state.currentLoad, 100)
+    }
+
+    func testProgressionEvaluatorSupportsDoubleProgressionRecommendationAndVariationLadder() throws {
+        let increaseRule = ProgressionRuleDefinition(
+            metric: .repetitions,
+            trigger: .allSetsReachedUpperRepBound,
+            successAction: .addLoad(5),
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .recommendation
+        )
+        let variationRule = ProgressionRuleDefinition(
+            metric: .exerciseVariation,
+            trigger: .technicalQualityReached,
+            successAction: .advanceExerciseVariation,
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let firstVariation = UUID()
+        let secondVariation = UUID()
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [increaseRule, variationRule],
+            performance: ProgressionPerformance(requiredSets: 3, upperBoundSets: 3, technicalQualityReached: true),
+            state: ProgressionEvaluationState(currentLoad: 30, currentVariationExerciseID: firstVariation),
+            variationLadder: [firstVariation, secondVariation]
+        )
+
+        XCTAssertEqual(result.state.currentLoad, 30)
+        XCTAssertEqual(result.state.currentVariationExerciseID, secondVariation)
+        XCTAssertEqual(result.recommendations.count, 2)
+        let loadRecommendation = result.recommendations.first { $0.action == .addLoad(5) }
+        XCTAssertEqual(loadRecommendation?.applicationMode, .recommendation)
+    }
+
+    func testProgressionEvaluatorSupportsTechnicalQualityRatio() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .technicalQuality,
+            trigger: .successfulAttemptRatioReached(0.9),
+            successAction: .advanceExerciseVariation,
+            cadence: .nextExerciseOccurrence,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let firstVariation = UUID()
+        let secondVariation = UUID()
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(successfulAttemptRatio: 0.9),
+            state: ProgressionEvaluationState(currentVariationExerciseID: firstVariation),
+            variationLadder: [firstVariation, secondVariation]
+        )
+
+        XCTAssertEqual(result.state.currentVariationExerciseID, secondVariation)
+        XCTAssertEqual(result.recommendations.first?.action, .advanceExerciseVariation)
+    }
+
+    func testProgressionEvaluatorSupportsDurationDistanceAndRestProgression() throws {
+        let rules = [
+            ProgressionRuleDefinition(metric: .duration, trigger: .allRequiredSetsCompleted, successAction: .addDuration(10), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .distance, trigger: .allRequiredSetsCompleted, successAction: .addDistance(100), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .restDuration, trigger: .allRequiredSetsCompleted, successAction: .reduceRestDuration(5), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .calories, trigger: .allRequiredSetsCompleted, successAction: .addCalories(25), cadence: .nextExerciseOccurrence, scope: .exerciseExposure, applicationMode: .automatic)
+        ]
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: rules,
+            performance: ProgressionPerformance(requiredSets: 1, completedSets: 1),
+            state: ProgressionEvaluationState(durationOffset: 30, distanceOffset: 500, restDurationOffset: 10, caloriesOffset: 100)
+        )
+
+        XCTAssertEqual(result.state.durationOffset, 40)
+        XCTAssertEqual(result.state.distanceOffset, 600)
+        XCTAssertEqual(result.state.restDurationOffset, 5)
+        XCTAssertEqual(result.state.caloriesOffset, 125)
+    }
+
+    func testProgressionEvaluatorSupportsCalorieThresholds() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .calories,
+            trigger: .totalCaloriesReached(500),
+            successAction: .addCalories(50),
+            cadence: .nextWorkout,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(completedCalories: 525),
+            state: ProgressionEvaluationState()
+        )
+        XCTAssertEqual(result.state.caloriesOffset, 50)
+    }
+
+    func testProgressionEvaluatorResetsFailureAndOffsets() throws {
+        let rules = [
+            ProgressionRuleDefinition(metric: .load, trigger: .manualApproval, successAction: .resetFailureCount, cadence: .nextWorkout, scope: .exerciseExposure, applicationMode: .automatic),
+            ProgressionRuleDefinition(metric: .load, trigger: .manualApproval, successAction: .resetProgressionOffsets, cadence: .nextWorkout, scope: .exerciseExposure, applicationMode: .automatic)
+        ]
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: rules,
+            performance: ProgressionPerformance(manualApproval: true),
+            state: ProgressionEvaluationState(repetitionOffset: 2, setCountOffset: 1, durationOffset: 30, distanceOffset: 100, restDurationOffset: 5, caloriesOffset: 100, failureCount: 3)
+        )
+        XCTAssertEqual(result.state.failureCount, 0)
+        XCTAssertEqual(result.state.repetitionOffset, 0)
+        XCTAssertEqual(result.state.distanceOffset, 0)
+        XCTAssertEqual(result.state.caloriesOffset, 0)
+    }
+
+    func testProgressionEvaluatorPersistsRepAndSetVolumeOffsets() throws {
+        let rule = ProgressionRuleDefinition(
+            metric: .repetitions,
+            trigger: .weekCompleted,
+            successAction: .addRepetitions(2),
+            failureAction: .addSets(1),
+            cadence: .nextWeek,
+            scope: .exerciseExposure,
+            applicationMode: .automatic
+        )
+        let state = ProgressionEvaluationState()
+        let result = try ProgramProgressionEvaluator.evaluate(
+            rules: [rule],
+            performance: ProgressionPerformance(weekCompleted: true),
+            state: state
+        )
+        XCTAssertEqual(result.state.repetitionOffset, 2)
+        XCTAssertEqual(result.state.setCountOffset, 0)
+    }
+
+    func testProgressionEvaluatorAdvancesWaveAndBlockState() throws {
+        // Evaluated separately: advanceBlock deliberately resets the wave
+        // index, so a combined evaluation's outcome depends on rule order.
+        let waveResult = try ProgramProgressionEvaluator.evaluate(
+            rules: [ProgressionRuleDefinition(metric: .load, trigger: .waveCompleted, successAction: .advanceWave, cadence: .nextWave, scope: .exerciseExposure, applicationMode: .automatic)],
+            performance: ProgressionPerformance(waveCompleted: true),
+            state: ProgressionEvaluationState()
+        )
+        XCTAssertEqual(waveResult.state.currentWaveIndex, 1)
+
+        let blockResult = try ProgramProgressionEvaluator.evaluate(
+            rules: [ProgressionRuleDefinition(metric: .load, trigger: .blockCompleted, successAction: .advanceBlock, cadence: .nextBlock, scope: .exerciseExposure, applicationMode: .automatic)],
+            performance: ProgressionPerformance(blockCompleted: true),
+            state: ProgressionEvaluationState(currentWaveIndex: 2)
+        )
+        XCTAssertEqual(blockResult.state.currentBlockIndex, 1)
+        XCTAssertEqual(blockResult.state.currentWaveIndex, 0)
     }
 }

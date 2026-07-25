@@ -161,10 +161,6 @@ final class WorkoutSupersetTests: XCTestCase {
         try GymTrackerTestStore.makeInMemoryContext()
     }
 
-    private func makeDiskStoreURL() throws -> URL {
-        try WorkoutTestFixture.makeDiskStoreURL()
-    }
-
     private func makeExercise() -> Exercise {
         WorkoutTestFixture.makeExercise()
     }

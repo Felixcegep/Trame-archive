@@ -277,7 +277,7 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         XCTAssertFalse(state.isDeloading)
     }
 
-    func testBundledCatalogSeedsValidatesPreviewsAndCompilesAllFourteenPrograms() throws {
+    func testBundledCatalogSeedsValidatesPreviewsAndCompilesEveryProgramIdempotently() throws {
         let context = try makeContext()
         for exercise in ExerciseSeedData.templates() {
             context.insert(exercise)
@@ -287,15 +287,23 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         let data = try AuthoringProgramCatalogDecoder.bundledData()
         let decoded = try AuthoringProgramCatalogDecoder.decode(data)
         XCTAssertTrue(decoded.failures.isEmpty, decoded.failures.map { "\($0.programKey): \($0.message)" }.joined(separator: "\n"))
-        XCTAssertEqual(decoded.definitions.count, 14)
+        XCTAssertFalse(decoded.definitions.isEmpty)
+        // The bundled catalog's contract is unique, fully-decodable program
+        // keys — not a specific headcount that breaks every time a program
+        // is added.
+        XCTAssertEqual(Set(decoded.definitions.map(\.programKey)).count, decoded.definitions.count)
 
         let result = try ProgramLibrarySeedData.seed(data, in: context)
-        XCTAssertEqual(Set(result.importedProgramKeys).count, 14)
+        XCTAssertEqual(Set(result.importedProgramKeys).count, decoded.definitions.count)
         let secondResult = try ProgramLibrarySeedData.seed(data, in: context)
-        XCTAssertEqual(Set(secondResult.importedProgramKeys).count, 14)
+        // Re-seeding the same bundled data must not create duplicate records:
+        // the reported key set stays the same size as the first import.
+        XCTAssertEqual(Set(secondResult.importedProgramKeys).count, decoded.definitions.count)
 
         let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
-        XCTAssertEqual(records.count, 14)
+        // One persisted record per decoded definition, regardless of how many
+        // programs the catalog contains.
+        XCTAssertEqual(records.count, decoded.definitions.count)
         for record in records {
             let payload = try record.payload()
             XCTAssertTrue(
@@ -438,7 +446,11 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         _ = try ProgramLibrarySeedData.seed(data, in: context)
         let fetchedRecords: [ProgramDefinitionRecord] = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
         let records = fetchedRecords.sorted(by: { lhs, rhs in lhs.name < rhs.name })
-        XCTAssertEqual(records.count, 14)
+        XCTAssertFalse(records.isEmpty)
+        // Every bundled program key seeds exactly one record: no collisions,
+        // no silent drops. This stays true as the catalog grows, unlike a
+        // fixed headcount.
+        XCTAssertEqual(Set(records.map(\.name)).count, records.count)
 
         for record in records {
             try XCTContext.runActivity(named: record.name) { _ in
@@ -526,9 +538,24 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         let restoredContext = try makeContext()
         let roundTrippedBackup = try JSONDecoder().decode(BackupDTO.self, from: JSONEncoder().encode(backup))
         try roundTrippedBackup.restore(to: restoredContext)
-        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<WorkoutPlan>()).count, 14)
-        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<PlanRun>()).count, 14)
-        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<Workout>()).filter { $0.status == .completed }.count, 14)
+        // One plan, run, and completed workout were created per bundled
+        // program above; the backup round trip must preserve that count
+        // exactly, whatever the catalog's size is. Restore also always
+        // re-stages the bundled system-seed catalog (see
+        // SystemSeedCatalogCoordinator.stageBundledCatalog), which installs
+        // exactly one additional, dormant utility plan — the sacroiliac
+        // rehab plan — independent of how many program-derived plans the
+        // backup itself contained. That plan has no run or history, so only
+        // the WorkoutPlan count carries the "+1"; PlanRun and completed
+        // Workout counts stay tied to the bundled program count exactly.
+        let restoredPlans = try restoredContext.fetch(FetchDescriptor<WorkoutPlan>())
+        XCTAssertEqual(restoredPlans.filter { $0.name == SacroiliacRehabPlanSeedData.planName }.count, 1)
+        XCTAssertEqual(restoredPlans.count, records.count + 1)
+        XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<PlanRun>()).count, records.count)
+        XCTAssertEqual(
+            try restoredContext.fetch(FetchDescriptor<Workout>()).filter { $0.status == .completed }.count,
+            records.count
+        )
         XCTAssertTrue(try restoredContext.fetch(FetchDescriptor<PlanRun>()).allSatisfy { !$0.progressionStates.isEmpty })
     }
 

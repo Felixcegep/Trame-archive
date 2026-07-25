@@ -19,6 +19,20 @@ final class ExerciseArchiveIntegrityTests: XCTestCase {
         XCTAssertFalse(exercise.isArchived)
     }
 
+    /// Restore is not a narrow "replay only what's in the backup" operation:
+    /// per GT-03 (atomic backup restore), `BackupDTO.restore(to:)` always
+    /// stages the full bundled system catalog — including every default
+    /// `ExerciseRelationship` in `ExerciseRelationshipSeedData.definitions`
+    /// — into the destination context as part of the same atomic transaction
+    /// that replays the backup's own custom content. A fresh restore
+    /// destination is therefore never actually empty of relationships; it
+    /// always ends up with one bundled relationship per seed definition plus
+    /// whatever custom relationships the backup carried. This test asserted
+    /// the pre-GT-03 behavior (restore produces exactly the backup's own
+    /// relationships) and started failing once restore began rebuilding the
+    /// bundled catalog — confirmed by running it against `main` and reading
+    /// `GymBackupRestore.restoreExerciseCatalog`/`SystemSeedCatalogCoordinator
+    /// .stageBundledCatalog`, not a real behavioral regression.
     func testExerciseRelationshipBackupRoundTripAndArchiveProtection() throws {
         let context = try makeContext()
         let source = Exercise(name: "Barbell Bench Press", primaryMuscles: [.middleChest], isCustom: false)
@@ -48,9 +62,32 @@ final class ExerciseArchiveIntegrityTests: XCTestCase {
         let restoredContext = try makeContext()
         try backup.restore(to: restoredContext)
         let restored = try restoredContext.fetch(FetchDescriptor<ExerciseRelationship>())
-        XCTAssertEqual(restored.count, 1)
-        XCTAssertEqual(restored.first?.sourceExercise?.name, "Barbell Bench Press")
-        XCTAssertEqual(restored.first?.targetExercise?.name, "Dumbbell Bench Press")
+
+        // Structural invariant, not a hardcoded headcount: restoring always
+        // adds one relationship per bundled seed definition on top of the
+        // backup's own custom relationships, so the expected total tracks
+        // `ExerciseRelationshipSeedData.definitions.count` rather than a
+        // number that would silently go stale the moment a bundled
+        // relationship is added or removed.
+        let expectedCount = ExerciseRelationshipSeedData.definitions.count + 1
+        XCTAssertEqual(restored.count, expectedCount, "Expected every bundled seed relationship plus the one custom relationship carried by the backup")
+
+        let customRelationship = try XCTUnwrap(
+            restored.first {
+                $0.sourceExercise?.name == "Barbell Bench Press"
+                    && $0.targetExercise?.name == "Dumbbell Bench Press"
+            },
+            "The backup's own custom relationship must round-trip alongside the bundled catalog"
+        )
+        XCTAssertEqual(customRelationship.type, .substitution)
+
+        // The archived source exercise itself must also round-trip with its
+        // archived flag intact, not just the relationship that references it.
+        let restoredSource = try XCTUnwrap(
+            try restoredContext.fetch(FetchDescriptor<Exercise>())
+                .first { $0.name == "Barbell Bench Press" && !$0.isCustom }
+        )
+        XCTAssertTrue(restoredSource.isArchived, "An archived exercise must remain archived after restore")
     }
 
     func testExerciseArchiveServiceDeletesUnreferencedCustomAndArchivesReferencedCustom() throws {

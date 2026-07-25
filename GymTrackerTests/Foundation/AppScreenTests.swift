@@ -2,6 +2,27 @@ import XCTest
 @testable import GymTracker
 
 final class AppScreenTests: XCTestCase {
+    // MARK: - AppTab
+    //
+    // Merged from the former AppNavigationTests.swift: AppTab is the input
+    // AppScreen.current resolves against, so both belong to the same
+    // navigation-state concern.
+
+    func testFourPrimaryTabsHaveStableIdentifiers() {
+        XCTAssertEqual(AppTab.allCases, [.today, .train, .nutrition, .progress])
+        XCTAssertEqual(AppTab.today.accessibilityIdentifier, "tab-today")
+        XCTAssertEqual(AppTab.train.accessibilityIdentifier, "tab-train")
+        XCTAssertEqual(AppTab.nutrition.accessibilityIdentifier, "tab-nutrition")
+        XCTAssertEqual(AppTab.progress.accessibilityIdentifier, "tab-progress")
+    }
+
+    func testActiveExecutionFlowsAreNotTabs() {
+        XCTAssertFalse(AppTab.allCases.map(\.title).contains("Active Workout"))
+        XCTAssertFalse(AppTab.allCases.map(\.title).contains("Mobility"))
+    }
+
+    // MARK: - AppScreen
+
     func testEachPrimaryTabReportsExpectedLabel() {
         for tab in AppTab.allCases {
             let screen = AppScreen.current(

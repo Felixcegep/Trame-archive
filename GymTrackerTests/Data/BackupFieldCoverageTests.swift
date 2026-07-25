@@ -576,6 +576,121 @@ final class BackupFieldCoverageTests: XCTestCase {
         assertFieldCount(of: LoggedMealDTO.self, equals: 10)
     }
 
+    /// The count guard above only protects the eight DTO types it already
+    /// knows about — it has no way to notice a brand-new `...DTO` type that
+    /// nobody wired a round trip for at all. This test closes that blind
+    /// spot by scanning `GymBackupDTOs.swift` itself for every `struct
+    /// ...DTO` declaration and checking each one off against an explicit
+    /// decision recorded right here: either it has full round-trip +
+    /// field-count coverage above, or it is named in `knownUncoveredDTOTypes`
+    /// as a deliberate, currently-open gap. Adding a new DTO type with no
+    /// entry in either list fails this test instead of silently shipping
+    /// with zero backup coverage.
+    ///
+    /// This is intentionally table-driven rather than hand-counted: the
+    /// source of truth is the production file, not a number a person has to
+    /// remember to bump.
+    func testEveryBackupDTOTypeHasARecordedCoverageDecision() throws {
+        let dtoSourceFile = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Data
+            .deletingLastPathComponent() // GymTrackerTests
+            .deletingLastPathComponent() // repository root
+            .appendingPathComponent("GymTracker/Core/Data/GymBackupDTOs.swift")
+        let source = try String(contentsOf: dtoSourceFile, encoding: .utf8)
+
+        let pattern = #"struct\s+(\w+DTO)\s*:\s*Codable"#
+        let regex = try NSRegularExpression(pattern: pattern)
+        let matches = regex.matches(in: source, range: NSRange(source.startIndex..., in: source))
+        let declaredTypes = Set(matches.compactMap { match -> String? in
+            guard let range = Range(match.range(at: 1), in: source) else { return nil }
+            return String(source[range])
+        })
+        XCTAssertFalse(declaredTypes.isEmpty, "Expected to find DTO struct declarations in \(dtoSourceFile.path); the scan path or pattern may be stale.")
+
+        let accountedFor = Self.coveredDTOTypes.union(Self.knownUncoveredDTOTypes)
+        let unaccounted = declaredTypes.subtracting(accountedFor)
+        XCTAssertTrue(
+            unaccounted.isEmpty,
+            """
+            New DTO type(s) \(unaccounted.sorted()) exist in GymBackupDTOs.swift with no coverage \
+            decision recorded in BackupFieldCoverageTests. Either add a sentinel round-trip test \
+            plus an `assertFieldCount` guard and list the type in `coveredDTOTypes`, or — if \
+            coverage is deliberately deferred — add it to `knownUncoveredDTOTypes` with a comment \
+            explaining why.
+            """
+        )
+
+        let stale = Self.coveredDTOTypes.subtracting(declaredTypes)
+        XCTAssertTrue(stale.isEmpty, "coveredDTOTypes lists \(stale), which no longer exist in GymBackupDTOs.swift; remove the stale entry.")
+    }
+
+    /// DTO types with a sentinel round-trip test above *and* an
+    /// `assertFieldCount` guard in `testBackupDTOFieldCountsMatchTheirMappings`.
+    private static let coveredDTOTypes: Set<String> = [
+        "ExerciseSetDTO",
+        "ExerciseSetSegmentDTO",
+        "ComplexComponentResultDTO",
+        "ExerciseEntryDTO",
+        "WorkoutDTO",
+        "ExerciseTemplateDTO",
+        "FoodItemDTO",
+        "LoggedMealDTO"
+    ]
+
+    /// DTO types with no Mirror-based field-count guard *in this file* yet.
+    /// Several of these already have behavioral round-trip coverage
+    /// elsewhere (e.g. `PlanRunDTO`/`WorkoutPlanDTO` in `PlanSchedulingTests`,
+    /// `DailyLogEntryDTO`/`BodyWeightEntryDTO` in `TodayFoundationTests`,
+    /// mobility DTOs in the Mobility suite) — this list only tracks the
+    /// specific "every field, sentinel value, tripwire on the exact count"
+    /// guarantee this file provides, which is stronger than an ordinary
+    /// round trip because it catches a field that was added to the DTO but
+    /// never wired into any mapping at all. Recorded explicitly here rather
+    /// than left to silently pass, so this file is honest about which DTOs
+    /// still lack that guarantee. Closing one of these is a legitimate,
+    /// separately-scoped strengthening of this file — move the type up to
+    /// `coveredDTOTypes` once it has a sentinel round trip and a field-count
+    /// guard.
+    private static let knownUncoveredDTOTypes: Set<String> = [
+        "BackupDTO", // top-level container; exercised by every round trip above, but has no single-model field-count guard of its own.
+        "PreferencesDTO",
+        "ExerciseRelationshipDTO",
+        "TemplateExerciseDTO",
+        "TemplateExerciseBlockDTO",
+        "WorkoutTemplateDTO",
+        "WorkoutCollectionDTO",
+        "WorkoutExecutionBlockDTO",
+        "PlannedExerciseDTO",
+        "PlannedSetDTO",
+        "ProgressionStateDTO",
+        "ProgressionRecommendationDTO",
+        "PlannedWorkoutDTO",
+        "PlannedExerciseBlockDTO",
+        "PlanWeekDTO",
+        "PlanBlockDTO",
+        "WorkoutPlanDTO",
+        "PlanWorkoutProgressDTO",
+        "PlanRunDTO",
+        "ProgramDefinitionDTO",
+        "DailyLogEntryDTO",
+        "BodyWeightEntryDTO",
+        "SupplementOccurrenceDTO",
+        "MobilityFamilyDTO",
+        "MobilityDefinitionDTO",
+        "MobilityPhasePrescriptionDTO",
+        "MobilityRoutineItemDTO",
+        "MobilityRoutineDTO",
+        "MobilityPhaseResultDTO",
+        "MobilityResultDTO",
+        "MobilityEntryDTO",
+        "MobilitySessionDTO",
+        "FoodServingDTO",
+        "MealTemplateItemDTO",
+        "MealTemplateDTO",
+        "LoggedMealItemDTO",
+        "NutritionTargetDTO"
+    ]
+
     private func assertFieldCount<T>(
         of type: T.Type,
         equals expected: Int,

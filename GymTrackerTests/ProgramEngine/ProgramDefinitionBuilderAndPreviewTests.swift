@@ -301,4 +301,13 @@ final class ProgramDefinitionBuilderAndPreviewTests: XCTestCase {
         XCTAssertTrue(issues.contains { $0.path == "blocks[0].deloadVolumeReductionPercent" })
     }
 
+    // MARK: - Preview coverage (moved from ProgramEngineTypesTests)
+
+    func testWaveLoadingFixturePreservesStructuredWavesInPreview() throws {
+        let rows = try ProgramDefinitionPreview.rows(for: ProgramFixtureCatalog.waveLoading(exerciseIDs: ["squat": UUID()]))
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.waveCount, 2)
+        XCTAssertEqual(rows.first?.setCount, 2)
+    }
+
 }

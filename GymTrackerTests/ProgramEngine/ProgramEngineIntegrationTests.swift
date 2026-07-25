@@ -592,4 +592,104 @@ final class ProgramEngineIntegrationTests: XCTestCase {
     private func makeContext() throws -> ModelContext {
         try GymTrackerTestStore.makeInMemoryContext()
     }
+
+    // MARK: - Compiler coverage (moved from ProgramEngineTypesTests)
+
+    func testCompilerCreatesNormalPlanAndRunStatePerExposure() throws {
+        let squat = Exercise(name: "Back Squat", primaryMuscles: [.quadriceps])
+        let definition = ProgramDefinitionFixture.make(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: squat.id,
+                exposureKey: "squat-strength",
+                orderIndex: 0,
+                plannedSets: [
+                    SetPrescriptionDefinition(
+                        orderIndex: 0,
+                        role: .working,
+                        repetitions: .fixed(5),
+                        load: LoadPrescription(
+                            reference: LoadReference(kind: .fixedLoad),
+                            fixedValue: 100,
+                            rounding: .nearestIncrement(2.5)
+                        )
+                    ),
+                    SetPrescriptionDefinition(
+                        orderIndex: 1,
+                        role: .working,
+                        repetitions: .fixed(5),
+                        load: LoadPrescription(
+                            reference: LoadReference(kind: .fixedLoad),
+                            fixedValue: 100,
+                            rounding: .nearestIncrement(2.5)
+                        )
+                    )
+                ]
+            )
+        ])
+
+        let plan = try ProgramDefinitionCompiler.compile(definition, exercisesByID: [squat.id: squat])
+        let plannedExercise = try XCTUnwrap(plan.orderedWeeks.first?.orderedPlannedWorkouts.first?.orderedPlannedExercises.first)
+        XCTAssertEqual(plan.sourceProgramDefinitionID, definition.id)
+        XCTAssertEqual(plan.sourceProgramDefinitionVersion, definition.templateVersion)
+        XCTAssertEqual(plannedExercise.progressionKey, "squat-strength")
+        XCTAssertEqual(plannedExercise.orderedPlannedSets.count, 2)
+        XCTAssertEqual(plannedExercise.orderedPlannedSets.first?.suggestedLoad, 100)
+        XCTAssertNotNil(plannedExercise.orderedPlannedSets.first?.definitionData)
+
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        XCTAssertEqual(run.orderedProgressionStates.map(\.progressionKey), ["squat-strength"])
+        XCTAssertEqual(run.orderedProgressionStates.first?.currentVariationExerciseID, squat.id)
+    }
+
+    func testDefinitionRecordStoresVersionedPayloadMetadata() throws {
+        var definition = ProgramDefinitionFixture.make(exercises: [
+            ProgramExerciseDefinition(
+                exerciseID: UUID(),
+                exposureKey: "row",
+                orderIndex: 0,
+                plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(10))]
+            )
+        ])
+        definition.programKey = "row-program"
+        let record = try ProgramDefinitionRecord(payload: definition, isBuiltIn: true)
+
+        XCTAssertEqual(record.id, definition.id)
+        XCTAssertEqual(record.templateVersion, definition.templateVersion)
+        XCTAssertTrue(record.isBuiltIn)
+        XCTAssertEqual(try record.payload(), definition)
+    }
+
+    func testCompiledExposureSeedsItsFirstRunValues() throws {
+        let squat = Exercise(name: "Seeded Squat", primaryMuscles: [.quadriceps])
+        let definition = ProgramDefinitionPayload(
+            name: "Seeded Program",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [1],
+            blocks: [ProgramBlockDefinition(
+                orderIndex: 0,
+                name: "Main",
+                weeks: [ProgramWeekDefinition(
+                    weekIndex: 0,
+                    workouts: [ProgramWorkoutDefinition(
+                        orderIndex: 0,
+                        name: "Day",
+                        dayOffset: 0,
+                        plannedExercises: [ProgramExerciseDefinition(
+                            exerciseID: squat.id,
+                            exposureKey: "seeded-squat",
+                            orderIndex: 0,
+                            plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(5), load: LoadPrescription(reference: .init(kind: .trainingMax, exposureKey: "seeded-squat"), percentage: 0.8))],
+                            initialTrainingMax: 200,
+                            initialActualOneRepMax: 220
+                        )]
+                    )]
+                )]
+            )]
+        )
+        let plan = try ProgramDefinitionCompiler.compile(definition, exercisesByID: [squat.id: squat])
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        XCTAssertEqual(run.orderedProgressionStates.first?.trainingMax, 200)
+        XCTAssertEqual(run.orderedProgressionStates.first?.actualOneRepMax, 220)
+        XCTAssertNil(run.orderedProgressionStates.first?.currentLoad, "No fixed current load should be invented from a percentage prescription")
+    }
 }

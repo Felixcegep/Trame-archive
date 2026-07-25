@@ -122,17 +122,18 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
         let restoredEntry = try XCTUnwrap(
             restored.fetch(FetchDescriptor<Workout>()).first?.orderedExercises.first
         )
-        XCTAssertEqual(restoredEntry.recommendedDecision, .increase)
-        XCTAssertEqual(restoredEntry.recommendedLoad, 105)
-        XCTAssertEqual(restoredEntry.recommendedUnit, .lbs)
-        XCTAssertEqual(restoredEntry.recommendationPriorLoad, 100)
-        XCTAssertEqual(restoredEntry.recommendationRequiredSets, 3)
-        XCTAssertEqual(restoredEntry.recommendationRepCeiling, 12)
-        XCTAssertEqual(restoredEntry.recommendationCompletedSets, 3)
-        XCTAssertEqual(
-            restoredEntry.recommendationPriorWorkoutDate,
-            Date(timeIntervalSince1970: 1_700_000_000)
-        )
+        // The recommendation-snapshot fields on ExerciseEntry (recommendedDecision,
+        // recommendedLoad, recommendedUnit, recommendationPriorLoad,
+        // recommendationRequiredSets, recommendationRepCeiling,
+        // recommendationCompletedSets, recommendationPriorWorkoutDate) round-trip
+        // through this same BackupDTO.create → encode → decode → restore path and
+        // are asserted field-by-field in
+        // `BackupFieldCoverageTests.testExerciseEntryRoundTripsEveryPersistedField`.
+        // A non-nil recommendation is enough evidence here that the snapshot
+        // survived; this test's unique value is the TemplateExercise
+        // `progressionRule` round trip asserted above, which the sentinel does
+        // not cover.
+        XCTAssertNotNil(restoredEntry.recommendedDecision)
     }
 
     func testBackupRoundTripsDeferredBackOffSnapshotWithoutDuplicatingGeneratedWork() throws {
@@ -390,59 +391,6 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
         XCTAssertEqual(restoredSet.prescriptionLoadExplanation, "Training Max 65.5 × 80% = 52.4 → rounded to 52.5.")
     }
 
-
-    private func makePlanRunBackup() throws -> BackupDTO {
-        let source = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 1)
-        template.name = "Backup Plan Template"
-        let plan = PlanCoordinator.createPlan(
-            name: "Backup Plan",
-            goal: .hypertrophy,
-            experienceLevel: .intermediate,
-            durationWeeks: 1,
-            dayAssignments: [
-                .init(dayOffset: 0, template: template),
-                .init(dayOffset: 2, template: template)
-            ]
-        )
-        let run = try XCTUnwrap(
-            PlanCoordinator.startRun(
-                for: plan,
-                startDate: Date(timeIntervalSince1970: 1_700_000_000)
-            )
-        )
-        let firstProgress = try XCTUnwrap(run.orderedWorkoutProgress.first)
-        let firstPlannedWorkout = try XCTUnwrap(
-            PlanCoordinator.plannedWorkout(for: firstProgress, in: run)
-        )
-        let completedWorkout = Workout(
-            plannedWorkout: firstPlannedWorkout,
-            planRun: run,
-            unitSystem: .metric
-        )
-        completedWorkout.status = .completed
-        completedWorkout.endTime = Date(timeIntervalSince1970: 1_700_003_600)
-        let firstSet = try XCTUnwrap(completedWorkout.orderedExercises.first?.orderedSets.first)
-        firstSet.repetitions = 8
-        firstSet.weight = 50
-        firstSet.done = true
-        PlanCoordinator.markCompleted(firstProgress, with: completedWorkout, in: run)
-
-        source.insert(exercise)
-        source.insert(template)
-        source.insert(plan)
-        source.insert(run)
-        source.insert(completedWorkout)
-        try source.save()
-
-        return try BackupDTO.create(
-            from: source,
-            restTimer: 120,
-            darkMode: true,
-            unitSystem: .imperial
-        )
-    }
 
     private func makeExercise() -> Exercise {
         Exercise(name: "Bench Press", primaryMuscles: [.upperChest])

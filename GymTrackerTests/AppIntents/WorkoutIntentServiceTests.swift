@@ -147,6 +147,20 @@ final class WorkoutIntentServiceTests: XCTestCase {
     }
 
     func testAppShortcutsExposeTheExpandedWorkoutActions() {
-        XCTAssertEqual(GymTrackerAppShortcuts.appShortcuts.count, 10)
+        // Apple caps the number of app shortcuts an `AppShortcutsProvider`
+        // may vend at 10 (App Intents documentation: "provide up to ten
+        // total App Shortcuts"). This literal encodes that hard platform
+        // limit, not an incidental headcount that should track catalog
+        // growth — GymTrackerAppShortcuts is already at the ceiling, so
+        // this test doubles as a reminder that adding an eleventh shortcut
+        // requires retiring one of the existing ten first.
+        //
+        // `AppShortcut` does not expose its phrases/title/icon for runtime
+        // introspection (they are consumed by the App Intents result
+        // builder at declaration time only), so the count is the only
+        // property this test can assert against; the shortcut declarations
+        // themselves are reviewed by hand in
+        // `GymTrackerWorkoutIntents.swift`.
+        XCTAssertEqual(GymTrackerAppShortcuts.appShortcuts.count, 10, "GymTrackerAppShortcuts must stay at or under Apple's 10-shortcut limit for AppShortcutsProvider")
     }
 }

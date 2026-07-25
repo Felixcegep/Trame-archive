@@ -3,230 +3,12 @@ import SwiftData
 import XCTest
 @testable import GymTracker
 
+/// `WorkoutExecutionBlock` / `TemplateExerciseBlock`: authoring a block on a
+/// template, snapshotting it fresh onto a started workout and a generated
+/// plan, validating membership/format rules, running its clock, and
+/// persisting it (including through backup) without losing its evidence.
 @MainActor
-final class StrengthExpansionFoundationTests: XCTestCase {
-    func testMissingPersistedSetMethodUsesStandardSemantics() {
-        let set = ExerciseSet(repetitions: 5, weight: 100, done: true, usedMetric: .metric)
-        set.setMethod = nil
-
-        XCTAssertEqual(set.resolvedSetMethod, .standard)
-    }
-
-    func testMissingPersistedSpecializedMetricUsesNoMetricSemantics() {
-        let set = ExerciseSet(repetitions: 5, weight: 100, done: true, usedMetric: .metric)
-        set.specializedMetricKind = nil
-
-        XCTAssertEqual(set.resolvedSpecializedMetricKind, .none)
-        XCTAssertTrue(StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(set))
-    }
-
-    func testPlateCalculatorUsesDescendingPerSidePlatesFor215Pounds() {
-        let calculation = PlateCalculation(
-            target: 215,
-            barWeight: 45,
-            plates: [55, 45, 35, 25, 10, 5, 2.5]
-        )
-
-        XCTAssertEqual(calculation.plates, [55, 25, 5])
-        XCTAssertEqual(calculation.totalWeight, 215, accuracy: 0.001)
-        XCTAssertEqual(calculation.perSideWeight, 107.5, accuracy: 0.001)
-        XCTAssertEqual(calculation.remainingWeight, 0, accuracy: 0.001)
-    }
-
-    func testPlateCalculatorKeepsBareBarAndClosestLoadStatesDeterministic() {
-        let bare = PlateCalculation(target: 45, barWeight: 45, plates: [55, 25, 5])
-        XCTAssertEqual(bare.plates, [])
-        XCTAssertEqual(bare.totalWeight, 45)
-
-        let closest = PlateCalculation(target: 212.5, barWeight: 45, plates: [55, 25, 5])
-        XCTAssertGreaterThan(closest.remainingWeight, 0)
-        XCTAssertLessThan(closest.totalWeight, 212.5)
-    }
-
-    func testManualPlateCompositionPreservesChosenDenominationsAndOrder() {
-        var composition = PlateLoadComposition()
-        composition.add(25)
-        composition.add(20)
-        composition.add(15)
-
-        XCTAssertEqual(composition.plates, [25, 20, 15])
-        XCTAssertEqual(composition.totalWeight(barWeight: 20), 140)
-
-        composition.remove(20)
-        XCTAssertEqual(composition.plates, [25, 15])
-        XCTAssertEqual(composition.totalWeight(barWeight: 20), 100)
-    }
-
-    func testManualPlateCompositionRemovesOnlyOneMatchingPlate() {
-        var composition = PlateLoadComposition(plates: [25, 25, 10])
-
-        composition.remove(25)
-
-        XCTAssertEqual(composition.plates, [25, 10])
-        XCTAssertEqual(composition.totalWeight(barWeight: 20), 90)
-    }
-
-    func testPlateDiagramGroupsLargeRepeatedLoadsWithoutChangingTheirMeaning() {
-        let plates = Array(repeating: Float(25), count: 20)
-
-        let items = PlateDiagramLayout.items(for: plates)
-
-        XCTAssertEqual(items, [DiagramPlate(weight: 25, count: 20, occurrence: 0)])
-    }
-
-    func testPlateDiagramKeepsNormalAndMixedManualLoadsInOrder() {
-        let normal = PlateDiagramLayout.items(for: [25, 25, 10, 2.5])
-        XCTAssertEqual(normal.map(\.weight), [25, 25, 10, 2.5])
-        XCTAssertTrue(normal.allSatisfy { $0.count == 1 })
-
-        let largeMixed = PlateDiagramLayout.items(for: [25, 25, 20, 20, 15, 15, 10, 10, 5])
-        XCTAssertEqual(largeMixed.map(\.weight), [25, 20, 15, 10, 5])
-        XCTAssertEqual(largeMixed.map(\.count), [2, 2, 2, 2, 1])
-    }
-
-    func testPerformedEffortWritesAreExclusive() {
-        let set = ExerciseSet(repetitions: 8, weight: 80, rpe: 8.5, rir: 2, usedMetric: .metric)
-
-        set.recordRIR(2)
-        XCTAssertEqual(set.rir, 2)
-        XCTAssertNil(set.rpe)
-
-        set.recordRPE(8.5)
-        XCTAssertEqual(set.rpe, 8.5)
-        XCTAssertNil(set.rir)
-    }
-
-    func testHalfStepPerformedRPEAndScaleMeanings() {
-        let set = ExerciseSet(repetitions: 5, weight: 140, rpe: 9.5, usedMetric: .metric)
-        XCTAssertEqual(set.rpe, 9.5)
-
-        XCTAssertEqual(RPEScale.meaning(for: 9.5), "No reps left — could maybe load slightly more")
-        XCTAssertEqual(RPEScale.meaning(for: 8.5), "Definitely 1, maybe 2 more reps")
-        XCTAssertEqual(RPEScale.meaning(for: 7.5), "Definitely 2, maybe 3 more reps")
-        XCTAssertEqual(RPEScale.meaning(for: 6.5), "Definitely 3, maybe 4 more reps")
-    }
-
-    func testLegExtensionIsSeededOnceWithMachineQuadricepsMetadata() throws {
-        let matches = ExerciseSeedData.templates().filter { $0.name == "Leg Extension" }
-        let legExtension = try XCTUnwrap(matches.first)
-
-        XCTAssertEqual(matches.count, 1)
-        XCTAssertEqual(legExtension.equipmentType, .machine)
-        XCTAssertEqual(legExtension.primaryMuscles, [.quadriceps])
-        XCTAssertEqual(legExtension.stance, .seated)
-        XCTAssertEqual(legExtension.variationFamilyID, "leg-extension")
-        XCTAssertFalse(legExtension.isArchived)
-    }
-
-    func testLiveActivityPresentationNeverCreatesOneOfZero() {
-        let empty = GymTrackerAttributes.ContentState(
-            currentExerciseName: nil,
-            currentSet: nil,
-            totalSeries: nil,
-            currentExerciseOrderIndex: nil,
-            currentSetOrderIndex: nil,
-            hasAnySets: false,
-            restPhase: .inactive,
-            restEndDate: nil,
-            pausedRemainingTime: nil
-        )
-        XCTAssertEqual(empty.presentationState, .emptyWorkout)
-
-        let active = GymTrackerAttributes.ContentState(
-            currentExerciseName: "Bench Press",
-            currentSet: 2,
-            totalSeries: 3,
-            currentExerciseOrderIndex: 0,
-            currentSetOrderIndex: 1,
-            hasAnySets: true,
-            restPhase: .inactive,
-            restEndDate: nil,
-            pausedRemainingTime: nil
-        )
-        XCTAssertEqual(active.presentationState, .activeSet(exercise: "Bench Press", set: 2, total: 3))
-    }
-
-    func testSegmentedSetCopiesMethodAndCreatesFreshIncompleteSegments() throws {
-        let set = ExerciseSet(
-            repetitions: 18,
-            weight: 30,
-            done: true,
-            meanVelocity: 0.62,
-            peakVelocity: 0.81,
-            velocityMeasurementSource: .manual,
-            setMethod: .dropSet,
-            usedMetric: .metric
-        )
-        set.segments = [
-            ExerciseSetSegment(orderIndex: 2, repetitions: 8, weight: 16, done: true),
-            ExerciseSetSegment(orderIndex: 0, repetitions: 10, weight: 30, done: true),
-            ExerciseSetSegment(orderIndex: 1, repetitions: 8, weight: 22, done: true)
-        ]
-
-        let copy = set.copy()
-
-        XCTAssertEqual(copy.resolvedSetMethod, .dropSet)
-        XCTAssertEqual(copy.peakVelocity, 0.81)
-        XCTAssertEqual(copy.velocityMeasurementSource, .manual)
-        XCTAssertEqual(copy.orderedSegments.map(\.weight), [30, 22, 16])
-        XCTAssertTrue(copy.orderedSegments.allSatisfy { !$0.done })
-        XCTAssertNotEqual(copy.orderedSegments.map(\.id), set.orderedSegments.map(\.id))
-    }
-
-    func testStructuredComplexPreservesOrderedComponentOutcomesAndCopiesFreshAttempts() {
-        let cleanID = UUID()
-        let jerkID = UUID()
-        let set = ExerciseSet(repetitions: 2, weight: 80, usedMetric: .metric)
-        set.ensureComplexComponents(for: [
-            ComplexComponentSnapshot(exerciseID: cleanID, exerciseNameSnapshot: "Clean", prescribedRepetitions: 1),
-            ComplexComponentSnapshot(exerciseID: jerkID, exerciseNameSnapshot: "Jerk", prescribedRepetitions: 1)
-        ])
-
-        XCTAssertEqual(set.repetitions, 2)
-
-        set.complexComponents[0].outcome = .completed
-        set.complexComponents[0].performedRepetitions = 1
-        set.complexComponents[1].outcome = .missed
-        set.complexComponents[1].liftQuality = .missed
-        set.done = true
-        set.synchronizeComplexCompletion()
-
-        XCTAssertEqual(set.orderedComplexComponents.map(\.exerciseNameSnapshot), ["Clean", "Jerk"])
-        XCTAssertEqual(set.orderedComplexComponents.map(\.outcome), [.completed, .missed])
-        XCTAssertEqual(set.repetitions, 1)
-        XCTAssertEqual(set.liftQuality, .missed)
-        XCTAssertFalse(StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(set))
-
-        let copy = set.copy()
-        XCTAssertTrue(copy.orderedComplexComponents.allSatisfy { $0.outcome == .notStarted })
-        XCTAssertTrue(copy.orderedComplexComponents.allSatisfy { $0.performedRepetitions == 0 })
-        XCTAssertNotEqual(copy.orderedComplexComponents.map(\.id), set.orderedComplexComponents.map(\.id))
-    }
-
-    func testSegmentedMethodRestoresItsMinimumStructureAndCannotBecomeTraditionalEvidence() {
-        let set = ExerciseSet(
-            repetitions: 8,
-            weight: 80,
-            done: true,
-            setMethod: .cluster,
-            usedMetric: .metric
-        )
-        set.segments = [ExerciseSetSegment(orderIndex: 4, repetitions: 2, weight: 80, done: true)]
-
-        set.ensureSegmentsForMethod()
-        XCTAssertEqual(set.orderedSegments.count, 3)
-        XCTAssertEqual(set.orderedSegments.map(\.orderIndex), [0, 1, 2])
-
-        // Preserving historical segments matters even if someone later changes
-        // the visible method. This evidence must not become a normal load PR.
-        set.setMethod = .standard
-        XCTAssertFalse(StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(set))
-
-        set.done = false
-        set.synchronizeSegmentCompletion()
-        XCTAssertTrue(set.orderedSegments.allSatisfy { !$0.done })
-    }
-
+final class ExecutionBlockTests: XCTestCase {
     func testExecutionBlockTracksElapsedTimeAndIsOwnedByWorkout() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let workout = Workout(name: "Complex session")
@@ -463,46 +245,6 @@ final class StrengthExpansionFoundationTests: XCTestCase {
         XCTAssertNil(jerkTemplate.executionBlockID)
     }
 
-    func testContextAwareRecordPolicySeparatesSegmentedAndSpecializedEvidence() throws {
-        let standard = ExerciseSet(repetitions: 5, weight: 100, done: true, usedMetric: .metric)
-        let cluster = ExerciseSet(repetitions: 5, weight: 100, done: true, setMethod: .cluster, usedMetric: .metric)
-        let jump = ExerciseSet(
-            done: true,
-            specializedMetricKind: .jumpHeight,
-            jumpHeightMeters: 0.58,
-            specializedMetricMeasurementSource: .device,
-            usedMetric: .metric
-        )
-        let estimatedJump = ExerciseSet(
-            done: true,
-            specializedMetricKind: .jumpHeight,
-            jumpHeightMeters: 0.62,
-            specializedMetricMeasurementSource: .estimated,
-            usedMetric: .metric
-        )
-        let unsourcedJump = ExerciseSet(
-            done: true,
-            specializedMetricKind: .jumpHeight,
-            jumpHeightMeters: 0.62,
-            usedMetric: .metric
-        )
-        let zeroContactTime = ExerciseSet(
-            done: true,
-            specializedMetricKind: .contactTime,
-            contactTimeMilliseconds: 0,
-            specializedMetricMeasurementSource: .device,
-            usedMetric: .metric
-        )
-
-        XCTAssertTrue(StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(standard))
-        XCTAssertFalse(StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(cluster))
-        XCTAssertTrue(StrengthAnalyticsPolicy.isEligibleForSpecializedMetricRecord(jump))
-        XCTAssertFalse(StrengthAnalyticsPolicy.isEligibleForSpecializedMetricRecord(estimatedJump))
-        XCTAssertFalse(StrengthAnalyticsPolicy.isEligibleForSpecializedMetricRecord(unsourcedJump))
-        XCTAssertFalse(StrengthAnalyticsPolicy.isEligibleForSpecializedMetricRecord(zeroContactTime))
-        XCTAssertEqual(StrengthAnalyticsPolicy.specializedMetricValue(for: jump)?.unit, "m")
-    }
-
     func testClockAutomaticallyCapsAndCountdownCompletes() throws {
         let startedAt = Date(timeIntervalSince1970: 2_000)
         let amrap = WorkoutExecutionBlock(
@@ -634,59 +376,6 @@ final class StrengthExpansionFoundationTests: XCTestCase {
         }
     }
 
-    func testEverySpecializedMetricAndVelocityUsesTypedComparableEvidence() {
-        let velocity = ExerciseSet(
-            done: true,
-            meanVelocity: 0.58,
-            peakVelocity: 0.71,
-            velocityMeasurementSource: .device,
-            usedMetric: .metric
-        )
-        XCTAssertTrue(StrengthAnalyticsPolicy.isEligibleForVelocityRecord(velocity))
-
-        let jump = ExerciseSet(
-            done: true,
-            specializedMetricKind: .jumpHeight,
-            jumpHeightMeters: 0.55,
-            specializedMetricMeasurementSource: .device,
-            usedMetric: .metric
-        )
-        let contact = ExerciseSet(
-            done: true,
-            specializedMetricKind: .contactTime,
-            contactTimeMilliseconds: 180,
-            specializedMetricMeasurementSource: .device,
-            usedMetric: .metric
-        )
-        let throwDistance = ExerciseSet(
-            done: true,
-            specializedMetricKind: .throwDistance,
-            throwDistanceMeters: 6.2,
-            specializedMetricMeasurementSource: .manual,
-            usedMetric: .metric
-        )
-        let kettlebellCadence = ExerciseSet(
-            done: true,
-            specializedMetricKind: .kettlebellCadence,
-            kettlebellCadenceRPM: 28,
-            specializedMetricMeasurementSource: .device,
-            usedMetric: .metric
-        )
-        let expectedUnits: [(ExerciseSet, String)] = [
-            (jump, "m"),
-            (contact, "ms"),
-            (throwDistance, "m"),
-            (kettlebellCadence, "rpm")
-        ]
-        for (set, unit) in expectedUnits {
-            XCTAssertTrue(StrengthAnalyticsPolicy.isEligibleForSpecializedMetricRecord(set))
-            XCTAssertEqual(StrengthAnalyticsPolicy.specializedMetricValue(for: set)?.unit, unit)
-        }
-        XCTAssertTrue(StrengthAnalyticsPolicy.prefersLowerSpecializedMetric(.contactTime))
-        XCTAssertFalse(StrengthAnalyticsPolicy.prefersLowerSpecializedMetric(.throwDistance))
-        XCTAssertFalse(StrengthAnalyticsPolicy.prefersLowerSpecializedMetric(.kettlebellCadence))
-    }
-
     func testSavingPartialWorkoutPreservesBlockMembershipAndFinalizesBlockStatus() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let first = Exercise(name: "Clean", primaryMuscles: [.quadriceps])
@@ -720,6 +409,14 @@ final class StrengthExpansionFoundationTests: XCTestCase {
         XCTAssertEqual(secondEntry.executionBlockID, block.id)
     }
 
+    // `ExerciseSet`'s segments/complexComponents/velocity/specializedMetric
+    // fields are individually round-tripped in
+    // `BackupFieldCoverageTests`; `WorkoutExecutionBlock` (kind, clockMode,
+    // scoreKind, repetitionScheme/start/end/step, status, completedRounds,
+    // additionalRepetitions, and its `executionBlockID` link to an entry)
+    // is not covered there, so this stays as the one place proving an
+    // execution block — combined with the segmented/specialized evidence a
+    // set inside it can carry — survives a full backup round trip.
     func testBackupRoundTripsExecutionBlockAndSegmentedVelocityEvidence() throws {
         let source = try GymTrackerTestStore.makeInMemoryContext()
         let exercise = Exercise(name: "Dumbbell Curl", primaryMuscles: [.upperChest])
@@ -808,45 +505,5 @@ final class StrengthExpansionFoundationTests: XCTestCase {
         XCTAssertEqual(restoredWorkout.orderedExecutionBlocks.first?.repetitionEnd, 10)
         XCTAssertEqual(restoredWorkout.orderedExecutionBlocks.first?.completedRounds, 3)
         XCTAssertEqual(restoredWorkout.orderedExecutionBlocks.first?.additionalRepetitions, 8)
-    }
-
-    /// `ExerciseSet.tempo`, `movementQuality`, `descriptiveROM`, and
-    /// `discomfortScore` are unsupported performed fields: they exist for
-    /// storage/backup compatibility only and must never gain a production
-    /// input control. This is a source-level regression guard rather than a
-    /// UI snapshot test because the app has no view-inspection dependency;
-    /// it fails the moment any active-workout view binds one of these
-    /// properties, before it can ship silently.
-    func testActiveWorkoutSetDetailExposesNoReservedPerformedFields() throws {
-        let reservedFields = ["movementQuality", "descriptiveROM", "discomfortScore"]
-        let activeWorkoutSourceRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // Workout
-            .deletingLastPathComponent() // GymTrackerTests
-            .deletingLastPathComponent() // repository root
-            .appendingPathComponent("GymTracker/Core/Features/ActiveWorkout")
-
-        let sourceFiles = try FileManager.default
-            .contentsOfDirectory(
-                at: activeWorkoutSourceRoot.appendingPathComponent("Component"),
-                includingPropertiesForKeys: nil
-            )
-            .filter { $0.pathExtension == "swift" }
-        XCTAssertFalse(sourceFiles.isEmpty, "Expected to find active workout component sources to scan.")
-
-        for file in sourceFiles {
-            let source = try String(contentsOf: file, encoding: .utf8)
-            for field in reservedFields {
-                XCTAssertFalse(
-                    source.contains(field),
-                    "\(file.lastPathComponent) must not reference reserved performed field '\(field)'."
-                )
-            }
-            // Performed tempo is unsupported; prescribed tempo is separate,
-            // supported evidence and must remain untouched by this check.
-            XCTAssertFalse(
-                source.contains("exerciseSet.tempo") || source.contains("$exerciseSet.tempo"),
-                "\(file.lastPathComponent) must not bind ExerciseSet.tempo (unsupported performed tempo)."
-            )
-        }
     }
 }

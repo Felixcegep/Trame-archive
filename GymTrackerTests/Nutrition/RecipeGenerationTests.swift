@@ -7,69 +7,82 @@ final class RecipeGenerationTests: XCTestCase {
 
     // MARK: - Input shape reaches the generator unchanged
 
-    func testNameOnlyInputReachesGenerator() async throws {
-        let fake = FakeRecipeDraftGenerator(behavior: .success(GeneratedRecipeDraft(name: nil, preparationState: nil, finalCookedWeightGrams: nil, ingredients: [], unmatchedIngredientHints: [])))
-        let input = RecipeGenerationInput(name: "Chicken burrito bowl", imageData: nil, availableFoods: [])
-        _ = try await RecipeGenerationCoordinator.generateAndValidate(input: input, currentFoods: [], using: fake)
-        XCTAssertEqual(fake.receivedInput?.name, "Chicken burrito bowl")
-        XCTAssertNil(fake.receivedInput?.imageData)
-    }
-
-    func testImageOnlyInputReachesGenerator() async throws {
-        let fake = FakeRecipeDraftGenerator(behavior: .success(GeneratedRecipeDraft(name: "Detected recipe", preparationState: nil, finalCookedWeightGrams: nil, ingredients: [], unmatchedIngredientHints: [])))
-        let imageData = Data([0x01, 0x02, 0x03])
-        let input = RecipeGenerationInput(name: nil, imageData: imageData, availableFoods: [])
-        _ = try await RecipeGenerationCoordinator.generateAndValidate(input: input, currentFoods: [], using: fake)
-        XCTAssertNil(fake.receivedInput?.name)
-        XCTAssertEqual(fake.receivedInput?.imageData, imageData)
-    }
-
-    func testNameAndImageInputReachesGenerator() async throws {
-        let fake = FakeRecipeDraftGenerator(behavior: .success(GeneratedRecipeDraft(name: nil, preparationState: nil, finalCookedWeightGrams: nil, ingredients: [], unmatchedIngredientHints: [])))
-        let imageData = Data([0x0A])
-        let input = RecipeGenerationInput(name: "High-protein breakfast", imageData: imageData, availableFoods: [])
-        _ = try await RecipeGenerationCoordinator.generateAndValidate(input: input, currentFoods: [], using: fake)
-        XCTAssertEqual(fake.receivedInput?.name, "High-protein breakfast")
-        XCTAssertEqual(fake.receivedInput?.imageData, imageData)
+    /// Covers name-only, image-only, and name+image inputs. All three cases
+    /// assert the same postcondition (the coordinator forwards the input
+    /// untouched to the generator), so they are table-driven rather than
+    /// three near-identical methods.
+    func testInputShapeReachesGeneratorUnchanged() async throws {
+        struct Case {
+            let label: String
+            let name: String?
+            let imageData: Data?
+        }
+        let cases: [Case] = [
+            Case(label: "name only", name: "Chicken burrito bowl", imageData: nil),
+            Case(label: "image only", name: nil, imageData: Data([0x01, 0x02, 0x03])),
+            Case(label: "name and image", name: "High-protein breakfast", imageData: Data([0x0A]))
+        ]
+        for testCase in cases {
+            let fake = FakeRecipeDraftGenerator(behavior: .success(GeneratedRecipeDraft(name: nil, preparationState: nil, finalCookedWeightGrams: nil, ingredients: [], unmatchedIngredientHints: [])))
+            let input = RecipeGenerationInput(name: testCase.name, imageData: testCase.imageData, availableFoods: [])
+            _ = try await RecipeGenerationCoordinator.generateAndValidate(input: input, currentFoods: [], using: fake)
+            XCTAssertEqual(fake.receivedInput?.name, testCase.name, testCase.label)
+            XCTAssertEqual(fake.receivedInput?.imageData, testCase.imageData, testCase.label)
+        }
     }
 
     // MARK: - Validator ingredient matching rules
 
-    func testValidatorRejectsUnknownFoodIdentifier() throws {
+    /// Four distinct invalid-ingredient shapes (unknown food id, archived
+    /// food, unknown serving id, non-positive quantity) all resolve to the
+    /// same postcondition: nothing validates and the draft is reported as
+    /// having unmatched ingredients. Table-driven to avoid repeating that
+    /// assertion pair four times.
+    func testValidatorRejectsInvalidIngredientsAndReportsUnmatched() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
-        let food = FoodItem(name: "Chicken")
-        context.insert(food)
+        let unknownIDFood = FoodItem(name: "Chicken")
+        let archivedFood = FoodItem(name: "Archived Chicken", isArchived: true)
+        let riceWithServing = FoodItem(name: "Rice")
+        riceWithServing.servings = [FoodServing(name: "1 cup", amount: 1, unit: .serving, equivalentReferenceAmount: 150)]
+        let salsa = FoodItem(name: "Salsa")
+        context.insert(unknownIDFood)
+        context.insert(archivedFood)
+        context.insert(riceWithServing)
+        context.insert(salsa)
         try context.save()
 
-        let draft = GeneratedRecipeDraft(name: "Bowl", preparationState: nil, finalCookedWeightGrams: nil, ingredients: [GeneratedRecipeIngredient(foodID: UUID(), servingID: nil, quantity: 1)], unmatchedIngredientHints: [])
-        let validated = RecipeDraftValidator.validate(draft, against: [food])
-        XCTAssertTrue(validated.items.isEmpty)
-        XCTAssertTrue(validated.hasUnmatchedIngredients)
-    }
-
-    func testValidatorRejectsArchivedFood() throws {
-        let context = try GymTrackerTestStore.makeInMemoryContext()
-        let food = FoodItem(name: "Chicken", isArchived: true)
-        context.insert(food)
-        try context.save()
-
-        let draft = GeneratedRecipeDraft(name: nil, preparationState: nil, finalCookedWeightGrams: nil, ingredients: [GeneratedRecipeIngredient(foodID: food.id, servingID: nil, quantity: 1)], unmatchedIngredientHints: [])
-        let validated = RecipeDraftValidator.validate(draft, against: [food])
-        XCTAssertTrue(validated.items.isEmpty)
-        XCTAssertTrue(validated.hasUnmatchedIngredients)
-    }
-
-    func testValidatorRejectsUnknownServingIdentifier() throws {
-        let context = try GymTrackerTestStore.makeInMemoryContext()
-        let food = FoodItem(name: "Rice")
-        food.servings = [FoodServing(name: "1 cup", amount: 1, unit: .serving, equivalentReferenceAmount: 150)]
-        context.insert(food)
-        try context.save()
-
-        let draft = GeneratedRecipeDraft(name: nil, preparationState: nil, finalCookedWeightGrams: nil, ingredients: [GeneratedRecipeIngredient(foodID: food.id, servingID: UUID(), quantity: 1)], unmatchedIngredientHints: [])
-        let validated = RecipeDraftValidator.validate(draft, against: [food])
-        XCTAssertTrue(validated.items.isEmpty)
-        XCTAssertTrue(validated.hasUnmatchedIngredients)
+        struct Case {
+            let label: String
+            let draft: GeneratedRecipeDraft
+            let against: [FoodItem]
+        }
+        let cases: [Case] = [
+            Case(
+                label: "unknown food identifier",
+                draft: GeneratedRecipeDraft(name: "Bowl", preparationState: nil, finalCookedWeightGrams: nil, ingredients: [GeneratedRecipeIngredient(foodID: UUID(), servingID: nil, quantity: 1)], unmatchedIngredientHints: []),
+                against: [unknownIDFood]
+            ),
+            Case(
+                label: "archived food",
+                draft: GeneratedRecipeDraft(name: nil, preparationState: nil, finalCookedWeightGrams: nil, ingredients: [GeneratedRecipeIngredient(foodID: archivedFood.id, servingID: nil, quantity: 1)], unmatchedIngredientHints: []),
+                against: [archivedFood]
+            ),
+            Case(
+                label: "unknown serving identifier",
+                draft: GeneratedRecipeDraft(name: nil, preparationState: nil, finalCookedWeightGrams: nil, ingredients: [GeneratedRecipeIngredient(foodID: riceWithServing.id, servingID: UUID(), quantity: 1)], unmatchedIngredientHints: []),
+                against: [riceWithServing]
+            ),
+            Case(
+                label: "non-positive quantity",
+                draft: GeneratedRecipeDraft(name: nil, preparationState: nil, finalCookedWeightGrams: nil, ingredients: [GeneratedRecipeIngredient(foodID: salsa.id, servingID: nil, quantity: 0)], unmatchedIngredientHints: []),
+                against: [salsa]
+            )
+        ]
+        for testCase in cases {
+            let validated = RecipeDraftValidator.validate(testCase.draft, against: testCase.against)
+            XCTAssertTrue(validated.items.isEmpty, testCase.label)
+            XCTAssertTrue(validated.hasUnmatchedIngredients, testCase.label)
+        }
     }
 
     func testValidatorAcceptsNilServingIdentifierAsDefaultPortion() throws {
@@ -103,18 +116,6 @@ final class RecipeGenerationTests: XCTestCase {
         let validated = RecipeDraftValidator.validate(draft, against: [food])
         XCTAssertEqual(validated.items.count, 1)
         XCTAssertEqual(validated.items.first?.quantity, 1)
-    }
-
-    func testValidatorRejectsNonPositiveQuantity() throws {
-        let context = try GymTrackerTestStore.makeInMemoryContext()
-        let food = FoodItem(name: "Salsa")
-        context.insert(food)
-        try context.save()
-
-        let draft = GeneratedRecipeDraft(name: nil, preparationState: nil, finalCookedWeightGrams: nil, ingredients: [GeneratedRecipeIngredient(foodID: food.id, servingID: nil, quantity: 0)], unmatchedIngredientHints: [])
-        let validated = RecipeDraftValidator.validate(draft, against: [food])
-        XCTAssertTrue(validated.items.isEmpty)
-        XCTAssertTrue(validated.hasUnmatchedIngredients)
     }
 
     func testValidatorClampsQuantityToSupportedRange() throws {
@@ -173,25 +174,20 @@ final class RecipeGenerationTests: XCTestCase {
 
     // MARK: - Generator error propagation
 
-    func testModelUnavailableErrorPropagates() async throws {
-        let fake = FakeRecipeDraftGenerator(behavior: .failure(.modelUnavailable))
-        let input = RecipeGenerationInput(name: "Bowl", imageData: nil, availableFoods: [])
-        do {
-            _ = try await RecipeGenerationCoordinator.generateAndValidate(input: input, currentFoods: [], using: fake)
-            XCTFail("Expected modelUnavailable to propagate")
-        } catch let error as RecipeDraftGeneratorError {
-            XCTAssertEqual(error, .modelUnavailable)
-        }
-    }
-
-    func testImageUnsupportedErrorPropagates() async throws {
-        let fake = FakeRecipeDraftGenerator(behavior: .failure(.imageUnsupported))
-        let input = RecipeGenerationInput(name: nil, imageData: Data([0x01]), availableFoods: [])
-        do {
-            _ = try await RecipeGenerationCoordinator.generateAndValidate(input: input, currentFoods: [], using: fake)
-            XCTFail("Expected imageUnsupported to propagate")
-        } catch let error as RecipeDraftGeneratorError {
-            XCTAssertEqual(error, .imageUnsupported)
+    /// `.modelUnavailable` and `.imageUnsupported` both exercise the same
+    /// direct-throw path through the coordinator; cancellation is a distinct
+    /// concern (task cancellation racing the generator) and keeps its own test.
+    func testGeneratorErrorsPropagateDirectly() async throws {
+        let cases: [RecipeDraftGeneratorError] = [.modelUnavailable, .imageUnsupported]
+        for expected in cases {
+            let fake = FakeRecipeDraftGenerator(behavior: .failure(expected))
+            let input = RecipeGenerationInput(name: "Bowl", imageData: expected == .imageUnsupported ? Data([0x01]) : nil, availableFoods: [])
+            do {
+                _ = try await RecipeGenerationCoordinator.generateAndValidate(input: input, currentFoods: [], using: fake)
+                XCTFail("Expected \(expected) to propagate")
+            } catch let error as RecipeDraftGeneratorError {
+                XCTAssertEqual(error, expected)
+            }
         }
     }
 
@@ -212,19 +208,12 @@ final class RecipeGenerationTests: XCTestCase {
 
     // MARK: - Availability mapping (pure, no live SystemLanguageModel)
 
-    func testAvailabilityMapsUnsupportedLocale() {
+    /// Every case here is a one-line, stateless mapping check; merged into a
+    /// single method rather than four near-identical ones.
+    func testAvailabilityMapsPlainStates() {
         XCTAssertEqual(RecipeGenerationAvailability.map(availability: .available, supportsLocale: false), .unsupportedLocale)
-    }
-
-    func testAvailabilityMapsFullyAvailable() {
         XCTAssertEqual(RecipeGenerationAvailability.map(availability: .available, supportsLocale: true), .fullyAvailable)
-    }
-
-    func testAvailabilityMapsModelDownloading() {
         XCTAssertEqual(RecipeGenerationAvailability.map(availability: .unavailable(.modelNotReady), supportsLocale: true), .modelDownloading)
-    }
-
-    func testAvailabilityMapsUnsupportedDevice() {
         XCTAssertEqual(RecipeGenerationAvailability.map(availability: .unavailable(.deviceNotEligible), supportsLocale: true), .unsupportedDevice)
         XCTAssertEqual(RecipeGenerationAvailability.map(availability: .unavailable(.appleIntelligenceNotEnabled), supportsLocale: true), .unsupportedDevice)
     }

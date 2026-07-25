@@ -93,8 +93,14 @@ final class ExerciseLibraryIntegrityTests: XCTestCase {
         let catalog = ExerciseCatalogSeedData.templates()
         let names = Set(catalog.map(\.name))
 
-        XCTAssertEqual(catalog.count, 139)
-        XCTAssertEqual(names.count, catalog.count)
+        // Structural invariants, not a headcount: the catalog grows over time
+        // as new exercises are added, so a hardcoded count breaks on every
+        // addition without catching a real regression. What must always hold
+        // is that every entry has a unique, non-empty name.
+        XCTAssertFalse(catalog.isEmpty, "The Program Engine exercise catalog must not be empty")
+        XCTAssertEqual(names.count, catalog.count, "Catalog contains duplicate exercise names")
+        XCTAssertTrue(catalog.allSatisfy { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }, "Every catalog entry must have a non-empty name")
+        XCTAssertTrue(catalog.allSatisfy { !$0.primaryMuscles.isEmpty }, "Every catalog entry must declare at least one primary muscle")
         XCTAssertEqual(catalog.first?.name, "Bench Press")
         XCTAssertEqual(catalog.last?.name, "Power Jerk + Split Jerk")
 
@@ -133,11 +139,30 @@ final class ExerciseLibraryIntegrityTests: XCTestCase {
         let second = try ExerciseRelationshipSeedData.seed(in: context)
         let secondCount = try context.fetchCount(FetchDescriptor<ExerciseRelationship>())
 
-        XCTAssertEqual(first.insertedCount, 25)
+        // Structural invariants derived from the seed definitions themselves,
+        // not a hardcoded headcount: adding a new relationship definition
+        // must not break this test. What must always hold is that every
+        // definition resolves to a real exercise (no dangling name), that
+        // the definition list has no exact duplicates, that the first pass
+        // inserts exactly one relationship per definition, and that a
+        // second pass is fully idempotent.
+        let definitions = ExerciseRelationshipSeedData.definitions
+        let seededNames = Set(ExerciseSeedData.templates().map(\.name))
+        let unresolvedDefinitionNames = definitions
+            .flatMap { [$0.source, $0.target] }
+            .filter { !seededNames.contains($0) }
+        XCTAssertTrue(
+            unresolvedDefinitionNames.isEmpty,
+            "Every relationship definition must reference an exercise that exists in the seed catalog; unresolved: \(unresolvedDefinitionNames)"
+        )
+        let definitionKeys = definitions.map { "\($0.source)|\($0.target)|\($0.type.rawValue)" }
+        XCTAssertEqual(Set(definitionKeys).count, definitionKeys.count, "Relationship seed definitions contain an exact duplicate")
+
+        XCTAssertEqual(first.insertedCount, definitions.count, "First seeding pass should insert exactly one relationship per definition")
         XCTAssertTrue(first.unresolvedNames.isEmpty)
-        XCTAssertEqual(second.insertedCount, 0)
+        XCTAssertEqual(second.insertedCount, 0, "Re-seeding must not insert duplicate relationships")
         XCTAssertTrue(second.unresolvedNames.isEmpty)
-        XCTAssertEqual(firstCount, 25)
+        XCTAssertEqual(firstCount, definitions.count)
         XCTAssertEqual(secondCount, firstCount)
     }
 

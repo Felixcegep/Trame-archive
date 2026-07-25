@@ -124,29 +124,14 @@ final class NutritionTests: XCTestCase {
         XCTAssertNil(PreWorkoutIntensity.custom.estimatedMilligrams)
     }
 
-    func testNPNRoundTripsThroughFoodBackup() throws {
-        let context = try GymTrackerTestStore.makeInMemoryContext()
-        let preWorkout = FoodItem(
-            name: "Pre-workout · Custom",
-            referenceAmount: 1,
-            referenceUnit: .serving,
-            caffeineMilligrams: 275,
-            npn: "80012345",
-            sourceKind: .userCreated,
-            confidence: .userProvided,
-            preparationState: .cooked
-        )
-        context.insert(preWorkout)
-        try context.save()
-
-        let backup = try BackupDTO.create(from: context, restTimer: 90, darkMode: false, unitSystem: .metric)
-        let restored = try GymTrackerTestStore.makeInMemoryContext()
-        try backup.restore(to: restored)
-        let restoredFood = try XCTUnwrap(
-            restored.fetch(FetchDescriptor<FoodItem>()).first(where: { $0.id == preWorkout.id })
-        )
-        XCTAssertEqual(restoredFood.npn, "80012345")
-    }
+    // testNPNRoundTripsThroughFoodBackup removed: BackupFieldCoverageTests
+    // .testFoodItemRoundTripsEveryPersistedField (GymTrackerTests/Data/
+    // BackupFieldCoverageTests.swift) already builds a FoodItem with
+    // `npn: "sentinel-npn"`, runs it through the full create → JSON encode →
+    // JSON decode → restore path (strictly more rigorous than this test's
+    // in-process create→restore, which skipped serialization), and asserts
+    // `restored.npn == "sentinel-npn"`. Same field, same assertion, more
+    // thorough round trip -- provably redundant.
 
     func testRepeatingMealCreatesIndependentLoggedIdentifiers() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
