@@ -10,6 +10,8 @@ struct FolderView: View {
     @Query private var programDefinitions: [ProgramDefinitionRecord]
 
     @State private var activeSheet: FolderSheet?
+    @State private var pendingSheet: FolderSheet?
+    @State private var isCreateMenuPresented = false
     @State private var searchText = ""
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
@@ -41,52 +43,25 @@ struct FolderView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Section {
-                        Button {
-                            activeSheet = .workoutTemplate
-                        } label: {
-                            Label("New Workout", systemImage: "list.bullet.rectangle")
-                            Text("One session, like Leg Day")
-                        }
-                        .accessibilityIdentifier("new-workout-template")
-                        Button {
-                            activeSheet = .exercise
-                        } label: {
-                            Label("New Exercise", systemImage: "dumbbell.fill")
-                            Text("Add a move you do at the gym")
-                        }
-                        .accessibilityIdentifier("new-exercise")
-                    }
-                    Section {
-                        Button {
-                            activeSheet = .plan
-                        } label: {
-                            Label("New Training Plan", systemImage: AppIcon.planAdd)
-                            Text("A weekly schedule of workouts")
-                        }
-                        .accessibilityIdentifier("new-plan")
-                        Button {
-                            activeSheet = .programDefinition
-                        } label: {
-                            Label("Plan Builder", systemImage: AppIcon.progression)
-                            Text("Advanced: sets, reps and weight rules")
-                        }
-                        .accessibilityIdentifier("new-program-definition")
-                    }
-                    Section {
-                        Button {
-                            activeSheet = .workoutCollection
-                        } label: {
-                            Label("New Folder", systemImage: "folder.badge.plus")
-                            Text("Group workouts together")
-                        }
-                    }
+                Button {
+                    isCreateMenuPresented = true
                 } label: {
                     Label("Create", systemImage: AppIcon.plus)
                         .font(AppFont.subheadlineSemibold)
                 }
                 .accessibilityLabel("Create library item")
+                .popover(
+                    isPresented: $isCreateMenuPresented,
+                    attachmentAnchor: .rect(.bounds),
+                    arrowEdge: .top
+                ) {
+                    LibraryCreatePopover { sheet in
+                        pendingSheet = sheet
+                        isCreateMenuPresented = false
+                    }
+                    .presentationCompactAdaptation(.popover)
+                    .onDisappear(perform: presentPendingSheet)
+                }
             }
         }
         .sheet(item: $activeSheet) { sheet in
@@ -346,6 +321,12 @@ struct FolderView: View {
         count == 1 ? "1 workout" : "\(count) workouts"
     }
 
+    private func presentPendingSheet() {
+        guard let pendingSheet else { return }
+        self.pendingSheet = nil
+        activeSheet = pendingSheet
+    }
+
     @ViewBuilder
     private var globalResults: some View {
         if matchingCollections.isEmpty && matchingTemplates.isEmpty && matchingPlans.isEmpty && matchingExercises.isEmpty {
@@ -450,6 +431,118 @@ struct FolderView: View {
 
     private var matchingPlans: [WorkoutPlan] {
         workoutPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+}
+
+private struct LibraryCreatePopover: View {
+    let onSelect: (FolderSheet) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            group {
+                option(
+                    title: "New Workout",
+                    subtitle: "One session, like Leg Day",
+                    systemImage: "list.bullet.rectangle",
+                    sheet: .workoutTemplate,
+                    accessibilityIdentifier: "new-workout-template"
+                )
+                option(
+                    title: "New Exercise",
+                    subtitle: "Add a move you do at the gym",
+                    systemImage: "dumbbell.fill",
+                    sheet: .exercise,
+                    accessibilityIdentifier: "new-exercise"
+                )
+            }
+
+            Divider()
+                .padding(.horizontal, Spacing.l)
+
+            group {
+                option(
+                    title: "New Training Plan",
+                    subtitle: "A weekly schedule of workouts",
+                    systemImage: AppIcon.planAdd,
+                    sheet: .plan,
+                    accessibilityIdentifier: "new-plan"
+                )
+                option(
+                    title: "Plan Builder",
+                    subtitle: "Advanced: sets, reps and weight rules",
+                    systemImage: AppIcon.progression,
+                    sheet: .programDefinition,
+                    accessibilityIdentifier: "new-program-definition"
+                )
+            }
+
+            Divider()
+                .padding(.horizontal, Spacing.l)
+
+            option(
+                title: "New Folder",
+                subtitle: "Group workouts together",
+                systemImage: "folder.badge.plus",
+                sheet: .workoutCollection
+            )
+        }
+        .padding(.vertical, Spacing.s)
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private func group<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0, content: content)
+    }
+
+    private func option(
+        title: LocalizedStringKey,
+        subtitle: LocalizedStringKey,
+        systemImage: String,
+        sheet: FolderSheet,
+        accessibilityIdentifier: String? = nil
+    ) -> some View {
+        Button {
+            onSelect(sheet)
+        } label: {
+            HStack(spacing: Spacing.m) {
+                Image(systemName: systemImage)
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.gymText)
+                    .frame(width: Spacing.xxl)
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(title)
+                        .font(AppFont.body)
+                        .foregroundStyle(Color.gymText)
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .font(AppFont.subheadline)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.md)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(title))
+        .modifier(OptionalAccessibilityIdentifier(identifier: accessibilityIdentifier))
+    }
+}
+
+private struct OptionalAccessibilityIdentifier: ViewModifier {
+    let identifier: String?
+
+    func body(content: Content) -> some View {
+        if let identifier {
+            content.accessibilityIdentifier(identifier)
+        } else {
+            content
+        }
     }
 }
 
