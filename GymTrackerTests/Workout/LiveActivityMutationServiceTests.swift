@@ -82,6 +82,37 @@ final class LiveActivityMutationServiceTests: XCTestCase {
         XCTAssertNil(fixture.workout.restEndDate)
     }
 
+    /// Nothing is left to rest for once the last set is done, so completing it
+    /// must leave the workout with no running or paused rest to restore.
+    func testCompletingTheFinalSetLeavesNoRest() throws {
+        let context = try makeContext()
+        let fixture = try makeActiveWorkout(in: context, firstSetRepetitions: 8)
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let service = ActiveWorkoutMutationService(modelContext: context, defaultRestSeconds: 20)
+
+        _ = service.completeCurrentSet(
+            workoutID: fixture.workout.id,
+            expectedExerciseOrderIndex: 0,
+            expectedSetOrderIndex: 0,
+            now: now
+        )
+        let result = service.completeCurrentSet(
+            workoutID: fixture.workout.id,
+            expectedExerciseOrderIndex: 0,
+            expectedSetOrderIndex: 1,
+            now: now
+        )
+
+        guard case let .applied(projection) = result else {
+            return XCTFail("Expected the final set to complete")
+        }
+
+        XCTAssertTrue(fixture.secondSet.done)
+        XCTAssertNil(fixture.workout.restEndDate)
+        XCTAssertNil(fixture.workout.pausedRemainingTime)
+        XCTAssertEqual(projection.restPhase, .inactive)
+    }
+
     func testPausedRestCanExtendResumeAndSkip() throws {
         let context = try makeContext()
         let fixture = try makeActiveWorkout(in: context, firstSetRepetitions: 8)

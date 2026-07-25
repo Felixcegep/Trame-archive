@@ -99,8 +99,15 @@ final class WorkoutBackupFailureTests: XCTestCase {
             XCTAssertFalse(exercises.contains { $0.name == "Replace Me" })
             XCTAssertTrue(exercises.contains { $0.name == "Bench Press" })
 
-            let plan = try XCTUnwrap(context.fetch(FetchDescriptor<WorkoutPlan>()).first)
-            let run = try XCTUnwrap(context.fetch(FetchDescriptor<PlanRun>()).first)
+            // Restore also installs the seeded rehabilitation plan, and an
+            // unsorted fetch has no defined order — select the backup's own plan
+            // by name instead of trusting whichever row comes back first.
+            let plan = try XCTUnwrap(
+                context.fetch(FetchDescriptor<WorkoutPlan>()).first { $0.name == "Backup Plan" }
+            )
+            let run = try XCTUnwrap(
+                context.fetch(FetchDescriptor<PlanRun>()).first { $0.plan?.id == plan.id }
+            )
             let workout = try XCTUnwrap(context.fetch(FetchDescriptor<Workout>()).first {
                 $0.status == .completed
             })
