@@ -67,6 +67,7 @@ struct AppIcon {
     static let plateCalculator = "circle.grid.3x3.fill"
     static let muscles = "figure.strengthtraining.traditional"
     static let advanced = "slider.horizontal.3"
+    static let effort = "gauge.with.needle"
     static let warmup = "flame"
     static let relationship = "arrow.triangle.branch"
     static let recipePhoto = "photo.badge.plus"

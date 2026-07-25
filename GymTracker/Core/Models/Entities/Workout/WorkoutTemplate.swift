@@ -19,16 +19,19 @@ class WorkoutTemplate {
     var workoutCollections: [WorkoutCollection] = []
     @Relationship(deleteRule: .nullify, inverse: \Workout.sourceTemplate)
     var sourceWorkouts: [Workout] = []
+    var isBuiltIn: Bool = false
 
     init(
         name: String,
         exercises: [Exercise],
-        templateExercises: [TemplateExercise]? = nil
+        templateExercises: [TemplateExercise]? = nil,
+        isBuiltIn: Bool = false
     ) {
         self.name = name
         self.templateExercises = templateExercises ?? exercises.enumerated().map { index, exercise in
             TemplateExercise(exercise: exercise, order: index)
         }
+        self.isBuiltIn = isBuiltIn
     }
 
     var orderedTemplateExercises: [TemplateExercise] {

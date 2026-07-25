@@ -38,6 +38,22 @@ struct LibraryBrowserList<Content: View>: View {
     }
 }
 
+/// Marks bundled/seeded content (e.g. the starter workout program) so it
+/// isn't mistaken for something the user created themselves.
+struct BuiltInBadge: View {
+    var text: String = "Starter"
+
+    var body: some View {
+        Text(text)
+            .font(AppFont.caption2Bold)
+            .tracking(0.3)
+            .foregroundStyle(Color.gymSecondary)
+            .padding(.horizontal, Spacing.xs)
+            .padding(.vertical, 2)
+            .background(Color.gymSecondarySurface, in: Capsule())
+    }
+}
+
 struct LibraryItemRow: View {
     let title: String
     let subtitle: String?
@@ -45,6 +61,7 @@ struct LibraryItemRow: View {
     let color: Color
     let surface: Color
     var count: Int?
+    var badge: String? = nil
     var showsCard = true
     var showsChevron = true
 
@@ -56,11 +73,16 @@ struct LibraryItemRow: View {
                 .frame(width: 34, height: 34)
                 .background(surface, in: RoundedRectangle(cornerRadius: Radius.medium))
             VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(title)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(Color.gymText)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(2)
+                HStack(spacing: Spacing.xs) {
+                    Text(title)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(Color.gymText)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                    if let badge {
+                        BuiltInBadge(text: badge)
+                    }
+                }
                 if let subtitle {
                     Text(subtitle).font(.caption).foregroundStyle(Color.gymSubduedText).lineLimit(1)
                 }

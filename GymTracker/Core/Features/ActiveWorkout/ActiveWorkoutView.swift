@@ -232,6 +232,10 @@ struct ActiveWorkoutView: View {
                     .font(.title2.weight(.bold))
                     .accessibilityIdentifier("active-workout-title")
 
+                if workout.sourceTemplate?.isBuiltIn == true {
+                    BuiltInBadge()
+                }
+
                 Spacer()
 
                 Text(workout.startTime, style: .timer)

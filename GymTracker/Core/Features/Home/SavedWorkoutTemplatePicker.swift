@@ -28,9 +28,14 @@ struct SavedWorkoutTemplatePicker: View {
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                                      Text(template.name)
-                                          .font(AppFont.subheadlineBold)
-                                          .foregroundStyle(Color.gymText)
+                                      HStack(spacing: Spacing.xs) {
+                                          Text(template.name)
+                                              .font(AppFont.subheadlineBold)
+                                              .foregroundStyle(Color.gymText)
+                                          if template.isBuiltIn {
+                                              BuiltInBadge()
+                                          }
+                                      }
                                       Text("\(template.exercises.count) exercises")
                                           .font(AppFont.caption)
                                           .foregroundStyle(Color.gymSubduedText)

@@ -4,7 +4,7 @@ import SwiftData
 @MainActor
 enum SystemSeedCatalogCoordinator {
     static let seedVersion = 1
-    static let contentVersion = 1
+    static let contentVersion = 2
 
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.
@@ -122,6 +122,7 @@ enum SystemSeedCatalogCoordinator {
                     throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
                 }
                 entity = matched
+                entity.isBuiltIn = true
                 report.unchanged += 1
             } else {
                 let candidates = existingTemplates.filter { isLegacyTemplate($0, equivalentTo: desired) }
@@ -130,6 +131,7 @@ enum SystemSeedCatalogCoordinator {
                 }
                 if let adopted = candidates.first {
                     entity = adopted
+                    entity.isBuiltIn = true
                     try registry.register(
                         key: key,
                         kind: .workoutTemplate,
@@ -141,6 +143,7 @@ enum SystemSeedCatalogCoordinator {
                     report.adopted += 1
                 } else {
                     entity = desired
+                    entity.isBuiltIn = true
                     context.insert(entity)
                     existingTemplates.append(entity)
                     try registry.register(
@@ -160,9 +163,10 @@ enum SystemSeedCatalogCoordinator {
         let collectionKey = "workout-collection.upper-lower-four-day"
         let collections = try context.fetch(FetchDescriptor<WorkoutCollection>())
         if let record = try registry.record(for: collectionKey, expectedKind: .workoutCollection) {
-            guard collections.contains(where: { $0.id == record.entityID }) else {
+            guard let matched = collections.first(where: { $0.id == record.entityID }) else {
                 throw SystemSeedError.danglingEntity(key: collectionKey, entityID: record.entityID)
             }
+            matched.isBuiltIn = true
             report.unchanged += 1
         } else {
             let candidates = collections.filter {
@@ -176,12 +180,14 @@ enum SystemSeedCatalogCoordinator {
             let source: SystemSeedSourceKind
             if let adopted = candidates.first {
                 collection = adopted
+                collection.isBuiltIn = true
                 source = .migratedLegacy
                 report.adopted += 1
             } else {
                 collection = WorkoutCollection(
                     name: WorkoutTemplateSeedData.collectionName,
-                    workoutTemplates: installedTemplates
+                    workoutTemplates: installedTemplates,
+                    isBuiltIn: true
                 )
                 context.insert(collection)
                 source = .bundled

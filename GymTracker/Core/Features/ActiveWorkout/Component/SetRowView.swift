@@ -154,10 +154,21 @@ struct SetRowView: View {
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, 7)
         .background(rowSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
                 .stroke(isEditingCompletedSet ? Color.gymPrimary : .clear, lineWidth: 1)
+        }
+        .overlay(alignment: .leading) {
+            // The working set gets a hairline accent instead of relying on the
+            // tinted background alone to say "this one's next" — reduce-motion
+            // and grayscale users still get a shape cue, not just a color one.
+            if isCurrentSet, !exerciseSet.done, !isEditingCompletedSet {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(Color.gymPrimary)
+                    .frame(width: 3)
+                    .padding(.vertical, 10)
+            }
         }
         .animation(reduceMotion ? nil : AppMotion.compact, value: exerciseSet.done)
         .sensoryFeedback(.success, trigger: exerciseSet.done) { _, newValue in
@@ -215,35 +226,27 @@ struct SetRowView: View {
 
     private var horizontalRowInputs: some View {
         HStack(spacing: Spacing.s) {
-            setTypeChip
-                .frame(width: 44, height: 44)
+            statusBadge
 
             inputFieldsHorizontal
 
-            if !isEditingCompletedSet {
-                doneButton
-            }
             rowActions
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            if isCompletedAndLocked { beginCompletedSetEditing() }
+            beginEditingIfNeeded()
         }
     }
 
     private var stackedRowInputs: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             HStack(spacing: Spacing.s) {
-                setTypeChip
-                    .frame(width: 44, height: 44)
+                statusBadge
                 Text("Set \(index + 1) · \(exerciseSet.setType.title)")
                     .font(AppFont.footnoteMedium)
                     .foregroundStyle(Color.gymSubduedText)
                     .lineLimit(1)
                 Spacer(minLength: 0)
-                if !isEditingCompletedSet {
-                    doneButton
-                }
                 rowActions
             }
 
@@ -251,7 +254,7 @@ struct SetRowView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            if isCompletedAndLocked { beginCompletedSetEditing() }
+            beginEditingIfNeeded()
         }
     }
 
@@ -316,13 +319,15 @@ struct SetRowView: View {
     }
 
     private var weightField: some View {
-        HStack(spacing: 0) {
+        let isActive = coordinator.focus == inputFocus(.weight)
+        return HStack(spacing: 0) {
             KeypadTextField(
                 text: weightTextBinding,
                 focus: Bindable(coordinator).focus,
                 focusValue: inputFocus(.weight),
                 prompt: previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? prescribedWeightPrompt,
-                isEnabled: !isCompletedAndLocked
+                isEnabled: !isCompletedAndLocked,
+                textColor: .gymAccent
             )
             .onChange(of: coordinator.focus) { _, focus in
                 if focus != inputFocus(.weight) { weightEditingText = nil }
@@ -332,11 +337,11 @@ struct SetRowView: View {
         .frame(maxWidth: .infinity)
         .padding(.leading, Spacing.xs)
         .frame(minHeight: 44)
-        .background(Color.gymCard.opacity(0.9))
+        .background(isActive ? Color.gymPrimarySurface : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
+                .stroke(isActive ? Color.gymPrimary : Color.gymBorder, lineWidth: isActive ? 1.5 : 1)
         }
     }
 
@@ -433,14 +438,42 @@ struct SetRowView: View {
         )
     }
 
+    /// The row's single leading indicator: a status circle that doubles as the
+    /// set index (done state shows a checkmark instead), with the set-type
+    /// picker folded into a small corner accessory rather than a second,
+    /// same-sized element competing for attention next to it.
+    private var statusBadge: some View {
+        ZStack(alignment: .bottomTrailing) {
+            if isEditingCompletedSet {
+                Color.clear.frame(width: 44, height: 44)
+            } else {
+                doneButton
+            }
+            setTypeAccessory
+        }
+    }
+
     private var doneButton: some View {
         Button(action: handleCompletionButton) {
-            Image(systemName: exerciseSet.done ? AppIcon.checkmark : AppIcon.circle)
-                .font(AppFont.subheadlineBold)
-                .foregroundStyle(exerciseSet.done ? .white : Color.gymPrimary)
-                .frame(width: 36, height: 36)
-                .background(exerciseSet.done ? Color.gymSecondary : Color.gymPrimary.opacity(0.14))
-                .clipShape(Circle())
+            Group {
+                if exerciseSet.done {
+                    Image(systemName: AppIcon.checkmark)
+                } else {
+                    Text("\(index + 1)")
+                }
+            }
+            .font(AppFont.subheadlineSemiboldMonospaced)
+            .foregroundStyle(exerciseSet.done ? .white : (isCurrentSet ? Color.gymPrimary : Color.gymSubduedText))
+            .frame(width: 36, height: 36)
+            .background(exerciseSet.done ? Color.gymSecondary : Color.clear)
+            .clipShape(Circle())
+            .overlay {
+                Circle()
+                    .stroke(
+                        exerciseSet.done ? Color.clear : (isCurrentSet ? Color.gymPrimary : Color.gymBorder),
+                        lineWidth: isCurrentSet && !exerciseSet.done ? 1.5 : 1
+                    )
+            }
         }
         .buttonStyle(.borderless)
         .frame(width: 44, height: 44)
@@ -465,7 +498,11 @@ struct SetRowView: View {
         return isCurrentSet ? Color.gymCurrentSetSurface : Color.gymRowSurface
     }
 
-    private var setTypeChip: some View {
+    /// Small corner badge on the status circle — always tappable (so a
+    /// Normal set can still become a Warm-up, say) but visually minor,
+    /// since a menu trigger the same size as the completion circle produced
+    /// two competing circles side by side.
+    private var setTypeAccessory: some View {
         Menu {
             Picker("Set type", selection: Binding(
                 get: { exerciseSet.setType },
@@ -479,28 +516,22 @@ struct SetRowView: View {
                 }
             }
         } label: {
-            Text(exerciseSet.setType.shortLabel ?? "\(index + 1)")
-                .font(AppFont.subheadlineSemiboldMonospaced)
-                .foregroundStyle(chipForeground)
-                .frame(width: 32, height: 28)
-                .background(chipBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
-                .contentShape(Rectangle())
+            Image(systemName: exerciseSet.setType.icon)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(exerciseSet.setType.accentColor ?? Color.gymSubduedText)
+                .frame(width: 18, height: 18)
+                .background(Color.gymCard)
+                .clipShape(Circle())
+                .overlay {
+                    Circle().stroke(Color.gymBorder, lineWidth: 1)
+                }
+                .contentShape(Circle())
         }
         .buttonStyle(.borderless)
         .accessibilityLabel("Set \(index + 1), \(exerciseSet.setType.title)")
         .accessibilityHint("Change set type")
         .accessibilityIdentifier("set-type-\(exerciseEntry.exercise.name)-\(index)")
         .disabled(isCompletedAndLocked)
-    }
-
-    private var chipForeground: Color {
-        if let accent = exerciseSet.setType.accentColor { return accent }
-        return exerciseSet.done ? Color.gymSecondary : Color.gymText
-    }
-
-    private var chipBackground: Color {
-        exerciseSet.setType.accentColor?.opacity(0.14) ?? .clear
     }
 
     private var isDailyMaximum: Bool {
@@ -600,6 +631,22 @@ struct SetRowView: View {
         exerciseSet.done && editingCompletedSetID == exerciseSet.persistentModelID
     }
 
+    /// Tapping anywhere on the card focuses its first field, matching the
+    /// "whole row is the target" behavior completed sets already had via
+    /// their edit button — pending sets previously required tapping the exact
+    /// field to raise the accessory panel.
+    private func beginEditingIfNeeded() {
+        if isCompletedAndLocked {
+            beginCompletedSetEditing()
+        } else if coordinator.focus?.setID != exerciseSet.persistentModelID {
+            coordinator.focus = SetInputFocus(
+                exerciseID: exerciseEntry.persistentModelID,
+                setID: exerciseSet.persistentModelID,
+                field: firstInputField
+            )
+        }
+    }
+
     private func beginCompletedSetEditing() {
         guard isCompletedAndLocked else { return }
         completedEditSnapshot = CompletedSetEditSnapshot(exerciseSet)
@@ -671,7 +718,8 @@ struct SetRowView: View {
         focusID: SetInputFocus,
         prompt: String? = nil
     ) -> some View {
-        KeypadTextField(
+        let isActive = coordinator.focus == focusID
+        return KeypadTextField(
             text: text,
             focus: Bindable(coordinator).focus,
             focusValue: focusID,
@@ -679,11 +727,11 @@ struct SetRowView: View {
         )
             .frame(minWidth: 70, maxWidth: .infinity)
             .frame(minHeight: 44)
-            .background(Color.gymCard.opacity(0.9))
+            .background(isActive ? Color.gymPrimarySurface : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
+                    .stroke(isActive ? Color.gymPrimary : Color.gymBorder, lineWidth: isActive ? 1.5 : 1)
             }
     }
 
@@ -694,7 +742,8 @@ struct SetRowView: View {
         focusID: SetInputFocus,
         prompt: String? = nil
     ) -> some View {
-        HStack(spacing: Spacing.xxs) {
+        let isActive = coordinator.focus == focusID
+        return HStack(spacing: Spacing.xxs) {
             KeypadTextField(
                 text: text,
                 focus: Bindable(coordinator).focus,
@@ -713,11 +762,11 @@ struct SetRowView: View {
         .padding(.horizontal, Spacing.xs)
         .frame(minWidth: 70, maxWidth: .infinity)
         .frame(minHeight: 44)
-        .background(Color.gymCard.opacity(0.9))
+        .background(isActive ? Color.gymPrimarySurface : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
+                .stroke(isActive ? Color.gymPrimary : Color.gymBorder, lineWidth: isActive ? 1.5 : 1)
         }
     }
 

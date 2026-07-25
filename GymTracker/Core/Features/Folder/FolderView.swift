@@ -298,6 +298,7 @@ struct FolderView: View {
                                 icon: "rectangle.stack",
                                 color: Color.gymAccent,
                                 surface: Color.gymAccentSurface,
+                                badge: collection.isBuiltIn ? "Starter" : nil,
                                 showsCard: false
                             )
                         }
@@ -319,6 +320,7 @@ struct FolderView: View {
                                 icon: "list.bullet.rectangle",
                                 color: Color.gymPrimary,
                                 surface: Color.gymPrimarySurface,
+                                badge: template.isBuiltIn ? "Starter" : nil,
                                 showsCard: false,
                                 showsChevron: false
                             )

@@ -18,7 +18,9 @@ struct SetInputAccessoryPanel: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @AppStorage(DefaultsKey.effortMeasure) private var effortMeasure: EffortMeasure = .rir
     @State private var isShowingPlateCalculator = false
+    @State private var isShowingSetDetails = false
     @State private var validationMessage: String?
 
     private var models: (exercise: ExerciseEntry, set: ExerciseSet)? {
@@ -33,6 +35,8 @@ struct SetInputAccessoryPanel: View {
 
     private func content(exercise: ExerciseEntry, set: ExerciseSet) -> some View {
         VStack(spacing: Spacing.m) {
+            contextHeader(exercise: exercise, set: set)
+
             valueRow(exercise: exercise, set: set)
 
             if let validationMessage {
@@ -74,7 +78,112 @@ struct SetInputAccessoryPanel: View {
             .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.height(560), .large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $isShowingSetDetails, onDismiss: {
+            viewModel.persistChanges()
+        }) {
+            SetDetailSheet(
+                index: setPosition(of: set, in: exercise),
+                exerciseSet: set,
+                exerciseName: exercise.exercise.name,
+                onPersist: { viewModel.persistChanges() },
+                onDelete: {
+                    viewModel.removeSet(exercise, set)
+                    coordinator.focus = nil
+                }
+            )
+            .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.height(480), .large])
+            .presentationDragIndicator(.visible)
+        }
         .accessibilityIdentifier("set-input-panel")
+    }
+
+    // MARK: - Context
+
+    /// Grounds the floating panel: which set of which exercise is being
+    /// edited, its logging semantics, and — when a prescription exists — the
+    /// target it is asking for. The row this panel edits can be scrolled away,
+    /// so the panel must identify its subject on its own.
+    private func contextHeader(exercise: ExerciseEntry, set: ExerciseSet) -> some View {
+        HStack(alignment: .center, spacing: Spacing.s) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(contextTitle(exercise: exercise, set: set))
+                    .font(AppFont.captionBold)
+                    .tracking(0.8)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color.gymSubtleText)
+                    .lineLimit(1)
+
+                if let target = prescribedTargetText(exercise: exercise, set: set) {
+                    Text(target)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+
+            Button {
+                coordinator.focus = nil
+            } label: {
+                Image(systemName: AppIcon.minimize)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .frame(width: 36, height: 36)
+                    .background(Color.gymRowSurface, in: Circle())
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.gymPress)
+            .accessibilityLabel("Hide keypad")
+            .accessibilityIdentifier("panel-dismiss")
+        }
+    }
+
+    private func setPosition(of set: ExerciseSet, in exercise: ExerciseEntry) -> Int {
+        exercise.orderedSets.firstIndex(where: { $0.persistentModelID == set.persistentModelID }) ?? 0
+    }
+
+    private func contextTitle(exercise: ExerciseEntry, set: ExerciseSet) -> String {
+        let position = setPosition(of: set, in: exercise) + 1
+        var parts = [String(localized: "Set \(position)"), exercise.exercise.name]
+        let semantics = exercise.loggingSemanticsSnapshot
+        if semantics.laterality == .unilateral && semantics.repCountingStyle == .perSide {
+            parts.append(String(localized: "per side"))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private func prescribedTargetText(exercise: ExerciseEntry, set: ExerciseSet) -> String? {
+        var parts: [String] = []
+        let usesDuration = exercise.trackingTypeSnapshot.usesDuration
+
+        if let minimum = set.prescribedRepRangeMinimum,
+           let maximum = set.prescribedRepRangeMaximum,
+           minimum != maximum {
+            parts.append(usesDuration
+                ? String(localized: "\(minimum)–\(maximum) sec")
+                : String(localized: "\(minimum)–\(maximum) reps"))
+        } else if let count = set.prescribedRepetitions
+            ?? set.prescribedRepRangeMinimum
+            ?? set.prescribedRepRangeMaximum {
+            parts.append(usesDuration
+                ? String(localized: "\(count) sec")
+                : String(localized: "\(count) reps"))
+        }
+
+        if let rpe = set.prescribedRPE {
+            parts.append("RPE \(Formatters.formatFloat(Float(rpe)))")
+        } else if let rir = set.prescribedRIR {
+            parts.append("RIR \(rir)")
+        }
+
+        if let load = set.prescribedSuggestedLoad, let type = set.prescribedSuggestedLoadType {
+            let converted = UnitConversion.weight(Float(load), from: type, to: set.weightType)
+            parts.append("\(Formatters.formatFloat(converted)) \(set.weightType.rawValue)")
+        }
+
+        guard !parts.isEmpty else { return nil }
+        return String(localized: "Target \(parts.joined(separator: " · "))")
     }
 
     // MARK: - Values
@@ -104,94 +213,137 @@ struct SetInputAccessoryPanel: View {
         let isActive = coordinator.focus?.field == field
 
         return HStack(spacing: Spacing.s) {
-            Button {
-                coordinator.focusField(field)
-            } label: {
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
+                Button {
+                    coordinator.focusField(field)
+                } label: {
                     Text(displayValue(field: field, set: set))
                         .font(AppFont.titleSmallSemiboldMonospaced)
                         .foregroundStyle(Color.gymText)
-                    Text(unitLabel(field: field, set: set))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.gymPress)
+                .accessibilityLabel("\(fieldName(field)) \(displayValue(field: field, set: set)) \(unitLabel(field: field, exercise: exercise, set: set))")
+                .accessibilityHint(isActive ? "Currently editing" : "Edit \(fieldName(field))")
+                .accessibilityAddTraits(isActive ? [.isSelected] : [])
+                .accessibilityIdentifier("panel-value-\(fieldName(field))")
+
+                if field == .weight {
+                    // Folded in from what used to be a standalone KG/LB chip —
+                    // the unit lives with the value it describes.
+                    Button {
+                        toggleWeightType(on: set)
+                    } label: {
+                        Text(unitLabel(field: field, exercise: exercise, set: set))
+                            .font(AppFont.captionBold)
+                            .foregroundStyle(Color.gymPrimary)
+                            .underline()
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.gymPress)
+                    .accessibilityLabel("Unit, \(set.weightType == .kg ? "kilograms" : "pounds")")
+                    .accessibilityHint("Switches to \(set.weightType == .kg ? "pounds" : "kilograms")")
+                    .accessibilityIdentifier("panel-weight-unit-toggle")
+                } else {
+                    Text(unitLabel(field: field, exercise: exercise, set: set))
                         .font(AppFont.captionBold)
                         .foregroundStyle(Color.gymSubduedText)
                 }
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .padding(.horizontal, Spacing.s)
-                .background(isActive ? Color.gymPrimarySurface : Color.gymRowSurface)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                        .stroke(
-                            isActive ? Color.gymPrimary : Color.gymBorder,
-                            lineWidth: isActive ? 1.5 : 1
-                        )
-                }
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.gymPress)
-            .accessibilityLabel("\(fieldName(field)) \(displayValue(field: field, set: set)) \(unitLabel(field: field, set: set))")
-            .accessibilityHint(isActive ? "Currently editing" : "Edit \(fieldName(field))")
-            .accessibilityAddTraits(isActive ? [.isSelected] : [])
-            .accessibilityIdentifier("panel-value-\(fieldName(field))")
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.horizontal, Spacing.s)
+            .background(isActive ? Color.gymPrimarySurface : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                    .stroke(
+                        isActive ? Color.gymPrimary : Color.gymBorder,
+                        lineWidth: isActive ? 1.5 : 1
+                    )
+            }
 
-            steppers(field: field, exercise: exercise, set: set)
+            stepperArea(field: field, exercise: exercise, set: set)
         }
     }
 
+    /// Weight shows both of its useful jumps as visible stepper pairs — the
+    /// fine single-plate nudge and the equipment-aware plate/rack/pin jump —
+    /// instead of hiding the second increment behind a long press. Reps keeps
+    /// one visible pair with a long-press ×5 bonus; the remaining fields step
+    /// by one.
     @ViewBuilder
-    private func steppers(
+    private func stepperArea(
         field: SetInputFocus.Field,
         exercise: ExerciseEntry,
         set: ExerciseSet
     ) -> some View {
-        switch field {
-        case .weight:
-            VStack(spacing: Spacing.xs) {
-                stepperRow(step: fineWeightStep(for: set), field: field, exercise: exercise, set: set)
-                stepperRow(step: coarseWeightStep(for: exercise, set: set), field: field, exercise: exercise, set: set)
+        if field == .weight {
+            let fine = fineWeightStep(for: set)
+            let coarse = coarseWeightStep(for: exercise, set: set)
+
+            if abs(fine - coarse) < 0.001 {
+                stepperRow(step: fine, longPressStep: nil, field: field, set: set, controlSize: 32)
+            } else {
+                VStack(spacing: Spacing.xxs) {
+                    stepperRow(step: fine, longPressStep: nil, field: field, set: set, controlSize: 26)
+                    stepperRow(step: coarse, longPressStep: nil, field: field, set: set, controlSize: 26)
+                }
             }
-        case .repetitions, .duration, .distance, .calories:
-            stepperRow(step: 1, field: field, exercise: exercise, set: set)
+        } else {
+            stepperRow(
+                step: 1,
+                longPressStep: field == .repetitions ? 5 : nil,
+                field: field,
+                set: set,
+                controlSize: 32
+            )
         }
     }
 
     private func stepperRow(
         step: Double,
+        longPressStep: Double?,
         field: SetInputFocus.Field,
-        exercise: ExerciseEntry,
-        set: ExerciseSet
+        set: ExerciseSet,
+        controlSize: CGFloat
     ) -> some View {
         HStack(spacing: Spacing.xxs) {
-            stepperButton(systemImage: AppIcon.minus, step: -step, field: field, set: set)
+            stepperButton(systemImage: AppIcon.minus, step: -step, longPressStep: longPressStep.map { -$0 }, field: field, set: set, controlSize: controlSize)
             Text(Formatters.formatFloat(Float(step)))
                 .font(AppFont.caption2Bold)
                 .foregroundStyle(Color.gymSubduedText)
                 .frame(minWidth: 22)
                 .accessibilityHidden(true)
-            stepperButton(systemImage: AppIcon.plus, step: step, field: field, set: set)
+            stepperButton(systemImage: AppIcon.plus, step: step, longPressStep: longPressStep, field: field, set: set, controlSize: controlSize)
         }
     }
 
     private func stepperButton(
         systemImage: String,
         step: Double,
+        longPressStep: Double?,
         field: SetInputFocus.Field,
-        set: ExerciseSet
+        set: ExerciseSet,
+        controlSize: CGFloat
     ) -> some View {
-        Button {
-            adjust(field: field, by: step, set: set)
-        } label: {
-            Image(systemName: systemImage)
+        StepperButton(
+            label: Image(systemName: systemImage)
                 .font(AppFont.caption2Bold)
                 .foregroundStyle(Color.gymPrimary)
-                .frame(width: 32, height: 32)
+                .frame(width: controlSize, height: controlSize)
                 .background(Color.gymPrimary.opacity(0.12), in: Circle())
-                .contentShape(Circle())
-        }
-        .buttonStyle(.gymPress)
-        .accessibilityLabel(step < 0
-            ? "Decrease \(fieldName(field)) by \(Formatters.formatFloat(Float(abs(step))))"
-            : "Increase \(fieldName(field)) by \(Formatters.formatFloat(Float(step)))")
+                .contentShape(Circle()),
+            accessibilityLabel: step < 0
+                ? "Decrease \(fieldName(field)) by \(Formatters.formatFloat(Float(abs(step))))"
+                : "Increase \(fieldName(field)) by \(Formatters.formatFloat(Float(step)))",
+            longPressAccessibilityLabel: longPressStep.map { jump in
+                jump < 0
+                    ? "Jump \(fieldName(field)) down by \(Formatters.formatFloat(Float(abs(jump))))"
+                    : "Jump \(fieldName(field)) up by \(Formatters.formatFloat(Float(jump)))"
+            },
+            onTap: { adjust(field: field, by: step, set: set) },
+            onLongPress: longPressStep.map { jump in { adjust(field: field, by: jump, set: set) } }
+        )
     }
 
     // MARK: - Chips
@@ -201,23 +353,24 @@ struct SetInputAccessoryPanel: View {
             HStack(spacing: Spacing.s) {
                 setTypeChip(set: set)
 
+                effortChip(set: set)
+
                 if exercise.exercise.supportsPlateCalculator {
-                    chip(title: "Plates", systemImage: AppIcon.plateCalculator) {
+                    chip(title: "Plates", systemImage: AppIcon.plateCalculator, identifier: "panel-chip-plates") {
                         isShowingPlateCalculator = true
                     }
                 }
 
-                if exercise.trackingTypeSnapshot.usesWeight {
-                    chip(title: set.weightType == .kg ? "KG" : "LB", systemImage: AppIcon.workout) {
-                        toggleWeightType(on: set)
-                    }
-                }
-
                 if viewModel.canCopyValuesForFocusedSet(coordinator.focus) {
-                    chip(title: "Last set", systemImage: AppIcon.copy) {
+                    chip(title: "Last set", systemImage: AppIcon.copy, identifier: "panel-chip-last set") {
                         viewModel.copyValuesForFocusedSet(coordinator.focus)
                     }
                 }
+
+                chip(title: "Details", systemImage: AppIcon.advanced, identifier: "panel-details") {
+                    isShowingSetDetails = true
+                }
+                .accessibilityHint("Tempo, set method, velocity, and other options")
             }
             .padding(.horizontal, 1)
         }
@@ -238,7 +391,11 @@ struct SetInputAccessoryPanel: View {
                 }
             }
         } label: {
-            chipLabel(title: set.setType.title, systemImage: set.setType.icon)
+            chipLabel(
+                title: set.setType.title,
+                systemImage: set.setType.icon,
+                tint: set.setType.accentColor
+            )
         }
         .buttonStyle(.gymPress)
         .accessibilityLabel("Set type, \(set.setType.title)")
@@ -246,24 +403,126 @@ struct SetInputAccessoryPanel: View {
         .accessibilityIdentifier("panel-set-type")
     }
 
-    private func chip(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+    /// Quick effort logging without leaving the keypad: the chip shows the
+    /// recorded value and offers the active measure's scale inline. The full
+    /// sliders (and measure switching) stay in the Set details sheet.
+    private func effortChip(set: ExerciseSet) -> some View {
+        Menu {
+            effortQuickPicks(set: set)
+
+            if set.rpe != nil || set.rir != nil {
+                Button("Clear effort", role: .destructive) {
+                    set.recordRPE(nil)
+                    set.recordRIR(nil)
+                    viewModel.persistChanges()
+                }
+            }
+
+            Button {
+                isShowingSetDetails = true
+            } label: {
+                Label("More options", systemImage: AppIcon.advanced)
+            }
+        } label: {
+            chipLabel(
+                title: effortChipTitle(set: set),
+                systemImage: AppIcon.effort,
+                tint: set.rpe != nil || set.rir != nil ? Color.gymPrimary : nil
+            )
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityLabel(effortAccessibilityLabel(set: set))
+        .accessibilityHint("Record how hard this set was")
+        .accessibilityIdentifier("panel-effort")
+    }
+
+    @ViewBuilder
+    private func effortQuickPicks(set: ExerciseSet) -> some View {
+        switch effortMeasure {
+        case .rir:
+            ForEach(0...6, id: \.self) { value in
+                Button {
+                    set.recordRIR(value)
+                    viewModel.persistChanges()
+                } label: {
+                    if set.rir == value {
+                        Label("RIR \(value) · \(RIRScale.meaning(for: value))", systemImage: AppIcon.checkmark)
+                    } else {
+                        Text("RIR \(value) · \(RIRScale.meaning(for: value))")
+                    }
+                }
+            }
+        case .rpe:
+            ForEach(Array(stride(from: 10.0, through: 6.0, by: -0.5)), id: \.self) { value in
+                Button {
+                    set.recordRPE(value)
+                    viewModel.persistChanges()
+                } label: {
+                    if set.rpe == value {
+                        Label("RPE \(Formatters.formatFloat(Float(value))) · \(RPEScale.meaning(for: value))", systemImage: AppIcon.checkmark)
+                    } else {
+                        Text("RPE \(Formatters.formatFloat(Float(value))) · \(RPEScale.meaning(for: value))")
+                    }
+                }
+            }
+        }
+    }
+
+    private func effortChipTitle(set: ExerciseSet) -> String {
+        if let rir = set.rir {
+            return "RIR \(rir)"
+        }
+        if let rpe = set.rpe {
+            return "RPE \(Formatters.formatFloat(Float(rpe)))"
+        }
+        return String(localized: "Effort")
+    }
+
+    private func effortAccessibilityLabel(set: ExerciseSet) -> String {
+        if let rir = set.rir {
+            return "Effort, RIR \(rir), \(RIRScale.meaning(for: rir))"
+        }
+        if let rpe = set.rpe {
+            return "Effort, RPE \(Formatters.formatFloat(Float(rpe))), \(RPEScale.meaning(for: rpe))"
+        }
+        return "Effort, not recorded"
+    }
+
+    private func chip(
+        title: LocalizedStringKey,
+        systemImage: String,
+        identifier: String? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             chipLabel(title: title, systemImage: systemImage)
         }
         .buttonStyle(.gymPress)
-        .accessibilityIdentifier("panel-chip-\(title.lowercased())")
+        .accessibilityIdentifier(identifier ?? "panel-chip-\(systemImage)")
     }
 
-    private func chipLabel(title: String, systemImage: String) -> some View {
+    private func chipLabel(
+        title: LocalizedStringKey,
+        systemImage: String,
+        tint: Color? = nil
+    ) -> some View {
         Label(title, systemImage: systemImage)
             .font(AppFont.footnoteMedium)
-            .foregroundStyle(Color.gymText)
+            .foregroundStyle(tint ?? Color.gymText)
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: 36)
-            .background(Color.gymRowSurface)
+            .background(tint.map { $0.opacity(0.12) } ?? Color.gymRowSurface)
             .clipShape(Capsule())
-            .overlay { Capsule().stroke(Color.gymBorder, lineWidth: 1) }
+            .overlay { Capsule().stroke(tint.map { $0.opacity(0.3) } ?? Color.gymBorder, lineWidth: 1) }
             .contentShape(Capsule())
+    }
+
+    private func chipLabel(
+        title: String,
+        systemImage: String,
+        tint: Color? = nil
+    ) -> some View {
+        chipLabel(title: LocalizedStringKey(title), systemImage: systemImage, tint: tint)
     }
 
     // MARK: - Footer
@@ -393,13 +652,23 @@ struct SetInputAccessoryPanel: View {
         }
     }
 
-    private func unitLabel(field: SetInputFocus.Field, set: ExerciseSet) -> String {
+    private func unitLabel(field: SetInputFocus.Field, exercise: ExerciseEntry, set: ExerciseSet) -> String {
         switch field {
-        case .repetitions: return "rep"
-        case .weight: return set.weightType.rawValue
-        case .duration: return "sec"
-        case .distance: return set.distanceType.rawValue
-        case .calories: return "cal"
+        case .repetitions:
+            return "rep"
+        case .weight:
+            // Per-load-unit exercises (a pair of dumbbells, one per hand) log
+            // the weight of each unit, so the unit label carries that meaning.
+            if exercise.loggingSemanticsSnapshot.weightEntryStyle == .perLoadUnit {
+                return String(localized: "\(set.weightType.rawValue) each")
+            }
+            return set.weightType.rawValue
+        case .duration:
+            return "sec"
+        case .distance:
+            return set.distanceType.rawValue
+        case .calories:
+            return "cal"
         }
     }
 
@@ -411,5 +680,57 @@ struct SetInputAccessoryPanel: View {
         case .distance: return "distance"
         case .calories: return "calories"
         }
+    }
+}
+
+/// A stepper control that answers a tap with `onTap` and, when `onLongPress`
+/// is supplied, a hold past 0.45s with `onLongPress` instead — one button
+/// standing in for what would otherwise be two stacked stepper rows.
+///
+/// Built on `Button` rather than a raw gesture so VoiceOver's double-tap
+/// activation, the `.gymPress` visual feedback, and standard hit-testing all
+/// keep working unmodified; the long press is layered on top as a
+/// `simultaneousGesture` with a one-shot flag that swallows the tap action
+/// it would otherwise also trigger on release, and exposed to VoiceOver as a
+/// named accessibility action since holding is impractical there.
+private struct StepperButton<Label: View>: View {
+    let label: Label
+    let accessibilityLabel: String
+    let longPressAccessibilityLabel: String?
+    let onTap: () -> Void
+    let onLongPress: (() -> Void)?
+
+    @State private var didLongPress = false
+
+    var body: some View {
+        if let onLongPress {
+            button
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.45)
+                        .onEnded { _ in
+                            didLongPress = true
+                            onLongPress()
+                        }
+                )
+                .accessibilityAction(named: Text(longPressAccessibilityLabel ?? accessibilityLabel)) {
+                    onLongPress()
+                }
+        } else {
+            button
+        }
+    }
+
+    private var button: some View {
+        Button {
+            if didLongPress {
+                didLongPress = false
+                return
+            }
+            onTap()
+        } label: {
+            label
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityLabel(accessibilityLabel)
     }
 }

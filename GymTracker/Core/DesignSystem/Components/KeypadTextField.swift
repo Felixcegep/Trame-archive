@@ -71,6 +71,7 @@ struct KeypadTextField<Focus: Hashable>: UIViewRepresentable {
     var prompt: String?
     var isEnabled: Bool = true
     var showsDecimalKey: Bool = true
+    var textColor: Color = .gymText
     /// Called when the field resigns first responder, so callers can normalize
     /// in-progress text back into display form.
     var onEditingEnded: (() -> Void)?
@@ -85,7 +86,7 @@ struct KeypadTextField<Focus: Hashable>: UIViewRepresentable {
         textField.delegate = context.coordinator
         textField.textAlignment = .center
         textField.tintColor = UIColor(Color.gymPrimary)
-        textField.textColor = UIColor(Color.gymText)
+        textField.textColor = UIColor(textColor)
         textField.adjustsFontForContentSizeCategory = true
         textField.font = .monospacedDigitSystemFont(
             ofSize: UIFont.preferredFont(forTextStyle: .title3).pointSize,
