@@ -60,7 +60,6 @@ struct ActiveWorkoutView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
-        .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {

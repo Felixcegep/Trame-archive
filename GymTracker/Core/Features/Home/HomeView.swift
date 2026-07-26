@@ -149,7 +149,6 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
-        .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(action: onOpenTrainingCalendar) {

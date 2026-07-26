@@ -34,7 +34,6 @@ struct WorkoutSaveView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
-        .toolbarColorScheme(.light, for: .navigationBar, .tabBar)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
