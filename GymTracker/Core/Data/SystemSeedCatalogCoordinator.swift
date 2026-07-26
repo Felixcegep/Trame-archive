@@ -4,7 +4,7 @@ import SwiftData
 @MainActor
 enum SystemSeedCatalogCoordinator {
     static let seedVersion = 1
-    static let contentVersion = 2
+    static let contentVersion = 5
 
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.
@@ -48,6 +48,12 @@ enum SystemSeedCatalogCoordinator {
         report += try registerExerciseRelationships(in: context, registry: registry)
 
         report += try installWorkoutTemplatesAndCollection(in: context, registry: registry)
+        report += try RepeatingPlanSystemSeedInstaller.install(
+            in: context,
+            registry: registry,
+            seedVersion: seedVersion,
+            contentVersion: contentVersion
+        )
         report += try installWorkoutPlan(in: context, registry: registry)
 
 #if !GYMTRACKER_EXTENSION
@@ -60,6 +66,7 @@ enum SystemSeedCatalogCoordinator {
 #endif
 
         try MobilitySeedData.stage(using: context, registry: registry)
+        report += try WorkoutTemplateMobilitySeedLinker.apply(in: context, registry: registry)
         try NutritionSeedData.stage(using: context, registry: registry)
 
         return report
@@ -108,7 +115,8 @@ enum SystemSeedCatalogCoordinator {
         registry: SystemSeedRegistry
     ) throws -> SystemSeedInstallReport {
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
-        let desiredTemplates = WorkoutTemplateSeedData.templates(using: exercises)
+        let desiredTemplates = WorkoutTemplateSeedData.seededTemplates(using: exercises)
+        try registry.validateUniqueKeys(desiredTemplates.map(\.seedKey))
         guard desiredTemplates.count == WorkoutTemplateSeedData.seededTemplateNames.count else {
             throw SystemSeedError.unresolvedDependency(
                 key: "workout-template.upper-lower-four-day",
@@ -117,10 +125,10 @@ enum SystemSeedCatalogCoordinator {
         }
         var existingTemplates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
         var report = SystemSeedInstallReport()
-        var installedTemplates: [WorkoutTemplate] = []
+        var installedTemplatesByKey: [String: WorkoutTemplate] = [:]
 
         for desired in desiredTemplates {
-            let key = SystemSeedKey.make(namespace: "workout-template", legacyName: desired.name)
+            let key = desired.seedKey
             let entity: WorkoutTemplate
             if let record = try registry.record(for: key, expectedKind: .workoutTemplate) {
                 guard let matched = existingTemplates.first(where: { $0.id == record.entityID }) else {
@@ -130,7 +138,7 @@ enum SystemSeedCatalogCoordinator {
                 entity.isBuiltIn = true
                 report.unchanged += 1
             } else {
-                let candidates = existingTemplates.filter { isLegacyTemplate($0, equivalentTo: desired) }
+                let candidates = existingTemplates.filter { isLegacyTemplate($0, equivalentTo: desired.template) }
                 guard candidates.count <= 1 else {
                     throw SystemSeedError.ambiguousLegacyMatch(key: key, count: candidates.count)
                 }
@@ -147,7 +155,7 @@ enum SystemSeedCatalogCoordinator {
                     )
                     report.adopted += 1
                 } else {
-                    entity = desired
+                    entity = desired.template
                     entity.isBuiltIn = true
                     context.insert(entity)
                     existingTemplates.append(entity)
@@ -162,50 +170,59 @@ enum SystemSeedCatalogCoordinator {
                     report.inserted += 1
                 }
             }
-            installedTemplates.append(entity)
+            installedTemplatesByKey[key] = entity
         }
 
-        let collectionKey = "workout-collection.upper-lower-four-day"
-        let collections = try context.fetch(FetchDescriptor<WorkoutCollection>())
-        if let record = try registry.record(for: collectionKey, expectedKind: .workoutCollection) {
-            guard let matched = collections.first(where: { $0.id == record.entityID }) else {
-                throw SystemSeedError.danglingEntity(key: collectionKey, entityID: record.entityID)
+        let existingCollections = try context.fetch(FetchDescriptor<WorkoutCollection>())
+        for collectionDef in WorkoutTemplateSeedData.collections {
+            let collectionKey = collectionDef.seedKey
+            let collectionTemplates = try collectionDef.templateSeedKeys.map { templateKey in
+                guard let template = installedTemplatesByKey[templateKey] else {
+                    throw SystemSeedError.unresolvedDependency(key: collectionKey, dependency: templateKey)
+                }
+                return template
             }
-            matched.isBuiltIn = true
-            report.unchanged += 1
-        } else {
-            let candidates = collections.filter {
-                $0.name == WorkoutTemplateSeedData.collectionName
-                    && Set($0.workoutTemplates.map(\.id)) == Set(installedTemplates.map(\.id))
-            }
-            guard candidates.count <= 1 else {
-                throw SystemSeedError.ambiguousLegacyMatch(key: collectionKey, count: candidates.count)
-            }
-            let collection: WorkoutCollection
-            let source: SystemSeedSourceKind
-            if let adopted = candidates.first {
-                collection = adopted
-                collection.isBuiltIn = true
-                source = .migratedLegacy
-                report.adopted += 1
+
+            if let record = try registry.record(for: collectionKey, expectedKind: .workoutCollection) {
+                guard let matched = existingCollections.first(where: { $0.id == record.entityID }) else {
+                    throw SystemSeedError.danglingEntity(key: collectionKey, entityID: record.entityID)
+                }
+                matched.isBuiltIn = true
+                report.unchanged += 1
             } else {
-                collection = WorkoutCollection(
-                    name: WorkoutTemplateSeedData.collectionName,
-                    workoutTemplates: installedTemplates,
-                    isBuiltIn: true
+                let candidates = existingCollections.filter {
+                    $0.name == collectionDef.name
+                        && Set($0.workoutTemplates.map(\.id)) == Set(collectionTemplates.map(\.id))
+                }
+                guard candidates.count <= 1 else {
+                    throw SystemSeedError.ambiguousLegacyMatch(key: collectionKey, count: candidates.count)
+                }
+                let collection: WorkoutCollection
+                let source: SystemSeedSourceKind
+                if let adopted = candidates.first {
+                    collection = adopted
+                    collection.isBuiltIn = true
+                    source = .migratedLegacy
+                    report.adopted += 1
+                } else {
+                    collection = WorkoutCollection(
+                        name: collectionDef.name,
+                        workoutTemplates: collectionTemplates,
+                        isBuiltIn: true
+                    )
+                    context.insert(collection)
+                    source = .bundled
+                    report.inserted += 1
+                }
+                try registry.register(
+                    key: collectionKey,
+                    kind: .workoutCollection,
+                    entityID: collection.id,
+                    seedVersion: seedVersion,
+                    contentVersion: contentVersion,
+                    sourceKind: source
                 )
-                context.insert(collection)
-                source = .bundled
-                report.inserted += 1
             }
-            try registry.register(
-                key: collectionKey,
-                kind: .workoutCollection,
-                entityID: collection.id,
-                seedVersion: seedVersion,
-                contentVersion: contentVersion,
-                sourceKind: source
-            )
         }
         return report
     }
@@ -220,43 +237,44 @@ enum SystemSeedCatalogCoordinator {
         in context: ModelContext,
         registry: SystemSeedRegistry
     ) throws -> SystemSeedInstallReport {
-        let key = "workout-plan.sacroiliac-rehabilitation"
-        let plans = try context.fetch(FetchDescriptor<WorkoutPlan>())
-        if let record = try registry.record(for: key, expectedKind: .workoutPlan) {
-            guard plans.contains(where: { $0.id == record.entityID }) else {
-                throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
-            }
-            return .init(unchanged: 1)
-        }
-        let candidates = plans.filter { $0.name == SacroiliacRehabPlanSeedData.planName }
-        guard candidates.count <= 1 else {
-            throw SystemSeedError.ambiguousLegacyMatch(key: key, count: candidates.count)
-        }
-        let plan: WorkoutPlan
-        let source: SystemSeedSourceKind
+        let exercises = try context.fetch(FetchDescriptor<Exercise>())
+        let seededPlans = WorkoutPlanSeedData.plans(using: exercises)
+        let existingPlans = try context.fetch(FetchDescriptor<WorkoutPlan>())
         var report = SystemSeedInstallReport()
-        if let adopted = candidates.first {
-            plan = adopted
-            source = .migratedLegacy
-            report.adopted = 1
-        } else {
-            let exercises = try context.fetch(FetchDescriptor<Exercise>())
-            guard let created = SacroiliacRehabPlanSeedData.makePlan(using: exercises) else {
-                throw SystemSeedError.unresolvedDependency(key: key, dependency: "seeded exercises")
+
+        for (key, desiredPlan) in seededPlans {
+            if let record = try registry.record(for: key, expectedKind: .workoutPlan) {
+                guard existingPlans.contains(where: { $0.id == record.entityID }) else {
+                    throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
+                }
+                report.unchanged += 1
+                continue
             }
-            plan = created
-            context.insert(plan)
-            source = .bundled
-            report.inserted = 1
+            let candidates = existingPlans.filter { $0.name == desiredPlan.name }
+            guard candidates.count <= 1 else {
+                throw SystemSeedError.ambiguousLegacyMatch(key: key, count: candidates.count)
+            }
+            let plan: WorkoutPlan
+            let source: SystemSeedSourceKind
+            if let adopted = candidates.first {
+                plan = adopted
+                source = .migratedLegacy
+                report.adopted += 1
+            } else {
+                plan = desiredPlan
+                context.insert(plan)
+                source = .bundled
+                report.inserted += 1
+            }
+            try registry.register(
+                key: key,
+                kind: .workoutPlan,
+                entityID: plan.id,
+                seedVersion: seedVersion,
+                contentVersion: contentVersion,
+                sourceKind: source
+            )
         }
-        try registry.register(
-            key: key,
-            kind: .workoutPlan,
-            entityID: plan.id,
-            seedVersion: seedVersion,
-            contentVersion: contentVersion,
-            sourceKind: source
-        )
         return report
     }
 

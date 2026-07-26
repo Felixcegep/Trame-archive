@@ -186,9 +186,319 @@ final class SystemSeedRegistryTests: XCTestCase {
         XCTAssertEqual(Dictionary(uniqueKeysWithValues: secondManifest.map { ($0.seedKey, $0.entityID) }), firstIDs)
         XCTAssertTrue(secondManifest.contains { $0.seedKey.hasPrefix("exercise.") })
         XCTAssertTrue(secondManifest.contains { $0.seedKey.hasPrefix("program.") })
+        XCTAssertTrue(secondManifest.contains { $0.seedKey == RepeatingPlanSeedData.pplContinuous.seedKey })
         XCTAssertTrue(secondManifest.contains { $0.seedKey.hasPrefix("mobility-definition.") })
         XCTAssertTrue(secondManifest.contains { $0.seedKey.hasPrefix("food.") })
         XCTAssertFalse(try context.fetch(FetchDescriptor<FoodItem>()).contains(where: \.isFavorite))
+    }
+
+    func testPPLContinuousUsesManifestTemplateIDsAndNeverAutoActivates() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+
+        let definition = RepeatingPlanSeedData.pplContinuous
+        let records = try context.fetch(FetchDescriptor<SystemSeedRecord>())
+        let planRecord = try XCTUnwrap(records.first { $0.seedKey == definition.seedKey })
+        XCTAssertEqual(planRecord.entityKind, .repeatingPlan)
+        let plan = try XCTUnwrap(
+            context.fetch(FetchDescriptor<RepeatingPlan>()).first { $0.id == planRecord.entityID }
+        )
+
+        XCTAssertTrue(plan.isBuiltIn)
+        XCTAssertFalse(plan.isArchived)
+        XCTAssertTrue(plan.runs.isEmpty)
+        XCTAssertEqual(plan.orderedSlots.map(\.orderIndex), [0, 1, 2])
+        XCTAssertEqual(plan.orderedSlots.map(\.templateNameSnapshot), [
+            "PPL – Push Day (Chest, Shoulders, Triceps)",
+            "PPL – Pull Day (Back, Rear Delts, Biceps)",
+            "PPL – Leg Day (Quads, Hamstrings, Calves)"
+        ])
+        let expectedTemplateIDs = try definition.templateSeedKeys.map { key in
+            try XCTUnwrap(records.first { $0.seedKey == key }).entityID
+        }
+        XCTAssertEqual(plan.orderedSlots.map(\.templateIDSnapshot), expectedTemplateIDs)
+
+        let firstPlanID = plan.id
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+        let persistedPlans = try context.fetch(FetchDescriptor<RepeatingPlan>())
+        XCTAssertEqual(persistedPlans.count, RepeatingPlanSeedData.definitions.count)
+        XCTAssertEqual(
+            persistedPlans.first { $0.id == firstPlanID }?.id,
+            firstPlanID
+        )
+        XCTAssertTrue(try context.fetch(FetchDescriptor<RepeatingPlanRun>()).isEmpty)
+    }
+
+    func testWaveSixRotationsHaveStableOrderAndNeverCreateRuns() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+
+        let records = try context.fetch(FetchDescriptor<SystemSeedRecord>())
+        let plans = try context.fetch(FetchDescriptor<RepeatingPlan>())
+        XCTAssertEqual(plans.filter(\.isBuiltIn).count, RepeatingPlanSeedData.definitions.count)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<RepeatingPlanRun>()).isEmpty)
+
+        for definition in RepeatingPlanSeedData.definitions {
+            let record = try XCTUnwrap(records.first { $0.seedKey == definition.seedKey })
+            let plan = try XCTUnwrap(plans.first { $0.id == record.entityID })
+            XCTAssertEqual(plan.orderedSlots.map(\.orderIndex), Array(definition.templateSeedKeys.indices))
+            XCTAssertEqual(
+                plan.orderedSlots.map(\.templateIDSnapshot),
+                try definition.templateSeedKeys.map { key in
+                    try XCTUnwrap(records.first { $0.seedKey == key }).entityID
+                }
+            )
+            XCTAssertTrue(plan.runs.isEmpty)
+        }
+
+        let upperLower = try XCTUnwrap(plans.first { $0.name == "Upper/Lower Continuous" })
+        XCTAssertEqual(upperLower.orderedSlots.map(\.templateNameSnapshot), [
+            "Day 1 – Lower Body (Squat Focus)",
+            "Day 2 – Upper Body (Push/Pull)",
+            "Day 3 – Lower Body (Posterior Chain)",
+            "Day 4 – Upper Body (Vertical Push/Pull)"
+        ])
+    }
+
+    func testWaveSixRotationSeedPreservesCustomDuplicateName() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let custom = RepeatingPlan(name: "Home/Dumbbell", notes: "My compact routine")
+        context.insert(custom)
+        try context.save()
+
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+
+        let matches = try context.fetch(FetchDescriptor<RepeatingPlan>())
+            .filter { $0.name == "Home/Dumbbell" }
+        XCTAssertEqual(matches.count, 2)
+        XCTAssertEqual(matches.first { $0.id == custom.id }?.notes, "My compact routine")
+        XCTAssertFalse(matches.first { $0.id == custom.id }?.isBuiltIn ?? true)
+        XCTAssertTrue(matches.contains { $0.isBuiltIn && $0.id != custom.id })
+    }
+
+    func testWaveSixBuiltInRotationIsAdoptedByExactSnapshotIdentity() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+
+        let definition = RepeatingPlanSeedData.homeDumbbell
+        let records = try context.fetch(FetchDescriptor<SystemSeedRecord>())
+        let oldRecord = try XCTUnwrap(records.first { $0.seedKey == definition.seedKey })
+        let planID = oldRecord.entityID
+        context.delete(oldRecord)
+        try context.save()
+
+        let report = try RepeatingPlanSystemSeedInstaller.install(
+            [definition],
+            in: context,
+            registry: SystemSeedRegistry(context: context),
+            seedVersion: SystemSeedCatalogCoordinator.seedVersion,
+            contentVersion: SystemSeedCatalogCoordinator.contentVersion
+        )
+        try context.save()
+
+        let restoredRecords = try context.fetch(FetchDescriptor<SystemSeedRecord>())
+        XCTAssertEqual(report.adopted, 1)
+        XCTAssertEqual(restoredRecords.first { $0.seedKey == definition.seedKey }?.entityID, planID)
+        XCTAssertEqual(
+            try context.fetch(FetchDescriptor<RepeatingPlan>()).filter { $0.name == definition.name }.count,
+            1
+        )
+    }
+
+    func testSeededTemplateMobilityLinksRefreshDefinitionSlotsWithoutChangingRunSnapshots() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+
+        let records = try context.fetch(FetchDescriptor<SystemSeedRecord>())
+        let pushTemplateRecord = try XCTUnwrap(records.first {
+            $0.seedKey == "workout-template.ppl--u2013--push-day--u28-chest-u2c--shoulders-u2c--triceps-u29"
+        })
+        let template = try XCTUnwrap(
+            context.fetch(FetchDescriptor<WorkoutTemplate>()).first { $0.id == pushTemplateRecord.entityID }
+        )
+        let planRecord = try XCTUnwrap(records.first { $0.seedKey == RepeatingPlanSeedData.pplContinuous.seedKey })
+        let plan = try XCTUnwrap(
+            context.fetch(FetchDescriptor<RepeatingPlan>()).first { $0.id == planRecord.entityID }
+        )
+        let run = RepeatingPlanRun(plan: plan)
+        context.insert(run)
+        try context.save()
+
+        let runSlot = try XCTUnwrap(run.orderedSlots.first)
+        let runPreSnapshotID = runSlot.preWorkoutMobilityRoutineIDSnapshot
+        let runPreSnapshotName = runSlot.preWorkoutMobilityRoutineNameSnapshot
+        template.preWorkoutMobilityRoutine = nil
+        plan.orderedSlots.first?.preWorkoutMobilityRoutine = nil
+        plan.orderedSlots.first?.preWorkoutMobilityRoutineIDSnapshot = nil
+        plan.orderedSlots.first?.preWorkoutMobilityRoutineNameSnapshot = nil
+        try context.save()
+
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+
+        XCTAssertEqual(template.preWorkoutMobilityRoutine?.name, "Upper Body Bench Warmup")
+        XCTAssertEqual(plan.orderedSlots.first?.preWorkoutMobilityRoutine?.name, "Upper Body Bench Warmup")
+        XCTAssertEqual(runSlot.preWorkoutMobilityRoutineIDSnapshot, runPreSnapshotID)
+        XCTAssertEqual(runSlot.preWorkoutMobilityRoutineNameSnapshot, runPreSnapshotName)
+    }
+
+    func testTemplateMobilityLinkerPreflightsRoutineDependenciesBeforeMutation() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+
+        let records = try context.fetch(FetchDescriptor<SystemSeedRecord>())
+        let pushTemplateRecord = try XCTUnwrap(records.first {
+            $0.seedKey == "workout-template.ppl--u2013--push-day--u28-chest-u2c--shoulders-u2c--triceps-u29"
+        })
+        let template = try XCTUnwrap(
+            context.fetch(FetchDescriptor<WorkoutTemplate>()).first { $0.id == pushTemplateRecord.entityID }
+        )
+        let dailyRoutineRecord = try XCTUnwrap(records.first {
+            $0.seedKey == "mobility-routine.daily-mobility-reset"
+        })
+        let dailyRoutine = try XCTUnwrap(
+            context.fetch(FetchDescriptor<MobilityRoutine>()).first { $0.id == dailyRoutineRecord.entityID }
+        )
+        template.preWorkoutMobilityRoutine = dailyRoutine
+
+        let missingRoutineRecord = try XCTUnwrap(records.first {
+            $0.seedKey == "mobility-routine.upper-body-bench-warmup"
+        })
+        context.delete(missingRoutineRecord)
+        try context.save()
+
+        XCTAssertThrowsError(
+            try WorkoutTemplateMobilitySeedLinker.apply(
+                in: context,
+                registry: SystemSeedRegistry(context: context)
+            )
+        ) {
+            XCTAssertEqual(
+                $0 as? SystemSeedError,
+                .unresolvedDependency(
+                    key: "workout-template.day-2--u2013--upper-body--u28-push-slash-pull-u29",
+                    dependency: "mobility-routine.upper-body-bench-warmup"
+                )
+            )
+        }
+        XCTAssertEqual(template.preWorkoutMobilityRoutine?.id, dailyRoutine.id)
+    }
+
+    func testRepeatingPlanSeedPreflightsEveryDependencyBeforeMutation() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let registry = try SystemSeedRegistry(context: context)
+        let template = WorkoutTemplate(name: "Preflight template", exercises: [])
+        context.insert(template)
+        try registry.register(
+            key: "workout-template.preflight-template",
+            kind: .workoutTemplate,
+            entityID: template.id,
+            seedVersion: 1,
+            contentVersion: 1,
+            sourceKind: .bundled
+        )
+        try context.save()
+
+        let valid = RepeatingPlanSeedDefinition(
+            seedKey: "repeating-plan.valid-preflight-probe",
+            name: "Valid Preflight Probe",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            requiredEquipment: [],
+            notes: nil,
+            templateSeedKeys: ["workout-template.preflight-template"]
+        )
+        let missing = RepeatingPlanSeedDefinition(
+            seedKey: "repeating-plan.missing-preflight-probe",
+            name: "Missing Preflight Probe",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            requiredEquipment: [],
+            notes: nil,
+            templateSeedKeys: ["workout-template.missing-preflight-template"]
+        )
+
+        XCTAssertThrowsError(
+            try RepeatingPlanSystemSeedInstaller.install(
+                [valid, missing],
+                in: context,
+                registry: registry,
+                seedVersion: 1,
+                contentVersion: 1
+            )
+        )
+        XCTAssertTrue(try context.fetch(FetchDescriptor<RepeatingPlan>()).isEmpty)
+        XCTAssertFalse(
+            try context.fetch(FetchDescriptor<SystemSeedRecord>()).contains {
+                $0.seedKey.hasPrefix("repeating-plan.")
+            }
+        )
+    }
+
+    func testExplicitWorkoutTemplateAndCollectionKeysPreserveLegacyIdentity() {
+        let templates = WorkoutTemplateSeedData.seededTemplates(using: ExerciseSeedData.templates())
+        XCTAssertEqual(
+            Set(templates.map(\.seedKey)),
+            Set(templates.map { SystemSeedKey.make(namespace: "workout-template", legacyName: $0.template.name) })
+        )
+
+        for collection in WorkoutTemplateSeedData.collections {
+            let expectedKey = collection.name == WorkoutTemplateSeedData.collectionName
+                ? "workout-collection.upper-lower-four-day"
+                : SystemSeedKey.make(namespace: "workout-collection", legacyName: collection.name)
+            XCTAssertEqual(collection.seedKey, expectedKey)
+        }
+    }
+
+    func testPPLSeedPreservesCustomDuplicateName() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let custom = RepeatingPlan(name: "PPL Continuous", notes: "My custom rotation")
+        context.insert(custom)
+        try context.save()
+
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+
+        let matching = try context.fetch(FetchDescriptor<RepeatingPlan>())
+            .filter { $0.name == "PPL Continuous" }
+        XCTAssertEqual(matching.count, 2)
+        let restoredCustom = try XCTUnwrap(matching.first { $0.id == custom.id })
+        XCTAssertFalse(restoredCustom.isBuiltIn)
+        XCTAssertEqual(restoredCustom.notes, "My custom rotation")
+        XCTAssertTrue(matching.contains { $0.isBuiltIn && $0.id != custom.id })
+    }
+
+    func testRepeatingPlanSeedRejectsMissingTemplateDependencyBeforeMutation() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let registry = try SystemSeedRegistry(context: context)
+        let missingDependency = RepeatingPlanSeedDefinition(
+            seedKey: "repeating-plan.missing-template-probe",
+            name: "Missing Template Probe",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            requiredEquipment: [],
+            notes: nil,
+            templateSeedKeys: ["workout-template.missing-template-probe"]
+        )
+
+        XCTAssertThrowsError(
+            try RepeatingPlanSystemSeedInstaller.install(
+                [missingDependency],
+                in: context,
+                registry: registry,
+                seedVersion: 1,
+                contentVersion: 1
+            )
+        ) {
+            XCTAssertEqual(
+                $0 as? SystemSeedError,
+                .unresolvedDependency(
+                    key: "repeating-plan.missing-template-probe",
+                    dependency: "workout-template.missing-template-probe"
+                )
+            )
+        }
+        XCTAssertTrue(try context.fetch(FetchDescriptor<RepeatingPlan>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<SystemSeedRecord>()).isEmpty)
     }
 
     func testCoordinatorRollsBackEveryStagedDomainWhenBundledProgramDataIsMissing() throws {
@@ -332,6 +642,7 @@ final class SystemSeedRegistryTests: XCTestCase {
             "relationship": try context.fetchCount(FetchDescriptor<ExerciseRelationship>()),
             "template": try context.fetchCount(FetchDescriptor<WorkoutTemplate>()),
             "collection": try context.fetchCount(FetchDescriptor<WorkoutCollection>()),
+            "repeatingPlan": try context.fetchCount(FetchDescriptor<RepeatingPlan>()),
             "program": try context.fetchCount(FetchDescriptor<ProgramDefinitionRecord>()),
             "mobility": try context.fetchCount(FetchDescriptor<MobilityDefinition>()),
             "routine": try context.fetchCount(FetchDescriptor<MobilityRoutine>()),
