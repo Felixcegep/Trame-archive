@@ -221,6 +221,40 @@ struct GymChartSelectionAnnotation: View {
     }
 }
 
+/// Uppercase tracked label that introduces a group inside a card. Smaller and
+/// quieter than `GymSectionHeader`, so several groups can share one card
+/// without competing with the screen title.
+struct GymEyebrow: View {
+    let title: LocalizedStringKey
+    var tint: Color = .gymSubduedText
+
+    init(_ title: LocalizedStringKey, tint: Color = .gymSubduedText) {
+        self.title = title
+        self.tint = tint
+    }
+
+    var body: some View {
+        Text(title)
+            .font(AppFont.caption2Bold)
+            .textCase(.uppercase)
+            .tracking(0.55)
+            .foregroundStyle(tint)
+    }
+}
+
+extension View {
+    /// Text-field chrome for the warm palette. `.roundedBorder` renders a gray
+    /// system border that reads as foreign against the cream background.
+    func gymFieldStyle() -> some View {
+        frame(minHeight: ComponentSize.minimumTouchTarget)
+            .padding(.horizontal, Spacing.m)
+            .background(
+                Color.gymRowSurface,
+                in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+            )
+    }
+}
+
 struct GymPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
