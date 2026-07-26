@@ -1,88 +1,87 @@
 import SwiftUI
 
+/// Date plus the plan you are following — nothing else.
+///
+/// This header used to repeat the workout name, plan name, and week that
+/// `HomePrimaryWorkoutCard` states immediately below it, plus a fixed greeting
+/// line that never changed. The hero card is the better place for all of that,
+/// so the header keeps only what the card does not say: the date, and a tap
+/// target into the plan itself.
 struct HomeWelcomeHeader: View {
     let activePlanRun: PlanRun?
     let activeRepeatingPlanRun: RepeatingPlanRun?
-    let summaryTitle: String
-    let hasActiveWorkout: Bool
+    let onOpenPlan: (UUID) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs + 2) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
                 .font(AppFont.subheadlineMediumMonospaced)
                 .foregroundStyle(Color.gymAccent)
 
             if let activePlanRun {
-                activePlanContext(for: activePlanRun)
-                    .padding(.bottom, Spacing.xs)
+                planChip(
+                    planID: activePlanRun.sourcePlanID,
+                    icon: AppIcon.plan,
+                    name: activePlanRun.sourcePlanName,
+                    stage: "Week \(activePlanRun.currentWeekIndex + 1)",
+                    accessibilityLabel: "Active plan: \(activePlanRun.sourcePlanName), week \(activePlanRun.currentWeekIndex + 1)",
+                    accessibilityIdentifier: "active-plan-badge"
+                )
             } else if let activeRepeatingPlanRun {
-                repeatingPlanContext(for: activeRepeatingPlanRun)
-                    .padding(.bottom, Spacing.xs)
+                planChip(
+                    planID: activeRepeatingPlanRun.sourcePlanID,
+                    icon: AppIcon.routine,
+                    name: activeRepeatingPlanRun.sourcePlanName,
+                    stage: "Cycle \(activeRepeatingPlanRun.completedCycleCount + 1)",
+                    accessibilityLabel: "Active rotation: \(activeRepeatingPlanRun.sourcePlanName), cycle \(activeRepeatingPlanRun.completedCycleCount + 1)",
+                    accessibilityIdentifier: "active-repeating-plan-badge"
+                )
             }
-
-            Text(summaryTitle)
-                .font(AppFont.displayMedium)
-
-            Text(hasActiveWorkout
-                 ? "Your session is still running."
-                 : "Train, reflect, and keep the day simple.")
-                .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
         }
     }
 
-    private func activePlanContext(for run: PlanRun) -> some View {
-        HStack(spacing: Spacing.xs) {
-            Image(systemName: AppIcon.plan)
-                .font(AppFont.captionBold)
-
-            Text(run.sourcePlanName)
-                .font(AppFont.captionBold)
-                .lineLimit(1)
-                .truncationMode(.tail)
-
-            Spacer(minLength: Spacing.s)
-
-            Text("Week \(run.currentWeekIndex + 1)")
-                .font(AppFont.caption2Bold)
-                .padding(.horizontal, Spacing.s)
-                .padding(.vertical, Spacing.xxs)
-                .background(Color.gymCard.opacity(0.72), in: Capsule())
-        }
-        .foregroundStyle(Color.gymAccent)
-        .padding(.horizontal, Spacing.m)
-        .padding(.vertical, Spacing.s)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Active plan: \(run.sourcePlanName), week \(run.currentWeekIndex + 1)")
-        .accessibilityIdentifier("active-plan-badge")
-    }
-
-    private func repeatingPlanContext(for run: RepeatingPlanRun) -> some View {
-        HStack(alignment: .top, spacing: Spacing.xs) {
-            Image(systemName: AppIcon.routine)
-                .font(AppFont.captionBold)
-
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(run.sourcePlanName)
+    private func planChip(
+        planID: UUID,
+        icon: String,
+        name: String,
+        stage: String,
+        accessibilityLabel: String,
+        accessibilityIdentifier: String
+    ) -> some View {
+        Button {
+            onOpenPlan(planID)
+        } label: {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: icon)
                     .font(AppFont.captionBold)
-                    .fixedSize(horizontal: false, vertical: true)
 
-                Text("Cycle \(run.completedCycleCount + 1)")
+                Text(name)
+                    .font(AppFont.captionBold)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Spacer(minLength: Spacing.s)
+
+                Text(stage)
                     .font(AppFont.caption2Bold)
                     .padding(.horizontal, Spacing.s)
                     .padding(.vertical, Spacing.xxs)
                     .background(Color.gymCard.opacity(0.72), in: Capsule())
+
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.caption2Bold)
             }
+            .foregroundStyle(Color.gymAccent)
+            .padding(.horizontal, Spacing.m)
+            .padding(.vertical, Spacing.s)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+            .contentShape(Rectangle())
         }
-        .foregroundStyle(Color.gymAccent)
-        .padding(.horizontal, Spacing.m)
-        .padding(.vertical, Spacing.s)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .buttonStyle(.gymPress)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Active rotation: \(run.sourcePlanName), cycle \(run.completedCycleCount + 1)")
-        .accessibilityIdentifier("active-repeating-plan-badge")
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("Opens the plan.")
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }

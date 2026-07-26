@@ -36,6 +36,10 @@ enum AppTab: String, CaseIterable, Hashable, Identifiable {
 enum TodayRoute: Hashable {
     case trainingCalendar
     case settings
+    /// The plan Today says you are following. Reachable from the header chip so
+    /// pausing or stopping a plan does not require hunting through the Train tab.
+    case plan(UUID)
+    case repeatingPlan(UUID)
 }
 
 enum NutritionRoute: Hashable {

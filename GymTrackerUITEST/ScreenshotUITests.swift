@@ -97,11 +97,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         selectTab(.library, in: app)
         saveScreenshot("overview/02_Train")
 
-        let myWorkoutsHeader = app.staticTexts["MY WORKOUTS"].firstMatch
-        XCTAssertTrue(myWorkoutsHeader.waitForExistence(timeout: 5))
-        app.swipeUp()
+        let libraryHeader = app.staticTexts["LIBRARY"].firstMatch
+        XCTAssertTrue(libraryHeader.waitForExistence(timeout: 5))
+        tapButton("workouts-browser", in: app)
         saveScreenshot("overview/02b_Train_Templates")
-        app.swipeDown()
+        app.navigationBars.buttons.firstMatch.tap()
         tapButton("plans-browser", in: app)
         saveScreenshot("overview/02c_Train_Plans")
         app.navigationBars.buttons.firstMatch.tap()
@@ -519,7 +519,10 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("Cancel", in: app)
         XCTAssertTrue(app.navigationBars["Log caffeine"].waitForNonExistence(timeout: 5))
 
-        tapButton("manage-mobility-routines", in: app)
+        // Managing routines is the Train tab's job; Today only starts or resumes
+        // one, so the library is reached from Train rather than a Today link.
+        selectTab(.library, in: app)
+        tapButton("train-mobility-library", in: app)
         XCTAssertTrue(app.navigationBars["Mobility"].waitForExistence(timeout: 5))
         saveScreenshot("mobility/18_Mobility_Routines")
     }
@@ -558,8 +561,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("Cancel", in: app)
         XCTAssertTrue(app.navigationBars["Reschedule workout"].waitForNonExistence(timeout: 5))
 
-        selectTab(.library, in: app)
-        tapButton("plans-browser", in: app)
+        openPlans(.following, in: app)
         tapButton("plan-row-Screenshot Plan Run", in: app)
         XCTAssertTrue(app.buttons["start-planned-workout"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13b_Plan_Active_Run")
@@ -805,7 +807,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("plans/13_Plan_Day_Assignments")
         tapButton("save-plan", in: app)
 
-        tapButton("plans-browser", in: app)
+        openPlans(.mine, in: app)
         tapButton("plan-row-Screenshot Plan", in: app)
         tapButton("edit-plan", in: app)
         XCTAssertTrue(app.buttons["edit-plan-workout"].firstMatch.waitForExistence(timeout: 5))
@@ -861,11 +863,10 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("Cancel", in: app)
         XCTAssertTrue(name.waitForNonExistence(timeout: 5))
 
-        tapButton("program-catalog-browser", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["program-catalog"].waitForExistence(timeout: 8))
+        openPlans(.readyMade, in: app)
         saveScreenshot("plans/13k_Program_Catalog")
 
-        let program = app.descendants(matching: .any)["program-catalog-Double Progression Builder"]
+        let program = app.buttons["program-catalog-Double Progression Builder"].firstMatch
         XCTAssertTrue(program.waitForExistence(timeout: 5))
         program.tap()
         XCTAssertTrue(app.descendants(matching: .any)["program-catalog-detail"].waitForExistence(timeout: 5))
@@ -884,8 +885,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             expectsActiveWorkout: false,
             expectedHomeControl: "start-planned-workout"
         )
-        selectTab(.library, in: app)
-        tapButton("plans-browser", in: app)
+        openPlans(.following, in: app)
         tapButton("plan-row-Calendar Fixture Plan", in: app)
         tapButton("view-plan-schedule", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-screen"].waitForExistence(timeout: 5))
@@ -938,8 +938,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             expectsActiveWorkout: false,
             expectedHomeControl: "start-planned-workout"
         )
-        selectTab(.library, in: app)
-        tapButton("plans-browser", in: app)
+        openPlans(.following, in: app)
         tapButton("plan-row-Calendar Fixture Plan", in: app)
         tapButton("view-plan-schedule", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["plan-calendar-screen"].waitForExistence(timeout: 5))
@@ -1038,8 +1037,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     }
 
     private func openRepeatingPlanFixture(in app: XCUIApplication) {
-        selectTab(.library, in: app)
-        tapButton("repeating-plans-browser", in: app)
+        openPlans(.mine, in: app)
         let plan = app.buttons.matching(
             NSPredicate(format: "label CONTAINS %@", "Rotation Screenshot Fixture")
         ).firstMatch

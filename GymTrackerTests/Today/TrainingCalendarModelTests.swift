@@ -130,6 +130,60 @@ final class TrainingCalendarModelTests: XCTestCase {
         XCTAssertTrue(projection.nutrition?.totals.hasUnknownValues == true)
     }
 
+    /// A stopped plan kept filling the calendar with sessions that would never
+    /// happen, so Today's calendar showed "Scheduled training" while Train
+    /// correctly reported no plan being followed.
+    func testProjectionDropsUnperformedOccurrencesOfArchivedRunsButKeepsHistory() {
+        let run = PlanRun(sourcePlanID: UUID(), sourcePlanName: "Abandoned", startDate: today)
+        let done = progress(named: "Completed session", status: .completed)
+        let skipped = progress(named: "Skipped session", status: .skipped)
+        let upcoming = progress(named: "Never happening", status: .available)
+        run.workoutProgress = [done, skipped, upcoming]
+        run.status = .archived
+
+        let names = Set(makeDay(planRuns: [run]).plannedWorkouts.map(\.workoutName))
+
+        XCTAssertEqual(names, ["Completed session", "Skipped session"])
+    }
+
+    func testProjectionKeepsEveryOccurrenceOfARunStillBeingFollowed() {
+        let run = PlanRun(sourcePlanID: UUID(), sourcePlanName: "Active", startDate: today)
+        run.workoutProgress = [
+            progress(named: "Completed session", status: .completed),
+            progress(named: "Still scheduled", status: .available)
+        ]
+        run.status = .active
+
+        let names = Set(makeDay(planRuns: [run]).plannedWorkouts.map(\.workoutName))
+
+        XCTAssertEqual(names, ["Completed session", "Still scheduled"])
+    }
+
+    /// `testDayAvailable` is a live state, so its schedule stays visible and
+    /// `CurrentPlanSummary` must agree that a plan is being followed.
+    func testTestDayRunCountsAsFollowedByBothCalendarAndCurrentPlanSummary() {
+        let run = PlanRun(sourcePlanID: UUID(), sourcePlanName: "Test day", startDate: today)
+        run.workoutProgress = [progress(named: "Retest", status: .available)]
+        run.status = .testDayAvailable
+
+        XCTAssertEqual(makeDay(planRuns: [run]).plannedWorkouts.count, 1)
+        XCTAssertTrue(
+            CurrentPlanSummary.resolve(planRuns: [run], repeatingPlanRuns: []).isFollowing
+        )
+    }
+
+    private func progress(named name: String, status: PlanWorkoutStatus) -> PlanWorkoutProgress {
+        let progress = PlanWorkoutProgress(
+            plannedWorkoutID: UUID(),
+            plannedWorkoutName: name,
+            weekIndex: 0,
+            workoutIndex: 0,
+            scheduledDate: today
+        )
+        progress.status = status
+        return progress
+    }
+
     private func makeDay(
         planRuns: [PlanRun] = [],
         workouts: [Workout] = [],

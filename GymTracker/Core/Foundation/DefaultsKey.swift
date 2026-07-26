@@ -2,6 +2,7 @@ import Foundation
 
 struct DefaultsKey {
     static let darkMode = "darkMode"
+    static let hasCompletedWelcome = "hasCompletedWelcome"
     static let restTimer = "restTimer"
     static let useMetric = "useMetric"
     static let orphanCleanupVersion = "orphanCleanupVersion"

@@ -1,6 +1,13 @@
 import SwiftData
 import SwiftUI
 
+/// The Train tab root: what you are following, and four doors to what you own.
+///
+/// This screen used to stack a CREATE card (duplicating the `+` button), a
+/// five-row BROWSE list that gave "Ready-Made Plans", "My Plans" and "Rotations"
+/// equal billing as three separate ways to do one job, and every saved workout
+/// inline below. Plans are now one door, saved workouts live behind another, and
+/// creation happens in exactly one place.
 struct FolderView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var workoutCollections: [WorkoutCollection]
@@ -16,22 +23,11 @@ struct FolderView: View {
     @State private var searchText = ""
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
-    let onStartWorkout: (WorkoutTemplate) -> Void
-    let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
-    let onStartPlan: (WorkoutPlan, Date) -> Void
+    let onOpenRoute: (LibraryRoute) -> Void
     let onResumePlan: (PlanRun) -> Void
-    let onStartPlanTestDay: (PlanRun) -> Void
-    let onStartRepeatingWorkout: (RepeatingPlanRun) -> Void
-    let onActivateRepeatingPlan: (RepeatingPlan) -> Void
     let onPauseRepeatingPlan: (RepeatingPlanRun) -> Void
     let onResumeRepeatingPlan: (RepeatingPlanRun) -> Void
-    let onStartAlternateRepeatingWorkout: (RepeatingPlanRun, Int, RepeatingPlanContinuationMode) -> Void
-    let onRepeatRepeatingWorkout: (RepeatingPlanRun) -> Void
-    let onSkipRepeatingWorkout: (RepeatingPlanRun) -> Void
-    let onUndoRepeatingPlanAdvancement: (RepeatingPlanRun) -> Void
-    let onRestartRepeatingPlan: (RepeatingPlanRun) -> Void
     let onEndRepeatingPlan: (RepeatingPlanRun) -> Void
-    let onShowArchivedExercises: () -> Void
 
     var body: some View {
         ScrollView {
@@ -64,6 +60,7 @@ struct FolderView: View {
                         .font(AppFont.subheadlineSemibold)
                 }
                 .accessibilityLabel("Create library item")
+                .accessibilityIdentifier("library-create")
                 .popover(
                     isPresented: $isCreateMenuPresented,
                     attachmentAnchor: .rect(.bounds),
@@ -86,13 +83,15 @@ struct FolderView: View {
                         LibraryService.createWorkoutCollection(name: name, templates: templates, using: modelContext)
                     }
                 case .workoutTemplate:
-                    WorkoutTemplateFormView(availableExercises: exerciseTemplates) { name, exercises in
-                        LibraryService.createWorkoutTemplate(name: name, exercises: exercises, using: modelContext)
+                    WorkoutTemplateFormView(availableExercises: exerciseTemplates) { name, templateExercises in
+                        LibraryService.createWorkoutTemplate(name: name, templateExercises: templateExercises, using: modelContext)
                     }
                 case .plan:
-                    PlanFormView(templates: workoutTemplates) { plan in
-                        LibraryService.createPlan(plan, using: modelContext)
-                    }
+                    PlanFormView(
+                        templates: workoutTemplates,
+                        onSave: { LibraryService.createPlan($0, using: modelContext) },
+                        onSaveRepeating: { LibraryService.createRepeatingPlan($0, using: modelContext) }
+                    )
                 case .programDefinition:
                     ProgramDefinitionBuilderView(exercises: exerciseTemplates) { payload in
                         _ = try ProgramDefinitionRepository.saveAndCompile(payload, in: modelContext)
@@ -135,87 +134,36 @@ struct FolderView: View {
 
     private var browseSection: some View {
         VStack(alignment: .leading, spacing: Spacing.xxl) {
-            createSection
-            browseLibrarySection
-            myWorkoutsSection
+            CurrentPlanCard(
+                onOpenPlan: { target in
+                    onOpenRoute(target.isRepeating ? .repeatingPlan(target.planID) : .plan(target.planID))
+                },
+                onChoosePlan: { onOpenRoute(.plans) },
+                onResumePlan: onResumePlan,
+                onPauseRepeatingPlan: onPauseRepeatingPlan,
+                onResumeRepeatingPlan: onResumeRepeatingPlan,
+                onEndRepeatingPlan: onEndRepeatingPlan
+            )
+            librarySection
         }
     }
 
-    private var createSection: some View {
+    /// Four rows, one noun each. Plans covers ready-made, saved and repeating
+    /// plans alike, so "which of these three is a plan?" stops being a question
+    /// the user has to answer before they can start.
+    private var librarySection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            LibrarySectionTitle("Create")
+            LibrarySectionTitle("Library")
 
             LibraryGroupCard {
-                Button {
-                    activeSheet = .workoutTemplate
-                } label: {
-                    LibraryCreateRow(
-                        title: "Build a Workout",
-                        subtitle: "One session you can start any time",
-                        icon: AppIcon.plus
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("library-new-workout")
-
-                LibraryGroupDivider()
-
-                Button {
-                    activeSheet = .plan
-                } label: {
-                    LibraryCreateRow(
-                        title: "Build a Training Plan",
-                        subtitle: "Schedule your workouts across the week",
-                        icon: AppIcon.planAdd
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("library-new-program")
-            }
-        }
-    }
-
-    private var browseLibrarySection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            LibrarySectionTitle("Browse")
-
-            LibraryGroupCard {
-                if featureFlags.isEnabled(.programBuilder) {
-                    NavigationLink {
-                        ProgramCatalogView()
-                    } label: {
-                        LibraryItemRow(
-                            title: "Ready-Made Plans",
-                            subtitle: "Proven plans — pick one and start",
-                            icon: AppIcon.planCatalog,
-                            color: Color.gymPrimary,
-                            surface: Color.gymPrimarySurface,
-                            count: readyMadePlanCount,
-                            showsCard: false
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("program-catalog-browser")
-
-                    LibraryGroupDivider()
-                }
-
-                NavigationLink {
-                    PlansBrowserView(
-                        onStartPlannedWorkout: onStartPlannedWorkout,
-                        onStartPlan: onStartPlan,
-                        onResumePlan: onResumePlan,
-                        onStartTestDay: onStartPlanTestDay,
-                        onCreateProgram: { activeSheet = .plan }
-                    )
-                } label: {
+                NavigationLink(value: LibraryRoute.plans) {
                     LibraryItemRow(
-                        title: "My Plans",
-                        subtitle: "Plans you built or started",
+                        title: "Plans",
+                        subtitle: "Ready-made, yours, and what you follow",
                         icon: AppIcon.plan,
                         color: Color.gymAccent,
                         surface: Color.gymAccentSurface,
-                        count: workoutPlans.filter { !$0.isArchived }.count,
+                        count: planCount,
                         showsCard: false
                     )
                 }
@@ -224,42 +172,27 @@ struct FolderView: View {
 
                 LibraryGroupDivider()
 
-                NavigationLink {
-                    RepeatingPlanBrowserView(
-                        onStartRepeatingWorkout: onStartRepeatingWorkout,
-                        onActivateRepeatingPlan: onActivateRepeatingPlan,
-                        onPauseRepeatingPlan: onPauseRepeatingPlan,
-                        onResumeRepeatingPlan: onResumeRepeatingPlan,
-                        onStartAlternateRepeatingWorkout: onStartAlternateRepeatingWorkout,
-                        onRepeatRepeatingWorkout: onRepeatRepeatingWorkout,
-                        onSkipRepeatingWorkout: onSkipRepeatingWorkout,
-                        onUndoRepeatingPlanAdvancement: onUndoRepeatingPlanAdvancement,
-                        onRestartRepeatingPlan: onRestartRepeatingPlan,
-                        onEndRepeatingPlan: onEndRepeatingPlan
-                    )
-                } label: {
+                NavigationLink(value: LibraryRoute.workouts) {
                     LibraryItemRow(
-                        title: "Rotations",
-                        subtitle: "Repeat your next workout in order",
+                        title: "Workouts",
+                        subtitle: "Single sessions you can start any time",
                         icon: AppIcon.routine,
                         color: Color.gymPrimary,
                         surface: Color.gymPrimarySurface,
-                        count: repeatingPlans.filter { !$0.isArchived }.count,
+                        count: workoutTemplates.count,
                         showsCard: false
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("repeating-plans-browser")
+                .accessibilityIdentifier("workouts-browser")
 
                 LibraryGroupDivider()
 
-                NavigationLink {
-                    ExerciseBrowserView(onShowArchivedExercises: onShowArchivedExercises)
-                } label: {
+                NavigationLink(value: LibraryRoute.exercises) {
                     LibraryItemRow(
-                        title: "All Exercises",
+                        title: "Exercises",
                         subtitle: "Every move you can add to a workout",
-                        icon: "dumbbell.fill",
+                        icon: AppIcon.workout,
                         color: Color.gymSecondary,
                         surface: Color.gymSecondarySurface,
                         count: exerciseTemplates.count,
@@ -289,82 +222,17 @@ struct FolderView: View {
         }
     }
 
+    /// Ready-made definitions plus everything the user saved, matching what the
+    /// Plans destination actually lists.
+    private var planCount: Int {
+        readyMadePlanCount
+            + workoutPlans.filter { !$0.isArchived }.count
+            + repeatingPlans.filter { !$0.isArchived }.count
+    }
+
     private var readyMadePlanCount: Int {
-        programDefinitions.filter { $0.isBuiltIn && !$0.isArchived }.count
-    }
-
-    private var myWorkoutsSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            LibraryListSectionHeader(title: "My Workouts", count: workoutTemplates.count)
-
-            if sortedCollections.isEmpty && sortedTemplates.isEmpty {
-                LibraryGroupCard {
-                    Text("No workouts yet — tap Build a Workout above to create your first one.")
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .padding(Spacing.l)
-                }
-            } else {
-                LibraryGroupCard {
-                    ForEach(Array(sortedCollections.enumerated()), id: \.offset) { index, collection in
-                        if index > 0 {
-                            LibraryGroupDivider()
-                        }
-                        NavigationLink {
-                            WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
-                        } label: {
-                            LibraryItemRow(
-                                title: collection.name,
-                                subtitle: workoutCountText(collection.workoutTemplates.count),
-                                icon: "rectangle.stack",
-                                color: Color.gymAccent,
-                                surface: Color.gymAccentSurface,
-                                badge: collection.isBuiltIn ? "Starter" : nil,
-                                showsCard: false
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    ForEach(Array(sortedTemplates.enumerated()), id: \.offset) { index, template in
-                        if index > 0 || !sortedCollections.isEmpty {
-                            LibraryGroupDivider()
-                        }
-                        StartableWorkoutRow(
-                            accessibilityName: template.name,
-                            isStartDisabled: template.exercises.isEmpty,
-                            onStart: { onStartWorkout(template) }
-                        ) {
-                            LibraryItemRow(
-                                title: template.name,
-                                subtitle: "\(template.exercises.count) exercises",
-                                icon: "list.bullet.rectangle",
-                                color: Color.gymPrimary,
-                                surface: Color.gymPrimarySurface,
-                                badge: template.isBuiltIn ? "Starter" : nil,
-                                showsCard: false,
-                                showsChevron: false
-                            )
-                        } editor: {
-                            WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
-                        }
-                        .padding(.trailing, Spacing.l - 2)
-                    }
-                }
-            }
-        }
-    }
-
-    private var sortedCollections: [WorkoutCollection] {
-        workoutCollections.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-    }
-
-    private var sortedTemplates: [WorkoutTemplate] {
-        workoutTemplates.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-    }
-
-    private func workoutCountText(_ count: Int) -> String {
-        count == 1 ? "1 workout" : "\(count) workouts"
+        guard featureFlags.isEnabled(.programBuilder) else { return 0 }
+        return programDefinitions.filter { $0.isBuiltIn && !$0.isArchived }.count
     }
 
     private func presentPendingSheet() {
@@ -384,9 +252,7 @@ struct FolderView: View {
                 if !matchingCollections.isEmpty {
                     searchResultsCard(title: "Folders") {
                         ForEach(matchingCollections) { collection in
-                            NavigationLink {
-                                WorkoutCollectionDetailView(collection: collection, onStartWorkout: onStartWorkout)
-                            } label: {
+                            NavigationLink(value: LibraryRoute.workoutCollection(collection.id)) {
                                 RecentLibraryRow(
                                     title: collection.name,
                                     type: "FOLDER",
@@ -400,14 +266,12 @@ struct FolderView: View {
                 }
                 if !matchingTemplates.isEmpty {
                     searchResultsCard(title: "Workouts") {
-                        ForEach(matchingTemplates, id: \.self) { template in
-                            NavigationLink {
-                                WorkoutTemplateDetailView(template: template, onStartWorkout: onStartWorkout)
-                            } label: {
+                        ForEach(matchingTemplates) { template in
+                            NavigationLink(value: LibraryRoute.workoutTemplate(template.id)) {
                                 RecentLibraryRow(
                                     title: template.name,
                                     type: "WORKOUT",
-                                    icon: "list.bullet.rectangle",
+                                    icon: AppIcon.routine,
                                     color: Color.gymPrimary,
                                     surface: Color.gymPrimarySurface
                                 )
@@ -418,15 +282,7 @@ struct FolderView: View {
                 if !matchingPlans.isEmpty {
                     searchResultsCard(title: "Training Plans") {
                         ForEach(matchingPlans) { plan in
-                            NavigationLink {
-                                PlanDetailView(
-                                    plan: plan,
-                                    onStartPlannedWorkout: onStartPlannedWorkout,
-                                    onStartPlan: onStartPlan,
-                                    onResumePlan: onResumePlan,
-                                    onStartTestDay: onStartPlanTestDay
-                                )
-                            } label: {
+                            NavigationLink(value: LibraryRoute.plan(plan.id)) {
                                 RecentLibraryRow(
                                     title: plan.name,
                                     type: "PLAN",
@@ -438,16 +294,29 @@ struct FolderView: View {
                         }
                     }
                 }
+                if !matchingRepeatingPlans.isEmpty {
+                    searchResultsCard(title: "Repeating Plans") {
+                        ForEach(matchingRepeatingPlans) { plan in
+                            NavigationLink(value: LibraryRoute.repeatingPlan(plan.id)) {
+                                RecentLibraryRow(
+                                    title: plan.name,
+                                    type: "PLAN",
+                                    icon: AppIcon.routine,
+                                    color: Color.gymAccent,
+                                    surface: Color.gymAccentSurface
+                                )
+                            }
+                        }
+                    }
+                }
                 if !matchingExercises.isEmpty {
                     searchResultsCard(title: "Exercises") {
-                        ForEach(matchingExercises, id: \.self) { exercise in
-                            NavigationLink {
-                                ExerciseView(exercise: exercise)
-                            } label: {
+                        ForEach(matchingExercises) { exercise in
+                            NavigationLink(value: LibraryRoute.exercise(exercise.id)) {
                                 RecentLibraryRow(
                                     title: exercise.name,
                                     type: "EXERCISE",
-                                    icon: "dumbbell.fill",
+                                    icon: AppIcon.workout,
                                     color: Color.gymSecondary,
                                     surface: Color.gymSecondarySurface
                                 )
@@ -484,6 +353,10 @@ struct FolderView: View {
     private var matchingPlans: [WorkoutPlan] {
         workoutPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
+
+    private var matchingRepeatingPlans: [RepeatingPlan] {
+        repeatingPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
 }
 
 private struct LibraryCreatePopover: View {
@@ -495,14 +368,14 @@ private struct LibraryCreatePopover: View {
                 option(
                     title: "New Workout",
                     subtitle: "One session, like Leg Day",
-                    systemImage: "list.bullet.rectangle",
+                    systemImage: AppIcon.routine,
                     sheet: .workoutTemplate,
                     accessibilityIdentifier: "new-workout-template"
                 )
                 option(
                     title: "New Exercise",
                     subtitle: "Add a move you do at the gym",
-                    systemImage: "dumbbell.fill",
+                    systemImage: AppIcon.workout,
                     sheet: .exercise,
                     accessibilityIdentifier: "new-exercise"
                 )
@@ -608,9 +481,19 @@ enum FolderSheet: String, Identifiable {
     var id: String { rawValue }
 }
 
+/// Every Train destination is path-driven so screens deeper in the stack can pop
+/// back to the root — activating a ready-made plan, for one, has to land the
+/// user somewhere that shows the plan is now running.
 enum LibraryRoute: Hashable {
-    case archivedExercises
-    case exercise(UUID)
-    case plan(UUID)
+    case plans
+    case workouts
+    case exercises
     case mobility
+    case archivedExercises
+    case readyMadePlan(UUID)
+    case plan(UUID)
+    case repeatingPlan(UUID)
+    case workoutTemplate(UUID)
+    case workoutCollection(UUID)
+    case exercise(UUID)
 }

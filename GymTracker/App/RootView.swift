@@ -34,6 +34,7 @@ struct RootView: View {
     @State private var guidedSourceActionError: String?
     @State private var isShowingActiveWorkoutConflictAlert = false
     @AppStorage(DefaultsKey.darkMode) private var darkMode: Bool = false
+    @AppStorage(DefaultsKey.hasCompletedWelcome) private var hasCompletedWelcome: Bool = false
     @State private var isPreparingApp = true
     @State private var appIntentRouteStore = AppIntentRouteStore.shared
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
@@ -115,6 +116,19 @@ struct RootView: View {
                 }
                 .accessibilityIdentifier("app-preparing")
             }
+        }
+        .fullScreenCover(isPresented: shouldShowWelcome) {
+            WelcomeView(
+                onChoosePlan: {
+                    hasCompletedWelcome = true
+                    selectedTab = .train
+                    trainPath = [.plans]
+                },
+                onSkip: {
+                    hasCompletedWelcome = true
+                    selectedTab = .today
+                }
+            )
         }
         .fullScreenCover(isPresented: $isShowingActiveWorkout, onDismiss: {
             activeWorkoutPath.removeAll()
@@ -295,6 +309,34 @@ struct RootView: View {
         try? modelContext.fetch(FetchDescriptor<WorkoutPlan>()).first { $0.id == id }
     }
 
+    private func repeatingPlan(id: UUID) -> RepeatingPlan? {
+        try? modelContext.fetch(FetchDescriptor<RepeatingPlan>()).first { $0.id == id }
+    }
+
+    private func programDefinitionRecord(id: UUID) -> ProgramDefinitionRecord? {
+        try? modelContext.fetch(FetchDescriptor<ProgramDefinitionRecord>()).first { $0.id == id }
+    }
+
+    private func workoutTemplate(id: UUID) -> WorkoutTemplate? {
+        try? modelContext.fetch(FetchDescriptor<WorkoutTemplate>()).first { $0.id == id }
+    }
+
+    private func workoutCollection(id: UUID) -> WorkoutCollection? {
+        try? modelContext.fetch(FetchDescriptor<WorkoutCollection>()).first { $0.id == id }
+    }
+
+    /// Today's header chip carries only a plan id, so the route is resolved
+    /// here: a fixed-length plan and a repeating one land on different detail
+    /// screens, and an id matching neither is ignored rather than pushing a
+    /// dead screen.
+    private func openPlanFromToday(_ planID: UUID) {
+        if plan(id: planID) != nil {
+            todayPath.append(.plan(planID))
+        } else if repeatingPlan(id: planID) != nil {
+            todayPath.append(.repeatingPlan(planID))
+        }
+    }
+
     private func consumePendingAppIntentDestination() {
         guard let destination = appIntentRouteStore.consume() else { return }
         switch destination {
@@ -347,6 +389,21 @@ struct RootView: View {
         }
     }
 
+    /// Held back until seeding finishes, so "Follow a plan" never lands on an
+    /// empty catalogue. UI-test launches skip it outright — every fixture asserts
+    /// against a specific screen, not a welcome sheet — including relaunches,
+    /// which carry `-ui-testing` but not the reset or fixture arguments.
+    private var shouldShowWelcome: Binding<Bool> {
+        Binding(
+            get: {
+                !hasCompletedWelcome
+                    && !isPreparingApp
+                    && !CommandLine.arguments.contains("-ui-testing")
+            },
+            set: { if !$0 { hasCompletedWelcome = true } }
+        )
+    }
+
     private func tabLabel(for tab: AppTab) -> some View {
         Label(tab.title, systemImage: tab.icon)
             .accessibilityIdentifier(tab.accessibilityIdentifier)
@@ -365,7 +422,7 @@ struct RootView: View {
             onStartMobility: startMobility,
             onResumeMobility: resumeMobility,
             onOpenNutrition: openNutrition,
-            onOpenTrainMobility: openTrainMobility,
+            onOpenPlan: openPlanFromToday,
             onOpenTrainingCalendar: { todayPath.append(.trainingCalendar) },
             onOpenSettings: { todayPath.append(.settings) },
             requestedRescheduleProgressID: $requestedRescheduleProgressID
@@ -374,24 +431,11 @@ struct RootView: View {
 
     private var trainRoot: some View {
         FolderView(
-            onStartWorkout: startWorkout,
-            onStartPlannedWorkout: startPlannedWorkout,
-            onStartPlan: startFixedPlan,
+            onOpenRoute: { trainPath.append($0) },
             onResumePlan: resumeFixedPlan,
-            onStartPlanTestDay: startFixedPlanTestDay,
-            onStartRepeatingWorkout: startRepeatingWorkout,
-            onActivateRepeatingPlan: activateRepeatingPlan,
             onPauseRepeatingPlan: pauseRepeatingPlan,
             onResumeRepeatingPlan: resumeRepeatingPlan,
-            onStartAlternateRepeatingWorkout: startAlternateRepeatingWorkout,
-            onRepeatRepeatingWorkout: repeatRepeatingWorkout,
-            onSkipRepeatingWorkout: skipRepeatingWorkout,
-            onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
-            onRestartRepeatingPlan: restartRepeatingPlan,
-            onEndRepeatingPlan: endRepeatingPlan,
-            onShowArchivedExercises: {
-                trainPath.append(.archivedExercises)
-            }
+            onEndRepeatingPlan: endRepeatingPlan
         )
     }
 
@@ -413,12 +457,56 @@ struct RootView: View {
             )
         case .settings:
             SettingView(currentScreen: currentAppScreen)
+        case .plan(let planID):
+            if let plan = plan(id: planID) {
+                PlanDetailView(
+                    plan: plan,
+                    onStartPlannedWorkout: startPlannedWorkout,
+                    onStartPlan: startFixedPlan,
+                    onResumePlan: resumeFixedPlan,
+                    onStartTestDay: startFixedPlanTestDay
+                )
+            } else {
+                ContentUnavailableView(
+                    "Plan unavailable",
+                    systemImage: AppIcon.warning,
+                    description: Text("This plan may have been removed or replaced.")
+                )
+            }
+        case .repeatingPlan(let planID):
+            if let plan = repeatingPlan(id: planID) {
+                RepeatingPlanDetailView(
+                    plan: plan,
+                    onStartRepeatingWorkout: startRepeatingWorkout,
+                    onActivateRepeatingPlan: activateRepeatingPlan,
+                    onPauseRepeatingPlan: pauseRepeatingPlan,
+                    onResumeRepeatingPlan: resumeRepeatingPlan,
+                    onStartAlternateRepeatingWorkout: startAlternateRepeatingWorkout,
+                    onRepeatRepeatingWorkout: repeatRepeatingWorkout,
+                    onSkipRepeatingWorkout: skipRepeatingWorkout,
+                    onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
+                    onRestartRepeatingPlan: restartRepeatingPlan,
+                    onEndRepeatingPlan: endRepeatingPlan
+                )
+            } else {
+                ContentUnavailableView(
+                    "Rotation unavailable",
+                    systemImage: AppIcon.warning,
+                    description: Text("This rotation may have been removed or replaced.")
+                )
+            }
         }
     }
 
     @ViewBuilder
     private func libraryDestination(_ route: LibraryRoute) -> some View {
         switch route {
+        case .plans:
+            PlansBrowserView()
+        case .workouts:
+            WorkoutsBrowserView(onStartWorkout: startWorkout)
+        case .exercises:
+            ExerciseBrowserView(onShowArchivedExercises: { trainPath.append(.archivedExercises) })
         case .archivedExercises:
             ArchivedExercisesView()
         case .exercise(let exerciseID):
@@ -429,6 +517,18 @@ struct RootView: View {
                     "Exercise unavailable",
                     systemImage: AppIcon.warning,
                     description: Text("This exercise may have been removed or replaced.")
+                )
+            }
+        case .readyMadePlan(let recordID):
+            if let record = programDefinitionRecord(id: recordID) {
+                // Activation lands the user back on Train, where the current-plan
+                // card now names the plan they just started.
+                ProgramCatalogDetailView(record: record) { trainPath.removeAll() }
+            } else {
+                ContentUnavailableView(
+                    "Plan unavailable",
+                    systemImage: AppIcon.warning,
+                    description: Text("This plan may have been removed or replaced.")
                 )
             }
         case .plan(let planID):
@@ -445,6 +545,48 @@ struct RootView: View {
                     "Plan unavailable",
                     systemImage: AppIcon.warning,
                     description: Text("This plan may have been removed or replaced.")
+                )
+            }
+        case .repeatingPlan(let planID):
+            if let plan = repeatingPlan(id: planID) {
+                RepeatingPlanDetailView(
+                    plan: plan,
+                    onStartRepeatingWorkout: startRepeatingWorkout,
+                    onActivateRepeatingPlan: activateRepeatingPlan,
+                    onPauseRepeatingPlan: pauseRepeatingPlan,
+                    onResumeRepeatingPlan: resumeRepeatingPlan,
+                    onStartAlternateRepeatingWorkout: startAlternateRepeatingWorkout,
+                    onRepeatRepeatingWorkout: repeatRepeatingWorkout,
+                    onSkipRepeatingWorkout: skipRepeatingWorkout,
+                    onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
+                    onRestartRepeatingPlan: restartRepeatingPlan,
+                    onEndRepeatingPlan: endRepeatingPlan
+                )
+            } else {
+                ContentUnavailableView(
+                    "Rotation unavailable",
+                    systemImage: AppIcon.warning,
+                    description: Text("This rotation may have been removed or replaced.")
+                )
+            }
+        case .workoutTemplate(let templateID):
+            if let template = workoutTemplate(id: templateID) {
+                WorkoutTemplateDetailView(template: template, onStartWorkout: startWorkout)
+            } else {
+                ContentUnavailableView(
+                    "Workout unavailable",
+                    systemImage: AppIcon.warning,
+                    description: Text("This workout may have been removed or replaced.")
+                )
+            }
+        case .workoutCollection(let collectionID):
+            if let collection = workoutCollection(id: collectionID) {
+                WorkoutCollectionDetailView(collection: collection, onStartWorkout: startWorkout)
+            } else {
+                ContentUnavailableView(
+                    "Folder unavailable",
+                    systemImage: AppIcon.warning,
+                    description: Text("This folder may have been removed or replaced.")
                 )
             }
         case .mobility:

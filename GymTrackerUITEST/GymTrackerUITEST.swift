@@ -70,13 +70,11 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
     func testBrowsesConfiguresAndActivatesBuiltInProgram() {
         let app = launchFreshApp()
-        selectTab(.library, in: app)
-        tapButton("program-catalog-browser", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["program-catalog"].waitForExistence(timeout: 8))
+        openPlans(.readyMade, in: app)
 
         app.searchFields["Search plans"].tap()
         app.searchFields["Search plans"].typeText("Double Progression")
-        let program = app.descendants(matching: .any)["program-catalog-Double Progression Builder"]
+        let program = app.buttons["program-catalog-Double Progression Builder"].firstMatch
         XCTAssertTrue(program.waitForExistence(timeout: 5))
         program.tap()
         XCTAssertTrue(app.descendants(matching: .any)["program-catalog-detail"].waitForExistence(timeout: 5))
@@ -94,8 +92,12 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             keyboardDone.tap()
         }
         tapButton("start-program", in: app)
-        XCTAssertTrue(app.buttons["use-program"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["use-program"].label.contains("Plan added"))
+        // Activation pops back to Train, where the plan is now the one being
+        // followed. The old flow left the user on the catalogue detail with a
+        // disabled "Plan added" label and no sign of what had changed.
+        let currentPlan = app.buttons["current-plan-card"]
+        XCTAssertTrue(currentPlan.waitForExistence(timeout: 8))
+        XCTAssertTrue(currentPlan.label.contains("Double Progression Builder"))
     }
 
     func testResumesPersistedActiveWorkoutAfterRelaunch() {
@@ -577,9 +579,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         )
         tapButton("save-plan", in: app)
 
-        let plansBrowser = app.buttons["plans-browser"]
-        XCTAssertTrue(plansBrowser.waitForExistence(timeout: 5))
-        plansBrowser.tap()
+        openPlans(.mine, in: app)
 
         let plan = app.buttons["plan-row-Four Week Integration Plan"]
         XCTAssertTrue(plan.waitForExistence(timeout: 5))
@@ -619,8 +619,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertEqual(historyRows.count, 1)
         XCTAssertTrue(historyRows.firstMatch.label.contains("Fixture Day 1"))
 
-        selectTab(.library, in: app)
-        tapButton("plans-browser", in: app)
+        openPlans(.following, in: app)
         tapButton("plan-row-Integration Fixture Plan", in: app)
         let nextWorkout = app.buttons["start-planned-workout"]
         XCTAssertTrue(nextWorkout.waitForExistence(timeout: 5))
@@ -704,6 +703,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.launch()
 
         app.tabBars.buttons.element(boundBy: 1).tap()
+        // Saved workouts and their folders moved off the Train root into the
+        // Workouts destination, so Train can state what you are following first.
+        tapButton("workouts-browser", in: app)
 
         let seededCollection = app.staticTexts["Upper/Lower Program – 4 Days"]
         XCTAssertTrue(seededCollection.waitForExistence(timeout: 5))

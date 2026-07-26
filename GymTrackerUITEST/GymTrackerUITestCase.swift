@@ -45,6 +45,23 @@ class GymTrackerUITestCase: XCTestCase {
         tabButton.tap()
     }
 
+    /// Ready-made, saved and repeating plans all live behind the single Plans
+    /// row on Train, separated by a scope control rather than by three sibling
+    /// browsers. Tests pick the scope they need after opening it.
+    enum PlansScope: String {
+        case following = "Following"
+        case mine = "Mine"
+        case readyMade = "Ready-made"
+    }
+
+    func openPlans(_ scope: PlansScope, in app: XCUIApplication) {
+        selectTab(.library, in: app)
+        tapButton("plans-browser", in: app)
+        let control = app.buttons[scope.rawValue].firstMatch
+        XCTAssertTrue(control.waitForExistence(timeout: 8), "Expected the '\(scope.rawValue)' plans scope")
+        control.tap()
+    }
+
     @discardableResult
     func tapButton(
         _ identifier: String,

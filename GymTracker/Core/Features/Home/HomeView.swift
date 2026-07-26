@@ -12,7 +12,7 @@ struct HomeView: View {
     let onStartMobility: (MobilityRoutine, MobilitySessionContext, UUID?) -> Void
     let onResumeMobility: (MobilitySession) -> Void
     let onOpenNutrition: () -> Void
-    let onOpenTrainMobility: () -> Void
+    let onOpenPlan: (UUID) -> Void
     let onOpenTrainingCalendar: () -> Void
     let onOpenSettings: () -> Void
     @Binding var requestedRescheduleProgressID: UUID?
@@ -116,8 +116,7 @@ struct HomeView: View {
                 HomeWelcomeHeader(
                     activePlanRun: activePlanRun,
                     activeRepeatingPlanRun: activeRepeatingPlanRun,
-                    summaryTitle: todayWorkoutSummary.title,
-                    hasActiveWorkout: workoutVM.hasActiveWorkout
+                    onOpenPlan: onOpenPlan
                 )
                 HomePrimaryWorkoutCard(
                     activeWorkout: workoutVM.activeWorkout,
@@ -129,18 +128,14 @@ struct HomeView: View {
                     onReschedule: beginRescheduling,
                     onSkip: { progressToSkip = $0 }
                 )
-                HomeDailyContextSection(isShowingDailyCheckIn: $isShowingDailyCheckIn)
-                HomeNutritionSection(
-                    onOpenNutrition: onOpenNutrition,
-                    isShowingCaffeineLog: $isShowingCaffeineLog
-                )
-                HomeMobilitySection(
+                HomeTodaySection(
                     activeWorkout: workoutVM.activeWorkout,
+                    isShowingDailyCheckIn: $isShowingDailyCheckIn,
+                    isShowingCaffeineLog: $isShowingCaffeineLog,
+                    onOpenNutrition: onOpenNutrition,
                     onStartMobility: onStartMobility,
-                    onResumeMobility: onResumeMobility,
-                    onOpenTrainMobility: onOpenTrainMobility
+                    onResumeMobility: onResumeMobility
                 )
-                HomeRecentActivitySection()
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.top, Spacing.s)

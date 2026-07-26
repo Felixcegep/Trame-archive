@@ -83,6 +83,21 @@ struct TrainingCalendarCheckInSummary {
 }
 
 enum TrainingCalendarBuilder {
+    /// Sessions a stopped plan will never deliver must not keep occupying the
+    /// calendar. A run the user is still following contributes its whole
+    /// schedule; a completed or archived one contributes only what actually
+    /// happened, so history survives while phantom future sessions do not.
+    static func schedulableProgress(in run: PlanRun) -> [PlanWorkoutProgress] {
+        switch run.status {
+        case .active, .paused, .testDayAvailable:
+            return run.orderedWorkoutProgress
+        case .completed, .archived:
+            return run.orderedWorkoutProgress.filter {
+                $0.status == .completed || $0.status == .skipped
+            }
+        }
+    }
+
     static func month(
         containing month: Date,
         planRuns: [PlanRun],
@@ -103,7 +118,7 @@ enum TrainingCalendarBuilder {
         let dates = dates(from: visibleStart, until: visibleEnd, calendar: calendar)
 
         let plannedByDay = Dictionary(grouping: planRuns.flatMap { run in
-            run.orderedWorkoutProgress.compactMap { progress -> (String, TrainingCalendarPlannedWorkout)? in
+            schedulableProgress(in: run).compactMap { progress -> (String, TrainingCalendarPlannedWorkout)? in
                 guard let scheduledDate = progress.scheduledDate else { return nil }
                 let day = LocalDay(date: scheduledDate, calendar: calendar)
                 return (
@@ -192,7 +207,7 @@ enum TrainingCalendarBuilder {
     ) -> TrainingCalendarDay {
         let day = LocalDay(date: date, calendar: calendar)
         let plannedWorkouts = planRuns.flatMap { run in
-            run.orderedWorkoutProgress.compactMap { progress -> TrainingCalendarPlannedWorkout? in
+            schedulableProgress(in: run).compactMap { progress -> TrainingCalendarPlannedWorkout? in
                 guard let scheduledDate = progress.scheduledDate,
                       calendar.isDate(scheduledDate, inSameDayAs: date)
                 else { return nil }

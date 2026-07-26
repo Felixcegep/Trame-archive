@@ -59,6 +59,8 @@ struct AppIcon {
     static let caffeine = "cup.and.saucer.fill"
     static let routine = "list.bullet.rectangle"
     static let planCatalog = "books.vertical.fill"
+    static let checkIn = "text.book.closed"
+    static let supplement = "drop.fill"
     static let stop = "stop.fill"
     static let timer = "timer"
     static let chart = "chart.xyaxis.line"

@@ -23,6 +23,8 @@ final class FeatureFlagNavigationUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["tab-nutrition"].waitForExistence(timeout: 10))
     }
 
+    /// Ready-made plans are a scope inside Plans rather than their own Train
+    /// row, so `programBuilder` now gates that segment.
     func testMobilityAndProgramCatalogLinksHideWhenTheirFlagsAreDisabled() {
         let app = launchFreshApp(additionalArguments: [
             "-feature-flags", "today,nutrition,bodyWeight,dailyCheckIn,advancedExecution,betaFeedback"
@@ -30,10 +32,13 @@ final class FeatureFlagNavigationUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["tab-train"].waitForExistence(timeout: 10))
         app.buttons["tab-train"].tap()
         XCTAssertFalse(app.buttons["train-mobility-library"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["program-catalog-browser"].exists)
         // A neighboring, still-enabled entry point confirms the screen
         // rendered rather than failing to load.
         XCTAssertTrue(app.buttons["exercises-browser"].exists)
+
+        tapButton("plans-browser", in: app)
+        XCTAssertTrue(app.buttons["Mine"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Ready-made"].exists)
     }
 
     func testMobilityAndProgramCatalogLinksShowWhenEnabled() {
@@ -43,6 +48,8 @@ final class FeatureFlagNavigationUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["tab-train"].waitForExistence(timeout: 10))
         app.buttons["tab-train"].tap()
         XCTAssertTrue(app.buttons["train-mobility-library"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["program-catalog-browser"].exists)
+
+        tapButton("plans-browser", in: app)
+        XCTAssertTrue(app.buttons["Ready-made"].waitForExistence(timeout: 5))
     }
 }

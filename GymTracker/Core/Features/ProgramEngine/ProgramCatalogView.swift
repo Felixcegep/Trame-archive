@@ -1,166 +1,6 @@
 import SwiftData
 import SwiftUI
 
-struct ProgramCatalogView: View {
-    @Query(sort: \ProgramDefinitionRecord.name) private var records: [ProgramDefinitionRecord]
-    @State private var searchText = ""
-    @State private var selectedLevel: PlanExperienceLevel?
-    @State private var selectedDays: Int?
-
-    private var availableRecords: [ProgramDefinitionRecord] {
-        records.filter { $0.isBuiltIn && !$0.isArchived }
-    }
-
-    private var builtIns: [ProgramDefinitionRecord] {
-        availableRecords.filter { record in
-            (searchText.isEmpty || record.name.localizedCaseInsensitiveContains(searchText))
-                && (selectedLevel == nil || record.experienceLevel == selectedLevel)
-                && (selectedDays == nil || record.supportedDaysPerWeek.contains(selectedDays ?? 0))
-        }
-    }
-
-    private var availableDays: [Int] {
-        Array(Set(availableRecords.flatMap(\.supportedDaysPerWeek))).sorted()
-    }
-
-    var body: some View {
-        Group {
-            if availableRecords.isEmpty {
-                ContentUnavailableView(
-                    "No plans available",
-                    systemImage: AppIcon.plan,
-                    description: Text("The built-in plans could not be loaded.")
-                )
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.md) {
-                        filterChips
-
-                        LibraryListSectionHeader(title: "Plans", count: builtIns.count)
-
-                        if builtIns.isEmpty {
-                            VStack(alignment: .leading, spacing: Spacing.s) {
-                                Text("No plans match your search or filters.")
-                                    .font(AppFont.subheadline)
-                                    .foregroundStyle(Color.gymSubduedText)
-                                Button("Clear filters") {
-                                    searchText = ""
-                                    selectedLevel = nil
-                                    selectedDays = nil
-                                }
-                                .font(AppFont.subheadlineSemibold)
-                            }
-                            .padding(.top, Spacing.m)
-                        } else {
-                            ForEach(builtIns) { record in
-                                NavigationLink {
-                                    ProgramCatalogDetailView(record: record)
-                                } label: {
-                                    ProgramCatalogCard(record: record)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityIdentifier("program-catalog-\(record.name)")
-                            }
-                        }
-                    }
-                    .padding(.horizontal, Spacing.xl)
-                    .padding(.vertical, Spacing.l)
-                }
-                .folderScreenStyle()
-            }
-        }
-        .searchable(
-            text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Search plans"
-        )
-        .navigationTitle("Ready-Made Plans")
-        .navigationBarTitleDisplayMode(.inline)
-        .accessibilityIdentifier("program-catalog")
-    }
-
-    private var filterChips: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            ScrollView(.horizontal) {
-                HStack(spacing: Spacing.s) {
-                    FilterChip(title: "All levels", isSelected: selectedLevel == nil) {
-                        selectedLevel = nil
-                    }
-                    ForEach(PlanExperienceLevel.allCases, id: \.self) { level in
-                        FilterChip(
-                            title: level.rawValue.localizedCapitalized,
-                            isSelected: selectedLevel == level
-                        ) {
-                            selectedLevel = selectedLevel == level ? nil : level
-                        }
-                    }
-                }
-                .padding(.vertical, Spacing.xs)
-            }
-            .scrollIndicators(.hidden)
-
-            ScrollView(.horizontal) {
-                HStack(spacing: Spacing.s) {
-                    FilterChip(title: "Any schedule", isSelected: selectedDays == nil) {
-                        selectedDays = nil
-                    }
-                    ForEach(availableDays, id: \.self) { days in
-                        FilterChip(
-                            title: "\(days) days/week",
-                            isSelected: selectedDays == days
-                        ) {
-                            selectedDays = selectedDays == days ? nil : days
-                        }
-                    }
-                }
-                .padding(.vertical, Spacing.xs)
-            }
-            .scrollIndicators(.hidden)
-        }
-    }
-}
-
-private struct ProgramCatalogCard: View {
-    let record: ProgramDefinitionRecord
-
-    var body: some View {
-        HStack(alignment: .center, spacing: Spacing.m) {
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                Text(record.name)
-                    .font(AppFont.headline)
-                    .foregroundStyle(Color.gymText)
-                    .multilineTextAlignment(.leading)
-
-                HStack(spacing: Spacing.s) {
-                    ProgramMetaChip(text: "\(record.durationWeeks) weeks")
-                    ProgramMetaChip(text: record.experienceLevel.rawValue.localizedCapitalized)
-                }
-
-                if let summary = record.summary, !summary.isEmpty {
-                    Text(summary)
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-                }
-            }
-
-            Spacer(minLength: Spacing.s)
-
-            Image(systemName: AppIcon.chevronRight)
-                .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymSubtleText)
-        }
-        .padding(Spacing.l)
-        .background {
-            RoundedRectangle(cornerRadius: Radius.large)
-                .fill(Color.gymCard)
-                .stroke(Color.gymBorder, lineWidth: 1)
-        }
-        .contentShape(Rectangle())
-    }
-}
-
 struct ProgramMetaChip: View {
     let text: String
 
@@ -178,10 +18,15 @@ struct ProgramCatalogDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var exercises: [Exercise]
     let record: ProgramDefinitionRecord
+    /// Activation used to leave the user on this screen with a disabled "Plan
+    /// added" label and no indication of what changed. The owner of the
+    /// navigation stack pops back to Train instead, where the plan is now
+    /// visible as the one being followed.
+    let onActivated: () -> Void
 
     @State private var errorMessage: String?
-    @State private var didActivate = false
     @State private var isShowingSetup = false
+    @State private var didActivate = false
 
     private var payload: ProgramDefinitionPayload? { try? record.payload() }
 
@@ -204,7 +49,7 @@ struct ProgramCatalogDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("program-catalog-detail")
-        .sheet(isPresented: $isShowingSetup) {
+        .sheet(isPresented: $isShowingSetup, onDismiss: popIfActivated) {
             if let payload {
                 NavigationStack {
                     ProgramActivationSetupView(payload: payload) { configuredPayload, startDate in
@@ -340,11 +185,10 @@ struct ProgramCatalogDetailView: View {
             Button {
                 isShowingSetup = true
             } label: {
-                Label(didActivate ? "Plan added" : "Use this plan", systemImage: didActivate ? AppIcon.checkmark : AppIcon.play)
+                Label("Use this plan", systemImage: AppIcon.play)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(didActivate)
             .controlSize(.large)
             .accessibilityIdentifier("use-program")
         }
@@ -362,6 +206,15 @@ struct ProgramCatalogDetailView: View {
         }
         errorMessage = nil
         didActivate = true
+    }
+
+    /// The setup sheet dismisses itself on success. Unwinding this destination
+    /// has to wait for that to finish, or the screen owning the presentation
+    /// disappears while the sheet is still on screen.
+    private func popIfActivated() {
+        guard didActivate else { return }
+        didActivate = false
+        onActivated()
     }
 }
 
