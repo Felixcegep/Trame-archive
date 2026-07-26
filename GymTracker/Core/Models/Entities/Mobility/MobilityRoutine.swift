@@ -11,6 +11,18 @@ final class MobilityRoutine {
     var updatedAt: Date
     @Relationship(deleteRule: .cascade, inverse: \MobilityRoutineItem.routine)
     var items: [MobilityRoutineItem] = []
+    @Relationship(deleteRule: .nullify, inverse: \WorkoutTemplate.preWorkoutMobilityRoutine)
+    var preWorkoutTemplates: [WorkoutTemplate] = []
+    @Relationship(deleteRule: .nullify, inverse: \WorkoutTemplate.postWorkoutMobilityRoutine)
+    var postWorkoutTemplates: [WorkoutTemplate] = []
+    @Relationship(deleteRule: .nullify, inverse: \RepeatingPlanSlot.preWorkoutMobilityRoutine)
+    var preWorkoutRepeatingPlanSlots: [RepeatingPlanSlot] = []
+    @Relationship(deleteRule: .nullify, inverse: \RepeatingPlanSlot.postWorkoutMobilityRoutine)
+    var postWorkoutRepeatingPlanSlots: [RepeatingPlanSlot] = []
+    @Relationship(deleteRule: .nullify, inverse: \RepeatingPlanRunSlot.preWorkoutMobilityRoutine)
+    var preWorkoutRepeatingPlanRunSlots: [RepeatingPlanRunSlot] = []
+    @Relationship(deleteRule: .nullify, inverse: \RepeatingPlanRunSlot.postWorkoutMobilityRoutine)
+    var postWorkoutRepeatingPlanRunSlots: [RepeatingPlanRunSlot] = []
 
     init(
         name: String,

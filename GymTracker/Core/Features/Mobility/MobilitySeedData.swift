@@ -281,6 +281,56 @@ enum MobilitySeedData {
                 items: [
                     ("Standing Hamstring Fold", nil, 20, .bilateral)
                 ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.squat-preparation",
+                name: "Squat Preparation",
+                items: [
+                    ("Knee-to-Wall Ankle Mobilization", 10, nil, .alternating),
+                    ("Tactical Frog", 8, nil, .alternating),
+                    ("Deep Squat Pry", nil, 60, .bilateral),
+                    ("Cossack Squat", 8, nil, .alternating)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.deadlift-preparation",
+                name: "Deadlift Preparation",
+                items: [
+                    ("Cat-Cow", 10, nil, .bilateral),
+                    ("Single-Leg Hip Hinge", 8, nil, .alternating),
+                    ("World's Greatest Stretch", 6, nil, .alternating),
+                    ("Butterfly Stretch", nil, 45, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.front-rack-and-wrist-preparation",
+                name: "Front-Rack and Wrist Preparation",
+                items: [
+                    ("Quadruped Wrist Rocks", 10, nil, .bilateral),
+                    ("Overhead Triceps & Lat Stretch", nil, 30, .bilateral),
+                    ("Banded Lat Distraction", nil, 45, .bilateral),
+                    ("Thoracic Rotation", 8, nil, .alternating)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.olympic-lifting-preparation",
+                name: "Olympic Lifting Preparation",
+                items: [
+                    ("Knee-to-Wall Ankle Mobilization", 10, nil, .alternating),
+                    ("Shoulder Pass-Throughs", 10, nil, .bilateral),
+                    ("Wall Slides", 10, nil, .bilateral),
+                    ("Deep Squat Pry", nil, 60, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.strongman-event-preparation",
+                name: "Strongman Event Preparation",
+                items: [
+                    ("Cat-Cow", 10, nil, .bilateral),
+                    ("Single-Leg Hip Hinge", 8, nil, .alternating),
+                    ("Doorway Chest & Shoulder Opener", nil, 45, .bilateral),
+                    ("90/90 Hip Switch", 8, nil, .alternating)
+                ]
             )
         ]
 
