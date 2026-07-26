@@ -639,7 +639,10 @@ extension BackupDTO {
                 proposedIsDeloading: record.proposedIsDeloading,
                 createdAt: record.createdAt,
                 isResolved: record.isResolved,
-                resolvedAt: record.resolvedAt
+                resolvedAt: record.resolvedAt,
+                decisionOutcome: record.decisionOutcome?.rawValue,
+                appliedLoad: record.appliedLoad,
+                ruleVersion: record.ruleVersion
             )
         }
 

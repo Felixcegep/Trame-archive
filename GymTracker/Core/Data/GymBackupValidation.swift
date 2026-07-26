@@ -247,6 +247,17 @@ extension BackupDTO {
                       (try? JSONDecoder().decode(ProgressionAction.self, from: recommendation.actionData)) != nil else {
                     throw BackupValidationError.invalidIdentifier("progression recommendation")
                 }
+                // Absent for v1–v18 backups and for rows resolved before this
+                // field existed; that decodes as `nil` above and must stay
+                // `nil` here too. Only a *present* value is checked against
+                // the known cases so an unrecognized future value fails
+                // loudly instead of restoring as a silently fabricated
+                // decision.
+                if let decisionOutcome = recommendation.decisionOutcome {
+                    guard ProgressionDecisionOutcome(rawValue: decisionOutcome) != nil else {
+                        throw BackupValidationError.invalidIdentifier("progression recommendation decision outcome")
+                    }
+                }
             }
         }
 

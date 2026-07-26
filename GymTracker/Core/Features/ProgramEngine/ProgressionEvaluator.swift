@@ -68,6 +68,35 @@ nonisolated struct ProgressionRecommendation: Hashable, Identifiable {
     /// Immutable evidence from the completed occurrence that caused this
     /// recommendation. It makes the decision explainable after source edits.
     let performance: ProgressionPerformance
+    /// The rule definition's `version` at the moment this recommendation was
+    /// built. `nil` means the version was not captured (for example
+    /// recommendations constructed before this field existed); it is never
+    /// inferred into a fabricated default.
+    let ruleVersion: Int?
+
+    init(
+        id: UUID,
+        ruleID: UUID,
+        action: ProgressionAction,
+        cadence: ProgressionCadence,
+        scope: ProgressionScope,
+        reason: String,
+        applicationMode: ProgressionApplicationMode,
+        proposedState: ProgressionEvaluationState,
+        performance: ProgressionPerformance,
+        ruleVersion: Int? = nil
+    ) {
+        self.id = id
+        self.ruleID = ruleID
+        self.action = action
+        self.cadence = cadence
+        self.scope = scope
+        self.reason = reason
+        self.applicationMode = applicationMode
+        self.proposedState = proposedState
+        self.performance = performance
+        self.ruleVersion = ruleVersion
+    }
 }
 
 /// A deterministic future state that is not eligible for the current
@@ -205,7 +234,8 @@ nonisolated enum ProgramProgressionEvaluator {
                 reason: reason,
                 applicationMode: rule.applicationMode,
                 proposedState: proposedState,
-                performance: performance
+                performance: performance,
+                ruleVersion: rule.version
             )
             recommendations.append(recommendation)
             if rule.applicationMode == .automatic {

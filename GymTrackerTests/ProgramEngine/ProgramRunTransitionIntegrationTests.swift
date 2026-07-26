@@ -199,6 +199,74 @@ final class ProgramRunTransitionIntegrationTests: XCTestCase {
         XCTAssertEqual(keys, ["accessory"])
     }
 
+    func testResolvingRecommendationsRecordsEachDecisionWithoutChangingPerformedSets() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Receipt Squat", primaryMuscles: [.quadriceps])
+        let performedSet = ExerciseSet(repetitions: 5, weight: 100, done: true, orderIndex: 0, usedMetric: .metric)
+        let entry = ExerciseEntry(exercise: exercise, sets: [performedSet], orderIndex: 0, usedMetric: .metric)
+        let workout = Workout(name: "Completed", endTime: .now)
+        workout.exercises = [entry]
+        let run = PlanRun(sourcePlanID: UUID(), sourcePlanName: "Receipt", startDate: .now)
+        let progress = PlanWorkoutProgress(plannedWorkoutID: UUID(), plannedWorkoutName: "Day", weekIndex: 0, workoutIndex: 0)
+        progress.status = .completed
+        progress.completedWorkout = workout
+        let state = PlanExerciseProgressionState(progressionKey: "squat", currentLoad: 100)
+        run.workoutProgress = [progress]
+        run.progressionStates = [state]
+        context.insert(exercise)
+        context.insert(workout)
+        context.insert(run)
+
+        func makeRecord(proposedLoad: Double) throws -> PlanProgressionRecommendationRecord {
+            let recommendation = ProgressionRecommendation(
+                id: UUID(),
+                ruleID: UUID(),
+                action: .addLoad(2.5),
+                cadence: .nextExerciseOccurrence,
+                scope: .exerciseExposure,
+                reason: "Completed all prescribed work.",
+                applicationMode: .recommendation,
+                proposedState: ProgressionEvaluationState(currentLoad: proposedLoad),
+                performance: ProgressionPerformance(completedSets: 1)
+            )
+            let record = try PlanProgressionRecommendationRecord(
+                recommendation: recommendation,
+                planRunID: run.id,
+                workoutID: workout.id
+            )
+            record.progressionKey = "squat"
+            context.insert(record)
+            return record
+        }
+
+        let accepted = try makeRecord(proposedLoad: 102.5)
+        let modified = try makeRecord(proposedLoad: 105)
+        let declined = try makeRecord(proposedLoad: 107.5)
+        try context.save()
+        let before = performedSetDigest(workout)
+
+        try PlanProgressionRecommendationService.accept(accepted, in: run, context: context)
+        XCTAssertTrue(accepted.isResolved)
+        XCTAssertEqual(accepted.decisionOutcome, .accepted)
+        XCTAssertNil(accepted.appliedLoad)
+        XCTAssertEqual(state.currentLoad, 102.5)
+        XCTAssertEqual(performedSetDigest(workout), before)
+
+        try PlanProgressionRecommendationService.accept(modified, withLoad: 101.25, in: run, context: context)
+        XCTAssertTrue(modified.isResolved)
+        XCTAssertEqual(modified.decisionOutcome, .acceptedWithModifiedValue)
+        XCTAssertEqual(modified.proposedLoad, 105)
+        XCTAssertEqual(modified.appliedLoad, 101.25)
+        XCTAssertEqual(state.currentLoad, 101.25)
+        XCTAssertEqual(performedSetDigest(workout), before)
+
+        try PlanProgressionRecommendationService.decline(declined, context: context)
+        XCTAssertTrue(declined.isResolved)
+        XCTAssertEqual(declined.decisionOutcome, .declined)
+        XCTAssertNil(declined.appliedLoad)
+        XCTAssertEqual(performedSetDigest(workout), before)
+    }
+
     func testAutomaticAdvanceWeekSkipsOnlyUnfinishedProgress() {
         let run = PlanRun(sourcePlanID: UUID(), sourcePlanName: "Transition", startDate: .now)
         let completed = PlanWorkoutProgress(plannedWorkoutID: UUID(), plannedWorkoutName: "Completed", weekIndex: 0, workoutIndex: 0)
@@ -449,5 +517,20 @@ final class ProgramRunTransitionIntegrationTests: XCTestCase {
 
     private func makeContext() throws -> ModelContext {
         try GymTrackerTestStore.makeInMemoryContext()
+    }
+
+    private func performedSetDigest(_ workout: Workout) -> [String] {
+        workout.orderedExercises.flatMap { entry in
+            entry.orderedSets.map { set in
+                [
+                    entry.nameSnapshot,
+                    String(set.orderIndex),
+                    String(set.repetitions),
+                    String(set.weight),
+                    String(set.done),
+                    String(describing: set.meanVelocity)
+                ].joined(separator: "|")
+            }
+        }
     }
 }

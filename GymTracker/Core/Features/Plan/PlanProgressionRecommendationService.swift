@@ -15,6 +15,7 @@ enum PlanProgressionRecommendationService {
             try accept(recommendation, using: state, overridingLoadWith: nil, in: run)
             recommendation.isResolved = true
             recommendation.resolvedAt = .now
+            recommendation.decisionOutcome = .accepted
             try context.save()
         } catch {
             context.rollback()
@@ -22,6 +23,9 @@ enum PlanProgressionRecommendationService {
         }
     }
 
+    /// Accepts the recommendation with a load different from `proposedLoad`.
+    /// Both the original proposal (`proposedLoad`) and the value actually
+    /// applied (`appliedLoad`) survive on the record afterward.
     static func accept(
         _ recommendation: PlanProgressionRecommendationRecord,
         withLoad load: Double,
@@ -34,6 +38,8 @@ enum PlanProgressionRecommendationService {
             try accept(recommendation, using: state, overridingLoadWith: load, in: run)
             recommendation.isResolved = true
             recommendation.resolvedAt = .now
+            recommendation.decisionOutcome = .acceptedWithModifiedValue
+            recommendation.appliedLoad = load
             try context.save()
         } catch {
             context.rollback()
@@ -41,10 +47,14 @@ enum PlanProgressionRecommendationService {
         }
     }
 
+    /// Declines the recommendation. Declining is a legitimate, ordinary user
+    /// choice: it must never be surfaced or logged as failure or
+    /// noncompliance.
     static func decline(_ recommendation: PlanProgressionRecommendationRecord, context: ModelContext) throws {
         do {
             recommendation.isResolved = true
             recommendation.resolvedAt = .now
+            recommendation.decisionOutcome = .declined
             try context.save()
         } catch {
             context.rollback()

@@ -419,6 +419,19 @@ nonisolated struct ProgressionRecommendationDTO: Codable {
     let createdAt: Date
     let isResolved: Bool
     let resolvedAt: Date?
+    /// How this recommendation was resolved (`ProgressionDecisionOutcome`
+    /// raw value). `nil` for backups older than
+    /// `BackupDTO.progressionReceiptVersion` and for rows resolved before the
+    /// field existed; this must decode as `nil` rather than be inferred from
+    /// `isResolved`, since a legacy row is "resolved without a recorded
+    /// outcome," never a fabricated decision.
+    var decisionOutcome: String? = nil
+    /// The load actually applied, when it differs from `proposedLoad`. `nil`
+    /// unless the outcome is `.acceptedWithModifiedValue`.
+    var appliedLoad: Double? = nil
+    /// The progression rule definition's `version` at the moment this
+    /// recommendation was built. `nil` means the version was not captured.
+    var ruleVersion: Int? = nil
 }
 
 nonisolated struct PlannedWorkoutDTO: Codable {
@@ -953,7 +966,13 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     /// templates plus immutable routine ID/name evidence on repeating
     /// definition and run slots.
     static let mobilityLinkageVersion = 18
-    static let currentVersion = mobilityLinkageVersion
+    /// Adds decision provenance to progression recommendations: the resolved
+    /// outcome (accepted / accepted-with-modified-value / declined), the
+    /// applied load when it differs from the proposal, and the rule version
+    /// snapshotted at recommendation time. v1–v18 restore with all three
+    /// fields absent, which reads as "resolved without a recorded outcome."
+    static let progressionReceiptVersion = 19
+    static let currentVersion = progressionReceiptVersion
 
     init(
         version: Int,

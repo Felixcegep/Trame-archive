@@ -29,6 +29,8 @@ struct RootView: View {
     @State private var warmupWorkoutID: UUID?
     @State private var pendingCooldownAfterWorkoutDismissal: MobilityRoutineLaunchRequest?
     @State private var cooldownRequest: MobilityRoutineLaunchRequest?
+    @State private var pendingProgressionReceiptWorkoutID: UUID?
+    @State private var progressionReceiptRequest: ProgressionReceiptRequest?
     @State private var mobilityLinkError: String?
     @State private var guidedSourceConflictRequest: GuidedSourceConflictRequest?
     @State private var guidedSourceActionError: String?
@@ -136,10 +138,23 @@ struct RootView: View {
                 workoutVM.discardActiveWorkout(using: modelContext)
                 shouldDiscardActiveWorkout = false
                 pendingCooldownAfterWorkoutDismissal = nil
-            } else if let pendingCooldownAfterWorkoutDismissal {
-                self.pendingCooldownAfterWorkoutDismissal = nil
-                DispatchQueue.main.async {
-                    cooldownRequest = pendingCooldownAfterWorkoutDismissal
+                pendingProgressionReceiptWorkoutID = nil
+            } else {
+                if let pendingCooldownAfterWorkoutDismissal {
+                    self.pendingCooldownAfterWorkoutDismissal = nil
+                    DispatchQueue.main.async {
+                        cooldownRequest = pendingCooldownAfterWorkoutDismissal
+                    }
+                }
+                if let pendingProgressionReceiptWorkoutID,
+                   let planRunID = workout(id: pendingProgressionReceiptWorkoutID)?.sourcePlanRunID {
+                    self.pendingProgressionReceiptWorkoutID = nil
+                    DispatchQueue.main.async {
+                        progressionReceiptRequest = ProgressionReceiptRequest(
+                            planRunID: planRunID,
+                            workoutID: pendingProgressionReceiptWorkoutID
+                        )
+                    }
                 }
             }
         }) {
@@ -157,7 +172,10 @@ struct RootView: View {
                             workoutVM: workoutVM,
                             navigationPath: $activeWorkoutPath,
                             isPresented: $isShowingActiveWorkout,
-                            onWorkoutSaved: prepareCooldown(for:),
+                            onWorkoutSaved: { workoutID in
+                                prepareCooldown(for: workoutID)
+                                preparePendingProgressionReceipts(for: workoutID)
+                            },
                             onDiscardRequested: requestDiscardActiveWorkout
                         )
                     }
@@ -171,6 +189,9 @@ struct RootView: View {
                     resumeWorkoutAfterWarmupIfNeeded(session)
                 }
             }
+        }
+        .sheet(item: $progressionReceiptRequest) { request in
+            ProgressionReceiptSheet(planRunID: request.planRunID, workoutID: request.workoutID)
         }
         .confirmationDialog(
             "An active workout is already in progress",
@@ -1076,6 +1097,27 @@ struct RootView: View {
         (try? modelContext.fetch(FetchDescriptor<Workout>()))?.first { $0.id == id }
     }
 
+    /// Flags a just-saved workout for the progression receipt sheet when it
+    /// belongs to a fixed plan run and left unresolved
+    /// `PlanProgressionRecommendationRecord` rows behind. Free workouts and
+    /// repeating-plan runs have no `sourcePlanRunID` and never surface a
+    /// receipt in this slice.
+    private func preparePendingProgressionReceipts(for workoutID: UUID) {
+        guard let planRunID = workout(id: workoutID)?.sourcePlanRunID,
+              hasUnresolvedProgressionReceipts(planRunID: planRunID, workoutID: workoutID)
+        else { return }
+        pendingProgressionReceiptWorkoutID = workoutID
+    }
+
+    private func hasUnresolvedProgressionReceipts(planRunID: UUID, workoutID: UUID) -> Bool {
+        let predicate = #Predicate<PlanProgressionRecommendationRecord> { record in
+            record.planRunID == planRunID && record.workoutID == workoutID && record.isResolved == false
+        }
+        var descriptor = FetchDescriptor<PlanProgressionRecommendationRecord>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        return !((try? modelContext.fetch(descriptor)) ?? []).isEmpty
+    }
+
     private func linkedMobilityRoutine(
         for start: PendingWorkoutStart,
         phase: WorkoutMobilityLinkPhase
@@ -1552,6 +1594,12 @@ private struct MobilityRoutineLaunchRequest {
     let routine: MobilityRoutine
     let context: MobilitySessionContext
     let workoutID: UUID
+}
+
+private struct ProgressionReceiptRequest: Identifiable {
+    let planRunID: UUID
+    let workoutID: UUID
+    var id: UUID { workoutID }
 }
 
 private enum WorkoutMobilityLinkPhase {

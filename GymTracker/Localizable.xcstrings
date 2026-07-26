@@ -1,6 +1,440 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "progression.receipt.rule.versioned" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Progression rule v%lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Règle de progression v%lld"
+          }
+        }
+      }
+    },
+    "progression.receipt.rule.unversioned" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Progression rule"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Règle de progression"
+          }
+        }
+      }
+    },
+    "progression.receipt.proposedChange.load" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proposed next load: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prochaine charge proposée : %@"
+          }
+        }
+      }
+    },
+    "progression.receipt.proposedChange.structural" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The program proposes a change to your prescription."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le programme propose un changement à votre prescription."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.sets" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Completed %1$lld of %2$lld required sets."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld séries complétées sur %2$lld requises."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.reps" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Completed %1$lld of %2$lld required repetitions."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld répétitions complétées sur %2$lld requises."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.amrap" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The AMRAP set reached %lld repetitions."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La série AMRAP a atteint %lld répétitions."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.rir.withTarget" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reported RIR was %1$lld against a target of %2$lld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le RIR rapporté était de %1$lld pour une cible de %2$lld."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.rir" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reported RIR was %lld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le RIR rapporté était de %lld."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.rpe" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reported RPE was %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le RPE rapporté était de %@."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.successRatio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@%% of attempts were successful."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %% des tentatives ont réussi."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.didNotMeetPrescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The prescribed performance was not completed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La performance prescrite n’a pas été complétée."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.qualifier.thin" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Based on limited evidence — a single set."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basé sur des données limitées — une seule série."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.none" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No evidence was recorded for this recommendation."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée n’a été enregistrée pour cette recommandation."
+          }
+        }
+      }
+    },
+    "progression.receipt.action.keepCurrent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep current load"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garder la charge actuelle"
+          }
+        }
+      }
+    },
+    "progression.receipt.action.decline" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decline"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refuser"
+          }
+        }
+      }
+    },
+    "progression.receipt.action.apply.load" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer %@"
+          }
+        }
+      }
+    },
+    "progression.receipt.action.apply.generic" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply this change"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer ce changement"
+          }
+        }
+      }
+    },
+    "progression.receipt.action.applyDifferent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply a different value"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer une autre valeur"
+          }
+        }
+      }
+    },
+    "progression.receipt.resolution.accepted.load" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applied %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ appliqué."
+          }
+        }
+      }
+    },
+    "progression.receipt.resolution.accepted.generic" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applied as proposed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliqué tel que proposé."
+          }
+        }
+      }
+    },
+    "progression.receipt.resolution.modified" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applied %1$@ instead of the proposed %2$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ appliqué au lieu des %2$@ proposés."
+          }
+        }
+      }
+    },
+    "progression.receipt.resolution.declined" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kept without applying the change."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conservé sans appliquer le changement."
+          }
+        }
+      }
+    },
+    "progression.receipt.resolution.unknown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolved without a recorded outcome."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résolu sans décision enregistrée."
+          }
+        }
+      }
+    },
+    "Progression updates" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mises à jour de progression"
+          }
+        }
+      }
+    },
+    "Couldn’t save your decision" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’enregistrer votre décision"
+          }
+        }
+      }
+    },
+    "Try again." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réessayez."
+          }
+        }
+      }
+    },
+    "This plan run could not be found." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette exécution du plan est introuvable."
+          }
+        }
+      }
+    },
+    "New load" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle charge"
+          }
+        }
+      }
+    },
     "" : {
       "localizations" : {
         "fr" : {
@@ -4892,10 +5326,6 @@
       "comment" : "A label for a picker that lets the user select which view to display in the history screen.",
       "isCommentAutoGenerated" : true
     },
-    "History, estimated 1RM, volume, records, notes, and progression" : {
-      "comment" : "A description of the exercise stats.",
-      "isCommentAutoGenerated" : true
-    },
     "Home" : {
       "comment" : "A tab for the main content of the app.",
       "extractionState" : "stale",
@@ -5478,6 +5908,10 @@
     },
     "Log food to build your nutrition history." : {
       "comment" : "A description of the action to take to build the user's nutrition history.",
+      "isCommentAutoGenerated" : true
+    },
+    "Log this exercise in a workout to unlock records, estimated 1RM, and volume trend." : {
+      "comment" : "A description of the benefits of logging an exercise.",
       "isCommentAutoGenerated" : true
     },
     "Log this food" : {
@@ -6360,6 +6794,10 @@
       "comment" : "Label indicating that no exercise sets have been completed.",
       "isCommentAutoGenerated" : true
     },
+    "No completed sets yet" : {
+      "comment" : "A label displayed when an exercise has no completed sets.",
+      "isCommentAutoGenerated" : true
+    },
     "No eligible completed strength work was recorded this week." : {
       "comment" : "Result text when no strength work was found for the week.",
       "isCommentAutoGenerated" : true
@@ -6795,6 +7233,10 @@
         }
       }
     },
+    "Not set: %@" : {
+      "comment" : "A list of unspecified exercise setup attributes.",
+      "isCommentAutoGenerated" : true
+    },
     "Not specified" : {
       "comment" : "Picker option meaning no primary stimulus has been chosen for this template exercise.",
       "localizations" : {
@@ -7014,6 +7456,10 @@
     },
     "Opens confirmation before marking this set incomplete." : {
       "comment" : "A hint for the accessibility of the complete set button.",
+      "isCommentAutoGenerated" : true
+    },
+    "Opens full performance insights" : {
+      "comment" : "A hint for the user that describes the action of tapping on the exercise stats.",
       "isCommentAutoGenerated" : true
     },
     "Opens the completed workout in History" : {
@@ -7327,10 +7773,6 @@
     },
     "Percentage (0–3)" : {
 
-    },
-    "Performance" : {
-      "comment" : "A section in the exercise view that displays a button to view the exercise's performance.",
-      "isCommentAutoGenerated" : true
     },
     "Performed" : {
       "localizations" : {
@@ -7654,6 +8096,7 @@
     },
     "Primary Muscles" : {
       "comment" : "A section of the exercise detail view that lists the primary muscles.",
+      "extractionState" : "stale",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "fr" : {
@@ -7871,6 +8314,10 @@
     },
     "Readiness probe · Mean velocity" : {
       "comment" : "A title for a view that shows the mean velocity of an exercise set.",
+      "isCommentAutoGenerated" : true
+    },
+    "Reading completed history…" : {
+      "comment" : "A placeholder text that appears when the exercise's performance is being loaded.",
       "isCommentAutoGenerated" : true
     },
     "Ready" : {
@@ -8160,10 +8607,6 @@
     },
     "Reference amount" : {
       "comment" : "A label for the amount of a food that is considered a standard serving.",
-      "isCommentAutoGenerated" : true
-    },
-    "Related variants share a movement family. They are not automatic substitutions." : {
-      "comment" : "A description of how exercise variations are related.",
       "isCommentAutoGenerated" : true
     },
     "Reminder Error" : {
@@ -9293,10 +9736,6 @@
       "comment" : "A label for a muscle that is selected in both the primary and secondary muscle sets.",
       "isCommentAutoGenerated" : true
     },
-    "Secondary Muscles" : {
-      "comment" : "A section for the secondary muscles of an exercise.",
-      "isCommentAutoGenerated" : true
-    },
     "Secondary muscles assist the movement." : {
       "comment" : "A description of the secondary muscles.",
       "isCommentAutoGenerated" : true
@@ -10338,6 +10777,10 @@
     },
     "Superset with…" : {
       "comment" : "A menu item that lets the user select an exercise to superset with.",
+      "isCommentAutoGenerated" : true
+    },
+    "Supporting" : {
+      "comment" : "Title for a section of an exercise view that lists muscles that are used in addition to the primary muscles.",
       "isCommentAutoGenerated" : true
     },
     "Supporting history" : {
@@ -11554,10 +11997,6 @@
     "Variation or segment note" : {
 
     },
-    "Variations" : {
-      "comment" : "A heading for a list of exercise variations.",
-      "isCommentAutoGenerated" : true
-    },
     "Velocity" : {
       "comment" : "A compact summary label for set velocity measurements.",
       "localizations" : {
@@ -11615,10 +12054,6 @@
     },
     "Very light — warm-up effort" : {
       "comment" : "A description of a RPE value of 0.",
-      "isCommentAutoGenerated" : true
-    },
-    "View Performance" : {
-      "comment" : "A button that displays a sheet for viewing exercise performance.",
       "isCommentAutoGenerated" : true
     },
     "View previous performance" : {

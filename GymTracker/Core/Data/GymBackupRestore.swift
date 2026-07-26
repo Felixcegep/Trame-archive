@@ -974,7 +974,8 @@ extension BackupDTO {
                 ),
                 performance: (recommendationDTO.performanceData.flatMap {
                     try? JSONDecoder().decode(ProgressionPerformance.self, from: $0)
-                }) ?? ProgressionPerformance()
+                }) ?? ProgressionPerformance(),
+                ruleVersion: recommendationDTO.ruleVersion
             )
             let record = try PlanProgressionRecommendationRecord(
                 recommendation: recommendation,
@@ -987,6 +988,18 @@ extension BackupDTO {
             record.createdAt = recommendationDTO.createdAt
             record.isResolved = recommendationDTO.isResolved
             record.resolvedAt = recommendationDTO.resolvedAt
+            // Legacy backups (< progressionReceiptVersion) carry no decision
+            // outcome; decoding leaves these `nil`, which must never be
+            // back-filled or inferred from `isResolved` — a restored legacy
+            // row means "resolved without a recorded outcome," not a
+            // fabricated decision.
+            if let decisionOutcomeRawValue = recommendationDTO.decisionOutcome {
+                guard let decisionOutcome = ProgressionDecisionOutcome(rawValue: decisionOutcomeRawValue) else {
+                    throw BackupValidationError.invalidIdentifier("progression recommendation decision outcome")
+                }
+                record.decisionOutcome = decisionOutcome
+            }
+            record.appliedLoad = recommendationDTO.appliedLoad
             restoreCtx.context.insert(record)
         }
     }

@@ -151,7 +151,9 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
             from: JSONEncoder().encode(backup)
         )
         try restored.restore(to: restoredContext)
-        let restoredPlan = try XCTUnwrap(try restoredContext.fetch(FetchDescriptor<WorkoutPlan>()).first)
+        let restoredPlan = try XCTUnwrap(try restoredContext.fetch(FetchDescriptor<WorkoutPlan>()).first {
+            $0.id == plan.id
+        })
         XCTAssertEqual(
             try JSONDecoder().decode(CompletionPolicy.self, from: try XCTUnwrap(restoredPlan.completionPolicyData)),
             .offerRestart(carryState: true)
@@ -438,6 +440,142 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         try GymTrackerTestStore.makeInMemoryContext()
     }
 
+    func testV18ReceiptRestoreKeepsResolvedLegacyRecordWithoutFabricatingDecision() throws {
+        let backup = try makeProgressionReceiptBackup(
+            decisionOutcome: nil,
+            appliedLoad: nil
+        )
+        var document = try backupDocument(backup)
+        document["version"] = BackupDTO.mobilityLinkageVersion
+        var recommendation = try XCTUnwrap((document["progressionRecommendations"] as? [[String: Any]])?.first)
+        recommendation.removeValue(forKey: "decisionOutcome")
+        recommendation.removeValue(forKey: "appliedLoad")
+        recommendation.removeValue(forKey: "ruleVersion")
+        document["progressionRecommendations"] = [recommendation]
+
+        let legacy = try JSONDecoder().decode(
+            BackupDTO.self,
+            from: JSONSerialization.data(withJSONObject: document)
+        )
+        XCTAssertNoThrow(try legacy.validate())
+        let restoredContext = try makeContext()
+        XCTAssertNoThrow(try legacy.restore(to: restoredContext))
+        let restored = try XCTUnwrap(try restoredContext.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()).first)
+        XCTAssertTrue(restored.isResolved)
+        XCTAssertNil(restored.decisionOutcome)
+        XCTAssertNil(restored.appliedLoad)
+        XCTAssertNil(restored.ruleVersion)
+    }
+
+    func testV19ReceiptRoundTripPreservesModifiedDecisionAndBothLoads() throws {
+        let backup = try makeProgressionReceiptBackup(
+            decisionOutcome: .acceptedWithModifiedValue,
+            appliedLoad: 101.25
+        )
+        XCTAssertEqual(backup.version, BackupDTO.currentVersion)
+        let restoredContext = try makeContext()
+        let decoded = try JSONDecoder().decode(BackupDTO.self, from: JSONEncoder().encode(backup))
+        try decoded.restore(to: restoredContext)
+
+        let restored = try XCTUnwrap(try restoredContext.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()).first)
+        XCTAssertEqual(restored.decisionOutcome, .acceptedWithModifiedValue)
+        XCTAssertEqual(restored.proposedLoad, 102.5)
+        XCTAssertEqual(restored.appliedLoad, 101.25)
+        XCTAssertEqual(restored.ruleVersion, 7)
+    }
+
+    func testUnknownReceiptDecisionOutcomeFailsValidationAndRestore() throws {
+        let backup = try makeProgressionReceiptBackup(
+            decisionOutcome: .accepted,
+            appliedLoad: nil
+        )
+        var document = try backupDocument(backup)
+        var recommendation = try XCTUnwrap((document["progressionRecommendations"] as? [[String: Any]])?.first)
+        recommendation["decisionOutcome"] = "unrecognized-future-decision"
+        document["progressionRecommendations"] = [recommendation]
+        let malformed = try JSONDecoder().decode(
+            BackupDTO.self,
+            from: JSONSerialization.data(withJSONObject: document)
+        )
+
+        XCTAssertThrowsError(try malformed.validate()) { error in
+            XCTAssertEqual(
+                error.localizedDescription,
+                BackupValidationError.invalidIdentifier("progression recommendation decision outcome").localizedDescription
+            )
+        }
+        let restoreContext = try makeContext()
+        XCTAssertThrowsError(try malformed.restore(to: restoreContext))
+    }
+
+    private func makeProgressionReceiptBackup(
+        decisionOutcome: ProgressionDecisionOutcome?,
+        appliedLoad: Double?
+    ) throws -> BackupDTO {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Receipt Backup Squat", primaryMuscles: [.quadriceps])
+        let plannedExercise = PlannedExercise(
+            exercise: exercise,
+            orderIndex: 0,
+            plannedSets: [PlannedSet(orderIndex: 0, repetitions: 5)]
+        )
+        let plannedWorkout = PlannedWorkout(
+            name: "Receipt Day",
+            orderIndex: 0,
+            dayOffset: 0,
+            plannedExercises: [plannedExercise]
+        )
+        let plan = WorkoutPlan(
+            name: "Receipt Plan",
+            daysPerWeek: 1,
+            durationWeeks: 1,
+            blocks: [PlanBlock(
+                name: "Build",
+                phaseType: .strength,
+                orderIndex: 0,
+                weeks: [PlanWeek(weekIndex: 0, plannedWorkouts: [plannedWorkout])]
+            )]
+        )
+        context.insert(exercise)
+        context.insert(plan)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan, using: context))
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
+        workout.status = .completed
+        workout.endTime = .now
+        progress.status = .completed
+        progress.completedWorkout = workout
+        context.insert(workout)
+        let record = try PlanProgressionRecommendationRecord(
+            recommendation: ProgressionRecommendation(
+                id: UUID(),
+                ruleID: UUID(),
+                action: .addLoad(2.5),
+                cadence: .nextExerciseOccurrence,
+                scope: .exerciseExposure,
+                reason: "Completed all prescribed work.",
+                applicationMode: .recommendation,
+                proposedState: ProgressionEvaluationState(currentLoad: 102.5),
+                performance: ProgressionPerformance(completedSets: 1),
+                ruleVersion: 7
+            ),
+            planRunID: run.id,
+            workoutID: workout.id
+        )
+        record.progressionKey = "receipt-squat"
+        record.isResolved = true
+        record.resolvedAt = .now
+        record.decisionOutcome = decisionOutcome
+        record.appliedLoad = appliedLoad
+        context.insert(record)
+        try context.save()
+        return try BackupDTO.create(from: context, restTimer: 90, darkMode: false, unitSystem: .metric)
+    }
+
+    private func backupDocument(_ backup: BackupDTO) throws -> [String: Any] {
+        try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(backup)) as? [String: Any])
+    }
+
     func testEveryBundledProgramStartsSnapshotsAndKeepsCompletedHistoryImmutable() throws {
         let context = try makeContext()
         for exercise in ExerciseSeedData.templates() { context.insert(exercise) }
@@ -538,11 +676,16 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         let restoredContext = try makeContext()
         let roundTrippedBackup = try JSONDecoder().decode(BackupDTO.self, from: JSONEncoder().encode(backup))
         try roundTrippedBackup.restore(to: restoredContext)
-        // One plan, run, and completed workout were created per bundled
-        // program above; the backup round trip must preserve that count
-        // exactly, whatever the catalog's size is.
+        // Restore stages the current bundled catalogue in addition to the
+        // user backup, so the total plan count is intentionally not stable.
+        // Match the restored plan IDs from this backup rather than depending
+        // on SwiftData's unordered fetch result or the seed catalogue size.
         let restoredPlans = try restoredContext.fetch(FetchDescriptor<WorkoutPlan>())
-        XCTAssertEqual(restoredPlans.count, records.count)
+        let backupPlanIDs = Set(backup.plans.map(\.id))
+        XCTAssertEqual(
+            Set(restoredPlans.map(\.id.uuidString).filter(backupPlanIDs.contains)),
+            backupPlanIDs
+        )
         XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<PlanRun>()).count, records.count)
         XCTAssertEqual(
             try restoredContext.fetch(FetchDescriptor<Workout>()).filter { $0.status == .completed }.count,
