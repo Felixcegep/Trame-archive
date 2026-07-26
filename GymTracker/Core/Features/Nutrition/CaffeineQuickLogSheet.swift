@@ -246,14 +246,17 @@ struct CaffeineQuickLogSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.xl) {
+                VStack(alignment: .leading, spacing: Spacing.l) {
                     sourcePicker
                     sourceContent
                     referenceCard
                     sourcesDisclosure
                 }
-                .padding(Spacing.xl)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.top, Spacing.s)
+                .padding(.bottom, Spacing.xl)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Color.gymBackground)
             .navigationTitle("Log caffeine")
             .navigationBarTitleDisplayMode(.inline)
@@ -276,28 +279,67 @@ struct CaffeineQuickLogSheet: View {
 
     // MARK: - Source picker
 
+    private static let tiledSources: [CaffeineSource] = [.coffee, .preWorkout, .tea, .energyDrink]
+
+    /// The four common sources fill an even 2×2 grid. The previous adaptive grid
+    /// left "Other" stranded on its own row at full tile weight, reading as a
+    /// fifth equal choice; it is now a quiet row beneath them.
     private var sourcePicker: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            GymSectionHeader(title: "What kind of caffeine?", detail: "Choose the closest source. You can fine-tune amounts in the food library.")
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: Spacing.s)], spacing: Spacing.s) {
-                ForEach(CaffeineSource.allCases) { candidate in
-                    Button {
-                        source = candidate
-                    } label: {
-                        VStack(spacing: Spacing.xs) {
-                            Text(candidate.emoji).font(AppFont.titleMedium)
-                            Text(candidate.title).font(AppFont.captionBold).lineLimit(1).minimumScaleFactor(0.8)
-                        }
-                        .foregroundStyle(Color.gymText)
-                        .frame(maxWidth: .infinity, minHeight: 76)
-                        .background(source == candidate ? Color.gymPrimarySurface : Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
-                        .overlay { RoundedRectangle(cornerRadius: Radius.medium).stroke(source == candidate ? Color.gymPrimary : Color.gymBorder, lineWidth: 1) }
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            GymSectionHeader(title: "What kind of caffeine?", detail: "Pick the closest source — amounts stay editable in the food library.")
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: Spacing.s),
+                    GridItem(.flexible(), spacing: Spacing.s)
+                ],
+                spacing: Spacing.s
+            ) {
+                ForEach(Self.tiledSources) { candidate in
+                    GymChoiceTile(
+                        emoji: candidate.emoji,
+                        title: candidate.title,
+                        isSelected: source == candidate
+                    ) {
+                        withAnimation(AppMotion.compact) { source = candidate }
                     }
-                    .buttonStyle(.gymPress)
-                    .accessibilityAddTraits(source == candidate ? .isSelected : [])
                 }
             }
+            otherSourceRow
         }
+    }
+
+    private var otherSourceRow: some View {
+        let isSelected = source == .other
+        return Button {
+            withAnimation(AppMotion.compact) { source = .other }
+        } label: {
+            HStack(spacing: Spacing.s) {
+                Image(systemName: AppIcon.plus)
+                    .font(AppFont.caption2Bold)
+                Text(CaffeineSource.other.title)
+                    .font(AppFont.footnoteMedium)
+                Spacer(minLength: 0)
+                if isSelected {
+                    Image(systemName: AppIcon.checkmarkCircle)
+                        .font(AppFont.caption2Bold)
+                        .foregroundStyle(Color.gymPrimary)
+                }
+            }
+            .foregroundStyle(Color.gymText)
+            .padding(.horizontal, Spacing.l)
+            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+            .background(
+                isSelected ? Color.gymPrimarySurface : Color.gymCard,
+                in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                    .stroke(isSelected ? Color.gymPrimary : Color.gymBorder, lineWidth: isSelected ? 1.5 : 1)
+            }
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityLabel("Other caffeine source")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     // MARK: - Per-source content
@@ -306,13 +348,17 @@ struct CaffeineQuickLogSheet: View {
     private var sourceContent: some View {
         switch source {
         case .coffee:
-            drinkPresetPicker(title: "Coffee", presets: CaffeineDrinkPreset.allCases, selection: $drink) { $0.emoji } title: { $0.title }
-            sizePicker
+            GymCard {
+                presetPicker("Coffee", presets: CaffeineDrinkPreset.allCases, selection: $drink) { $0.title }
+                sizePicker
+            }
         case .tea:
-            drinkPresetPicker(title: "Tea", presets: TeaPreset.allCases, selection: $teaPreset) { $0.emoji } title: { $0.title }
-            sizePicker
+            GymCard {
+                presetPicker("Tea", presets: TeaPreset.allCases, selection: $teaPreset) { $0.title }
+                sizePicker
+            }
         case .energyDrink:
-            sizePicker
+            GymCard { sizePicker }
         case .preWorkout:
             preWorkoutPicker
         case .other:
@@ -320,85 +366,120 @@ struct CaffeineQuickLogSheet: View {
         }
     }
 
-    private func drinkPresetPicker<Preset: Identifiable & Hashable>(
-        title: String,
+    /// Presets are a homogeneous one-of-N choice, so a segmented control beats
+    /// a row of tiles — it also stops Espresso and Brewed from showing the same
+    /// ☕️ tile twice.
+    private func presetPicker<Preset: Identifiable & Hashable>(
+        _ label: LocalizedStringKey,
         presets: [Preset],
         selection: Binding<Preset>,
-        emoji: @escaping (Preset) -> String,
-        title presetTitle: @escaping (Preset) -> String
+        title: @escaping (Preset) -> String
     ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            HStack(spacing: Spacing.s) {
+            GymEyebrow(label)
+            Picker(label, selection: selection) {
                 ForEach(presets) { preset in
-                    Button {
-                        selection.wrappedValue = preset
-                    } label: {
-                        VStack(spacing: Spacing.xs) {
-                            Text(emoji(preset)).font(AppFont.titleMedium)
-                            Text(presetTitle(preset)).font(AppFont.captionBold).lineLimit(1)
-                        }
-                        .foregroundStyle(Color.gymText)
-                        .frame(maxWidth: .infinity, minHeight: 76)
-                        .background(selection.wrappedValue == preset ? Color.gymPrimarySurface : Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
-                        .overlay { RoundedRectangle(cornerRadius: Radius.medium).stroke(selection.wrappedValue == preset ? Color.gymPrimary : Color.gymBorder, lineWidth: 1) }
-                    }
-                    .buttonStyle(.gymPress)
-                    .accessibilityAddTraits(selection.wrappedValue == preset ? .isSelected : [])
+                    Text(title(preset)).tag(preset)
                 }
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
         }
     }
 
     private var sizePicker: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            Text("Size").font(AppFont.headline)
+            GymEyebrow("Size")
             Picker("Size", selection: $size) {
                 ForEach(CaffeineDrinkSize.allCases) { size in Text(size.title).tag(size) }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
         }
     }
 
+    /// Six intensity bands as six separately bordered cards was the heaviest
+    /// block in the sheet; one card with divided rows reads like the native
+    /// picker list it is.
     private var preWorkoutPicker: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
+        VStack(alignment: .leading, spacing: Spacing.m) {
             GymSectionHeader(title: "How strong?", detail: "Based on caffeine per serving, not the product name.")
-            VStack(spacing: Spacing.s) {
-                ForEach(PreWorkoutIntensity.allCases) { intensity in
-                    Button {
-                        preWorkoutIntensity = intensity
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                Text(intensity.title).font(AppFont.headline).foregroundStyle(Color.gymText)
-                                Text(intensity.rangeDescription).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
-                            }
-                            Spacer()
-                            if preWorkoutIntensity == intensity {
-                                Image(systemName: AppIcon.checkmarkCircle).foregroundStyle(Color.gymPrimary)
-                            }
-                        }
-                        .padding(Spacing.m)
-                        .background(preWorkoutIntensity == intensity ? Color.gymPrimarySurface : Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
-                        .overlay { RoundedRectangle(cornerRadius: Radius.medium).stroke(preWorkoutIntensity == intensity ? Color.gymPrimary : Color.gymBorder, lineWidth: 1) }
+            VStack(spacing: 0) {
+                ForEach(Array(PreWorkoutIntensity.allCases.enumerated()), id: \.element.id) { index, intensity in
+                    if index > 0 {
+                        Divider().overlay(Color.gymBorder).padding(.leading, Spacing.l)
                     }
-                    .buttonStyle(.gymPress)
-                    .accessibilityAddTraits(preWorkoutIntensity == intensity ? .isSelected : [])
+                    intensityRow(intensity)
                 }
             }
-            if preWorkoutIntensity == .custom {
-                TextField("Caffeine (mg)", text: $exactMilligramsText)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("caffeine-preworkout-exact-mg")
-                TextField("NPN (optional, Canadian products)", text: $npnText)
-                    .textFieldStyle(.roundedBorder)
+            .background(Color.gymCard)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.gymBorder, lineWidth: 1)
             }
+
+            if preWorkoutIntensity == .custom {
+                GymCard {
+                    GymEyebrow("Label value")
+                    TextField("Caffeine (mg)", text: $exactMilligramsText)
+                        .keyboardType(.decimalPad)
+                        .gymFieldStyle()
+                        .accessibilityIdentifier("caffeine-preworkout-exact-mg")
+                    TextField("NPN (optional, Canadian products)", text: $npnText)
+                        .gymFieldStyle()
+                }
+            }
+
             if let minorNotice {
-                Text(minorNotice)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                noticeCard(minorNotice)
             }
         }
+    }
+
+    private func intensityRow(_ intensity: PreWorkoutIntensity) -> some View {
+        let isSelected = preWorkoutIntensity == intensity
+        return Button {
+            withAnimation(AppMotion.compact) { preWorkoutIntensity = intensity }
+        } label: {
+            HStack(spacing: Spacing.m) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(intensity.title)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.gymText)
+                    Text(intensity.rangeDescription)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubtleText)
+            }
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
+            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+            .background(isSelected ? Color.gymPrimarySurface : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(intensity.title), \(intensity.rangeDescription)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func noticeCard(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: Spacing.s) {
+            Image(systemName: AppIcon.warningCircle)
+                .font(AppFont.footnoteMedium)
+                .foregroundStyle(Color.gymAccent)
+            Text(message)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.m)
+        .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 
     private var minorNotice: String? {
@@ -414,16 +495,19 @@ struct CaffeineQuickLogSheet: View {
     }
 
     private var otherEntry: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
+        VStack(alignment: .leading, spacing: Spacing.m) {
             GymSectionHeader(title: "What did you have?", detail: "Log any other caffeine source with its exact amount.")
-            TextField("Name (optional)", text: $otherName)
-                .textFieldStyle(.roundedBorder)
-            TextField("Caffeine (mg)", text: $exactMilligramsText)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(.roundedBorder)
-                .accessibilityIdentifier("caffeine-other-exact-mg")
-            TextField("NPN (optional, Canadian products)", text: $npnText)
-                .textFieldStyle(.roundedBorder)
+            GymCard {
+                TextField("Name (optional)", text: $otherName)
+                    .gymFieldStyle()
+                TextField("Caffeine (mg)", text: $exactMilligramsText)
+                    .keyboardType(.decimalPad)
+                    .font(AppFont.headlineMonospaced)
+                    .gymFieldStyle()
+                    .accessibilityIdentifier("caffeine-other-exact-mg")
+                TextField("NPN (optional, Canadian products)", text: $npnText)
+                    .gymFieldStyle()
+            }
         }
     }
 
@@ -431,13 +515,19 @@ struct CaffeineQuickLogSheet: View {
 
     private var referenceCard: some View {
         GymCard(variant: .accent) {
-            HStack {
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("Estimated caffeine").font(AppFont.captionBold).foregroundStyle(Color.gymSubduedText)
+                    GymEyebrow("Estimated caffeine")
                     GymMetricValue(value: FoodLibraryService.format(estimatedMilligrams), unit: "mg", isEstimate: true)
                 }
-                Spacer()
-                Text(source.emoji).font(AppFont.displayMedium)
+                Spacer(minLength: Spacing.s)
+                // "Other" carries a ➕ glyph, which reads as a control rather
+                // than a drink next to the estimate.
+                if source != .other {
+                    Text(source.emoji)
+                        .font(AppFont.titleMedium)
+                        .accessibilityHidden(true)
+                }
             }
             referenceLine
                 .font(AppFont.caption)

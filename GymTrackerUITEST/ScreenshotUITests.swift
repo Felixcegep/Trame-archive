@@ -1151,4 +1151,30 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         review("Stationary Bike", field: "calories", slug: "08-calories")
     }
 
+    // MARK: - Manual caffeine-source review (not part of the ScreenshotCoverage.md catalog)
+
+    /// Captures the Log caffeine source states the catalogued
+    /// `nutrition/20a_Caffeine_Quick_Log.png` never reaches: the pre-workout
+    /// intensity list, its custom-value fields, and the free-form entry. This is
+    /// a design review aid, not a canonical product screenshot. Run it directly:
+    /// `-only-testing:GymTrackerUITEST/ScreenshotUITests/testReviewCaffeineSourceStates`.
+    func testReviewCaffeineSourceStates() {
+        let app = launchFixture("today-complete", expectsActiveWorkout: false)
+
+        tapButton("today-caffeine-summary", in: app)
+        XCTAssertTrue(app.navigationBars["Log caffeine"].waitForExistence(timeout: 5))
+
+        tapButton("Pre-workout", in: app)
+        XCTAssertTrue(app.staticTexts["How strong?"].waitForExistence(timeout: 5))
+        saveScreenshot("debug/caffeine-preworkout-intensity")
+
+        tapButton("Custom, Enter the exact label value", in: app)
+        XCTAssertTrue(app.textFields["caffeine-preworkout-exact-mg"].waitForExistence(timeout: 5))
+        saveScreenshot("debug/caffeine-preworkout-custom")
+
+        tapButton("Other caffeine source", in: app)
+        XCTAssertTrue(app.textFields["caffeine-other-exact-mg"].waitForExistence(timeout: 5))
+        saveScreenshot("debug/caffeine-other")
+    }
+
 }

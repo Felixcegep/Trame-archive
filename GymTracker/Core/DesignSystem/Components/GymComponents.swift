@@ -242,6 +242,51 @@ struct GymEyebrow: View {
     }
 }
 
+/// Emoji-led tile for a small set of mutually exclusive choices. Selection is
+/// carried by a tinted surface plus a heavier border and a checkmark, never by
+/// color alone.
+struct GymChoiceTile: View {
+    let emoji: String
+    let title: String
+    let isSelected: Bool
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Spacing.s) {
+                Text(emoji)
+                    .font(AppFont.titleSmall)
+                Text(title)
+                    .font(AppFont.footnoteMedium)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .foregroundStyle(Color.gymText)
+            .frame(maxWidth: .infinity, minHeight: 54)
+            .padding(.horizontal, Spacing.m)
+            .background(
+                isSelected ? Color.gymPrimarySurface : Color.gymCard,
+                in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                    .stroke(isSelected ? Color.gymPrimary : Color.gymBorder, lineWidth: isSelected ? 1.5 : 1)
+            }
+            .overlay(alignment: .topTrailing) {
+                if isSelected {
+                    Image(systemName: AppIcon.checkmarkCircle)
+                        .font(AppFont.caption2Bold)
+                        .foregroundStyle(Color.gymPrimary)
+                        .padding(Spacing.xs)
+                }
+            }
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
 extension View {
     /// Text-field chrome for the warm palette. `.roundedBorder` renders a gray
     /// system border that reads as foreign against the cream background.
