@@ -29,10 +29,16 @@ class Workout {
     var sourcePlanName: String?
     var sourceProgramDefinitionID: UUID?
     var sourceProgramDefinitionVersion: Int?
+    var sourceRepeatingPlanID: UUID?
+    var sourceRepeatingPlanRunID: UUID?
+    var sourceRepeatingPlanOccurrenceID: UUID?
+    var sourceRepeatingPlanName: String?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseEntry.workout)
     var exercises: [ExerciseEntry] = []
     @Relationship(deleteRule: .cascade, inverse: \WorkoutExecutionBlock.workout)
     var executionBlocks: [WorkoutExecutionBlock] = []
+    @Relationship(deleteRule: .nullify, inverse: \RepeatingPlanOccurrence.completedWorkout)
+    var repeatingPlanOccurrences: [RepeatingPlanOccurrence] = []
     
     init(name: String?, endTime: Date? = nil) {
         self.status = endTime == nil ? .active : .completed
@@ -51,6 +57,10 @@ class Workout {
         self.sourcePlanName = nil
         self.sourceProgramDefinitionID = nil
         self.sourceProgramDefinitionVersion = nil
+        self.sourceRepeatingPlanID = nil
+        self.sourceRepeatingPlanRunID = nil
+        self.sourceRepeatingPlanOccurrenceID = nil
+        self.sourceRepeatingPlanName = nil
         self.executionBlocks = []
     }
     init(template : WorkoutTemplate, unitSystem : UnitSystem){
@@ -69,6 +79,10 @@ class Workout {
         self.sourcePlanName = nil
         self.sourceProgramDefinitionID = nil
         self.sourceProgramDefinitionVersion = nil
+        self.sourceRepeatingPlanID = nil
+        self.sourceRepeatingPlanRunID = nil
+        self.sourceRepeatingPlanOccurrenceID = nil
+        self.sourceRepeatingPlanName = nil
         self.exercises = []
         self.executionBlocks = []
         var snapshotGroupIDs: [UUID: UUID] = [:]

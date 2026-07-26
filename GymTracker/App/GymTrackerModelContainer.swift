@@ -8,7 +8,7 @@ import SwiftData
 /// model's stored shape changes, so a beta feedback report can distinguish
 /// testers running different schema generations.
 enum GymTrackerAppSchema {
-    static let diagnosticVersion = "1"
+    static let diagnosticVersion = "3"
 }
 
 /// The one persistent store used by both the SwiftUI scene and
@@ -63,6 +63,11 @@ enum GymTrackerModelContainer {
             PlanRun.self,
             PlanWorkoutProgress.self,
             PlanExerciseProgressionState.self,
+            RepeatingPlan.self,
+            RepeatingPlanSlot.self,
+            RepeatingPlanRun.self,
+            RepeatingPlanRunSlot.self,
+            RepeatingPlanOccurrence.self,
             DailyLogEntry.self,
             BodyWeightEntry.self,
             SupplementOccurrence.self,

@@ -35,6 +35,7 @@ enum UITestFixture: String {
     case planCalendar = "plan-calendar"
     case planRelaunchSchedule = "plan-relaunch-schedule"
     case planPartialSave = "plan-partial-save"
+    case repeatingPlanActive = "repeating-plan-active"
     case backupImportTarget = "backup-import-target"
     case todayComplete = "today-complete"
     case todayWeightDue = "today-weight-due"
@@ -55,7 +56,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .nutritionToday, .trainingCalendar:
+        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .nutritionToday, .trainingCalendar:
             false
         default:
             true
@@ -135,6 +136,8 @@ enum UITestFixture: String {
             try makePlanRelaunchSchedule(using: context)
         case .planPartialSave:
             try makePartialPlannedWorkout(using: context)
+        case .repeatingPlanActive:
+            try makeActiveRepeatingPlan(using: context)
         case .backupImportTarget:
             try makeBackupImportTarget(using: context)
         case .todayComplete:
@@ -215,6 +218,54 @@ enum UITestFixture: String {
         workout.startTime = Date.now.addingTimeInterval(-47)
         workout.exercises = exercises
         context.insert(workout)
+        try context.save()
+    }
+
+    private static func makeActiveRepeatingPlan(using context: ModelContext) throws {
+        let benchPress = try exercise(named: "Bench Press", using: context)
+        let squat = try exercise(named: "Back Squat", using: context)
+        let firstWorkout = WorkoutTemplate(
+            name: "Rotation Screenshot Strength",
+            exercises: [benchPress]
+        )
+        let alternateWorkout = WorkoutTemplate(
+            name: "Rotation Screenshot Squat",
+            exercises: [squat]
+        )
+        context.insert(firstWorkout)
+        context.insert(alternateWorkout)
+
+        let plan = RepeatingPlan(
+            name: "Rotation Screenshot Fixture",
+            goal: .generalStrength,
+            experienceLevel: .intermediate,
+            notes: "A deterministic active rotation for Home, detail, and workout-source captures.",
+            slots: [
+                RepeatingPlanSlot(orderIndex: 0, workoutTemplate: firstWorkout),
+                RepeatingPlanSlot(orderIndex: 1, workoutTemplate: alternateWorkout)
+            ]
+        )
+        context.insert(plan)
+
+        let run = RepeatingPlanRun(plan: plan, startedAt: Date.now.addingTimeInterval(-86_400))
+        run.currentSlotIndex = 0
+        run.completedCycleCount = 1
+        run.updatedAt = .now
+        run.occurrences = [
+            RepeatingPlanOccurrence(
+                cycleIndex: 0,
+                expectedSlotIndex: 1,
+                kind: .expected,
+                status: .skipped,
+                cursorBefore: 1,
+                cursorAfter: 0,
+                cycleBefore: 0,
+                cycleAfter: 1,
+                createdAt: Date.now.addingTimeInterval(-3_600),
+                completedAt: Date.now.addingTimeInterval(-3_600)
+            )
+        ]
+        context.insert(run)
         try context.save()
     }
 

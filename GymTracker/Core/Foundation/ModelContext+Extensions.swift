@@ -42,6 +42,8 @@ extension ModelContext {
         for entry in try fetch(FetchDescriptor<DailyLogEntry>()) { delete(entry) }
         for entry in try fetch(FetchDescriptor<BodyWeightEntry>()) { delete(entry) }
         for occurrence in try fetch(FetchDescriptor<SupplementOccurrence>()) { delete(occurrence) }
+        for run in try fetch(FetchDescriptor<RepeatingPlanRun>()) { delete(run) }
+        for plan in try fetch(FetchDescriptor<RepeatingPlan>()) { delete(plan) }
         for run in try fetch(FetchDescriptor<PlanRun>()) { delete(run) }
         for plan in try fetch(FetchDescriptor<WorkoutPlan>()) { delete(plan) }
         for collection in try fetch(FetchDescriptor<WorkoutCollection>()) { delete(collection) }

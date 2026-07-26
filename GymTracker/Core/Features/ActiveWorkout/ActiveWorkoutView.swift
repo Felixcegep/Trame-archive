@@ -100,7 +100,7 @@ struct ActiveWorkoutView: View {
             Button("Discard workout", role: .destructive, action: discardWorkout)
                 .accessibilityIdentifier("confirm-discard-workout")
         } message: {
-            Text("Your logged sets will not be saved.")
+            Text(discardConfirmationMessage)
         }
         .sheet(isPresented: $isShowingExercisePicker) {
             NavigationStack {
@@ -252,6 +252,15 @@ struct ActiveWorkoutView: View {
                 .font(AppFont.caption)
                 .foregroundStyle(Color.gymSubduedText)
 
+            if let repeatingPlanName = repeatingPlanName(for: workout) {
+                Label("Rotation: \(repeatingPlanName)", systemImage: AppIcon.routine)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSecondary)
+                    .accessibilityLabel(
+                        "Rotation \(repeatingPlanName). It advances only after this workout is saved successfully."
+                    )
+            }
+
             ProgressView(value: Double(workout.completedSetCount), total: Double(max(workout.totalSetCount, 1)))
                 .tint(Color.gymSecondary)
                 // The summary line above states the same progress in words, so
@@ -273,6 +282,27 @@ struct ActiveWorkoutView: View {
                 + Text(" · ")
                 + Text("^[\(workout.exercises.count) exercise](inflect: true)")
         }
+    }
+
+    private func repeatingPlanName(for workout: Workout) -> String? {
+        guard let name = workout.sourceRepeatingPlanName?
+            .trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty
+        else {
+            return nil
+        }
+        return name
+    }
+
+    private var discardConfirmationMessage: String {
+        guard
+            let workout = viewModel.activeWorkout,
+            let repeatingPlanName = repeatingPlanName(for: workout)
+        else {
+            return String(localized: "Your logged sets and notes will not be saved.")
+        }
+        return String(
+            localized: "Your logged sets and notes will not be saved. \(repeatingPlanName) will not advance."
+        )
     }
 
     private func restTimer(endDate: Date) -> some View {

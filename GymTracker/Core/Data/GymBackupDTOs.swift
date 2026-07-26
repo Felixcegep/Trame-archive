@@ -88,6 +88,8 @@ nonisolated struct WorkoutTemplateDTO: Codable {
     let name: String
     let templateExercises: [TemplateExerciseDTO]
     var executionBlocks: [TemplateExerciseBlockDTO]? = nil
+    var preWorkoutMobilityRoutineName: String? = nil
+    var postWorkoutMobilityRoutineName: String? = nil
 }
 
 nonisolated struct WorkoutCollectionDTO: Codable {
@@ -258,6 +260,10 @@ nonisolated struct WorkoutDTO: Codable {
     let sourcePlanName: String?
     var sourceProgramDefinitionID: String? = nil
     var sourceProgramDefinitionVersion: Int? = nil
+    var sourceRepeatingPlanID: String? = nil
+    var sourceRepeatingPlanRunID: String? = nil
+    var sourceRepeatingPlanOccurrenceID: String? = nil
+    var sourceRepeatingPlanName: String? = nil
     let exercises: [ExerciseEntryDTO]
     var executionBlocks: [WorkoutExecutionBlockDTO]? = nil
 }
@@ -810,6 +816,85 @@ nonisolated struct NutritionTargetDTO: Codable {
     let updatedAt: Date
 }
 
+nonisolated struct RepeatingPlanSlotDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let templateIDSnapshot: String
+    let templateNameSnapshot: String
+    /// The live relationship is deliberately optional: a run/definition can
+    /// retain its source evidence after the reusable template was deleted.
+    let workoutTemplateName: String?
+    var preWorkoutMobilityRoutineName: String? = nil
+    var preWorkoutMobilityRoutineIDSnapshot: String? = nil
+    var preWorkoutMobilityRoutineNameSnapshot: String? = nil
+    var postWorkoutMobilityRoutineName: String? = nil
+    var postWorkoutMobilityRoutineIDSnapshot: String? = nil
+    var postWorkoutMobilityRoutineNameSnapshot: String? = nil
+}
+
+nonisolated struct RepeatingPlanDTO: Codable {
+    let id: String
+    let name: String
+    let goal: String
+    let experienceLevel: String
+    let requiredEquipment: [String]
+    let notes: String?
+    let createdAt: Date
+    let updatedAt: Date
+    let isArchived: Bool
+    let isBuiltIn: Bool
+    let slots: [RepeatingPlanSlotDTO]
+}
+
+nonisolated struct RepeatingPlanRunSlotDTO: Codable {
+    let id: String
+    let sourceSlotID: String
+    let orderIndex: Int
+    let templateIDSnapshot: String
+    let templateNameSnapshot: String
+    let workoutTemplateName: String?
+    var preWorkoutMobilityRoutineName: String? = nil
+    var preWorkoutMobilityRoutineIDSnapshot: String? = nil
+    var preWorkoutMobilityRoutineNameSnapshot: String? = nil
+    var postWorkoutMobilityRoutineName: String? = nil
+    var postWorkoutMobilityRoutineIDSnapshot: String? = nil
+    var postWorkoutMobilityRoutineNameSnapshot: String? = nil
+}
+
+nonisolated struct RepeatingPlanOccurrenceDTO: Codable {
+    let id: String
+    let cycleIndex: Int
+    let expectedSlotIndex: Int
+    let selectedSlotIndex: Int?
+    let kind: String
+    let continuationMode: String
+    let status: String
+    let cursorBefore: Int
+    let cursorAfter: Int
+    let cycleBefore: Int
+    let cycleAfter: Int
+    let createdAt: Date
+    let startedAt: Date?
+    let completedAt: Date?
+    let undoneAt: Date?
+    let completedWorkoutID: String?
+}
+
+nonisolated struct RepeatingPlanRunDTO: Codable {
+    let id: String
+    let sourcePlanID: String
+    let sourcePlanName: String
+    let status: String
+    let currentSlotIndex: Int
+    let completedCycleCount: Int
+    let startedAt: Date
+    let endedAt: Date?
+    let updatedAt: Date
+    let planID: String?
+    let slots: [RepeatingPlanRunSlotDTO]
+    let occurrences: [RepeatingPlanOccurrenceDTO]
+}
+
 nonisolated struct BackupDTO: Codable, Identifiable {
     var id: UUID { UUID() }
     let version: Int
@@ -820,6 +905,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     let workouts: [WorkoutDTO]
     let plans: [WorkoutPlanDTO]
     let planRuns: [PlanRunDTO]
+    let repeatingPlans: [RepeatingPlanDTO]
+    let repeatingPlanRuns: [RepeatingPlanRunDTO]
     let exerciseRelationships: [ExerciseRelationshipDTO]
     let programDefinitions: [ProgramDefinitionDTO]
     let progressionRecommendations: [ProgressionRecommendationDTO]
@@ -859,7 +946,14 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     // to portable recipe data. Photos are non-nutrition thumbnails; older
     // backups simply restore with no photo.
     static let recipePhotoVersion = 16
-    static let currentVersion = recipePhotoVersion
+    /// Adds the repeating-plan definition/run/occurrence graph and the
+    /// repeating source identity carried by performed workouts.
+    static let repeatingPlanVersion = 17
+    /// Adds optional pre/post mobility-routine links to reusable workout
+    /// templates plus immutable routine ID/name evidence on repeating
+    /// definition and run slots.
+    static let mobilityLinkageVersion = 18
+    static let currentVersion = mobilityLinkageVersion
 
     init(
         version: Int,
@@ -870,6 +964,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         workouts: [WorkoutDTO],
         plans: [WorkoutPlanDTO] = [],
         planRuns: [PlanRunDTO] = [],
+        repeatingPlans: [RepeatingPlanDTO] = [],
+        repeatingPlanRuns: [RepeatingPlanRunDTO] = [],
         exerciseRelationships: [ExerciseRelationshipDTO] = [],
         programDefinitions: [ProgramDefinitionDTO] = [],
         progressionRecommendations: [ProgressionRecommendationDTO] = [],
@@ -893,6 +989,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         self.workouts = workouts
         self.plans = plans
         self.planRuns = planRuns
+        self.repeatingPlans = repeatingPlans
+        self.repeatingPlanRuns = repeatingPlanRuns
         self.exerciseRelationships = exerciseRelationships
         self.programDefinitions = programDefinitions
         self.progressionRecommendations = progressionRecommendations
@@ -910,7 +1008,7 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, foods, mealTemplates, loggedMeals, nutritionTargets
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, foods, mealTemplates, loggedMeals, nutritionTargets
     }
 
     init(from decoder: Decoder) throws {
@@ -923,6 +1021,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         workouts = try container.decode([WorkoutDTO].self, forKey: .workouts)
         plans = try container.decodeIfPresent([WorkoutPlanDTO].self, forKey: .plans) ?? []
         planRuns = try container.decodeIfPresent([PlanRunDTO].self, forKey: .planRuns) ?? []
+        repeatingPlans = try container.decodeIfPresent([RepeatingPlanDTO].self, forKey: .repeatingPlans) ?? []
+        repeatingPlanRuns = try container.decodeIfPresent([RepeatingPlanRunDTO].self, forKey: .repeatingPlanRuns) ?? []
         exerciseRelationships = try container.decodeIfPresent([ExerciseRelationshipDTO].self, forKey: .exerciseRelationships) ?? []
         programDefinitions = try container.decodeIfPresent([ProgramDefinitionDTO].self, forKey: .programDefinitions) ?? []
         progressionRecommendations = try container.decodeIfPresent([ProgressionRecommendationDTO].self, forKey: .progressionRecommendations) ?? []

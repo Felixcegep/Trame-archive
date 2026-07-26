@@ -7,10 +7,12 @@ struct WorkoutSaveView: View {
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [ActiveWorkoutRoute]
     @Binding var isPresented: Bool
+    let onWorkoutSaved: (UUID) -> Void
     let onDiscardRequested: () -> Void
 
     @State private var isShowingDiscardConfirmation = false
     @State private var isShowingPartialSaveConfirmation = false
+    @State private var saveErrorMessage: String?
     @FocusState private var isNotesFocused: Bool
 
     var body: some View {
@@ -42,6 +44,17 @@ struct WorkoutSaveView: View {
                 .accessibilityIdentifier("dismiss-review-notes-keyboard")
             }
         }
+        .alert(
+            "Couldn’t save workout",
+            isPresented: Binding(
+                get: { saveErrorMessage != nil },
+                set: { if !$0 { saveErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { saveErrorMessage = nil }
+        } message: {
+            Text(saveErrorMessage ?? "")
+        }
     }
 
     private func saveReview(for workout: Workout) -> some View {
@@ -69,6 +82,8 @@ struct WorkoutSaveView: View {
                     .foregroundStyle(Color.gymSubduedText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Spacing.l)
+                repeatingPlanSaveContext(for: workout)
+                    .multilineTextAlignment(.center)
             }
             
             Spacer()
@@ -103,7 +118,7 @@ struct WorkoutSaveView: View {
         ) {
             Button("Discard workout", role: .destructive, action: discardWorkout)
         } message: {
-            Text("Your logged sets and notes will not be saved.")
+            Text(discardConfirmationMessage(for: workout))
         }
     }
 
@@ -124,6 +139,7 @@ struct WorkoutSaveView: View {
                          : "Give this session a name, then save it to your history.")
                         .font(AppFont.subheadline)
                         .foregroundStyle(Color.gymSubduedText)
+                    repeatingPlanSaveContext(for: workout)
                 }
 
                 VStack(alignment: .leading, spacing: Spacing.s) {
@@ -229,7 +245,7 @@ struct WorkoutSaveView: View {
             }
                 .accessibilityIdentifier("keep-editing-partial-save")
         } message: {
-            Text("^[\(saveableSetCount(for: workout)) completed set](inflect: true) will be saved to History. ^[\(workout.incompleteSetCount) incomplete set](inflect: true) will be excluded. Your workout name and notes will be saved.")
+            partialSaveConfirmationMessage(for: workout)
         }
         .confirmationDialog(
             "Discard this workout?",
@@ -238,8 +254,53 @@ struct WorkoutSaveView: View {
         ) {
             Button("Discard workout", role: .destructive, action: discardWorkout)
         } message: {
-            Text("Your logged sets and notes will not be saved.")
+            Text(discardConfirmationMessage(for: workout))
         }
+    }
+
+    @ViewBuilder
+    private func repeatingPlanSaveContext(for workout: Workout) -> some View {
+        if let repeatingPlanName = repeatingPlanName(for: workout) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Label("Rotation: \(repeatingPlanName)", systemImage: AppIcon.routine)
+                    .font(AppFont.footnoteMedium)
+                    .foregroundStyle(Color.gymSecondary)
+                Text("When this workout saves successfully, the rotation advances to the next workout.")
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(
+                "Rotation \(repeatingPlanName). It advances only after this workout is saved successfully."
+            )
+        }
+    }
+
+    private func repeatingPlanName(for workout: Workout) -> String? {
+        guard let name = workout.sourceRepeatingPlanName?
+            .trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty
+        else {
+            return nil
+        }
+        return name
+    }
+
+    @ViewBuilder
+    private func partialSaveConfirmationMessage(for workout: Workout) -> some View {
+        Text("^[\(saveableSetCount(for: workout)) completed set](inflect: true) will be saved to History. ^[\(workout.incompleteSetCount) incomplete set](inflect: true) will be excluded. Your workout name and notes will be saved.")
+        if let repeatingPlanName = repeatingPlanName(for: workout) {
+            Text("When the save succeeds, \(repeatingPlanName) advances to the next workout.")
+        }
+    }
+
+    private func discardConfirmationMessage(for workout: Workout) -> String {
+        let base = String(localized: "Your logged sets and notes will not be saved.")
+        guard let repeatingPlanName = repeatingPlanName(for: workout) else {
+            return base
+        }
+        return String(
+            localized: "Your logged sets and notes will not be saved. \(repeatingPlanName) will not advance."
+        )
     }
 
     private func workoutDuration(for workout: Workout) -> String {
@@ -380,7 +441,13 @@ struct WorkoutSaveView: View {
     }
 
     private func saveWorkout() {
-        guard workoutVM.saveWorkout(using: modelContext) else { return }
+        guard let workoutID = workoutVM.activeWorkout?.id,
+              workoutVM.saveWorkout(using: modelContext)
+        else {
+            saveErrorMessage = String(localized: "Your workout is still open. Try saving again.")
+            return
+        }
+        onWorkoutSaved(workoutID)
         navigationPath.removeAll()
         isPresented = false
     }

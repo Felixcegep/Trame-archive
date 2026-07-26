@@ -54,6 +54,7 @@ Scenes:
   exercise-insights      Per-exercise history and progression insights
   exercise-form          New Exercise form, muscle picker, and advanced details
   muscle-balance        Estimated weekly muscle-group balance
+  rotation               Active rotation detail, controls, Home context, and workout source
 
 Options:
   list                   Print every scene and its screenshot paths
@@ -89,6 +90,7 @@ tests_for_scene() {
     exercise-insights) echo "testCaptureExerciseInsightsScreenshots" ;;
     exercise-form) echo "testCaptureLibraryFormsScreenshots" ;;
     muscle-balance) echo "testCaptureMuscleBalanceScreenshot" ;;
+    rotation) echo "testCaptureRepeatingPlanScreenshots" ;;
     *) return 1 ;;
   esac
 }
@@ -115,11 +117,12 @@ files_for_scene() {
     exercise-insights) echo "exercises/17a_Exercise_Detail_Variations.png exercises/17b_Exercise_Relationships.png exercises/17_Exercise_Insights.png" ;;
     exercise-form) echo "exercises/18_New_Exercise_Form.png exercises/18b_New_Exercise_Muscles.png exercises/18c_New_Exercise_Advanced.png" ;;
     muscle-balance) echo "history/16_Muscle_Balance.png" ;;
+    rotation) echo "plans/22_Repeating_Plan_Detail.png plans/22a_Repeating_Plan_Choose_Another.png plans/22b_Repeating_Plan_Paused.png plans/22c_Repeating_Plan_Undo.png overview/01i_Home_Active_Rotation.png active-workout/08n_Active_Workout_Rotation_Source.png" ;;
     *) return 1 ;;
   esac
 }
 
-ALL_SCENES="overview pages mobility nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance"
+ALL_SCENES="overview pages mobility nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 

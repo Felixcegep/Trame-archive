@@ -19,18 +19,28 @@ class WorkoutTemplate {
     var workoutCollections: [WorkoutCollection] = []
     @Relationship(deleteRule: .nullify, inverse: \Workout.sourceTemplate)
     var sourceWorkouts: [Workout] = []
+    @Relationship(deleteRule: .nullify, inverse: \RepeatingPlanSlot.workoutTemplate)
+    var repeatingPlanSlots: [RepeatingPlanSlot] = []
+    @Relationship(deleteRule: .nullify, inverse: \RepeatingPlanRunSlot.workoutTemplate)
+    var repeatingPlanRunSlots: [RepeatingPlanRunSlot] = []
+    var preWorkoutMobilityRoutine: MobilityRoutine?
+    var postWorkoutMobilityRoutine: MobilityRoutine?
     var isBuiltIn: Bool = false
 
     init(
         name: String,
         exercises: [Exercise],
         templateExercises: [TemplateExercise]? = nil,
+        preWorkoutMobilityRoutine: MobilityRoutine? = nil,
+        postWorkoutMobilityRoutine: MobilityRoutine? = nil,
         isBuiltIn: Bool = false
     ) {
         self.name = name
         self.templateExercises = templateExercises ?? exercises.enumerated().map { index, exercise in
             TemplateExercise(exercise: exercise, order: index)
         }
+        self.preWorkoutMobilityRoutine = preWorkoutMobilityRoutine
+        self.postWorkoutMobilityRoutine = postWorkoutMobilityRoutine
         self.isBuiltIn = isBuiltIn
     }
 

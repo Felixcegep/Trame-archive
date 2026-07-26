@@ -389,6 +389,27 @@ final class BackupFieldCoverageTests: XCTestCase {
         workout.sourcePlanName = "sentinel-plan-name"
         workout.sourceProgramDefinitionID = UUID(uuidString: "10000000-0000-0000-0000-000000000006")
         workout.sourceProgramDefinitionVersion = 7
+        let repeatingTemplate = WorkoutTemplate(name: "Sentinel Repeating Template", exercises: [exercise])
+        let repeatingPlan = RepeatingPlan(
+            name: "Sentinel Repeating Plan",
+            slots: [RepeatingPlanSlot(orderIndex: 0, workoutTemplate: repeatingTemplate)]
+        )
+        let repeatingRun = RepeatingPlanRun(plan: repeatingPlan)
+        let occurrence = RepeatingPlanOccurrence(
+            cycleIndex: 2,
+            expectedSlotIndex: 0,
+            selectedSlotIndex: 0,
+            status: .completed,
+            cursorBefore: 0,
+            cursorAfter: 0,
+            completedAt: .now,
+            completedWorkout: workout
+        )
+        repeatingRun.occurrences = [occurrence]
+        workout.sourceRepeatingPlanID = repeatingPlan.id
+        workout.sourceRepeatingPlanRunID = repeatingRun.id
+        workout.sourceRepeatingPlanOccurrenceID = occurrence.id
+        workout.sourceRepeatingPlanName = repeatingPlan.name
         workout.exercises = [
             ExerciseEntry(
                 exercise: exercise,
@@ -397,6 +418,9 @@ final class BackupFieldCoverageTests: XCTestCase {
             )
         ]
         source.insert(exercise)
+        source.insert(repeatingTemplate)
+        source.insert(repeatingPlan)
+        source.insert(repeatingRun)
         source.insert(workout)
         try source.save()
 
@@ -418,6 +442,10 @@ final class BackupFieldCoverageTests: XCTestCase {
         XCTAssertEqual(restored.sourcePlanName, "sentinel-plan-name")
         XCTAssertEqual(restored.sourceProgramDefinitionID, workout.sourceProgramDefinitionID)
         XCTAssertEqual(restored.sourceProgramDefinitionVersion, 7)
+        XCTAssertEqual(restored.sourceRepeatingPlanID, workout.sourceRepeatingPlanID)
+        XCTAssertEqual(restored.sourceRepeatingPlanRunID, workout.sourceRepeatingPlanRunID)
+        XCTAssertEqual(restored.sourceRepeatingPlanOccurrenceID, workout.sourceRepeatingPlanOccurrenceID)
+        XCTAssertEqual(restored.sourceRepeatingPlanName, "Sentinel Repeating Plan")
     }
 
     func testFoodItemRoundTripsEveryPersistedField() throws {
@@ -570,7 +598,7 @@ final class BackupFieldCoverageTests: XCTestCase {
         assertFieldCount(of: ExerciseSetSegmentDTO.self, equals: 11)
         assertFieldCount(of: ComplexComponentResultDTO.self, equals: 8)
         assertFieldCount(of: ExerciseEntryDTO.self, equals: 50)
-        assertFieldCount(of: WorkoutDTO.self, equals: 19)
+        assertFieldCount(of: WorkoutDTO.self, equals: 23)
         assertFieldCount(of: ExerciseTemplateDTO.self, equals: 28)
         assertFieldCount(of: FoodItemDTO.self, equals: 21)
         assertFieldCount(of: LoggedMealDTO.self, equals: 10)
@@ -688,7 +716,12 @@ final class BackupFieldCoverageTests: XCTestCase {
         "MealTemplateItemDTO",
         "MealTemplateDTO",
         "LoggedMealItemDTO",
-        "NutritionTargetDTO"
+        "NutritionTargetDTO",
+        "RepeatingPlanSlotDTO",
+        "RepeatingPlanDTO",
+        "RepeatingPlanRunSlotDTO",
+        "RepeatingPlanOccurrenceDTO",
+        "RepeatingPlanRunDTO"
     ]
 
     private func assertFieldCount<T>(

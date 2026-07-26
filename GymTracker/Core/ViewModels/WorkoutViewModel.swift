@@ -80,6 +80,12 @@ class WorkoutViewModel {
         activeWorkout.endTime = Date.now
         activeWorkout.restEndDate = nil
         completePlannedWorkoutIfNeeded(activeWorkout, using: modelContext)
+        do {
+            try completeRepeatingPlanOccurrenceIfNeeded(activeWorkout, using: modelContext)
+        } catch {
+            modelContext.rollback()
+            return false
+        }
         if modelContext.saveOrRollback() == false {
             // The active workout remains recoverable after a persistence failure.
             // SwiftData's rollback also undoes planned-run advancement and child
@@ -99,6 +105,19 @@ class WorkoutViewModel {
         guard let activeWorkout else { return }
 
         restorePlannedWorkoutAvailabilityIfNeeded(activeWorkout, using: modelContext)
+        do {
+            if let discardedOccurrence = try discardRepeatingPlanOccurrenceIfNeeded(
+                activeWorkout,
+                using: modelContext
+            ) {
+                modelContext.delete(discardedOccurrence)
+            }
+        } catch {
+            modelContext.rollback()
+            self.activeWorkout = try? modelContext.fetch(FetchDescriptor<Workout>())
+                .first { $0.status == .active }
+            return
+        }
         modelContext.delete(activeWorkout)
         if modelContext.saveOrRollback() {
             workout = nil
@@ -125,6 +144,74 @@ class WorkoutViewModel {
         ProgressionSnapshotService(modelContext: modelContext)
             .applyRecommendations(to: newWorkout, from: template)
         return persistAndActivate(newWorkout, using: modelContext)
+    }
+
+    @discardableResult
+    func startWorkout(
+        from repeatingPlanRun: RepeatingPlanRun,
+        using modelContext: ModelContext
+    ) -> Bool {
+        startWorkout(
+            from: repeatingPlanRun,
+            command: .expected,
+            using: modelContext
+        )
+    }
+
+    @discardableResult
+    func startWorkout(
+        from repeatingPlanRun: RepeatingPlanRun,
+        command: RepeatingPlanWorkoutStartCommand,
+        using modelContext: ModelContext
+    ) -> Bool {
+        guard !restoreActiveWorkout(using: modelContext) else { return false }
+
+        do {
+            let staged = try RepeatingPlanCoordinator.start(
+                command,
+                in: repeatingPlanRun
+            )
+            let newWorkout = Workout(template: staged.template, unitSystem: unitSystem)
+            ProgressionSnapshotService(modelContext: modelContext)
+                .applyRecommendations(to: newWorkout, from: staged.template)
+            newWorkout.sourceRepeatingPlanID = repeatingPlanRun.sourcePlanID
+            newWorkout.sourceRepeatingPlanRunID = repeatingPlanRun.id
+            newWorkout.sourceRepeatingPlanOccurrenceID = staged.occurrence.id
+            newWorkout.sourceRepeatingPlanName = repeatingPlanRun.sourcePlanName
+
+            modelContext.insert(staged.occurrence)
+            modelContext.insert(newWorkout)
+            guard modelContext.saveOrRollback() else {
+                return false
+            }
+            activeWorkout = newWorkout
+            reconcileLiveActivity()
+            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+            return true
+        } catch {
+            modelContext.rollback()
+            return false
+        }
+    }
+
+    @discardableResult
+    func undoLastRepeatingPlanAdvancement(
+        in run: RepeatingPlanRun,
+        using modelContext: ModelContext
+    ) -> Bool {
+        do {
+            let hasActiveWorkout = try modelContext.fetch(FetchDescriptor<Workout>())
+                .contains { $0.status == .active }
+            guard !hasActiveWorkout else { return false }
+
+            _ = try RepeatingPlanCoordinator.undoLastAdvancement(in: run)
+            guard modelContext.saveOrRollback() else { return false }
+            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+            return true
+        } catch {
+            modelContext.rollback()
+            return false
+        }
     }
 
     @discardableResult
@@ -180,7 +267,9 @@ class WorkoutViewModel {
                 .filter { $0.status == .active }
                 .sorted { $0.startTime > $1.startTime }
 
-            guard let activeWorkout = activeWorkouts.first else {
+            guard let activeWorkout = activeWorkouts.first(where: {
+                isRestorableActiveWorkout($0, using: modelContext)
+            }) else {
                 self.activeWorkout = nil
                 Task { await LiveActivityManager.shared.endOrphanedActivities() }
                 return false
@@ -327,11 +416,95 @@ class WorkoutViewModel {
         PlanCoordinator.restoreAvailability(progress, in: run)
     }
 
+    private func completeRepeatingPlanOccurrenceIfNeeded(
+        _ workout: Workout,
+        using modelContext: ModelContext
+    ) throws {
+        let hasRepeatingIdentity = workout.sourceRepeatingPlanID != nil
+            || workout.sourceRepeatingPlanRunID != nil
+            || workout.sourceRepeatingPlanOccurrenceID != nil
+            || workout.sourceRepeatingPlanName != nil
+        guard hasRepeatingIdentity else { return }
+        guard
+            let planID = workout.sourceRepeatingPlanID,
+            let runID = workout.sourceRepeatingPlanRunID,
+            let occurrenceID = workout.sourceRepeatingPlanOccurrenceID,
+            let run = repeatingPlanRun(id: runID, using: modelContext),
+            run.sourcePlanID == planID,
+            let occurrence = run.occurrences.first(where: { $0.id == occurrenceID })
+        else {
+            throw RepeatingPlanCoordinatorError.occurrenceNotInRun
+        }
+
+        _ = try RepeatingPlanCoordinator.complete(
+            occurrence,
+            with: workout,
+            in: run
+        )
+    }
+
+    private func discardRepeatingPlanOccurrenceIfNeeded(
+        _ workout: Workout,
+        using modelContext: ModelContext
+    ) throws -> RepeatingPlanOccurrence? {
+        let hasRepeatingIdentity = workout.sourceRepeatingPlanID != nil
+            || workout.sourceRepeatingPlanRunID != nil
+            || workout.sourceRepeatingPlanOccurrenceID != nil
+            || workout.sourceRepeatingPlanName != nil
+        guard hasRepeatingIdentity else { return nil }
+        guard
+            let planID = workout.sourceRepeatingPlanID,
+            let runID = workout.sourceRepeatingPlanRunID,
+            let occurrenceID = workout.sourceRepeatingPlanOccurrenceID,
+            let run = repeatingPlanRun(id: runID, using: modelContext),
+            run.sourcePlanID == planID,
+            let occurrence = run.occurrences.first(where: { $0.id == occurrenceID })
+        else {
+            throw RepeatingPlanCoordinatorError.occurrenceNotInRun
+        }
+        return try RepeatingPlanCoordinator.discard(occurrence, in: run)
+    }
+
+    private func isRestorableActiveWorkout(
+        _ workout: Workout,
+        using modelContext: ModelContext
+    ) -> Bool {
+        let hasRepeatingIdentity = workout.sourceRepeatingPlanID != nil
+            || workout.sourceRepeatingPlanRunID != nil
+            || workout.sourceRepeatingPlanOccurrenceID != nil
+            || workout.sourceRepeatingPlanName != nil
+        guard hasRepeatingIdentity else { return true }
+        guard
+            let planID = workout.sourceRepeatingPlanID,
+            let runID = workout.sourceRepeatingPlanRunID,
+            let occurrenceID = workout.sourceRepeatingPlanOccurrenceID,
+            let run = repeatingPlanRun(id: runID, using: modelContext),
+            run.sourcePlanID == planID,
+            let occurrence = run.occurrences.first(where: { $0.id == occurrenceID })
+        else {
+            return false
+        }
+        return occurrence.status == .inProgress
+    }
+
     private func planRun(id: UUID, using modelContext: ModelContext) -> PlanRun? {
         do {
             return try modelContext.fetch(FetchDescriptor<PlanRun>()).first { $0.id == id }
         } catch {
             print("Failed to find plan run: \(error)")
+            return nil
+        }
+    }
+
+    private func repeatingPlanRun(
+        id: UUID,
+        using modelContext: ModelContext
+    ) -> RepeatingPlanRun? {
+        do {
+            return try modelContext.fetch(FetchDescriptor<RepeatingPlanRun>())
+                .first { $0.id == id }
+        } catch {
+            print("Failed to find repeating plan run: \(error)")
             return nil
         }
     }

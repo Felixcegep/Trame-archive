@@ -5,6 +5,9 @@ struct PlansBrowserView: View {
     @Query private var plans: [WorkoutPlan]
 
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
+    let onStartPlan: (WorkoutPlan, Date) -> Void
+    let onResumePlan: (PlanRun) -> Void
+    let onStartTestDay: (PlanRun) -> Void
     let onCreateProgram: () -> Void
 
     var body: some View {
@@ -24,7 +27,13 @@ struct PlansBrowserView: View {
                 Section("Active") {
                     ForEach(activePlans) { plan in
                         NavigationLink {
-                            PlanDetailView(plan: plan, onStartPlannedWorkout: onStartPlannedWorkout)
+                            PlanDetailView(
+                                plan: plan,
+                                onStartPlannedWorkout: onStartPlannedWorkout,
+                                onStartPlan: onStartPlan,
+                                onResumePlan: onResumePlan,
+                                onStartTestDay: onStartTestDay
+                            )
                         } label: {
                             planRow(plan)
                         }
@@ -36,7 +45,13 @@ struct PlansBrowserView: View {
                     Section("Archived") {
                         ForEach(archivedPlans) { plan in
                             NavigationLink {
-                                PlanDetailView(plan: plan, onStartPlannedWorkout: onStartPlannedWorkout)
+                                PlanDetailView(
+                                    plan: plan,
+                                    onStartPlannedWorkout: onStartPlannedWorkout,
+                                    onStartPlan: onStartPlan,
+                                    onResumePlan: onResumePlan,
+                                    onStartTestDay: onStartTestDay
+                                )
                             } label: {
                                 planRow(plan)
                             }

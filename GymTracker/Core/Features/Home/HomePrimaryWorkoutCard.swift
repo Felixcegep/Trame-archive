@@ -4,6 +4,7 @@ struct HomePrimaryWorkoutCard: View {
     let activeWorkout: Workout?
     let activePlanRun: PlanRun?
     let activePlanProgress: PlanWorkoutProgress?
+    let summary: TodayWorkoutSummary
     let onOpen: () -> Void
     let onPostpone: () -> Void
     let onReschedule: (PlanWorkoutProgress) -> Void
@@ -21,6 +22,7 @@ struct HomePrimaryWorkoutCard: View {
                     .padding(Spacing.l)
             }
             .buttonStyle(.gymPress)
+            .disabled(summary.kind == .unavailable)
             .accessibilityHint(cardHint)
             .accessibilityIdentifier(cardAccessibilityIdentifier)
 
@@ -40,7 +42,7 @@ struct HomePrimaryWorkoutCard: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .shadow(color: Color.gymText.opacity(0.03), radius: 6, x: 0, y: 3)
         .overlay {
-            if !hasActiveWorkout {
+            if !hasActiveWorkout && summary.kind != .unavailable {
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                     .stroke(Color.gymPrimary.opacity(0.16), lineWidth: 1.5)
             }
@@ -85,7 +87,7 @@ struct HomePrimaryWorkoutCard: View {
 
             if !hasActiveWorkout {
                 HStack(spacing: Spacing.s) {
-                    Text("Start workout")
+                    Text(primaryActionTitle)
                         .font(AppFont.subheadlineBold)
                     Image(systemName: AppIcon.chevronRight)
                         .font(AppFont.captionBold)
@@ -137,16 +139,7 @@ struct HomePrimaryWorkoutCard: View {
     }
 
     private var cardTitle: LocalizedStringKey {
-        if let activeWorkout {
-            if let name = activeWorkout.name, !name.isEmpty {
-                return "Resume \(name)"
-            }
-            return "Resume workout"
-        }
-        if let activePlanProgress {
-            return LocalizedStringKey(activePlanProgress.plannedWorkoutName)
-        }
-        return "Start a workout"
+        LocalizedStringKey(summary.title)
     }
 
     private var cardSubtitle: LocalizedStringKey {
@@ -156,39 +149,67 @@ struct HomePrimaryWorkoutCard: View {
             }
             return "\(activeWorkout.completedSetCount) / \(activeWorkout.totalSetCount) sets · \(nextExerciseDescription(in: activeWorkout))"
         }
-        if let activePlanProgress {
-            let week = activePlanProgress.weekIndex + 1
-            if let scheduledDate = activePlanProgress.scheduledDate,
-               Calendar.current.isDateInToday(scheduledDate) {
-                return "Week \(week) · Today"
-            }
-            return "Week \(week) · Start early when you are ready"
-        }
-        return "Pick a saved workout or start fresh."
+        return LocalizedStringKey(summary.subtitle)
     }
 
     private var cardLabel: LocalizedStringKey {
-        if hasActiveWorkout { return "ACTIVE WORKOUT" }
-        if activePlanProgress != nil { return "PLANNED WORKOUT" }
-        return "START WORKOUT"
+        switch summary.kind {
+        case .active: return "ACTIVE WORKOUT"
+        case .planned: return "PLANNED WORKOUT"
+        case .repeating: return "NEXT WORKOUT"
+        case .guidedConflict: return "CHOOSE TRAINING SOURCE"
+        case .unavailable: return "WORKOUT UNAVAILABLE"
+        case .free: return "START WORKOUT"
+        }
     }
 
     private var cardIcon: String {
-        hasActiveWorkout || activePlanProgress != nil
-            ? "figure.strengthtraining.traditional"
-            : "bolt.fill"
+        switch summary.kind {
+        case .active, .planned, .repeating:
+            return AppIcon.workout
+        case .guidedConflict, .unavailable:
+            return AppIcon.warning
+        case .free:
+            return AppIcon.play
+        }
     }
 
     private var cardHint: String {
-        if hasActiveWorkout { return "Returns to your active workout." }
-        if activePlanProgress != nil { return "Starts the next workout in your active plan." }
-        return "Opens your saved workouts, or start an empty one."
+        switch summary.kind {
+        case .active:
+            return "Returns to your active workout."
+        case .planned:
+            return "Starts the next workout in your active plan."
+        case .repeating:
+            return String(localized: "Starts the next workout in your active rotation.")
+        case .guidedConflict:
+            return String(localized: "Choose which guided training source should remain active.")
+        case .unavailable:
+            return String(localized: "This workout cannot start until you repair it in the Train tab.")
+        case .free:
+            return "Opens your saved workouts, or start an empty one."
+        }
     }
 
     private var cardAccessibilityIdentifier: String {
-        if hasActiveWorkout { return "resume-active-workout" }
-        if activePlanProgress != nil { return "start-planned-workout" }
-        return "start-free-workout"
+        switch summary.kind {
+        case .active: return "resume-active-workout"
+        case .planned: return "start-planned-workout"
+        case .repeating: return "start-repeating-workout"
+        case .guidedConflict: return "resolve-guided-source-conflict"
+        case .unavailable: return "guided-workout-unavailable"
+        case .free: return "start-free-workout"
+        }
+    }
+
+    private var primaryActionTitle: LocalizedStringKey {
+        switch summary.kind {
+        case .active: return "Resume workout"
+        case .planned, .repeating: return "Start workout"
+        case .guidedConflict: return "Resolve conflict"
+        case .unavailable: return "Unavailable"
+        case .free: return "Start workout"
+        }
     }
 
     private func nextExerciseDescription(in workout: Workout) -> String {

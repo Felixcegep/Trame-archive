@@ -6,6 +6,9 @@ struct PlanDetailView: View {
 
     let plan: WorkoutPlan
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
+    let onStartPlan: (WorkoutPlan, Date) -> Void
+    let onResumePlan: (PlanRun) -> Void
+    let onStartTestDay: (PlanRun) -> Void
 
     @State private var isShowingStartDate = false
     @State private var isShowingArchiveConfirmation = false
@@ -58,7 +61,13 @@ struct PlanDetailView: View {
                 }
             }
 
-            if let run = activeRun, let progress = nextProgress(in: run) {
+            if hasAmbiguousCurrentRuns {
+                Section("Plan needs attention") {
+                    Text("More than one current run was found. Resolve the duplicate runs before starting or changing this plan.")
+                        .font(AppFont.subheadline)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+            } else if let run = activeRun, let progress = nextProgress(in: run) {
                 Section("In progress") {
                     NavigationLink {
                         PlanCalendarView(run: run)
@@ -97,7 +106,7 @@ struct PlanDetailView: View {
                     .accessibilityIdentifier("view-plan-schedule")
 
                     Button("Resume Plan") {
-                        PlanCoordinator.resume(run, using: modelContext)
+                        onResumePlan(run)
                     }
                     .accessibilityIdentifier("resume-plan")
 
@@ -108,17 +117,13 @@ struct PlanDetailView: View {
             } else if let run = testDayRun, nextProgress(in: run) != nil {
                 Section("Test day") {
                     Button {
-                        guard let activatedProgress = ProgramRunLifecycleService.activateTestDay(
-                            for: run,
-                            using: modelContext
-                        ) else { return }
-                        onStartPlannedWorkout(run, activatedProgress)
+                        onStartTestDay(run)
                     } label: {
                         Label("Start Test Day", systemImage: AppIcon.play)
                     }
                     .accessibilityIdentifier("start-test-day")
                 }
-            } else if !plan.isArchived {
+            } else if !plan.isArchived && !hasAmbiguousCurrentRuns {
                 Section {
                     Button {
                         startDate = .now
@@ -178,20 +183,7 @@ struct PlanDetailView: View {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Start") {
-                            let started: PlanRun?
-                            if let completedRun,
-                               case .offerRestart(let carryState) = plan.programCompletionPolicy {
-                                started = ProgramRunLifecycleService.restartRun(
-                                    for: plan,
-                                    from: completedRun,
-                                    startDate: startDate,
-                                    carryState: carryState,
-                                    using: modelContext
-                                )
-                            } else {
-                                started = PlanCoordinator.startRun(for: plan, startDate: startDate, using: modelContext)
-                            }
-                            guard started != nil else { return }
+                            onStartPlan(plan, startDate)
                             isShowingStartDate = false
                         }
                         .accessibilityIdentifier(canOfferRestart ? "confirm-restart-plan" : "confirm-start-plan")
@@ -245,19 +237,30 @@ struct PlanDetailView: View {
     }
 
     private var activeRun: PlanRun? {
-        plan.runs.first { $0.status == .active }
+        singularRun(with: .active)
     }
 
     private var pausedRun: PlanRun? {
-        plan.runs.first { $0.status == .paused }
+        singularRun(with: .paused)
     }
 
     private var testDayRun: PlanRun? {
-        plan.runs.first { $0.status == .testDayAvailable }
+        singularRun(with: .testDayAvailable)
     }
 
     private var currentRun: PlanRun? {
         activeRun ?? pausedRun ?? testDayRun
+    }
+
+    private var hasAmbiguousCurrentRuns: Bool {
+        plan.runs.filter {
+            $0.status == .active || $0.status == .paused || $0.status == .testDayAvailable
+        }.count > 1
+    }
+
+    private func singularRun(with status: PlanRunStatus) -> PlanRun? {
+        let runs = plan.runs.filter { $0.status == status }
+        return runs.count == 1 ? runs[0] : nil
     }
 
     private var completedRun: PlanRun? {

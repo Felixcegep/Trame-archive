@@ -91,7 +91,9 @@ extension BackupDTO {
                         repetitionEnd: block.repetitionEnd,
                         repetitionStep: block.repetitionStep
                     )
-                }
+                },
+                preWorkoutMobilityRoutineName: template.preWorkoutMobilityRoutine?.name,
+                postWorkoutMobilityRoutineName: template.postWorkoutMobilityRoutine?.name
             )
         }
 
@@ -123,6 +125,10 @@ extension BackupDTO {
                 sourcePlanName: workout.sourcePlanName,
                 sourceProgramDefinitionID: workout.sourceProgramDefinitionID?.uuidString,
                 sourceProgramDefinitionVersion: workout.sourceProgramDefinitionVersion,
+                sourceRepeatingPlanID: workout.sourceRepeatingPlanID?.uuidString,
+                sourceRepeatingPlanRunID: workout.sourceRepeatingPlanRunID?.uuidString,
+                sourceRepeatingPlanOccurrenceID: workout.sourceRepeatingPlanOccurrenceID?.uuidString,
+                sourceRepeatingPlanName: workout.sourceRepeatingPlanName,
                 exercises: workout.exercises.map { exercise in
                     let setsDTO = exercise.sets.map { set in
                         ExerciseSetDTO(
@@ -501,6 +507,89 @@ extension BackupDTO {
             )
         }
 
+        let repeatingPlans = try context.fetch(FetchDescriptor<RepeatingPlan>())
+        let repeatingPlanDTOs = repeatingPlans.map { plan in
+            RepeatingPlanDTO(
+                id: plan.id.uuidString,
+                name: plan.name,
+                goal: plan.goal.rawValue,
+                experienceLevel: plan.experienceLevel.rawValue,
+                requiredEquipment: plan.requiredEquipment.map(\.rawValue),
+                notes: plan.notes,
+                createdAt: plan.createdAt,
+                updatedAt: plan.updatedAt,
+                isArchived: plan.isArchived,
+                isBuiltIn: plan.isBuiltIn,
+                slots: plan.orderedSlots.map { slot in
+                    RepeatingPlanSlotDTO(
+                        id: slot.id.uuidString,
+                        orderIndex: slot.orderIndex,
+                        templateIDSnapshot: slot.templateIDSnapshot.uuidString,
+                        templateNameSnapshot: slot.templateNameSnapshot,
+                        workoutTemplateName: slot.workoutTemplate?.name,
+                        preWorkoutMobilityRoutineName: slot.preWorkoutMobilityRoutine?.name,
+                        preWorkoutMobilityRoutineIDSnapshot: slot.preWorkoutMobilityRoutineIDSnapshot?.uuidString,
+                        preWorkoutMobilityRoutineNameSnapshot: slot.preWorkoutMobilityRoutineNameSnapshot,
+                        postWorkoutMobilityRoutineName: slot.postWorkoutMobilityRoutine?.name,
+                        postWorkoutMobilityRoutineIDSnapshot: slot.postWorkoutMobilityRoutineIDSnapshot?.uuidString,
+                        postWorkoutMobilityRoutineNameSnapshot: slot.postWorkoutMobilityRoutineNameSnapshot
+                    )
+                }
+            )
+        }
+
+        let repeatingPlanRuns = try context.fetch(FetchDescriptor<RepeatingPlanRun>())
+        let repeatingPlanRunDTOs = repeatingPlanRuns.map { run in
+            RepeatingPlanRunDTO(
+                id: run.id.uuidString,
+                sourcePlanID: run.sourcePlanID.uuidString,
+                sourcePlanName: run.sourcePlanName,
+                status: run.status.rawValue,
+                currentSlotIndex: run.currentSlotIndex,
+                completedCycleCount: run.completedCycleCount,
+                startedAt: run.startedAt,
+                endedAt: run.endedAt,
+                updatedAt: run.updatedAt,
+                planID: run.plan?.id.uuidString,
+                slots: run.orderedSlots.map { slot in
+                    RepeatingPlanRunSlotDTO(
+                        id: slot.id.uuidString,
+                        sourceSlotID: slot.sourceSlotID.uuidString,
+                        orderIndex: slot.orderIndex,
+                        templateIDSnapshot: slot.templateIDSnapshot.uuidString,
+                        templateNameSnapshot: slot.templateNameSnapshot,
+                        workoutTemplateName: slot.workoutTemplate?.name,
+                        preWorkoutMobilityRoutineName: slot.preWorkoutMobilityRoutine?.name,
+                        preWorkoutMobilityRoutineIDSnapshot: slot.preWorkoutMobilityRoutineIDSnapshot?.uuidString,
+                        preWorkoutMobilityRoutineNameSnapshot: slot.preWorkoutMobilityRoutineNameSnapshot,
+                        postWorkoutMobilityRoutineName: slot.postWorkoutMobilityRoutine?.name,
+                        postWorkoutMobilityRoutineIDSnapshot: slot.postWorkoutMobilityRoutineIDSnapshot?.uuidString,
+                        postWorkoutMobilityRoutineNameSnapshot: slot.postWorkoutMobilityRoutineNameSnapshot
+                    )
+                },
+                occurrences: run.orderedOccurrences.map { occurrence in
+                    RepeatingPlanOccurrenceDTO(
+                        id: occurrence.id.uuidString,
+                        cycleIndex: occurrence.cycleIndex,
+                        expectedSlotIndex: occurrence.expectedSlotIndex,
+                        selectedSlotIndex: occurrence.selectedSlotIndex,
+                        kind: occurrence.kind.rawValue,
+                        continuationMode: occurrence.continuationMode.rawValue,
+                        status: occurrence.status.rawValue,
+                        cursorBefore: occurrence.cursorBefore,
+                        cursorAfter: occurrence.cursorAfter,
+                        cycleBefore: occurrence.cycleBefore,
+                        cycleAfter: occurrence.cycleAfter,
+                        createdAt: occurrence.createdAt,
+                        startedAt: occurrence.startedAt,
+                        completedAt: occurrence.completedAt,
+                        undoneAt: occurrence.undoneAt,
+                        completedWorkoutID: occurrence.completedWorkout?.id.uuidString
+                    )
+                }
+            )
+        }
+
         let programDefinitionDTOs = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>()).map { record in
             ProgramDefinitionDTO(
                 id: record.id.uuidString,
@@ -799,6 +888,8 @@ extension BackupDTO {
             workouts: workoutDTOs,
             plans: planDTOs,
             planRuns: planRunDTOs,
+            repeatingPlans: repeatingPlanDTOs,
+            repeatingPlanRuns: repeatingPlanRunDTOs,
             exerciseRelationships: relationshipDTOs,
             programDefinitions: programDefinitionDTOs,
             progressionRecommendations: progressionRecommendationDTOs,

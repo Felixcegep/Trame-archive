@@ -40,12 +40,18 @@ extension BackupDTO {
             var restoreCtx = RestoreContext(context: context)
 
             try restoreExerciseCatalog(into: &restoreCtx)
+            // Mobility definitions/routines must exist before templates and
+            // repeating slots resolve their optional preparation/recovery
+            // links. Mobility sessions remain an independent performed graph;
+            // restoring them here does not create an ownership edge to Workout.
+            try restoreMobility(into: &restoreCtx)
             try restoreFoldersAndTemplates(into: &restoreCtx)
+            try restoreRepeatingPlansAndRuns(into: &restoreCtx)
             try restoreProgramDefinitions(into: &restoreCtx)
             try restorePlansAndRuns(into: &restoreCtx)
             try restoreWorkoutHistory(into: &restoreCtx)
+            try restoreRepeatingPlanOccurrences(into: &restoreCtx)
             try restoreDailyContextAndPreferences(into: &restoreCtx)
-            try restoreMobility(into: &restoreCtx)
             try restoreNutrition(into: &restoreCtx)
 
 #if !GYMTRACKER_EXTENSION
@@ -194,7 +200,13 @@ extension BackupDTO {
             let newTemplate = WorkoutTemplate(
                 name: templateDTO.name,
                 exercises: exercises,
-                templateExercises: templateExercises
+                templateExercises: templateExercises,
+                preWorkoutMobilityRoutine: templateDTO.preWorkoutMobilityRoutineName.flatMap {
+                    restoreCtx.mobilityRoutinesByName[$0]
+                },
+                postWorkoutMobilityRoutine: templateDTO.postWorkoutMobilityRoutineName.flatMap {
+                    restoreCtx.mobilityRoutinesByName[$0]
+                }
             )
             newTemplate.executionBlocks = (templateDTO.executionBlocks ?? []).compactMap { blockDTO in
                 guard let id = UUID(uuidString: blockDTO.id),
@@ -234,6 +246,98 @@ extension BackupDTO {
                 workoutTemplates: templates
             )
             restoreCtx.context.insert(newCollection)
+        }
+    }
+
+    /// Repeating definitions and runs are restored before performed workouts so
+    /// their copied slot order is already durable. Occurrence-to-workout links
+    /// are intentionally deferred until `restoreWorkouts` has populated the
+    /// identity map.
+    private func restoreRepeatingPlansAndRuns(into restoreCtx: inout RestoreContext) throws {
+        for planDTO in repeatingPlans {
+            let slots = try planDTO.slots.map { slotDTO in
+                let templateID = try requiredUUID(slotDTO.templateIDSnapshot, named: "repeating plan slot template")
+                let slot = RepeatingPlanSlot(
+                    orderIndex: slotDTO.orderIndex,
+                    workoutTemplate: slotDTO.workoutTemplateName.flatMap { restoreCtx.templateMap[$0] },
+                    templateIDSnapshot: templateID,
+                    templateNameSnapshot: slotDTO.templateNameSnapshot,
+                    preWorkoutMobilityRoutine: slotDTO.preWorkoutMobilityRoutineName.flatMap {
+                        restoreCtx.mobilityRoutinesByName[$0]
+                    },
+                    preWorkoutMobilityRoutineIDSnapshot: try slotDTO.preWorkoutMobilityRoutineIDSnapshot.map {
+                        try requiredUUID($0, named: "repeating plan slot pre-workout mobility routine")
+                    },
+                    preWorkoutMobilityRoutineNameSnapshot: slotDTO.preWorkoutMobilityRoutineNameSnapshot,
+                    postWorkoutMobilityRoutine: slotDTO.postWorkoutMobilityRoutineName.flatMap {
+                        restoreCtx.mobilityRoutinesByName[$0]
+                    },
+                    postWorkoutMobilityRoutineIDSnapshot: try slotDTO.postWorkoutMobilityRoutineIDSnapshot.map {
+                        try requiredUUID($0, named: "repeating plan slot post-workout mobility routine")
+                    },
+                    postWorkoutMobilityRoutineNameSnapshot: slotDTO.postWorkoutMobilityRoutineNameSnapshot
+                )
+                slot.id = try requiredUUID(slotDTO.id, named: "repeating plan slot")
+                return slot
+            }
+            let plan = RepeatingPlan(
+                name: planDTO.name,
+                goal: PlanGoal(rawValue: planDTO.goal) ?? .generalStrength,
+                experienceLevel: PlanExperienceLevel(rawValue: planDTO.experienceLevel) ?? .beginner,
+                requiredEquipment: planDTO.requiredEquipment.compactMap(EquipmentType.init(rawValue:)),
+                notes: planDTO.notes,
+                isArchived: planDTO.isArchived,
+                isBuiltIn: planDTO.isBuiltIn,
+                slots: slots
+            )
+            plan.id = try requiredUUID(planDTO.id, named: "repeating plan")
+            plan.createdAt = planDTO.createdAt
+            plan.updatedAt = planDTO.updatedAt
+            restoreCtx.context.insert(plan)
+            restoreCtx.repeatingPlanMap[planDTO.id] = plan
+        }
+
+        for runDTO in repeatingPlanRuns {
+            let slots = try runDTO.slots.map { slotDTO in
+                let slot = RepeatingPlanRunSlot(
+                    sourceSlotID: try requiredUUID(slotDTO.sourceSlotID, named: "repeating plan run slot source"),
+                    orderIndex: slotDTO.orderIndex,
+                    templateIDSnapshot: try requiredUUID(slotDTO.templateIDSnapshot, named: "repeating plan run slot template"),
+                    templateNameSnapshot: slotDTO.templateNameSnapshot,
+                    workoutTemplate: slotDTO.workoutTemplateName.flatMap { restoreCtx.templateMap[$0] },
+                    preWorkoutMobilityRoutine: slotDTO.preWorkoutMobilityRoutineName.flatMap {
+                        restoreCtx.mobilityRoutinesByName[$0]
+                    },
+                    preWorkoutMobilityRoutineIDSnapshot: try slotDTO.preWorkoutMobilityRoutineIDSnapshot.map {
+                        try requiredUUID($0, named: "repeating plan run slot pre-workout mobility routine")
+                    },
+                    preWorkoutMobilityRoutineNameSnapshot: slotDTO.preWorkoutMobilityRoutineNameSnapshot,
+                    postWorkoutMobilityRoutine: slotDTO.postWorkoutMobilityRoutineName.flatMap {
+                        restoreCtx.mobilityRoutinesByName[$0]
+                    },
+                    postWorkoutMobilityRoutineIDSnapshot: try slotDTO.postWorkoutMobilityRoutineIDSnapshot.map {
+                        try requiredUUID($0, named: "repeating plan run slot post-workout mobility routine")
+                    },
+                    postWorkoutMobilityRoutineNameSnapshot: slotDTO.postWorkoutMobilityRoutineNameSnapshot
+                )
+                slot.id = try requiredUUID(slotDTO.id, named: "repeating plan run slot")
+                return slot
+            }
+            let run = RepeatingPlanRun(
+                sourcePlanID: try requiredUUID(runDTO.sourcePlanID, named: "repeating plan run source plan"),
+                sourcePlanName: runDTO.sourcePlanName,
+                status: RepeatingPlanRunStatus(rawValue: runDTO.status) ?? .active,
+                currentSlotIndex: runDTO.currentSlotIndex,
+                completedCycleCount: runDTO.completedCycleCount,
+                startedAt: runDTO.startedAt,
+                endedAt: runDTO.endedAt,
+                updatedAt: runDTO.updatedAt,
+                plan: runDTO.planID.flatMap { restoreCtx.repeatingPlanMap[$0] },
+                slots: slots
+            )
+            run.id = try requiredUUID(runDTO.id, named: "repeating plan run")
+            restoreCtx.context.insert(run)
+            restoreCtx.repeatingPlanRunMap[runDTO.id] = run
         }
     }
 
@@ -471,6 +575,10 @@ extension BackupDTO {
                 newWorkout.sourceProgramDefinitionID = UUID(uuidString: programID)
             }
             newWorkout.sourceProgramDefinitionVersion = workoutDTO.sourceProgramDefinitionVersion
+            newWorkout.sourceRepeatingPlanID = workoutDTO.sourceRepeatingPlanID.flatMap(UUID.init(uuidString:))
+            newWorkout.sourceRepeatingPlanRunID = workoutDTO.sourceRepeatingPlanRunID.flatMap(UUID.init(uuidString:))
+            newWorkout.sourceRepeatingPlanOccurrenceID = workoutDTO.sourceRepeatingPlanOccurrenceID.flatMap(UUID.init(uuidString:))
+            newWorkout.sourceRepeatingPlanName = workoutDTO.sourceRepeatingPlanName
 
             newWorkout.exercises = try restoreExerciseEntries(
                 from: workoutDTO,
@@ -719,6 +827,35 @@ extension BackupDTO {
             exercises.append(entry)
         }
         return exercises
+    }
+
+    private func restoreRepeatingPlanOccurrences(into restoreCtx: inout RestoreContext) throws {
+        for runDTO in repeatingPlanRuns {
+            guard let run = restoreCtx.repeatingPlanRunMap[runDTO.id] else {
+                throw BackupValidationError.invalidIdentifier("repeating plan run")
+            }
+            for occurrenceDTO in runDTO.occurrences {
+                let occurrence = RepeatingPlanOccurrence(
+                    cycleIndex: occurrenceDTO.cycleIndex,
+                    expectedSlotIndex: occurrenceDTO.expectedSlotIndex,
+                    selectedSlotIndex: occurrenceDTO.selectedSlotIndex,
+                    kind: RepeatingPlanOccurrenceKind(rawValue: occurrenceDTO.kind) ?? .expected,
+                    continuationMode: RepeatingPlanContinuationMode(rawValue: occurrenceDTO.continuationMode) ?? .continueAfterSelected,
+                    status: RepeatingPlanOccurrenceStatus(rawValue: occurrenceDTO.status) ?? .upcoming,
+                    cursorBefore: occurrenceDTO.cursorBefore,
+                    cursorAfter: occurrenceDTO.cursorAfter,
+                    cycleBefore: occurrenceDTO.cycleBefore,
+                    cycleAfter: occurrenceDTO.cycleAfter,
+                    createdAt: occurrenceDTO.createdAt,
+                    startedAt: occurrenceDTO.startedAt,
+                    completedAt: occurrenceDTO.completedAt,
+                    undoneAt: occurrenceDTO.undoneAt,
+                    completedWorkout: occurrenceDTO.completedWorkoutID.flatMap { restoreCtx.workoutMap[$0] }
+                )
+                occurrence.id = try requiredUUID(occurrenceDTO.id, named: "repeating plan occurrence")
+                run.occurrences.append(occurrence)
+            }
+        }
     }
 
     private func restorePlanRunProgress(into restoreCtx: inout RestoreContext) throws {
@@ -986,6 +1123,7 @@ extension BackupDTO {
                 }
                 return item
             }
+            restoreCtx.mobilityRoutinesByName[routineDTO.name] = routine
             restoreCtx.context.insert(routine)
         }
 
@@ -1237,9 +1375,12 @@ private struct RestoreContext {
     var exerciseMap: [String: Exercise] = [:]
     var templateMap: [String: WorkoutTemplate] = [:]
     var planMap: [String: WorkoutPlan] = [:]
+    var repeatingPlanMap: [String: RepeatingPlan] = [:]
+    var repeatingPlanRunMap: [String: RepeatingPlanRun] = [:]
     var workoutMap: [String: Workout] = [:]
     var mobilityFamiliesByID: [String: MobilityFamily] = [:]
     var mobilityDefinitionsByID: [String: MobilityDefinition] = [:]
+    var mobilityRoutinesByName: [String: MobilityRoutine] = [:]
     var foodsByID: [String: FoodItem] = [:]
     var restoredRecipePhotoIdentifiers: [String: String] = [:]
 }

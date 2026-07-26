@@ -91,6 +91,21 @@ extension BackupDTO {
         }
 
         let availableExerciseNames = Set(exerciseNames)
+        let mobilityRoutineNames = Set(mobilityRoutines.map(\.name))
+        let mobilityRoutineIDsByName = Dictionary(
+            mobilityRoutines.map { ($0.name, $0.id) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        if version >= Self.mobilityLinkageVersion {
+            guard
+                mobilityRoutineNames.count == mobilityRoutines.count,
+                mobilityRoutines.allSatisfy({
+                    $0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                })
+            else {
+                throw BackupValidationError.duplicateIdentifier("mobility routine name")
+            }
+        }
         for template in templates {
             try validateExecutionBlockGraph(
                 template.executionBlocks?.map {
@@ -120,6 +135,18 @@ extension BackupDTO {
                 guard templateExercise.stimulus.map({ TrainingStimulus(rawValue: $0) != nil }) ?? true else {
                     throw BackupValidationError.invalidIdentifier("template exercise stimulus")
                 }
+            }
+            guard
+                validateMobilityRoutineReference(
+                    template.preWorkoutMobilityRoutineName,
+                    availableRoutineNames: mobilityRoutineNames
+                ),
+                validateMobilityRoutineReference(
+                    template.postWorkoutMobilityRoutineName,
+                    availableRoutineNames: mobilityRoutineNames
+                )
+            else {
+                throw BackupValidationError.invalidIdentifier("workout template mobility routine")
             }
         }
 
@@ -403,6 +430,275 @@ extension BackupDTO {
             }
         }
         try validateUniqueIdentifiers(progressIDs, named: "plan workout progress")
+
+        if version >= Self.repeatingPlanVersion {
+            try validateRepeatingPlans(
+                templateNames: templateNames,
+                mobilityRoutineNames: mobilityRoutineNames,
+                mobilityRoutineIDsByName: mobilityRoutineIDsByName,
+                workoutIDs: workoutIDs
+            )
+        }
+    }
+
+    private func validateRepeatingPlans(
+        templateNames: Set<String>,
+        mobilityRoutineNames: Set<String>,
+        mobilityRoutineIDsByName: [String: String],
+        workoutIDs: Set<String>
+    ) throws {
+        try validateUniqueIdentifiers(repeatingPlans.map(\.id), named: "repeating plan")
+        try validateUniqueIdentifiers(repeatingPlanRuns.map(\.id), named: "repeating plan run")
+
+        let repeatingPlanIDs = Set(repeatingPlans.map(\.id))
+        var definitionSlotIDs = Set<String>()
+        var definitionSlotIDsByPlan: [String: Set<String>] = [:]
+
+        for plan in repeatingPlans {
+            guard
+                plan.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+                PlanGoal(rawValue: plan.goal) != nil,
+                PlanExperienceLevel(rawValue: plan.experienceLevel) != nil,
+                plan.requiredEquipment.allSatisfy({ EquipmentType(rawValue: $0) != nil }),
+                plan.slots.isEmpty == false
+            else {
+                throw BackupValidationError.invalidIdentifier("repeating plan")
+            }
+
+            let orderedSlots = try validateRepeatingSlots(
+                plan.slots,
+                templateNames: templateNames,
+                mobilityRoutineNames: mobilityRoutineNames,
+                mobilityRoutineIDsByName: mobilityRoutineIDsByName,
+                named: "repeating plan slot"
+            )
+            for slot in plan.slots {
+                guard definitionSlotIDs.insert(slot.id).inserted else {
+                    throw BackupValidationError.duplicateIdentifier("repeating plan slot")
+                }
+            }
+            definitionSlotIDsByPlan[plan.id] = Set(orderedSlots.map(\.id))
+        }
+
+        var occurrenceIDs = Set<String>()
+        var sourcePlanIDByRunID: [String: String] = [:]
+        var occurrenceLinkByID: [
+            String: (runID: String, sourcePlanID: String, status: String, completedWorkoutID: String?)
+        ] = [:]
+        for run in repeatingPlanRuns {
+            guard
+                RepeatingPlanRunStatus(rawValue: run.status) != nil,
+                run.sourcePlanName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+                run.completedCycleCount >= 0,
+                run.slots.isEmpty == false
+            else {
+                throw BackupValidationError.invalidIdentifier("repeating plan run")
+            }
+            _ = try requiredUUID(run.sourcePlanID, named: "repeating plan run source plan")
+
+            if let planID = run.planID {
+                guard repeatingPlanIDs.contains(planID), run.sourcePlanID == planID else {
+                    throw BackupValidationError.missingPlan(planID)
+                }
+            }
+
+            let orderedSlots = try validateRepeatingRunSlots(
+                run.slots,
+                templateNames: templateNames,
+                mobilityRoutineNames: mobilityRoutineNames,
+                mobilityRoutineIDsByName: mobilityRoutineIDsByName
+            )
+            guard orderedSlots.indices.contains(run.currentSlotIndex) else {
+                throw BackupValidationError.invalidIdentifier("repeating plan cursor")
+            }
+            if let planID = run.planID,
+               let definitionSlotIDs = definitionSlotIDsByPlan[planID],
+               !Set(run.slots.map(\.sourceSlotID)).isSubset(of: definitionSlotIDs) {
+                throw BackupValidationError.invalidIdentifier("repeating plan run slot source")
+            }
+            sourcePlanIDByRunID[run.id] = run.sourcePlanID
+
+            for occurrence in run.occurrences {
+                guard
+                    occurrenceIDs.insert(occurrence.id).inserted,
+                    UUID(uuidString: occurrence.id) != nil,
+                    RepeatingPlanOccurrenceKind(rawValue: occurrence.kind) != nil,
+                    RepeatingPlanContinuationMode(rawValue: occurrence.continuationMode) != nil,
+                    RepeatingPlanOccurrenceStatus(rawValue: occurrence.status) != nil,
+                    occurrence.cycleIndex >= 0,
+                    occurrence.cycleBefore >= 0,
+                    occurrence.cycleAfter >= 0,
+                    orderedSlots.indices.contains(occurrence.expectedSlotIndex),
+                    occurrence.selectedSlotIndex.map(orderedSlots.indices.contains) ?? true,
+                    orderedSlots.indices.contains(occurrence.cursorBefore),
+                    orderedSlots.indices.contains(occurrence.cursorAfter)
+                else {
+                    throw BackupValidationError.invalidIdentifier("repeating plan occurrence")
+                }
+                if let completedWorkoutID = occurrence.completedWorkoutID,
+                   !workoutIDs.contains(completedWorkoutID) {
+                    throw BackupValidationError.missingWorkout(completedWorkoutID)
+                }
+                occurrenceLinkByID[occurrence.id] = (
+                    runID: run.id,
+                    sourcePlanID: run.sourcePlanID,
+                    status: occurrence.status,
+                    completedWorkoutID: occurrence.completedWorkoutID
+                )
+            }
+        }
+
+        for workout in workouts {
+            let sourceIDs = [
+                workout.sourceRepeatingPlanID,
+                workout.sourceRepeatingPlanRunID,
+                workout.sourceRepeatingPlanOccurrenceID
+            ]
+            guard sourceIDs.allSatisfy({ $0 == nil || UUID(uuidString: $0!) != nil }) else {
+                throw BackupValidationError.invalidIdentifier("workout repeating plan source")
+            }
+            let hasRepeatingSource = sourceIDs.contains(where: { $0 != nil }) || workout.sourceRepeatingPlanName != nil
+            guard !hasRepeatingSource || (
+                workout.sourceRepeatingPlanID != nil
+                    && workout.sourceRepeatingPlanRunID != nil
+                    && workout.sourceRepeatingPlanOccurrenceID != nil
+                    && workout.sourceRepeatingPlanName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ) else {
+                throw BackupValidationError.invalidIdentifier("workout repeating plan source")
+            }
+            if let occurrenceID = workout.sourceRepeatingPlanOccurrenceID {
+                guard
+                    let occurrence = occurrenceLinkByID[occurrenceID],
+                    sourcePlanIDByRunID[workout.sourceRepeatingPlanRunID!] == workout.sourceRepeatingPlanID,
+                    occurrence.runID == workout.sourceRepeatingPlanRunID,
+                    occurrence.sourcePlanID == workout.sourceRepeatingPlanID
+                else {
+                    throw BackupValidationError.invalidIdentifier("workout repeating plan occurrence")
+                }
+                let occurrenceStatus = RepeatingPlanOccurrenceStatus(rawValue: occurrence.status)
+                let hasValidWorkoutLink =
+                    (occurrenceStatus == .inProgress && occurrence.completedWorkoutID == nil)
+                    || (occurrenceStatus == .completed && occurrence.completedWorkoutID == workout.id)
+                guard hasValidWorkoutLink else {
+                    throw BackupValidationError.invalidIdentifier("workout repeating plan occurrence")
+                }
+            }
+        }
+    }
+
+    private func validateRepeatingSlots(
+        _ slots: [RepeatingPlanSlotDTO],
+        templateNames: Set<String>,
+        mobilityRoutineNames: Set<String>,
+        mobilityRoutineIDsByName: [String: String],
+        named: String
+    ) throws -> [RepeatingPlanSlotDTO] {
+        try validateUniqueIdentifiers(slots.map(\.id), named: named)
+        let ordered = slots.sorted { $0.orderIndex < $1.orderIndex }
+        guard ordered.enumerated().allSatisfy({ $0.element.orderIndex == $0.offset }) else {
+            throw BackupValidationError.invalidIdentifier(named)
+        }
+        for slot in ordered {
+            guard
+                UUID(uuidString: slot.templateIDSnapshot) != nil,
+                slot.templateNameSnapshot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+                slot.workoutTemplateName.map(templateNames.contains) ?? true,
+                validateMobilitySnapshotLink(
+                    routineName: slot.preWorkoutMobilityRoutineName,
+                    snapshotID: slot.preWorkoutMobilityRoutineIDSnapshot,
+                    snapshotName: slot.preWorkoutMobilityRoutineNameSnapshot,
+                    availableRoutineNames: mobilityRoutineNames,
+                    routineIDsByName: mobilityRoutineIDsByName
+                ),
+                validateMobilitySnapshotLink(
+                    routineName: slot.postWorkoutMobilityRoutineName,
+                    snapshotID: slot.postWorkoutMobilityRoutineIDSnapshot,
+                    snapshotName: slot.postWorkoutMobilityRoutineNameSnapshot,
+                    availableRoutineNames: mobilityRoutineNames,
+                    routineIDsByName: mobilityRoutineIDsByName
+                )
+            else {
+                throw BackupValidationError.invalidIdentifier(named)
+            }
+        }
+        return ordered
+    }
+
+    private func validateRepeatingRunSlots(
+        _ slots: [RepeatingPlanRunSlotDTO],
+        templateNames: Set<String>,
+        mobilityRoutineNames: Set<String>,
+        mobilityRoutineIDsByName: [String: String]
+    ) throws -> [RepeatingPlanRunSlotDTO] {
+        try validateUniqueIdentifiers(slots.map(\.id), named: "repeating plan run slot")
+        let ordered = slots.sorted { $0.orderIndex < $1.orderIndex }
+        guard ordered.enumerated().allSatisfy({ $0.element.orderIndex == $0.offset }) else {
+            throw BackupValidationError.invalidIdentifier("repeating plan run slot")
+        }
+        for slot in ordered {
+            guard
+                UUID(uuidString: slot.sourceSlotID) != nil,
+                UUID(uuidString: slot.templateIDSnapshot) != nil,
+                slot.templateNameSnapshot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+                slot.workoutTemplateName.map(templateNames.contains) ?? true,
+                validateMobilitySnapshotLink(
+                    routineName: slot.preWorkoutMobilityRoutineName,
+                    snapshotID: slot.preWorkoutMobilityRoutineIDSnapshot,
+                    snapshotName: slot.preWorkoutMobilityRoutineNameSnapshot,
+                    availableRoutineNames: mobilityRoutineNames,
+                    routineIDsByName: mobilityRoutineIDsByName
+                ),
+                validateMobilitySnapshotLink(
+                    routineName: slot.postWorkoutMobilityRoutineName,
+                    snapshotID: slot.postWorkoutMobilityRoutineIDSnapshot,
+                    snapshotName: slot.postWorkoutMobilityRoutineNameSnapshot,
+                    availableRoutineNames: mobilityRoutineNames,
+                    routineIDsByName: mobilityRoutineIDsByName
+                )
+            else {
+                throw BackupValidationError.invalidIdentifier("repeating plan run slot")
+            }
+        }
+        return ordered
+    }
+
+    private func validateMobilityRoutineReference(
+        _ routineName: String?,
+        availableRoutineNames: Set<String>
+    ) -> Bool {
+        guard version >= Self.mobilityLinkageVersion else {
+            return routineName == nil
+        }
+        return routineName.map(availableRoutineNames.contains) ?? true
+    }
+
+    private func validateMobilitySnapshotLink(
+        routineName: String?,
+        snapshotID: String?,
+        snapshotName: String?,
+        availableRoutineNames: Set<String>,
+        routineIDsByName: [String: String]
+    ) -> Bool {
+        guard version >= Self.mobilityLinkageVersion else {
+            return routineName == nil && snapshotID == nil && snapshotName == nil
+        }
+        guard routineName.map(availableRoutineNames.contains) ?? true else {
+            return false
+        }
+
+        let hasSnapshotID = snapshotID != nil
+        let hasSnapshotName = snapshotName != nil
+        guard hasSnapshotID == hasSnapshotName else { return false }
+        guard routineName == nil || hasSnapshotID else { return false }
+        guard let snapshotID, let snapshotName else { return true }
+        guard
+            let snapshotUUID = UUID(uuidString: snapshotID),
+            snapshotName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        else {
+            return false
+        }
+        guard let routineName else { return true }
+        return routineIDsByName[routineName].flatMap(UUID.init(uuidString:)) == snapshotUUID
     }
 
     func requiredUUID(_ value: String, named name: String) throws -> UUID {

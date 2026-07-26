@@ -7,6 +7,7 @@ struct FolderView: View {
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
     @Query private var workoutPlans: [WorkoutPlan]
+    @Query private var repeatingPlans: [RepeatingPlan]
     @Query private var programDefinitions: [ProgramDefinitionRecord]
 
     @State private var activeSheet: FolderSheet?
@@ -17,6 +18,19 @@ struct FolderView: View {
 
     let onStartWorkout: (WorkoutTemplate) -> Void
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
+    let onStartPlan: (WorkoutPlan, Date) -> Void
+    let onResumePlan: (PlanRun) -> Void
+    let onStartPlanTestDay: (PlanRun) -> Void
+    let onStartRepeatingWorkout: (RepeatingPlanRun) -> Void
+    let onActivateRepeatingPlan: (RepeatingPlan) -> Void
+    let onPauseRepeatingPlan: (RepeatingPlanRun) -> Void
+    let onResumeRepeatingPlan: (RepeatingPlanRun) -> Void
+    let onStartAlternateRepeatingWorkout: (RepeatingPlanRun, Int, RepeatingPlanContinuationMode) -> Void
+    let onRepeatRepeatingWorkout: (RepeatingPlanRun) -> Void
+    let onSkipRepeatingWorkout: (RepeatingPlanRun) -> Void
+    let onUndoRepeatingPlanAdvancement: (RepeatingPlanRun) -> Void
+    let onRestartRepeatingPlan: (RepeatingPlanRun) -> Void
+    let onEndRepeatingPlan: (RepeatingPlanRun) -> Void
     let onShowArchivedExercises: () -> Void
 
     var body: some View {
@@ -189,6 +203,9 @@ struct FolderView: View {
                 NavigationLink {
                     PlansBrowserView(
                         onStartPlannedWorkout: onStartPlannedWorkout,
+                        onStartPlan: onStartPlan,
+                        onResumePlan: onResumePlan,
+                        onStartTestDay: onStartPlanTestDay,
                         onCreateProgram: { activeSheet = .plan }
                     )
                 } label: {
@@ -204,6 +221,35 @@ struct FolderView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("plans-browser")
+
+                LibraryGroupDivider()
+
+                NavigationLink {
+                    RepeatingPlanBrowserView(
+                        onStartRepeatingWorkout: onStartRepeatingWorkout,
+                        onActivateRepeatingPlan: onActivateRepeatingPlan,
+                        onPauseRepeatingPlan: onPauseRepeatingPlan,
+                        onResumeRepeatingPlan: onResumeRepeatingPlan,
+                        onStartAlternateRepeatingWorkout: onStartAlternateRepeatingWorkout,
+                        onRepeatRepeatingWorkout: onRepeatRepeatingWorkout,
+                        onSkipRepeatingWorkout: onSkipRepeatingWorkout,
+                        onUndoRepeatingPlanAdvancement: onUndoRepeatingPlanAdvancement,
+                        onRestartRepeatingPlan: onRestartRepeatingPlan,
+                        onEndRepeatingPlan: onEndRepeatingPlan
+                    )
+                } label: {
+                    LibraryItemRow(
+                        title: "Rotations",
+                        subtitle: "Repeat your next workout in order",
+                        icon: AppIcon.routine,
+                        color: Color.gymPrimary,
+                        surface: Color.gymPrimarySurface,
+                        count: repeatingPlans.filter { !$0.isArchived }.count,
+                        showsCard: false
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("repeating-plans-browser")
 
                 LibraryGroupDivider()
 
@@ -373,7 +419,13 @@ struct FolderView: View {
                     searchResultsCard(title: "Training Plans") {
                         ForEach(matchingPlans) { plan in
                             NavigationLink {
-                                PlanDetailView(plan: plan, onStartPlannedWorkout: onStartPlannedWorkout)
+                                PlanDetailView(
+                                    plan: plan,
+                                    onStartPlannedWorkout: onStartPlannedWorkout,
+                                    onStartPlan: onStartPlan,
+                                    onResumePlan: onResumePlan,
+                                    onStartTestDay: onStartPlanTestDay
+                                )
                             } label: {
                                 RecentLibraryRow(
                                     title: plan.name,

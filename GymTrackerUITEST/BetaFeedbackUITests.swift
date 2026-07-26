@@ -11,6 +11,7 @@ final class BetaFeedbackUITests: GymTrackerUITestCase {
         if preparing.exists {
             XCTAssertTrue(preparing.waitForNonExistence(timeout: 60))
         }
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 45))
         return app
     }
 

@@ -5,7 +5,10 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     let workoutVM: WorkoutViewModel
     @Binding var isShowingActiveWorkout: Bool
+    let onStartWorkout: (WorkoutTemplate) -> Void
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
+    let onStartRepeatingWorkout: (RepeatingPlanRun) -> Void
+    let onResolveGuidedSourceConflict: () -> Void
     let onStartMobility: (MobilityRoutine, MobilitySessionContext, UUID?) -> Void
     let onResumeMobility: (MobilitySession) -> Void
     let onOpenNutrition: () -> Void
@@ -16,6 +19,7 @@ struct HomeView: View {
 
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query private var planRuns: [PlanRun]
+    @Query private var repeatingPlanRuns: [RepeatingPlanRun]
     @State private var isShowingTemplatePicker = false
     @State private var isShowingDailyCheckIn = false
     @State private var isShowingCaffeineLog = false
@@ -23,14 +27,33 @@ struct HomeView: View {
     @State private var rescheduleDate = Date.now
     @State private var progressToSkip: PlanWorkoutProgress?
     @State private var scheduleActionError: ValidationIssue?
-    @State private var templateToStart: WorkoutTemplate?
-    @State private var isShowingActiveWorkoutConflictAlert = false
 
-    private var activePlanRun: PlanRun? {
+    private var activeFixedPlanRuns: [PlanRun] {
         planRuns
             .filter { $0.status == .active }
-            .sorted { $0.updatedAt > $1.updatedAt }
-            .first
+            .sorted {
+                if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
+                return $0.id.uuidString < $1.id.uuidString
+            }
+    }
+
+    private var activeRepeatingPlanRuns: [RepeatingPlanRun] {
+        repeatingPlanRuns
+            .filter { $0.status == .active }
+            .sorted {
+                if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
+                return $0.id.uuidString < $1.id.uuidString
+            }
+    }
+
+    private var activePlanRun: PlanRun? {
+        guard activeFixedPlanRuns.count == 1, activeRepeatingPlanRuns.isEmpty else { return nil }
+        return activeFixedPlanRuns[0]
+    }
+
+    private var activeRepeatingPlanRun: RepeatingPlanRun? {
+        guard activeRepeatingPlanRuns.count == 1, activeFixedPlanRuns.isEmpty else { return nil }
+        return activeRepeatingPlanRuns[0]
     }
 
     private var activePlanProgress: PlanWorkoutProgress? {
@@ -41,8 +64,8 @@ struct HomeView: View {
     private var todayWorkoutSummary: TodayWorkoutSummary {
         TodayWorkoutSummary.resolve(
             activeWorkout: workoutVM.activeWorkout,
-            activePlanRun: activePlanRun,
-            nextPlanProgress: activePlanProgress
+            planRuns: activeFixedPlanRuns,
+            repeatingPlanRuns: activeRepeatingPlanRuns
         )
     }
 
@@ -50,6 +73,7 @@ struct HomeView: View {
         homeContent
             .sheet(isPresented: $isShowingTemplatePicker) {
                 templatePicker
+                    .presentationDetents([.large])
             }
             .sheet(isPresented: $isShowingDailyCheckIn) {
                 DailyCheckInSheet(day: .today) {
@@ -84,15 +108,6 @@ struct HomeView: View {
             } message: {
                 Text(scheduleActionError?.message ?? "Please try again.")
             }
-            .confirmationDialog(
-                "An active workout is already in progress",
-                isPresented: $isShowingActiveWorkoutConflictAlert,
-                titleVisibility: .visible
-            ) {
-                activeWorkoutConflictActions
-            } message: {
-                Text("Do you want to continue your active workout, or discard it and start a new one?")
-            }
     }
 
     private var homeContent: some View {
@@ -100,6 +115,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 HomeWelcomeHeader(
                     activePlanRun: activePlanRun,
+                    activeRepeatingPlanRun: activeRepeatingPlanRun,
                     summaryTitle: todayWorkoutSummary.title,
                     hasActiveWorkout: workoutVM.hasActiveWorkout
                 )
@@ -107,6 +123,7 @@ struct HomeView: View {
                     activeWorkout: workoutVM.activeWorkout,
                     activePlanRun: activePlanRun,
                     activePlanProgress: activePlanProgress,
+                    summary: todayWorkoutSummary,
                     onOpen: openPrimaryWorkout,
                     onPostpone: postponePlannedWorkoutUntilTomorrow,
                     onReschedule: beginRescheduling,
@@ -165,7 +182,7 @@ struct HomeView: View {
             SavedWorkoutTemplatePicker(templates: workoutTemplates) { template in
                 isShowingTemplatePicker = false
                 DispatchQueue.main.async {
-                    startWorkout(from: template)
+                    onStartWorkout(template)
                 }
             } onStartEmpty: {
                 isShowingTemplatePicker = false
@@ -198,28 +215,17 @@ struct HomeView: View {
 }
 
 private extension HomeView {
-    @ViewBuilder
-    var activeWorkoutConflictActions: some View {
-        Button("Resume Active Workout") {
-            isShowingActiveWorkout = true
-            templateToStart = nil
-        }
-        Button("Discard & Start New", role: .destructive) {
-            workoutVM.discardActiveWorkout(using: modelContext)
-            if let template = templateToStart {
-                workoutVM.startWorkout(with: template, using: modelContext)
-                isShowingActiveWorkout = true
-            }
-            templateToStart = nil
-        }
-        Button("Cancel", role: .cancel) { templateToStart = nil }
-    }
-
     func openPrimaryWorkout() {
         if workoutVM.hasActiveWorkout {
             isShowingActiveWorkout = true
         } else if let run = activePlanRun, let progress = activePlanProgress {
             onStartPlannedWorkout(run, progress)
+        } else if let run = activeRepeatingPlanRun {
+            onStartRepeatingWorkout(run)
+        } else if todayWorkoutSummary.kind == .guidedConflict {
+            onResolveGuidedSourceConflict()
+        } else if todayWorkoutSummary.kind == .unavailable {
+            return
         } else {
             isShowingTemplatePicker = true
         }
@@ -286,13 +292,4 @@ private extension HomeView {
         }
     }
 
-    func startWorkout(from template: WorkoutTemplate) {
-        if workoutVM.hasActiveWorkout {
-            templateToStart = template
-            isShowingActiveWorkoutConflictAlert = true
-        } else {
-            workoutVM.startWorkout(with: template, using: modelContext)
-            isShowingActiveWorkout = true
-        }
-    }
 }

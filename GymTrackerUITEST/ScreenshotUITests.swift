@@ -980,6 +980,82 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("calendar/21c_Training_Calendar_Empty")
     }
 
+    /// The rotation fixture deliberately includes a completed advancement, so
+    /// its More menu exposes a meaningful Undo action. Each mutable detail
+    /// state gets a fresh launch, keeping the screenshots independent and
+    /// avoiding a paused state leaking into the active source capture.
+    func testCaptureRepeatingPlanScreenshots() {
+        let home = launchFixture(
+            "repeating-plan-active",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-repeating-workout"
+        )
+        XCTAssertTrue(home.descendants(matching: .any)["active-repeating-plan-badge"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/01i_Home_Active_Rotation")
+
+        tapButton("start-repeating-workout", in: home)
+        XCTAssertTrue(home.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
+        let rotationSource = home.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS %@", "Rotation Screenshot Fixture")
+        ).firstMatch
+        XCTAssertTrue(rotationSource.waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/08n_Active_Workout_Rotation_Source")
+
+        let detail = launchFixture(
+            "repeating-plan-active",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-repeating-workout"
+        )
+        openRepeatingPlanFixture(in: detail)
+        saveScreenshot("plans/22_Repeating_Plan_Detail")
+
+        revealRepeatingPlanActions(in: detail)
+        tapButton("repeating-plan-more-actions", in: detail)
+        tapButton("Choose Another Workout", in: detail)
+        XCTAssertTrue(detail.navigationBars["Choose Workout"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/22a_Repeating_Plan_Choose_Another")
+
+        let paused = launchFixture(
+            "repeating-plan-active",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-repeating-workout"
+        )
+        openRepeatingPlanFixture(in: paused)
+        tapButton("pause-repeating-plan", in: paused)
+        XCTAssertTrue(paused.buttons["resume-repeating-plan"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/22b_Repeating_Plan_Paused")
+
+        let undo = launchFixture(
+            "repeating-plan-active",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-repeating-workout"
+        )
+        openRepeatingPlanFixture(in: undo)
+        revealRepeatingPlanActions(in: undo)
+        tapButton("repeating-plan-more-actions", in: undo)
+        XCTAssertTrue(undo.buttons["Undo Last Advancement"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/22c_Repeating_Plan_Undo")
+    }
+
+    private func openRepeatingPlanFixture(in app: XCUIApplication) {
+        selectTab(.library, in: app)
+        tapButton("repeating-plans-browser", in: app)
+        let plan = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "Rotation Screenshot Fixture")
+        ).firstMatch
+        XCTAssertTrue(plan.waitForExistence(timeout: 5))
+        plan.tap()
+        XCTAssertTrue(app.buttons["start-repeating-plan-workout"].waitForExistence(timeout: 5))
+    }
+
+    private func revealRepeatingPlanActions(in app: XCUIApplication) {
+        let actions = app.buttons["repeating-plan-more-actions"]
+        for _ in 0..<3 where !actions.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(actions.waitForExistence(timeout: 5))
+    }
+
     private func waitForTrainingCalendar(in app: XCUIApplication) {
         XCTAssertTrue(app.descendants(matching: .any)["training-calendar-screen"].waitForExistence(timeout: 5))
         let today = app.buttons["training-calendar-today"]
