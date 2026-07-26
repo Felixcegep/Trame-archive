@@ -540,17 +540,9 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         try roundTrippedBackup.restore(to: restoredContext)
         // One plan, run, and completed workout were created per bundled
         // program above; the backup round trip must preserve that count
-        // exactly, whatever the catalog's size is. Restore also always
-        // re-stages the bundled system-seed catalog (see
-        // SystemSeedCatalogCoordinator.stageBundledCatalog), which installs
-        // exactly one additional, dormant utility plan — the sacroiliac
-        // rehab plan — independent of how many program-derived plans the
-        // backup itself contained. That plan has no run or history, so only
-        // the WorkoutPlan count carries the "+1"; PlanRun and completed
-        // Workout counts stay tied to the bundled program count exactly.
+        // exactly, whatever the catalog's size is.
         let restoredPlans = try restoredContext.fetch(FetchDescriptor<WorkoutPlan>())
-        XCTAssertEqual(restoredPlans.filter { $0.name == SacroiliacRehabPlanSeedData.planName }.count, 1)
-        XCTAssertEqual(restoredPlans.count, records.count + 1)
+        XCTAssertEqual(restoredPlans.count, records.count)
         XCTAssertEqual(try restoredContext.fetch(FetchDescriptor<PlanRun>()).count, records.count)
         XCTAssertEqual(
             try restoredContext.fetch(FetchDescriptor<Workout>()).filter { $0.status == .completed }.count,
