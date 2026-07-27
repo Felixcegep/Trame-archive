@@ -59,6 +59,7 @@ struct ExerciseView : View {
     @State private var isShowingEditor = false
     @State private var isShowingInsights = false
     @State private var isShowingRelationshipEditor = false
+    @State private var quickStats: ExerciseQuickStats?
 
     init(exercise: Exercise) {
         editableExercise = exercise
@@ -78,87 +79,28 @@ struct ExerciseView : View {
     }
 
     var body: some View {
-        List {
-            Section("Exercise") {
-                LabeledContent("Name", value: exercise.name)
-                LabeledContent("Category") { Text(LocalizedStringKey(exercise.category.rawValue)) }
-                LabeledContent("Tracking") { Text(LocalizedStringKey(exercise.trackingType.rawValue)) }
-                LabeledContent("Equipment") { Text(LocalizedStringKey(exercise.equipmentType.rawValue)) }
-                LabeledContent("Resistance") { Text(LocalizedStringKey(exercise.resistanceType?.rawValue ?? "None")) }
-                LabeledContent("Movement") { Text(LocalizedStringKey(exercise.movementPattern?.rawValue ?? "None")) }
-                LabeledContent("Mechanics") { Text(LocalizedStringKey(exercise.mechanics?.rawValue ?? "None")) }
-                LabeledContent("Force") { Text(LocalizedStringKey(exercise.forceType?.rawValue ?? "None")) }
-                LabeledContent("Laterality") { Text(LocalizedStringKey(exercise.laterality.rawValue)) }
-                LabeledContent("Grip") { Text(LocalizedStringKey(exercise.gripStyle?.rawValue ?? "None")) }
-                LabeledContent("Stance") { Text(LocalizedStringKey(exercise.stance?.rawValue ?? "None")) }
-                LabeledContent("Range of Motion") { Text(LocalizedStringKey(exercise.rangeOfMotion?.rawValue ?? "None")) }
-                if let setupAngleDegrees = exercise.setupAngleDegrees {
-                    LabeledContent("Setup Angle", value: "\(setupAngleDegrees)°")
-                }
-                LabeledContent("Difficulty") { Text(LocalizedStringKey(exercise.difficulty.rawValue)) }
-                if exercise.trackingType.usesWeight {
-                    LabeledContent("Weight entry") {
-                        Text(LocalizedStringKey(exercise.usesWeightPlates ? "Plate calculator" : "Direct weight entry"))
-                    }
-                }
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.xxl) {
+                identityCard
 
-            if !variations.isEmpty {
-                Section {
-                    ForEach(variations, id: \.persistentModelID) { variation in
-                        NavigationLink {
-                            ExerciseView(exercise: variation)
-                        } label: {
-                            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                Text(variation.name)
-                                    .font(AppFont.bodyMedium)
-                                    .foregroundStyle(Color.gymText)
-                                Text(variationSubtitle(for: variation))
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
-                            }
-                        }
-                        .accessibilityIdentifier("exercise-variation-\(variation.name)")
-                    }
-                } header: {
-                    Text("Variations")
-                } footer: {
-                    Text("Related variants share a movement family. They are not automatic substitutions.")
+                if editableExercise != nil {
+                    performanceSection
                 }
-            }
 
-            if editableExercise != nil {
-                Section("Performance") {
-                    Button {
-                        showExerciseStats()
-                    } label: {
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Label("View Performance", systemImage: AppIcon.chart)
-                                .font(AppFont.subheadlineSemibold)
-                            Text("History, estimated 1RM, volume, records, notes, and progression")
-                                .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
-                        }
-                    }
-                    .accessibilityIdentifier("exercise-stats")
-                }
-            }
+                musclesSection
+                setupSection
 
-            Section("Primary Muscles") {
-                ForEach(exercise.primaryMuscles, id: \.self) { muscle in
-                    Text(muscle.displayName)
+                if !variations.isEmpty {
+                    variationsSection
                 }
             }
-
-            if !exercise.secondaryMuscles.isEmpty {
-                Section("Secondary Muscles") {
-                    ForEach(exercise.secondaryMuscles, id: \.self) { muscle in
-                        Text(muscle.displayName)
-                    }
-                }
-            }
+            .padding(.horizontal, Spacing.l)
+            .padding(.top, Spacing.l)
+            .padding(.bottom, Spacing.xxxl)
         }
+        .background(Color.gymBackground.ignoresSafeArea())
         .navigationTitle(exercise.name)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if editableExercise != nil {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -220,6 +162,318 @@ struct ExerciseView : View {
                 ExerciseDetailInsightsDestination(exercise: editableExercise)
             }
         }
+        .task(id: editableExercise?.persistentModelID) {
+            await loadQuickStats()
+        }
+    }
+
+    // MARK: - Identity
+
+    private var identityCard: some View {
+        GymCard {
+            HStack(alignment: .top, spacing: Spacing.m) {
+                GymIconChip(systemImage: categoryIcon, tint: categoryTint)
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(exercise.name)
+                        .font(AppFont.titleSmall)
+                        .foregroundStyle(Color.gymText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(LocalizedStringKey(exercise.trackingType.rawValue))
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            ChipFlowLayout(spacing: Spacing.s) {
+                GymTagChip(title: exercise.category.rawValue, tint: categoryTint)
+                GymTagChip(
+                    title: exercise.equipmentType.rawValue,
+                    systemImage: AppIcon.workout,
+                    tint: .gymAccent
+                )
+                GymTagChip(title: exercise.difficulty.rawValue, tint: .gymSecondary)
+                if exercise.usesWeightPlates {
+                    GymTagChip(
+                        title: "Plate calculator",
+                        systemImage: AppIcon.plateCalculator,
+                        tint: .gymPrimary
+                    )
+                }
+            }
+        }
+        .accessibilityIdentifier("exercise-identity")
+    }
+
+    // MARK: - Performance
+
+    private var performanceSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            GymSectionHeader(title: "Performance")
+
+            Button {
+                showExerciseStats()
+            } label: {
+                GymCard {
+                    if let quickStats, quickStats.hasHistory {
+                        quickStatsGrid(quickStats)
+                        Divider()
+                        performanceFooter(
+                            title: "View full performance",
+                            subtitle: "History, volume trend, records, notes, and progression"
+                        )
+                    } else if quickStats == nil {
+                        HStack(spacing: Spacing.s) {
+                            ProgressView()
+                                .tint(Color.gymPrimary)
+                            Text("Reading completed history…")
+                                .font(AppFont.subheadline)
+                                .foregroundStyle(Color.gymSubduedText)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            Text("No completed sets yet")
+                                .font(AppFont.subheadlineSemibold)
+                                .foregroundStyle(Color.gymText)
+                            Text("Log this exercise in a workout to unlock records, estimated 1RM, and volume trend.")
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.gymSubduedText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Divider()
+                        performanceFooter(
+                            title: "View performance",
+                            subtitle: "Opens the insights screen"
+                        )
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("exercise-stats")
+            .accessibilityHint("Opens full performance insights")
+        }
+    }
+
+    private func quickStatsGrid(_ stats: ExerciseQuickStats) -> some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: Spacing.m, alignment: .topLeading),
+                GridItem(.flexible(), spacing: Spacing.m, alignment: .topLeading)
+            ],
+            alignment: .leading,
+            spacing: Spacing.m
+        ) {
+            ForEach(stats.metrics) { metric in
+                QuickStatTile(metric: metric)
+            }
+        }
+    }
+
+    private func performanceFooter(title: String, subtitle: String) -> some View {
+        HStack(spacing: Spacing.s) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Label(title, systemImage: AppIcon.chart)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymPrimary)
+                Text(subtitle)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+
+            Image(systemName: AppIcon.chevronRight)
+                .font(AppFont.captionBold)
+                .foregroundStyle(Color.gymSubtleText)
+        }
+    }
+
+    // MARK: - Muscles
+
+    private var musclesSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            GymSectionHeader(title: "Muscles worked")
+
+            GymCard {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    GymEyebrow("Primary")
+                    if exercise.primaryMuscles.isEmpty {
+                        Text("Not set")
+                            .font(AppFont.subheadline)
+                            .foregroundStyle(Color.gymSubtleText)
+                    } else {
+                        ChipFlowLayout(spacing: Spacing.s) {
+                            ForEach(exercise.primaryMuscles, id: \.self) { muscle in
+                                GymTagChip(title: muscle.displayName, tint: .gymPrimary)
+                            }
+                        }
+                    }
+                }
+
+                if !exercise.secondaryMuscles.isEmpty {
+                    Divider()
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        GymEyebrow("Supporting")
+                        ChipFlowLayout(spacing: Spacing.s) {
+                            ForEach(exercise.secondaryMuscles, id: \.self) { muscle in
+                                GymTagChip(title: muscle.displayName, style: .outlined)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("exercise-muscles")
+    }
+
+    // MARK: - Setup
+
+    private var setupSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            GymSectionHeader(title: "Setup")
+
+            GymCard {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: Spacing.m, alignment: .topLeading),
+                        GridItem(.flexible(), spacing: Spacing.m, alignment: .topLeading)
+                    ],
+                    alignment: .leading,
+                    spacing: Spacing.l
+                ) {
+                    ForEach(specifiedAttributes, id: \.label) { attribute in
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            GymEyebrow(LocalizedStringKey(attribute.label))
+                            Text(LocalizedStringKey(attribute.value))
+                                .font(AppFont.subheadlineSemibold)
+                                .foregroundStyle(Color.gymText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+
+                if !unspecifiedAttributes.isEmpty {
+                    Divider()
+                    Text("Not set: \(unspecifiedAttributes.joined(separator: " · "))")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubtleText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityIdentifier("exercise-setup")
+    }
+
+    // MARK: - Variations
+
+    private var variationsSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            GymSectionHeader(
+                title: "Variations",
+                detail: "Related variants share a movement family. They are not automatic substitutions."
+            )
+
+            GymCard {
+                ForEach(Array(variations.enumerated()), id: \.element.persistentModelID) { index, variation in
+                    if index > 0 { Divider() }
+                    NavigationLink {
+                        ExerciseView(exercise: variation)
+                    } label: {
+                        HStack(spacing: Spacing.s) {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text(variation.name)
+                                    .font(AppFont.bodyMedium)
+                                    .foregroundStyle(Color.gymText)
+                                    .multilineTextAlignment(.leading)
+                                Text(variationSubtitle(for: variation))
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.gymSubduedText)
+                                    .multilineTextAlignment(.leading)
+                            }
+
+                            Spacer(minLength: 0)
+
+                            Image(systemName: AppIcon.chevronRight)
+                                .font(AppFont.captionBold)
+                                .foregroundStyle(Color.gymSubtleText)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("exercise-variation-\(variation.name)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Attributes
+
+    private struct DetailAttribute {
+        let label: String
+        let value: String
+    }
+
+    private var attributes: [(label: String, value: String?)] {
+        [
+            ("Resistance", exercise.resistanceType?.rawValue),
+            ("Movement", exercise.movementPattern?.rawValue),
+            ("Mechanics", exercise.mechanics?.rawValue),
+            ("Force", exercise.forceType?.rawValue),
+            ("Laterality", exercise.laterality.rawValue),
+            ("Grip", exercise.gripStyle?.rawValue),
+            ("Stance", exercise.stance?.rawValue),
+            ("Range of Motion", exercise.rangeOfMotion?.rawValue),
+            ("Setup Angle", exercise.setupAngleDegrees.map { "\($0)°" }),
+            ("Weight entry", weightEntryValue)
+        ]
+    }
+
+    private var specifiedAttributes: [DetailAttribute] {
+        attributes.compactMap { attribute in
+            attribute.value.map { DetailAttribute(label: attribute.label, value: $0) }
+        }
+    }
+
+    private var unspecifiedAttributes: [String] {
+        attributes.filter { $0.value == nil }.map(\.label)
+    }
+
+    private var weightEntryValue: String? {
+        guard exercise.trackingType.usesWeight else { return nil }
+        return exercise.usesWeightPlates ? "Plate calculator" : "Direct weight entry"
+    }
+
+    private var categoryIcon: String {
+        switch exercise.category {
+        case .strength: AppIcon.workout
+        case .cardio: AppIcon.progression
+        case .mobility, .flexibility: AppIcon.mobility
+        case .balance: AppIcon.effort
+        case .sport, .other: AppIcon.muscles
+        }
+    }
+
+    private var categoryTint: Color {
+        switch exercise.category {
+        case .strength: .gymPrimary
+        case .cardio: .gymAccent
+        case .mobility, .flexibility, .balance: .gymSecondary
+        case .sport, .other: .gymPrimary
+        }
+    }
+
+    // MARK: - Actions
+
+    private func loadQuickStats() async {
+        guard let editableExercise else { return }
+        quickStats = (try? ExerciseQuickStatsBuilder.make(for: editableExercise, using: modelContext)) ?? .empty
     }
 
     private func toggleFavorite() {
@@ -264,5 +518,74 @@ struct ExerciseView : View {
         ]
         .compactMap { $0 }
         .joined(separator: " · ")
+    }
+}
+
+/// Compact metric tile: a colored rail, the value, what it measures, and the
+/// comparison line. Direction is carried by an arrow glyph and wording, never
+/// by color alone.
+private struct QuickStatTile: View {
+    let metric: ExerciseQuickStats.Metric
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.s) {
+            Capsule()
+                .fill(tint)
+                .frame(width: 3)
+                .frame(maxHeight: .infinity)
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(metric.value)
+                    .font(AppFont.subheadlineSemiboldMonospaced)
+                    .foregroundStyle(Color.gymText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Text(LocalizedStringKey(metric.label))
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+
+                if let detail = metric.detail {
+                    HStack(spacing: Spacing.xxs) {
+                        if let directionIcon {
+                            Image(systemName: directionIcon)
+                                .font(AppFont.caption2Bold)
+                        }
+                        Text(detail)
+                            .font(AppFont.caption2)
+                    }
+                    .foregroundStyle(directionTint)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var tint: Color {
+        switch metric.accent {
+        case .primary: .gymPrimary
+        case .secondary: .gymSecondary
+        case .accent: .gymAccent
+        case .neutral: .gymSubtleText
+        }
+    }
+
+    private var directionIcon: String? {
+        switch metric.direction {
+        case .up: AppIcon.trendUp
+        case .down: AppIcon.trendDown
+        case .flat: nil
+        }
+    }
+
+    private var directionTint: Color {
+        switch metric.direction {
+        case .up: .gymSecondary
+        case .down: .gymAccent
+        case .flat: .gymSubtleText
+        }
     }
 }
