@@ -13,6 +13,7 @@ import UserNotifications
 
 struct SettingView: View {
     var currentScreen: AppScreen = .settings
+    let activeLoggingMetrics: ActiveLoggingMetricsRecorder
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
     @State private var isShowingBetaFeedback = false
     @Environment(\.modelContext) private var modelContext
@@ -225,7 +226,12 @@ struct SettingView: View {
             }
         }
         .sheet(isPresented: $isShowingBetaFeedback) {
-            BetaFeedbackScreen(context: BetaFeedbackContextProvider.makeContext(screen: currentScreen))
+            BetaFeedbackScreen(
+                context: BetaFeedbackContextProvider.makeContext(
+                    screen: currentScreen,
+                    activeLoggingMetrics: activeLoggingMetrics.snapshot
+                )
+            )
         }
         .alert("Import Error", isPresented: $isShowingImportError) {
             Button("OK", role: .cancel) {}

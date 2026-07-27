@@ -62,4 +62,38 @@ final class BetaFeedbackContextTests: XCTestCase {
             XCTAssertFalse(haystack.contains(word), "Diagnostic text must never mention '\(word)'.")
         }
     }
+
+    func testDiagnosticTextIncludesOnlyAggregateActiveLoggingMetrics() {
+        let snapshot = ActiveLoggingMetricsRecorder.Snapshot(
+            setEntrySampleCount: 3,
+            medianSetEntrySeconds: 4,
+            blockedCompletionCount: 1,
+            valueCorrectionCount: 2,
+            completedSetReopenCount: 1,
+            restExpectedCount: 3,
+            restStartedCount: 3,
+            restPauseCount: 1,
+            restResumeCount: 1,
+            restExtensionCount: 1,
+            restSkipCount: 0,
+            minimizedCount: 1,
+            savedCount: 1,
+            partialSaveCount: 0,
+            discardedCount: 0
+        )
+        let flags = DefaultFeatureFlagConfiguration(buildChannel: .beta, overrides: [.today, .betaFeedback])
+        let context = BetaFeedbackContextProvider.makeContext(
+            screen: .settings,
+            infoDictionary: ["CFBundleShortVersionString": "1.2", "CFBundleVersion": "42"],
+            featureFlags: flags,
+            deviceModel: "iPhone15,2",
+            osVersion: "iOS 18.0",
+            activeLoggingMetrics: snapshot
+        )
+
+        XCTAssertTrue(context.diagnosticText.contains("Set entry samples: 3"))
+        XCTAssertTrue(context.diagnosticText.contains("Rest starts: 3 of 3"))
+        XCTAssertFalse(context.diagnosticText.lowercased().contains("bench press"))
+        XCTAssertFalse(context.diagnosticText.contains("60 kg"))
+    }
 }

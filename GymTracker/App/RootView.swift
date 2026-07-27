@@ -14,6 +14,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var workoutVM = WorkoutViewModel()
+    @State private var activeLoggingMetrics = ActiveLoggingMetricsRecorder()
     @State private var todayPath: [TodayRoute] = []
     @State private var trainPath: [LibraryRoute] = []
     @State private var trainNavigationID = UUID()
@@ -165,6 +166,7 @@ struct RootView: View {
                     workoutVM: workoutVM,
                     navigationPath: $activeWorkoutPath,
                     modelContext: modelContext,
+                    activeLoggingMetrics: activeLoggingMetrics,
                     onDiscardRequested: requestDiscardActiveWorkout
                 )
                 .navigationDestination(for: ActiveWorkoutRoute.self) { route in
@@ -174,6 +176,7 @@ struct RootView: View {
                             workoutVM: workoutVM,
                             navigationPath: $activeWorkoutPath,
                             isPresented: $isShowingActiveWorkout,
+                            activeLoggingMetrics: activeLoggingMetrics,
                             onWorkoutSaved: { workoutID in
                                 prepareCooldown(for: workoutID)
                                 preparePendingProgressionReceipts(for: workoutID)
@@ -207,6 +210,7 @@ struct RootView: View {
             Button("Discard & Start New", role: .destructive) {
                 let pendingStart = pendingWorkoutStart
                 pendingWorkoutStart = nil
+                activeLoggingMetrics.workoutDiscarded()
                 workoutVM.discardActiveWorkout(using: modelContext)
                 if workoutVM.hasActiveWorkout {
                     isShowingActiveWorkout = true
@@ -479,7 +483,10 @@ struct RootView: View {
                 }
             )
         case .settings:
-            SettingView(currentScreen: currentAppScreen)
+            SettingView(
+                currentScreen: currentAppScreen,
+                activeLoggingMetrics: activeLoggingMetrics
+            )
         case .plan(let planID):
             if let plan = plan(id: planID) {
                 PlanDetailView(
@@ -1499,6 +1506,7 @@ struct RootView: View {
         guidedSourceConflictRequest = nil
         workoutVM.workout = nil
         workoutVM.activeWorkout = nil
+        activeLoggingMetrics.reset()
 
         do {
             try modelContext.clearAllGymData()
@@ -1510,6 +1518,7 @@ struct RootView: View {
     }
 
     private func requestDiscardActiveWorkout() {
+        activeLoggingMetrics.workoutDiscarded()
         shouldDiscardActiveWorkout = true
         isShowingActiveWorkout = false
     }

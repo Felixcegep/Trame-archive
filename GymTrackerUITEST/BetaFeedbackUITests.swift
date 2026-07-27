@@ -81,4 +81,21 @@ final class BetaFeedbackUITests: GymTrackerUITestCase {
 
         XCTAssertTrue(app.buttons["beta-feedback-share"].waitForExistence(timeout: 5))
     }
+
+    func testFeedbackPreviewIncludesAggregateActiveLoggingMetrics() {
+        let app = launchFixture("active-in-progress")
+        enterValidValues(for: "Bench Press", set: 0, in: app)
+        completeSet("Bench Press", index: 0, dismissRest: true, in: app)
+        tapButton("minimize-workout", in: app)
+        XCTAssertTrue(app.buttons["resume-active-workout"].waitForExistence(timeout: 10))
+
+        selectTab(.settings, in: app)
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        openBetaFeedback(in: app)
+        scrollFeedbackFormDown(in: app)
+
+        XCTAssertTrue(app.staticTexts["Set entry samples"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Median set entry"].exists)
+        XCTAssertFalse(app.staticTexts["Bench Press"].exists)
+    }
 }

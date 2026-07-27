@@ -19,12 +19,37 @@ struct BetaFeedbackContext: Sendable, Equatable {
     let deviceModel: String
     let osVersion: String
     let screen: AppScreen
+    let activeLoggingMetrics: ActiveLoggingMetricsRecorder.Snapshot?
+
+    init(
+        appVersion: String,
+        buildNumber: String,
+        schemaVersion: String,
+        backupFormatVersion: Int,
+        buildChannel: FeatureFlagBuildChannel,
+        enabledFlags: [FeatureFlag],
+        deviceModel: String,
+        osVersion: String,
+        screen: AppScreen,
+        activeLoggingMetrics: ActiveLoggingMetricsRecorder.Snapshot? = nil
+    ) {
+        self.appVersion = appVersion
+        self.buildNumber = buildNumber
+        self.schemaVersion = schemaVersion
+        self.backupFormatVersion = backupFormatVersion
+        self.buildChannel = buildChannel
+        self.enabledFlags = enabledFlags
+        self.deviceModel = deviceModel
+        self.osVersion = osVersion
+        self.screen = screen
+        self.activeLoggingMetrics = activeLoggingMetrics
+    }
 
     /// Ordered label/value pairs for the exact preview shown to the user
     /// before sharing, and for the plain-text payload attached to the share
     /// sheet. Order matters for both surfaces, so it is defined once here.
     var diagnosticLines: [(label: String, value: String)] {
-        [
+        var lines = [
             (String(localized: "App Version"), appVersion),
             (String(localized: "Build"), buildNumber),
             (String(localized: "Schema Version"), schemaVersion),
@@ -35,6 +60,10 @@ struct BetaFeedbackContext: Sendable, Equatable {
             (String(localized: "OS Version"), osVersion),
             (String(localized: "Screen"), screen.diagnosticLabel)
         ]
+        if let activeLoggingMetrics, activeLoggingMetrics.hasRecordedData {
+            lines.append(contentsOf: activeLoggingMetrics.diagnosticLines)
+        }
+        return lines
     }
 
     var diagnosticText: String {
@@ -52,7 +81,8 @@ enum BetaFeedbackContextProvider {
         infoDictionary: [String: Any] = Bundle.main.infoDictionary ?? [:],
         featureFlags: FeatureFlagConfiguration? = nil,
         deviceModel: String? = nil,
-        osVersion: String? = nil
+        osVersion: String? = nil,
+        activeLoggingMetrics: ActiveLoggingMetricsRecorder.Snapshot? = nil
     ) -> BetaFeedbackContext {
         let featureFlags = featureFlags ?? FeatureFlags.current
         let deviceModel = deviceModel ?? BetaFeedbackDevice.currentModel()
@@ -66,7 +96,8 @@ enum BetaFeedbackContextProvider {
             enabledFlags: featureFlags.enabledFlags,
             deviceModel: deviceModel,
             osVersion: osVersion,
-            screen: screen
+            screen: screen,
+            activeLoggingMetrics: activeLoggingMetrics
         )
     }
 }

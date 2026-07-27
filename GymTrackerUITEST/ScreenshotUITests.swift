@@ -158,6 +158,34 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("overview/04e_Settings_Beta_Feedback")
     }
 
+    func testCaptureBetaFeedbackActiveLoggingScreenshot() {
+        let app = launchFixture("active-in-progress")
+        enterValidValues(for: "Bench Press", set: 0, in: app)
+        completeSet("Bench Press", index: 0, dismissRest: true, in: app)
+        tapButton("minimize-workout", in: app)
+        XCTAssertTrue(app.buttons["resume-active-workout"].waitForExistence(timeout: 10))
+
+        selectTab(.settings, in: app)
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        let feedbackRow = app.descendants(matching: .any)["settings-beta-feedback"]
+        scrollToElement(feedbackRow, in: app)
+        feedbackRow.tap()
+
+        // The feedback form begins with a tall `TextEditor`, so a regular
+        // swipe starts in that editor instead of moving the outer Form. Drag
+        // from below it to bring the aggregate-only rows into the capture.
+        let window = app.windows.firstMatch
+        let start = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+        let end = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+        for _ in 0..<4 {
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+
+        let setEntrySamples = app.staticTexts["Set entry samples"]
+        XCTAssertTrue(setEntrySamples.waitForExistence(timeout: 5))
+        saveScreenshot("overview/04f_Settings_Beta_Feedback_Active_Logging")
+    }
+
     /// One launch of "active-empty" plus one launch of "active-in-progress"
     /// drive every Active Workout overlay that fixture can reach through taps
     /// alone: the exercise picker, plate calculator, set details, the

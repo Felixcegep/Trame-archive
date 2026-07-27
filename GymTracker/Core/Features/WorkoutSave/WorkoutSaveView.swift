@@ -7,6 +7,7 @@ struct WorkoutSaveView: View {
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [ActiveWorkoutRoute]
     @Binding var isPresented: Bool
+    let activeLoggingMetrics: ActiveLoggingMetricsRecorder
     let onWorkoutSaved: (UUID) -> Void
     let onDiscardRequested: () -> Void
 
@@ -440,12 +441,17 @@ struct WorkoutSaveView: View {
     }
 
     private func saveWorkout() {
-        guard let workoutID = workoutVM.activeWorkout?.id,
-              workoutVM.saveWorkout(using: modelContext)
-        else {
+        guard let workout = workoutVM.activeWorkout else {
             saveErrorMessage = String(localized: "Your workout is still open. Try saving again.")
             return
         }
+        let workoutID = workout.id
+        let wasPartial = workout.incompleteSetCount > 0
+        guard workoutVM.saveWorkout(using: modelContext) else {
+            saveErrorMessage = String(localized: "Your workout is still open. Try saving again.")
+            return
+        }
+        activeLoggingMetrics.workoutSaved(isPartial: wasPartial)
         onWorkoutSaved(workoutID)
         navigationPath.removeAll()
         isPresented = false

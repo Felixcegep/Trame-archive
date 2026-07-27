@@ -10,6 +10,7 @@ class ActiveWorkoutViewModel {
     
     var workoutVM: WorkoutViewModel
     let modelContext: ModelContext
+    private let activeLoggingMetrics: ActiveLoggingMetricsRecorder?
     
     private let restTimer = RestTimerController()
     private var timerTask: Task<Void, Never>?
@@ -18,9 +19,14 @@ class ActiveWorkoutViewModel {
     var isTimerVisible: Bool { restTimer.isVisible }
     var timerPause: Date? { restTimer.endDate }
     
-    init(workoutVM: WorkoutViewModel, modelContext: ModelContext) {
+    init(
+        workoutVM: WorkoutViewModel,
+        modelContext: ModelContext,
+        activeLoggingMetrics: ActiveLoggingMetricsRecorder? = nil
+    ) {
         self.workoutVM = workoutVM
         self.modelContext = modelContext
+        self.activeLoggingMetrics = activeLoggingMetrics
     }
 
     var activeWorkout: Workout? {
@@ -282,6 +288,7 @@ class ActiveWorkoutViewModel {
 
         markUserOverride(on: set)
         persistChanges()
+        activeLoggingMetrics?.valueCommitted(for: set.id, field: field)
     }
 
     /// A typed value replaces a prescription, so the set stops tracking it.
@@ -414,12 +421,14 @@ class ActiveWorkoutViewModel {
             workoutVM.reconcileLiveActivity()
             return
         }
+        activeLoggingMetrics?.restExpected()
         let timerEndDate = Date.now.addingTimeInterval(TimeInterval(seconds))
 
         workout.restEndDate = timerEndDate
         workout.pausedRemainingTime = nil
         persistChanges()
         runRestCountdown(until: timerEndDate)
+        activeLoggingMetrics?.restStarted()
     }
 
     var isTimerPaused: Bool {
@@ -471,6 +480,7 @@ class ActiveWorkoutViewModel {
         workoutVM.activeWorkout?.restEndDate = nil
         restTimer.pause(remaining: remaining)
         persistChanges()
+        activeLoggingMetrics?.restPaused()
 
         workoutVM.reconcileLiveActivity()
     }
@@ -483,6 +493,7 @@ class ActiveWorkoutViewModel {
         workoutVM.activeWorkout?.pausedRemainingTime = nil
         persistChanges()
         runRestCountdown(until: timerEndDate)
+        activeLoggingMetrics?.restResumed()
     }
 
     func addRestTime(_ seconds: TimeInterval) {
@@ -491,12 +502,14 @@ class ActiveWorkoutViewModel {
                 workoutVM.activeWorkout?.pausedRemainingTime = currentPaused + seconds
                 restTimer.extendPaused(by: seconds)
                 persistChanges()
+                activeLoggingMetrics?.restExtended()
             }
         } else if let timerEndDate = workoutVM.activeWorkout?.restEndDate {
             let newEndDate = timerEndDate.addingTimeInterval(seconds)
             workoutVM.activeWorkout?.restEndDate = newEndDate
             persistChanges()
             runRestCountdown(until: newEndDate)
+            activeLoggingMetrics?.restExtended()
         }
     }
 
@@ -697,6 +710,7 @@ class ActiveWorkoutViewModel {
         let firstField = fields.first ?? .repetitions
 
         if isCompleting, !canComplete(set, for: exercise) {
+            activeLoggingMetrics?.setCompletionBlocked()
             return .blocked(
                 message: validationMessage(for: set, in: exercise),
                 focus: SetInputFocus(
@@ -708,7 +722,12 @@ class ActiveWorkoutViewModel {
         }
 
         guard switchStateDoneSet(exercise, set) else { return .failed }
-        guard isCompleting else { return .reopened }
+        guard isCompleting else {
+            activeLoggingMetrics?.completedSetReopened()
+            return .reopened
+        }
+
+        activeLoggingMetrics?.setCompleted(id: set.id)
 
         let nextSet = exercise.orderedSets.first(where: { !$0.done })
         return .completed(nextFocus: nextSet.map {

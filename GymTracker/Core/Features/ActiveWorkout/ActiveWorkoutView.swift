@@ -8,6 +8,7 @@ struct ActiveWorkoutView: View {
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [ActiveWorkoutRoute]
     let modelContext: ModelContext
+    let activeLoggingMetrics: ActiveLoggingMetricsRecorder
     let onDiscardRequested: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -33,13 +34,19 @@ struct ActiveWorkoutView: View {
         workoutVM: WorkoutViewModel,
         navigationPath: Binding<[ActiveWorkoutRoute]>,
         modelContext: ModelContext,
+        activeLoggingMetrics: ActiveLoggingMetricsRecorder,
         onDiscardRequested: @escaping () -> Void
     ) {
         self.workoutVM = workoutVM
         _navigationPath = navigationPath
         self.modelContext = modelContext
+        self.activeLoggingMetrics = activeLoggingMetrics
         self.onDiscardRequested = onDiscardRequested
-        _viewModel = State(initialValue: ActiveWorkoutViewModel(workoutVM: workoutVM, modelContext: modelContext))
+        _viewModel = State(initialValue: ActiveWorkoutViewModel(
+            workoutVM: workoutVM,
+            modelContext: modelContext,
+            activeLoggingMetrics: activeLoggingMetrics
+        ))
     }
 
     var body: some View {
@@ -64,6 +71,7 @@ struct ActiveWorkoutView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
+                    activeLoggingMetrics.workoutMinimized()
                     dismiss()
                 } label: {
                     Image(systemName: AppIcon.minimize)
@@ -198,6 +206,13 @@ struct ActiveWorkoutView: View {
             .onChange(of: coordinator.focus) { _, focus in
                 guard let focus else { return }
                 coordinator.refreshOrder(in: viewModel.activeWorkout)
+                if let models = viewModel.models(for: focus) {
+                    activeLoggingMetrics.focusChanged(
+                        to: models.set.id,
+                        field: focus.field,
+                        replacesExistingValue: hasEnteredValue(for: focus.field, in: models.set)
+                    )
+                }
                 withAnimation(reduceMotion ? nil : AppMotion.layout) {
                     // Anchor at the top: the panel plus keypad claims roughly half
                     // the screen, so centering would hide the row being edited.
@@ -221,6 +236,16 @@ struct ActiveWorkoutView: View {
 
     private func inputFields(for exercise: ExerciseEntry) -> [SetInputFocus.Field] {
         SetInputCoordinator.inputFields(for: exercise.trackingTypeSnapshot)
+    }
+
+    private func hasEnteredValue(for field: SetInputFocus.Field, in set: ExerciseSet) -> Bool {
+        switch field {
+        case .repetitions: set.repetitions > 0
+        case .weight: set.weight > 0
+        case .duration: (set.duration ?? 0) > 0
+        case .distance: (set.distance ?? 0) > 0
+        case .calories: (set.calories ?? 0) > 0
+        }
     }
 
     /// Session identity and progress in two lines of page chrome rather than a
@@ -378,6 +403,7 @@ struct ActiveWorkoutView: View {
                     .accessibilityLabel(viewModel.isTimerPaused ? "Resume rest" : "Pause rest")
 
                     Button {
+                        activeLoggingMetrics.restSkipped()
                         viewModel.cancelTimer()
                     } label: {
                         Image(systemName: AppIcon.fastForward)

@@ -16,6 +16,7 @@ struct DefaultsKey {
     static let bodyWeightPromptCadence = "bodyWeightPromptCadence"
     static let caffeineBirthdateTimestamp = "caffeineBirthdateTimestamp"
     static let effortMeasure = "effortMeasure"
+    static let activeLoggingMetrics = "activeLoggingMetrics.v1"
 }
 
 enum EffortMeasure: String, CaseIterable {
