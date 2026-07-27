@@ -132,4 +132,17 @@ final class ExerciseHistoricalIdentityTests: XCTestCase {
         let restoredIDs = Set(restoredEntries.map(\.historicalExerciseID))
         XCTAssertEqual(restoredIDs, [systemEntryID, customEntryID], "Both duplicate-named entries must round-trip with their own distinct historical identity.")
     }
+
+    func testUniquedByNamePreferringSystemReturnsOneCanonicalExercisePerName() {
+        let customBench = Exercise(name: "Bench Press", primaryMuscles: [.middleChest], isCustom: true)
+        let row = Exercise(name: "Row", primaryMuscles: [.latissimusDorsi], isCustom: false)
+        let systemBench = Exercise(name: "Bench Press", primaryMuscles: [.middleChest], isCustom: false)
+        let secondCustomBench = Exercise(name: "Bench Press", primaryMuscles: [.upperChest], isCustom: true)
+
+        let result = [customBench, row, systemBench, secondCustomBench].uniquedByNamePreferringSystem()
+
+        XCTAssertEqual(result.count, 2)
+        XCTAssertTrue(result[0] === systemBench)
+        XCTAssertTrue(result[1] === row)
+    }
 }

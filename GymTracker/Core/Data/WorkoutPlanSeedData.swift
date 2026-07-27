@@ -90,7 +90,10 @@ enum WorkoutPlanSeedData {
     // MARK: - Plan Construction Helpers
 
     private static func makeEightWeekHypertrophyPlan(exercises: [Exercise]) -> WorkoutPlan? {
-        let byName = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0) })
+        let byName = Dictionary(
+            exercises.uniquedByNamePreferringSystem().map { ($0.name, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         let day1Ex: [(String, Int, Int, Int, Double, Int)] = [
             ("Goblet Stiletto Squat", 3, 8, 10, 7.5, 120),
@@ -172,7 +175,10 @@ enum WorkoutPlanSeedData {
     }
 
     private static func makeEightWeekPowerliftingPlan(exercises: [Exercise]) -> WorkoutPlan? {
-        let byName = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0) })
+        let byName = Dictionary(
+            exercises.uniquedByNamePreferringSystem().map { ($0.name, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         let day1Ex: [(String, Int, Int, Int, Double, Int)] = [
             ("Back Squat", 4, 5, 5, 7.5, 180),
@@ -245,7 +251,10 @@ enum WorkoutPlanSeedData {
     }
 
     private static func makeEightWeekOlympicPlan(exercises: [Exercise]) -> WorkoutPlan? {
-        let byName = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0) })
+        let byName = Dictionary(
+            exercises.uniquedByNamePreferringSystem().map { ($0.name, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         let day1Ex: [(String, Int, Int, Int, Double, Int)] = [
             ("Muscle Snatch", 3, 3, 3, 6.0, 90),
@@ -318,7 +327,10 @@ enum WorkoutPlanSeedData {
     }
 
     private static func makeSixWeekStrongmanPlan(exercises: [Exercise]) -> WorkoutPlan? {
-        let byName = Dictionary(uniqueKeysWithValues: exercises.map { ($0.name, $0) })
+        let byName = Dictionary(
+            exercises.uniquedByNamePreferringSystem().map { ($0.name, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         let day1Ex: [(String, Int, Int, Int, Double, Int)] = [
             ("Overhead Press", 4, 5, 5, 7.0, 180),

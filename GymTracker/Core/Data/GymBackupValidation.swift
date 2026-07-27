@@ -589,7 +589,8 @@ extension BackupDTO {
                 let occurrenceStatus = RepeatingPlanOccurrenceStatus(rawValue: occurrence.status)
                 let hasValidWorkoutLink =
                     (occurrenceStatus == .inProgress && occurrence.completedWorkoutID == nil)
-                    || (occurrenceStatus == .completed && occurrence.completedWorkoutID == workout.id)
+                    || ((occurrenceStatus == .completed || occurrenceStatus == .undone)
+                        && occurrence.completedWorkoutID == workout.id)
                 guard hasValidWorkoutLink else {
                     throw BackupValidationError.invalidIdentifier("workout repeating plan occurrence")
                 }

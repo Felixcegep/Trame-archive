@@ -63,7 +63,12 @@ final class RepeatingPlanBackupTests: XCTestCase {
             darkMode: false,
             unitSystem: .metric
         )
-        XCTAssertEqual(backup.version, BackupDTO.mobilityLinkageVersion)
+        // `create` always stamps the current version, so pinning this to the
+        // constant that introduced mobility linkage breaks on every later bump.
+        // Assert the real contract instead: it is the current version, and it
+        // is new enough to carry mobility linkage.
+        XCTAssertEqual(backup.version, BackupDTO.currentVersion)
+        XCTAssertGreaterThanOrEqual(backup.version, BackupDTO.mobilityLinkageVersion)
         XCTAssertEqual(backup.repeatingPlans.count, 1)
         XCTAssertEqual(backup.repeatingPlanRuns.count, 1)
 
@@ -316,7 +321,10 @@ final class RepeatingPlanBackupTests: XCTestCase {
             darkMode: false,
             unitSystem: .metric
         )
-        XCTAssertEqual(backup.version, BackupDTO.mobilityLinkageVersion)
+        // See the note in testV18RoundTripPreservesDefinitionRunOccurrenceUndoAndWorkoutSource:
+        // `create` stamps the current version, not the mobility-linkage constant.
+        XCTAssertEqual(backup.version, BackupDTO.currentVersion)
+        XCTAssertGreaterThanOrEqual(backup.version, BackupDTO.mobilityLinkageVersion)
         XCTAssertEqual(backup.templates.first?.preWorkoutMobilityRoutineName, "Shoulder Warmup")
         XCTAssertEqual(backup.repeatingPlans.first?.slots.first?.postWorkoutMobilityRoutineNameSnapshot, "Shoulder Cooldown")
 

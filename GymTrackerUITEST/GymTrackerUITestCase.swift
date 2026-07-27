@@ -257,9 +257,13 @@ class GymTrackerUITestCase: XCTestCase {
         XCTAssertTrue(template.waitForExistence(timeout: 5))
         template.tap()
 
-        let back = app.navigationBars.buttons.firstMatch
-        XCTAssertTrue(back.waitForExistence(timeout: 5))
-        back.tap()
+        // This is a `.pickerStyle(.navigationLink)` picker in a Form: selecting
+        // a row automatically pops back to the plan form, the same way a
+        // Settings-style picker does. Tapping the nav bar's first button here
+        // (as this helper used to) lands on the *form's* Cancel button instead
+        // and dismisses the whole sheet.
+        let nameField = app.textFields["plan-name-field"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
     }
 
     func activeExerciseCard(_ name: String, in app: XCUIApplication) -> XCUIElement {

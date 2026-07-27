@@ -26,7 +26,6 @@ struct ProgramCatalogDetailView: View {
 
     @State private var errorMessage: String?
     @State private var isShowingSetup = false
-    @State private var didActivate = false
 
     private var payload: ProgramDefinitionPayload? { try? record.payload() }
 
@@ -49,7 +48,7 @@ struct ProgramCatalogDetailView: View {
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("program-catalog-detail")
-        .sheet(isPresented: $isShowingSetup, onDismiss: popIfActivated) {
+        .sheet(isPresented: $isShowingSetup) {
             if let payload {
                 NavigationStack {
                     ProgramActivationSetupView(payload: payload) { configuredPayload, startDate in
@@ -205,15 +204,6 @@ struct ProgramCatalogDetailView: View {
             throw ProgramDefinitionStoreError.persistenceFailed
         }
         errorMessage = nil
-        didActivate = true
-    }
-
-    /// The setup sheet dismisses itself on success. Unwinding this destination
-    /// has to wait for that to finish, or the screen owning the presentation
-    /// disappears while the sheet is still on screen.
-    private func popIfActivated() {
-        guard didActivate else { return }
-        didActivate = false
         onActivated()
     }
 }

@@ -16,6 +16,7 @@ struct RootView: View {
     @State private var workoutVM = WorkoutViewModel()
     @State private var todayPath: [TodayRoute] = []
     @State private var trainPath: [LibraryRoute] = []
+    @State private var trainNavigationID = UUID()
     @State private var nutritionPath: [NutritionRoute] = []
     @State private var progressPath: [ProgressRoute] = []
     @State private var activeWorkoutPath: [ActiveWorkoutRoute] = []
@@ -56,6 +57,7 @@ struct RootView: View {
                 trainRoot
                 .navigationDestination(for: LibraryRoute.self, destination: libraryDestination)
             }
+            .id(trainNavigationID)
             .tabItem {
                 tabLabel(for: .train)
             }
@@ -543,8 +545,13 @@ struct RootView: View {
         case .readyMadePlan(let recordID):
             if let record = programDefinitionRecord(id: recordID) {
                 // Activation lands the user back on Train, where the current-plan
-                // card now names the plan they just started.
-                ProgramCatalogDetailView(record: record) { trainPath.removeAll() }
+                // card now names the plan they just started. Replacing the stack
+                // avoids asking UIKit to pop the detail while its setup sheet is
+                // still completing its dismissal transition.
+                ProgramCatalogDetailView(record: record) {
+                    trainPath.removeAll()
+                    trainNavigationID = UUID()
+                }
             } else {
                 ContentUnavailableView(
                     "Plan unavailable",

@@ -146,6 +146,7 @@ exercise.single--arm-dumbbell-shoulder-press
 exercise.single--arm-landmine-press
 exercise.single--arm-lat-pulldown
 exercise.single--leg-glute-bridge
+exercise.single--leg-hip-hinge
 exercise.sissy-squat
 exercise.skullcrusher
 exercise.smith-machine-bench-press

@@ -130,14 +130,23 @@ final class Exercise {
 }
 
 extension Sequence where Element == Exercise {
-    /// Orders exercises so a name-keyed lookup can safely take the first
-    /// match per name. A custom exercise may legitimately share a built-in
-    /// one's display name (backups preserve both as distinct records via
-    /// their own ids), so system-content resolution — seeded plans,
-    /// templates, relationships, and program imports — must always resolve
-    /// a shared name to the canonical system definition, never a user's
-    /// same-named custom record.
+    /// Returns one exercise per exact display name, preferring the canonical
+    /// system definition when a custom exercise shares that name.
     func uniquedByNamePreferringSystem() -> [Exercise] {
-        sorted { !$0.isCustom && $1.isCustom }
+        var namesInOrder: [String] = []
+        var exerciseByName: [String: Exercise] = [:]
+
+        for exercise in self {
+            if let existing = exerciseByName[exercise.name] {
+                if existing.isCustom && !exercise.isCustom {
+                    exerciseByName[exercise.name] = exercise
+                }
+            } else {
+                namesInOrder.append(exercise.name)
+                exerciseByName[exercise.name] = exercise
+            }
+        }
+
+        return namesInOrder.compactMap { exerciseByName[$0] }
     }
 }

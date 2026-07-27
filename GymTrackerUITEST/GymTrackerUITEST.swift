@@ -593,6 +593,14 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(startWorkout.waitForExistence(timeout: 5))
         startWorkout.tap()
 
+        // This plan day has a linked warmup (Ankle & Foot Mobilization) in the
+        // seed data, so starting it offers an "Optional preparation" dialog
+        // before the workout itself appears. Skip it to reach the workout.
+        let skipWarmup = app.buttons["skip-linked-warmup"].firstMatch
+        if skipWarmup.waitForExistence(timeout: 3) {
+            skipWarmup.tap()
+        }
+
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
         XCTAssertTrue(activeExerciseCard("Goblet Stiletto Squat", in: app).waitForExistence(timeout: 5))
     }
