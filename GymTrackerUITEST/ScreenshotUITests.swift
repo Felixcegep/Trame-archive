@@ -376,6 +376,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             expectedHomeControl: "exercise-relationships"
         )
 
+        XCTAssertTrue(app.descendants(matching: .any)["exercise-identity"].waitForExistence(timeout: 5))
+        saveScreenshot("exercises/17c_Exercise_Detail_Overview")
+
         let variation = app.buttons["exercise-variation-Dumbbell Bench Press"]
         scrollToElement(variation, in: app)
         saveScreenshot("exercises/17a_Exercise_Detail_Variations")

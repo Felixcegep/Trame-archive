@@ -114,7 +114,7 @@ files_for_scene() {
     plan-calendar) echo "plans/13e_Plan_Calendar.png plans/13f_Plan_Calendar_Day.png" ;;
     training-calendar) echo "calendar/21_Training_Calendar.png calendar/21b_Training_Calendar_Reschedule.png calendar/21c_Training_Calendar_Empty.png" ;;
     hidden) echo "exercises/16_Hidden_Exercises.png" ;;
-    exercise-insights) echo "exercises/17a_Exercise_Detail_Variations.png exercises/17b_Exercise_Relationships.png exercises/17_Exercise_Insights.png" ;;
+    exercise-insights) echo "exercises/17c_Exercise_Detail_Overview.png exercises/17a_Exercise_Detail_Variations.png exercises/17b_Exercise_Relationships.png exercises/17_Exercise_Insights.png" ;;
     exercise-form) echo "exercises/18_New_Exercise_Form.png exercises/18b_New_Exercise_Muscles.png exercises/18c_New_Exercise_Advanced.png" ;;
     muscle-balance) echo "history/16_Muscle_Balance.png" ;;
     rotation) echo "plans/22_Repeating_Plan_Detail.png plans/22a_Repeating_Plan_Choose_Another.png plans/22b_Repeating_Plan_Paused.png plans/22c_Repeating_Plan_Undo.png overview/01i_Home_Active_Rotation.png active-workout/08n_Active_Workout_Rotation_Source.png" ;;

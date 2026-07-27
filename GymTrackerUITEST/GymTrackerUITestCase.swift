@@ -362,6 +362,15 @@ class GymTrackerUITestCase: XCTestCase {
         for _ in 0..<6 where !element.isHittable {
             app.swipeUp()
         }
+        // The target may sit above the current offset (or above a previous
+        // scroll position), so sweep back up before failing. Only when the
+        // element already exists: a blind downward swipe on a sheet drags it
+        // toward interactive dismissal instead of scrolling.
+        if !element.isHittable && element.exists {
+            for _ in 0..<8 where !element.isHittable {
+                app.swipeDown()
+            }
+        }
         XCTAssertTrue(element.waitForExistence(timeout: 5), file: file, line: line)
         XCTAssertTrue(element.isHittable, file: file, line: line)
     }
