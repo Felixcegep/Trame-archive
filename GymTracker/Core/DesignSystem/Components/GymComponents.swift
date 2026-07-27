@@ -242,6 +242,87 @@ struct GymEyebrow: View {
     }
 }
 
+/// Read-only tag for a single attribute value. Tinted style carries meaning
+/// (category, difficulty); outlined style is a quiet supporting value.
+struct GymTagChip: View {
+    enum Style {
+        case tinted
+        case outlined
+    }
+
+    let title: String
+    var systemImage: String? = nil
+    var tint: Color = .gymPrimary
+    var style: Style = .tinted
+
+    var body: some View {
+        HStack(spacing: Spacing.xs) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(AppFont.caption2Bold)
+                    .accessibilityHidden(true)
+            }
+            Text(LocalizedStringKey(title))
+                .font(AppFont.captionBold)
+        }
+        .foregroundStyle(style == .tinted ? tint : Color.gymSubduedText)
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.s)
+        .background {
+            if style == .tinted {
+                Capsule().fill(tint.opacity(0.12))
+            } else {
+                Capsule().stroke(Color.gymBorder, lineWidth: 1)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Wrapping row layout for chips and tags. A row breaks when the next subview
+/// would overflow the proposed width.
+struct ChipFlowLayout: Layout {
+    var spacing: CGFloat = Spacing.s
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+
+        return CGSize(width: proposal.width ?? x, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
 /// Emoji-led tile for a small set of mutually exclusive choices. Selection is
 /// carried by a tinted surface plus a heavier border and a checkmark, never by
 /// color alone.
