@@ -43,34 +43,34 @@ struct PlansBrowserView: View {
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var body: some View {
-        List {
-            Section {
-                Picker("Show", selection: $scope) {
-                    ForEach(visibleScopes) { scope in
-                        Text(scope.title).tag(scope)
-                    }
+        // The scope control sits outside the list rather than in its first row:
+        // as a scrolling row it shared the same strip as the searchable drawer
+        // and the two drew on top of each other. Pinned, it also stays reachable
+        // while the list scrolls.
+        VStack(spacing: 0) {
+            Picker("Show", selection: $scope) {
+                ForEach(visibleScopes) { scope in
+                    Text(scope.title).tag(scope)
                 }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("plans-scope")
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
             }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("plans-scope")
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.s)
 
-            switch scope {
-            case .following: followingSections
-            case .mine: mineSections
-            case .readyMade: readyMadeSection
+            List {
+                switch scope {
+                case .following: followingSections
+                case .mine: mineSections
+                case .readyMade: readyMadeSection
+                }
             }
+            .scrollContentBackground(.hidden)
+            .accessibilityIdentifier("plans-browser-list")
         }
-        .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .searchable(
-            text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Search plans"
-        )
+        .searchable(text: $searchText, prompt: "Search plans")
         .navigationTitle("Plans")
-        .accessibilityIdentifier("plans-browser-list")
         .onAppear(perform: selectInitialScope)
         .sheet(isPresented: $isShowingPlanForm) {
             NavigationStack {
