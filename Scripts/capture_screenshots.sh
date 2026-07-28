@@ -55,6 +55,7 @@ Scenes:
   exercise-form          New Exercise form, muscle picker, and advanced details
   muscle-balance        Estimated weekly muscle-group balance
   rotation               Active rotation detail, controls, Home context, and workout source
+  program-path           Plan Path entry, fixed path, reschedule sheet, and rotation path
 
 Options:
   list                   Print every scene and its screenshot paths
@@ -91,6 +92,7 @@ tests_for_scene() {
     exercise-form) echo "testCaptureLibraryFormsScreenshots" ;;
     muscle-balance) echo "testCaptureMuscleBalanceScreenshot" ;;
     rotation) echo "testCaptureRepeatingPlanScreenshots" ;;
+    program-path) echo "ProgramPathScreenshotUITests/testCaptureProgramPathFixedScreenshots ProgramPathScreenshotUITests/testCaptureProgramPathRotationScreenshot" ;;
     *) return 1 ;;
   esac
 }
@@ -118,11 +120,12 @@ files_for_scene() {
     exercise-form) echo "exercises/18_New_Exercise_Form.png exercises/18b_New_Exercise_Muscles.png exercises/18c_New_Exercise_Advanced.png" ;;
     muscle-balance) echo "history/16_Muscle_Balance.png" ;;
     rotation) echo "plans/22_Repeating_Plan_Detail.png plans/22a_Repeating_Plan_Choose_Another.png plans/22b_Repeating_Plan_Paused.png plans/22c_Repeating_Plan_Undo.png overview/01i_Home_Active_Rotation.png active-workout/08n_Active_Workout_Rotation_Source.png" ;;
+    program-path) echo "overview/01j_Home_Program_Path.png plans/13o_Program_Path_Fixed.png plans/13p_Program_Path_Reschedule.png plans/22d_Repeating_Plan_Path.png" ;;
     *) return 1 ;;
   esac
 }
 
-ALL_SCENES="overview pages mobility nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation"
+ALL_SCENES="overview pages mobility nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 
@@ -308,6 +311,11 @@ run_test_list() {
 
   for test_name in "${tests[@]}"; do
     echo "=== [$sim_id] Running test $test_name ==="
+    local test_target="$test_name"
+    local result_label="${test_name//\//-}"
+    if [[ "$test_name" != */* ]]; then
+      test_target="ScreenshotUITests/$test_name"
+    fi
     # Each method receives a fresh UI-test runner. This prevents a failed app
     # relaunch from cancelling unrelated screenshot states in the same scene.
     # Remove the app container too: fixture launches reset SwiftData in-process,
@@ -315,10 +323,10 @@ run_test_list() {
     # independently launched method through SwiftData's query cache.
     xcrun simctl terminate "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
     xcrun simctl uninstall "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
-    rm -rf "$rb_dir/$CAPTURE_RUN_ID-$test_name.xcresult"
+    rm -rf "$rb_dir/$CAPTURE_RUN_ID-$result_label.xcresult"
     xcodebuild "${xcode_args[@]}" \
-      -resultBundlePath "$rb_dir/$CAPTURE_RUN_ID-$test_name.xcresult" \
-      "-only-testing:GymTrackerUITEST/ScreenshotUITests/$test_name" \
+      -resultBundlePath "$rb_dir/$CAPTURE_RUN_ID-$result_label.xcresult" \
+      "-only-testing:GymTrackerUITEST/$test_target" \
       test-without-building
   done
 }
