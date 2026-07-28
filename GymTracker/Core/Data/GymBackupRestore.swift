@@ -164,7 +164,15 @@ extension BackupDTO {
             restoreCtx.context.insert(ExerciseRelationship(
                 sourceExercise: source,
                 targetExercise: target,
-                type: type
+                type: type,
+                // Absent provenance stays absent rather than being upgraded to
+                // "reviewed" on restore: `resolvedProvenance` reads a nil as
+                // `systemUnreviewed`, which is the honest default.
+                provenance: relationshipDTO.provenance.flatMap(SubstitutionProvenance.init(rawValue:)),
+                rationaleCode: relationshipDTO.rationaleCode,
+                appliesToGoals: (relationshipDTO.appliesToGoals ?? []).compactMap(PlanGoal.init(rawValue:)),
+                appliesToRoles: (relationshipDTO.appliesToRoles ?? []).compactMap(ExerciseRole.init(rawValue:)),
+                reviewVersion: relationshipDTO.reviewVersion
             ))
         }
     }
@@ -693,6 +701,23 @@ extension BackupDTO {
             entry.selectedSubstituteExerciseIDSnapshot = entryDTO.selectedSubstituteExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
             entry.substitutionReason = entryDTO.substitutionReason
             entry.substitutionSharesProgressionState = entryDTO.substitutionSharesProgressionState ?? false
+            entry.substitutionReasonCode = entryDTO.substitutionReasonCode
+            entry.substitutionSuitabilityRaw = entryDTO.substitutionSuitability
+            entry.substitutionComparabilityRaw = entryDTO.substitutionComparability
+            entry.substitutionProgressionPolicyRaw = entryDTO.substitutionProgressionPolicy
+            entry.substitutionScopeRaw = entryDTO.substitutionScope
+            entry.substitutionEvidenceConfidenceRaw = entryDTO.substitutionEvidenceConfidence
+            entry.substitutionEvaluationVersion = entryDTO.substitutionEvaluationVersion
+            entry.substitutionEvaluationData = entryDTO.substitutionEvaluationData
+            // The invariant restore must not break: a payload whose policy and
+            // Boolean disagree (hand-edited, or written by a build with a bug)
+            // is resolved in favor of the conservative reading. Shared
+            // progression is only ever restored when the policy explicitly
+            // says so.
+            if let policy = entryDTO.substitutionProgressionPolicy
+                .flatMap(ProgressionTransferPolicy.init(rawValue:)) {
+                entry.substitutionSharesProgressionState = policy.sharesProgressionState
+            }
             entry.variationSourceExerciseIDSnapshot = entryDTO.variationSourceExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
             entry.variationSelectedExerciseIDSnapshot = entryDTO.variationSelectedExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
             entry.prescriptionDefinitionData = entryDTO.prescriptionDefinitionData

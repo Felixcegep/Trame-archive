@@ -45,7 +45,12 @@ extension BackupDTO {
             return ExerciseRelationshipDTO(
                 sourceExerciseName: source.name,
                 targetExerciseName: target.name,
-                type: relationship.type.rawValue
+                type: relationship.type.rawValue,
+                provenance: relationship.provenanceRaw,
+                rationaleCode: relationship.rationaleCode,
+                appliesToGoals: relationship.appliesToGoalsRaw.isEmpty ? nil : relationship.appliesToGoalsRaw,
+                appliesToRoles: relationship.appliesToRolesRaw.isEmpty ? nil : relationship.appliesToRolesRaw,
+                reviewVersion: relationship.reviewVersion
             )
         }
 
@@ -255,6 +260,14 @@ extension BackupDTO {
                         selectedSubstituteExerciseIDSnapshot: exercise.selectedSubstituteExerciseIDSnapshot?.uuidString,
                         substitutionReason: exercise.substitutionReason,
                         substitutionSharesProgressionState: exercise.substitutionSharesProgressionState,
+                        substitutionReasonCode: exercise.substitutionReasonCode,
+                        substitutionSuitability: exercise.substitutionSuitabilityRaw,
+                        substitutionComparability: exercise.substitutionComparabilityRaw,
+                        substitutionProgressionPolicy: exercise.substitutionProgressionPolicyRaw,
+                        substitutionScope: exercise.substitutionScopeRaw,
+                        substitutionEvidenceConfidence: exercise.substitutionEvidenceConfidenceRaw,
+                        substitutionEvaluationVersion: exercise.substitutionEvaluationVersion,
+                        substitutionEvaluationData: exercise.substitutionEvaluationData,
                         variationSourceExerciseIDSnapshot: exercise.variationSourceExerciseIDSnapshot?.uuidString,
                         variationSelectedExerciseIDSnapshot: exercise.variationSelectedExerciseIDSnapshot?.uuidString,
                         prescriptionDefinitionData: exercise.prescriptionDefinitionData,

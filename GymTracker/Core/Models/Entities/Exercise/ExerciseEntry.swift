@@ -72,8 +72,30 @@ final class ExerciseEntry{
     var originalExerciseIDSnapshot: UUID?
     var originalExerciseNameSnapshot: String?
     var selectedSubstituteExerciseIDSnapshot: UUID?
+    /// Legacy unstructured marker. Kept populated for backward compatibility
+    /// with pre-v20 backups and existing tests, but it is no longer the
+    /// decision of record — `substitutionReasonCode` is. Never displayed.
     var substitutionReason: String?
+    /// The value both progression services read
+    /// (`ActiveWorkoutProgressionService`, `PlanProgressionEvaluationService`).
+    /// It is derived from `substitutionProgressionPolicy` and must only ever be
+    /// written through `applySubstitutionDecision(_:)`, which keeps the two in
+    /// lockstep. Writing it directly can desynchronize the persisted decision
+    /// from its explanation.
     var substitutionSharesProgressionState: Bool = false
+    // MARK: Decision-aware substitution evidence
+    /// `SubstitutionReason` raw value.
+    var substitutionReasonCode: String?
+    var substitutionSuitabilityRaw: String?
+    var substitutionComparabilityRaw: String?
+    var substitutionProgressionPolicyRaw: String?
+    var substitutionScopeRaw: String?
+    var substitutionEvidenceConfidenceRaw: String?
+    /// The rule-set version that produced the verdict, so a later rule change
+    /// never retroactively reinterprets this decision.
+    var substitutionEvaluationVersion: Int?
+    /// Encoded `SubstitutionEvaluationSnapshot`.
+    var substitutionEvaluationData: Data?
     /// When a progression variation resolves to a different exercise, retain
     /// both identities in the performed snapshot. The selected exercise is
     /// what the user performed; the source identity is what the program
@@ -154,6 +176,14 @@ final class ExerciseEntry{
         self.selectedSubstituteExerciseIDSnapshot = nil
         self.substitutionReason = nil
         self.substitutionSharesProgressionState = false
+        self.substitutionReasonCode = nil
+        self.substitutionSuitabilityRaw = nil
+        self.substitutionComparabilityRaw = nil
+        self.substitutionProgressionPolicyRaw = nil
+        self.substitutionScopeRaw = nil
+        self.substitutionEvidenceConfidenceRaw = nil
+        self.substitutionEvaluationVersion = nil
+        self.substitutionEvaluationData = nil
         self.variationSourceExerciseIDSnapshot = nil
         self.variationSelectedExerciseIDSnapshot = nil
         normalizeSetOrder()
@@ -303,6 +333,71 @@ final class ExerciseEntry{
         recommendationRepCeiling = nil
         recommendationCompletedSets = nil
         recommendationPriorWorkoutDate = nil
+    }
+
+    // MARK: - Decision-aware substitution
+
+    var substitutionReasonValue: SubstitutionReason? {
+        substitutionReasonCode.flatMap(SubstitutionReason.init(rawValue:))
+    }
+
+    var substitutionSuitability: SubstitutionSuitability? {
+        substitutionSuitabilityRaw.flatMap(SubstitutionSuitability.init(rawValue:))
+    }
+
+    var substitutionComparability: SubstitutionComparability? {
+        substitutionComparabilityRaw.flatMap(SubstitutionComparability.init(rawValue:))
+    }
+
+    /// Legacy substituted rows (persisted before this field existed) read as
+    /// `separate`, which matches the `false` Boolean they already carry.
+    var substitutionProgressionPolicy: ProgressionTransferPolicy? {
+        guard let raw = substitutionProgressionPolicyRaw else {
+            return isSubstituted ? .separate : nil
+        }
+        return ProgressionTransferPolicy(rawValue: raw)
+    }
+
+    var substitutionScope: SubstitutionScope? {
+        substitutionScopeRaw.flatMap(SubstitutionScope.init(rawValue:))
+    }
+
+    var substitutionEvidenceConfidence: SubstitutionEvidenceConfidence? {
+        substitutionEvidenceConfidenceRaw.flatMap(SubstitutionEvidenceConfidence.init(rawValue:))
+    }
+
+    var substitutionEvaluation: SubstitutionEvaluationSnapshot? {
+        SubstitutionEvaluationSnapshot.decoded(from: substitutionEvaluationData)
+    }
+
+    var isSubstituted: Bool { originalExerciseIDSnapshot != nil }
+
+    /// The **only** supported way to record a substitution decision.
+    ///
+    /// It exists so the persisted Boolean the progression services read can
+    /// never drift from the policy that explains it. The invariant it
+    /// guarantees, in all three directions:
+    ///
+    /// - `.continueShared`  → `substitutionSharesProgressionState == true`
+    /// - `.separate`        → `false`
+    /// - `.undetermined`    → `false` (unknown never silently becomes yes)
+    ///
+    /// `SubstitutionDecision`'s own initializer has already downgraded a
+    /// `.continueShared` policy that the evaluation cannot support, so a
+    /// non-`direct` comparability can never reach the `true` branch here.
+    func applySubstitutionDecision(_ decision: SubstitutionDecision) {
+        substitutionReasonCode = decision.reason.rawValue
+        substitutionScopeRaw = decision.scope.rawValue
+        substitutionProgressionPolicyRaw = decision.progressionPolicy.rawValue
+        substitutionSharesProgressionState = decision.progressionPolicy.sharesProgressionState
+        substitutionSuitabilityRaw = decision.evaluation.suitability.rawValue
+        substitutionComparabilityRaw = decision.evaluation.comparability.rawValue
+        substitutionEvidenceConfidenceRaw = decision.evaluation.confidence.rawValue
+        substitutionEvaluationVersion = decision.evaluation.version
+        substitutionEvaluationData = decision.evaluation.encoded()
+        // Retained so a pre-v20 reader still sees a non-nil marker. Stable and
+        // non-localized on purpose: it is provenance, not display text.
+        substitutionReason = "structured:\(decision.reason.rawValue)"
     }
 
     func copyLastSet() {

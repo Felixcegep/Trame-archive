@@ -43,6 +43,14 @@ nonisolated struct ExerciseRelationshipDTO: Codable {
     let sourceExerciseName: String
     let targetExerciseName: String
     let type: String
+    /// Curation provenance and constraints, added in
+    /// `BackupDTO.decisionAwareSubstitutionVersion`. All optional so pre-v20
+    /// payloads restore unchanged and read as `systemUnreviewed`.
+    var provenance: String? = nil
+    var rationaleCode: String? = nil
+    var appliesToGoals: [String]? = nil
+    var appliesToRoles: [String]? = nil
+    var reviewVersion: Int? = nil
 }
 
 nonisolated struct TemplateExerciseDTO: Codable {
@@ -223,6 +231,19 @@ nonisolated struct ExerciseEntryDTO: Codable {
     var selectedSubstituteExerciseIDSnapshot: String? = nil
     var substitutionReason: String? = nil
     var substitutionSharesProgressionState: Bool? = nil
+    /// Structured substitution decision evidence, added in
+    /// `BackupDTO.decisionAwareSubstitutionVersion`. All optional: a pre-v20
+    /// backup restores with every field absent, which reads as "substituted
+    /// without recorded decision evidence" and keeps the legacy Boolean
+    /// authoritative for progression.
+    var substitutionReasonCode: String? = nil
+    var substitutionSuitability: String? = nil
+    var substitutionComparability: String? = nil
+    var substitutionProgressionPolicy: String? = nil
+    var substitutionScope: String? = nil
+    var substitutionEvidenceConfidence: String? = nil
+    var substitutionEvaluationVersion: Int? = nil
+    var substitutionEvaluationData: Data? = nil
     var variationSourceExerciseIDSnapshot: String? = nil
     var variationSelectedExerciseIDSnapshot: String? = nil
     var prescriptionDefinitionData: Data? = nil
@@ -972,7 +993,17 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     /// snapshotted at recommendation time. v1–v18 restore with all three
     /// fields absent, which reads as "resolved without a recorded outcome."
     static let progressionReceiptVersion = 19
-    static let currentVersion = progressionReceiptVersion
+    /// Adds decision-aware substitution evidence: the structured replacement
+    /// reason, the separate suitability and comparability verdicts, the
+    /// explicit progression-transfer policy, the evaluation rule version, the
+    /// confidence/missing-evidence state, the today-only versus future-plan
+    /// scope, and the encoded evaluation snapshot — plus curation provenance
+    /// and optional goal/role constraints on exercise relationships. v1–v19
+    /// restore with every field absent; the legacy
+    /// `substitutionSharesProgressionState` Boolean stays authoritative for
+    /// progression in that case, so no old backup changes meaning.
+    static let decisionAwareSubstitutionVersion = 20
+    static let currentVersion = decisionAwareSubstitutionVersion
 
     init(
         version: Int,
