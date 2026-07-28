@@ -429,6 +429,9 @@ extension BackupDTO {
                 guard PlanWorkoutStatus(rawValue: progress.status) != nil else {
                     throw BackupValidationError.invalidIdentifier("plan workout progress status")
                 }
+                guard progress.lastRescheduledAt == nil || progress.originalScheduledDate != nil else {
+                    throw BackupValidationError.invalidIdentifier("plan workout progress schedule evidence")
+                }
                 if let planID = run.planID {
                     guard planIDByPlannedWorkout[progress.plannedWorkoutID] == planID else {
                         throw BackupValidationError.missingPlannedWorkout(progress.plannedWorkoutID)

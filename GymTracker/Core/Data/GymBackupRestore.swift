@@ -911,6 +911,8 @@ extension BackupDTO {
                     scheduledDate: progressDTO.scheduledDate
                 )
                 progress.id = try requiredUUID(progressDTO.id, named: "plan workout progress")
+                progress.originalScheduledDate = progressDTO.originalScheduledDate
+                progress.lastRescheduledAt = progressDTO.lastRescheduledAt
                 progress.status = PlanWorkoutStatus(rawValue: progressDTO.status) ?? .upcoming
                 progress.startedAt = progressDTO.startedAt
                 progress.completedAt = progressDTO.completedAt

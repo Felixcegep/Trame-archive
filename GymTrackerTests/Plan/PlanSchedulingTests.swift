@@ -73,6 +73,226 @@ final class PlanSchedulingTests: XCTestCase {
         XCTAssertNil(progress.completedWorkout)
     }
 
+    func testNewRunCapturesOriginalScheduleDate() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(
+            PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000))
+        )
+
+        for progress in run.orderedWorkoutProgress {
+            XCTAssertEqual(progress.originalScheduledDate, progress.scheduledDate)
+            XCTAssertNil(progress.lastRescheduledAt)
+        }
+    }
+
+    func testExplicitReschedulePreservesOriginAndRecordsEvidence() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(
+            PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000))
+        )
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let originalDate = try XCTUnwrap(progress.originalScheduledDate)
+        let movedDate = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 3, to: originalDate))
+
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: movedDate, in: run))
+        XCTAssertEqual(progress.originalScheduledDate, originalDate)
+        XCTAssertEqual(progress.scheduledDate, Calendar.current.startOfDay(for: movedDate))
+        XCTAssertNotNil(progress.lastRescheduledAt)
+
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: originalDate, in: run))
+        XCTAssertEqual(progress.originalScheduledDate, originalDate)
+        XCTAssertEqual(progress.scheduledDate, originalDate)
+        XCTAssertNotNil(progress.lastRescheduledAt)
+    }
+
+    func testFirstSchedulingOfUnscheduledOccurrenceEstablishesOriginWithoutRescheduleEvidence() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let target = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: 1_800_000_000))
+
+        progress.scheduledDate = nil
+        progress.originalScheduledDate = nil
+        progress.lastRescheduledAt = nil
+
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: target, in: run))
+        XCTAssertEqual(progress.originalScheduledDate, target)
+        XCTAssertEqual(progress.scheduledDate, target)
+        XCTAssertNil(progress.lastRescheduledAt)
+    }
+
+    func testReschedulingToCurrentDayDoesNotFabricateEvidence() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let scheduledDate = try XCTUnwrap(progress.scheduledDate)
+
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: scheduledDate, in: run))
+        XCTAssertNil(progress.lastRescheduledAt)
+        XCTAssertEqual(progress.originalScheduledDate, progress.scheduledDate)
+    }
+
+    func testUnschedulePreservesScheduleEvidence() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(PlanCoordinator.startRun(for: plan))
+        context.insert(run)
+        try context.save()
+
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let originalDate = try XCTUnwrap(progress.originalScheduledDate)
+        let movedDate = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 2, to: originalDate))
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: movedDate, in: run, using: context))
+        let rescheduledAt = try XCTUnwrap(progress.lastRescheduledAt)
+
+        XCTAssertTrue(PlanCoordinator.unschedule(progress, in: run, using: context))
+        XCTAssertNil(progress.scheduledDate)
+        XCTAssertEqual(progress.originalScheduledDate, originalDate)
+        XCTAssertEqual(progress.lastRescheduledAt, rescheduledAt)
+    }
+
+    func testBulkReschedulePreservesOriginsAndSharesEvidenceTimestamp() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(
+            PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000))
+        )
+        context.insert(run)
+        try context.save()
+
+        let sessions = run.orderedWorkoutProgress
+        let originalDates = sessions.map(\.originalScheduledDate)
+        let firstDate = try XCTUnwrap(sessions.first?.scheduledDate)
+        let movedDate = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 4, to: firstDate))
+
+        XCTAssertTrue(PlanCoordinator.rescheduleRemaining(from: sessions[0], to: movedDate, in: run, using: context))
+        XCTAssertEqual(sessions.map(\.originalScheduledDate), originalDates)
+        let timestamps = try sessions.map { try XCTUnwrap($0.lastRescheduledAt) }
+        XCTAssertEqual(Set(timestamps).count, 1)
+    }
+
+    func testV21BackupRoundTripPreservesScheduleEvidence() throws {
+        let source = try makeContext()
+        let plan = try makeScheduledPlan(in: source)
+        let run = try XCTUnwrap(
+            PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000))
+        )
+        source.insert(run)
+        try source.save()
+
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let originalDate = try XCTUnwrap(progress.originalScheduledDate)
+        let movedDate = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 2, to: originalDate))
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: movedDate, in: run, using: source))
+        let rescheduledAt = try XCTUnwrap(progress.lastRescheduledAt)
+
+        let backup = try BackupDTO.create(from: source, restTimer: 90, darkMode: false, unitSystem: .metric)
+        XCTAssertEqual(backup.version, BackupDTO.planScheduleEvidenceVersion)
+        let backupProgress = try XCTUnwrap(backup.planRuns.first?.workoutProgress.first)
+        XCTAssertEqual(backupProgress.originalScheduledDate, originalDate)
+        XCTAssertEqual(backupProgress.lastRescheduledAt, rescheduledAt)
+
+        let restored = try makeContext()
+        try backup.restore(to: restored)
+        let restoredProgress = try XCTUnwrap(
+            restored.fetch(FetchDescriptor<PlanRun>()).first?.orderedWorkoutProgress.first
+        )
+        XCTAssertEqual(restoredProgress.originalScheduledDate, originalDate)
+        XCTAssertEqual(restoredProgress.lastRescheduledAt, rescheduledAt)
+        XCTAssertEqual(restoredProgress.scheduledDate, Calendar.current.startOfDay(for: movedDate))
+    }
+
+    func testV20BackupWithoutScheduleEvidenceRestoresNilDefaults() throws {
+        let source = try makeContext()
+        let plan = try makeScheduledPlan(in: source)
+        let run = try XCTUnwrap(
+            PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000))
+        )
+        source.insert(run)
+        try source.save()
+
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let originalDate = try XCTUnwrap(progress.originalScheduledDate)
+        let movedDate = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 2, to: originalDate))
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: movedDate, in: run, using: source))
+
+        let backup = try BackupDTO.create(from: source, restTimer: 90, darkMode: false, unitSystem: .metric)
+        var legacyPayload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(backup)) as? [String: Any]
+        )
+        legacyPayload["version"] = BackupDTO.decisionAwareSubstitutionVersion
+        var planRuns = try XCTUnwrap(legacyPayload["planRuns"] as? [[String: Any]])
+        var firstRun = try XCTUnwrap(planRuns.first)
+        var workoutProgress = try XCTUnwrap(firstRun["workoutProgress"] as? [[String: Any]])
+        for index in workoutProgress.indices {
+            workoutProgress[index].removeValue(forKey: "originalScheduledDate")
+            workoutProgress[index].removeValue(forKey: "lastRescheduledAt")
+        }
+        firstRun["workoutProgress"] = workoutProgress
+        planRuns[0] = firstRun
+        legacyPayload["planRuns"] = planRuns
+
+        let legacy = try JSONDecoder().decode(
+            BackupDTO.self,
+            from: JSONSerialization.data(withJSONObject: legacyPayload)
+        )
+        XCTAssertEqual(legacy.version, BackupDTO.decisionAwareSubstitutionVersion)
+        let legacyProgress = try XCTUnwrap(legacy.planRuns.first?.workoutProgress.first)
+        XCTAssertNil(legacyProgress.originalScheduledDate)
+        XCTAssertNil(legacyProgress.lastRescheduledAt)
+
+        let restored = try makeContext()
+        try legacy.restore(to: restored)
+        let restoredProgress = try XCTUnwrap(
+            restored.fetch(FetchDescriptor<PlanRun>()).first?.orderedWorkoutProgress.first
+        )
+        XCTAssertEqual(restoredProgress.scheduledDate, Calendar.current.startOfDay(for: movedDate))
+        XCTAssertNil(restoredProgress.originalScheduledDate)
+        XCTAssertNil(restoredProgress.lastRescheduledAt)
+    }
+
+    func testV21BackupRejectsRescheduleTimestampWithoutScheduleOrigin() throws {
+        let source = try makeContext()
+        let plan = try makeScheduledPlan(in: source)
+        let run = try XCTUnwrap(
+            PlanCoordinator.startRun(for: plan, startDate: Date(timeIntervalSince1970: 1_700_000_000))
+        )
+        source.insert(run)
+        try source.save()
+
+        let progress = try XCTUnwrap(run.orderedWorkoutProgress.first)
+        let originalDate = try XCTUnwrap(progress.originalScheduledDate)
+        let movedDate = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 2, to: originalDate))
+        XCTAssertTrue(PlanCoordinator.reschedule(progress, to: movedDate, in: run, using: source))
+
+        let backup = try BackupDTO.create(from: source, restTimer: 90, darkMode: false, unitSystem: .metric)
+        var payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(backup)) as? [String: Any]
+        )
+        var planRuns = try XCTUnwrap(payload["planRuns"] as? [[String: Any]])
+        var firstRun = try XCTUnwrap(planRuns.first)
+        var workoutProgress = try XCTUnwrap(firstRun["workoutProgress"] as? [[String: Any]])
+        workoutProgress[0].removeValue(forKey: "originalScheduledDate")
+        firstRun["workoutProgress"] = workoutProgress
+        planRuns[0] = firstRun
+        payload["planRuns"] = planRuns
+
+        let malformed = try JSONDecoder().decode(
+            BackupDTO.self,
+            from: JSONSerialization.data(withJSONObject: payload)
+        )
+        let restored = try makeContext()
+        XCTAssertThrowsError(try malformed.restore(to: restored)) { error in
+            guard case .invalidIdentifier("plan workout progress schedule evidence") = error as? BackupValidationError else {
+                return XCTFail("Expected invalid schedule-evidence validation, got \(error)")
+            }
+        }
+    }
+
     func testDuplicateScheduledDatesFallBackToPlanOrder() throws {
         let context = try makeContext()
         let plan = try makeScheduledPlan(in: context)

@@ -537,7 +537,12 @@ nonisolated struct PlanWorkoutProgressDTO: Codable {
     let weekIndex: Int
     var sourceWeekIndex: Int? = nil
     let workoutIndex: Int
+    /// v21 schedule-origin evidence. Legacy backups decode both values as
+    /// `nil`, which means reschedule provenance is unavailable rather than
+    /// inferred from mutable plan definitions.
+    var originalScheduledDate: Date? = nil
     let scheduledDate: Date?
+    var lastRescheduledAt: Date? = nil
     let status: String
     let startedAt: Date?
     let completedAt: Date?
@@ -1002,7 +1007,11 @@ nonisolated struct BackupDTO: Codable {
     /// `substitutionSharesProgressionState` Boolean stays authoritative for
     /// progression in that case, so no old backup changes meaning.
     static let decisionAwareSubstitutionVersion = 20
-    static let currentVersion = decisionAwareSubstitutionVersion
+    /// Adds immutable original schedule dates and explicit reschedule
+    /// timestamps to plan-run progress. v1–v20 restore with both values
+    /// absent, so legacy schedule provenance is never guessed.
+    static let planScheduleEvidenceVersion = 21
+    static let currentVersion = planScheduleEvidenceVersion
 
     init(
         version: Int,
