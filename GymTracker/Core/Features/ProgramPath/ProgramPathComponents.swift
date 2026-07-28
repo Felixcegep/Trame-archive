@@ -112,6 +112,7 @@ struct ProgramPathCurrentSession: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("program-path-current-session")
 
             if let primaryAction {
                 Button(action: primaryAction.perform) {
@@ -124,7 +125,6 @@ struct ProgramPathCurrentSession: View {
             }
         }
         .padding(.vertical, Spacing.xs)
-        .accessibilityIdentifier("program-path-current-session")
     }
 }
 

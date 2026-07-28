@@ -13,6 +13,7 @@ struct CurrentPlanCard: View {
     @Query private var repeatingPlanRuns: [RepeatingPlanRun]
 
     let onOpenPlan: (CurrentPlanSummary.Target) -> Void
+    let onOpenProgramPath: (ProgramPathRoute) -> Void
     let onChoosePlan: () -> Void
     /// Resuming can collide with another guided source, so it routes back to the
     /// root's conflict-aware handlers. Pausing and stopping only ever reduce the
@@ -208,7 +209,9 @@ private extension CurrentPlanCard {
     /// still opens the plan: the path answers "how far along am I", which is a
     /// different question from "what is this plan".
     func programPathLink(_ route: ProgramPathRoute) -> some View {
-        NavigationLink(value: route) {
+        Button {
+            onOpenProgramPath(route)
+        } label: {
             HStack(spacing: Spacing.s) {
                 Label(ProgramPathPresentation.entryTitle, systemImage: AppIcon.routine)
                     .font(AppFont.subheadlineSemibold)

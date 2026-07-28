@@ -9,6 +9,7 @@ struct PlanDetailView: View {
     let onStartPlan: (WorkoutPlan, Date) -> Void
     let onResumePlan: (PlanRun) -> Void
     let onStartTestDay: (PlanRun) -> Void
+    let onOpenProgramPath: (ProgramPathRoute) -> Void
 
     @State private var isShowingStartDate = false
     @State private var isShowingArchiveConfirmation = false
@@ -246,7 +247,9 @@ struct PlanDetailView: View {
     /// because both answer questions about this run rather than about the
     /// reusable plan the rest of the screen describes.
     private func programPathLink(for run: PlanRun) -> some View {
-        NavigationLink(value: ProgramPathRoute.fixedRun(run.id)) {
+        Button {
+            onOpenProgramPath(.fixedRun(run.id))
+        } label: {
             Label(ProgramPathPresentation.entryTitle, systemImage: AppIcon.routine)
         }
         .accessibilityIdentifier("view-plan-program-path")

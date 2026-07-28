@@ -48,7 +48,6 @@ struct RootView: View {
             NavigationStack(path: $todayPath) {
                 todayRoot
                 .navigationDestination(for: TodayRoute.self, destination: todayDestination)
-                .navigationDestination(for: ProgramPathRoute.self, destination: programPathDestination)
             }
             .tabItem {
                 tabLabel(for: .today)
@@ -58,7 +57,6 @@ struct RootView: View {
             NavigationStack(path: $trainPath) {
                 trainRoot
                 .navigationDestination(for: LibraryRoute.self, destination: libraryDestination)
-                .navigationDestination(for: ProgramPathRoute.self, destination: programPathDestination)
             }
             .id(trainNavigationID)
             .tabItem {
@@ -461,6 +459,7 @@ struct RootView: View {
     private var trainRoot: some View {
         FolderView(
             onOpenRoute: { trainPath.append($0) },
+            onOpenProgramPath: { trainPath.append(.programPath($0)) },
             onResumePlan: resumeFixedPlan,
             onPauseRepeatingPlan: pauseRepeatingPlan,
             onResumeRepeatingPlan: resumeRepeatingPlan,
@@ -496,7 +495,8 @@ struct RootView: View {
                     onStartPlannedWorkout: startPlannedWorkout,
                     onStartPlan: startFixedPlan,
                     onResumePlan: resumeFixedPlan,
-                    onStartTestDay: startFixedPlanTestDay
+                    onStartTestDay: startFixedPlanTestDay,
+                    onOpenProgramPath: { todayPath.append(.programPath($0)) }
                 )
             } else {
                 ContentUnavailableView(
@@ -518,7 +518,8 @@ struct RootView: View {
                     onSkipRepeatingWorkout: skipRepeatingWorkout,
                     onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
                     onRestartRepeatingPlan: restartRepeatingPlan,
-                    onEndRepeatingPlan: endRepeatingPlan
+                    onEndRepeatingPlan: endRepeatingPlan,
+                    onOpenProgramPath: { todayPath.append(.programPath($0)) }
                 )
             } else {
                 ContentUnavailableView(
@@ -527,6 +528,8 @@ struct RootView: View {
                     description: Text("This rotation may have been removed or replaced.")
                 )
             }
+        case .programPath(let route):
+            programPathDestination(route)
         }
     }
 
@@ -588,7 +591,8 @@ struct RootView: View {
                     onStartPlannedWorkout: startPlannedWorkout,
                     onStartPlan: startFixedPlan,
                     onResumePlan: resumeFixedPlan,
-                    onStartTestDay: startFixedPlanTestDay
+                    onStartTestDay: startFixedPlanTestDay,
+                    onOpenProgramPath: { trainPath.append(.programPath($0)) }
                 )
             } else {
                 ContentUnavailableView(
@@ -610,7 +614,8 @@ struct RootView: View {
                     onSkipRepeatingWorkout: skipRepeatingWorkout,
                     onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
                     onRestartRepeatingPlan: restartRepeatingPlan,
-                    onEndRepeatingPlan: endRepeatingPlan
+                    onEndRepeatingPlan: endRepeatingPlan,
+                    onOpenProgramPath: { trainPath.append(.programPath($0)) }
                 )
             } else {
                 ContentUnavailableView(
@@ -641,6 +646,8 @@ struct RootView: View {
             }
         case .mobility:
             MobilityLibraryView(onStart: startMobility)
+        case .programPath(let route):
+            programPathDestination(route)
         }
     }
 

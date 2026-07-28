@@ -1,12 +1,6 @@
 import SwiftData
 import SwiftUI
 
-/// A pushed completed workout. Kept as its own route type so the path can open
-/// History in place without registering a destination for a bare `UUID`.
-struct ProgramPathCompletedWorkoutRoute: Hashable {
-    let workoutID: UUID
-}
-
 /// The Plan Path screen: where you are in the plan you are following, what it
 /// is asking for next, and everything it has already recorded.
 ///
@@ -34,9 +28,6 @@ struct ProgramPathView: View {
         content
             .navigationTitle(ProgramPathPresentation.screenTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(for: ProgramPathCompletedWorkoutRoute.self) { route in
-                ProgramPathCompletedWorkoutDestination(workoutID: route.workoutID)
-            }
             .sheet(item: $reschedulingProgress) { progress in
                 PlanRescheduleSheet(
                     workoutName: progress.plannedWorkoutName,
@@ -310,7 +301,7 @@ private extension ProgramPathView {
 
 /// Resolves a completed workout by identity so the path can push History
 /// without carrying a model object through navigation state.
-private struct ProgramPathCompletedWorkoutDestination: View {
+struct ProgramPathCompletedWorkoutDestination: View {
     let workoutID: UUID
 
     @Query private var workouts: [Workout]

@@ -40,6 +40,7 @@ enum TodayRoute: Hashable {
     /// pausing or stopping a plan does not require hunting through the Train tab.
     case plan(UUID)
     case repeatingPlan(UUID)
+    case programPath(ProgramPathRoute)
 }
 
 enum NutritionRoute: Hashable {

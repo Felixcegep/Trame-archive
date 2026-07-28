@@ -93,7 +93,9 @@ struct ProgramPathWeekSection: View {
 
         switch session.action {
         case .openCompletedWorkout(let workoutID)?:
-            NavigationLink(value: ProgramPathCompletedWorkoutRoute(workoutID: workoutID)) {
+            NavigationLink {
+                ProgramPathCompletedWorkoutDestination(workoutID: workoutID)
+            } label: {
                 content
             }
             .accessibilityIdentifier("program-path-session-completed")

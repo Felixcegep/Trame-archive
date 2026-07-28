@@ -199,7 +199,9 @@ struct RotationOccurrenceRow: View {
 
     var body: some View {
         if let workoutID = occurrence.completedWorkoutID {
-            NavigationLink(value: ProgramPathCompletedWorkoutRoute(workoutID: workoutID)) {
+            NavigationLink {
+                ProgramPathCompletedWorkoutDestination(workoutID: workoutID)
+            } label: {
                 content
             }
             .accessibilityIdentifier("program-path-occurrence-completed")

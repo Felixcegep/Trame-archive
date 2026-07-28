@@ -24,6 +24,7 @@ struct FolderView: View {
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     let onOpenRoute: (LibraryRoute) -> Void
+    let onOpenProgramPath: (ProgramPathRoute) -> Void
     let onResumePlan: (PlanRun) -> Void
     let onPauseRepeatingPlan: (RepeatingPlanRun) -> Void
     let onResumeRepeatingPlan: (RepeatingPlanRun) -> Void
@@ -138,6 +139,7 @@ struct FolderView: View {
                 onOpenPlan: { target in
                     onOpenRoute(target.isRepeating ? .repeatingPlan(target.planID) : .plan(target.planID))
                 },
+                onOpenProgramPath: onOpenProgramPath,
                 onChoosePlan: { onOpenRoute(.plans) },
                 onResumePlan: onResumePlan,
                 onPauseRepeatingPlan: onPauseRepeatingPlan,
@@ -496,4 +498,5 @@ enum LibraryRoute: Hashable {
     case workoutTemplate(UUID)
     case workoutCollection(UUID)
     case exercise(UUID)
+    case programPath(ProgramPathRoute)
 }
