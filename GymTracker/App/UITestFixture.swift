@@ -630,7 +630,13 @@ enum UITestFixture: String {
 
         let freeWorkout = Workout(name: "Accessory Work", endTime: Date.now.addingTimeInterval(-1_800))
         freeWorkout.startTime = Date.now.addingTimeInterval(-2_700)
-        let mobility = MobilitySession(nameSnapshot: "Hip Mobility", startTime: Date.now.addingTimeInterval(-5_400))
+        let midday = Calendar.current.date(
+            bySettingHour: 12,
+            minute: 0,
+            second: 0,
+            of: today
+        ) ?? today
+        let mobility = MobilitySession(nameSnapshot: "Hip Mobility", startTime: midday)
         mobility.status = .completed
         let meal = LoggedMeal(day: .today, nameSnapshot: "Calendar Lunch")
         meal.items = [LoggedMealItem(

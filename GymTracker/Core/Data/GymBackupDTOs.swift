@@ -929,8 +929,7 @@ nonisolated struct RepeatingPlanRunDTO: Codable {
     let occurrences: [RepeatingPlanOccurrenceDTO]
 }
 
-nonisolated struct BackupDTO: Codable, Identifiable {
-    var id: UUID { UUID() }
+nonisolated struct BackupDTO: Codable {
     let version: Int
     let preferences: PreferencesDTO
     let exercises: [ExerciseTemplateDTO]

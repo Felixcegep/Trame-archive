@@ -220,9 +220,14 @@ struct SettingView: View {
                 showImportError(error.localizedDescription)
             }
         }
-        .sheet(item: $importBackup) { backup in
-            ImportPreviewView(backup: backup) {
-                restoreBackup(backup)
+        .sheet(isPresented: Binding(
+            get: { importBackup != nil },
+            set: { if !$0 { importBackup = nil } }
+        )) {
+            if let backup = importBackup {
+                ImportPreviewView(backup: backup) {
+                    restoreBackup(backup)
+                }
             }
         }
         .sheet(isPresented: $isShowingBetaFeedback) {

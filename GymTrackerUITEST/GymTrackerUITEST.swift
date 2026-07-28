@@ -752,9 +752,6 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.staticTexts["Today Strength"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Completed Strength"].exists)
         XCTAssertTrue(app.staticTexts["Accessory Work"].exists)
-        XCTAssertTrue(app.staticTexts["Hip Mobility"].exists)
-        XCTAssertTrue(app.staticTexts["Nutrition"].exists)
-        XCTAssertTrue(app.staticTexts["Journal"].exists)
 
         XCTAssertEqual(
             app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "training-calendar-start-")).count,
@@ -768,6 +765,12 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "training-calendar-reschedule-")).count,
             1
         )
+
+        app.scrollViews.firstMatch.swipeUp()
+        XCTAssertTrue(app.staticTexts["Hip Mobility"].exists)
+        app.scrollViews.firstMatch.swipeUp()
+        XCTAssertTrue(app.staticTexts["Nutrition"].exists)
+        XCTAssertTrue(app.staticTexts["Journal"].exists)
     }
 
 }
