@@ -144,7 +144,7 @@ enum WeeklyProgramReviewPresentation {
 
     static func decisionOutcomeIcon(isResolved: Bool, outcome: ProgressionDecisionOutcome?) -> String {
         guard isResolved else { return AppIcon.circleDashed }
-        switch outcome {
+        return switch outcome {
         case .accepted, .acceptedWithModifiedValue: AppIcon.checkmarkCircle
         case .declined: AppIcon.circle
         case nil: AppIcon.circleDashed
@@ -153,7 +153,7 @@ enum WeeklyProgramReviewPresentation {
 
     static func decisionOutcomeTint(isResolved: Bool, outcome: ProgressionDecisionOutcome?) -> Color {
         guard isResolved else { return .gymSubduedText }
-        switch outcome {
+        return switch outcome {
         case .accepted, .acceptedWithModifiedValue: .gymSuccess
         case .declined, nil: .gymSubduedText
         }

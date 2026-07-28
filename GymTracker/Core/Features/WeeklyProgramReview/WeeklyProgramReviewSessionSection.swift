@@ -213,6 +213,7 @@ struct WeeklyProgramReviewSetSummary: View {
                 .accessibilityElement(children: .combine)
             }
         }
+        .accessibilityElement(children: .combine)
         .accessibilityIdentifier("weekly-review-set-summary")
     }
 }

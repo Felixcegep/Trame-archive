@@ -56,6 +56,7 @@ Scenes:
   muscle-balance        Estimated weekly muscle-group balance
   rotation               Active rotation detail, controls, Home context, and workout source
   program-path           Plan Path entry, fixed path, reschedule sheet, and rotation path
+  weekly-review          Fixed-plan Weekly Review
 
 Options:
   list                   Print every scene and its screenshot paths
@@ -93,6 +94,7 @@ tests_for_scene() {
     muscle-balance) echo "testCaptureMuscleBalanceScreenshot" ;;
     rotation) echo "testCaptureRepeatingPlanScreenshots" ;;
     program-path) echo "ProgramPathScreenshotUITests/testCaptureProgramPathFixedScreenshots ProgramPathScreenshotUITests/testCaptureProgramPathRotationScreenshot" ;;
+    weekly-review) echo "WeeklyProgramReviewUITests/testCaptureWeeklyProgramReviewScreenshot" ;;
     *) return 1 ;;
   esac
 }
@@ -121,11 +123,12 @@ files_for_scene() {
     muscle-balance) echo "history/16_Muscle_Balance.png" ;;
     rotation) echo "plans/22_Repeating_Plan_Detail.png plans/22a_Repeating_Plan_Choose_Another.png plans/22b_Repeating_Plan_Paused.png plans/22c_Repeating_Plan_Undo.png overview/01i_Home_Active_Rotation.png active-workout/08n_Active_Workout_Rotation_Source.png" ;;
     program-path) echo "overview/01j_Home_Program_Path.png plans/13o_Program_Path_Fixed.png plans/13p_Program_Path_Reschedule.png plans/22d_Repeating_Plan_Path.png" ;;
+    weekly-review) echo "plans/13q_Weekly_Program_Review.png" ;;
     *) return 1 ;;
   esac
 }
 
-ALL_SCENES="overview pages mobility nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path"
+ALL_SCENES="overview pages mobility nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 
