@@ -262,13 +262,6 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(complexComponents.buttons["complex-component-2"].exists)
         saveScreenshot("active-workout/07f_Complex_Component_Results")
 
-        let draft = launchFixture("active-draft")
-        tapButton("exercise-menu-Bench Press", in: draft)
-        tapButton("swap-exercise-Bench Press", in: draft)
-        XCTAssertTrue(draft.navigationBars["Swap Exercise"].waitForExistence(timeout: 5))
-        XCTAssertTrue(draft.buttons["swap-option-Dumbbell Bench Press"].waitForExistence(timeout: 5))
-        saveScreenshot("active-workout/08j_Exercise_Swap")
-
         let completedSet = launchFixture("active-completed-set")
         XCTAssertTrue(completedSet.buttons["complete-set-Bench Press-1"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08_Active_Workout_With_Set")
@@ -288,6 +281,30 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("save-workout", in: partial)
         XCTAssertTrue(partial.buttons["Save completed sets"].waitForExistence(timeout: 5))
         saveScreenshot("review/09b_Partial_Save_Confirmation")
+    }
+
+    /// Kept independent from the wide Active Workout tour: decision-aware
+    /// substitution owns three related screens and needs a stable fixture for
+    /// its reason → option → explanation → confirmation path.
+    func testCaptureDecisionAwareSubstitutionScreenshots() {
+        let draft = launchFixture("active-draft")
+        tapButton("exercise-menu-Bench Press", in: draft)
+        tapButton("swap-exercise-Bench Press", in: draft)
+        XCTAssertTrue(draft.navigationBars["Why are you swapping?"].waitForExistence(timeout: 5))
+        tapButton("swap-reason-preference", in: draft)
+        XCTAssertTrue(draft.navigationBars["Swap Exercise"].waitForExistence(timeout: 5))
+        XCTAssertTrue(draft.buttons["swap-option-Dumbbell Bench Press"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/08j_Exercise_Swap")
+
+        tapButton("swap-why-Dumbbell Bench Press", in: draft)
+        XCTAssertTrue(draft.navigationBars["Why?"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/08o_Substitution_Why")
+        tapButton("why-explanation-done", in: draft)
+
+        tapButton("swap-option-Dumbbell Bench Press", in: draft)
+        XCTAssertTrue(draft.navigationBars["Confirm swap"].waitForExistence(timeout: 5))
+        XCTAssertTrue(draft.buttons["swap-scope-today"].exists)
+        saveScreenshot("active-workout/08p_Substitution_Confirmation")
     }
 
     func testSupersetCompletionAdvancesWithoutRest() {

@@ -321,6 +321,14 @@ final class BackupFieldCoverageTests: XCTestCase {
         entry.originalExerciseNameSnapshot = "sentinel-original-name"
         entry.substitutionReason = "sentinel-substitution-reason"
         entry.substitutionSharesProgressionState = true
+        entry.substitutionReasonCode = SubstitutionReason.preference.rawValue
+        entry.substitutionSuitabilityRaw = SubstitutionSuitability.good.rawValue
+        entry.substitutionComparabilityRaw = SubstitutionComparability.limited.rawValue
+        entry.substitutionProgressionPolicyRaw = ProgressionTransferPolicy.continueShared.rawValue
+        entry.substitutionScopeRaw = SubstitutionScope.futurePlan.rawValue
+        entry.substitutionEvidenceConfidenceRaw = SubstitutionEvidenceConfidence.moderate.rawValue
+        entry.substitutionEvaluationVersion = 71
+        entry.substitutionEvaluationData = Data("sentinel-substitution-evidence".utf8)
         entry.lateralitySnapshot = .unilateral
         entry.repCountingStyleSnapshot = .perSide
         entry.weightEntryStyleSnapshot = .perLoadUnit
@@ -369,10 +377,52 @@ final class BackupFieldCoverageTests: XCTestCase {
         XCTAssertEqual(restored.originalExerciseNameSnapshot, "sentinel-original-name")
         XCTAssertEqual(restored.substitutionReason, "sentinel-substitution-reason")
         XCTAssertTrue(restored.substitutionSharesProgressionState)
+        XCTAssertEqual(restored.substitutionReasonCode, SubstitutionReason.preference.rawValue)
+        XCTAssertEqual(restored.substitutionSuitability, .good)
+        XCTAssertEqual(restored.substitutionComparability, .limited)
+        XCTAssertEqual(restored.substitutionProgressionPolicy, .continueShared)
+        XCTAssertEqual(restored.substitutionScope, .futurePlan)
+        XCTAssertEqual(restored.substitutionEvidenceConfidence, .moderate)
+        XCTAssertEqual(restored.substitutionEvaluationVersion, 71)
+        XCTAssertEqual(restored.substitutionEvaluationData, Data("sentinel-substitution-evidence".utf8))
         XCTAssertEqual(restored.lateralitySnapshot, .unilateral)
         XCTAssertEqual(restored.repCountingStyleSnapshot, .perSide)
         XCTAssertEqual(restored.weightEntryStyleSnapshot, .perLoadUnit)
         XCTAssertEqual(restored.loadUnitCountSnapshot, 2)
+    }
+
+    func testExerciseRelationshipRoundTripsDecisionAwareFields() throws {
+        let source = try makeContext()
+        let original = Exercise(name: "Sentinel Relationship Source", primaryMuscles: [.upperChest])
+        let replacement = Exercise(name: "Sentinel Relationship Target", primaryMuscles: [.upperChest])
+        let relationship = ExerciseRelationship(
+            sourceExercise: original,
+            targetExercise: replacement,
+            type: .substitution,
+            provenance: .systemReviewed,
+            rationaleCode: "substitution.rationale.sentinel",
+            appliesToGoals: [.hypertrophy],
+            appliesToRoles: [.accessory],
+            reviewVersion: 17
+        )
+        source.insert(original)
+        source.insert(replacement)
+        source.insert(relationship)
+        try source.save()
+
+        let restored = try XCTUnwrap(
+            roundTrip(source)
+                .fetch(FetchDescriptor<ExerciseRelationship>())
+                .first {
+                    $0.sourceExercise?.name == "Sentinel Relationship Source"
+                        && $0.targetExercise?.name == "Sentinel Relationship Target"
+                }
+        )
+        XCTAssertEqual(restored.resolvedProvenance, .systemReviewed)
+        XCTAssertEqual(restored.rationaleCode, "substitution.rationale.sentinel")
+        XCTAssertEqual(restored.appliesToGoals, [.hypertrophy])
+        XCTAssertEqual(restored.appliesToRoles, [.accessory])
+        XCTAssertEqual(restored.reviewVersion, 17)
     }
 
     func testWorkoutRoundTripsEveryPersistedField() throws {
@@ -597,7 +647,7 @@ final class BackupFieldCoverageTests: XCTestCase {
         assertFieldCount(of: ExerciseSetDTO.self, equals: 58)
         assertFieldCount(of: ExerciseSetSegmentDTO.self, equals: 11)
         assertFieldCount(of: ComplexComponentResultDTO.self, equals: 8)
-        assertFieldCount(of: ExerciseEntryDTO.self, equals: 50)
+        assertFieldCount(of: ExerciseEntryDTO.self, equals: 58)
         assertFieldCount(of: WorkoutDTO.self, equals: 23)
         assertFieldCount(of: ExerciseTemplateDTO.self, equals: 28)
         assertFieldCount(of: FoodItemDTO.self, equals: 21)
