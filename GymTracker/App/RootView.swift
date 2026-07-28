@@ -460,6 +460,7 @@ struct RootView: View {
         FolderView(
             onOpenRoute: { trainPath.append($0) },
             onOpenProgramPath: { trainPath.append(.programPath($0)) },
+            onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) },
             onResumePlan: resumeFixedPlan,
             onPauseRepeatingPlan: pauseRepeatingPlan,
             onResumeRepeatingPlan: resumeRepeatingPlan,
@@ -496,7 +497,8 @@ struct RootView: View {
                     onStartPlan: startFixedPlan,
                     onResumePlan: resumeFixedPlan,
                     onStartTestDay: startFixedPlanTestDay,
-                    onOpenProgramPath: { todayPath.append(.programPath($0)) }
+                    onOpenProgramPath: { todayPath.append(.programPath($0)) },
+                    onOpenWeeklyReview: { todayPath.append(.weeklyReview($0)) }
                 )
             } else {
                 ContentUnavailableView(
@@ -529,21 +531,37 @@ struct RootView: View {
                 )
             }
         case .programPath(let route):
-            programPathDestination(route)
+            programPathDestination(route, onOpenWeeklyReview: { todayPath.append(.weeklyReview($0)) })
+        case .weeklyReview(let route):
+            weeklyReviewDestination(route)
         }
     }
 
     /// Plan Path is reachable from Today and from Train, so it registers as its
     /// own destination type on both stacks instead of duplicating a case in two
     /// route enums. Workout starts stay here, where the guarded conflict-aware
-    /// handlers live.
-    private func programPathDestination(_ route: ProgramPathRoute) -> some View {
+    /// handlers live. `onOpenWeeklyReview` is supplied per call site because,
+    /// unlike the root-level workout actions, it pushes onto whichever typed
+    /// path array reached this destination.
+    private func programPathDestination(
+        _ route: ProgramPathRoute,
+        onOpenWeeklyReview: @escaping (WeeklyProgramReviewRoute) -> Void
+    ) -> some View {
         ProgramPathView(
             route: route,
             onStartPlannedWorkout: startPlannedWorkout,
             onStartRepeatingWorkout: startRepeatingWorkout,
-            onResumeActiveWorkout: { isShowingActiveWorkout = true }
+            onResumeActiveWorkout: { isShowingActiveWorkout = true },
+            onOpenWeeklyReview: onOpenWeeklyReview
         )
+    }
+
+    /// Weekly Review resolves its own projection from `route` and has no
+    /// forward navigation into a typed path itself (its one pushed
+    /// destination, a completed workout, is reached the same inline way
+    /// `PlanCalendarView` and `FixedProgramPathTimeline` already push theirs).
+    private func weeklyReviewDestination(_ route: WeeklyProgramReviewRoute) -> some View {
+        WeeklyProgramReviewView(route: route)
     }
 
     @ViewBuilder
@@ -592,7 +610,8 @@ struct RootView: View {
                     onStartPlan: startFixedPlan,
                     onResumePlan: resumeFixedPlan,
                     onStartTestDay: startFixedPlanTestDay,
-                    onOpenProgramPath: { trainPath.append(.programPath($0)) }
+                    onOpenProgramPath: { trainPath.append(.programPath($0)) },
+                    onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) }
                 )
             } else {
                 ContentUnavailableView(
@@ -647,7 +666,9 @@ struct RootView: View {
         case .mobility:
             MobilityLibraryView(onStart: startMobility)
         case .programPath(let route):
-            programPathDestination(route)
+            programPathDestination(route, onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) })
+        case .weeklyReview(let route):
+            weeklyReviewDestination(route)
         }
     }
 

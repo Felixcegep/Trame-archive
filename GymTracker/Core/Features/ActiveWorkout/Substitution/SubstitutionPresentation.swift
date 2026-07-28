@@ -152,6 +152,21 @@ enum SubstitutionPresentation {
         }
     }
 
+    // MARK: - Scope
+
+    /// Short label for a scope value. Reuses the exact keys
+    /// `SubstitutionConfirmationView` already defines inline for its scope
+    /// picker rows, so a scope reads identically wherever it appears rather
+    /// than duplicating the same two strings under a second key.
+    static func scopeTitle(_ scope: SubstitutionScope) -> String {
+        switch scope {
+        case .todayOnly:
+            return String(localized: "substitution.scope.todayOnly", defaultValue: "Just today")
+        case .futurePlan:
+            return String(localized: "substitution.scope.futurePlan", defaultValue: "Replace in my plan")
+        }
+    }
+
     // MARK: - Confidence
 
     static func confidenceTitle(_ value: SubstitutionEvidenceConfidence) -> String {

@@ -41,6 +41,7 @@ enum TodayRoute: Hashable {
     case plan(UUID)
     case repeatingPlan(UUID)
     case programPath(ProgramPathRoute)
+    case weeklyReview(WeeklyProgramReviewRoute)
 }
 
 enum NutritionRoute: Hashable {

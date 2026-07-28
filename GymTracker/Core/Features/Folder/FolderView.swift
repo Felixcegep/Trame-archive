@@ -25,6 +25,7 @@ struct FolderView: View {
 
     let onOpenRoute: (LibraryRoute) -> Void
     let onOpenProgramPath: (ProgramPathRoute) -> Void
+    let onOpenWeeklyReview: (WeeklyProgramReviewRoute) -> Void
     let onResumePlan: (PlanRun) -> Void
     let onPauseRepeatingPlan: (RepeatingPlanRun) -> Void
     let onResumeRepeatingPlan: (RepeatingPlanRun) -> Void
@@ -140,6 +141,7 @@ struct FolderView: View {
                     onOpenRoute(target.isRepeating ? .repeatingPlan(target.planID) : .plan(target.planID))
                 },
                 onOpenProgramPath: onOpenProgramPath,
+                onOpenWeeklyReview: onOpenWeeklyReview,
                 onChoosePlan: { onOpenRoute(.plans) },
                 onResumePlan: onResumePlan,
                 onPauseRepeatingPlan: onPauseRepeatingPlan,
@@ -499,4 +501,5 @@ enum LibraryRoute: Hashable {
     case workoutCollection(UUID)
     case exercise(UUID)
     case programPath(ProgramPathRoute)
+    case weeklyReview(WeeklyProgramReviewRoute)
 }

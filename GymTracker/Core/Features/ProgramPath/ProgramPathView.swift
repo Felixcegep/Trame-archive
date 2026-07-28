@@ -18,6 +18,9 @@ struct ProgramPathView: View {
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
     let onStartRepeatingWorkout: (RepeatingPlanRun) -> Void
     let onResumeActiveWorkout: () -> Void
+    /// Weekly Review supports fixed-length `PlanRun` only, so this is offered
+    /// from `fixedPath` alone — `rotationPath` never calls it.
+    let onOpenWeeklyReview: (WeeklyProgramReviewRoute) -> Void
 
     @Query private var planRuns: [PlanRun]
     @Query private var repeatingPlanRuns: [RepeatingPlanRun]
@@ -134,6 +137,17 @@ private extension ProgramPathView {
                     )
                 }
                 .accessibilityIdentifier("program-path-open-schedule")
+
+                Button {
+                    onOpenWeeklyReview(WeeklyProgramReviewRoute(runID: run.id))
+                } label: {
+                    ProgramPathLinkLabel(
+                        title: "Weekly review",
+                        systemImage: AppIcon.chart,
+                        detail: WeeklyProgramReviewPresentation.entryDetail
+                    )
+                }
+                .accessibilityIdentifier("program-path-weekly-review")
             }
 
             FixedProgramPathTimeline(projection: projection) { session in

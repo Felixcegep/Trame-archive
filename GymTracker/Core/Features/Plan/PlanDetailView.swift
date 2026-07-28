@@ -10,6 +10,7 @@ struct PlanDetailView: View {
     let onResumePlan: (PlanRun) -> Void
     let onStartTestDay: (PlanRun) -> Void
     let onOpenProgramPath: (ProgramPathRoute) -> Void
+    let onOpenWeeklyReview: (WeeklyProgramReviewRoute) -> Void
 
     @State private var isShowingStartDate = false
     @State private var isShowingArchiveConfirmation = false
@@ -71,6 +72,7 @@ struct PlanDetailView: View {
             } else if let run = activeRun, let progress = nextProgress(in: run) {
                 Section("In progress") {
                     programPathLink(for: run)
+                    weeklyReviewLink(for: run)
 
                     NavigationLink {
                         PlanCalendarView(run: run)
@@ -102,6 +104,7 @@ struct PlanDetailView: View {
             } else if let run = pausedRun {
                 Section("Plan paused") {
                     programPathLink(for: run)
+                    weeklyReviewLink(for: run)
 
                     NavigationLink {
                         PlanCalendarView(run: run)
@@ -122,6 +125,7 @@ struct PlanDetailView: View {
             } else if let run = testDayRun, nextProgress(in: run) != nil {
                 Section("Test day") {
                     programPathLink(for: run)
+                    weeklyReviewLink(for: run)
 
                     Button {
                         onStartTestDay(run)
@@ -254,6 +258,18 @@ struct PlanDetailView: View {
         }
         .accessibilityIdentifier("view-plan-program-path")
         .accessibilityHint(Text(ProgramPathPresentation.entryDetail))
+    }
+
+    /// Fixed-plan only — this view has no repeating-plan equivalent, so no
+    /// extra gating beyond "a run exists" is needed here.
+    private func weeklyReviewLink(for run: PlanRun) -> some View {
+        Button {
+            onOpenWeeklyReview(WeeklyProgramReviewRoute(runID: run.id))
+        } label: {
+            Label(WeeklyProgramReviewPresentation.entryTitle, systemImage: AppIcon.chart)
+        }
+        .accessibilityIdentifier("view-plan-weekly-review")
+        .accessibilityHint(Text(WeeklyProgramReviewPresentation.entryDetail))
     }
 
     private var activeRun: PlanRun? {

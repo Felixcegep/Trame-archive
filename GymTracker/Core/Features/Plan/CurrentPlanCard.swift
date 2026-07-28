@@ -14,6 +14,10 @@ struct CurrentPlanCard: View {
 
     let onOpenPlan: (CurrentPlanSummary.Target) -> Void
     let onOpenProgramPath: (ProgramPathRoute) -> Void
+    /// Weekly Review supports fixed-length `PlanRun` only, so this row appears
+    /// solely when `openFixedRun` names the open run — a repeating rotation
+    /// never gets this entry point.
+    let onOpenWeeklyReview: (WeeklyProgramReviewRoute) -> Void
     let onChoosePlan: () -> Void
     /// Resuming can collide with another guided source, so it routes back to the
     /// root's conflict-aware handlers. Pausing and stopping only ever reduce the
@@ -187,6 +191,14 @@ private extension CurrentPlanCard {
                 programPathLink(route)
             }
 
+            if let run = openFixedRun {
+                Divider()
+                    .overlay(Color.gymBorder)
+                    .padding(.horizontal, Spacing.l)
+
+                weeklyReviewLink(for: run)
+            }
+
             Divider()
                 .overlay(Color.gymBorder)
                 .padding(.horizontal, Spacing.l)
@@ -230,6 +242,31 @@ private extension CurrentPlanCard {
         .buttonStyle(.gymPress)
         .accessibilityIdentifier("current-plan-program-path")
         .accessibilityHint(Text(ProgramPathPresentation.entryDetail))
+    }
+
+    /// Fixed-plan only, matching Weekly Review v1's product boundary.
+    func weeklyReviewLink(for run: PlanRun) -> some View {
+        Button {
+            onOpenWeeklyReview(WeeklyProgramReviewRoute(runID: run.id))
+        } label: {
+            HStack(spacing: Spacing.s) {
+                Label(WeeklyProgramReviewPresentation.entryTitle, systemImage: AppIcon.chart)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
+
+                Spacer(minLength: Spacing.s)
+
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubtleText)
+            }
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityIdentifier("current-plan-weekly-review")
+        .accessibilityHint(Text(WeeklyProgramReviewPresentation.entryDetail))
     }
 
     /// `nil` when no single run is open, which is also when the card is showing

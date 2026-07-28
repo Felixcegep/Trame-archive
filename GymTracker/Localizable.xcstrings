@@ -15009,6 +15009,376 @@
           }
         }
       }
+    },
+    "Weekly review" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bilan hebdomadaire"
+          }
+        }
+      }
+    },
+    "See what this week planned, completed, and changed." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voyez ce que cette semaine a prévu, terminé et changé."
+          }
+        }
+      }
+    },
+    "Weekly review unavailable" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bilan hebdomadaire indisponible"
+          }
+        }
+      }
+    },
+    "This plan run may have been removed or replaced." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce suivi de plan a peut-être été supprimé ou remplacé."
+          }
+        }
+      }
+    },
+    "%1$@ – %2$@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ – %2$@"
+          }
+        }
+      }
+    },
+    "This plan is currently paused." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce plan est actuellement en pause."
+          }
+        }
+      }
+    },
+    "You've stopped following this plan. Its history stays available here." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous avez arrêté de suivre ce plan. Son historique reste disponible ici."
+          }
+        }
+      }
+    },
+    "This plan run is complete." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce suivi de plan est terminé."
+          }
+        }
+      }
+    },
+    "Remaining" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restant"
+          }
+        }
+      }
+    },
+    "1 session is unscheduled" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 séance n’est pas planifiée"
+          }
+        }
+      }
+    },
+    "%lld sessions are unscheduled" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld séances ne sont pas planifiées"
+          }
+        }
+      }
+    },
+    "prescribed sets" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "séries prescrites"
+          }
+        }
+      }
+    },
+    "performed sets" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "séries effectuées"
+          }
+        }
+      }
+    },
+    "Set comparison unavailable" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparaison des séries indisponible"
+          }
+        }
+      }
+    },
+    "Not every session this week has reliable prescribed-set evidence, so prescribed and performed sets aren't compared. Sets actually performed are still shown." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes les séances de cette semaine n’ont pas de données fiables sur les séries prescrites, donc les séries prescrites et effectuées ne sont pas comparées. Les séries réellement effectuées restent affichées."
+          }
+        }
+      }
+    },
+    "Unresolved" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non résolu"
+          }
+        }
+      }
+    },
+    "Accepted" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accepté"
+          }
+        }
+      }
+    },
+    "Accepted with a different value" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accepté avec une valeur différente"
+          }
+        }
+      }
+    },
+    "Declined" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refusé"
+          }
+        }
+      }
+    },
+    "Resolved without a recorded outcome" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résolu sans résultat enregistré"
+          }
+        }
+      }
+    },
+    "Proposed: %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proposé : %1$@"
+          }
+        }
+      }
+    },
+    "Applied: %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliqué : %1$@"
+          }
+        }
+      }
+    },
+    "Unknown exercise" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exercice inconnu"
+          }
+        }
+      }
+    },
+    "This is the final week of the plan" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C’est la dernière semaine du plan"
+          }
+        }
+      }
+    },
+    "There is no scheduled week after this one." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune semaine n’est planifiée après celle-ci."
+          }
+        }
+      }
+    },
+    "Next week is a deload" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La semaine prochaine est une décharge"
+          }
+        }
+      }
+    },
+    "No sessions were found for this week." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune séance n’a été trouvée pour cette semaine."
+          }
+        }
+      }
+    },
+    "The plan behind this review is unavailable. Completed sessions still show what you did." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le plan à l’origine de ce bilan est indisponible. Les séances terminées montrent toujours ce que vous avez fait."
+          }
+        }
+      }
+    },
+    "A completed session in this week is missing its workout record." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une séance terminée cette semaine n’a pas d’entraînement enregistré."
+          }
+        }
+      }
+    },
+    "A session's linked workout wasn't marked completed, so it's left out of this week's evidence." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’entraînement lié à une séance n’a pas été marqué comme terminé, il est donc exclu des données de cette semaine."
+          }
+        }
+      }
+    },
+    "Prescribed sets aren't fully recorded for at least one session this week." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les séries prescrites ne sont pas entièrement enregistrées pour au moins une séance cette semaine."
+          }
+        }
+      }
+    },
+    "A substitution this week is missing some evidence fields recorded by newer versions." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une substitution cette semaine n’a pas certains champs de données enregistrés par des versions plus récentes."
+          }
+        }
+      }
+    },
+    "Sessions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séances"
+          }
+        }
+      }
+    },
+    "This week" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette semaine"
+          }
+        }
+      }
+    },
+    "Progression decisions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décisions de progression"
+          }
+        }
+      }
+    },
+    "Substitutions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitutions"
+          }
+        }
+      }
+    },
+    "Next week" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Semaine prochaine"
+          }
+        }
+      }
     }
   },
   "version" : "1.2"
