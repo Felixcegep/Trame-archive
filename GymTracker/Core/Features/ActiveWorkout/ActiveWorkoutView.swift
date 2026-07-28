@@ -121,8 +121,20 @@ struct ActiveWorkoutView: View {
         }
         .sheet(item: $exerciseToSwap) { exerciseEntry in
             NavigationStack {
-                ExerciseSwapPicker(exerciseEntry: exerciseEntry) { replacement in
-                    guard viewModel.swapExercise(exerciseEntry, with: replacement) else { return }
+                ExerciseSwapPicker(
+                    exerciseEntry: exerciseEntry,
+                    planGoal: viewModel.activePlanGoal()
+                ) { replacement, decision in
+                    guard viewModel.swapExercise(
+                        exerciseEntry,
+                        with: replacement,
+                        decision: decision
+                    ) else { return }
+                    // Future-plan scope is applied only after today's swap
+                    // succeeds, and only when the lifter explicitly chose it.
+                    if decision.scope == .futurePlan {
+                        viewModel.applyPlanSubstitution(exerciseEntry, with: replacement)
+                    }
                     expandedExerciseID = exerciseEntry.persistentModelID
                     editingCompletedSetID = nil
                 }

@@ -10,7 +10,7 @@ import Foundation
 /// decision explainable, not to compute a new one. Modeled on
 /// `RecommendationPresentation`, which does the equivalent job for the
 /// simpler template (non plan-run) recommendation path.
-struct ProgressionReceiptPresentation {
+struct ProgressionReceiptPresentation: WhyExplainable {
     let id: UUID
     let exerciseName: String
     /// Deliberately not displayed. This is `PlanProgressionRecommendationRecord.reason`,
@@ -247,5 +247,110 @@ struct ProgressionReceiptPresentation {
         case nil:
             return String(localized: "progression.receipt.resolution.unknown", defaultValue: "Resolved without a recorded outcome.")
         }
+    }
+
+    // MARK: - Why?
+
+    /// The receipt's "Why?" explanation, built entirely from fields already on
+    /// this presentation. Nothing here re-runs, recomputes, or second-guesses
+    /// the recommendation — it only maps already-persisted evidence onto the
+    /// shared section vocabulary. Modeled on
+    /// `SubstitutionPresentation.whyModel(for:replacing:scope:policy:)`, the
+    /// reference adopter.
+    ///
+    /// `reason` — `PlanProgressionRecommendationRecord.reason`, hard-coded
+    /// English persisted by `ProgressionEvaluator.successReason(...)` — is
+    /// deliberately never read here. See its doc comment above.
+    var whyModel: WhyExplanationModel {
+        let subtitleFormat = String(
+            localized: "progression.receipt.why.subtitle",
+            defaultValue: "%1$@ · %2$@"
+        )
+        var builder = WhyExplanationBuilder(
+            title: String(localized: "progression.receipt.why.title", defaultValue: "Why?"),
+            subtitle: String(format: subtitleFormat, exerciseName, ruleLabel),
+            isDecision: true
+        )
+
+        builder.add(.whatChanged, body: proposedChangeText)
+        // A resolved record is history, not a live proposal anymore — say
+        // what was actually decided (including the legacy nil-outcome case,
+        // which reads as "resolved without a recorded outcome") rather than
+        // leaving only the original proposal to read.
+        if let resolutionSummary {
+            builder.add(.whatChanged, body: resolutionSummary)
+        }
+
+        builder.add(.evidenceUsed, items: evidenceLines)
+
+        builder.add(
+            .effectOnPlan,
+            body: String(
+                localized: "progression.receipt.why.effectOnPlan",
+                defaultValue: "Applying this writes your plan's progression state for this exercise. It doesn't change any workout you've already completed."
+            )
+        )
+
+        // A resolved record's decision already happened. Presenting
+        // "if you accept" / "if you decline" as live choices would misrepresent
+        // history — including the legacy nil-outcome row, which must never be
+        // rendered as either an accept or a decline. Omit rather than fabricate.
+        if !isResolved {
+            builder.add(.ifYouAccept, body: ifYouAcceptText)
+            builder.add(.ifYouDecline, body: ifYouDeclineText)
+        }
+
+        if let whyConfidenceNote {
+            builder.noteMissingEvidence(qualifier: whyConfidenceNote)
+        }
+
+        return builder.build()
+    }
+
+    /// Consequence of `acceptActionTitle` / `applyDifferentActionTitle`: what
+    /// applying the recommendation, in either form, actually does.
+    private var ifYouAcceptText: String {
+        if let proposedLoadText {
+            let format = String(
+                localized: "progression.receipt.why.ifYouAccept.load",
+                defaultValue: "Applying sets your next prescribed load for this exercise to %@. You can also choose a different value instead."
+            )
+            return String(format: format, proposedLoadText)
+        }
+        return String(
+            localized: "progression.receipt.why.ifYouAccept.structural",
+            defaultValue: "Applying carries out this change in your plan."
+        )
+    }
+
+    /// Consequence of `declineActionTitle`. Declining is an ordinary,
+    /// legitimate choice — this is never worded as failure, noncompliance, or
+    /// falling behind.
+    private var ifYouDeclineText: String {
+        if proposedLoad != nil {
+            return String(
+                localized: "progression.receipt.why.ifYouDecline.load",
+                defaultValue: "Declining keeps your current load. Your plan stays as it is."
+            )
+        }
+        return String(
+            localized: "progression.receipt.why.ifYouDecline.structural",
+            defaultValue: "Declining keeps your plan as it is now."
+        )
+    }
+
+    /// The confidence qualifier for the Why sheet. Mirrors `evidenceQualifier`
+    /// when evidence is thin. When that's `nil` — evidence is either solid or
+    /// entirely absent — this only adds a plain, true statement when there is
+    /// one to add (solid performance was in fact recorded); it never invents a
+    /// reassuring sentence, and entirely absent evidence renders no confidence
+    /// section here (the absence is already stated in `evidenceLines`).
+    private var whyConfidenceNote: String? {
+        if let evidenceQualifier { return evidenceQualifier }
+        guard performance != nil else { return nil }
+        return String(
+            localized: "progression.receipt.why.confidence.solid",
+            defaultValue: "Based on the recorded performance for this exercise."
+        )
     }
 }
