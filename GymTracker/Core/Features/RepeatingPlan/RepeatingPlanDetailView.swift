@@ -193,6 +193,15 @@ struct RepeatingPlanDetailView: View {
             }
 
             runStatusRow(run)
+
+            // The rotation list above shows the shape of the rotation; the path
+            // shows what this run actually did with it, including alternates,
+            // repeats, skips, and undone advancements.
+            NavigationLink(value: ProgramPathRoute.rotationRun(run.id)) {
+                Label(ProgramPathPresentation.entryTitle, systemImage: AppIcon.routine)
+            }
+            .accessibilityIdentifier("view-repeating-plan-program-path")
+            .accessibilityHint(Text(ProgramPathPresentation.entryDetail))
         }
 
         if run.status == .active {

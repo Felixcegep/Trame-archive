@@ -48,6 +48,7 @@ struct RootView: View {
             NavigationStack(path: $todayPath) {
                 todayRoot
                 .navigationDestination(for: TodayRoute.self, destination: todayDestination)
+                .navigationDestination(for: ProgramPathRoute.self, destination: programPathDestination)
             }
             .tabItem {
                 tabLabel(for: .today)
@@ -57,6 +58,7 @@ struct RootView: View {
             NavigationStack(path: $trainPath) {
                 trainRoot
                 .navigationDestination(for: LibraryRoute.self, destination: libraryDestination)
+                .navigationDestination(for: ProgramPathRoute.self, destination: programPathDestination)
             }
             .id(trainNavigationID)
             .tabItem {
@@ -526,6 +528,19 @@ struct RootView: View {
                 )
             }
         }
+    }
+
+    /// Plan Path is reachable from Today and from Train, so it registers as its
+    /// own destination type on both stacks instead of duplicating a case in two
+    /// route enums. Workout starts stay here, where the guarded conflict-aware
+    /// handlers live.
+    private func programPathDestination(_ route: ProgramPathRoute) -> some View {
+        ProgramPathView(
+            route: route,
+            onStartPlannedWorkout: startPlannedWorkout,
+            onStartRepeatingWorkout: startRepeatingWorkout,
+            onResumeActiveWorkout: { isShowingActiveWorkout = true }
+        )
     }
 
     @ViewBuilder

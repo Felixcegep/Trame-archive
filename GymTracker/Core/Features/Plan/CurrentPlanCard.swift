@@ -178,6 +178,14 @@ private extension CurrentPlanCard {
             .accessibilityIdentifier("current-plan-card")
             .accessibilityHint("Opens the plan.")
 
+            if let route = programPathRoute {
+                Divider()
+                    .overlay(Color.gymBorder)
+                    .padding(.horizontal, Spacing.l)
+
+                programPathLink(route)
+            }
+
             Divider()
                 .overlay(Color.gymBorder)
                 .padding(.horizontal, Spacing.l)
@@ -194,6 +202,43 @@ private extension CurrentPlanCard {
                 )
         }
         .shadow(color: Color.gymText.opacity(0.03), radius: 6, x: 0, y: 3)
+    }
+
+    /// Where the run currently is, as its own destination. The card's main tap
+    /// still opens the plan: the path answers "how far along am I", which is a
+    /// different question from "what is this plan".
+    func programPathLink(_ route: ProgramPathRoute) -> some View {
+        NavigationLink(value: route) {
+            HStack(spacing: Spacing.s) {
+                Label(ProgramPathPresentation.entryTitle, systemImage: AppIcon.routine)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
+
+                Spacer(minLength: Spacing.s)
+
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubtleText)
+            }
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityIdentifier("current-plan-program-path")
+        .accessibilityHint(Text(ProgramPathPresentation.entryDetail))
+    }
+
+    /// `nil` when no single run is open, which is also when the card is showing
+    /// its empty or ambiguous state and has no run to describe.
+    var programPathRoute: ProgramPathRoute? {
+        if let run = openFixedRun {
+            return .fixedRun(run.id)
+        }
+        if let run = openRepeatingRun {
+            return .rotationRun(run.id)
+        }
+        return nil
     }
 
     var actions: some View {

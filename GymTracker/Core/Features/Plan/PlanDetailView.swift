@@ -69,6 +69,8 @@ struct PlanDetailView: View {
                 }
             } else if let run = activeRun, let progress = nextProgress(in: run) {
                 Section("In progress") {
+                    programPathLink(for: run)
+
                     NavigationLink {
                         PlanCalendarView(run: run)
                     } label: {
@@ -98,6 +100,8 @@ struct PlanDetailView: View {
                 }
             } else if let run = pausedRun {
                 Section("Plan paused") {
+                    programPathLink(for: run)
+
                     NavigationLink {
                         PlanCalendarView(run: run)
                     } label: {
@@ -116,6 +120,8 @@ struct PlanDetailView: View {
                 }
             } else if let run = testDayRun, nextProgress(in: run) != nil {
                 Section("Test day") {
+                    programPathLink(for: run)
+
                     Button {
                         onStartTestDay(run)
                     } label: {
@@ -234,6 +240,17 @@ struct PlanDetailView: View {
         } message: {
             Text("Your completed workouts remain in History. You can start this plan again later.")
         }
+    }
+
+    /// The run's derived position and history. Kept beside "View Schedule"
+    /// because both answer questions about this run rather than about the
+    /// reusable plan the rest of the screen describes.
+    private func programPathLink(for run: PlanRun) -> some View {
+        NavigationLink(value: ProgramPathRoute.fixedRun(run.id)) {
+            Label(ProgramPathPresentation.entryTitle, systemImage: AppIcon.routine)
+        }
+        .accessibilityIdentifier("view-plan-program-path")
+        .accessibilityHint(Text(ProgramPathPresentation.entryDetail))
     }
 
     private var activeRun: PlanRun? {
