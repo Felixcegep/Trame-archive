@@ -33,7 +33,16 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         selectTab(.settings, in: app)
         XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["settings-shortcuts-link"].exists)
+        // Settings is a lazy Form; the Shortcuts row is below the first
+        // viewport and does not exist in the accessibility hierarchy until
+        // it has been scrolled into view.
+        let shortcuts = app.descendants(matching: .any)["settings-shortcuts-link"]
+        var scrollAttempts = 0
+        while shortcuts.exists == false && scrollAttempts < 6 {
+            app.swipeUp()
+            scrollAttempts += 1
+        }
+        XCTAssertTrue(shortcuts.waitForExistence(timeout: 5))
     }
 
     func testNutritionTargetsEmptyStateOffersCreationWithoutDuplicateDismissal() {
@@ -204,18 +213,30 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     }
 
     func testStartSeededTemplateIncludesPrescription() {
-        let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
+        let app = launchFreshApp()
 
         let startFromTemplate = app.buttons["start-free-workout"]
         XCTAssertTrue(startFromTemplate.waitForExistence(timeout: 5))
         startFromTemplate.tap()
 
         let template = app.buttons["workout-template-Day 1 – Lower Body (Squat Focus)"]
+        var scrollAttempts = 0
+        while template.exists == false && scrollAttempts < 6 {
+            app.swipeUp()
+            scrollAttempts += 1
+        }
         XCTAssertTrue(template.waitForExistence(timeout: 5))
+        let templateEnabled = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isEnabled == true"),
+            object: template
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [templateEnabled], timeout: 8), .completed)
         template.tap()
 
+        let skipWarmup = app.buttons["skip-linked-warmup"].firstMatch
+        XCTAssertTrue(skipWarmup.waitForExistence(timeout: 8))
+        skipWarmup.tap()
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["Goblet Stiletto Squat"].waitForExistence(timeout: 5))
         XCTAssertTrue(
             app.staticTexts["prescription-summary-Goblet Stiletto Squat"]
