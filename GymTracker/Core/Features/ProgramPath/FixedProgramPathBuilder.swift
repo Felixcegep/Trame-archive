@@ -11,7 +11,12 @@ enum FixedProgramPathBuilder {
         calendar: Calendar = .current
     ) -> FixedProgramPathProjection {
         let orderedProgress = run.orderedWorkoutProgress
-        let currentProgress = PlanCoordinator.nextProgress(in: run)
+        let runCanHaveCurrentWork = run.status == .active
+            || run.status == .paused
+            || run.status == .testDayAvailable
+        let currentProgress = runCanHaveCurrentWork
+            ? PlanCoordinator.nextProgress(in: run)
+            : nil
         let sourceWeeks = sourceWeeksByIndex(in: run.plan)
         let sourceBlocks = sourceBlocksByWeekIndex(in: run.plan)
 
@@ -22,10 +27,21 @@ enum FixedProgramPathBuilder {
 
         let sessionsByRunWeek = Dictionary(grouping: orderedProgress, by: \.weekIndex)
         let weeks = sessionsByRunWeek.keys.sorted().map { runWeekIndex in
-            let progress = (sessionsByRunWeek[runWeekIndex] ?? []).sorted(by: isOrdered)
+            let progress = (sessionsByRunWeek[runWeekIndex] ?? []).sorted { lhs, rhs in
+                if lhs.workoutIndex != rhs.workoutIndex {
+                    return lhs.workoutIndex < rhs.workoutIndex
+                }
+                return lhs.id.uuidString < rhs.id.uuidString
+            }
             let sourceWeekIndex = progress.first?.sourceWeekIndex ?? runWeekIndex
             let sourceWeek = sourceWeeks[sourceWeekIndex]
             let sourceBlock = sourceBlocks[sourceWeekIndex]
+            let projectedBlock: FixedProgramPathProjection.Block?
+            if let sourceBlock {
+                projectedBlock = blockProjection(sourceBlock)
+            } else {
+                projectedBlock = nil
+            }
 
             if run.plan != nil, sourceWeek == nil,
                !warnings.contains(.sourceWeekUnavailable(sourceWeekIndex: sourceWeekIndex)) {
@@ -36,7 +52,7 @@ enum FixedProgramPathBuilder {
                 runWeekIndex: runWeekIndex,
                 sourceWeekIndex: sourceWeekIndex,
                 sourceWeekName: sourceWeek?.name,
-                block: sourceBlock.map(blockProjection),
+                block: projectedBlock,
                 sessions: progress.map {
                     sessionProjection(
                         from: $0,
@@ -74,17 +90,18 @@ enum FixedProgramPathBuilder {
         }
 
         let deloads = deloads(in: weeks)
-        let currentDeload: FixedProgramPathProjection.Deload? = currentWeek.flatMap { week in
+        let currentDeload: FixedProgramPathProjection.Deload? = runCanHaveCurrentWork
+            ? currentWeek.flatMap { week in
             guard let block = week.block, block.isDeload else { return nil }
             return deloads.first {
                 $0.block.id == block.id && $0.runWeekIndices.contains(week.runWeekIndex)
             }
-        }
-        let upcomingDeload = deloads.first { deload in
+        } : nil
+        let upcomingDeload = runCanHaveCurrentWork ? deloads.first { deload in
             guard currentDeload?.block.id != deload.block.id else { return false }
             guard let currentWeekIndex = position.runWeekIndex else { return true }
             return deload.firstRunWeekIndex > currentWeekIndex
-        }
+        } : nil
 
         return FixedProgramPathProjection(
             runID: run.id,
@@ -219,10 +236,5 @@ enum FixedProgramPathBuilder {
                 )
             }
             .sorted { $0.firstRunWeekIndex < $1.firstRunWeekIndex }
-    }
-
-    private static func isOrdered(_ lhs: PlanWorkoutProgress, _ rhs: PlanWorkoutProgress) -> Bool {
-        if lhs.workoutIndex != rhs.workoutIndex { return lhs.workoutIndex < rhs.workoutIndex }
-        return lhs.id.uuidString < rhs.id.uuidString
     }
 }

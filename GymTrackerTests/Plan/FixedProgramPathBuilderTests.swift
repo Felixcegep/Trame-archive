@@ -165,6 +165,30 @@ final class FixedProgramPathBuilderTests: XCTestCase {
         XCTAssertNil(projection.upcomingDeload)
     }
 
+    func testTerminalRunKeepsPositionWithoutCurrentActionsOrPhaseClaims() {
+        let deloadWeek = PlanWeek(weekIndex: 0, name: "Deload")
+        let deloadBlock = PlanBlock(
+            name: "Deload",
+            phaseType: .deload,
+            orderIndex: 0,
+            weeks: [deloadWeek]
+        )
+        let plan = WorkoutPlan(name: "Finished", daysPerWeek: 1, durationWeeks: 1, blocks: [deloadBlock])
+        let run = PlanRun(plan: plan, startDate: today)
+        run.status = .archived
+        let unfinished = progress("Archived session", week: 0, sourceWeek: 0, workout: 0, date: today)
+        unfinished.status = .available
+        run.workoutProgress = [unfinished]
+
+        let projection = FixedProgramPathBuilder.build(for: run, today: today, calendar: calendar)
+
+        XCTAssertNil(projection.currentSessionID)
+        XCTAssertNil(projection.primaryAction)
+        XCTAssertNil(projection.currentDeload)
+        XCTAssertNil(projection.upcomingDeload)
+        XCTAssertEqual(projection.position.runWeekIndex, 0)
+    }
+
     private func progress(
         _ name: String,
         week: Int,
