@@ -1507,6 +1507,7 @@ struct RootView: View {
         workoutVM.workout = nil
         workoutVM.activeWorkout = nil
         activeLoggingMetrics.reset()
+        UserDefaults.standard.set(true, forKey: DefaultsKey.useMetric)
 
         do {
             try modelContext.clearAllGymData()
