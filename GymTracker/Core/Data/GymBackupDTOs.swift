@@ -752,6 +752,83 @@ nonisolated struct MobilitySessionDTO: Codable {
     let entries: [MobilityEntryDTO]
 }
 
+nonisolated struct MobilityAssessmentDefinitionDTO: Codable {
+    let id: String
+    let catalogueKey: String
+    let name: String
+    let nameLocalizationKey: String
+    let instructionsLocalizationKey: String
+    let setupInstructionsLocalizationKey: String
+    let measurementDescriptionLocalizationKey: String
+    let measurementLimitationsLocalizationKey: String
+    let zone: String
+    let definitionVersion: Int
+    let preferredMode: String
+    let manualMode: String
+    let unit: String
+    let supportedSides: [String]
+    let setupKeys: [String]
+    let defaultSetupKey: String
+    let defaultIsActiveRange: Bool
+    let sortOrder: Int
+    let isArchived: Bool
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+nonisolated struct MobilityAssessmentSampleDTO: Codable {
+    let id: String
+    let sampleCount: Int
+    let median: Double
+    let minimum: Double
+    let maximum: Double
+    let standardDeviation: Double
+    let offAxisExcessDegrees: Double
+    let captureDuration: TimeInterval
+    let createdAt: Date
+}
+
+nonisolated struct MobilityAssessmentResultDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let numericValue: Double?
+    let criteria: String?
+    let side: String
+    let isWarm: Bool
+    let setupKey: String
+    let method: String
+    let unit: String
+    let isActiveRange: Bool
+    let dayKey: String
+    let source: String
+    let confidence: String
+    let definitionIDSnapshot: String
+    let definitionCatalogueKeySnapshot: String
+    let definitionNameSnapshot: String
+    let definitionVersionSnapshot: Int
+    let instructionsLocalizationKeySnapshot: String
+    let setupInstructionsLocalizationKeySnapshot: String
+    let measurementDescriptionLocalizationKeySnapshot: String
+    let measurementLimitationsLocalizationKeySnapshot: String
+    let createdAt: Date
+    let updatedAt: Date
+    let sample: MobilityAssessmentSampleDTO?
+}
+
+nonisolated struct MobilityAssessmentSessionDTO: Codable {
+    let id: String
+    let status: String
+    let dayKey: String
+    let selectedDefinitionKeys: [String]
+    let skippedDefinitionKeys: [String]
+    let currentDefinitionIndex: Int
+    let startedAt: Date
+    let completedAt: Date?
+    let createdAt: Date
+    let updatedAt: Date
+    let results: [MobilityAssessmentResultDTO]
+}
+
 nonisolated struct FoodServingDTO: Codable {
     let id: String
     let name: String
@@ -962,6 +1039,8 @@ nonisolated struct BackupDTO: Codable {
     let mobilityDefinitions: [MobilityDefinitionDTO]
     let mobilityRoutines: [MobilityRoutineDTO]
     let mobilitySessions: [MobilitySessionDTO]
+    let mobilityAssessmentDefinitions: [MobilityAssessmentDefinitionDTO]
+    let mobilityAssessmentSessions: [MobilityAssessmentSessionDTO]
     let foods: [FoodItemDTO]
     let mealTemplates: [MealTemplateDTO]
     let loggedMeals: [LoggedMealDTO]
@@ -1024,7 +1103,11 @@ nonisolated struct BackupDTO: Codable {
     /// Adds localized progression-receipt reason keys and receipt-owned load
     /// units. Older records intentionally restore both as absent.
     static let progressionReceiptEvidenceVersion = 23
-    static let currentVersion = progressionReceiptEvidenceVersion
+    /// Adds the system mobility-assessment catalogue plus manual assessment
+    /// sessions, condition-complete result snapshots, and optional bounded raw
+    /// samples. v1-v23 restore with this domain absent.
+    static let mobilityAssessmentVersion = 24
+    static let currentVersion = mobilityAssessmentVersion
 
     init(
         version: Int,
@@ -1047,6 +1130,8 @@ nonisolated struct BackupDTO: Codable {
         mobilityDefinitions: [MobilityDefinitionDTO] = [],
         mobilityRoutines: [MobilityRoutineDTO] = [],
         mobilitySessions: [MobilitySessionDTO] = [],
+        mobilityAssessmentDefinitions: [MobilityAssessmentDefinitionDTO] = [],
+        mobilityAssessmentSessions: [MobilityAssessmentSessionDTO] = [],
         foods: [FoodItemDTO] = [],
         mealTemplates: [MealTemplateDTO] = [],
         loggedMeals: [LoggedMealDTO] = [],
@@ -1072,6 +1157,8 @@ nonisolated struct BackupDTO: Codable {
         self.mobilityDefinitions = mobilityDefinitions
         self.mobilityRoutines = mobilityRoutines
         self.mobilitySessions = mobilitySessions
+        self.mobilityAssessmentDefinitions = mobilityAssessmentDefinitions
+        self.mobilityAssessmentSessions = mobilityAssessmentSessions
         self.foods = foods
         self.mealTemplates = mealTemplates
         self.loggedMeals = loggedMeals
@@ -1079,7 +1166,7 @@ nonisolated struct BackupDTO: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, foods, mealTemplates, loggedMeals, nutritionTargets
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets
     }
 
     init(from decoder: Decoder) throws {
@@ -1104,6 +1191,8 @@ nonisolated struct BackupDTO: Codable {
         mobilityDefinitions = try container.decodeIfPresent([MobilityDefinitionDTO].self, forKey: .mobilityDefinitions) ?? []
         mobilityRoutines = try container.decodeIfPresent([MobilityRoutineDTO].self, forKey: .mobilityRoutines) ?? []
         mobilitySessions = try container.decodeIfPresent([MobilitySessionDTO].self, forKey: .mobilitySessions) ?? []
+        mobilityAssessmentDefinitions = try container.decodeIfPresent([MobilityAssessmentDefinitionDTO].self, forKey: .mobilityAssessmentDefinitions) ?? []
+        mobilityAssessmentSessions = try container.decodeIfPresent([MobilityAssessmentSessionDTO].self, forKey: .mobilityAssessmentSessions) ?? []
         foods = try container.decodeIfPresent([FoodItemDTO].self, forKey: .foods) ?? []
         mealTemplates = try container.decodeIfPresent([MealTemplateDTO].self, forKey: .mealTemplates) ?? []
         loggedMeals = try container.decodeIfPresent([LoggedMealDTO].self, forKey: .loggedMeals) ?? []

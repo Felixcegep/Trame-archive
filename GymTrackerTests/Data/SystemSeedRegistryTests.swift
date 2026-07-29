@@ -188,6 +188,10 @@ final class SystemSeedRegistryTests: XCTestCase {
         XCTAssertTrue(secondManifest.contains { $0.seedKey.hasPrefix("program.") })
         XCTAssertTrue(secondManifest.contains { $0.seedKey == RepeatingPlanSeedData.pplContinuous.seedKey })
         XCTAssertTrue(secondManifest.contains { $0.seedKey.hasPrefix("mobility-definition.") })
+        XCTAssertEqual(
+            secondManifest.filter { $0.entityKind == .mobilityAssessmentDefinition }.count,
+            10
+        )
         XCTAssertTrue(secondManifest.contains { $0.seedKey.hasPrefix("food.") })
         XCTAssertFalse(try context.fetch(FetchDescriptor<FoodItem>()).contains(where: \.isFavorite))
     }
@@ -646,6 +650,9 @@ final class SystemSeedRegistryTests: XCTestCase {
             "program": try context.fetchCount(FetchDescriptor<ProgramDefinitionRecord>()),
             "mobility": try context.fetchCount(FetchDescriptor<MobilityDefinition>()),
             "routine": try context.fetchCount(FetchDescriptor<MobilityRoutine>()),
+            "mobilityAssessment": try context.fetchCount(
+                FetchDescriptor<MobilityAssessmentDefinition>()
+            ),
             "food": try context.fetchCount(FetchDescriptor<FoodItem>()),
             "mealTemplate": try context.fetchCount(FetchDescriptor<MealTemplate>())
         ]

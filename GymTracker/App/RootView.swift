@@ -23,6 +23,10 @@ struct RootView: View {
     @State private var activeWorkoutPath: [ActiveWorkoutRoute] = []
     @State private var isShowingActiveWorkout = false
     @State private var activeMobilitySession: MobilitySession?
+    /// The assessment flow is presented from the root, like the active workout
+    /// and the active mobility session: the presenter owns dismissal, and the
+    /// flow only reports that it is finished.
+    @State private var activeAssessmentSession: MobilityAssessmentSession?
     @State private var shouldDiscardActiveWorkout = false
     @State private var selectedTab: AppTab = .today
     @State private var requestedRescheduleProgressID: UUID?
@@ -98,6 +102,8 @@ struct RootView: View {
                             HistoryMuscleBalanceDestination()
                         case .mobilityHistory:
                             MobilityHistoryView()
+                        case .mobilityAssessmentHistory:
+                            MobilityAssessmentHistoryView()
                         case .nutritionHistory:
                             NutritionHistoryView()
                         case .journalHistory:
@@ -192,6 +198,13 @@ struct RootView: View {
                 MobilitySessionView(session: session) {
                     activeMobilitySession = nil
                     resumeWorkoutAfterWarmupIfNeeded(session)
+                }
+            }
+        }
+        .fullScreenCover(item: $activeAssessmentSession) { session in
+            NavigationStack {
+                MobilityAssessmentFlowView(session: session) {
+                    activeAssessmentSession = nil
                 }
             }
         }
@@ -664,7 +677,10 @@ struct RootView: View {
                 )
             }
         case .mobility:
-            MobilityLibraryView(onStart: startMobility)
+            MobilityLibraryView(
+                onStart: startMobility,
+                onStartAssessment: { activeAssessmentSession = $0 }
+            )
         case .programPath(let route):
             programPathDestination(route, onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) })
         case .weeklyReview(let route):
@@ -1139,10 +1155,15 @@ struct RootView: View {
     }
 
     private func resumeWorkoutAfterWarmupIfNeeded(_ session: MobilitySession) {
-        guard session.workoutID == warmupWorkoutID,
-              workoutVM.activeWorkout?.id == warmupWorkoutID
+        guard let warmupWorkoutID,
+              WorkoutMobilityContinuationPolicy.shouldResumeWorkout(
+                sessionContext: session.context,
+                sessionWorkoutID: session.workoutID,
+                pendingWarmupWorkoutID: warmupWorkoutID,
+                activeWorkoutID: workoutVM.activeWorkout?.id
+              )
         else { return }
-        warmupWorkoutID = nil
+        self.warmupWorkoutID = nil
         DispatchQueue.main.async {
             isShowingActiveWorkout = true
         }
@@ -1640,6 +1661,19 @@ struct RootView: View {
             modelContext.rollback()
             print("Failed to refresh plan-run availability: \(error)")
         }
+    }
+}
+
+enum WorkoutMobilityContinuationPolicy {
+    static func shouldResumeWorkout(
+        sessionContext: MobilitySessionContext,
+        sessionWorkoutID: UUID?,
+        pendingWarmupWorkoutID: UUID,
+        activeWorkoutID: UUID?
+    ) -> Bool {
+        sessionContext == .warmup
+            && sessionWorkoutID == pendingWarmupWorkoutID
+            && activeWorkoutID == pendingWarmupWorkoutID
     }
 }
 

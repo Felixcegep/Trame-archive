@@ -5,13 +5,20 @@ struct MobilityLibraryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let onStart: (MobilityRoutine, MobilitySessionContext, UUID?) -> Void
+    /// Assessment presentation is root-owned, so this screen forwards the
+    /// request upward rather than presenting the flow itself.
+    let onStartAssessment: (MobilityAssessmentSession) -> Void
 
     @Query(sort: \MobilityRoutine.updatedAt, order: .reverse) private var routines: [MobilityRoutine]
     @Query(sort: \MobilityDefinition.name) private var definitions: [MobilityDefinition]
     @Query(sort: \MobilitySession.startTime, order: .reverse) private var sessions: [MobilitySession]
     @Query private var workouts: [Workout]
+    @Query(sort: \MobilityAssessmentSession.startedAt, order: .reverse)
+    private var assessmentSessions: [MobilityAssessmentSession]
+    @Query private var assessmentDefinitions: [MobilityAssessmentDefinition]
     @State private var selectedRoutine: MobilityRoutine?
     @State private var isShowingDefinitions = false
+    @State private var isShowingAssessmentLanding = false
     @State private var sessionContext: MobilitySessionContext = .standalone
     /// View-local. A filter is a momentary way of looking at the library, not
     /// a preference, so it is deliberately not persisted.
@@ -19,13 +26,13 @@ struct MobilityLibraryView: View {
 
     var body: some View {
         List {
+            // The hub leads with the assessment because it is the only surface
+            // here that produces evidence; routines are the work it points at.
             Section {
-                Picker("Session context", selection: $sessionContext) {
-                    ForEach(MobilitySessionContext.allCases, id: \.self) { context in
-                        Text(context.displayName).tag(context)
-                    }
-                }
-                .disabled(sessionContext != .standalone && activeWorkout == nil)
+                assessmentCard
+                    .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
 
             Section {
@@ -38,6 +45,16 @@ struct MobilityLibraryView: View {
                 } else {
                     purposeFilterChips
                 }
+
+                // The context belongs to starting a routine, not to the screen.
+                // At the top it read as a global setting for a hub that also
+                // holds assessments, which it never applied to.
+                Picker("Session context", selection: $sessionContext) {
+                    ForEach(MobilitySessionContext.allCases, id: \.self) { context in
+                        Text(context.displayName).tag(context)
+                    }
+                }
+                .disabled(sessionContext != .standalone && activeWorkout == nil)
             } header: {
                 Text("Routines")
             } footer: {
@@ -68,14 +85,6 @@ struct MobilityLibraryView: View {
                 }
             }
 
-            if recentMovementNames.isEmpty == false {
-                Section("Recent movements") {
-                    ForEach(recentMovementNames, id: \.self) { name in
-                        Text(name)
-                    }
-                }
-            }
-
             Section {
                 Button {
                     selectedRoutine = createRoutine()
@@ -83,18 +92,63 @@ struct MobilityLibraryView: View {
                     Label("New routine", systemImage: AppIcon.plus)
                 }
                 .accessibilityIdentifier("create-mobility-routine")
+            }
 
+            Section {
                 Button {
                     isShowingDefinitions = true
                 } label: {
                     Label("Manage movements", systemImage: AppIcon.mobility)
                 }
                 .accessibilityIdentifier("manage-mobility-definitions")
+
+                // Recently performed movements are supporting detail for the
+                // movement library, not a destination of their own.
+                ForEach(recentMovementNames, id: \.self) { name in
+                    Text(name)
+                        .font(AppFont.subheadline)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+            } header: {
+                Text("Movements")
+            } footer: {
+                if recentMovementNames.isEmpty == false {
+                    Text("Movements listed here are the ones your recent sessions recorded.")
+                }
+            }
+
+            Section {
+                historyLink(
+                    title: String(localized: "Mobility routines"),
+                    detail: routineHistoryDetail,
+                    icon: AppIcon.mobility,
+                    identifier: "open-mobility-routine-history"
+                ) {
+                    MobilityHistoryView()
+                }
+
+                historyLink(
+                    title: String(localized: "Mobility assessments"),
+                    detail: assessmentHistoryDetail,
+                    icon: AppIcon.mobilityAssessment,
+                    identifier: "open-mobility-assessment-history-from-hub"
+                ) {
+                    MobilityAssessmentHistoryView()
+                }
+            } header: {
+                Text("History")
+            } footer: {
+                // Two different kinds of record. Naming both is what keeps a
+                // performed routine from being read as an observation.
+                Text("Routine history records the work you performed. Assessment history records what you observed.")
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
         .navigationTitle("Mobility")
+        .navigationDestination(isPresented: $isShowingAssessmentLanding) {
+            MobilityAssessmentLandingView(onStart: onStartAssessment)
+        }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Close") { dismiss() }
@@ -110,6 +164,174 @@ struct MobilityLibraryView: View {
                 MobilityDefinitionsView()
             }
         }
+    }
+
+    // MARK: - Assessment card
+
+    /// Three states, one card. An assessment in progress outranks everything
+    /// else on the screen because resuming it is the only action here that can
+    /// lose work if it is missed.
+    ///
+    /// Each state carries exactly one action, which is what lets the card sit in
+    /// a `List` row without its controls competing for the same tap.
+    @ViewBuilder
+    private var assessmentCard: some View {
+        if let activeAssessment {
+            GymCard(variant: .current) {
+                GymEyebrow("In progress", tint: .gymPrimary)
+                Text("Assessment in progress")
+                    .font(AppFont.titleSmall)
+                    .foregroundStyle(Color.gymText)
+                Text(assessmentProgressDetail(activeAssessment))
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // Resuming goes straight back into the flow. Routing it through
+                // the landing screen first would put a menu between the lifter
+                // and the work they already started.
+                Button("Continue assessment") { onStartAssessment(activeAssessment) }
+                    .buttonStyle(.gymPrimary)
+                    .accessibilityIdentifier("resume-mobility-assessment-from-hub")
+            }
+        } else if let lastRecordedAssessment {
+            GymCard {
+                GymEyebrow("Assessment")
+                Text(assessmentDateText(lastRecordedAssessment))
+                    .font(AppFont.titleSmall)
+                    .foregroundStyle(Color.gymText)
+                Text(assessmentObservationCount(lastRecordedAssessment))
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(Color.gymSubduedText)
+
+                assessmentLink(title: String(localized: "Open assessment"))
+            }
+        } else {
+            GymCard {
+                GymEyebrow("Assessment")
+                Text("Measure your mobility")
+                    .font(AppFont.titleSmall)
+                    .foregroundStyle(Color.gymText)
+                Text(assessmentInvolvementDetail)
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                assessmentLink(title: String(localized: "Get started"))
+            }
+        }
+    }
+
+    /// A plain button plus an explicit destination rather than a
+    /// `NavigationLink`. A link nested inside a card inside a `List` row makes
+    /// the whole row the link and adds a system disclosure chevron beside the
+    /// primary button, which is not what this card should look like.
+    private func assessmentLink(title: String) -> some View {
+        Button(title) { isShowingAssessmentLanding = true }
+            .buttonStyle(.gymPrimary)
+            .accessibilityIdentifier("open-mobility-assessment")
+    }
+
+    private func historyLink<Destination: View>(
+        title: String,
+        detail: String,
+        icon: String,
+        identifier: String,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            Label {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(title)
+                        .font(AppFont.subheadlineSemibold)
+                    Text(detail)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+            } icon: {
+                GymIconChip(systemImage: icon)
+            }
+        }
+        .accessibilityIdentifier(identifier)
+    }
+
+    private var activeAssessment: MobilityAssessmentSession? {
+        assessmentSessions.first { $0.status == .active }
+    }
+
+    /// A sitting that saved nothing measured nothing, so it never becomes the
+    /// card's "last assessment".
+    private var lastRecordedAssessment: MobilityAssessmentSession? {
+        assessmentSessions.first { $0.status != .active && $0.results.isEmpty == false }
+    }
+
+    private func assessmentDateText(_ session: MobilityAssessmentSession) -> String {
+        let date = session.startedAt.formatted(.dateTime.month(.abbreviated).day().year())
+        guard isStale(session) else { return date }
+        // A restatement of the date, not a prompt to act. There is deliberately
+        // no colour, icon, threshold styling, or re-measure nag attached to it.
+        return String(
+            localized: "mobility.assessment.hub.dated",
+            defaultValue: "\(date) · \(session.startedAt.formatted(.relative(presentation: .named)))"
+        )
+    }
+
+    /// Eight weeks, matching the plan's stale threshold. It changes the wording
+    /// and nothing else.
+    private func isStale(_ session: MobilityAssessmentSession) -> Bool {
+        session.startedAt < Date.now.addingTimeInterval(-56 * 24 * 60 * 60)
+    }
+
+    private func assessmentObservationCount(_ session: MobilityAssessmentSession) -> String {
+        String(
+            localized: "mobility.assessment.observation.count",
+            defaultValue: "^[\(session.results.count) observation](inflect: true)"
+        )
+    }
+
+    private func assessmentProgressDetail(_ session: MobilityAssessmentSession) -> String {
+        String(
+            localized: "mobility.assessment.progress.detail",
+            defaultValue: "Started \(session.startedAt.formatted(.dateTime.month(.abbreviated).day().year())) · \(assessmentObservationCount(session)) saved so far"
+        )
+    }
+
+    /// What it involves, counted from the installed catalogue rather than a
+    /// hardcoded number, and with no time estimate: how long a hand-entered
+    /// assessment takes is not something this screen can honestly claim.
+    private var assessmentInvolvementDetail: String {
+        String(
+            localized: "mobility.assessment.hub.involves",
+            defaultValue: "^[\(availableAssessmentCount) assessment](inflect: true), each entered by hand. You need wall and floor space, and you can skip any of them."
+        )
+    }
+
+    private var availableAssessmentCount: Int {
+        assessmentDefinitions.filter { $0.isArchived == false }.count
+    }
+
+    private var routineHistoryDetail: String {
+        String(
+            localized: "mobility.hub.history.routines",
+            defaultValue: "^[\(completedSessionCount) completed session](inflect: true)"
+        )
+    }
+
+    private var assessmentHistoryDetail: String {
+        String(
+            localized: "mobility.hub.history.assessments",
+            defaultValue: "^[\(recordedAssessmentCount) recorded assessment](inflect: true)"
+        )
+    }
+
+    private var completedSessionCount: Int {
+        sessions.filter { $0.status == .completed }.count
+    }
+
+    private var recordedAssessmentCount: Int {
+        assessmentSessions.filter { $0.results.isEmpty == false }.count
     }
 
     /// The filter chips. `ChipFlowLayout` wraps rather than scrolls, so every

@@ -316,6 +316,9 @@ extension BackupDTO {
         if version >= Self.mobilityVersion {
             try validateMobility()
         }
+        if version >= Self.mobilityAssessmentVersion {
+            try validateMobilityAssessments()
+        }
 
         if version >= Self.nutritionVersion {
             try validateNutrition()
@@ -966,6 +969,159 @@ extension BackupDTO {
         }
         try validateUniqueIdentifiers(entryIDs, named: "mobility entry")
         try validateUniqueIdentifiers(resultIDs, named: "mobility result")
+    }
+
+    private func validateMobilityAssessments() throws {
+        try validateUniqueIdentifiers(
+            mobilityAssessmentDefinitions.map(\.id),
+            named: "mobility assessment definition"
+        )
+        try validateUniqueIdentifiers(
+            mobilityAssessmentSessions.map(\.id),
+            named: "mobility assessment session"
+        )
+
+        let catalogueKeys = mobilityAssessmentDefinitions.map(\.catalogueKey)
+        guard Set(catalogueKeys).count == catalogueKeys.count,
+              catalogueKeys.allSatisfy({ !$0.isEmpty }) else {
+            throw BackupValidationError.duplicateIdentifier("mobility assessment catalogue key")
+        }
+        let definitionsByKey = Dictionary(
+            uniqueKeysWithValues: mobilityAssessmentDefinitions.map { ($0.catalogueKey, $0) }
+        )
+
+        for definition in mobilityAssessmentDefinitions {
+            guard let preferredMode = MobilityMeasurementMode(rawValue: definition.preferredMode),
+                  let manualMode = MobilityMeasurementMode(rawValue: definition.manualMode),
+                  let unit = MobilityMeasurementUnit(rawValue: definition.unit),
+                  MobilityAssessmentZone(rawValue: definition.zone) != nil,
+                  definition.definitionVersion > 0,
+                  !definition.name.isEmpty,
+                  !definition.nameLocalizationKey.isEmpty,
+                  !definition.instructionsLocalizationKey.isEmpty,
+                  !definition.setupInstructionsLocalizationKey.isEmpty,
+                  !definition.measurementDescriptionLocalizationKey.isEmpty,
+                  !definition.measurementLimitationsLocalizationKey.isEmpty,
+                  manualMode.isManual,
+                  manualMode != .cameraPose,
+                  measurementUnit(unit, supports: manualMode),
+                  preferredMode != .cameraPose,
+                  !definition.supportedSides.isEmpty,
+                  Set(definition.supportedSides).count == definition.supportedSides.count,
+                  definition.supportedSides.allSatisfy({
+                      MobilityAssessmentSide(rawValue: $0) != nil
+                  }),
+                  !definition.setupKeys.isEmpty,
+                  Set(definition.setupKeys).count == definition.setupKeys.count,
+                  definition.setupKeys.contains(definition.defaultSetupKey) else {
+                throw BackupValidationError.invalidIdentifier("mobility assessment definition")
+            }
+        }
+
+        var resultIDs = [String]()
+        var sampleIDs = [String]()
+        var activeSessionCount = 0
+        for session in mobilityAssessmentSessions {
+            guard let status = MobilityAssessmentSessionStatus(rawValue: session.status),
+                  isValidLocalDayKey(session.dayKey),
+                  !session.selectedDefinitionKeys.isEmpty,
+                  Set(session.selectedDefinitionKeys).count == session.selectedDefinitionKeys.count,
+                  session.selectedDefinitionKeys.allSatisfy({ definitionsByKey[$0] != nil }),
+                  Set(session.skippedDefinitionKeys).count == session.skippedDefinitionKeys.count,
+                  Set(session.skippedDefinitionKeys).isSubset(of: Set(session.selectedDefinitionKeys)),
+                  (0...session.selectedDefinitionKeys.count).contains(session.currentDefinitionIndex),
+                  (status == .active) == (session.completedAt == nil) else {
+                throw BackupValidationError.invalidIdentifier("mobility assessment session")
+            }
+            if status == .active { activeSessionCount += 1 }
+
+            var resultKeys = Set<String>()
+            for result in session.results {
+                resultIDs.append(result.id)
+                guard let definition = definitionsByKey[result.definitionCatalogueKeySnapshot],
+                      let side = MobilityAssessmentSide(rawValue: result.side),
+                      let method = MobilityMeasurementMode(rawValue: result.method),
+                      let unit = MobilityMeasurementUnit(rawValue: result.unit),
+                      let source = MobilityMeasurementSource(rawValue: result.source),
+                      let confidence = MobilityMeasurementConfidence(rawValue: result.confidence),
+                      result.orderIndex >= 0,
+                      isValidLocalDayKey(result.dayKey),
+                      UUID(uuidString: result.definitionIDSnapshot) != nil,
+                      result.definitionVersionSnapshot > 0,
+                      !result.definitionNameSnapshot.isEmpty,
+                      !result.instructionsLocalizationKeySnapshot.isEmpty,
+                      !result.setupInstructionsLocalizationKeySnapshot.isEmpty,
+                      !result.measurementDescriptionLocalizationKeySnapshot.isEmpty,
+                      !result.measurementLimitationsLocalizationKeySnapshot.isEmpty,
+                      session.selectedDefinitionKeys.contains(result.definitionCatalogueKeySnapshot),
+                      definition.supportedSides.contains(side.rawValue),
+                      definition.setupKeys.contains(result.setupKey),
+                      method != .cameraPose,
+                      method == MobilityMeasurementMode(rawValue: definition.manualMode)
+                        || method == MobilityMeasurementMode(rawValue: definition.preferredMode),
+                      measurementUnit(unit, supports: method),
+                      resultKeys.insert("\(result.definitionCatalogueKeySnapshot)|\(result.side)").inserted else {
+                    throw BackupValidationError.invalidIdentifier("mobility assessment result")
+                }
+
+                switch unit {
+                case .criteria:
+                    guard result.numericValue == nil,
+                          result.criteria.flatMap(MobilityAssessmentCriteriaObservation.init(rawValue:)) != nil else {
+                        throw BackupValidationError.invalidIdentifier("mobility assessment result")
+                    }
+                case .degrees, .centimetres:
+                    guard result.criteria == nil,
+                          result.numericValue.map({ $0.isFinite }) == true else {
+                        throw BackupValidationError.invalidIdentifier("mobility assessment result")
+                    }
+                }
+
+                if source == .manual {
+                    guard method.isManual,
+                          confidence.rank <= MobilityMeasurementConfidence.moderate.rank,
+                          result.sample == nil else {
+                        throw BackupValidationError.invalidIdentifier("mobility assessment manual result")
+                    }
+                }
+
+                if let sample = result.sample {
+                    sampleIDs.append(sample.id)
+                    guard sample.sampleCount > 0,
+                          sample.captureDuration > 0,
+                          sample.median.isFinite,
+                          sample.minimum.isFinite,
+                          sample.maximum.isFinite,
+                          sample.standardDeviation.isFinite,
+                          sample.offAxisExcessDegrees.isFinite,
+                          sample.minimum <= sample.median,
+                          sample.median <= sample.maximum,
+                          sample.standardDeviation >= 0,
+                          sample.offAxisExcessDegrees >= 0 else {
+                        throw BackupValidationError.invalidIdentifier("mobility assessment sample")
+                    }
+                }
+            }
+        }
+        guard activeSessionCount <= 1 else {
+            throw BackupValidationError.invalidIdentifier("active mobility assessment session")
+        }
+        try validateUniqueIdentifiers(resultIDs, named: "mobility assessment result")
+        try validateUniqueIdentifiers(sampleIDs, named: "mobility assessment sample")
+    }
+
+    private func measurementUnit(
+        _ unit: MobilityMeasurementUnit,
+        supports method: MobilityMeasurementMode
+    ) -> Bool {
+        switch method {
+        case .manualAngle, .inclinometer, .axialRotation, .twoSegmentAngle, .dynamicRange:
+            return unit == .degrees
+        case .manualLinear:
+            return unit == .centimetres
+        case .manualCriteria, .cameraPose:
+            return unit == .criteria
+        }
     }
 
     private func validateNutrition() throws {

@@ -31,6 +31,8 @@ extension ModelContext {
         for record in try fetch(FetchDescriptor<SystemSeedRecord>()) { delete(record) }
 #endif
         for workout in workouts { delete(workout) }
+        for session in try fetch(FetchDescriptor<MobilityAssessmentSession>()) { delete(session) }
+        for definition in try fetch(FetchDescriptor<MobilityAssessmentDefinition>()) { delete(definition) }
         for session in try fetch(FetchDescriptor<MobilitySession>()) { delete(session) }
         for routine in try fetch(FetchDescriptor<MobilityRoutine>()) { delete(routine) }
         for definition in try fetch(FetchDescriptor<MobilityDefinition>()) { delete(definition) }

@@ -686,6 +686,10 @@ final class BackupFieldCoverageTests: XCTestCase {
         assertFieldCount(of: FoodItemDTO.self, equals: 21)
         assertFieldCount(of: LoggedMealDTO.self, equals: 10)
         assertFieldCount(of: MobilityRoutineDTO.self, equals: 8)
+        assertFieldCount(of: MobilityAssessmentDefinitionDTO.self, equals: 21)
+        assertFieldCount(of: MobilityAssessmentSampleDTO.self, equals: 9)
+        assertFieldCount(of: MobilityAssessmentResultDTO.self, equals: 24)
+        assertFieldCount(of: MobilityAssessmentSessionDTO.self, equals: 11)
     }
 
     /// The count guard above only protects the eight DTO types it already
@@ -747,7 +751,11 @@ final class BackupFieldCoverageTests: XCTestCase {
         "ExerciseTemplateDTO",
         "FoodItemDTO",
         "LoggedMealDTO",
-        "MobilityRoutineDTO"
+        "MobilityRoutineDTO",
+        "MobilityAssessmentDefinitionDTO",
+        "MobilityAssessmentSampleDTO",
+        "MobilityAssessmentResultDTO",
+        "MobilityAssessmentSessionDTO"
     ]
 
     /// DTO types with no Mirror-based field-count guard *in this file* yet.
@@ -962,6 +970,83 @@ final class BackupFieldCoverageTests: XCTestCase {
                 updatedAt: .now,
                 items: [],
                 purpose: nil
+            )
+        case "MobilityAssessmentDefinitionDTO":
+            return MobilityAssessmentDefinitionDTO(
+                id: UUID().uuidString,
+                catalogueKey: "mobility-assessment.sentinel",
+                name: "",
+                nameLocalizationKey: "",
+                instructionsLocalizationKey: "",
+                setupInstructionsLocalizationKey: "",
+                measurementDescriptionLocalizationKey: "",
+                measurementLimitationsLocalizationKey: "",
+                zone: MobilityAssessmentZone.hips.rawValue,
+                definitionVersion: 1,
+                preferredMode: MobilityMeasurementMode.inclinometer.rawValue,
+                manualMode: MobilityMeasurementMode.manualAngle.rawValue,
+                unit: MobilityMeasurementUnit.degrees.rawValue,
+                supportedSides: [MobilityAssessmentSide.left.rawValue],
+                setupKeys: ["sentinel"],
+                defaultSetupKey: "sentinel",
+                defaultIsActiveRange: true,
+                sortOrder: 0,
+                isArchived: false,
+                createdAt: .now,
+                updatedAt: .now
+            )
+        case "MobilityAssessmentSampleDTO":
+            return MobilityAssessmentSampleDTO(
+                id: UUID().uuidString,
+                sampleCount: 1,
+                median: 0,
+                minimum: 0,
+                maximum: 0,
+                standardDeviation: 0,
+                offAxisExcessDegrees: 0,
+                captureDuration: 1,
+                createdAt: .now
+            )
+        case "MobilityAssessmentResultDTO":
+            return MobilityAssessmentResultDTO(
+                id: UUID().uuidString,
+                orderIndex: 0,
+                numericValue: 0,
+                criteria: nil,
+                side: MobilityAssessmentSide.left.rawValue,
+                isWarm: false,
+                setupKey: "sentinel",
+                method: MobilityMeasurementMode.manualAngle.rawValue,
+                unit: MobilityMeasurementUnit.degrees.rawValue,
+                isActiveRange: true,
+                dayKey: "2026-01-01",
+                source: MobilityMeasurementSource.manual.rawValue,
+                confidence: MobilityMeasurementConfidence.moderate.rawValue,
+                definitionIDSnapshot: UUID().uuidString,
+                definitionCatalogueKeySnapshot: "mobility-assessment.sentinel",
+                definitionNameSnapshot: "",
+                definitionVersionSnapshot: 1,
+                instructionsLocalizationKeySnapshot: "",
+                setupInstructionsLocalizationKeySnapshot: "",
+                measurementDescriptionLocalizationKeySnapshot: "",
+                measurementLimitationsLocalizationKeySnapshot: "",
+                createdAt: .now,
+                updatedAt: .now,
+                sample: nil
+            )
+        case "MobilityAssessmentSessionDTO":
+            return MobilityAssessmentSessionDTO(
+                id: UUID().uuidString,
+                status: MobilityAssessmentSessionStatus.active.rawValue,
+                dayKey: "2026-01-01",
+                selectedDefinitionKeys: [],
+                skippedDefinitionKeys: [],
+                currentDefinitionIndex: 0,
+                startedAt: .now,
+                completedAt: nil,
+                createdAt: .now,
+                updatedAt: .now,
+                results: []
             )
         default:
             return nil

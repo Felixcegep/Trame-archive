@@ -7,6 +7,7 @@ import SwiftUI
 struct ProgressHubView: View {
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     @Query(sort: \MobilitySession.startTime, order: .reverse) private var mobilitySessions: [MobilitySession]
+    @Query(sort: \MobilityAssessmentSession.startedAt, order: .reverse) private var assessmentSessions: [MobilityAssessmentSession]
     @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var loggedMeals: [LoggedMeal]
     @Query(sort: \DailyLogEntry.createdAt, order: .reverse) private var dailyLogEntries: [DailyLogEntry]
 
@@ -40,11 +41,27 @@ struct ProgressHubView: View {
             }
 
             Section("Supporting history") {
+                // These two use inflected catalogue strings rather than
+                // `countDescription`, which builds its plural by appending "s"
+                // to an English singular and so cannot translate. The remaining
+                // rows still carry that older pattern.
                 progressLink(
                     route: .mobilityHistory,
-                    title: "Mobility history",
-                    detail: countDescription(completedMobilitySessions.count, singular: "completed session"),
+                    title: "Mobility routines",
+                    detail: String(
+                        localized: "mobility.hub.history.routines",
+                        defaultValue: "^[\(completedMobilitySessions.count) completed session](inflect: true)"
+                    ),
                     icon: AppIcon.mobility
+                )
+                progressLink(
+                    route: .mobilityAssessmentHistory,
+                    title: "Mobility assessments",
+                    detail: String(
+                        localized: "mobility.hub.history.assessments",
+                        defaultValue: "^[\(recordedAssessmentSessions.count) recorded assessment](inflect: true)"
+                    ),
+                    icon: AppIcon.mobilityAssessment
                 )
                 progressLink(
                     route: .nutritionHistory,
@@ -72,6 +89,12 @@ struct ProgressHubView: View {
 
     private var completedMobilitySessions: [MobilitySession] {
         mobilitySessions.filter { $0.status == .completed }
+    }
+
+    /// A sitting that saved nothing measured nothing, so it is not counted as a
+    /// recorded assessment.
+    private var recordedAssessmentSessions: [MobilityAssessmentSession] {
+        assessmentSessions.filter { $0.results.isEmpty == false }
     }
 
     private func progressLink(route: ProgressRoute, title: String, detail: String, icon: String) -> some View {
@@ -104,6 +127,7 @@ extension ProgressRoute {
         case .trainingTrends: "training-trends"
         case .muscleGroupVolume: "muscle-group-volume"
         case .mobilityHistory: "mobility-history"
+        case .mobilityAssessmentHistory: "mobility-assessment-history"
         case .nutritionHistory: "nutrition-history"
         case .journalHistory: "journal-history"
         }

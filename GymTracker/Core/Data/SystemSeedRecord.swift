@@ -12,6 +12,7 @@ enum SystemSeedEntityKind: String, Codable, CaseIterable {
     case mobilityFamily
     case mobilityDefinition
     case mobilityRoutine
+    case mobilityAssessmentDefinition
     case foodItem
     case foodServing
     case mealTemplate

@@ -4,7 +4,7 @@ import SwiftData
 @MainActor
 enum SystemSeedCatalogCoordinator {
     static let seedVersion = 1
-    static let contentVersion = 7
+    static let contentVersion = 8
 
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.
@@ -66,6 +66,7 @@ enum SystemSeedCatalogCoordinator {
 #endif
 
         try MobilitySeedData.stage(using: context, registry: registry)
+        report += try MobilityAssessmentSeedData.stage(using: context, registry: registry)
         report += try WorkoutTemplateMobilitySeedLinker.apply(in: context, registry: registry)
         try NutritionSeedData.stage(using: context, registry: registry)
 

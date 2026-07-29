@@ -1,6 +1,140 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Measure your mobility" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesurez votre mobilité"
+          }
+        }
+      }
+    },
+    "Get started" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencer"
+          }
+        }
+      }
+    },
+    "Open assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir l’évaluation"
+          }
+        }
+      }
+    },
+    "Mobility routines" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Routines de mobilité"
+          }
+        }
+      }
+    },
+    "Mobility assessments" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évaluations de mobilité"
+          }
+        }
+      }
+    },
+    "Movements listed here are the ones your recent sessions recorded." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les mouvements listés ici sont ceux qu’ont enregistrés vos séances récentes."
+          }
+        }
+      }
+    },
+    "Routine history records the work you performed. Assessment history records what you observed." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’historique des routines enregistre le travail que vous avez effectué. L’historique des évaluations enregistre ce que vous avez observé."
+          }
+        }
+      }
+    },
+    "mobility.assessment.hub.dated" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "mobility.assessment.hub.involves" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld assessment](inflect: true), each entered by hand. You need wall and floor space, and you can skip any of them."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld évaluation](inflect: true), chacune saisie à la main. Il vous faut un mur et de l’espace au sol, et vous pouvez en passer n’importe laquelle."
+          }
+        }
+      }
+    },
+    "mobility.hub.history.routines" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld completed session](inflect: true)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld séance terminée](inflect: true)"
+          }
+        }
+      }
+    },
+    "mobility.hub.history.assessments" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld recorded assessment](inflect: true)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld évaluation enregistrée](inflect: true)"
+          }
+        }
+      }
+    },
     "" : {
       "localizations" : {
         "fr" : {
@@ -1188,6 +1322,16 @@
         }
       }
     },
+    "A difference from an earlier observation appears only when every condition matches." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un écart avec une observation antérieure n’apparaît que si toutes les conditions concordent."
+          }
+        }
+      }
+    },
     "A recorded rotation event is inconsistent and was left out of the current position." : {
       "localizations" : {
         "fr" : {
@@ -1381,6 +1525,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Active"
+          }
+        }
+      }
+    },
+    "Active or passive range" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amplitude active ou passive"
+          }
+        }
+      }
+    },
+    "Active range" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amplitude active"
           }
         }
       }
@@ -1836,6 +2000,16 @@
         }
       }
     },
+    "After training" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Après l’entraînement"
+          }
+        }
+      }
+    },
     "After workout" : {
       "localizations" : {
         "fr" : {
@@ -1875,6 +2049,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Toutes les %lld séries terminées"
+          }
+        }
+      }
+    },
+    "All criteria observed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tous les critères observés"
           }
         }
       }
@@ -2011,9 +2195,49 @@
       "comment" : "A confirmation dialog that appears when the user tries to start a new workout while an active workout is in progress.",
       "isCommentAutoGenerated" : true
     },
+    "An assessment is already in progress. Continue that one before starting another." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une évaluation est déjà en cours. Terminez-la avant d’en commencer une autre."
+          }
+        }
+      }
+    },
     "An exact rep target takes precedence over a range." : {
       "comment" : "A description of how the app handles reps.",
       "isCommentAutoGenerated" : true
+    },
+    "An observation entered by hand is recorded with moderate confidence." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une observation saisie à la main est enregistrée avec une confiance modérée."
+          }
+        }
+      }
+    },
+    "Angle entered by hand" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angle saisi à la main"
+          }
+        }
+      }
+    },
+    "Ankles" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chevilles"
+          }
+        }
+      }
     },
     "Anti-rotation" : {
       "extractionState" : "stale",
@@ -2181,6 +2405,46 @@
       "comment" : "A label for a picker that lets users choose how often they're prompted to record their body weight.",
       "isCommentAutoGenerated" : true
     },
+    "Assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évaluation"
+          }
+        }
+      }
+    },
+    "Assessment complete" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évaluation terminée"
+          }
+        }
+      }
+    },
+    "Assessment history" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historique des évaluations"
+          }
+        }
+      }
+    },
+    "Assessment in progress" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évaluation en cours"
+          }
+        }
+      }
+    },
     "Assisted Bodyweight" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2221,6 +2485,16 @@
     "Back" : {
       "comment" : "A button that dismisses a view.",
       "isCommentAutoGenerated" : true
+    },
+    "Back to instructions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revenir aux consignes"
+          }
+        }
+      }
     },
     "Back-off" : {
       "comment" : "Label for a set type that is a back-off.",
@@ -2402,6 +2676,26 @@
         }
       }
     },
+    "Before or after training" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avant ou après l’entraînement"
+          }
+        }
+      }
+    },
+    "Before training" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avant l’entraînement"
+          }
+        }
+      }
+    },
     "Before workout" : {
       "localizations" : {
         "fr" : {
@@ -2544,6 +2838,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Poids du corps"
+          }
+        }
+      }
+    },
+    "Both sides" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les deux côtés"
           }
         }
       }
@@ -2725,6 +3029,16 @@
         }
       }
     },
+    "Camera pose" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posture par caméra"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "comment" : "A button that dismisses the form without saving.",
       "isCommentAutoGenerated" : true,
@@ -2843,6 +3157,16 @@
       "comment" : "A hint for the user that describes the action of changing the type of a set.",
       "isCommentAutoGenerated" : true
     },
+    "Change these values" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier ces valeurs"
+          }
+        }
+      }
+    },
     "Changes apply to future activations of this rotation. Active runs and completed mobility history stay unchanged." : {
       "comment" : "A description of the changes that will be made when editing a workout mobility.",
       "isCommentAutoGenerated" : true
@@ -2931,6 +3255,26 @@
         }
       }
     },
+    "Choose assessments" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir les évaluations"
+          }
+        }
+      }
+    },
+    "Choose at least one assessment to record." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez au moins une évaluation à enregistrer."
+          }
+        }
+      }
+    },
     "Choose at least one primary muscle" : {
       "comment" : "A description of the muscles that the exercise targets.",
       "isCommentAutoGenerated" : true
@@ -2965,6 +3309,16 @@
         }
       }
     },
+    "Choose one of the setups this assessment supports." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez une des positions prévues par cette évaluation."
+          }
+        }
+      }
+    },
     "Choose relationship type" : {
       "comment" : "A dialog that appears when the user wants to add a relationship between two exercises.",
       "isCommentAutoGenerated" : true
@@ -2993,6 +3347,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choisissez ce que vous voulez suivre"
+          }
+        }
+      }
+    },
+    "Choose what you observed before saving." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez ce que vous avez observé avant d’enregistrer."
           }
         }
       }
@@ -3036,6 +3400,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Effacer"
+          }
+        }
+      }
+    },
+    "Clear all" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout désélectionner"
           }
         }
       }
@@ -3089,6 +3463,16 @@
     "Close" : {
       "comment" : "A button that dismisses a sheet.",
       "isCommentAutoGenerated" : true
+    },
+    "cm" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cm"
+          }
+        }
+      }
     },
     "Coaching" : {
       "comment" : "A section of a view that allows the user to edit the target RPE and RIR for an exercise.",
@@ -3271,9 +3655,29 @@
     "Compose formula" : {
 
     },
+    "Conditions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conditions"
+          }
+        }
+      }
+    },
     "Confidence" : {
       "comment" : "A label for the user to select the confidence level of a food.",
       "isCommentAutoGenerated" : true
+    },
+    "Confidence not stated" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confiance non précisée"
+          }
+        }
+      }
     },
     "Configured by the Drop set type above." : {
       "comment" : "Explains that the drop set segment structure is controlled by the set type selector.",
@@ -3331,6 +3735,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continuer après l’entraînement sélectionné"
+          }
+        }
+      }
+    },
+    "Continue assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poursuivre l’évaluation"
           }
         }
       }
@@ -3492,6 +3906,16 @@
       "comment" : "A title for an alert that indicates that a nutrition target couldn’t be saved.",
       "isCommentAutoGenerated" : true
     },
+    "Couldn’t save this observation" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’enregistrer cette observation"
+          }
+        }
+      }
+    },
     "Couldn’t save weight" : {
       "comment" : "A title for an alert that indicates that a weight couldn’t be saved.",
       "isCommentAutoGenerated" : true
@@ -3522,6 +3946,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Impossible de démarrer la mobilité"
+          }
+        }
+      }
+    },
+    "Couldn’t start the assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de commencer l’évaluation"
           }
         }
       }
@@ -3704,6 +4138,26 @@
     "Creatine Today" : {
       "comment" : "Widget name.",
       "isCommentAutoGenerated" : true
+    },
+    "Criteria not observed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Critères non observés"
+          }
+        }
+      }
+    },
+    "Criteria observed by hand" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Critères observés à la main"
+          }
+        }
+      }
     },
     "Current" : {
       "comment" : "A button that toggles between viewing current and archived mobility definitions.",
@@ -4012,6 +4466,36 @@
         }
       }
     },
+    "Device axial rotation" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation axiale de l’appareil"
+          }
+        }
+      }
+    },
+    "Device inclinometer" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inclinomètre de l’appareil"
+          }
+        }
+      }
+    },
+    "Device range sweep" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balayage d’amplitude avec l’appareil"
+          }
+        }
+      }
+    },
     "Diagnostics" : {
       "comment" : "Section header for the beta feedback diagnostics preview.",
       "isCommentAutoGenerated" : true,
@@ -4095,6 +4579,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Distance"
+          }
+        }
+      }
+    },
+    "Distance entered by hand" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distance saisie à la main"
           }
         }
       }
@@ -4497,12 +4991,52 @@
       "comment" : "A label for the end date of a nutrition target.",
       "isCommentAutoGenerated" : true
     },
+    "Enter a number for this observation." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrez un nombre pour cette observation."
+          }
+        }
+      }
+    },
+    "Enter a value for at least one side before saving." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrez une valeur pour au moins un côté avant d’enregistrer."
+          }
+        }
+      }
+    },
     "Enter starting weight" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saisir le poids de départ"
+          }
+        }
+      }
+    },
+    "Enter what you observed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrer ce que vous avez observé"
+          }
+        }
+      }
+    },
+    "Entered by hand" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisi à la main"
           }
         }
       }
@@ -4877,6 +5411,16 @@
     "Finish" : {
       "comment" : "A button that finishes editing a completed set.",
       "isCommentAutoGenerated" : true
+    },
+    "Finish assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminer l’évaluation"
+          }
+        }
+      }
     },
     "Finish editing" : {
       "comment" : "Button that finishes editing a completed set.",
@@ -5372,6 +5916,16 @@
       "comment" : "A hint that disappears when the user dismisses the weight field.",
       "isCommentAutoGenerated" : true
     },
+    "High confidence" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confiance élevée"
+          }
+        }
+      }
+    },
     "Hinge" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5385,6 +5939,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pivot (Hinge)"
+          }
+        }
+      }
+    },
+    "Hips" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hanches"
           }
         }
       }
@@ -5482,6 +6046,26 @@
         }
       }
     },
+    "How to perform it" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment l’exécuter"
+          }
+        }
+      }
+    },
+    "How to set up" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment vous placer"
+          }
+        }
+      }
+    },
     "Hypertrophy" : {
       "localizations" : {
         "fr" : {
@@ -5544,6 +6128,16 @@
       "comment" : "A screen that previews the contents of a backup file before importing it.",
       "isCommentAutoGenerated" : true
     },
+    "Imported" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importé"
+          }
+        }
+      }
+    },
     "In a superset" : {
 
     },
@@ -5555,6 +6149,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En cours"
+          }
+        }
+      }
+    },
+    "In this version you enter every value yourself, and each observation is labelled that way." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans cette version, vous entrez vous-même chaque valeur, et chaque observation est indiquée comme telle."
           }
         }
       }
@@ -5804,6 +6408,16 @@
         }
       }
     },
+    "Keep going" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer"
+          }
+        }
+      }
+    },
     "Keep Going" : {
       "comment" : "A button that keeps the user on the current page of a mobility session.",
       "isCommentAutoGenerated" : true
@@ -5856,6 +6470,16 @@
     "Last 7 days" : {
       "comment" : "A section title for the last 7 days of nutrition history.",
       "isCommentAutoGenerated" : true
+    },
+    "Last assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière évaluation"
+          }
+        }
+      }
     },
     "Last set" : {
       "localizations" : {
@@ -5934,6 +6558,46 @@
     "lb" : {
       "comment" : "A unit of weight.",
       "isCommentAutoGenerated" : true
+    },
+    "Leave a side empty if you did not observe it. Left and right are saved as separate observations." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laissez un côté vide si vous ne l’avez pas observé. La gauche et la droite sont enregistrées comme deux observations distinctes."
+          }
+        }
+      }
+    },
+    "Leaves the assessment in progress. Saved observations are kept." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laisse l’évaluation en cours. Les observations enregistrées sont conservées."
+          }
+        }
+      }
+    },
+    "Left" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gauche"
+          }
+        }
+      }
+    },
+    "Left and right stay separate observations and are never averaged together." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La gauche et la droite restent des observations distinctes et ne sont jamais moyennées."
+          }
+        }
+      }
     },
     "Legs" : {
       "comment" : "Display representation for the legs muscle group.",
@@ -6104,6 +6768,16 @@
     "Logs and completes the next set in the active workout." : {
       "comment" : "Description of the Log Current Set intent.",
       "isCommentAutoGenerated" : true
+    },
+    "Low confidence" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confiance faible"
+          }
+        }
+      }
     },
     "Lower Chest" : {
       "extractionState" : "stale",
@@ -6281,6 +6955,16 @@
       "comment" : "A label for the mean velocity of a set.",
       "isCommentAutoGenerated" : true
     },
+    "Measured with device motion" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesuré avec les capteurs de l’appareil"
+          }
+        }
+      }
+    },
     "Measurement" : {
       "comment" : "A heading for the measurement of a body weight.",
       "isCommentAutoGenerated" : true
@@ -6446,6 +7130,16 @@
         }
       }
     },
+    "Mobility assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évaluation de mobilité"
+          }
+        }
+      }
+    },
     "Mobility complete" : {
       "comment" : "A title for a completed mobility session.",
       "isCommentAutoGenerated" : true
@@ -6478,11 +7172,1470 @@
       "comment" : "A title for a view that displays a message that a mobility session has been stopped.",
       "isCommentAutoGenerated" : true
     },
-    "Mobility warm-up" : {
-
+    "mobility.assessment.90.90.hip.rotation.instructions" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without leaning back, lift the front shin off the floor as far as you can and record the angle of that thigh. Turn around and repeat for the other side."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sans vous pencher en arrière, soulevez le tibia avant du sol aussi haut que possible et notez l’angle de cette cuisse. Tournez-vous et répétez de l’autre côté."
+          }
+        }
+      }
+    },
+    "mobility.assessment.90.90.hip.rotation.limitations" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It cannot separate hip movement from movement of your pelvis or lower back, and it does not measure the joint angle directly."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle ne distingue pas le mouvement de la hanche de celui du bassin ou du bas du dos, et ne mesure pas directement l’angle articulaire."
+          }
+        }
+      }
+    },
+    "mobility.assessment.90.90.hip.rotation.measures" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How far each hip turns in this seated position using your own effort."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De combien chaque hanche tourne dans cette position assise par vos propres moyens."
+          }
+        }
+      }
+    },
+    "mobility.assessment.90.90.hip.rotation.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "90/90 hip rotation"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation de hanche 90/90"
+          }
+        }
+      }
+    },
+    "mobility.assessment.90.90.hip.rotation.setup" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sit on the floor with one leg in front bent to about 90 degrees and the other out to the side bent to about 90 degrees."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assoyez-vous au sol, une jambe devant fléchie à environ 90 degrés et l’autre sur le côté fléchie à environ 90 degrés."
+          }
+        }
+      }
+    },
+    "mobility.assessment.active.straight.leg.raise.instructions" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keeping both legs straight and the other leg on the floor, raise one leg as high as you can without help. Record the angle of the raised thigh, then repeat with the other leg."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En gardant les deux jambes tendues et l’autre jambe au sol, levez une jambe le plus haut possible sans aide. Notez l’angle de la cuisse levée, puis répétez avec l’autre jambe."
+          }
+        }
+      }
+    },
+    "mobility.assessment.active.straight.leg.raise.limitations" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It cannot tell whether your knee bent, whether your pelvis tilted, or which tissue limited the movement."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle ne dit pas si votre genou s’est fléchi, si votre bassin a basculé, ni quel tissu a limité le mouvement."
+          }
+        }
+      }
+    },
+    "mobility.assessment.active.straight.leg.raise.measures" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How high you can raise one straight leg using your own effort."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À quelle hauteur vous pouvez lever une jambe tendue par vos propres moyens."
+          }
+        }
+      }
+    },
+    "mobility.assessment.active.straight.leg.raise.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active straight-leg raise"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Élévation active de la jambe tendue"
+          }
+        }
+      }
+    },
+    "mobility.assessment.active.straight.leg.raise.setup" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lie on your back on the floor with both legs straight and your lower back in a neutral position."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couchez-vous sur le dos au sol, les deux jambes tendues et le bas du dos en position neutre."
+          }
+        }
+      }
+    },
+    "mobility.assessment.comparison.direct" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous observation under the same conditions: %1$@ on %2$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observation précédente dans les mêmes conditions : %1$@ le %2$@."
+          }
+        }
+      }
+    },
+    "mobility.assessment.comparison.notDirect" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous observation: %1$@ on %2$@. Kept separate because these conditions changed: %3$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observation précédente : %1$@ le %2$@. Gardée à part parce que ces conditions ont changé : %3$@."
+          }
+        }
+      }
+    },
+    "mobility.assessment.conditions.summary" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@ · %3$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@ · %3$@"
+          }
+        }
+      }
+    },
+    "mobility.assessment.difference.centimetres" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ cm"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ cm"
+          }
+        }
+      }
+    },
+    "mobility.assessment.difference.degrees" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@°"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@°"
+          }
+        }
+      }
+    },
+    "mobility.assessment.field.centimetres" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, centimetres"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, centimètres"
+          }
+        }
+      }
+    },
+    "mobility.assessment.field.degrees" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, degrees"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, degrés"
+          }
+        }
+      }
+    },
+    "mobility.assessment.gap.centimetres" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ cm difference"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ cm d’écart"
+          }
+        }
+      }
+    },
+    "mobility.assessment.gap.degrees" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@° difference"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@° d’écart"
+          }
+        }
+      }
+    },
+    "mobility.assessment.history.count" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld assessment](inflect: true) recorded"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld évaluation enregistrée](inflect: true)"
+          }
+        }
+      }
+    },
+    "mobility.assessment.history.detail.inProgress" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · In progress"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · En cours"
+          }
+        }
+      }
+    },
+    "mobility.assessment.history.detail.stopped" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · Stopped early"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · Arrêtée en cours"
+          }
+        }
+      }
+    },
+    "mobility.assessment.knee.to.wall.dorsiflexion.instructions" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slide your foot back until your knee just touches the wall with your heel staying down. Measure the distance from your big toe to the wall in centimetres, then repeat on the other side."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reculez le pied jusqu’à ce que le genou touche tout juste le mur, talon toujours au sol. Mesurez la distance entre le gros orteil et le mur en centimètres, puis répétez de l’autre côté."
+          }
+        }
+      }
+    },
+    "mobility.assessment.knee.to.wall.dorsiflexion.limitations" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It cannot tell whether your heel lifted slightly or whether your knee tracked inward, and the distance depends on your foot length."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle ne dit pas si votre talon s’est légèrement soulevé ni si votre genou est parti vers l’intérieur, et la distance dépend de la longueur de votre pied."
+          }
+        }
+      }
+    },
+    "mobility.assessment.knee.to.wall.dorsiflexion.measures" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The distance from your toe to the wall at the furthest point where your knee still touches with your heel down."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La distance entre votre orteil et le mur au point le plus éloigné où le genou touche encore avec le talon au sol."
+          }
+        }
+      }
+    },
+    "mobility.assessment.knee.to.wall.dorsiflexion.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Knee-to-wall dorsiflexion"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dorsiflexion genou au mur"
+          }
+        }
+      }
+    },
+    "mobility.assessment.knee.to.wall.dorsiflexion.setup" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face a wall with one foot flat on the floor, second toe and knee pointing straight at the wall, heel down."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face au mur, un pied à plat au sol, le deuxième orteil et le genou pointant droit vers le mur, talon au sol."
+          }
+        }
+      }
+    },
+    "mobility.assessment.observation.count" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld observation](inflect: true)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld observation](inflect: true)"
+          }
+        }
+      }
+    },
+    "mobility.assessment.open.book.rotation.instructions" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keeping your knees stacked and down, open your top arm across your body toward the floor behind you. Stop where you can hold the position, record the angle your chest reached, then repeat on the other side."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En gardant les genoux superposés et au sol, ouvrez le bras du dessus vers le sol derrière vous. Arrêtez-vous là où vous pouvez tenir la position, notez l’angle atteint par la poitrine, puis répétez de l’autre côté."
+          }
+        }
+      }
+    },
+    "mobility.assessment.open.book.rotation.limitations" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It cannot tell whether your knees lifted, and it does not separate shoulder movement from chest movement."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle ne dit pas si vos genoux se sont soulevés et ne distingue pas le mouvement de l’épaule de celui de la poitrine."
+          }
+        }
+      }
+    },
+    "mobility.assessment.open.book.rotation.measures" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How far your chest opens toward the floor while your knees stay stacked."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De combien votre poitrine s’ouvre vers le sol pendant que vos genoux restent superposés."
+          }
+        }
+      }
+    },
+    "mobility.assessment.open.book.rotation.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open-book rotation"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation en livre ouvert"
+          }
+        }
+      }
+    },
+    "mobility.assessment.open.book.rotation.setup" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lie on your side with your knees stacked and bent to about 90 degrees, arms straight in front of you at shoulder height."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couchez-vous sur le côté, genoux superposés et fléchis à environ 90 degrés, bras tendus devant vous à hauteur d’épaule."
+          }
+        }
+      }
+    },
+    "mobility.assessment.progress.detail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started %1$@ · %2$@ saved so far"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencée le %1$@ · %2$@ enregistrée(s) jusqu’ici"
+          }
+        }
+      }
+    },
+    "mobility.assessment.provenance.summary" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "mobility.assessment.range.active" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active range"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amplitude active"
+          }
+        }
+      }
+    },
+    "mobility.assessment.range.passive" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passive range"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amplitude passive"
+          }
+        }
+      }
+    },
+    "mobility.assessment.selection.detail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "mobility.assessment.selection.footer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld assessment](inflect: true) selected. You can skip any of them while recording, and stop at any point without losing what you saved."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld évaluation sélectionnée](inflect: true). Vous pouvez en passer n’importe laquelle pendant l’enregistrement et arrêter à tout moment sans perdre ce que vous avez enregistré."
+          }
+        }
+      }
+    },
+    "mobility.assessment.setup.back-to-wall-ribs-stacked" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to wall, ribs down"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dos au mur, côtes basses"
+          }
+        }
+      }
+    },
+    "mobility.assessment.setup.foot-flat-heel-down" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foot flat, heel down"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pied à plat, talon au sol"
+          }
+        }
+      }
+    },
+    "mobility.assessment.setup.knee-bent-heel-down" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Knee bent, heel down"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genou fléchi, talon au sol"
+          }
+        }
+      }
+    },
+    "mobility.assessment.setup.same-device-edge-both-thighs" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Same device edge on both thighs"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Même côté de l’appareil sur les deux cuisses"
+          }
+        }
+      }
+    },
+    "mobility.assessment.setup.seated-90-90" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seated 90/90"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assis 90/90"
+          }
+        }
+      }
+    },
+    "mobility.assessment.setup.seated-upright" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seated, upright"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assis, dos droit"
+          }
+        }
+      }
+    },
+    "mobility.assessment.setup.side-lying-knees-stacked" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Side-lying, knees stacked"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couché sur le côté, genoux superposés"
+          }
+        }
+      }
+    },
+    "mobility.assessment.setup.side-lying-shoulder-stabilized" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Side-lying, shoulder stabilised"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couché sur le côté, épaule stabilisée"
+          }
+        }
+      }
+    },
+    "mobility.assessment.setup.supine-pelvis-neutral" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On your back, pelvis neutral"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur le dos, bassin neutre"
+          }
+        }
+      }
+    },
+    "mobility.assessment.setup.wall-supported-squat" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Facing a wall"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face au mur"
+          }
+        }
+      }
+    },
+    "mobility.assessment.sleeper.shoulder.rotation.instructions" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keeping your shoulder blade against the floor, rotate your forearm toward the floor as far as it goes without pain. Record the angle of your forearm, then repeat on the other side."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En gardant l’omoplate contre le sol, tournez l’avant-bras vers le sol aussi loin que possible sans douleur. Notez l’angle de l’avant-bras, puis répétez de l’autre côté."
+          }
+        }
+      }
+    },
+    "mobility.assessment.sleeper.shoulder.rotation.limitations" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It cannot tell whether your shoulder blade moved, and forearm position is only an indirect reading of shoulder rotation."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle ne dit pas si votre omoplate a bougé, et la position de l’avant-bras n’est qu’une lecture indirecte de la rotation de l’épaule."
+          }
+        }
+      }
+    },
+    "mobility.assessment.sleeper.shoulder.rotation.measures" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How far your shoulder rotates inward with your shoulder blade held still."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De combien votre épaule tourne vers l’intérieur pendant que l’omoplate reste immobile."
+          }
+        }
+      }
+    },
+    "mobility.assessment.sleeper.shoulder.rotation.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleeper shoulder rotation"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation d’épaule en position couchée"
+          }
+        }
+      }
+    },
+    "mobility.assessment.sleeper.shoulder.rotation.setup" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lie on the shoulder being recorded, that upper arm out in front at about 90 degrees and the elbow bent to 90 degrees."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couchez-vous sur l’épaule à enregistrer, ce bras devant vous à environ 90 degrés et le coude fléchi à 90 degrés."
+          }
+        }
+      }
+    },
+    "mobility.assessment.soleus.wall.stretch.instructions" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bend the knee toward the wall as far as it goes with the heel staying down. Record the angle of your shin from vertical, then repeat on the other side."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fléchissez le genou vers le mur aussi loin que possible en gardant le talon au sol. Notez l’angle de votre tibia par rapport à la verticale, puis répétez de l’autre côté."
+          }
+        }
+      }
+    },
+    "mobility.assessment.soleus.wall.stretch.limitations" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It cannot tell whether your heel lifted, and it does not separate ankle movement from movement further up the leg."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle ne dit pas si votre talon s’est soulevé et ne distingue pas le mouvement de la cheville de celui du reste de la jambe."
+          }
+        }
+      }
+    },
+    "mobility.assessment.soleus.wall.stretch.measures" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How far your shin travels forward over your foot with the knee bent and the heel down."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De combien votre tibia avance au-dessus du pied, genou fléchi et talon au sol."
+          }
+        }
+      }
+    },
+    "mobility.assessment.soleus.wall.stretch.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soleus wall stretch"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Étirement du soléaire au mur"
+          }
+        }
+      }
+    },
+    "mobility.assessment.soleus.wall.stretch.setup" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stand facing a wall with one foot flat and the heel down, and let that knee bend toward the wall."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debout face au mur, un pied à plat et le talon au sol, laissez ce genou fléchir vers le mur."
+          }
+        }
+      }
+    },
+    "mobility.assessment.step.count" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assessment %1$@ of %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évaluation %1$@ sur %2$@"
+          }
+        }
+      }
+    },
+    "mobility.assessment.straddle.frog.abduction.instructions" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open both legs as wide as you can hold, then record the angle between your thighs."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrez les deux jambes aussi largement que vous pouvez tenir, puis notez l’angle entre vos cuisses."
+          }
+        }
+      }
+    },
+    "mobility.assessment.straddle.frog.abduction.limitations" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It is one angle for both legs together, so it cannot show which side contributed more, and small changes in torso position change the result."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C’est un seul angle pour les deux jambes, donc elle ne montre pas quel côté a contribué le plus, et un léger changement de position du torse modifie le résultat."
+          }
+        }
+      }
+    },
+    "mobility.assessment.straddle.frog.abduction.measures" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The angle between your two thighs at the widest position you can hold."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’angle entre vos deux cuisses à la position la plus ouverte que vous pouvez tenir."
+          }
+        }
+      }
+    },
+    "mobility.assessment.straddle.frog.abduction.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Straddle / frog abduction"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abduction en grand écart ou en grenouille"
+          }
+        }
+      }
+    },
+    "mobility.assessment.straddle.frog.abduction.setup" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sit in a straddle or kneel in a frog position with both legs open and your torso upright."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assoyez-vous en grand écart ou placez-vous en position de grenouille, les deux jambes ouvertes et le torse droit."
+          }
+        }
+      }
+    },
+    "mobility.assessment.summary.count" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld observation](inflect: true) saved · ^[%2$lld assessment](inflect: true) skipped"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld observation enregistrée](inflect: true) · ^[%2$lld évaluation passée](inflect: true)"
+          }
+        }
+      }
+    },
+    "mobility.assessment.thoracic.rotation.seated.instructions" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn your chest as far as you can to one side while keeping your hips still. Hold at the end of the turn, record the angle you reached, then repeat on the other side."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tournez la poitrine le plus loin possible d’un côté en gardant les hanches immobiles. Tenez la position en fin de rotation, notez l’angle atteint, puis répétez de l’autre côté."
+          }
+        }
+      }
+    },
+    "mobility.assessment.thoracic.rotation.seated.limitations" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It cannot separate movement of your upper back from movement of your lower back or hips, and it does not show why one side turns further."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle ne distingue pas le mouvement du haut du dos de celui du bas du dos ou des hanches, et n’indique pas pourquoi un côté tourne davantage."
+          }
+        }
+      }
+    },
+    "mobility.assessment.thoracic.rotation.seated.measures" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How far your upper back turns to each side while your hips stay square."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De combien votre haut du dos tourne de chaque côté pendant que vos hanches restent de face."
+          }
+        }
+      }
+    },
+    "mobility.assessment.thoracic.rotation.seated.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thoracic rotation, seated"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation thoracique, assis"
+          }
+        }
+      }
+    },
+    "mobility.assessment.thoracic.rotation.seated.setup" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sit upright on a bench or the floor, knees together and hips square, with your arms crossed over your chest."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asseyez-vous bien droit sur un banc ou au sol, genoux serrés et hanches de face, les bras croisés sur la poitrine."
+          }
+        }
+      }
+    },
+    "mobility.assessment.value.centimetres" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ cm"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ cm"
+          }
+        }
+      }
+    },
+    "mobility.assessment.value.centimetres.spoken" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ centimetres"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ centimètres"
+          }
+        }
+      }
+    },
+    "mobility.assessment.value.degrees" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@°"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@°"
+          }
+        }
+      }
+    },
+    "mobility.assessment.value.degrees.spoken" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ degrees"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ degrés"
+          }
+        }
+      }
+    },
+    "mobility.assessment.wall.slide.arm.elevation.instructions" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slide your arms up the wall as far as they go while keeping your back, elbows and wrists in contact. Record the angle of your forearm at the highest position you can hold, then repeat on the other side."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faites glisser les bras vers le haut aussi loin que possible en gardant le dos, les coudes et les poignets en contact. Notez l’angle de l’avant-bras à la position la plus haute que vous pouvez tenir, puis répétez de l’autre côté."
+          }
+        }
+      }
+    },
+    "mobility.assessment.wall.slide.arm.elevation.limitations" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It cannot tell whether your ribs or lower back lifted off the wall, and it does not separate shoulder movement from upper-back movement."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle ne dit pas si vos côtes ou le bas de votre dos se sont décollés du mur, et ne distingue pas le mouvement de l’épaule de celui du haut du dos."
+          }
+        }
+      }
+    },
+    "mobility.assessment.wall.slide.arm.elevation.measures" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How far your arm rises with your back and ribs kept against the wall."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À quelle hauteur votre bras monte en gardant le dos et les côtes contre le mur."
+          }
+        }
+      }
+    },
+    "mobility.assessment.wall.slide.arm.elevation.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wall-slide arm elevation"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Élévation des bras glissés au mur"
+          }
+        }
+      }
+    },
+    "mobility.assessment.wall.slide.arm.elevation.setup" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stand with your back, head and hips against a wall, ribs down, arms bent with elbows and wrists touching the wall."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debout, dos, tête et hanches contre le mur, côtes basses, bras fléchis avec les coudes et les poignets au mur."
+          }
+        }
+      }
+    },
+    "mobility.assessment.wall.squat.instructions" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squat down as far as you can without your hands, knees or chest touching the wall and without your heels lifting, then record which of those criteria you kept."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descendez en squat aussi bas que possible sans que vos mains, vos genoux ou votre poitrine touchent le mur et sans décoller les talons, puis notez lesquels de ces critères vous avez respectés."
+          }
+        }
+      }
+    },
+    "mobility.assessment.wall.squat.limitations" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It records several criteria as one observation, so it cannot show which joint limited the movement or by how much."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elle enregistre plusieurs critères en une seule observation, donc elle ne montre pas quelle articulation a limité le mouvement ni dans quelle mesure."
+          }
+        }
+      }
+    },
+    "mobility.assessment.wall.squat.measures" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whether you can reach a full squat facing a wall while keeping your heels down and staying off the wall."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si vous pouvez atteindre un squat complet face au mur en gardant les talons au sol et sans toucher le mur."
+          }
+        }
+      }
+    },
+    "mobility.assessment.wall.squat.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wall squat"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Squat face au mur"
+          }
+        }
+      }
+    },
+    "mobility.assessment.wall.squat.setup" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stand facing a wall, toes a hand’s width from it, feet about shoulder width apart."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Debout face au mur, orteils à une largeur de main du mur, pieds écartés à la largeur des épaules."
+          }
+        }
+      }
+    },
+    "mobility.assessment.warmth.cold" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before training"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avant l’entraînement"
+          }
+        }
+      }
+    },
+    "mobility.assessment.warmth.warm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After training"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Après l’entraînement"
+          }
+        }
+      }
     },
     "Mode" : {
 
+    },
+    "Moderate confidence" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confiance modérée"
+          }
+        }
+      }
     },
     "Moderate effort" : {
       "extractionState" : "stale",
@@ -6627,7 +8780,15 @@
     },
     "Movements" : {
       "comment" : "A title for a list of mobility definitions.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mouvements"
+          }
+        }
+      }
     },
     "Multiply by 0.90" : {
 
@@ -6868,6 +9029,16 @@
         }
       }
     },
+    "Next assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évaluation suivante"
+          }
+        }
+      }
+    },
     "Next field" : {
       "comment" : "A button that moves focus to the next input field.",
       "isCommentAutoGenerated" : true
@@ -6990,6 +9161,36 @@
     "No archived movements" : {
       "comment" : "Text displayed when there are no archived mobility definitions.",
       "isCommentAutoGenerated" : true
+    },
+    "No assessments available" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune évaluation disponible"
+          }
+        }
+      }
+    },
+    "No assessments recorded yet" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune évaluation enregistrée pour l’instant"
+          }
+        }
+      }
+    },
+    "No assessments yet" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune évaluation"
+          }
+        }
+      }
     },
     "No completed entries" : {
       "localizations" : {
@@ -7163,6 +9364,16 @@
     "No Nutrition History" : {
       "comment" : "A title for a view that shows when a user has not logged any meals.",
       "isCommentAutoGenerated" : true
+    },
+    "No observations" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune observation"
+          }
+        }
+      }
     },
     "No plan yet" : {
 
@@ -7467,7 +9678,15 @@
     },
     "Not entered" : {
       "comment" : "A value that is not yet entered.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non saisi"
+          }
+        }
+      }
     },
     "Not every session this week has reliable prescribed-set evidence, so prescribed and performed sets aren't compared. Sets actually performed are still shown." : {
       "localizations" : {
@@ -7583,6 +9802,26 @@
         }
       }
     },
+    "Nothing has been recorded for this assessment and side." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien n’a été enregistré pour cette évaluation et ce côté."
+          }
+        }
+      }
+    },
+    "Nothing recorded" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien d’enregistré"
+          }
+        }
+      }
+    },
     "Nothing recorded for this day" : {
       "comment" : "A label that describes a day with no training, mobility, nutrition, or check-in data.",
       "isCommentAutoGenerated" : true
@@ -7662,6 +9901,26 @@
         }
       }
     },
+    "Observations" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Observations"
+          }
+        }
+      }
+    },
+    "Observations you already saved are kept. The assessment you are entering right now is not saved." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les observations déjà enregistrées sont conservées. L’évaluation que vous êtes en train de saisir n’est pas enregistrée."
+          }
+        }
+      }
+    },
     "Off" : {
       "comment" : "A label for a picker item that turns off body weight reminders.",
       "isCommentAutoGenerated" : true
@@ -7679,6 +9938,16 @@
     "One measurement is kept per day. Saving another value for the same day updates that day’s entry." : {
       "comment" : "A description of the weight measurement form.",
       "isCommentAutoGenerated" : true
+    },
+    "One of the chosen assessments is unavailable. Change your selection and try again." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une des évaluations choisies n’est pas disponible. Modifiez votre sélection et réessayez."
+          }
+        }
+      }
     },
     "One optional reminder is scheduled for the selected evening time. Saving or skipping today’s check-in removes it." : {
       "comment" : "A footer for the check-in reminder section.",
@@ -7935,6 +10204,26 @@
       "comment" : "Display representation for \"other muscles\" option.",
       "isCommentAutoGenerated" : true
     },
+    "Other observations" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autres observations"
+          }
+        }
+      }
+    },
+    "Overhead" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au-dessus de la tête"
+          }
+        }
+      }
+    },
     "Override" : {
       "comment" : "A compact summary label for a prescription override.",
       "localizations" : {
@@ -7953,6 +10242,16 @@
     "Partial" : {
       "comment" : "A button that marks a component as partially completed.",
       "isCommentAutoGenerated" : true
+    },
+    "Passive range" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amplitude passive"
+          }
+        }
+      }
     },
     "Pause" : {
       "comment" : "A button that pauses the rest.",
@@ -8385,6 +10684,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mobilité après l’entraînement"
+          }
+        }
+      }
+    },
+    "Posterior chain" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaîne postérieure"
           }
         }
       }
@@ -9500,6 +11809,16 @@
         }
       }
     },
+    "Range" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amplitude"
+          }
+        }
+      }
+    },
     "Range of Motion" : {
       "comment" : "A label for the range of motion of an exercise.",
       "isCommentAutoGenerated" : true
@@ -9742,6 +12061,26 @@
         }
       }
     },
+    "Record a new assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer une nouvelle évaluation"
+          }
+        }
+      }
+    },
+    "Record an assessment to build a history you can compare against." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrez une évaluation pour bâtir un historique auquel vous comparer."
+          }
+        }
+      }
+    },
     "Record either RIR or RPE for each performed set. Changing this preference never changes existing workout history." : {
       "comment" : "A description of the workout logging settings.",
       "isCommentAutoGenerated" : true
@@ -9764,6 +12103,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enregistrer la vitesse"
+          }
+        }
+      }
+    },
+    "Record what you observe under conditions you choose." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrez ce que vous observez dans les conditions que vous choisissez."
+          }
+        }
+      }
+    },
+    "Record your first observations" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrez vos premières observations"
           }
         }
       }
@@ -10626,6 +12985,16 @@
         }
       }
     },
+    "Right" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droite"
+          }
+        }
+      }
+    },
     "RIR" : {
       "comment" : "A label for the number of reps left in reserve.",
       "isCommentAutoGenerated" : true
@@ -10786,7 +13155,15 @@
     },
     "Routines" : {
       "comment" : "A section title in the Mobility Library.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Routines"
+          }
+        }
+      }
     },
     "RPE" : {
       "comment" : "A label for the RPE rating of an exercise set.",
@@ -10881,6 +13258,16 @@
       "comment" : "A button that saves a new date for a workout.",
       "isCommentAutoGenerated" : true
     },
+    "Save observation" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer l’observation"
+          }
+        }
+      }
+    },
     "Save only completed sets?" : {
       "comment" : "A confirmation dialog that asks the user if they want to save only the completed sets of a workout.",
       "isCommentAutoGenerated" : true
@@ -10892,6 +13279,16 @@
     "Save workout" : {
       "comment" : "A button that saves a workout.",
       "isCommentAutoGenerated" : true
+    },
+    "Saved" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistré"
+          }
+        }
+      }
     },
     "Saved Workouts" : {
       "comment" : "A label for the number of saved workouts in the backup.",
@@ -11127,6 +13524,16 @@
       "comment" : "A placeholder text for a picker.",
       "isCommentAutoGenerated" : true
     },
+    "Select all" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout sélectionner"
+          }
+        }
+      }
+    },
     "Select rungs in easiest-to-hardest order. Re-add a rung to move it to the end." : {
 
     },
@@ -11214,7 +13621,15 @@
     },
     "Session context" : {
       "comment" : "A label for a picker that lets the user select the context of a mobility session.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contexte de la séance"
+          }
+        }
+      }
     },
     "Session outcomes" : {
       "localizations" : {
@@ -11471,6 +13886,16 @@
         }
       }
     },
+    "Setup" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position"
+          }
+        }
+      }
+    },
     "Setup Angle" : {
       "comment" : "A label for the setup angle of an exercise.",
       "isCommentAutoGenerated" : true
@@ -11519,7 +13944,15 @@
     },
     "Shoulders" : {
       "comment" : "Display representation for the shoulders muscle group.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Épaules"
+          }
+        }
+      }
     },
     "Show" : {
       "comment" : "A label for a picker that lets the user choose a scope of plans to view.",
@@ -11631,6 +14064,16 @@
       "comment" : "A button that skips the rest period.",
       "isCommentAutoGenerated" : true
     },
+    "Skip this assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passer cette évaluation"
+          }
+        }
+      }
+    },
     "Skip This Workout" : {
       "localizations" : {
         "fr" : {
@@ -11659,6 +14102,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sauté"
+          }
+        }
+      }
+    },
+    "Skipped assessments" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évaluations passées"
           }
         }
       }
@@ -11699,6 +14152,16 @@
       "comment" : "Display name for a caffeine size option.",
       "isCommentAutoGenerated" : true
     },
+    "Some criteria observed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certains critères observés"
+          }
+        }
+      }
+    },
     "Some ingredients could not be matched. Review the draft and add missing foods." : {
       "comment" : "Notice shown when recipe generation partially matched ingredients.",
       "isCommentAutoGenerated" : true,
@@ -11714,6 +14177,16 @@
     "Some nutrients unknown" : {
       "comment" : "A label describing that some nutrients are unknown.",
       "isCommentAutoGenerated" : true
+    },
+    "Something went wrong. Your entry is still here — try again." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une erreur est survenue. Votre saisie est toujours là — réessayez."
+          }
+        }
+      }
     },
     "Sort" : {
       "localizations" : {
@@ -11860,6 +14333,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Démarrez un entraînement depuis l'Accueil pour enregistrer vos séries."
+          }
+        }
+      }
+    },
+    "Start assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencer l’évaluation"
           }
         }
       }
@@ -12181,6 +14664,16 @@
     "Stop" : {
 
     },
+    "Stop assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêter l’évaluation"
+          }
+        }
+      }
+    },
     "Stop block" : {
       "comment" : "A button that stops a block.",
       "isCommentAutoGenerated" : true
@@ -12205,6 +14698,16 @@
     "Stop the set if velocity loss reaches %@%%." : {
       "comment" : "A warning that a user should stop a set if the velocity drops below a certain percentage.",
       "isCommentAutoGenerated" : true
+    },
+    "Stop this assessment?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêter cette évaluation ?"
+          }
+        }
+      }
     },
     "Stop this mobility session?" : {
       "comment" : "A confirmation dialog that asks the user to stop a mobility session.",
@@ -13685,6 +16188,16 @@
         }
       }
     },
+    "That assessment is not part of this session. Go back a step and try again." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette évaluation ne fait pas partie de cette séance. Revenez en arrière et réessayez."
+          }
+        }
+      }
+    },
     "That exercise is no longer available." : {
       "comment" : "Error message displayed when the selected exercise is no longer available.",
       "isCommentAutoGenerated" : true
@@ -13717,9 +16230,29 @@
         }
       }
     },
+    "The assessment catalogue could not be loaded." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le catalogue des évaluations n’a pas pu être chargé."
+          }
+        }
+      }
+    },
     "The built-in plans could not be loaded." : {
       "comment" : "A description of an error message.",
       "isCommentAutoGenerated" : true
+    },
+    "The conditions you recorded under: setup, active or passive range, and before or after training." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les conditions dans lesquelles vous avez enregistré : la position, l’amplitude active ou passive, et avant ou après l’entraînement."
+          }
+        }
+      }
     },
     "The deload changes only the prescription snapshot for that future week's workouts. Your completed workouts stay unchanged." : {
 
@@ -13760,6 +16293,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La prochaine position de la rotation n’a plus d’entraînement disponible. Choisissez une autre rotation ou corrigez celle-ci avant de commencer."
+          }
+        }
+      }
+    },
+    "The observation could not be saved. Your entry is still here — try again." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’observation n’a pas pu être enregistrée. Votre saisie est toujours là — réessayez."
           }
         }
       }
@@ -13921,6 +16464,16 @@
         }
       }
     },
+    "The value you observed, in its own unit, kept exactly as you entered it." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La valeur que vous avez observée, dans son unité, conservée exactement telle que vous l’avez entrée."
+          }
+        }
+      }
+    },
     "The workout could not be rescheduled. Try again." : {
       "localizations" : {
         "fr" : {
@@ -13968,12 +16521,72 @@
       "comment" : "Text displayed in a result when there is no workout scheduled for today.",
       "isCommentAutoGenerated" : true
     },
+    "These are observations you record under conditions you choose. They are not a diagnosis, an injury-risk assessment, or a score." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce sont des observations que vous enregistrez dans les conditions que vous choisissez. Ce n’est ni un diagnostic, ni une évaluation du risque de blessure, ni un score."
+          }
+        }
+      }
+    },
+    "These are recorded with the observation. A later observation is only compared with this one when all of them match." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elles sont enregistrées avec l’observation. Une observation ultérieure n’est comparée à celle-ci que si elles concordent toutes."
+          }
+        }
+      }
+    },
     "These changes update future prescriptions only. Completed workouts and their recorded history are not changed." : {
       "comment" : "Text displayed in a list item that explains that changes to a workout plan only affect future workouts.",
       "isCommentAutoGenerated" : true
     },
     "These routines are offered before or after future starts of this workout. Completed mobility history stays unchanged." : {
 
+    },
+    "This assessment does not record that side." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette évaluation n’enregistre pas ce côté."
+          }
+        }
+      }
+    },
+    "This assessment has already been finished. Your saved observations are unchanged." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette évaluation est déjà terminée. Vos observations enregistrées sont inchangées."
+          }
+        }
+      }
+    },
+    "This assessment is unavailable. Change your selection and try again." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette évaluation n’est pas disponible. Modifiez votre sélection et réessayez."
+          }
+        }
+      }
+    },
+    "This assessment records a different kind of value. Reopen it and try again." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette évaluation enregistre un autre type de valeur. Rouvrez-la et réessayez."
+          }
+        }
+      }
     },
     "This block has no primary score. Choose a score type when creating it to record a result here." : {
       "comment" : "A message displayed when a block has no score.",
@@ -14061,6 +16674,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "C’est la dernière semaine du plan"
+          }
+        }
+      }
+    },
+    "This observation belongs to a different day than the assessment. Start a new assessment for today." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette observation appartient à un autre jour que l’évaluation. Commencez une nouvelle évaluation pour aujourd’hui."
           }
         }
       }
@@ -14229,6 +16852,16 @@
         }
       }
     },
+    "This version records observations you enter yourself." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette version enregistre les observations que vous saisissez vous-même."
+          }
+        }
+      }
+    },
     "This week" : {
       "localizations" : {
         "fr" : {
@@ -14305,6 +16938,16 @@
     "This workout may have been removed or replaced." : {
 
     },
+    "Thorax" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thorax"
+          }
+        }
+      }
+    },
     "Three reps left" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -14369,6 +17012,16 @@
     "Time complete" : {
       "comment" : "A label displayed when a countdown timer is complete.",
       "isCommentAutoGenerated" : true
+    },
+    "Timing" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moment"
+          }
+        }
+      }
     },
     "Today" : {
       "comment" : "The title of the screen that displays the user's workout and fitness goals for today.",
@@ -14685,6 +17338,16 @@
         }
       }
     },
+    "Two-segment device angle" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angle entre deux segments avec l’appareil"
+          }
+        }
+      }
+    },
     "Unavailable" : {
       "comment" : "A label displayed for a workout that is unavailable.",
       "isCommentAutoGenerated" : true
@@ -14915,6 +17578,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Utilise des disques"
+          }
+        }
+      }
+    },
+    "Value" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valeur"
           }
         }
       }
@@ -15237,6 +17910,16 @@
     "Welcome to GymTracker" : {
 
     },
+    "What an assessment records" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qu’une évaluation enregistre"
+          }
+        }
+      }
+    },
     "What changes" : {
       "localizations" : {
         "en" : {
@@ -15249,6 +17932,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ce qui change"
+          }
+        }
+      }
+    },
+    "What this cannot tell you" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce que cela ne peut pas vous dire"
+          }
+        }
+      }
+    },
+    "What this records" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce que cela enregistre"
+          }
+        }
+      }
+    },
+    "What you observed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce que vous avez observé"
           }
         }
       }
@@ -15530,6 +18243,16 @@
         }
       }
     },
+    "Work through the assessments you choose and enter what you observe. Nothing is recorded until you save it." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parcourez les évaluations que vous choisissez et entrez ce que vous observez. Rien n’est enregistré tant que vous n’avez pas sauvegardé."
+          }
+        }
+      }
+    },
     "workout" : {
       "comment" : "A singular workout.",
       "isCommentAutoGenerated" : true
@@ -15713,6 +18436,26 @@
     "You can follow a plan and be told what to train each day, or just log your own workouts. You can switch at any time." : {
       "comment" : "A description of the welcome view.",
       "isCommentAutoGenerated" : true
+    },
+    "You enter this value yourself and it is recorded as entered by hand." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous entrez vous-même cette valeur et elle est enregistrée comme saisie à la main."
+          }
+        }
+      }
+    },
+    "You skipped every assessment in this session. Nothing was saved." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous avez passé toutes les évaluations de cette séance. Rien n’a été enregistré."
+          }
+        }
+      }
     },
     "You've stopped following this plan. Its history stays available here." : {
       "localizations" : {

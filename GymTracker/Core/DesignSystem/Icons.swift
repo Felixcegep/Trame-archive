@@ -60,6 +60,9 @@ struct AppIcon {
     static let mobilityPurposePreparation = "figure.run"
     static let mobilityPurposeDevelopment = "figure.flexibility"
     static let mobilityPurposeCooldown = "figure.cooldown"
+    /// Mobility assessment. A measuring instrument, deliberately not a gauge or
+    /// a dial: an assessment records an observation, it does not rate one.
+    static let mobilityAssessment = "ruler"
     static let nutrition = "fork.knife"
     static let caffeine = "cup.and.saucer.fill"
     static let routine = "list.bullet.rectangle"

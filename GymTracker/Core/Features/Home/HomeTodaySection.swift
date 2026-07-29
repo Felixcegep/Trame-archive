@@ -24,7 +24,6 @@ struct HomeTodaySection: View {
     @Query(sort: \NutritionTarget.effectiveStartDayKey, order: .reverse) private var nutritionTargets: [NutritionTarget]
     @Query private var planRuns: [PlanRun]
     @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var bodyWeightEntries: [BodyWeightEntry]
-    @Query(sort: \MobilityRoutine.updatedAt, order: .reverse) private var mobilityRoutines: [MobilityRoutine]
     @Query(sort: \MobilitySession.updatedAt, order: .reverse) private var mobilitySessions: [MobilitySession]
     @AppStorage(DefaultsKey.caffeineBirthdateTimestamp) private var caffeineBirthdateTimestamp: Double?
 
@@ -235,19 +234,15 @@ private extension HomeTodaySection {
         mobilitySessions.first { $0.status == .active }
     }
 
-    var availableMobilityRoutine: MobilityRoutine? {
-        mobilityRoutines.first { $0.isArchived == false && $0.items.isEmpty == false }
-    }
-
     /// Discovering and creating routines is the Train tab's job, so Today stays
     /// silent when there is nothing to run rather than advertising an empty state.
     var hasMobilityRow: Bool {
-        guard featureFlags.isEnabled(.mobility) else {
-            // An already-running session still resumes: disabling a domain hides
-            // new entry points, it never strands in-progress work.
-            return activeMobilitySession != nil
-        }
-        return activeMobilitySession != nil || availableMobilityRoutine != nil
+        // Today never chooses a reusable routine on the lifter's behalf. An
+        // already-running session still resumes even when the feature flag is
+        // disabled, because hiding a domain must not strand in-progress work.
+        TodayMobilityRowPolicy.shouldShowRow(
+            hasActiveMobilitySession: activeMobilitySession != nil
+        )
     }
 
     @ViewBuilder
@@ -265,20 +260,17 @@ private extension HomeTodaySection {
             }
             .buttonStyle(.gymPress)
             .accessibilityIdentifier("resume-mobility-session")
-        } else if let routine = availableMobilityRoutine {
-            Button {
-                let context: MobilitySessionContext = activeWorkout == nil ? .standalone : .warmup
-                onStartMobility(routine, context, activeWorkout?.id)
-            } label: {
-                TodayLogRow(
-                    icon: AppIcon.mobility,
-                    iconColor: Color.gymAccent,
-                    title: activeWorkout == nil ? "Mobility" : "Mobility warm-up",
-                    value: routine.name
-                )
-            }
-            .buttonStyle(.gymPress)
-            .accessibilityIdentifier("start-mobility-routine")
         }
+    }
+}
+
+/// Today resumes performed work but never selects a reusable prescription.
+///
+/// A warm-up is prescription context selected through a template or rotation
+/// link before workout creation. Standalone routine discovery and selection
+/// belongs to Train.
+enum TodayMobilityRowPolicy {
+    static func shouldShowRow(hasActiveMobilitySession: Bool) -> Bool {
+        hasActiveMobilitySession
     }
 }
