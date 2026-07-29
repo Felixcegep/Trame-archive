@@ -44,6 +44,10 @@ enum UITestFixture: String {
     case todayWeightDue = "today-weight-due"
     case bodyWeightHistory = "body-weight-history"
     case mobilityActive = "mobility-active"
+    case mobilityAssessmentRecorded = "mobility-assessment-recorded"
+    case mobilityAssessmentInProgress = "mobility-assessment-in-progress"
+    case mobilityAssessmentHistory = "mobility-assessment-history"
+    case mobilityAssessmentHistoryDetail = "mobility-assessment-history-detail"
     case nutritionToday = "nutrition-today"
     case trainingCalendar = "training-calendar"
 
@@ -59,7 +63,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .programPathFixed, .programPathRotation, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .nutritionToday, .trainingCalendar, .progressionReceipt:
+        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .programPathFixed, .programPathRotation, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .mobilityAssessmentRecorded, .mobilityAssessmentInProgress, .mobilityAssessmentHistory, .mobilityAssessmentHistoryDetail, .nutritionToday, .trainingCalendar, .progressionReceipt:
             false
         default:
             true
@@ -187,6 +191,34 @@ enum UITestFixture: String {
             guard MobilitySessionService.start(routine: routine, using: context) != nil else {
                 throw FixtureError.invalidPlan
             }
+        case .mobilityAssessmentRecorded:
+            try makeMobilityAssessmentHistory(
+                includeEmptySession: false,
+                includeIncomparableObservation: false,
+                using: context
+            )
+        case .mobilityAssessmentInProgress:
+            let definitions = try assessmentDefinitions(using: context)
+            guard let first = definitions.first else { throw FixtureError.invalidPlan }
+            let session = MobilityAssessmentSession(
+                day: .today,
+                selectedDefinitionKeys: [first.catalogueKey, definitions.dropFirst().first?.catalogueKey].compactMap { $0 },
+                startedAt: Date.now.addingTimeInterval(-900)
+            )
+            context.insert(session)
+            try context.save()
+        case .mobilityAssessmentHistory:
+            try makeMobilityAssessmentHistory(
+                includeEmptySession: true,
+                includeIncomparableObservation: false,
+                using: context
+            )
+        case .mobilityAssessmentHistoryDetail:
+            try makeMobilityAssessmentHistory(
+                includeEmptySession: false,
+                includeIncomparableObservation: true,
+                using: context
+            )
         case .nutritionToday:
             let foods = try context.fetch(FetchDescriptor<FoodItem>())
             guard let yogurt = foods.first(where: { $0.name == "Greek yogurt" }),
@@ -228,6 +260,114 @@ enum UITestFixture: String {
         workout.exercises = exercises
         context.insert(workout)
         try context.save()
+    }
+
+    private static func assessmentDefinitions(using context: ModelContext) throws -> [MobilityAssessmentDefinition] {
+        try MobilityAssessmentCatalogService.definitions(using: context)
+    }
+
+    private static func makeMobilityAssessmentHistory(
+        includeEmptySession: Bool,
+        includeIncomparableObservation: Bool,
+        using context: ModelContext
+    ) throws {
+        let definitions = try assessmentDefinitions(using: context)
+        guard let definition = definitions.first else { throw FixtureError.invalidPlan }
+
+        if includeEmptySession {
+            let empty = MobilityAssessmentSession(
+                day: .today,
+                selectedDefinitionKeys: [definition.catalogueKey],
+                startedAt: Date.now.addingTimeInterval(-10_800)
+            )
+            empty.status = .completed
+            empty.completedAt = empty.startedAt.addingTimeInterval(60)
+            context.insert(empty)
+        }
+
+        let first = MobilityAssessmentSession(
+            day: .today,
+            selectedDefinitionKeys: [definition.catalogueKey],
+            startedAt: Date.now.addingTimeInterval(-7_200)
+        )
+        context.insert(first)
+        _ = try MobilityAssessmentSessionService.saveResult(
+            in: first,
+            definition: definition,
+            input: assessmentInput(
+                value: 40,
+                side: .left,
+                definition: definition,
+                day: .today,
+                isWarm: false
+            ),
+            now: first.startedAt.addingTimeInterval(30),
+            using: context
+        )
+        try MobilityAssessmentSessionService.complete(
+            first,
+            completedAt: first.startedAt.addingTimeInterval(60),
+            using: context
+        )
+
+        guard includeIncomparableObservation else { return }
+
+        let second = MobilityAssessmentSession(
+            day: .today,
+            selectedDefinitionKeys: [definition.catalogueKey],
+            startedAt: Date.now.addingTimeInterval(-3_600)
+        )
+        context.insert(second)
+        _ = try MobilityAssessmentSessionService.saveResult(
+            in: second,
+            definition: definition,
+            input: assessmentInput(
+                value: 45,
+                side: .left,
+                definition: definition,
+                day: .today,
+                isWarm: false
+            ),
+            now: second.startedAt.addingTimeInterval(30),
+            using: context
+        )
+        _ = try MobilityAssessmentSessionService.saveResult(
+            in: second,
+            definition: definition,
+            input: assessmentInput(
+                value: 35,
+                side: .right,
+                definition: definition,
+                day: .today,
+                isWarm: true
+            ),
+            now: second.startedAt.addingTimeInterval(31),
+            using: context
+        )
+        try MobilityAssessmentSessionService.complete(
+            second,
+            completedAt: second.startedAt.addingTimeInterval(60),
+            using: context
+        )
+    }
+
+    private static func assessmentInput(
+        value: Double,
+        side: MobilityAssessmentSide,
+        definition: MobilityAssessmentDefinition,
+        day: LocalDay,
+        isWarm: Bool
+    ) -> MobilityAssessmentResultInput {
+        MobilityAssessmentResultInput(
+            numericValue: value,
+            side: side,
+            isWarm: isWarm,
+            setupKey: definition.defaultSetupKey,
+            method: definition.manualMode,
+            unit: definition.unit,
+            isActiveRange: definition.defaultIsActiveRange,
+            day: day
+        )
     }
 
     private static func makeProgressionReceipt(using context: ModelContext) throws {
