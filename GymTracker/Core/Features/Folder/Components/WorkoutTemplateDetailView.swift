@@ -11,6 +11,10 @@ import SwiftUI
 struct WorkoutTemplateDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var availableExercises: [Exercise]
+    @Query(
+        filter: #Predicate<MobilityRoutine> { !$0.isArchived },
+        sort: \MobilityRoutine.name
+    ) private var mobilityRoutines: [MobilityRoutine]
 
     let template: WorkoutTemplate
     let onStartWorkout: (WorkoutTemplate) -> Void
@@ -19,6 +23,8 @@ struct WorkoutTemplateDetailView: View {
     @State private var groupingExercise: TemplateExercise?
     @State private var isShowingExecutionBlockBuilder = false
     @State private var executionBlockToEdit: TemplateExerciseBlock?
+    @State private var mobilityPlacementToEdit: WorkoutMobilityPlacement?
+    @State private var mobilityLinkError: Error?
 
     var body: some View {
         List {
@@ -82,6 +88,27 @@ struct WorkoutTemplateDetailView: View {
                     .onDelete(perform: removeExercises)
                 }
             }
+
+            // Mobility is setup for this workout, not the workout itself, so it
+            // sits below the exercises it wraps around.
+            Section {
+                ForEach(WorkoutMobilityPlacement.allCases, id: \.self) { placement in
+                    let link = WorkoutMobilityLinkService.link(for: placement, on: template)
+                    WorkoutMobilityLinkRow(
+                        placement: placement,
+                        routine: link.routine,
+                        unavailableName: link.isUnavailable ? link.routineNameSnapshot : nil,
+                        isEditable: true
+                    ) {
+                        mobilityPlacementToEdit = placement
+                    }
+                    .accessibilityIdentifier("template-\(placement.accessibilityIdentifier)")
+                }
+            } header: {
+                Text("Workout mobility")
+            } footer: {
+                Text("These routines are offered before or after future starts of this workout. Completed mobility history stays unchanged.")
+            }
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
@@ -125,6 +152,36 @@ struct WorkoutTemplateDetailView: View {
             TemplateExecutionBlockBuilderSheet(template: template, blockToEdit: block) {
                 saveModelContext(modelContext)
             }
+        }
+        .sheet(item: $mobilityPlacementToEdit) { placement in
+            let link = WorkoutMobilityLinkService.link(for: placement, on: template)
+            WorkoutMobilityRoutinePicker(
+                placement: placement,
+                routines: mobilityRoutines,
+                currentRoutine: link.routine
+            ) { routine in
+                do {
+                    try WorkoutMobilityLinkService.set(
+                        routine,
+                        for: placement,
+                        on: template,
+                        using: modelContext
+                    )
+                } catch {
+                    mobilityLinkError = error
+                }
+            }
+        }
+        .alert(
+            "Couldn’t update workout mobility",
+            isPresented: Binding(
+                get: { mobilityLinkError != nil },
+                set: { if !$0 { mobilityLinkError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { mobilityLinkError = nil }
+        } message: {
+            Text("Your previous mobility setting was kept. Please try again.")
         }
         .confirmationDialog(
             "Superset with…",

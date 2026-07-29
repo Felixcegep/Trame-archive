@@ -112,19 +112,29 @@ extension ProgressRoute {
 
 struct MobilityHistoryView: View {
     @Query(sort: \MobilitySession.startTime, order: .reverse) private var sessions: [MobilitySession]
+    @Query private var workouts: [Workout]
 
     var body: some View {
-        List {
+        // Resolved once per render rather than scanned per row.
+        let workoutTitles = workoutTitlesByID
+
+        return List {
             if completedSessions.isEmpty {
                 ContentUnavailableView("No Mobility History", systemImage: AppIcon.mobility, description: Text("Complete a mobility routine to review it here."))
             } else {
                 ForEach(completedSessions) { session in
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
-                        Text(session.nameSnapshot).font(AppFont.subheadlineSemibold)
-                        Text(session.startTime, format: .dateTime.month(.abbreviated).day().year())
+                        // The routine's recorded name stays primary; a later
+                        // rename, relink, or removal never rewrites it.
+                        Text(session.sourceRoutineName ?? session.nameSnapshot)
+                            .font(AppFont.subheadlineSemibold)
+
+                        Text(historyDetail(for: session, workoutTitles: workoutTitles))
                             .font(AppFont.caption)
                             .foregroundStyle(Color.gymSubduedText)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("mobility-history-context-\(session.id)")
                 }
             }
         }
@@ -134,6 +144,38 @@ struct MobilityHistoryView: View {
     }
 
     private var completedSessions: [MobilitySession] { sessions.filter { $0.status == .completed } }
+
+    private var workoutTitlesByID: [UUID: String] {
+        Dictionary(
+            workouts.map { ($0.id, $0.displayTitle) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    private func historyDetail(
+        for session: MobilitySession,
+        workoutTitles: [UUID: String]
+    ) -> String {
+        let date = session.startTime.formatted(.dateTime.month(.abbreviated).day().year())
+        guard session.context != .standalone else { return date }
+
+        // A deleted workout loses its name, never the before/after context the
+        // completed session recorded.
+        let workoutName = session.workoutID.flatMap { workoutTitles[$0] }
+
+        switch (session.context, workoutName) {
+        case (.warmup, .some(let name)):
+            return String(localized: "Before \(name) · \(date)")
+        case (.cooldown, .some(let name)):
+            return String(localized: "After \(name) · \(date)")
+        case (.warmup, .none):
+            return String(localized: "Before workout · \(date)")
+        case (.cooldown, .none):
+            return String(localized: "After workout · \(date)")
+        case (.standalone, _):
+            return date
+        }
+    }
 }
 
 struct NutritionHistoryView: View {
