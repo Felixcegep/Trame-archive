@@ -182,6 +182,7 @@ enum MobilitySeedData {
         struct RoutineSeedSpec {
             let key: String
             let name: String
+            let purpose: MobilityRoutinePurpose?
             let items: [(defName: String, reps: Int?, duration: Int?, side: MobilitySide)]
         }
 
@@ -189,6 +190,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.daily-mobility-reset",
                 name: "Daily mobility reset",
+                purpose: .development,
                 items: [
                     ("90/90 Hip Switch", 8, nil, .alternating),
                     ("Couch Stretch", nil, 45, .bilateral),
@@ -198,6 +200,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.post-leg-day-reset",
                 name: "Post-Leg Day Mobility Reset",
+                purpose: .cooldown,
                 items: [
                     ("90/90 Hip Switch", 10, nil, .alternating),
                     ("Pigeon Stretch", nil, 60, .bilateral),
@@ -208,6 +211,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.upper-body-bench-warmup",
                 name: "Upper Body Bench Warmup",
+                purpose: .preparation,
                 items: [
                     ("Shoulder Pass-Throughs", 10, nil, .bilateral),
                     ("Thoracic Rotation", 8, nil, .alternating),
@@ -218,6 +222,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.lower-back-decompression",
                 name: "Lower Back & Hips Decompression",
+                purpose: .cooldown,
                 items: [
                     ("Cat-Cow", 10, nil, .bilateral),
                     ("Puppy Dog Pose", nil, 45, .bilateral),
@@ -228,6 +233,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.overhead-shoulder-saver",
                 name: "Overhead & Shoulder Saver",
+                purpose: .development,
                 items: [
                     ("Wall Slides", 10, nil, .bilateral),
                     ("Scapular Pull-Ups", 10, nil, .bilateral),
@@ -238,6 +244,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.full-body-morning-flow",
                 name: "Full Body Morning Flow",
+                purpose: .development,
                 items: [
                     ("World's Greatest Stretch", 6, nil, .alternating),
                     ("Elephant Walks", 20, nil, .bilateral),
@@ -248,6 +255,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.ankle-foot-mobilization",
                 name: "Ankle & Foot Mobilization",
+                purpose: .development,
                 items: [
                     ("Knee-to-Wall Ankle Mobilization", 10, nil, .alternating),
                     ("Soleus Wall Stretch", nil, 45, .bilateral),
@@ -258,6 +266,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.desk-worker-reset",
                 name: "Desk Worker Reset",
+                purpose: .development,
                 items: [
                     ("Chin Tucks", 10, nil, .bilateral),
                     ("Upper Trap Stretch", nil, 30, .bilateral),
@@ -268,6 +277,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.loaded-mobility-foundations",
                 name: "Loaded Mobility Foundations",
+                purpose: .development,
                 items: [
                     ("Jefferson Curl", 5, nil, .bilateral),
                     ("Cossack Squat", 8, nil, .alternating),
@@ -278,6 +288,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.hamstring-contract-relax",
                 name: "Hamstring Contract-Relax PNF",
+                purpose: .development,
                 items: [
                     ("Standing Hamstring Fold", nil, 20, .bilateral)
                 ]
@@ -285,6 +296,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.squat-preparation",
                 name: "Squat Preparation",
+                purpose: .preparation,
                 items: [
                     ("Knee-to-Wall Ankle Mobilization", 10, nil, .alternating),
                     ("Tactical Frog", 8, nil, .alternating),
@@ -295,6 +307,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.deadlift-preparation",
                 name: "Deadlift Preparation",
+                purpose: .preparation,
                 items: [
                     ("Cat-Cow", 10, nil, .bilateral),
                     ("Single-Leg Hip Hinge", 8, nil, .alternating),
@@ -305,6 +318,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.front-rack-and-wrist-preparation",
                 name: "Front-Rack and Wrist Preparation",
+                purpose: .preparation,
                 items: [
                     ("Quadruped Wrist Rocks", 10, nil, .bilateral),
                     ("Overhead Triceps & Lat Stretch", nil, 30, .bilateral),
@@ -315,6 +329,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.olympic-lifting-preparation",
                 name: "Olympic Lifting Preparation",
+                purpose: .preparation,
                 items: [
                     ("Knee-to-Wall Ankle Mobilization", 10, nil, .alternating),
                     ("Shoulder Pass-Throughs", 10, nil, .bilateral),
@@ -325,6 +340,7 @@ enum MobilitySeedData {
             RoutineSeedSpec(
                 key: "mobility-routine.strongman-event-preparation",
                 name: "Strongman Event Preparation",
+                purpose: .preparation,
                 items: [
                     ("Cat-Cow", 10, nil, .bilateral),
                     ("Single-Leg Hip Hinge", 8, nil, .alternating),
@@ -340,8 +356,14 @@ enum MobilitySeedData {
 
         for spec in routineSpecs {
             if let record = try registry.record(for: spec.key, expectedKind: .mobilityRoutine) {
-                guard routines.contains(where: { $0.id == record.entityID }) else {
+                guard let routine = routines.first(where: { $0.id == record.entityID }) else {
                     throw SystemSeedError.danglingEntity(key: spec.key, entityID: record.entityID)
+                }
+                if record.sourceKind == .bundled,
+                   routine.purposeRaw == nil,
+                   let purpose = spec.purpose {
+                    routine.purpose = purpose
+                    routine.updatedAt = .now
                 }
             } else {
                 let candidates = routines.filter { $0.name == spec.name }
@@ -369,7 +391,7 @@ enum MobilitySeedData {
                         )
                     }
                     if !routineItems.isEmpty {
-                        let routine = MobilityRoutine(name: spec.name)
+                        let routine = MobilityRoutine(name: spec.name, purpose: spec.purpose)
                         routine.items = routineItems
                         context.insert(routine)
                         try registry.register(

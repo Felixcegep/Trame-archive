@@ -6,6 +6,8 @@ final class MobilityRoutine {
     var id: UUID
     @Attribute(.unique) var name: String
     var notes: String?
+    /// Optional by design: legacy and custom routines may genuinely be unclassified.
+    var purposeRaw: String?
     var isArchived: Bool
     var createdAt: Date
     var updatedAt: Date
@@ -27,6 +29,7 @@ final class MobilityRoutine {
     init(
         name: String,
         notes: String? = nil,
+        purpose: MobilityRoutinePurpose? = nil,
         isArchived: Bool = false,
         id: UUID = UUID(),
         createdAt: Date = .now,
@@ -35,9 +38,16 @@ final class MobilityRoutine {
         self.id = id
         self.name = name
         self.notes = notes
+        self.purposeRaw = purpose?.rawValue
         self.isArchived = isArchived
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    /// Reads an unknown future value as unclassified without destroying its raw storage.
+    var purpose: MobilityRoutinePurpose? {
+        get { purposeRaw.flatMap(MobilityRoutinePurpose.init(rawValue:)) }
+        set { purposeRaw = newValue?.rawValue }
     }
 
     var orderedItems: [MobilityRoutineItem] {

@@ -13,6 +13,9 @@ struct MobilityLibraryView: View {
     @State private var selectedRoutine: MobilityRoutine?
     @State private var isShowingDefinitions = false
     @State private var sessionContext: MobilitySessionContext = .standalone
+    /// View-local. A filter is a momentary way of looking at the library, not
+    /// a preference, so it is deliberately not persisted.
+    @State private var purposeFilter: MobilityPurposeFilter = .all
 
     var body: some View {
         List {
@@ -23,7 +26,9 @@ struct MobilityLibraryView: View {
                     }
                 }
                 .disabled(sessionContext != .standalone && activeWorkout == nil)
+            }
 
+            Section {
                 if availableRoutines.isEmpty {
                     ContentUnavailableView(
                         "No mobility routines",
@@ -31,33 +36,36 @@ struct MobilityLibraryView: View {
                         description: Text("Create a short routine to begin mobility work.")
                     )
                 } else {
-                    ForEach(availableRoutines) { routine in
-                        Button {
-                            onStart(routine, sessionContext, sessionContext == .standalone ? nil : activeWorkout?.id)
-                        } label: {
-                            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                Text(routine.name)
-                                    .font(AppFont.subheadlineSemibold)
-                                Text("^[\(routine.items.count) movement](inflect: true)")
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
-                            }
-                        }
-                        .accessibilityIdentifier("start-mobility-routine-\(routine.id)")
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button {
-                                selectedRoutine = routine
-                            } label: {
-                                Label("Edit", systemImage: AppIcon.edit)
-                            }
-                            .tint(Color.gymAccent)
-                        }
-                    }
+                    purposeFilterChips
                 }
             } header: {
                 Text("Routines")
             } footer: {
                 Text("Starting a routine snapshots its movement targets and instructions into a separate mobility session.")
+            }
+
+            ForEach(visibleGroups) { group in
+                Section {
+                    ForEach(group.routines) { routine in
+                        routineRow(routine)
+                    }
+                } header: {
+                    Text(groupTitle(for: group))
+                        .accessibilityIdentifier("mobility-purpose-section-\(group.id)")
+                }
+            }
+
+            if availableRoutines.isEmpty == false, visibleGroups.isEmpty {
+                Section {
+                    ContentUnavailableView {
+                        Label("No routines with this purpose", systemImage: AppIcon.filters)
+                    } description: {
+                        Text("Every routine stays available — only this view is filtered.")
+                    } actions: {
+                        Button("Show all routines") { purposeFilter = .all }
+                            .accessibilityIdentifier("clear-mobility-purpose-filter")
+                    }
+                }
             }
 
             if recentMovementNames.isEmpty == false {
@@ -104,6 +112,102 @@ struct MobilityLibraryView: View {
         }
     }
 
+    /// The filter chips. `ChipFlowLayout` wraps rather than scrolls, so every
+    /// option stays reachable at accessibility Dynamic Type sizes instead of
+    /// running off the trailing edge.
+    private var purposeFilterChips: some View {
+        ChipFlowLayout(spacing: Spacing.s) {
+            ForEach(filterOptions, id: \.token) { option in
+                MobilityPurposeFilterChip(
+                    title: filterTitle(for: option),
+                    // Set on the Button inside the chip, not on the chip from
+                    // out here: a container identifier can overwrite its
+                    // child's, which would hide the button from XCUITest.
+                    identifier: "mobility-purpose-filter-\(option.token)",
+                    isSelected: purposeFilter == option
+                ) {
+                    purposeFilter = option
+                }
+            }
+        }
+        .padding(.vertical, Spacing.xxs)
+    }
+
+    @ViewBuilder
+    private func routineRow(_ routine: MobilityRoutine) -> some View {
+        Button {
+            onStart(routine, sessionContext, sessionContext == .standalone ? nil : activeWorkout?.id)
+        } label: {
+            // The button combines these into one accessibility element, which
+            // reads "<name>, <n> movements, <purpose>" — the purpose clause
+            // simply absent when unclassified. No manual label needed, so the
+            // count keeps its inflection and both stay localized.
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(routine.name)
+                    .font(AppFont.subheadlineSemibold)
+                Text("^[\(routine.items.count) movement](inflect: true)")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                if let purpose = routine.purpose {
+                    // Icon plus text, never the glyph or a color alone.
+                    // Unclassified routines show nothing here: the section
+                    // header already says "Not specified", and repeating it on
+                    // every card is noise.
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: purposeIcon(purpose))
+                            .font(AppFont.caption2)
+                            .accessibilityHidden(true)
+                        Text(purpose.displayName)
+                            .font(AppFont.caption)
+                    }
+                    .foregroundStyle(Color.gymSubduedText)
+                }
+            }
+        }
+        .accessibilityIdentifier("start-mobility-routine-\(routine.id)")
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button {
+                selectedRoutine = routine
+            } label: {
+                Label("Edit", systemImage: AppIcon.edit)
+            }
+            .tint(Color.gymAccent)
+        }
+    }
+
+    private var filterOptions: [MobilityPurposeFilter] {
+        [.all] + MobilityRoutinePurpose.displayOrder.map(MobilityPurposeFilter.purpose) + [.unspecified]
+    }
+
+    private func filterTitle(for filter: MobilityPurposeFilter) -> String {
+        switch filter {
+        case .all: String(localized: "All")
+        case .purpose(let purpose): purpose.displayName
+        case .unspecified: String(localized: "Not specified")
+        }
+    }
+
+    private func groupTitle(for group: MobilityRoutineGroup) -> String {
+        group.purpose?.displayName ?? String(localized: "Not specified")
+    }
+
+    private func purposeIcon(_ purpose: MobilityRoutinePurpose) -> String {
+        switch purpose {
+        case .preparation: AppIcon.mobilityPurposePreparation
+        case .development: AppIcon.mobilityPurposeDevelopment
+        case .cooldown: AppIcon.mobilityPurposeCooldown
+        }
+    }
+
+    /// Grouping, filtering, and ordering all belong to
+    /// `MobilityRoutinePurposeGrouping`. This composes that contract and adds
+    /// nothing — archival stays the caller's job, as the contract documents.
+    private var visibleGroups: [MobilityRoutineGroup] {
+        MobilityRoutinePurposeGrouping.groups(
+            for: MobilityRoutinePurposeGrouping.filtered(availableRoutines, by: purposeFilter)
+        )
+    }
+
     private var availableRoutines: [MobilityRoutine] {
         routines.filter { $0.isArchived == false }
     }
@@ -129,6 +233,54 @@ struct MobilityLibraryView: View {
         modelContext.insert(routine)
         guard modelContext.saveOrRollback() else { return nil }
         return routine
+    }
+}
+
+/// Selection is carried by a checkmark plus a heavier tinted border, never by
+/// color alone, matching `GymChoiceTile`'s idiom. A plain `Button` is used
+/// deliberately: on this screen a `Menu` does not open under a synthesized
+/// XCUITest tap, and a pushed-screen toolbar control does not fire on iOS 26.
+private struct MobilityPurposeFilterChip: View {
+    let title: String
+    let identifier: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Spacing.xs) {
+                if isSelected {
+                    Image(systemName: AppIcon.checkmark)
+                        .font(AppFont.caption2Bold)
+                        .accessibilityHidden(true)
+                }
+                Text(title)
+                    .font(AppFont.captionBold)
+            }
+            .foregroundStyle(isSelected ? Color.gymAccent : Color.gymSubduedText)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.s)
+            .background {
+                Capsule().fill(isSelected ? Color.gymAccent.opacity(0.14) : Color.clear)
+            }
+            .overlay {
+                Capsule().stroke(
+                    isSelected ? Color.gymAccent : Color.gymBorder,
+                    lineWidth: isSelected ? 1.5 : 1
+                )
+            }
+            // Keeps the capsule visually compact while giving it a full-size
+            // touch target, and makes the whole target tappable rather than
+            // only the glyph and label.
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .contentShape(Rectangle())
+        }
+        // `.borderless`, not `.plain`: several of these share one List row, and
+        // borderless is what keeps them independently hit-testable instead of
+        // collapsing into a single row-wide tap target.
+        .buttonStyle(.borderless)
+        .accessibilityIdentifier(identifier)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -325,13 +477,27 @@ struct MobilityRoutineEditorView: View {
     @Query(sort: \MobilityDefinition.name) private var definitions: [MobilityDefinition]
     @State private var name = ""
     @State private var notes = ""
+    /// Optional, and never required to save. "Not specified" is a legitimate
+    /// resting state, not a prompt to complete.
+    @State private var purpose: MobilityRoutinePurpose?
 
     var body: some View {
         Form {
-            Section("Routine") {
+            Section {
                 TextField("Name", text: $name)
                 TextField("Notes", text: $notes, axis: .vertical)
                     .lineLimit(2...5)
+                Picker("Purpose", selection: $purpose) {
+                    Text("Not specified").tag(MobilityRoutinePurpose?.none)
+                    ForEach(MobilityRoutinePurpose.displayOrder) { option in
+                        Text(option.displayName).tag(MobilityRoutinePurpose?.some(option))
+                    }
+                }
+                .accessibilityIdentifier("mobility-routine-purpose-picker")
+            } header: {
+                Text("Routine")
+            } footer: {
+                Text("Purpose organizes your library. Any routine can still be started at any time.")
             }
 
             Section {
@@ -361,6 +527,10 @@ struct MobilityRoutineEditorView: View {
         .onAppear {
             name = routine.name
             notes = routine.notes ?? ""
+            // Reads an unrecognized stored raw as "Not specified" for display
+            // only. Nothing is written back unless the lifter saves, so a
+            // value from a future build survives being viewed here.
+            purpose = routine.purpose
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
@@ -399,6 +569,7 @@ struct MobilityRoutineEditorView: View {
     private func save() {
         routine.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         routine.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes
+        routine.purpose = purpose
         routine.updatedAt = .now
         guard modelContext.saveOrRollback() else { return }
         dismiss()
