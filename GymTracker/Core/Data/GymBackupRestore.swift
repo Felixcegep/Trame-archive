@@ -981,6 +981,7 @@ extension BackupDTO {
                 cadence: cadence,
                 scope: scope,
                 reason: recommendationDTO.reason,
+                reasonKey: recommendationDTO.reasonKey,
                 applicationMode: applicationMode,
                 proposedState: ProgressionEvaluationState(
                     currentLoad: recommendationDTO.proposedLoad,
@@ -1008,7 +1009,8 @@ extension BackupDTO {
                 recommendation: recommendation,
                 planRunID: try requiredUUID(recommendationDTO.planRunID, named: "progression recommendation plan run"),
                 workoutID: try requiredUUID(recommendationDTO.workoutID, named: "progression recommendation workout"),
-                scopeOwnerKey: recommendationDTO.scopeOwnerKey ?? ""
+                scopeOwnerKey: recommendationDTO.scopeOwnerKey ?? "",
+                proposedLoadUnit: recommendationDTO.proposedLoadUnit.flatMap(WeightType.init(rawValue:))
             )
             record.id = recommendation.id
             record.progressionKey = recommendationDTO.progressionKey
@@ -1123,6 +1125,11 @@ extension BackupDTO {
             let routine = MobilityRoutine(
                 name: routineDTO.name,
                 notes: routineDTO.notes,
+                // Purpose keys in an older-format payload predate this field's
+                // meaning, so they are deliberately ignored rather than trusted.
+                purpose: version >= Self.mobilityRoutinePurposeVersion
+                    ? routineDTO.purpose.flatMap(MobilityRoutinePurpose.init(rawValue:))
+                    : nil,
                 isArchived: routineDTO.isArchived,
                 id: try requiredUUID(routineDTO.id, named: "mobility routine"),
                 createdAt: routineDTO.createdAt,

@@ -635,9 +635,11 @@ extension BackupDTO {
                 scope: record.scope.rawValue,
                 scopeOwnerKey: record.scopeOwnerKey,
                 reason: record.reason,
+                reasonKey: record.reasonKey,
                 applicationMode: record.applicationMode.rawValue,
                 performanceData: record.performanceData,
                 proposedLoad: record.proposedLoad,
+                proposedLoadUnit: record.proposedLoadUnit?.rawValue,
                 proposedTrainingMax: record.proposedTrainingMax,
                 proposedEstimatedOneRepMax: record.proposedEstimatedOneRepMax,
                 proposedActualOneRepMax: record.proposedActualOneRepMax,
@@ -738,7 +740,10 @@ extension BackupDTO {
                         restSeconds: item.restSeconds,
                         notes: item.notes
                     )
-                }
+                },
+                // Do not export an unrecognized raw value from a future build:
+                // this build cannot validate it on a subsequent restore.
+                purpose: routine.purpose?.rawValue
             )
         }
         let mobilitySessionDTOs = try context.fetch(FetchDescriptor<MobilitySession>()).map { session in

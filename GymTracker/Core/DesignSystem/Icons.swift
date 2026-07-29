@@ -55,6 +55,11 @@ struct AppIcon {
     // Specific Features
     static let workout = "dumbbell.fill"
     static let mobility = "figure.flexibility"
+    // Mobility routine purpose. Reinforcement only — the purpose name always
+    // accompanies these, so meaning never rests on the glyph.
+    static let mobilityPurposePreparation = "figure.run"
+    static let mobilityPurposeDevelopment = "figure.flexibility"
+    static let mobilityPurposeCooldown = "figure.cooldown"
     static let nutrition = "fork.knife"
     static let caffeine = "cup.and.saucer.fill"
     static let routine = "list.bullet.rectangle"

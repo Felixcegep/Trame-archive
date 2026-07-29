@@ -705,6 +705,15 @@ struct RootView: View {
                 _ = workoutVM.restoreActiveWorkout(using: modelContext)
                 isShowingActiveWorkout = fixture.opensActiveWorkout && workoutVM.hasActiveWorkout
                 isShowingActiveWorkoutConflictAlert = fixture.showsActiveWorkoutConflict
+                if fixture == .progressionReceipt,
+                   let record = try modelContext.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()).first(where: { !$0.isResolved }) {
+                    DispatchQueue.main.async {
+                        progressionReceiptRequest = ProgressionReceiptRequest(
+                            planRunID: record.planRunID,
+                            workoutID: record.workoutID
+                        )
+                    }
+                }
             } catch {
                 print("Failed to prepare UI-test fixture '\(fixture.rawValue)': \(error)")
             }

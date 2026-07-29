@@ -94,8 +94,7 @@ struct ProgressionReceiptSheet: View {
         let plannedExercise = plannedExercisesByProgressionKey[record.progressionKey]
         let presentation = ProgressionReceiptPresentation(
             record: record,
-            exerciseName: plannedExercise?.exercise.name ?? String(localized: "Exercise"),
-            unit: plannedExercise?.suggestedLoadType
+            exerciseName: plannedExercise?.exercise.name ?? String(localized: "Exercise")
         )
         ProgressionReceiptCard(
             presentation: presentation,

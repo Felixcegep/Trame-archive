@@ -1,440 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "progression.receipt.rule.versioned" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Progression rule v%lld"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Règle de progression v%lld"
-          }
-        }
-      }
-    },
-    "progression.receipt.rule.unversioned" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Progression rule"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Règle de progression"
-          }
-        }
-      }
-    },
-    "progression.receipt.proposedChange.load" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Proposed next load: %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prochaine charge proposée : %@"
-          }
-        }
-      }
-    },
-    "progression.receipt.proposedChange.structural" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The program proposes a change to your prescription."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le programme propose un changement à votre prescription."
-          }
-        }
-      }
-    },
-    "progression.receipt.evidence.sets" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Completed %1$lld of %2$lld required sets."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld séries complétées sur %2$lld requises."
-          }
-        }
-      }
-    },
-    "progression.receipt.evidence.reps" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Completed %1$lld of %2$lld required repetitions."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld répétitions complétées sur %2$lld requises."
-          }
-        }
-      }
-    },
-    "progression.receipt.evidence.amrap" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The AMRAP set reached %lld repetitions."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La série AMRAP a atteint %lld répétitions."
-          }
-        }
-      }
-    },
-    "progression.receipt.evidence.rir.withTarget" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reported RIR was %1$lld against a target of %2$lld."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le RIR rapporté était de %1$lld pour une cible de %2$lld."
-          }
-        }
-      }
-    },
-    "progression.receipt.evidence.rir" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reported RIR was %lld."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le RIR rapporté était de %lld."
-          }
-        }
-      }
-    },
-    "progression.receipt.evidence.rpe" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reported RPE was %@."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le RPE rapporté était de %@."
-          }
-        }
-      }
-    },
-    "progression.receipt.evidence.successRatio" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@%% of attempts were successful."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ %% des tentatives ont réussi."
-          }
-        }
-      }
-    },
-    "progression.receipt.evidence.didNotMeetPrescription" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The prescribed performance was not completed."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La performance prescrite n’a pas été complétée."
-          }
-        }
-      }
-    },
-    "progression.receipt.evidence.qualifier.thin" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Based on limited evidence — a single set."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basé sur des données limitées — une seule série."
-          }
-        }
-      }
-    },
-    "progression.receipt.evidence.none" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No evidence was recorded for this recommendation."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucune donnée n’a été enregistrée pour cette recommandation."
-          }
-        }
-      }
-    },
-    "progression.receipt.action.keepCurrent" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keep current load"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Garder la charge actuelle"
-          }
-        }
-      }
-    },
-    "progression.receipt.action.decline" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Decline"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refuser"
-          }
-        }
-      }
-    },
-    "progression.receipt.action.apply.load" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apply %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appliquer %@"
-          }
-        }
-      }
-    },
-    "progression.receipt.action.apply.generic" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apply this change"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appliquer ce changement"
-          }
-        }
-      }
-    },
-    "progression.receipt.action.applyDifferent" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apply a different value"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appliquer une autre valeur"
-          }
-        }
-      }
-    },
-    "progression.receipt.resolution.accepted.load" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Applied %@."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ appliqué."
-          }
-        }
-      }
-    },
-    "progression.receipt.resolution.accepted.generic" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Applied as proposed."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appliqué tel que proposé."
-          }
-        }
-      }
-    },
-    "progression.receipt.resolution.modified" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Applied %1$@ instead of the proposed %2$@."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ appliqué au lieu des %2$@ proposés."
-          }
-        }
-      }
-    },
-    "progression.receipt.resolution.declined" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kept without applying the change."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conservé sans appliquer le changement."
-          }
-        }
-      }
-    },
-    "progression.receipt.resolution.unknown" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resolved without a recorded outcome."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Résolu sans décision enregistrée."
-          }
-        }
-      }
-    },
-    "Progression updates" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mises à jour de progression"
-          }
-        }
-      }
-    },
-    "Couldn’t save your decision" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible d’enregistrer votre décision"
-          }
-        }
-      }
-    },
-    "Try again." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réessayez."
-          }
-        }
-      }
-    },
-    "This plan run could not be found." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette exécution du plan est introuvable."
-          }
-        }
-      }
-    },
-    "New load" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nouvelle charge"
-          }
-        }
-      }
-    },
     "" : {
       "localizations" : {
         "fr" : {
@@ -661,6 +227,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ ×2"
+          }
+        }
+      }
+    },
+    "%@ at position %lld is no longer available." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ à la position %2$lld n’est plus disponible."
           }
         }
       }
@@ -949,6 +525,16 @@
         }
       }
     },
+    "%1$@ – %2$@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ – %2$@"
+          }
+        }
+      }
+    },
     "%d secondary" : {
       "comment" : "Count of secondary muscles"
     },
@@ -1030,6 +616,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld + %2$lld"
+          }
+        }
+      }
+    },
+    "%lld cycles completed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld cycles terminés"
           }
         }
       }
@@ -1136,6 +732,16 @@
         }
       }
     },
+    "%lld of %lld sessions completed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld séances sur %2$lld terminées"
+          }
+        }
+      }
+    },
     "%lld of %lld workouts" : {
       "localizations" : {
         "en" : {
@@ -1198,6 +804,16 @@
       "comment" : "A count of the number of workout sessions in a week.",
       "isCommentAutoGenerated" : true
     },
+    "%lld sessions are unscheduled" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld séances ne sont pas planifiées"
+          }
+        }
+      }
+    },
     "%lld sets" : {
       "comment" : "Workout performance comparison summary.",
       "isCommentAutoGenerated" : true
@@ -1246,6 +862,16 @@
     "%lld working sets" : {
       "comment" : "A label that says the number of working sets. The argument is the number of working sets.",
       "isCommentAutoGenerated" : true
+    },
+    "%lld workouts are recorded as in progress. Finish or discard one before continuing." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld entraînements sont enregistrés comme en cours. Terminez-en un ou supprimez-le avant de continuer."
+          }
+        }
+      }
     },
     "%lld workouts in rotation" : {
       "localizations" : {
@@ -1433,6 +1059,26 @@
       "comment" : "Placeholder text for the mean velocity field.",
       "isCommentAutoGenerated" : true
     },
+    "1 cycle completed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 cycle terminé"
+          }
+        }
+      }
+    },
+    "1 session is unscheduled" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 séance n’est pas planifiée"
+          }
+        }
+      }
+    },
     "1 workout in rotation" : {
       "localizations" : {
         "fr" : {
@@ -1504,6 +1150,26 @@
         }
       }
     },
+    "A completed session in this week is missing its workout record." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une séance terminée cette semaine n’a pas d’entraînement enregistré."
+          }
+        }
+      }
+    },
+    "A recorded rotation event is inconsistent and was left out of the current position." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un événement de rotation enregistré est incohérent et a été exclu de la position actuelle."
+          }
+        }
+      }
+    },
     "A rotation repeats your workouts in order, so you can always start the next session." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1511,6 +1177,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Une rotation répète vos entraînements dans l’ordre pour que vous puissiez toujours commencer la prochaine séance."
+          }
+        }
+      }
+    },
+    "A session's linked workout wasn't marked completed, so it's left out of this week's evidence." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’entraînement lié à une séance n’a pas été marqué comme terminé, il est donc exclu des données de cette semaine."
+          }
+        }
+      }
+    },
+    "A substitution this week is missing some evidence fields recorded by newer versions." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une substitution cette semaine n’a pas certains champs de données enregistrés par des versions plus récentes."
+          }
+        }
+      }
+    },
+    "A test day is ready. Start it from the plan screen." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un test est prêt. Lancez-le depuis l’écran du plan."
           }
         }
       }
@@ -1560,6 +1256,36 @@
     "Acceptable" : {
       "comment" : "Title of a lift quality when the lift is acceptable.",
       "isCommentAutoGenerated" : true
+    },
+    "Accepted" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accepté"
+          }
+        }
+      }
+    },
+    "Accepted with a different value" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accepté avec une valeur différente"
+          }
+        }
+      }
+    },
+    "Accumulation" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accumulation"
+          }
+        }
+      }
     },
     "Action" : {
       "comment" : "The name of the parameter for the action of the rest shortcut.",
@@ -2254,16 +1980,6 @@
       "comment" : "A placeholder for a note in a daily check-in.",
       "isCommentAutoGenerated" : true
     },
-    "Blocked completions" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finalisations bloquées"
-          }
-        }
-      }
-    },
     "App Version" : {
       "comment" : "Diagnostic label for the app's marketing version.",
       "isCommentAutoGenerated" : true,
@@ -2276,78 +1992,18 @@
         }
       }
     },
-    "Median set entry" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saisie médiane d’une série"
-          }
-        }
-      }
-    },
-    "No completed entries" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucune saisie terminée"
-          }
-        }
-      }
-    },
-    "Rest controls" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Commandes de repos"
-          }
-        }
-      }
-    },
-    "Rest starts" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Départs de repos"
-          }
-        }
-      }
-    },
-    "Session outcomes" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Résultats de séance"
-          }
-        }
-      }
-    },
-    "Set entry samples" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Échantillons de saisie de séries"
-          }
-        }
-      }
-    },
-    "Value corrections" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Corrections de valeurs"
-          }
-        }
-      }
-    },
     "Appearance" : {
 
+    },
+    "Applied: %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliqué : %1$@"
+          }
+        }
+      }
     },
     "Apply" : {
 
@@ -2713,6 +2369,16 @@
       "comment" : "A button that displays a sheet for adding a new execution block to a workout.",
       "isCommentAutoGenerated" : true
     },
+    "Block %lld of %lld · %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloc %1$lld sur %2$lld · %3$@"
+          }
+        }
+      }
+    },
     "Block status %@" : {
       "comment" : "A label that describes the status of a workout execution block.",
       "isCommentAutoGenerated" : true
@@ -2720,6 +2386,16 @@
     "Block time" : {
       "comment" : "A label describing the time of a workout execution block.",
       "isCommentAutoGenerated" : true
+    },
+    "Blocked completions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finalisations bloquées"
+          }
+        }
+      }
     },
     "Body weight" : {
       "comment" : "A label and value that displays the user's current body weight.",
@@ -3396,6 +3072,16 @@
       "comment" : "A menu that appears when the user is editing a completed set.",
       "isCommentAutoGenerated" : true
     },
+    "Completed this cycle" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminé ce cycle"
+          }
+        }
+      }
+    },
     "Completed workout history could not be loaded." : {
       "comment" : "A description of the error that occurred when loading the user's workout history.",
       "isCommentAutoGenerated" : true
@@ -3457,6 +3143,22 @@
       "comment" : "The title of the intent.",
       "isCommentAutoGenerated" : true
     },
+    "Confirm swap" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm swap"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirmer le remplacement"
+          }
+        }
+      }
+    },
     "Confirmed" : {
       "comment" : "A confirmation label for creatine.",
       "isCommentAutoGenerated" : true
@@ -3475,6 +3177,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continuer après l’entraînement sélectionné"
+          }
+        }
+      }
+    },
+    "Continue progression from %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue progression from %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poursuivre la progression depuis %@"
           }
         }
       }
@@ -3630,6 +3348,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Impossible d’enregistrer l’entraînement"
+          }
+        }
+      }
+    },
+    "Couldn’t save your decision" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’enregistrer votre décision"
           }
         }
       }
@@ -3830,6 +3558,16 @@
         }
       }
     },
+    "Current session" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séance actuelle"
+          }
+        }
+      }
+    },
     "Current weight" : {
       "comment" : "A label displayed above a field for the user's current weight.",
       "isCommentAutoGenerated" : true
@@ -3906,6 +3644,16 @@
         }
       }
     },
+    "Declined" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refusé"
+          }
+        }
+      }
+    },
     "Default duration: %lld sec" : {
       "comment" : "A stepper that lets the user set a default duration for a mobility movement.",
       "isCommentAutoGenerated" : true
@@ -3972,6 +3720,26 @@
     "Delete workout" : {
 
     },
+    "Deload" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décharge"
+          }
+        }
+      }
+    },
+    "Deload starts in week %lld" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La décharge commence à la semaine %1$lld"
+          }
+        }
+      }
+    },
     "Deload week" : {
       "comment" : "A picker that lets you select which week of a program to",
       "isCommentAutoGenerated" : true,
@@ -4035,10 +3803,128 @@
     "Development" : {
       "extractionState" : "stale",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Development"
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Développement"
+          }
+        }
+      }
+    },
+    "All" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tous"
+          }
+        }
+      }
+    },
+    "Every routine stays available — only this view is filtered." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every routine stays available — only this view is filtered."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes les routines restent disponibles — seule cette vue est filtrée."
+          }
+        }
+      }
+    },
+    "No routines with this purpose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No routines with this purpose"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune routine avec cet objectif"
+          }
+        }
+      }
+    },
+    "Post-workout mobility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Post-workout mobility"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mobilité après l’entraînement"
+          }
+        }
+      }
+    },
+    "Purpose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purpose"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objectif"
+          }
+        }
+      }
+    },
+    "Purpose organizes your library. Any routine can still be started at any time." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purpose organizes your library. Any routine can still be started at any time."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’objectif organise votre bibliothèque. Toute routine peut toujours être démarrée à tout moment."
+          }
+        }
+      }
+    },
+    "Show all routines" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show all routines"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher toutes les routines"
           }
         }
       }
@@ -5473,6 +5359,22 @@
       "comment" : "A heading for the main section of the daily check-in.",
       "isCommentAutoGenerated" : true
     },
+    "How far this applies" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How far this applies"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Portée du changement"
+          }
+        }
+      }
+    },
     "How should the rotation continue?" : {
       "localizations" : {
         "fr" : {
@@ -5648,9 +5550,39 @@
       "comment" : "A title for a view that indicates that the insights are unavailable.",
       "isCommentAutoGenerated" : true
     },
+    "Instead of %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À la place de %1$@"
+          }
+        }
+      }
+    },
+    "Instead of workout %lld" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À la place de l’entraînement %1$lld"
+          }
+        }
+      }
+    },
     "Instructions" : {
       "comment" : "A label for a text field that describes how to perform a mobility exercise.",
       "isCommentAutoGenerated" : true
+    },
+    "Intensity −%@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intensité −%1$@"
+          }
+        }
+      }
     },
     "Intermediate" : {
       "localizations" : {
@@ -6260,6 +6192,16 @@
       "comment" : "A label for the exercise's mechanics.",
       "isCommentAutoGenerated" : true
     },
+    "Median set entry" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisie médiane d’une série"
+          }
+        }
+      }
+    },
     "Medicine Ball" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -6527,8 +6469,28 @@
     "Move down" : {
 
     },
+    "Move sessions and see them by date." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacez les séances et consultez-les par date."
+          }
+        }
+      }
+    },
     "Move up" : {
 
+    },
+    "Moved from %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacée du %1$@"
+          }
+        }
+      }
     },
     "Movement" : {
       "comment" : "The movement pattern of the exercise.",
@@ -6709,6 +6671,16 @@
       "comment" : "A button that opens a sheet for creating a new food.",
       "isCommentAutoGenerated" : true
     },
+    "New load" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle charge"
+          }
+        }
+      }
+    },
     "New movement" : {
       "comment" : "A button that opens a form for creating a new mobility definition.",
       "isCommentAutoGenerated" : true
@@ -6818,6 +6790,26 @@
         }
       }
     },
+    "Next week" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Semaine prochaine"
+          }
+        }
+      }
+    },
+    "Next week is a deload" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La semaine prochaine est une décharge"
+          }
+        }
+      }
+    },
     "NEXT WORKOUT" : {
       "localizations" : {
         "fr" : {
@@ -6901,6 +6893,16 @@
     "No archived movements" : {
       "comment" : "Text displayed when there are no archived mobility definitions.",
       "isCommentAutoGenerated" : true
+    },
+    "No completed entries" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune saisie terminée"
+          }
+        }
+      }
     },
     "No completed history yet" : {
       "comment" : "A title for a view that indicates that the user has not yet completed any sessions for an exercise.",
@@ -7156,6 +7158,16 @@
       "comment" : "A label displayed when a user has no scheduled workouts.",
       "isCommentAutoGenerated" : true
     },
+    "No sessions were found for this week." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune séance n’a été trouvée pour cette semaine."
+          }
+        }
+      }
+    },
     "No sets have been completed. Add exercises and complete sets to log your training." : {
       "comment" : "A description of the empty workout save review.",
       "isCommentAutoGenerated" : true
@@ -7323,6 +7335,16 @@
     "Not entered" : {
       "comment" : "A value that is not yet entered.",
       "isCommentAutoGenerated" : true
+    },
+    "Not every session this week has reliable prescribed-set evidence, so prescribed and performed sets aren't compared. Sets actually performed are still shown." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes les séances de cette semaine n’ont pas de données fiables sur les séries prescrites, donc les séries prescrites et effectuées ne sont pas comparées. Les séries réellement effectuées restent affichées."
+          }
+        }
+      }
     },
     "Not following a plan" : {
       "comment" : "A label displayed when a user is not following any plans.",
@@ -7567,6 +7589,16 @@
         }
       }
     },
+    "Open schedule" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir le calendrier"
+          }
+        }
+      }
+    },
     "Open System Settings" : {
       "comment" : "A button that opens System Settings.",
       "isCommentAutoGenerated" : true
@@ -7586,6 +7618,16 @@
       "comment" : "A hint that describes how to open a workout in the History app.",
       "isCommentAutoGenerated" : true
     },
+    "Opens the completed workout." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre l’entraînement terminé."
+          }
+        }
+      }
+    },
     "Opens the keypad for this value" : {
       "comment" : "A hint that describes the purpose of a button.",
       "isCommentAutoGenerated" : true
@@ -7593,6 +7635,16 @@
     "Opens the plan." : {
       "comment" : "A hint that describes an action.",
       "isCommentAutoGenerated" : true
+    },
+    "Opens the reschedule picker." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre le sélecteur de date."
+          }
+        }
+      }
     },
     "Optimize" : {
       "comment" : "A compact button that replaces a manually selected barbell plate load with a space-efficient combination.",
@@ -7859,6 +7911,16 @@
       "comment" : "A label for the peak velocity of a set.",
       "isCommentAutoGenerated" : true
     },
+    "Peaking" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affûtage"
+          }
+        }
+      }
+    },
     "per side" : {
       "localizations" : {
         "en" : {
@@ -7911,6 +7973,16 @@
     "Performed repetitions: %lld" : {
       "comment" : "A stepper that lets the user select the number of repetitions they performed for a given exercise.",
       "isCommentAutoGenerated" : true
+    },
+    "performed sets" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "séries effectuées"
+          }
+        }
+      }
     },
     "Personal bests from completed workouts." : {
       "comment" : "A description of the records section.",
@@ -7995,6 +8067,26 @@
       "comment" : "A section of the plan editor that shows the plan's name, goal, and experience level.",
       "isCommentAutoGenerated" : true
     },
+    "Plan path" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parcours du plan"
+          }
+        }
+      }
+    },
+    "Plan path unavailable" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parcours du plan indisponible"
+          }
+        }
+      }
+    },
     "Plan paused" : {
       "localizations" : {
         "fr" : {
@@ -8055,6 +8147,16 @@
     "Planned vs performed" : {
       "comment" : "A label displayed above a comparison of a workout's planned and actual performance.",
       "isCommentAutoGenerated" : true
+    },
+    "Planned workout" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entraînement prévu"
+          }
+        }
+      }
     },
     "PLANNED WORKOUT" : {
       "comment" : "A label for a workout that is part of a plan.",
@@ -8149,8 +8251,20 @@
       }
     },
     "Preparation" : {
-      "comment" : "A label that describes the preparation of a food.",
-      "isCommentAutoGenerated" : true
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparation"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Préparation"
+          }
+        }
+      }
     },
     "Preparation & mobility required" : {
       "comment" : "A label that indicates that a workout requires preparation exercises.",
@@ -8162,6 +8276,26 @@
     "Preparing GymTracker…" : {
       "comment" : "A message that appears when the app is preparing.",
       "isCommentAutoGenerated" : true
+    },
+    "prescribed sets" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "séries prescrites"
+          }
+        }
+      }
+    },
+    "Prescribed sets aren't fully recorded for at least one session this week." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les séries prescrites ne sont pas entièrement enregistrées pour au moins une séance cette semaine."
+          }
+        }
+      }
     },
     "Prescribed tempo %@" : {
       "comment" : "Displays the prescribed tempo for a set.",
@@ -8266,6 +8400,16 @@
         }
       }
     },
+    "Progression decisions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décisions de progression"
+          }
+        }
+      }
+    },
     "Progression recommendation" : {
       "localizations" : {
         "fr" : {
@@ -8281,6 +8425,560 @@
     },
     "Progression stages" : {
 
+    },
+    "Progression updates" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mises à jour de progression"
+          }
+        }
+      }
+    },
+    "progression.receipt.action.apply.generic" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply this change"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer ce changement"
+          }
+        }
+      }
+    },
+    "progression.receipt.action.apply.load" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer %@"
+          }
+        }
+      }
+    },
+    "progression.receipt.action.applyDifferent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply a different value"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer une autre valeur"
+          }
+        }
+      }
+    },
+    "progression.receipt.action.decline" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decline"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refuser"
+          }
+        }
+      }
+    },
+    "progression.receipt.action.keepCurrent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep current load"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garder la charge actuelle"
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.amrap" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The AMRAP set reached %lld repetitions."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La série AMRAP a atteint %lld répétitions."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.didNotMeetPrescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The prescribed performance was not completed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La performance prescrite n’a pas été complétée."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.none" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No evidence was recorded for this recommendation."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune donnée n’a été enregistrée pour cette recommandation."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.qualifier.thin" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Based on limited evidence — a single set."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basé sur des données limitées — une seule série."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.reps" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Completed %1$lld of %2$lld required repetitions."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld répétitions complétées sur %2$lld requises."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.rir" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reported RIR was %lld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le RIR rapporté était de %lld."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.rir.withTarget" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reported RIR was %1$lld against a target of %2$lld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le RIR rapporté était de %1$lld pour une cible de %2$lld."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.rpe" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reported RPE was %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le RPE rapporté était de %@."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.sets" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Completed %1$lld of %2$lld required sets."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld séries complétées sur %2$lld requises."
+          }
+        }
+      }
+    },
+    "progression.receipt.evidence.successRatio" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@%% of attempts were successful."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %% des tentatives ont réussi."
+          }
+        }
+      }
+    },
+    "progression.receipt.proposedChange.load" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proposed next load: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prochaine charge proposée : %@"
+          }
+        }
+      }
+    },
+    "progression.receipt.proposedChange.structural" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The program proposes a change to your prescription."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le programme propose un changement à votre prescription."
+          }
+        }
+      }
+    },
+    "progression.receipt.reason.prescriptionNotCompleted" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The prescribed performance was not completed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La performance prescrite n’a pas été complétée."
+          }
+        }
+      }
+    },
+    "progression.receipt.reason.triggerSatisfied" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rule's condition was met."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La condition de la règle a été remplie."
+          }
+        }
+      }
+    },
+    "progression.receipt.resolution.accepted.generic" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applied as proposed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliqué tel que proposé."
+          }
+        }
+      }
+    },
+    "progression.receipt.resolution.accepted.load" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applied %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ appliqué."
+          }
+        }
+      }
+    },
+    "progression.receipt.resolution.declined" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kept without applying the change."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conservé sans appliquer le changement."
+          }
+        }
+      }
+    },
+    "progression.receipt.resolution.modified" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applied %1$@ instead of the proposed %2$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ appliqué au lieu des %2$@ proposés."
+          }
+        }
+      }
+    },
+    "progression.receipt.resolution.unknown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolved without a recorded outcome."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résolu sans décision enregistrée."
+          }
+        }
+      }
+    },
+    "progression.receipt.rule.unversioned" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Progression rule"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Règle de progression"
+          }
+        }
+      }
+    },
+    "progression.receipt.rule.versioned" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Progression rule v%lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Règle de progression v%lld"
+          }
+        }
+      }
+    },
+    "progression.receipt.why.confidence.solid" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Based on the recorded performance for this exercise."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "D’après la performance enregistrée pour cet exercice."
+          }
+        }
+      }
+    },
+    "progression.receipt.why.effectOnPlan" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applying this writes your plan's progression state for this exercise. It doesn't change any workout you've already completed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’application de ce changement enregistre l’état de progression de votre plan pour cet exercice. Cela ne modifie aucune séance déjà terminée."
+          }
+        }
+      }
+    },
+    "progression.receipt.why.ifYouAccept.load" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applying sets your next prescribed load for this exercise to %@. You can also choose a different value instead."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer fixe votre prochaine charge prescrite pour cet exercice à %@. Vous pouvez aussi choisir une autre valeur."
+          }
+        }
+      }
+    },
+    "progression.receipt.why.ifYouAccept.structural" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applying carries out this change in your plan."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appliquer effectue ce changement dans votre plan."
+          }
+        }
+      }
+    },
+    "progression.receipt.why.ifYouDecline.load" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Declining keeps your current load. Your plan stays as it is."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refuser conserve votre charge actuelle. Votre plan reste inchangé."
+          }
+        }
+      }
+    },
+    "progression.receipt.why.ifYouDecline.structural" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Declining keeps your plan as it is now."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refuser conserve votre plan tel qu’il est actuellement."
+          }
+        }
+      }
+    },
+    "progression.receipt.why.subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "progression.receipt.why.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Why?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pourquoi ?"
+          }
+        }
+      }
     },
     "progression.recommendation.hold" : {
       "localizations" : {
@@ -8310,6 +9008,192 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ %2$@ recommandés — vous avez réussi %3$lld×%4$lld à %5$@ %2$@ la dernière fois."
+          }
+        }
+      }
+    },
+    "progression.why.evidence.completedSets" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld sets completed last time"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld séries complétées la dernière fois"
+          }
+        }
+      }
+    },
+    "progression.why.evidence.priorLoad" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prior load: %1$@ %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge précédente : %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "progression.why.evidence.priorWorkoutDate" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last recorded: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernier enregistrement : %@"
+          }
+        }
+      }
+    },
+    "progression.why.evidence.target" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Target: %1$lld sets × %2$lld reps"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objectif : %1$lld séries × %2$lld répétitions"
+          }
+        }
+      }
+    },
+    "progression.why.ifYouAccept" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applies %1$@ %2$@ to this exercise's remaining sets today."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applique %1$@ %2$@ aux séries restantes de cet exercice aujourd’hui."
+          }
+        }
+      }
+    },
+    "progression.why.ifYouDecline" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keeps %1$@ %2$@ for this exercise's remaining sets today. That's an ordinary choice, not a setback."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conserve %1$@ %2$@ pour les séries restantes de cet exercice aujourd’hui. C’est un choix ordinaire, pas un recul."
+          }
+        }
+      }
+    },
+    "progression.why.insufficientHistory.missing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A completed workout for this exercise that reached your set and rep target"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une séance terminée pour cet exercice ayant atteint votre objectif de séries et de répétitions"
+          }
+        }
+      }
+    },
+    "progression.why.insufficientHistory.qualifier" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No load is recommended yet because there's no comparable prior performance recorded."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune charge n’est encore recommandée, car aucune performance antérieure comparable n’est enregistrée."
+          }
+        }
+      }
+    },
+    "progression.why.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Why?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pourquoi ?"
+          }
+        }
+      }
+    },
+    "progression.why.whatChanged.hold" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold at %1$@ %2$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maintenir à %1$@ %2$@."
+          }
+        }
+      }
+    },
+    "progression.why.whatChanged.increase" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Increase to %1$@ %2$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Augmenter à %1$@ %2$@."
+          }
+        }
+      }
+    },
+    "Proposed: %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proposé : %1$@"
           }
         }
       }
@@ -8737,6 +9621,16 @@
       "comment" : "A label for the amount of a food that is considered a standard serving.",
       "isCommentAutoGenerated" : true
     },
+    "Remaining" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restant"
+          }
+        }
+      }
+    },
     "Reminder Error" : {
       "comment" : "A title for an alert that displays an error message when the user is unable to enable workout reminders.",
       "isCommentAutoGenerated" : true
@@ -8928,6 +9822,16 @@
         }
       }
     },
+    "Repeated workout" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entraînement répété"
+          }
+        }
+      }
+    },
     "Repeating creates a new logged meal with its own immutable food and nutrient snapshots." : {
       "comment" : "A description of how repeating a meal works.",
       "isCommentAutoGenerated" : true
@@ -9097,6 +10001,16 @@
       "comment" : "A label for the action to resolve a conflict between two training sources.",
       "isCommentAutoGenerated" : true
     },
+    "Resolved without a recorded outcome" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résolu sans résultat enregistré"
+          }
+        }
+      }
+    },
     "Rest" : {
       "comment" : "A label for the rest period between exercises.",
       "isCommentAutoGenerated" : true
@@ -9165,6 +10079,16 @@
         }
       }
     },
+    "Rest controls" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commandes de repos"
+          }
+        }
+      }
+    },
     "Rest paused." : {
       "comment" : "Text displayed in a dialog when pausing a rest.",
       "isCommentAutoGenerated" : true
@@ -9183,6 +10107,16 @@
     "Rest skipped." : {
       "comment" : "Text displayed in a dialog when skipping a rest.",
       "isCommentAutoGenerated" : true
+    },
+    "Rest starts" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Départs de repos"
+          }
+        }
+      }
     },
     "Rest Timer" : {
       "comment" : "A setting that allows the user to set the duration of the resting timer.",
@@ -9331,6 +10265,26 @@
         }
       }
     },
+    "Resume this plan to start this session." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprenez ce plan pour commencer cette séance."
+          }
+        }
+      }
+    },
+    "Resume this rotation to start the next workout." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprenez cette rotation pour commencer le prochain entraînement."
+          }
+        }
+      }
+    },
     "Resume workout" : {
       "localizations" : {
         "en" : {
@@ -9370,6 +10324,16 @@
     "Return to Workout" : {
       "comment" : "A button that returns the user to the workout view.",
       "isCommentAutoGenerated" : true
+    },
+    "Returns to the workout already in progress." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revient à l’entraînement déjà en cours."
+          }
+        }
+      }
     },
     "Returns to your active workout." : {
       "comment" : "A hint for the user that describes the action of tapping this button.",
@@ -9537,6 +10501,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rotation en pause"
+          }
+        }
+      }
+    },
+    "Rotation restarted" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation redémarrée"
           }
         }
       }
@@ -9898,6 +10872,26 @@
         }
       }
     },
+    "See what this week planned, completed, and changed." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voyez ce que cette semaine a prévu, terminé et changé."
+          }
+        }
+      }
+    },
+    "See where you are and what comes next." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voyez où vous en êtes et ce qui suit."
+          }
+        }
+      }
+    },
     "Select" : {
       "comment" : "A placeholder text for a picker.",
       "isCommentAutoGenerated" : true
@@ -9969,9 +10963,29 @@
       "comment" : "A label displayed above a list of exercises.",
       "isCommentAutoGenerated" : true
     },
+    "Session %lld of %lld" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séance %1$lld sur %2$lld"
+          }
+        }
+      }
+    },
     "Session context" : {
       "comment" : "A label for a picker that lets the user select the context of a mobility session.",
       "isCommentAutoGenerated" : true
+    },
+    "Session outcomes" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Résultats de séance"
+          }
+        }
+      }
     },
     "SESSION SUMMARY" : {
       "comment" : "The title of the summary of the exercises in a workout.",
@@ -9981,6 +10995,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "RÉSUMÉ DE LA SÉANCE"
+          }
+        }
+      }
+    },
+    "Sessions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séances"
           }
         }
       }
@@ -10111,6 +11135,26 @@
     "Set an end date" : {
       "comment" : "A toggle that lets the user set an end date for a nutrition target.",
       "isCommentAutoGenerated" : true
+    },
+    "Set comparison unavailable" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparaison des séries indisponible"
+          }
+        }
+      }
+    },
+    "Set entry samples" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échantillons de saisie de séries"
+          }
+        }
+      }
     },
     "Set logged. Rest is ready when you are." : {
       "comment" : "Text displayed in a result when a set is successfully logged.",
@@ -10364,6 +11408,26 @@
         }
       }
     },
+    "Skipped this cycle" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sauté ce cycle"
+          }
+        }
+      }
+    },
+    "Skipped workout" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entraînement sauté"
+          }
+        }
+      }
+    },
     "Sleep" : {
       "comment" : "Label for a rating section that asks the user to rate their sleep quality.",
       "isCommentAutoGenerated" : true
@@ -10603,6 +11667,16 @@
         }
       }
     },
+    "Start next workout" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencer le prochain entraînement"
+          }
+        }
+      }
+    },
     "Start Next Workout" : {
       "localizations" : {
         "fr" : {
@@ -10765,6 +11839,16 @@
       "comment" : "Description of the StartFreeWorkoutIntent intent.",
       "isCommentAutoGenerated" : true
     },
+    "Starts the expected workout in your rotation." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Démarre l’entraînement prévu dans votre rotation."
+          }
+        }
+      }
+    },
     "Starts the linked cooldown as a separate mobility session." : {
       "localizations" : {
         "fr" : {
@@ -10805,6 +11889,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Commence l’entraînement sans l’échauffement facultatif."
+          }
+        }
+      }
+    },
+    "Starts this session of your plan." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Démarre cette séance de votre plan."
           }
         }
       }
@@ -10861,8 +11955,17 @@
       "comment" : "A confirmation dialog that asks the user to stop a mobility session.",
       "isCommentAutoGenerated" : true
     },
+    "Stopped" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêté"
+          }
+        }
+      }
+    },
     "Strength" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -10878,13 +11981,1091 @@
         }
       }
     },
-    "Substitute %@ with" : {
-      "comment" : "A heading that describes a list of exercises that can be used as a replacement for a selected exercise.",
-      "isCommentAutoGenerated" : true
-    },
     "Substituted for %@" : {
       "comment" : "A label that indicates that an exercise was substituted for another exercise. The argument is the name of the original exercise.",
       "isCommentAutoGenerated" : true
+    },
+    "substitution.comparability.direct" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History carries over"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’historique est repris"
+          }
+        }
+      }
+    },
+    "substitution.comparability.direct.detail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Same setup, loading, and logging, so your previous loads mean the same thing."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Même installation, même charge et même saisie : vos charges précédentes ont la même signification."
+          }
+        }
+      }
+    },
+    "substitution.comparability.limited" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History compares loosely"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparaison approximative de l’historique"
+          }
+        }
+      }
+    },
+    "substitution.comparability.limited.detail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Related movement, but the loads aren't directly equivalent. Trends compare; numbers don't."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mouvement apparenté, mais les charges ne sont pas directement équivalentes. Les tendances se comparent, pas les chiffres."
+          }
+        }
+      }
+    },
+    "substitution.comparability.notDirect" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Separate history"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Historique distinct"
+          }
+        }
+      }
+    },
+    "substitution.comparability.notDirect.detail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The same number means a different amount of work here, so this keeps its own history."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le même chiffre représente ici un travail différent : cet exercice conserve son propre historique."
+          }
+        }
+      }
+    },
+    "substitution.comparability.unknown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History effect unknown"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effet sur l’historique inconnu"
+          }
+        }
+      }
+    },
+    "substitution.comparability.unknown.detail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough is recorded about these two exercises to compare their loads. This keeps its own history."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop peu d’informations sont enregistrées sur ces deux exercices pour comparer leurs charges. Celui-ci conserve son propre historique."
+          }
+        }
+      }
+    },
+    "substitution.confidence.high" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Based on complete information"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basé sur des informations complètes"
+          }
+        }
+      }
+    },
+    "substitution.confidence.insufficient" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too little information to judge"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop peu d’informations pour se prononcer"
+          }
+        }
+      }
+    },
+    "substitution.confidence.low" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Based on limited information"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basé sur des informations limitées"
+          }
+        }
+      }
+    },
+    "substitution.confidence.moderate" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Based on most of the details"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basé sur la plupart des détails"
+          }
+        }
+      }
+    },
+    "substitution.confirm.futurePlan" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview plan change"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aperçu de la modification du plan"
+          }
+        }
+      }
+    },
+    "substitution.confirm.headline" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace %@ with %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacer %@ par %@"
+          }
+        }
+      }
+    },
+    "substitution.confirm.prescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your sets, reps, and rest stay as prescribed. Any sets you haven't completed are reset for the new exercise."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos séries, répétitions et temps de repos restent tels que prescrits. Les séries non terminées sont réinitialisées pour le nouvel exercice."
+          }
+        }
+      }
+    },
+    "substitution.confirm.todayOnly" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swap for today"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacer pour aujourd’hui"
+          }
+        }
+      }
+    },
+    "substitution.factor.curatedRationale" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reviewed substitution"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitution vérifiée"
+          }
+        }
+      }
+    },
+    "substitution.factor.difficulty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Difficulty"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Difficulté"
+          }
+        }
+      }
+    },
+    "substitution.factor.equipment" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equipment"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Équipement"
+          }
+        }
+      }
+    },
+    "substitution.factor.goal" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What this exercise is for today"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le rôle de cet exercice aujourd’hui"
+          }
+        }
+      }
+    },
+    "substitution.factor.grip" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grip"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prise"
+          }
+        }
+      }
+    },
+    "substitution.factor.laterality" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One side or both"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un côté ou les deux"
+          }
+        }
+      }
+    },
+    "substitution.factor.loadInterpretation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How load is counted"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode de calcul de la charge"
+          }
+        }
+      }
+    },
+    "substitution.factor.mechanics" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compound or isolation"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Polyarticulaire ou isolation"
+          }
+        }
+      }
+    },
+    "substitution.factor.movementPattern" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movement pattern"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schéma de mouvement"
+          }
+        }
+      }
+    },
+    "substitution.factor.primaryMuscles" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primary muscles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muscles principaux"
+          }
+        }
+      }
+    },
+    "substitution.factor.rangeOfMotion" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Range of motion"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Amplitude de mouvement"
+          }
+        }
+      }
+    },
+    "substitution.factor.resistance" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type of resistance"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type de résistance"
+          }
+        }
+      }
+    },
+    "substitution.factor.secondaryMuscles" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secondary muscles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muscles secondaires"
+          }
+        }
+      }
+    },
+    "substitution.factor.stance" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stance"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position des appuis"
+          }
+        }
+      }
+    },
+    "substitution.factor.stimulus" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Training stimulus"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stimulus d’entraînement"
+          }
+        }
+      }
+    },
+    "substitution.factor.tracking" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How sets are logged"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode de saisie des séries"
+          }
+        }
+      }
+    },
+    "substitution.factor.unreviewedLink" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitution not yet reviewed"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitution pas encore vérifiée"
+          }
+        }
+      }
+    },
+    "substitution.factor.variationFamily" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movement family"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Famille de mouvement"
+          }
+        }
+      }
+    },
+    "substitution.filter.equipmentUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs equipment you marked unavailable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nécessite un équipement marqué comme indisponible"
+          }
+        }
+      }
+    },
+    "substitution.filter.incompatibleTracking" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't be logged against today's prescription"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ne peut pas être saisi selon la prescription du jour"
+          }
+        }
+      }
+    },
+    "substitution.filter.skillInappropriate" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Harder than the exercise you're replacing"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus difficile que l’exercice remplacé"
+          }
+        }
+      }
+    },
+    "substitution.filter.uncomfortablePosition" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses a position you said is uncomfortable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilise une position que vous jugez inconfortable"
+          }
+        }
+      }
+    },
+    "substitution.progression.separate" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This exercise keeps its own progression. Your original exercise's progression is untouched."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet exercice conserve sa propre progression. La progression de l’exercice d’origine reste inchangée."
+          }
+        }
+      }
+    },
+    "substitution.progression.shared" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Progression continues from your original exercise, because the setup and loading match exactly."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La progression se poursuit depuis l’exercice d’origine, car l’installation et la charge correspondent exactement."
+          }
+        }
+      }
+    },
+    "substitution.progression.undetermined" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There isn't enough information to link progression, so this keeps its own."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les informations sont insuffisantes pour relier les progressions : celle-ci reste distincte."
+          }
+        }
+      }
+    },
+    "substitution.reason.discomfort" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something feels uncomfortable today"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelque chose est inconfortable aujourd’hui"
+          }
+        }
+      }
+    },
+    "substitution.reason.equipmentUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equipment is busy or unavailable"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’équipement est occupé ou indisponible"
+          }
+        }
+      }
+    },
+    "substitution.reason.fatigue" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I'm too fatigued for this one"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je suis trop fatigué pour celui-ci"
+          }
+        }
+      }
+    },
+    "substitution.reason.header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replacing %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacement de %@"
+          }
+        }
+      }
+    },
+    "substitution.reason.homeEquipment" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I'm training with home equipment"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je m’entraîne avec du matériel à la maison"
+          }
+        }
+      }
+    },
+    "substitution.reason.notSure" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not sure"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je ne sais pas"
+          }
+        }
+      }
+    },
+    "substitution.reason.notSure.footnote" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That's fine. Options will be ranked on what your plan already asks for."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun problème. Les options seront classées selon ce que votre plan demande déjà."
+          }
+        }
+      }
+    },
+    "substitution.reason.permanentPlanChange" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I want to change this in my plan"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je veux changer ceci dans mon plan"
+          }
+        }
+      }
+    },
+    "substitution.reason.preference" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I'd rather do something else"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je préfère faire autre chose"
+          }
+        }
+      }
+    },
+    "substitution.reason.skillOrConfidence" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I'm not confident with this movement"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je manque d’aisance avec ce mouvement"
+          }
+        }
+      }
+    },
+    "substitution.reason.timeConstraint" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I'm short on time"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je manque de temps"
+          }
+        }
+      }
+    },
+    "substitution.scope.futurePlan" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace in my plan"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacer dans mon plan"
+          }
+        }
+      }
+    },
+    "substitution.scope.futurePlan.effect" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This replaces the exercise in your plan from here on. You'll see a preview before anything changes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ceci remplace l’exercice dans votre plan à partir de maintenant. Un aperçu s’affichera avant tout changement."
+          }
+        }
+      }
+    },
+    "substitution.scope.todayOnly" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Just today"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aujourd’hui seulement"
+          }
+        }
+      }
+    },
+    "substitution.scope.todayOnly.effect" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your plan is unchanged. This applies to today's session only."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre plan reste inchangé. Ceci s’applique uniquement à la séance d’aujourd’hui."
+          }
+        }
+      }
+    },
+    "substitution.suitability.acceptable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acceptable fit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choix acceptable"
+          }
+        }
+      }
+    },
+    "substitution.suitability.excellent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Excellent fit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Excellent choix"
+          }
+        }
+      }
+    },
+    "substitution.suitability.good" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good fit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bon choix"
+          }
+        }
+      }
+    },
+    "substitution.suitability.insufficient" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough information"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informations insuffisantes"
+          }
+        }
+      }
+    },
+    "substitution.suitability.notRecommended" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not recommended"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non recommandé"
+          }
+        }
+      }
+    },
+    "substitution.suitability.poor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poor fit"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choix peu adapté"
+          }
+        }
+      }
+    },
+    "substitution.why.missing.intro" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not recorded for these exercises:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non enregistré pour ces exercices :"
+          }
+        }
+      }
+    },
+    "substitution.why.override.body" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can pick any option here regardless of this assessment. Nothing is chosen for you, and no load is converted automatically."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pouvez choisir n’importe quelle option, quelle que soit cette évaluation. Rien n’est choisi à votre place et aucune charge n’est convertie automatiquement."
+          }
+        }
+      }
+    },
+    "substitution.why.subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replacing %@ with %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacement de %@ par %@"
+          }
+        }
+      }
+    },
+    "substitution.why.suggested.linkOnly" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This option is offered because it's linked as a substitute in your exercise library, not because its details match."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette option est proposée parce qu’elle est reliée comme substitut dans votre bibliothèque d’exercices, et non parce que ses caractéristiques correspondent."
+          }
+        }
+      }
+    },
+    "substitution.why.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Why?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pourquoi ?"
+          }
+        }
+      }
+    },
+    "Substitutions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Substitutions"
+          }
+        }
+      }
     },
     "Substitutions can be swapped during an unstarted exercise. Progressions and regressions document the library relationship." : {
       "comment" : "A description of the relationship types available in the exercise relationship editor.",
@@ -10959,6 +13140,16 @@
     "Switch to %@?" : {
       "comment" : "A confirmation dialog that lets the user switch between RPE and RIR.",
       "isCommentAutoGenerated" : true
+    },
+    "Switched workout" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entraînement remplacé"
+          }
+        }
+      }
     },
     "Switches between RIR and RPE" : {
       "comment" : "A hint that appears when tapping the button to switch between RIR and RPE.",
@@ -11275,12 +13466,18 @@
       "comment" : "A description of an error message.",
       "isCommentAutoGenerated" : true
     },
-    "The current uncompleted sets will be reset for the replacement exercise. Your prescription stays in place." : {
-      "comment" : "A description of the behavior of the exercise swap.",
-      "isCommentAutoGenerated" : true
-    },
     "The deload changes only the prescription snapshot for that future week's workouts. Your completed workouts stay unchanged." : {
 
+    },
+    "The expected workout stayed next" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’entraînement prévu est resté le suivant"
+          }
+        }
+      }
     },
     "The linked mobility routine could not be started. Try again." : {
       "localizations" : {
@@ -11332,6 +13529,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La photo ne contenait pas assez de détails. Essayez une autre photo ou saisissez un nom de recette."
+          }
+        }
+      }
+    },
+    "The plan behind this review is unavailable. Completed sessions still show what you did." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le plan à l’origine de ce bilan est indisponible. Les séances terminées montrent toujours ce que vous avez fait."
+          }
+        }
+      }
+    },
+    "The plan behind this run is unavailable. Completed sessions still show what you did." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le plan à l’origine de ce suivi est indisponible. Les séances terminées montrent toujours ce que vous avez fait."
           }
         }
       }
@@ -11399,6 +13616,66 @@
         }
       }
     },
+    "The rotation moved on" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La rotation a avancé"
+          }
+        }
+      }
+    },
+    "The rotation position did not change" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La position dans la rotation n’a pas changé"
+          }
+        }
+      }
+    },
+    "The saved cycle count (%lld) is invalid, so cycle numbers may be wrong." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le nombre de cycles enregistré (%1$lld) est invalide : les numéros de cycle peuvent être erronés."
+          }
+        }
+      }
+    },
+    "The saved rotation position (%lld) is outside the %lld workouts in this rotation." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La position enregistrée (%1$lld) est en dehors des %2$lld entraînements de cette rotation."
+          }
+        }
+      }
+    },
+    "The saved rotation position is unavailable." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La position enregistrée dans la rotation est indisponible."
+          }
+        }
+      }
+    },
+    "The workout could not be rescheduled. Try again." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’entraînement n’a pas pu être replanifié. Réessayez."
+          }
+        }
+      }
+    },
     "The workout could not be started. Check the selected plan or rotation and try again." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -11421,6 +13698,16 @@
     "There is no active workout with a rest timer." : {
       "comment" : "Error message when the user tries to control a rest timer on a workout that is not in progress.",
       "isCommentAutoGenerated" : true
+    },
+    "There is no scheduled week after this one." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune semaine n’est planifiée après celle-ci."
+          }
+        }
+      }
     },
     "There is no workout scheduled today." : {
       "comment" : "Text displayed in a result when there is no workout scheduled for today.",
@@ -11500,12 +13787,72 @@
         }
       }
     },
+    "This is the final week of the plan" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C’est la dernière semaine du plan"
+          }
+        }
+      }
+    },
     "This plan does not require starting values. You can adjust loads during your first workout." : {
       "comment" : "Text displayed below the start date and frequency picker in the Program Activation Setup View.",
       "isCommentAutoGenerated" : true
     },
+    "This plan is currently paused." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce plan est actuellement en pause."
+          }
+        }
+      }
+    },
     "This plan may have been removed or replaced." : {
 
+    },
+    "This plan run could not be found." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette exécution du plan est introuvable."
+          }
+        }
+      }
+    },
+    "This plan run is complete." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce suivi de plan est terminé."
+          }
+        }
+      }
+    },
+    "This plan run may have been removed or replaced." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce suivi de plan a peut-être été supprimé ou remplacé."
+          }
+        }
+      }
+    },
+    "This plan run may have been removed or replaced. Choose a plan to start a new one." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce suivi de plan a peut-être été supprimé ou remplacé. Choisissez un plan pour en commencer un nouveau."
+          }
+        }
+      }
     },
     "This preview shows the prescriptions currently stored in the plan. A workout snapshot freezes these values when you start a session." : {
       "comment" : "A description of the purpose of this view.",
@@ -11517,6 +13864,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cette action ramène la rotation à l’entraînement 1 et enregistre le redémarrage. L’historique des entraînements terminés ne change pas."
+          }
+        }
+      }
+    },
+    "This rotation has no workouts yet." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette rotation ne contient encore aucun entraînement."
+          }
+        }
+      }
+    },
+    "This rotation has no workouts, so there is nothing to train next." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette rotation ne contient aucun entraînement : il n’y a rien à faire ensuite."
           }
         }
       }
@@ -11544,6 +13911,26 @@
         }
       }
     },
+    "This rotation position no longer has an available workout. Correct the rotation before starting." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette position de la rotation n’a plus d’entraînement disponible. Corrigez la rotation avant de commencer."
+          }
+        }
+      }
+    },
+    "This run has no current session. Open the schedule to pick what to train next." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce suivi n’a pas de séance en cours. Ouvrez le calendrier pour choisir votre prochain entraînement."
+          }
+        }
+      }
+    },
     "This session will remain in the plan schedule as skipped. Your plan and workout history will not change." : {
       "comment" : "A message displayed in a confirmation dialog when skipping a workout.",
       "isCommentAutoGenerated" : true
@@ -11556,6 +13943,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "This set has %1$@. Recording %2$@ will remove it from this set."
+          }
+        }
+      }
+    },
+    "This week" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette semaine"
           }
         }
       }
@@ -11609,6 +14006,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cet entraînement propose un échauffement associé facultatif."
+          }
+        }
+      }
+    },
+    "This workout may have been removed from History." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet entraînement a peut-être été supprimé de l’historique."
           }
         }
       }
@@ -11946,6 +14353,16 @@
       "comment" : "A description of the search prompt for the hidden exercises view.",
       "isCommentAutoGenerated" : true
     },
+    "Try again." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réessayez."
+          }
+        }
+      }
+    },
     "Try another name, or create a new food." : {
       "localizations" : {
         "en" : {
@@ -11972,6 +14389,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deux répétitions en réserve"
+          }
+        }
+      }
+    },
+    "Two workouts share rotation position %lld." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deux entraînements occupent la position %1$lld de la rotation."
           }
         }
       }
@@ -12010,6 +14437,26 @@
         }
       }
     },
+    "Undone" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annulé"
+          }
+        }
+      }
+    },
+    "Undone · the rotation position was restored" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annulé · la position dans la rotation a été rétablie"
+          }
+        }
+      }
+    },
     "Unfinished movements will be saved as stopped. Completed results will remain unchanged." : {
       "comment" : "A message displayed in a confirmation dialog when stopping a mobility session.",
       "isCommentAutoGenerated" : true
@@ -12034,13 +14481,53 @@
         }
       }
     },
+    "Unknown exercise" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exercice inconnu"
+          }
+        }
+      }
+    },
+    "Unresolved" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non résolu"
+          }
+        }
+      }
+    },
     "Unschedule" : {
       "comment" : "A context menu option that unschedules a workout.",
       "isCommentAutoGenerated" : true
     },
+    "Unscheduled" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non planifiée"
+          }
+        }
+      }
+    },
     "Unscheduled · Tap to choose a date" : {
       "comment" : "A description of a workout that has not been scheduled.",
       "isCommentAutoGenerated" : true
+    },
+    "Up next" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À suivre"
+          }
+        }
+      }
     },
     "Upcoming" : {
       "localizations" : {
@@ -12150,6 +14637,16 @@
         }
       }
     },
+    "Value corrections" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corrections de valeurs"
+          }
+        }
+      }
+    },
     "Values become editable; the set stays completed." : {
       "comment" : "A hint for the \"Edit completed set\" button.",
       "isCommentAutoGenerated" : true
@@ -12246,6 +14743,16 @@
         }
       }
     },
+    "Volume −%@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume −%1$@"
+          }
+        }
+      }
+    },
     "Volume scope" : {
       "comment" : "Display name for the type of scope used to describe the volume of a weekly report.",
       "isCommentAutoGenerated" : true
@@ -12298,6 +14805,16 @@
         }
       }
     },
+    "Week %lld · %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Semaine %1$lld · %2$@"
+          }
+        }
+      }
+    },
     "Week %lld of %lld" : {
       "comment" : "A week number, in the context of a plan.",
       "isCommentAutoGenerated" : true,
@@ -12316,12 +14833,42 @@
         }
       }
     },
+    "Week %lld of the plan is unavailable, so its name and block are missing." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La semaine %1$lld du plan est indisponible : son nom et son bloc sont manquants."
+          }
+        }
+      }
+    },
     "Week name" : {
 
     },
     "Weekly" : {
       "comment" : "A label for a weekly reminder.",
       "isCommentAutoGenerated" : true
+    },
+    "Weekly review" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bilan hebdomadaire"
+          }
+        }
+      }
+    },
+    "Weekly review unavailable" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bilan hebdomadaire indisponible"
+          }
+        }
+      }
     },
     "Weekly volume" : {
       "comment" : "Title of a weekly training volume view.",
@@ -12408,6 +14955,22 @@
     "Welcome to GymTracker" : {
 
     },
+    "What changes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What changes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qui change"
+          }
+        }
+      }
+    },
     "What's on your mind?" : {
       "comment" : "Header for the beta feedback text editor section.",
       "isCommentAutoGenerated" : true,
@@ -12466,6 +15029,214 @@
         }
       }
     },
+    "Why are you swapping?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Why are you swapping?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pourquoi remplacez-vous cet exercice ?"
+          }
+        }
+      }
+    },
+    "Why?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Why?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pourquoi ?"
+          }
+        }
+      }
+    },
+    "why.confidence.missing.intro" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not recorded for this:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non enregistré pour cet élément :"
+          }
+        }
+      }
+    },
+    "why.section.blockers" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Why this isn't available"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pourquoi ce n’est pas disponible"
+          }
+        }
+      }
+    },
+    "why.section.confidence" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How confident this is"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Degré de certitude"
+          }
+        }
+      }
+    },
+    "why.section.effectOnHistory" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effect on your history"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effet sur votre historique"
+          }
+        }
+      }
+    },
+    "why.section.effectOnPlan" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effect on your plan"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effet sur votre plan"
+          }
+        }
+      }
+    },
+    "why.section.evidenceUsed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What this is based on"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sur quoi cela repose"
+          }
+        }
+      }
+    },
+    "why.section.ifYouAccept" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If you accept"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si vous acceptez"
+          }
+        }
+      }
+    },
+    "why.section.ifYouDecline" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If you decline"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Si vous refusez"
+          }
+        }
+      }
+    },
+    "why.section.override" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You decide"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C’est vous qui décidez"
+          }
+        }
+      }
+    },
+    "why.section.whatChanged" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What changes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qui change"
+          }
+        }
+      }
+    },
+    "why.section.whatDiffers" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's different"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qui diffère"
+          }
+        }
+      }
+    },
     "Women's Olympic" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -12507,6 +15278,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Entraînement %1$lld"
+          }
+        }
+      }
+    },
+    "Workout %lld is unavailable" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’entraînement %1$lld est indisponible"
           }
         }
       }
@@ -12617,6 +15398,16 @@
         }
       }
     },
+    "You are in a deload week" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous êtes dans une semaine de décharge"
+          }
+        }
+      }
+    },
     "You can activate this rotation again later. Completed workout history stays unchanged." : {
       "localizations" : {
         "fr" : {
@@ -12630,6 +15421,16 @@
     "You can follow a plan and be told what to train each day, or just log your own workouts. You can switch at any time." : {
       "comment" : "A description of the welcome view.",
       "isCommentAutoGenerated" : true
+    },
+    "You've stopped following this plan. Its history stays available here." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous avez arrêté de suivre ce plan. Son historique reste disponible ici."
+          }
+        }
+      }
     },
     "Your completed workouts remain in History. You can start this plan again later." : {
 
@@ -12728,2654 +15529,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Votre entraînement est toujours ouvert. Réessayez de l’enregistrer."
-          }
-        }
-      }
-    },
-    "substitution.reason.equipmentUnavailable" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Equipment is busy or unavailable"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’équipement est occupé ou indisponible"
-          }
-        }
-      }
-    },
-    "substitution.reason.discomfort" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Something feels uncomfortable today"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quelque chose est inconfortable aujourd’hui"
-          }
-        }
-      }
-    },
-    "substitution.reason.fatigue" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I'm too fatigued for this one"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je suis trop fatigué pour celui-ci"
-          }
-        }
-      }
-    },
-    "substitution.reason.skillOrConfidence" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I'm not confident with this movement"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je manque d’aisance avec ce mouvement"
-          }
-        }
-      }
-    },
-    "substitution.reason.preference" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I'd rather do something else"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je préfère faire autre chose"
-          }
-        }
-      }
-    },
-    "substitution.reason.timeConstraint" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I'm short on time"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je manque de temps"
-          }
-        }
-      }
-    },
-    "substitution.reason.homeEquipment" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I'm training with home equipment"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je m’entraîne avec du matériel à la maison"
-          }
-        }
-      }
-    },
-    "substitution.reason.permanentPlanChange" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I want to change this in my plan"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je veux changer ceci dans mon plan"
-          }
-        }
-      }
-    },
-    "substitution.reason.notSure" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not sure"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je ne sais pas"
-          }
-        }
-      }
-    },
-    "substitution.reason.notSure.footnote" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "That's fine. Options will be ranked on what your plan already asks for."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucun problème. Les options seront classées selon ce que votre plan demande déjà."
-          }
-        }
-      }
-    },
-    "substitution.reason.header" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Replacing %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remplacement de %@"
-          }
-        }
-      }
-    },
-    "substitution.suitability.excellent" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Excellent fit"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Excellent choix"
-          }
-        }
-      }
-    },
-    "substitution.suitability.good" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Good fit"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bon choix"
-          }
-        }
-      }
-    },
-    "substitution.suitability.acceptable" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Acceptable fit"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choix acceptable"
-          }
-        }
-      }
-    },
-    "substitution.suitability.poor" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Poor fit"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choix peu adapté"
-          }
-        }
-      }
-    },
-    "substitution.suitability.notRecommended" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not recommended"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Non recommandé"
-          }
-        }
-      }
-    },
-    "substitution.suitability.insufficient" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not enough information"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Informations insuffisantes"
-          }
-        }
-      }
-    },
-    "substitution.comparability.direct" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "History carries over"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’historique est repris"
-          }
-        }
-      }
-    },
-    "substitution.comparability.limited" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "History compares loosely"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Comparaison approximative de l’historique"
-          }
-        }
-      }
-    },
-    "substitution.comparability.notDirect" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Separate history"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Historique distinct"
-          }
-        }
-      }
-    },
-    "substitution.comparability.unknown" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "History effect unknown"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Effet sur l’historique inconnu"
-          }
-        }
-      }
-    },
-    "substitution.comparability.direct.detail" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Same setup, loading, and logging, so your previous loads mean the same thing."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Même installation, même charge et même saisie : vos charges précédentes ont la même signification."
-          }
-        }
-      }
-    },
-    "substitution.comparability.limited.detail" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Related movement, but the loads aren't directly equivalent. Trends compare; numbers don't."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mouvement apparenté, mais les charges ne sont pas directement équivalentes. Les tendances se comparent, pas les chiffres."
-          }
-        }
-      }
-    },
-    "substitution.comparability.notDirect.detail" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The same number means a different amount of work here, so this keeps its own history."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le même chiffre représente ici un travail différent : cet exercice conserve son propre historique."
-          }
-        }
-      }
-    },
-    "substitution.comparability.unknown.detail" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not enough is recorded about these two exercises to compare their loads. This keeps its own history."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trop peu d’informations sont enregistrées sur ces deux exercices pour comparer leurs charges. Celui-ci conserve son propre historique."
-          }
-        }
-      }
-    },
-    "substitution.confidence.high" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Based on complete information"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basé sur des informations complètes"
-          }
-        }
-      }
-    },
-    "substitution.confidence.moderate" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Based on most of the details"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basé sur la plupart des détails"
-          }
-        }
-      }
-    },
-    "substitution.confidence.low" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Based on limited information"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basé sur des informations limitées"
-          }
-        }
-      }
-    },
-    "substitution.confidence.insufficient" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Too little information to judge"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trop peu d’informations pour se prononcer"
-          }
-        }
-      }
-    },
-    "substitution.factor.movementPattern" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Movement pattern"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schéma de mouvement"
-          }
-        }
-      }
-    },
-    "substitution.factor.primaryMuscles" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Primary muscles"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Muscles principaux"
-          }
-        }
-      }
-    },
-    "substitution.factor.secondaryMuscles" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Secondary muscles"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Muscles secondaires"
-          }
-        }
-      }
-    },
-    "substitution.factor.variationFamily" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Movement family"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Famille de mouvement"
-          }
-        }
-      }
-    },
-    "substitution.factor.equipment" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Equipment"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Équipement"
-          }
-        }
-      }
-    },
-    "substitution.factor.resistance" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Type of resistance"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Type de résistance"
-          }
-        }
-      }
-    },
-    "substitution.factor.mechanics" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Compound or isolation"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Polyarticulaire ou isolation"
-          }
-        }
-      }
-    },
-    "substitution.factor.rangeOfMotion" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Range of motion"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Amplitude de mouvement"
-          }
-        }
-      }
-    },
-    "substitution.factor.grip" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grip"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prise"
-          }
-        }
-      }
-    },
-    "substitution.factor.stance" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stance"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Position des appuis"
-          }
-        }
-      }
-    },
-    "substitution.factor.laterality" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "One side or both"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Un côté ou les deux"
-          }
-        }
-      }
-    },
-    "substitution.factor.tracking" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "How sets are logged"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mode de saisie des séries"
-          }
-        }
-      }
-    },
-    "substitution.factor.loadInterpretation" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "How load is counted"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mode de calcul de la charge"
-          }
-        }
-      }
-    },
-    "substitution.factor.difficulty" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Difficulty"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Difficulté"
-          }
-        }
-      }
-    },
-    "substitution.factor.stimulus" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Training stimulus"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stimulus d’entraînement"
-          }
-        }
-      }
-    },
-    "substitution.factor.goal" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What this exercise is for today"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le rôle de cet exercice aujourd’hui"
-          }
-        }
-      }
-    },
-    "substitution.factor.curatedRationale" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reviewed substitution"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Substitution vérifiée"
-          }
-        }
-      }
-    },
-    "substitution.factor.unreviewedLink" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Substitution not yet reviewed"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Substitution pas encore vérifiée"
-          }
-        }
-      }
-    },
-    "substitution.filter.equipmentUnavailable" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Needs equipment you marked unavailable"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nécessite un équipement marqué comme indisponible"
-          }
-        }
-      }
-    },
-    "substitution.filter.incompatibleTracking" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Can't be logged against today's prescription"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ne peut pas être saisi selon la prescription du jour"
-          }
-        }
-      }
-    },
-    "substitution.filter.uncomfortablePosition" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uses a position you said is uncomfortable"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Utilise une position que vous jugez inconfortable"
-          }
-        }
-      }
-    },
-    "substitution.filter.skillInappropriate" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Harder than the exercise you're replacing"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Plus difficile que l’exercice remplacé"
-          }
-        }
-      }
-    },
-    "substitution.progression.separate" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This exercise keeps its own progression. Your original exercise's progression is untouched."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cet exercice conserve sa propre progression. La progression de l’exercice d’origine reste inchangée."
-          }
-        }
-      }
-    },
-    "substitution.progression.shared" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Progression continues from your original exercise, because the setup and loading match exactly."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La progression se poursuit depuis l’exercice d’origine, car l’installation et la charge correspondent exactement."
-          }
-        }
-      }
-    },
-    "substitution.progression.undetermined" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "There isn't enough information to link progression, so this keeps its own."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les informations sont insuffisantes pour relier les progressions : celle-ci reste distincte."
-          }
-        }
-      }
-    },
-    "substitution.scope.todayOnly" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Just today"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aujourd’hui seulement"
-          }
-        }
-      }
-    },
-    "substitution.scope.futurePlan" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Replace in my plan"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remplacer dans mon plan"
-          }
-        }
-      }
-    },
-    "substitution.scope.todayOnly.effect" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your plan is unchanged. This applies to today's session only."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre plan reste inchangé. Ceci s’applique uniquement à la séance d’aujourd’hui."
-          }
-        }
-      }
-    },
-    "substitution.scope.futurePlan.effect" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This replaces the exercise in your plan from here on. You'll see a preview before anything changes."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ceci remplace l’exercice dans votre plan à partir de maintenant. Un aperçu s’affichera avant tout changement."
-          }
-        }
-      }
-    },
-    "substitution.why.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Why?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pourquoi ?"
-          }
-        }
-      }
-    },
-    "substitution.why.subtitle" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Replacing %@ with %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remplacement de %@ par %@"
-          }
-        }
-      }
-    },
-    "substitution.why.suggested.linkOnly" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This option is offered because it's linked as a substitute in your exercise library, not because its details match."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette option est proposée parce qu’elle est reliée comme substitut dans votre bibliothèque d’exercices, et non parce que ses caractéristiques correspondent."
-          }
-        }
-      }
-    },
-    "substitution.why.missing.intro" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not recorded for these exercises:"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Non enregistré pour ces exercices :"
-          }
-        }
-      }
-    },
-    "substitution.why.override.body" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You can pick any option here regardless of this assessment. Nothing is chosen for you, and no load is converted automatically."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vous pouvez choisir n’importe quelle option, quelle que soit cette évaluation. Rien n’est choisi à votre place et aucune charge n’est convertie automatiquement."
-          }
-        }
-      }
-    },
-    "substitution.confirm.headline" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Replace %@ with %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remplacer %@ par %@"
-          }
-        }
-      }
-    },
-    "substitution.confirm.todayOnly" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Swap for today"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remplacer pour aujourd’hui"
-          }
-        }
-      }
-    },
-    "substitution.confirm.futurePlan" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preview plan change"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aperçu de la modification du plan"
-          }
-        }
-      }
-    },
-    "substitution.confirm.prescription" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your sets, reps, and rest stay as prescribed. Any sets you haven't completed are reset for the new exercise."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vos séries, répétitions et temps de repos restent tels que prescrits. Les séries non terminées sont réinitialisées pour le nouvel exercice."
-          }
-        }
-      }
-    },
-    "Why are you swapping?" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Why are you swapping?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pourquoi remplacez-vous cet exercice ?"
-          }
-        }
-      }
-    },
-    "Confirm swap" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Confirm swap"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Confirmer le remplacement"
-          }
-        }
-      }
-    },
-    "What changes" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What changes"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ce qui change"
-          }
-        }
-      }
-    },
-    "How far this applies" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "How far this applies"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Portée du changement"
-          }
-        }
-      }
-    },
-    "Why?" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Why?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pourquoi ?"
-          }
-        }
-      }
-    },
-    "Continue progression from %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue progression from %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Poursuivre la progression depuis %@"
-          }
-        }
-      }
-    },
-    "why.section.whatChanged" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What changes"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ce qui change"
-          }
-        }
-      }
-    },
-    "why.section.blockers" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Why this isn't available"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pourquoi ce n’est pas disponible"
-          }
-        }
-      }
-    },
-    "why.section.evidenceUsed" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What this is based on"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sur quoi cela repose"
-          }
-        }
-      }
-    },
-    "why.section.whatDiffers" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What's different"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ce qui diffère"
-          }
-        }
-      }
-    },
-    "why.section.effectOnHistory" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Effect on your history"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Effet sur votre historique"
-          }
-        }
-      }
-    },
-    "why.section.effectOnPlan" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Effect on your plan"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Effet sur votre plan"
-          }
-        }
-      }
-    },
-    "why.section.confidence" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "How confident this is"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Degré de certitude"
-          }
-        }
-      }
-    },
-    "why.section.ifYouAccept" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "If you accept"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Si vous acceptez"
-          }
-        }
-      }
-    },
-    "why.section.ifYouDecline" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "If you decline"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Si vous refusez"
-          }
-        }
-      }
-    },
-    "why.section.override" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You decide"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "C’est vous qui décidez"
-          }
-        }
-      }
-    },
-    "why.confidence.missing.intro" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not recorded for this:"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Non enregistré pour cet élément :"
-          }
-        }
-      }
-    },
-    "progression.receipt.why.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Why?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pourquoi ?"
-          }
-        }
-      }
-    },
-    "progression.receipt.why.subtitle" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · %2$@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · %2$@"
-          }
-        }
-      }
-    },
-    "progression.receipt.why.effectOnPlan" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Applying this writes your plan's progression state for this exercise. It doesn't change any workout you've already completed."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’application de ce changement enregistre l’état de progression de votre plan pour cet exercice. Cela ne modifie aucune séance déjà terminée."
-          }
-        }
-      }
-    },
-    "progression.receipt.why.ifYouAccept.load" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Applying sets your next prescribed load for this exercise to %@. You can also choose a different value instead."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appliquer fixe votre prochaine charge prescrite pour cet exercice à %@. Vous pouvez aussi choisir une autre valeur."
-          }
-        }
-      }
-    },
-    "progression.receipt.why.ifYouAccept.structural" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Applying carries out this change in your plan."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appliquer effectue ce changement dans votre plan."
-          }
-        }
-      }
-    },
-    "progression.receipt.why.ifYouDecline.load" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Declining keeps your current load. Your plan stays as it is."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refuser conserve votre charge actuelle. Votre plan reste inchangé."
-          }
-        }
-      }
-    },
-    "progression.receipt.why.ifYouDecline.structural" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Declining keeps your plan as it is now."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refuser conserve votre plan tel qu’il est actuellement."
-          }
-        }
-      }
-    },
-    "progression.receipt.why.confidence.solid" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Based on the recorded performance for this exercise."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "D’après la performance enregistrée pour cet exercice."
-          }
-        }
-      }
-    },
-    "progression.why.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Why?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pourquoi ?"
-          }
-        }
-      }
-    },
-    "progression.why.whatChanged.hold" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hold at %1$@ %2$@."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Maintenir à %1$@ %2$@."
-          }
-        }
-      }
-    },
-    "progression.why.whatChanged.increase" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Increase to %1$@ %2$@."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Augmenter à %1$@ %2$@."
-          }
-        }
-      }
-    },
-    "progression.why.evidence.priorLoad" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prior load: %1$@ %2$@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charge précédente : %1$@ %2$@"
-          }
-        }
-      }
-    },
-    "progression.why.evidence.target" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Target: %1$lld sets × %2$lld reps"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Objectif : %1$lld séries × %2$lld répétitions"
-          }
-        }
-      }
-    },
-    "progression.why.evidence.completedSets" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld sets completed last time"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld séries complétées la dernière fois"
-          }
-        }
-      }
-    },
-    "progression.why.evidence.priorWorkoutDate" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Last recorded: %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dernier enregistrement : %@"
-          }
-        }
-      }
-    },
-    "progression.why.ifYouAccept" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Applies %1$@ %2$@ to this exercise's remaining sets today."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Applique %1$@ %2$@ aux séries restantes de cet exercice aujourd’hui."
-          }
-        }
-      }
-    },
-    "progression.why.ifYouDecline" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keeps %1$@ %2$@ for this exercise's remaining sets today. That's an ordinary choice, not a setback."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conserve %1$@ %2$@ pour les séries restantes de cet exercice aujourd’hui. C’est un choix ordinaire, pas un recul."
-          }
-        }
-      }
-    },
-    "progression.why.insufficientHistory.qualifier" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No load is recommended yet because there's no comparable prior performance recorded."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucune charge n’est encore recommandée, car aucune performance antérieure comparable n’est enregistrée."
-          }
-        }
-      }
-    },
-    "progression.why.insufficientHistory.missing" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A completed workout for this exercise that reached your set and rep target"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Une séance terminée pour cet exercice ayant atteint votre objectif de séries et de répétitions"
-          }
-        }
-      }
-    },
-    "Plan path" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Parcours du plan"
-          }
-        }
-      }
-    },
-    "See where you are and what comes next." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Voyez où vous en êtes et ce qui suit."
-          }
-        }
-      }
-    },
-    "Plan path unavailable" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Parcours du plan indisponible"
-          }
-        }
-      }
-    },
-    "This plan run may have been removed or replaced. Choose a plan to start a new one." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ce suivi de plan a peut-être été supprimé ou remplacé. Choisissez un plan pour en commencer un nouveau."
-          }
-        }
-      }
-    },
-    "Up next" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "À suivre"
-          }
-        }
-      }
-    },
-    "Current session" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Séance actuelle"
-          }
-        }
-      }
-    },
-    "Opens the completed workout." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ouvre l’entraînement terminé."
-          }
-        }
-      }
-    },
-    "Opens the reschedule picker." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ouvre le sélecteur de date."
-          }
-        }
-      }
-    },
-    "Open schedule" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ouvrir le calendrier"
-          }
-        }
-      }
-    },
-    "Move sessions and see them by date." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Déplacez les séances et consultez-les par date."
-          }
-        }
-      }
-    },
-    "Stopped" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Arrêté"
-          }
-        }
-      }
-    },
-    "Accumulation" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Accumulation"
-          }
-        }
-      }
-    },
-    "Peaking" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Affûtage"
-          }
-        }
-      }
-    },
-    "Deload" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Décharge"
-          }
-        }
-      }
-    },
-    "Block %lld of %lld · %@" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bloc %1$lld sur %2$lld · %3$@"
-          }
-        }
-      }
-    },
-    "Week %lld · %@" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Semaine %1$lld · %2$@"
-          }
-        }
-      }
-    },
-    "Session %lld of %lld" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Séance %1$lld sur %2$lld"
-          }
-        }
-      }
-    },
-    "%lld of %lld sessions completed" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld séances sur %2$lld terminées"
-          }
-        }
-      }
-    },
-    "Unscheduled" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Non planifiée"
-          }
-        }
-      }
-    },
-    "Moved from %@" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Déplacée du %1$@"
-          }
-        }
-      }
-    },
-    "You are in a deload week" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vous êtes dans une semaine de décharge"
-          }
-        }
-      }
-    },
-    "Deload starts in week %lld" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La décharge commence à la semaine %1$lld"
-          }
-        }
-      }
-    },
-    "Volume −%@" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Volume −%1$@"
-          }
-        }
-      }
-    },
-    "Intensity −%@" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Intensité −%1$@"
-          }
-        }
-      }
-    },
-    "Starts this session of your plan." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Démarre cette séance de votre plan."
-          }
-        }
-      }
-    },
-    "Returns to the workout already in progress." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Revient à l’entraînement déjà en cours."
-          }
-        }
-      }
-    },
-    "Resume this plan to start this session." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reprenez ce plan pour commencer cette séance."
-          }
-        }
-      }
-    },
-    "A test day is ready. Start it from the plan screen." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Un test est prêt. Lancez-le depuis l’écran du plan."
-          }
-        }
-      }
-    },
-    "The plan behind this run is unavailable. Completed sessions still show what you did." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le plan à l’origine de ce suivi est indisponible. Les séances terminées montrent toujours ce que vous avez fait."
-          }
-        }
-      }
-    },
-    "Week %lld of the plan is unavailable, so its name and block are missing." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La semaine %1$lld du plan est indisponible : son nom et son bloc sont manquants."
-          }
-        }
-      }
-    },
-    "This run has no current session. Open the schedule to pick what to train next." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ce suivi n’a pas de séance en cours. Ouvrez le calendrier pour choisir votre prochain entraînement."
-          }
-        }
-      }
-    },
-    "1 cycle completed" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "1 cycle terminé"
-          }
-        }
-      }
-    },
-    "%lld cycles completed" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld cycles terminés"
-          }
-        }
-      }
-    },
-    "This rotation has no workouts yet." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette rotation ne contient encore aucun entraînement."
-          }
-        }
-      }
-    },
-    "The saved rotation position is unavailable." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La position enregistrée dans la rotation est indisponible."
-          }
-        }
-      }
-    },
-    "Completed this cycle" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Terminé ce cycle"
-          }
-        }
-      }
-    },
-    "Skipped this cycle" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sauté ce cycle"
-          }
-        }
-      }
-    },
-    "Start next workout" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Commencer le prochain entraînement"
-          }
-        }
-      }
-    },
-    "Starts the expected workout in your rotation." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Démarre l’entraînement prévu dans votre rotation."
-          }
-        }
-      }
-    },
-    "This rotation position no longer has an available workout. Correct the rotation before starting." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette position de la rotation n’a plus d’entraînement disponible. Corrigez la rotation avant de commencer."
-          }
-        }
-      }
-    },
-    "Resume this rotation to start the next workout." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reprenez cette rotation pour commencer le prochain entraînement."
-          }
-        }
-      }
-    },
-    "Planned workout" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entraînement prévu"
-          }
-        }
-      }
-    },
-    "Repeated workout" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entraînement répété"
-          }
-        }
-      }
-    },
-    "Switched workout" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entraînement remplacé"
-          }
-        }
-      }
-    },
-    "Skipped workout" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entraînement sauté"
-          }
-        }
-      }
-    },
-    "Rotation restarted" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rotation redémarrée"
-          }
-        }
-      }
-    },
-    "Undone" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Annulé"
-          }
-        }
-      }
-    },
-    "Undone · the rotation position was restored" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Annulé · la position dans la rotation a été rétablie"
-          }
-        }
-      }
-    },
-    "The expected workout stayed next" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’entraînement prévu est resté le suivant"
-          }
-        }
-      }
-    },
-    "The rotation moved on" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La rotation a avancé"
-          }
-        }
-      }
-    },
-    "The rotation position did not change" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La position dans la rotation n’a pas changé"
-          }
-        }
-      }
-    },
-    "Instead of %@" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "À la place de %1$@"
-          }
-        }
-      }
-    },
-    "Instead of workout %lld" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "À la place de l’entraînement %1$lld"
-          }
-        }
-      }
-    },
-    "Workout %lld is unavailable" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’entraînement %1$lld est indisponible"
-          }
-        }
-      }
-    },
-    "This rotation has no workouts, so there is nothing to train next." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette rotation ne contient aucun entraînement : il n’y a rien à faire ensuite."
-          }
-        }
-      }
-    },
-    "The saved rotation position (%lld) is outside the %lld workouts in this rotation." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La position enregistrée (%1$lld) est en dehors des %2$lld entraînements de cette rotation."
-          }
-        }
-      }
-    },
-    "The saved cycle count (%lld) is invalid, so cycle numbers may be wrong." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le nombre de cycles enregistré (%1$lld) est invalide : les numéros de cycle peuvent être erronés."
-          }
-        }
-      }
-    },
-    "Two workouts share rotation position %lld." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deux entraînements occupent la position %1$lld de la rotation."
-          }
-        }
-      }
-    },
-    "%@ at position %lld is no longer available." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ à la position %2$lld n’est plus disponible."
-          }
-        }
-      }
-    },
-    "%lld workouts are recorded as in progress. Finish or discard one before continuing." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld entraînements sont enregistrés comme en cours. Terminez-en un ou supprimez-le avant de continuer."
-          }
-        }
-      }
-    },
-    "A recorded rotation event is inconsistent and was left out of the current position." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Un événement de rotation enregistré est incohérent et a été exclu de la position actuelle."
-          }
-        }
-      }
-    },
-    "The workout could not be rescheduled. Try again." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’entraînement n’a pas pu être replanifié. Réessayez."
-          }
-        }
-      }
-    },
-    "This workout may have been removed from History." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cet entraînement a peut-être été supprimé de l’historique."
-          }
-        }
-      }
-    },
-    "Weekly review" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bilan hebdomadaire"
-          }
-        }
-      }
-    },
-    "See what this week planned, completed, and changed." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Voyez ce que cette semaine a prévu, terminé et changé."
-          }
-        }
-      }
-    },
-    "Weekly review unavailable" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bilan hebdomadaire indisponible"
-          }
-        }
-      }
-    },
-    "This plan run may have been removed or replaced." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ce suivi de plan a peut-être été supprimé ou remplacé."
-          }
-        }
-      }
-    },
-    "%1$@ – %2$@" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ – %2$@"
-          }
-        }
-      }
-    },
-    "This plan is currently paused." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ce plan est actuellement en pause."
-          }
-        }
-      }
-    },
-    "You've stopped following this plan. Its history stays available here." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vous avez arrêté de suivre ce plan. Son historique reste disponible ici."
-          }
-        }
-      }
-    },
-    "This plan run is complete." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ce suivi de plan est terminé."
-          }
-        }
-      }
-    },
-    "Remaining" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restant"
-          }
-        }
-      }
-    },
-    "1 session is unscheduled" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "1 séance n’est pas planifiée"
-          }
-        }
-      }
-    },
-    "%lld sessions are unscheduled" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld séances ne sont pas planifiées"
-          }
-        }
-      }
-    },
-    "prescribed sets" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "séries prescrites"
-          }
-        }
-      }
-    },
-    "performed sets" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "séries effectuées"
-          }
-        }
-      }
-    },
-    "Set comparison unavailable" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Comparaison des séries indisponible"
-          }
-        }
-      }
-    },
-    "Not every session this week has reliable prescribed-set evidence, so prescribed and performed sets aren't compared. Sets actually performed are still shown." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toutes les séances de cette semaine n’ont pas de données fiables sur les séries prescrites, donc les séries prescrites et effectuées ne sont pas comparées. Les séries réellement effectuées restent affichées."
-          }
-        }
-      }
-    },
-    "Unresolved" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Non résolu"
-          }
-        }
-      }
-    },
-    "Accepted" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Accepté"
-          }
-        }
-      }
-    },
-    "Accepted with a different value" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Accepté avec une valeur différente"
-          }
-        }
-      }
-    },
-    "Declined" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refusé"
-          }
-        }
-      }
-    },
-    "Resolved without a recorded outcome" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Résolu sans résultat enregistré"
-          }
-        }
-      }
-    },
-    "Proposed: %@" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Proposé : %1$@"
-          }
-        }
-      }
-    },
-    "Applied: %@" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appliqué : %1$@"
-          }
-        }
-      }
-    },
-    "Unknown exercise" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exercice inconnu"
-          }
-        }
-      }
-    },
-    "This is the final week of the plan" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "C’est la dernière semaine du plan"
-          }
-        }
-      }
-    },
-    "There is no scheduled week after this one." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucune semaine n’est planifiée après celle-ci."
-          }
-        }
-      }
-    },
-    "Next week is a deload" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La semaine prochaine est une décharge"
-          }
-        }
-      }
-    },
-    "No sessions were found for this week." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucune séance n’a été trouvée pour cette semaine."
-          }
-        }
-      }
-    },
-    "The plan behind this review is unavailable. Completed sessions still show what you did." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le plan à l’origine de ce bilan est indisponible. Les séances terminées montrent toujours ce que vous avez fait."
-          }
-        }
-      }
-    },
-    "A completed session in this week is missing its workout record." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Une séance terminée cette semaine n’a pas d’entraînement enregistré."
-          }
-        }
-      }
-    },
-    "A session's linked workout wasn't marked completed, so it's left out of this week's evidence." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’entraînement lié à une séance n’a pas été marqué comme terminé, il est donc exclu des données de cette semaine."
-          }
-        }
-      }
-    },
-    "Prescribed sets aren't fully recorded for at least one session this week." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les séries prescrites ne sont pas entièrement enregistrées pour au moins une séance cette semaine."
-          }
-        }
-      }
-    },
-    "A substitution this week is missing some evidence fields recorded by newer versions." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Une substitution cette semaine n’a pas certains champs de données enregistrés par des versions plus récentes."
-          }
-        }
-      }
-    },
-    "Sessions" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Séances"
-          }
-        }
-      }
-    },
-    "This week" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette semaine"
-          }
-        }
-      }
-    },
-    "Progression decisions" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Décisions de progression"
-          }
-        }
-      }
-    },
-    "Substitutions" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Substitutions"
-          }
-        }
-      }
-    },
-    "Next week" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Semaine prochaine"
           }
         }
       }

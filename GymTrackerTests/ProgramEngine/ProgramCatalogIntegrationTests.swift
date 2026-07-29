@@ -451,6 +451,8 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         recommendation.removeValue(forKey: "decisionOutcome")
         recommendation.removeValue(forKey: "appliedLoad")
         recommendation.removeValue(forKey: "ruleVersion")
+        recommendation.removeValue(forKey: "reasonKey")
+        recommendation.removeValue(forKey: "proposedLoadUnit")
         document["progressionRecommendations"] = [recommendation]
 
         let legacy = try JSONDecoder().decode(
@@ -467,7 +469,7 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         XCTAssertNil(restored.ruleVersion)
     }
 
-    func testV19ReceiptRoundTripPreservesModifiedDecisionAndBothLoads() throws {
+    func testV23ReceiptRoundTripPreservesDecisionEvidenceAndReceiptOwnedUnit() throws {
         let backup = try makeProgressionReceiptBackup(
             decisionOutcome: .acceptedWithModifiedValue,
             appliedLoad: 101.25
@@ -482,6 +484,8 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         XCTAssertEqual(restored.proposedLoad, 102.5)
         XCTAssertEqual(restored.appliedLoad, 101.25)
         XCTAssertEqual(restored.ruleVersion, 7)
+        XCTAssertEqual(restored.reasonKey, "progression.receipt.reason.triggerSatisfied")
+        XCTAssertEqual(restored.proposedLoadUnit, .lbs)
     }
 
     func testUnknownReceiptDecisionOutcomeFailsValidationAndRestore() throws {
@@ -554,13 +558,15 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
                 cadence: .nextExerciseOccurrence,
                 scope: .exerciseExposure,
                 reason: "Completed all prescribed work.",
+                reasonKey: "progression.receipt.reason.triggerSatisfied",
                 applicationMode: .recommendation,
                 proposedState: ProgressionEvaluationState(currentLoad: 102.5),
                 performance: ProgressionPerformance(completedSets: 1),
                 ruleVersion: 7
             ),
             planRunID: run.id,
-            workoutID: workout.id
+            workoutID: workout.id,
+            proposedLoadUnit: .lbs
         )
         record.progressionKey = "receipt-squat"
         record.isResolved = true

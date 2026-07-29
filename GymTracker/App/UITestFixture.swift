@@ -28,6 +28,7 @@ enum UITestFixture: String {
     case progressionInsufficientHistory = "progression-insufficient-history"
     case progressionRestRunning = "progression-rest-running"
     case progressionRestPaused = "progression-rest-paused"
+    case progressionReceipt = "progression-receipt"
     case performanceComparison = "performance-comparison"
     case performanceHistoryComparison = "performance-history-comparison"
     case homeActiveConflict = "home-active-conflict"
@@ -58,7 +59,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .programPathFixed, .programPathRotation, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .nutritionToday, .trainingCalendar:
+        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .programPathFixed, .programPathRotation, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .nutritionToday, .trainingCalendar, .progressionReceipt:
             false
         default:
             true
@@ -124,6 +125,8 @@ enum UITestFixture: String {
             try makeProgressionAndRestWorkout(restState: .running, using: context)
         case .progressionRestPaused:
             try makeProgressionAndRestWorkout(restState: .paused, using: context)
+        case .progressionReceipt:
+            try makeProgressionReceipt(using: context)
         case .performanceComparison:
             try makePerformanceComparisonWorkout(using: context)
         case .performanceHistoryComparison:
@@ -224,6 +227,69 @@ enum UITestFixture: String {
         workout.startTime = Date.now.addingTimeInterval(-47)
         workout.exercises = exercises
         context.insert(workout)
+        try context.save()
+    }
+
+    private static func makeProgressionReceipt(using context: ModelContext) throws {
+        let exercise = try exercise(named: "Bench Press", using: context)
+        let plannedExercise = PlannedExercise(
+            exercise: exercise,
+            orderIndex: 0,
+            suggestedLoad: 60,
+            suggestedLoadType: .kg,
+            plannedSets: [PlannedSet(orderIndex: 0, repetitions: 5)]
+        )
+        let plannedWorkout = PlannedWorkout(
+            name: "Receipt Day",
+            orderIndex: 0,
+            dayOffset: 0,
+            plannedExercises: [plannedExercise]
+        )
+        let plan = WorkoutPlan(
+            name: "Receipt Fixture",
+            daysPerWeek: 1,
+            durationWeeks: 1,
+            blocks: [PlanBlock(
+                name: "Build",
+                phaseType: .strength,
+                orderIndex: 0,
+                weeks: [PlanWeek(weekIndex: 0, plannedWorkouts: [plannedWorkout])]
+            )]
+        )
+        context.insert(plan)
+        guard let run = PlanCoordinator.startRun(for: plan, using: context) else {
+            throw FixtureError.invalidPlan
+        }
+        let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
+        workout.status = .completed
+        workout.endTime = .now
+        context.insert(workout)
+
+        let record = try PlanProgressionRecommendationRecord(
+            recommendation: ProgressionRecommendation(
+                id: UUID(),
+                ruleID: UUID(),
+                action: .addLoad(2.5),
+                cadence: .nextExerciseOccurrence,
+                scope: .exerciseExposure,
+                reason: "Every required set reached the upper rep bound.",
+                reasonKey: "progression.receipt.reason.triggerSatisfied",
+                applicationMode: .recommendation,
+                proposedState: ProgressionEvaluationState(currentLoad: 62.5),
+                performance: ProgressionPerformance(
+                    requiredSets: 3,
+                    completedSets: 3,
+                    requiredRepetitions: 30,
+                    completedRepetitions: 30
+                ),
+                ruleVersion: 2
+            ),
+            planRunID: run.id,
+            workoutID: workout.id,
+            proposedLoadUnit: .kg
+        )
+        record.progressionKey = plannedExercise.progressionKey
+        context.insert(record)
         try context.save()
     }
 

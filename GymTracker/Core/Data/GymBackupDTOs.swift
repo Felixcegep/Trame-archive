@@ -420,9 +420,15 @@ nonisolated struct ProgressionRecommendationDTO: Codable {
     let scope: String
     var scopeOwnerKey: String? = nil
     let reason: String
+    /// Structured receipt reason key. `nil` means a pre-v23 receipt whose
+    /// legacy English reason remains provenance only.
+    var reasonKey: String? = nil
     let applicationMode: String
     var performanceData: Data? = nil
     let proposedLoad: Double?
+    /// Receipt-owned unit for `proposedLoad` / `appliedLoad`, never inferred
+    /// from a plan during restore.
+    var proposedLoadUnit: String? = nil
     var proposedTrainingMax: Double? = nil
     var proposedEstimatedOneRepMax: Double? = nil
     var proposedActualOneRepMax: Double? = nil
@@ -673,6 +679,7 @@ nonisolated struct MobilityRoutineDTO: Codable {
     let createdAt: Date
     let updatedAt: Date
     let items: [MobilityRoutineItemDTO]
+    var purpose: String? = nil
 }
 
 nonisolated struct MobilityPhaseResultDTO: Codable {
@@ -1011,7 +1018,13 @@ nonisolated struct BackupDTO: Codable {
     /// timestamps to plan-run progress. v1–v20 restore with both values
     /// absent, so legacy schedule provenance is never guessed.
     static let planScheduleEvidenceVersion = 21
-    static let currentVersion = planScheduleEvidenceVersion
+    /// Adds the reusable mobility routine's intended purpose. Older backups
+    /// restore as unclassified and never infer a value from session context.
+    static let mobilityRoutinePurposeVersion = 22
+    /// Adds localized progression-receipt reason keys and receipt-owned load
+    /// units. Older records intentionally restore both as absent.
+    static let progressionReceiptEvidenceVersion = 23
+    static let currentVersion = progressionReceiptEvidenceVersion
 
     init(
         version: Int,

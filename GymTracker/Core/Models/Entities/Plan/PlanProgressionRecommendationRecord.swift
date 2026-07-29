@@ -46,9 +46,15 @@ final class PlanProgressionRecommendationRecord {
     /// legacy recommendation records bound to their exposure state.
     var scopeOwnerKey: String = ""
     var reason: String
+    /// Localizable reason key snapshotted at evaluation time. `nil` means this
+    /// is a legacy row whose English `reason` remains provenance only.
+    var reasonKey: String?
     var applicationMode: ProgressionApplicationMode
     var performanceData: Data?
     var proposedLoad: Double?
+    /// The unit paired with the proposed/applied load when this receipt was
+    /// created. Never derive it from a plan that may subsequently be edited.
+    var proposedLoadUnit: WeightType?
     var proposedTrainingMax: Double?
     var proposedEstimatedOneRepMax: Double?
     var proposedActualOneRepMax: Double?
@@ -84,6 +90,7 @@ final class PlanProgressionRecommendationRecord {
         planRunID: UUID,
         workoutID: UUID,
         scopeOwnerKey: String = "",
+        proposedLoadUnit: WeightType? = nil,
         isResolvedOverride: Bool? = nil,
         encoder: JSONEncoder = JSONEncoder()
     ) throws {
@@ -97,9 +104,11 @@ final class PlanProgressionRecommendationRecord {
         scope = recommendation.scope
         self.scopeOwnerKey = scopeOwnerKey
         reason = recommendation.reason
+        reasonKey = recommendation.reasonKey
         applicationMode = recommendation.applicationMode
         performanceData = try encoder.encode(recommendation.performance)
         proposedLoad = recommendation.proposedState.currentLoad
+        self.proposedLoadUnit = proposedLoadUnit
         proposedTrainingMax = recommendation.proposedState.trainingMax
         proposedEstimatedOneRepMax = recommendation.proposedState.estimatedOneRepMax
         proposedActualOneRepMax = recommendation.proposedState.actualOneRepMax

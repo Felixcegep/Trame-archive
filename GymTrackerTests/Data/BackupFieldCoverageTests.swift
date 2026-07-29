@@ -233,6 +233,39 @@ final class BackupFieldCoverageTests: XCTestCase {
         XCTAssertEqual(restoredComponent.liftQuality, .technicallyPoor)
     }
 
+    func testMobilityRoutineRoundTripsEveryPersistedField() throws {
+        let source = try makeContext()
+        let createdAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let updatedAt = Date(timeIntervalSince1970: 1_700_000_123)
+        let routine = MobilityRoutine(
+            name: "Sentinel Mobility Routine",
+            notes: "sentinel-mobility-notes",
+            purpose: .development,
+            isArchived: true,
+            id: UUID(uuidString: "A8E1E5A1-1C14-446E-9C71-3E6DA2DA675E")!,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+        source.insert(routine)
+        try source.save()
+
+        let restored = try XCTUnwrap(
+            roundTrip(source)
+                .fetch(FetchDescriptor<MobilityRoutine>())
+                .first { $0.name == "Sentinel Mobility Routine" }
+        )
+
+        XCTAssertEqual(restored.id, routine.id)
+        XCTAssertEqual(restored.name, "Sentinel Mobility Routine")
+        XCTAssertEqual(restored.notes, "sentinel-mobility-notes")
+        XCTAssertEqual(restored.purpose, .development)
+        XCTAssertEqual(restored.purposeRaw, MobilityRoutinePurpose.development.rawValue)
+        XCTAssertTrue(restored.isArchived)
+        XCTAssertEqual(restored.createdAt, createdAt)
+        XCTAssertEqual(restored.updatedAt, updatedAt)
+        XCTAssertTrue(restored.orderedItems.isEmpty)
+    }
+
     func testExerciseRoundTripsEveryPersistedField() throws {
         let source = try makeContext()
         let exercise = Exercise(
@@ -652,6 +685,7 @@ final class BackupFieldCoverageTests: XCTestCase {
         assertFieldCount(of: ExerciseTemplateDTO.self, equals: 28)
         assertFieldCount(of: FoodItemDTO.self, equals: 21)
         assertFieldCount(of: LoggedMealDTO.self, equals: 10)
+        assertFieldCount(of: MobilityRoutineDTO.self, equals: 8)
     }
 
     /// The count guard above only protects the eight DTO types it already
@@ -712,7 +746,8 @@ final class BackupFieldCoverageTests: XCTestCase {
         "WorkoutDTO",
         "ExerciseTemplateDTO",
         "FoodItemDTO",
-        "LoggedMealDTO"
+        "LoggedMealDTO",
+        "MobilityRoutineDTO"
     ]
 
     /// DTO types with no Mirror-based field-count guard *in this file* yet.
@@ -757,7 +792,6 @@ final class BackupFieldCoverageTests: XCTestCase {
         "MobilityDefinitionDTO",
         "MobilityPhasePrescriptionDTO",
         "MobilityRoutineItemDTO",
-        "MobilityRoutineDTO",
         "MobilityPhaseResultDTO",
         "MobilityResultDTO",
         "MobilityEntryDTO",
@@ -917,6 +951,17 @@ final class BackupFieldCoverageTests: XCTestCase {
                 createdAt: .now,
                 updatedAt: .now,
                 items: []
+            )
+        case "MobilityRoutineDTO":
+            return MobilityRoutineDTO(
+                id: UUID().uuidString,
+                name: "",
+                notes: nil,
+                isArchived: false,
+                createdAt: .now,
+                updatedAt: .now,
+                items: [],
+                purpose: nil
             )
         default:
             return nil

@@ -22,6 +22,7 @@ struct ProgressionReceiptPresentation: WhyExplainable {
     /// structured, localizable reason; the fully localized `evidenceLines`
     /// below are what actually explains the recommendation to the user today.
     let reason: String
+    let reasonKey: String?
     let proposedLoad: Double?
     let appliedLoad: Double?
     let unit: WeightType?
@@ -32,15 +33,15 @@ struct ProgressionReceiptPresentation: WhyExplainable {
 
     init(
         record: PlanProgressionRecommendationRecord,
-        exerciseName: String,
-        unit: WeightType?
+        exerciseName: String
     ) {
         self.id = record.id
         self.exerciseName = exerciseName
         self.reason = record.reason
+        self.reasonKey = record.reasonKey
         self.proposedLoad = record.proposedLoad
         self.appliedLoad = record.appliedLoad
-        self.unit = unit
+        self.unit = record.proposedLoadUnit
         self.ruleVersion = record.ruleVersion
         self.performance = record.performance()
         self.isResolved = record.isResolved
@@ -188,6 +189,22 @@ struct ProgressionReceiptPresentation: WhyExplainable {
         return lines
     }
 
+    /// A localized rule outcome, when the recommendation was created after
+    /// receipt evidence was structured. Legacy English provenance is never
+    /// rendered, so an old receipt remains localized and simply shows its
+    /// recorded measurement evidence instead.
+    var reasonText: String? {
+        guard let reasonKey else { return nil }
+        switch reasonKey {
+        case "progression.receipt.reason.triggerSatisfied":
+            return String(localized: "progression.receipt.reason.triggerSatisfied", defaultValue: "The rule's condition was met.")
+        case "progression.receipt.reason.prescriptionNotCompleted":
+            return String(localized: "progression.receipt.reason.prescriptionNotCompleted", defaultValue: "The prescribed performance was not completed.")
+        default:
+            return nil
+        }
+    }
+
     /// A coarse, honest qualifier — never a numeric confidence score — shown
     /// only when the evidence genuinely is thin. Silent otherwise: solid
     /// evidence does not need a badge asserting that it is solid.
@@ -281,7 +298,7 @@ struct ProgressionReceiptPresentation: WhyExplainable {
             builder.add(.whatChanged, body: resolutionSummary)
         }
 
-        builder.add(.evidenceUsed, items: evidenceLines)
+        builder.add(.evidenceUsed, items: ([reasonText].compactMap { $0 } + evidenceLines))
 
         builder.add(
             .effectOnPlan,

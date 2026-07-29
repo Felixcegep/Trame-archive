@@ -63,6 +63,10 @@ nonisolated struct ProgressionRecommendation: Hashable, Identifiable {
     let cadence: ProgressionCadence
     let scope: ProgressionScope
     let reason: String
+    /// Stable, localized receipt reason captured when the rule is evaluated.
+    /// `reason` remains the legacy provenance string for rows created before
+    /// this structured key existed; receipts never need to render it.
+    let reasonKey: String?
     let applicationMode: ProgressionApplicationMode
     let proposedState: ProgressionEvaluationState
     /// Immutable evidence from the completed occurrence that caused this
@@ -81,6 +85,7 @@ nonisolated struct ProgressionRecommendation: Hashable, Identifiable {
         cadence: ProgressionCadence,
         scope: ProgressionScope,
         reason: String,
+        reasonKey: String? = nil,
         applicationMode: ProgressionApplicationMode,
         proposedState: ProgressionEvaluationState,
         performance: ProgressionPerformance,
@@ -92,6 +97,7 @@ nonisolated struct ProgressionRecommendation: Hashable, Identifiable {
         self.cadence = cadence
         self.scope = scope
         self.reason = reason
+        self.reasonKey = reasonKey
         self.applicationMode = applicationMode
         self.proposedState = proposedState
         self.performance = performance
@@ -189,15 +195,19 @@ nonisolated enum ProgramProgressionEvaluator {
             let triggered = matches(rule.trigger, performance: performance, state: nextState)
             let action: ProgressionAction?
             let reason: String
+            let reasonKey: String?
             if triggered {
                 action = rule.successAction
                 reason = successReason(for: rule.trigger, performance: performance, state: nextState)
+                reasonKey = "progression.receipt.reason.triggerSatisfied"
             } else if performance.didFail {
                 action = rule.failureAction
                 reason = "The prescribed performance was not completed."
+                reasonKey = "progression.receipt.reason.prescriptionNotCompleted"
             } else {
                 action = nil
                 reason = ""
+                reasonKey = nil
             }
             guard let action else { continue }
 
@@ -232,6 +242,7 @@ nonisolated enum ProgramProgressionEvaluator {
                 cadence: rule.cadence,
                 scope: rule.scope,
                 reason: reason,
+                reasonKey: reasonKey,
                 applicationMode: rule.applicationMode,
                 proposedState: proposedState,
                 performance: performance,

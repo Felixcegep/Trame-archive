@@ -106,6 +106,13 @@ extension BackupDTO {
                 throw BackupValidationError.duplicateIdentifier("mobility routine name")
             }
         }
+        if version >= Self.mobilityRoutinePurposeVersion {
+            guard mobilityRoutines.allSatisfy({
+                $0.purpose.map { MobilityRoutinePurpose(rawValue: $0) != nil } ?? true
+            }) else {
+                throw BackupValidationError.invalidIdentifier("mobility routine purpose")
+            }
+        }
         for template in templates {
             try validateExecutionBlockGraph(
                 template.executionBlocks?.map {
@@ -256,6 +263,11 @@ extension BackupDTO {
                 if let decisionOutcome = recommendation.decisionOutcome {
                     guard ProgressionDecisionOutcome(rawValue: decisionOutcome) != nil else {
                         throw BackupValidationError.invalidIdentifier("progression recommendation decision outcome")
+                    }
+                }
+                if let proposedLoadUnit = recommendation.proposedLoadUnit {
+                    guard WeightType(rawValue: proposedLoadUnit) != nil else {
+                        throw BackupValidationError.invalidIdentifier("progression recommendation load unit")
                     }
                 }
             }
