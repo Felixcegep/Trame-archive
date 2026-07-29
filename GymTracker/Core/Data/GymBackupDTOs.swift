@@ -43,6 +43,14 @@ nonisolated struct ExerciseRelationshipDTO: Codable {
     let sourceExerciseName: String
     let targetExerciseName: String
     let type: String
+    /// Curation provenance and constraints, added in
+    /// `BackupDTO.decisionAwareSubstitutionVersion`. All optional so pre-v20
+    /// payloads restore unchanged and read as `systemUnreviewed`.
+    var provenance: String? = nil
+    var rationaleCode: String? = nil
+    var appliesToGoals: [String]? = nil
+    var appliesToRoles: [String]? = nil
+    var reviewVersion: Int? = nil
 }
 
 nonisolated struct TemplateExerciseDTO: Codable {
@@ -223,6 +231,19 @@ nonisolated struct ExerciseEntryDTO: Codable {
     var selectedSubstituteExerciseIDSnapshot: String? = nil
     var substitutionReason: String? = nil
     var substitutionSharesProgressionState: Bool? = nil
+    /// Structured substitution decision evidence, added in
+    /// `BackupDTO.decisionAwareSubstitutionVersion`. All optional: a pre-v20
+    /// backup restores with every field absent, which reads as "substituted
+    /// without recorded decision evidence" and keeps the legacy Boolean
+    /// authoritative for progression.
+    var substitutionReasonCode: String? = nil
+    var substitutionSuitability: String? = nil
+    var substitutionComparability: String? = nil
+    var substitutionProgressionPolicy: String? = nil
+    var substitutionScope: String? = nil
+    var substitutionEvidenceConfidence: String? = nil
+    var substitutionEvaluationVersion: Int? = nil
+    var substitutionEvaluationData: Data? = nil
     var variationSourceExerciseIDSnapshot: String? = nil
     var variationSelectedExerciseIDSnapshot: String? = nil
     var prescriptionDefinitionData: Data? = nil
@@ -399,9 +420,15 @@ nonisolated struct ProgressionRecommendationDTO: Codable {
     let scope: String
     var scopeOwnerKey: String? = nil
     let reason: String
+    /// Structured receipt reason key. `nil` means a pre-v23 receipt whose
+    /// legacy English reason remains provenance only.
+    var reasonKey: String? = nil
     let applicationMode: String
     var performanceData: Data? = nil
     let proposedLoad: Double?
+    /// Receipt-owned unit for `proposedLoad` / `appliedLoad`, never inferred
+    /// from a plan during restore.
+    var proposedLoadUnit: String? = nil
     var proposedTrainingMax: Double? = nil
     var proposedEstimatedOneRepMax: Double? = nil
     var proposedActualOneRepMax: Double? = nil
@@ -516,7 +543,12 @@ nonisolated struct PlanWorkoutProgressDTO: Codable {
     let weekIndex: Int
     var sourceWeekIndex: Int? = nil
     let workoutIndex: Int
+    /// v21 schedule-origin evidence. Legacy backups decode both values as
+    /// `nil`, which means reschedule provenance is unavailable rather than
+    /// inferred from mutable plan definitions.
+    var originalScheduledDate: Date? = nil
     let scheduledDate: Date?
+    var lastRescheduledAt: Date? = nil
     let status: String
     let startedAt: Date?
     let completedAt: Date?
@@ -647,6 +679,7 @@ nonisolated struct MobilityRoutineDTO: Codable {
     let createdAt: Date
     let updatedAt: Date
     let items: [MobilityRoutineItemDTO]
+    var purpose: String? = nil
 }
 
 nonisolated struct MobilityPhaseResultDTO: Codable {
@@ -717,6 +750,83 @@ nonisolated struct MobilitySessionDTO: Codable {
     let createdAt: Date
     let updatedAt: Date
     let entries: [MobilityEntryDTO]
+}
+
+nonisolated struct MobilityAssessmentDefinitionDTO: Codable {
+    let id: String
+    let catalogueKey: String
+    let name: String
+    let nameLocalizationKey: String
+    let instructionsLocalizationKey: String
+    let setupInstructionsLocalizationKey: String
+    let measurementDescriptionLocalizationKey: String
+    let measurementLimitationsLocalizationKey: String
+    let zone: String
+    let definitionVersion: Int
+    let preferredMode: String
+    let manualMode: String
+    let unit: String
+    let supportedSides: [String]
+    let setupKeys: [String]
+    let defaultSetupKey: String
+    let defaultIsActiveRange: Bool
+    let sortOrder: Int
+    let isArchived: Bool
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+nonisolated struct MobilityAssessmentSampleDTO: Codable {
+    let id: String
+    let sampleCount: Int
+    let median: Double
+    let minimum: Double
+    let maximum: Double
+    let standardDeviation: Double
+    let offAxisExcessDegrees: Double
+    let captureDuration: TimeInterval
+    let createdAt: Date
+}
+
+nonisolated struct MobilityAssessmentResultDTO: Codable {
+    let id: String
+    let orderIndex: Int
+    let numericValue: Double?
+    let criteria: String?
+    let side: String
+    let isWarm: Bool
+    let setupKey: String
+    let method: String
+    let unit: String
+    let isActiveRange: Bool
+    let dayKey: String
+    let source: String
+    let confidence: String
+    let definitionIDSnapshot: String
+    let definitionCatalogueKeySnapshot: String
+    let definitionNameSnapshot: String
+    let definitionVersionSnapshot: Int
+    let instructionsLocalizationKeySnapshot: String
+    let setupInstructionsLocalizationKeySnapshot: String
+    let measurementDescriptionLocalizationKeySnapshot: String
+    let measurementLimitationsLocalizationKeySnapshot: String
+    let createdAt: Date
+    let updatedAt: Date
+    let sample: MobilityAssessmentSampleDTO?
+}
+
+nonisolated struct MobilityAssessmentSessionDTO: Codable {
+    let id: String
+    let status: String
+    let dayKey: String
+    let selectedDefinitionKeys: [String]
+    let skippedDefinitionKeys: [String]
+    let currentDefinitionIndex: Int
+    let startedAt: Date
+    let completedAt: Date?
+    let createdAt: Date
+    let updatedAt: Date
+    let results: [MobilityAssessmentResultDTO]
 }
 
 nonisolated struct FoodServingDTO: Codable {
@@ -908,8 +1018,7 @@ nonisolated struct RepeatingPlanRunDTO: Codable {
     let occurrences: [RepeatingPlanOccurrenceDTO]
 }
 
-nonisolated struct BackupDTO: Codable, Identifiable {
-    var id: UUID { UUID() }
+nonisolated struct BackupDTO: Codable {
     let version: Int
     let preferences: PreferencesDTO
     let exercises: [ExerciseTemplateDTO]
@@ -930,6 +1039,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     let mobilityDefinitions: [MobilityDefinitionDTO]
     let mobilityRoutines: [MobilityRoutineDTO]
     let mobilitySessions: [MobilitySessionDTO]
+    let mobilityAssessmentDefinitions: [MobilityAssessmentDefinitionDTO]
+    let mobilityAssessmentSessions: [MobilityAssessmentSessionDTO]
     let foods: [FoodItemDTO]
     let mealTemplates: [MealTemplateDTO]
     let loggedMeals: [LoggedMealDTO]
@@ -972,7 +1083,31 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     /// snapshotted at recommendation time. v1–v18 restore with all three
     /// fields absent, which reads as "resolved without a recorded outcome."
     static let progressionReceiptVersion = 19
-    static let currentVersion = progressionReceiptVersion
+    /// Adds decision-aware substitution evidence: the structured replacement
+    /// reason, the separate suitability and comparability verdicts, the
+    /// explicit progression-transfer policy, the evaluation rule version, the
+    /// confidence/missing-evidence state, the today-only versus future-plan
+    /// scope, and the encoded evaluation snapshot — plus curation provenance
+    /// and optional goal/role constraints on exercise relationships. v1–v19
+    /// restore with every field absent; the legacy
+    /// `substitutionSharesProgressionState` Boolean stays authoritative for
+    /// progression in that case, so no old backup changes meaning.
+    static let decisionAwareSubstitutionVersion = 20
+    /// Adds immutable original schedule dates and explicit reschedule
+    /// timestamps to plan-run progress. v1–v20 restore with both values
+    /// absent, so legacy schedule provenance is never guessed.
+    static let planScheduleEvidenceVersion = 21
+    /// Adds the reusable mobility routine's intended purpose. Older backups
+    /// restore as unclassified and never infer a value from session context.
+    static let mobilityRoutinePurposeVersion = 22
+    /// Adds localized progression-receipt reason keys and receipt-owned load
+    /// units. Older records intentionally restore both as absent.
+    static let progressionReceiptEvidenceVersion = 23
+    /// Adds the system mobility-assessment catalogue plus manual assessment
+    /// sessions, condition-complete result snapshots, and optional bounded raw
+    /// samples. v1-v23 restore with this domain absent.
+    static let mobilityAssessmentVersion = 24
+    static let currentVersion = mobilityAssessmentVersion
 
     init(
         version: Int,
@@ -995,6 +1130,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         mobilityDefinitions: [MobilityDefinitionDTO] = [],
         mobilityRoutines: [MobilityRoutineDTO] = [],
         mobilitySessions: [MobilitySessionDTO] = [],
+        mobilityAssessmentDefinitions: [MobilityAssessmentDefinitionDTO] = [],
+        mobilityAssessmentSessions: [MobilityAssessmentSessionDTO] = [],
         foods: [FoodItemDTO] = [],
         mealTemplates: [MealTemplateDTO] = [],
         loggedMeals: [LoggedMealDTO] = [],
@@ -1020,6 +1157,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         self.mobilityDefinitions = mobilityDefinitions
         self.mobilityRoutines = mobilityRoutines
         self.mobilitySessions = mobilitySessions
+        self.mobilityAssessmentDefinitions = mobilityAssessmentDefinitions
+        self.mobilityAssessmentSessions = mobilityAssessmentSessions
         self.foods = foods
         self.mealTemplates = mealTemplates
         self.loggedMeals = loggedMeals
@@ -1027,7 +1166,7 @@ nonisolated struct BackupDTO: Codable, Identifiable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, foods, mealTemplates, loggedMeals, nutritionTargets
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets
     }
 
     init(from decoder: Decoder) throws {
@@ -1052,6 +1191,8 @@ nonisolated struct BackupDTO: Codable, Identifiable {
         mobilityDefinitions = try container.decodeIfPresent([MobilityDefinitionDTO].self, forKey: .mobilityDefinitions) ?? []
         mobilityRoutines = try container.decodeIfPresent([MobilityRoutineDTO].self, forKey: .mobilityRoutines) ?? []
         mobilitySessions = try container.decodeIfPresent([MobilitySessionDTO].self, forKey: .mobilitySessions) ?? []
+        mobilityAssessmentDefinitions = try container.decodeIfPresent([MobilityAssessmentDefinitionDTO].self, forKey: .mobilityAssessmentDefinitions) ?? []
+        mobilityAssessmentSessions = try container.decodeIfPresent([MobilityAssessmentSessionDTO].self, forKey: .mobilityAssessmentSessions) ?? []
         foods = try container.decodeIfPresent([FoodItemDTO].self, forKey: .foods) ?? []
         mealTemplates = try container.decodeIfPresent([MealTemplateDTO].self, forKey: .mealTemplates) ?? []
         loggedMeals = try container.decodeIfPresent([LoggedMealDTO].self, forKey: .loggedMeals) ?? []

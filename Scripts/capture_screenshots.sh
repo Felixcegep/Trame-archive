@@ -55,6 +55,8 @@ Scenes:
   exercise-form          New Exercise form, muscle picker, and advanced details
   muscle-balance        Estimated weekly muscle-group balance
   rotation               Active rotation detail, controls, Home context, and workout source
+  program-path           Plan Path entry, fixed path, reschedule sheet, and rotation path
+  weekly-review          Fixed-plan Weekly Review
 
 Options:
   list                   Print every scene and its screenshot paths
@@ -72,12 +74,13 @@ tests_for_scene() {
   case "$1" in
     overview) echo "testCaptureOverviewAndLibraryTourScreenshots" ;;
     pages) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureHomeConflictScreenshot testCaptureTodayCompleteTourScreenshots testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCapturePlanActiveRunScreenshots testCaptureNotificationRescheduleScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsAndBetaFeedbackScreenshots testCaptureBetaFeedbackActiveLoggingScreenshot" ;;
-    mobility) echo "testCaptureTodayCompleteTourScreenshots testCaptureActiveMobilityScreenshot" ;;
+  mobility) echo "testCaptureTodayCompleteTourScreenshots testCaptureMobilityRoutinePurposeScreenshot testCaptureActiveMobilityScreenshot" ;;
+    mobility-assessment) echo "MobilityAssessmentUITests/testCaptureMobilityHubCards MobilityAssessmentUITests/testCaptureAssessmentFlow MobilityAssessmentUITests/testCaptureAssessmentLandingAndHistoryDetail" ;;
     nutrition) echo "testCaptureNutritionTodayScreenshot testCaptureNutritionTargetsEmptyScreenshot testCaptureTodayCompleteTourScreenshots testCaptureRecipeGenerationControlsScreenshot testCaptureRecipeGeneratingScreenshot testCaptureRecipeGeneratedDraftScreenshot testCaptureRecipePartialMatchScreenshot testCaptureRecipeManualFallbackAndCatalogScreenshots" ;;
-    active) echo "testCaptureActiveWorkoutStatesScreenshots testCaptureDurationTimerScreenshots" ;;
+    active) echo "testCaptureActiveWorkoutStatesScreenshots testCaptureDecisionAwareSubstitutionScreenshots testCaptureDurationTimerScreenshots" ;;
     rest) echo "testCaptureRestScreenshots" ;;
     history) echo "testCaptureHistoryScreenshots" ;;
-    recommendation) echo "testCaptureIncreaseRecommendationScreenshots testCaptureHoldRecommendationScreenshot testCaptureInsufficientHistoryRecommendationScreenshots testCaptureRecommendationWithRestScreenshots" ;;
+    recommendation) echo "testCaptureIncreaseRecommendationScreenshots testCaptureHoldRecommendationScreenshot testCaptureInsufficientHistoryRecommendationScreenshots testCaptureRecommendationWithRestScreenshots testCaptureProgressionReceiptWhyScreenshot" ;;
     performance) echo "testCapturePerformanceComparisonReviewScreenshot testCapturePerformanceComparisonHistoryScreenshot" ;;
     template-progression) echo "testCaptureTemplateProgressionScreenshot testCaptureTemplateExecutionBlockScreenshot" ;;
     workout-form) echo "testCaptureLibraryFormsScreenshots" ;;
@@ -91,6 +94,8 @@ tests_for_scene() {
     exercise-form) echo "testCaptureLibraryFormsScreenshots" ;;
     muscle-balance) echo "testCaptureMuscleBalanceScreenshot" ;;
     rotation) echo "testCaptureRepeatingPlanScreenshots" ;;
+    program-path) echo "ProgramPathScreenshotUITests/testCaptureProgramPathFixedScreenshots ProgramPathScreenshotUITests/testCaptureProgramPathRotationScreenshot" ;;
+    weekly-review) echo "WeeklyProgramReviewUITests/testCaptureWeeklyProgramReviewScreenshot" ;;
     *) return 1 ;;
   esac
 }
@@ -99,12 +104,13 @@ files_for_scene() {
   case "$1" in
     overview) echo "overview/01_Today.png overview/02_Train.png overview/03_Progress_Empty.png overview/04_Settings.png" ;;
     pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01h_Daily_Check_In_Weight_Due.png overview/04a_Body_Weight_History.png overview/01f_Today_Reschedule_Workout.png overview/01g_Notification_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png nutrition/20_Nutrition_Today.png overview/02b_Train_Templates.png overview/02c_Train_Plans.png overview/02d_Train_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png overview/04d_Settings_Shortcuts.png overview/04e_Settings_Beta_Feedback.png overview/04f_Settings_Beta_Feedback_Active_Logging.png" ;;
-    mobility) echo "mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png" ;;
+    mobility) echo "mobility/18_Mobility_Routines.png mobility/18b_Mobility_Routine_Purpose.png mobility/19_Active_Mobility.png" ;;
+    mobility-assessment) echo "mobility/18e_Mobility_Hub_Card_Empty.png mobility/18f_Mobility_Hub_Card_Recorded.png mobility/18g_Mobility_Hub_Card_InProgress.png mobility-assessment/21_Assessment_Landing_Empty.png mobility-assessment/21a_Assessment_Landing_Recorded.png mobility-assessment/21b_Assessment_Selection.png mobility-assessment/21c_Assessment_Instruction.png mobility-assessment/21d_Assessment_Manual_Entry.png mobility-assessment/21e_Assessment_Confirmation.png mobility-assessment/21f_Assessment_Summary.png mobility-assessment/21g_Assessment_History_Detail.png" ;;
     nutrition) echo "nutrition/20_Nutrition_Today.png nutrition/20a_Caffeine_Quick_Log.png nutrition/20b_Nutrition_Targets_Empty.png nutrition/20c_Recipe_Generation_Controls.png nutrition/20d_Recipe_Generating.png nutrition/20e_Recipe_Generated_Draft.png nutrition/20f_Recipe_Partial_Match.png nutrition/20g_Recipe_Manual_Fallback.png nutrition/20h_Food_Picker.png nutrition/20i_Recipe_Detail.png nutrition/20j_Log_Recipe.png" ;;
-    active) echo "active-workout/05_Active_Workout_Empty.png overview/05_Home_With_Active_Workout.png active-workout/06_Add_Exercise_Sheet.png active-workout/07_Plate_Calculator.png active-workout/07b_Set_Details.png active-workout/07c_Execution_Block_Builder.png active-workout/07d_Execution_Block_Active.png active-workout/07e_Set_Method_Segments.png active-workout/07f_Complex_Component_Results.png active-workout/08j_Exercise_Swap.png active-workout/08_Active_Workout_With_Set.png active-workout/08k_Active_Superset.png active-workout/08d_Completed_Exercise_Collapsed.png active-workout/08e_Discard_Workout.png active-workout/08f_Duration_Timer_Idle.png active-workout/08g_Duration_Timer_Running.png active-workout/08h_Duration_Timer_Paused.png active-workout/08i_Duration_Timer_Complete.png review/09_Save_Workout.png review/09b_Partial_Save_Confirmation.png" ;;
+    active) echo "active-workout/05_Active_Workout_Empty.png overview/05_Home_With_Active_Workout.png active-workout/06_Add_Exercise_Sheet.png active-workout/07_Plate_Calculator.png active-workout/07b_Set_Details.png active-workout/07c_Execution_Block_Builder.png active-workout/07d_Execution_Block_Active.png active-workout/07e_Set_Method_Segments.png active-workout/07f_Complex_Component_Results.png active-workout/08j_Exercise_Swap.png active-workout/08o_Substitution_Why.png active-workout/08p_Substitution_Confirmation.png active-workout/08_Active_Workout_With_Set.png active-workout/08k_Active_Superset.png active-workout/08d_Completed_Exercise_Collapsed.png active-workout/08e_Discard_Workout.png active-workout/08f_Duration_Timer_Idle.png active-workout/08g_Duration_Timer_Running.png active-workout/08h_Duration_Timer_Paused.png active-workout/08i_Duration_Timer_Complete.png review/09_Save_Workout.png review/09b_Partial_Save_Confirmation.png" ;;
     rest) echo "active-workout/08_Rest_Countdown.png active-workout/08b_Rest_Paused.png active-workout/08c_Rest_Ready.png" ;;
     history) echo "history/10_History_With_Workout.png history/10b_Expanded_Records.png history/11_History_Detail.png" ;;
-    recommendation) echo "progression/10_Previous_Performance.png progression/10b_Progression_Hold.png progression/10c_Progression_Starting_Weight.png progression/10d_Progression_Manual_Edit.png progression/10e_Progression_Applied_Weight.png progression/10f_Progression_With_Rest_Running.png progression/10g_Progression_With_Rest_Paused.png" ;;
+    recommendation) echo "progression/10_Previous_Performance.png progression/10b_Progression_Hold.png progression/10c_Progression_Starting_Weight.png progression/10d_Progression_Manual_Edit.png progression/10e_Progression_Applied_Weight.png progression/10f_Progression_With_Rest_Running.png progression/10g_Progression_With_Rest_Paused.png progression/10g_Progression_Receipt_Why.png" ;;
     performance) echo "review/14_Save_Performance_Comparison.png history/15_History_Performance_Comparison.png" ;;
     template-progression) echo "templates/12_Template_Progression.png templates/12d_Template_Execution_Block.png" ;;
     workout-form) echo "templates/12b_New_Workout_Form.png templates/12c_Exercise_Filters.png" ;;
@@ -118,11 +124,13 @@ files_for_scene() {
     exercise-form) echo "exercises/18_New_Exercise_Form.png exercises/18b_New_Exercise_Muscles.png exercises/18c_New_Exercise_Advanced.png" ;;
     muscle-balance) echo "history/16_Muscle_Balance.png" ;;
     rotation) echo "plans/22_Repeating_Plan_Detail.png plans/22a_Repeating_Plan_Choose_Another.png plans/22b_Repeating_Plan_Paused.png plans/22c_Repeating_Plan_Undo.png overview/01i_Home_Active_Rotation.png active-workout/08n_Active_Workout_Rotation_Source.png" ;;
+    program-path) echo "overview/01j_Home_Program_Path.png plans/13o_Program_Path_Fixed.png plans/13p_Program_Path_Reschedule.png plans/22d_Repeating_Plan_Path.png" ;;
+    weekly-review) echo "plans/13q_Weekly_Program_Review.png" ;;
     *) return 1 ;;
   esac
 }
 
-ALL_SCENES="overview pages mobility nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation"
+ALL_SCENES="overview pages mobility mobility-assessment nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 
@@ -154,7 +162,7 @@ validate_catalog() {
       echo "ScreenshotCoverage.md entry is missing from the runner: $basename"
       exit 1
     fi
-  done < <(sed -n '/Pending fixture/d; /Not catalogued/d; s/.*`\([^`]*\.png\)`.*/\1/p' "$catalog")
+  done < <(sed -n '/Pending/d; /Not catalogued/d; s/.*`\([^`]*\.png\)`.*/\1/p' "$catalog")
 }
 
 for argument in "$@"; do
@@ -308,6 +316,11 @@ run_test_list() {
 
   for test_name in "${tests[@]}"; do
     echo "=== [$sim_id] Running test $test_name ==="
+    local test_target="$test_name"
+    local result_label="${test_name//\//-}"
+    if [[ "$test_name" != */* ]]; then
+      test_target="ScreenshotUITests/$test_name"
+    fi
     # Each method receives a fresh UI-test runner. This prevents a failed app
     # relaunch from cancelling unrelated screenshot states in the same scene.
     # Remove the app container too: fixture launches reset SwiftData in-process,
@@ -315,10 +328,10 @@ run_test_list() {
     # independently launched method through SwiftData's query cache.
     xcrun simctl terminate "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
     xcrun simctl uninstall "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
-    rm -rf "$rb_dir/$CAPTURE_RUN_ID-$test_name.xcresult"
+    rm -rf "$rb_dir/$CAPTURE_RUN_ID-$result_label.xcresult"
     xcodebuild "${xcode_args[@]}" \
-      -resultBundlePath "$rb_dir/$CAPTURE_RUN_ID-$test_name.xcresult" \
-      "-only-testing:GymTrackerUITEST/ScreenshotUITests/$test_name" \
+      -resultBundlePath "$rb_dir/$CAPTURE_RUN_ID-$result_label.xcresult" \
+      "-only-testing:GymTrackerUITEST/$test_target" \
       test-without-building
   done
 }

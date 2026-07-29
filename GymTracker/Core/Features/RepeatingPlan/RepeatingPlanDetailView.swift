@@ -13,6 +13,7 @@ struct RepeatingPlanDetailView: View {
     let onUndoRepeatingPlanAdvancement: (RepeatingPlanRun) -> Void
     let onRestartRepeatingPlan: (RepeatingPlanRun) -> Void
     let onEndRepeatingPlan: (RepeatingPlanRun) -> Void
+    let onOpenProgramPath: (ProgramPathRoute) -> Void
 
     @State private var isShowingAlternatePicker = false
     @State private var selectedAlternate: AlternateSelection?
@@ -193,6 +194,17 @@ struct RepeatingPlanDetailView: View {
             }
 
             runStatusRow(run)
+
+            // The rotation list above shows the shape of the rotation; the path
+            // shows what this run actually did with it, including alternates,
+            // repeats, skips, and undone advancements.
+            Button {
+                onOpenProgramPath(.rotationRun(run.id))
+            } label: {
+                Label(ProgramPathPresentation.entryTitle, systemImage: AppIcon.routine)
+            }
+            .accessibilityIdentifier("view-repeating-plan-program-path")
+            .accessibilityHint(Text(ProgramPathPresentation.entryDetail))
         }
 
         if run.status == .active {
@@ -372,25 +384,60 @@ struct RepeatingPlanDetailView: View {
         index: Int,
         currentSlotIndex: Int
     ) -> some View {
-        rotationSlotRow(
-            templateName: slot.templateNameSnapshot,
-            index: index,
-            isCurrent: currentSlotIndex == index
-        )
+        NavigationLink {
+            RepeatingPlanRunSlotMobilityView(slot: slot)
+        } label: {
+            rotationSlotRow(
+                templateName: slot.templateNameSnapshot,
+                index: index,
+                isCurrent: currentSlotIndex == index,
+                // An active run reads its own snapshot, never the reusable link.
+                mobilitySummary: WorkoutMobilityPresentation.placementsSummary(
+                    before: WorkoutMobilityPresentation.placementName(
+                        routine: slot.preWorkoutMobilityRoutine,
+                        snapshotName: slot.preWorkoutMobilityRoutineNameSnapshot
+                    ),
+                    after: WorkoutMobilityPresentation.placementName(
+                        routine: slot.postWorkoutMobilityRoutine,
+                        snapshotName: slot.postWorkoutMobilityRoutineNameSnapshot
+                    )
+                )
+            )
+        }
+        .accessibilityIdentifier("rotation-run-slot-mobility-\(slot.id)")
     }
 
     private func planSlotRow(_ slot: RepeatingPlanSlot, index: Int) -> some View {
-        rotationSlotRow(
-            templateName: slot.templateNameSnapshot,
-            index: index,
-            isCurrent: false
-        )
+        let beforeLink = WorkoutMobilityLinkService.link(for: .beforeWorkout, on: slot)
+        let afterLink = WorkoutMobilityLinkService.link(for: .afterWorkout, on: slot)
+
+        return NavigationLink {
+            RepeatingPlanSlotMobilityEditorView(slot: slot)
+        } label: {
+            rotationSlotRow(
+                templateName: slot.templateNameSnapshot,
+                index: index,
+                isCurrent: false,
+                mobilitySummary: WorkoutMobilityPresentation.placementsSummary(
+                    before: WorkoutMobilityPresentation.placementName(
+                        routine: beforeLink.routine,
+                        snapshotName: beforeLink.routineNameSnapshot
+                    ),
+                    after: WorkoutMobilityPresentation.placementName(
+                        routine: afterLink.routine,
+                        snapshotName: afterLink.routineNameSnapshot
+                    )
+                )
+            )
+        }
+        .accessibilityIdentifier("rotation-slot-mobility-\(slot.id)")
     }
 
     private func rotationSlotRow(
         templateName: String,
         index: Int,
-        isCurrent: Bool
+        isCurrent: Bool,
+        mobilitySummary: String
     ) -> some View {
         HStack(spacing: Spacing.m) {
             GymIconChip(systemImage: AppIcon.routine, tint: Color.gymAccent)
@@ -401,6 +448,12 @@ struct RepeatingPlanDetailView: View {
                 Text("Workout \(index + 1)")
                     .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
+                // Naming the linked routines here is what makes it predictable
+                // that this row opens a mobility screen.
+                Text(mobilitySummary)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: Spacing.s)
             if isCurrent {
@@ -411,6 +464,7 @@ struct RepeatingPlanDetailView: View {
                 )
             }
         }
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
         .accessibilityElement(children: .combine)
     }
 
@@ -467,6 +521,123 @@ struct RepeatingPlanDetailView: View {
             case .end:
                 String(localized: "You can activate this rotation again later. Completed workout history stays unchanged.")
             }
+        }
+    }
+}
+
+private struct RepeatingPlanSlotMobilityEditorView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(
+        filter: #Predicate<MobilityRoutine> { !$0.isArchived },
+        sort: \MobilityRoutine.name
+    ) private var routines: [MobilityRoutine]
+
+    let slot: RepeatingPlanSlot
+
+    @State private var placementToEdit: WorkoutMobilityPlacement?
+    @State private var linkError: Error?
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(WorkoutMobilityPlacement.allCases, id: \.self) { placement in
+                    let link = WorkoutMobilityLinkService.link(for: placement, on: slot)
+                    WorkoutMobilityLinkRow(
+                        placement: placement,
+                        routine: link.routine,
+                        unavailableName: link.isUnavailable ? link.routineNameSnapshot : nil,
+                        isEditable: true
+                    ) {
+                        placementToEdit = placement
+                    }
+                    .accessibilityIdentifier("rotation-slot-\(slot.id)-\(placement.accessibilityIdentifier)")
+                }
+            } header: {
+                Text("Workout mobility")
+            } footer: {
+                Text("Changes apply to future activations of this rotation. Active runs and completed mobility history stay unchanged.")
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
+        .navigationTitle(slot.templateNameSnapshot)
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $placementToEdit) { placement in
+            let link = WorkoutMobilityLinkService.link(for: placement, on: slot)
+            WorkoutMobilityRoutinePicker(
+                placement: placement,
+                routines: routines,
+                currentRoutine: link.routine
+            ) { routine in
+                do {
+                    try WorkoutMobilityLinkService.set(
+                        routine,
+                        for: placement,
+                        on: slot,
+                        using: modelContext
+                    )
+                } catch {
+                    linkError = error
+                }
+            }
+        }
+        .alert(
+            "Couldn’t update rotation mobility",
+            isPresented: Binding(
+                get: { linkError != nil },
+                set: { if !$0 { linkError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { linkError = nil }
+        } message: {
+            Text("Your previous mobility setting was kept. Please try again.")
+        }
+    }
+}
+
+private struct RepeatingPlanRunSlotMobilityView: View {
+    let slot: RepeatingPlanRunSlot
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(WorkoutMobilityPlacement.allCases, id: \.self) { placement in
+                    // Read-only: an activated run keeps the snapshot it started
+                    // with, so there is no edit affordance and no picker.
+                    WorkoutMobilityLinkRow(
+                        placement: placement,
+                        routine: routine(for: placement),
+                        unavailableName: routine(for: placement) == nil
+                            ? snapshotName(for: placement)
+                            : nil,
+                        isEditable: false,
+                        action: {}
+                    )
+                    .accessibilityIdentifier("rotation-run-slot-\(slot.id)-\(placement.accessibilityIdentifier)")
+                }
+            } header: {
+                Text("Workout mobility")
+            } footer: {
+                Text("This rotation run keeps the mobility setup it started with. Changes to the workout or rotation do not rewrite this snapshot.")
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
+        .navigationTitle(slot.templateNameSnapshot)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func routine(for placement: WorkoutMobilityPlacement) -> MobilityRoutine? {
+        switch placement {
+        case .beforeWorkout: slot.preWorkoutMobilityRoutine
+        case .afterWorkout: slot.postWorkoutMobilityRoutine
+        }
+    }
+
+    private func snapshotName(for placement: WorkoutMobilityPlacement) -> String? {
+        switch placement {
+        case .beforeWorkout: slot.preWorkoutMobilityRoutineNameSnapshot
+        case .afterWorkout: slot.postWorkoutMobilityRoutineNameSnapshot
         }
     }
 }

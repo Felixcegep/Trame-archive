@@ -40,6 +40,8 @@ enum TodayRoute: Hashable {
     /// pausing or stopping a plan does not require hunting through the Train tab.
     case plan(UUID)
     case repeatingPlan(UUID)
+    case programPath(ProgramPathRoute)
+    case weeklyReview(WeeklyProgramReviewRoute)
 }
 
 enum NutritionRoute: Hashable {
@@ -54,6 +56,9 @@ enum ProgressRoute: Hashable {
     case trainingTrends
     case muscleGroupVolume
     case mobilityHistory
+    /// Recorded observations, kept separate from `mobilityHistory`: performed
+    /// routine work and measured evidence are two different kinds of record.
+    case mobilityAssessmentHistory
     case nutritionHistory
     case journalHistory
 }

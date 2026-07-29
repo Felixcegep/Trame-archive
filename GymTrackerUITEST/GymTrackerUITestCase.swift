@@ -167,18 +167,31 @@ class GymTrackerUITestCase: XCTestCase {
 
     func launchFreshApp(additionalArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing", "-reset-data"] + additionalArguments
-        app.launch()
-        XCTAssertEqual(app.state, .runningForeground)
+        // A simulator may retain a stale automation session immediately after
+        // a test process has been restarted. Give the test-only reset one
+        // clean relaunch, but never continue unless the fresh Home state is
+        // actually present.
+        for attempt in 0..<2 {
+            app.launchArguments = ["-ui-testing", "-reset-data"] + additionalArguments
+            app.launch()
+            XCTAssertEqual(app.state, .runningForeground)
 
-        // A reset clears and reseeds SwiftData before the tab content becomes
-        // interactive. Wait on that real state transition instead of guessing
-        // how long a cold simulator needs.
-        let preparing = app.descendants(matching: .any)["app-preparing"]
-        if preparing.exists {
-            XCTAssertTrue(preparing.waitForNonExistence(timeout: 60))
+            // A reset clears and reseeds SwiftData before the tab content
+            // becomes interactive. Wait on that real state transition instead
+            // of guessing how long a cold simulator needs.
+            let preparing = app.descendants(matching: .any)["app-preparing"]
+            if preparing.exists {
+                XCTAssertTrue(preparing.waitForNonExistence(timeout: 60))
+            }
+            if app.buttons["start-free-workout"].waitForExistence(timeout: 45) {
+                return app
+            }
+            if attempt == 0 {
+                app.terminate()
+            }
         }
-        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 45))
+
+        XCTFail("Fresh UI-test launch did not reach the Home state after one reset retry")
         return app
     }
 

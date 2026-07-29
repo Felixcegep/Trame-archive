@@ -85,7 +85,8 @@ enum ActiveWorkoutProgressionService {
                     recommendation: recommendation,
                     planRunID: run.id,
                     workoutID: workout.id,
-                    scopeOwnerKey: state.scopeOwnerKey
+                    scopeOwnerKey: state.scopeOwnerKey,
+                    proposedLoadUnit: plannedExercise.suggestedLoadType
                 ) else { continue }
                 record.progressionKey = plannedExercise.progressionKey
                 modelContext.insert(record)

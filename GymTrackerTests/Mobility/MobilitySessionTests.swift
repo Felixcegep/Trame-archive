@@ -142,7 +142,11 @@ final class MobilitySessionTests: XCTestCase {
             restSeconds: 45,
             notes: "sentinel-item-notes"
         )
-        let routine = MobilityRoutine(name: "Sentinel Routine", notes: "sentinel-routine-notes")
+        let routine = MobilityRoutine(
+            name: "Sentinel Routine",
+            notes: "sentinel-routine-notes",
+            purpose: .development
+        )
         routine.items = [item]
         source.insert(family)
         source.insert(definition)
@@ -165,6 +169,7 @@ final class MobilitySessionTests: XCTestCase {
 
         let backup = try BackupDTO.create(from: source, restTimer: 90, darkMode: false, unitSystem: .metric)
         XCTAssertEqual(backup.version, BackupDTO.currentVersion)
+        XCTAssertEqual(backup.mobilityRoutines.first?.purpose, MobilityRoutinePurpose.development.rawValue)
         XCTAssertEqual(backup.mobilitySessions.count, 1)
         let data = try JSONEncoder().encode(backup)
         let decoded = try JSONDecoder().decode(BackupDTO.self, from: data)
@@ -249,6 +254,30 @@ final class MobilitySessionTests: XCTestCase {
         XCTAssertFalse(families.isEmpty)
         XCTAssertFalse(routines.isEmpty)
 
+        let authoredPurposes: [String: MobilityRoutinePurpose] = [
+            "Daily mobility reset": .development,
+            "Post-Leg Day Mobility Reset": .cooldown,
+            "Upper Body Bench Warmup": .preparation,
+            "Lower Back & Hips Decompression": .cooldown,
+            "Overhead & Shoulder Saver": .development,
+            "Full Body Morning Flow": .development,
+            "Ankle & Foot Mobilization": .development,
+            "Desk Worker Reset": .development,
+            "Loaded Mobility Foundations": .development,
+            "Hamstring Contract-Relax PNF": .development,
+            "Squat Preparation": .preparation,
+            "Deadlift Preparation": .preparation,
+            "Front-Rack and Wrist Preparation": .preparation,
+            "Olympic Lifting Preparation": .preparation,
+            "Strongman Event Preparation": .preparation
+        ]
+        XCTAssertEqual(authoredPurposes.count, 15)
+        let purposesByName = Dictionary(uniqueKeysWithValues: routines.map { ($0.name, $0.purpose) })
+        XCTAssertEqual(purposesByName.count, authoredPurposes.count)
+        for (name, expectedPurpose) in authoredPurposes {
+            XCTAssertEqual(purposesByName[name], expectedPurpose, "Seeded routine '\(name)' must retain its authored purpose")
+        }
+
         let definitionNames = definitions.map(\.name)
         XCTAssertEqual(Set(definitionNames).count, definitionNames.count, "Seeded definitions must have unique names")
         let familyNames = families.map(\.name)
@@ -282,4 +311,3 @@ final class MobilitySessionTests: XCTestCase {
         )
     }
 }
-

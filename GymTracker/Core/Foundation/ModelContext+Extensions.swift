@@ -31,6 +31,8 @@ extension ModelContext {
         for record in try fetch(FetchDescriptor<SystemSeedRecord>()) { delete(record) }
 #endif
         for workout in workouts { delete(workout) }
+        for session in try fetch(FetchDescriptor<MobilityAssessmentSession>()) { delete(session) }
+        for definition in try fetch(FetchDescriptor<MobilityAssessmentDefinition>()) { delete(definition) }
         for session in try fetch(FetchDescriptor<MobilitySession>()) { delete(session) }
         for routine in try fetch(FetchDescriptor<MobilityRoutine>()) { delete(routine) }
         for definition in try fetch(FetchDescriptor<MobilityDefinition>()) { delete(definition) }
@@ -42,6 +44,9 @@ extension ModelContext {
         for entry in try fetch(FetchDescriptor<DailyLogEntry>()) { delete(entry) }
         for entry in try fetch(FetchDescriptor<BodyWeightEntry>()) { delete(entry) }
         for occurrence in try fetch(FetchDescriptor<SupplementOccurrence>()) { delete(occurrence) }
+#if !GYMTRACKER_EXTENSION
+        for definition in try fetch(FetchDescriptor<ProgramDefinitionRecord>()) { delete(definition) }
+#endif
         for run in try fetch(FetchDescriptor<RepeatingPlanRun>()) { delete(run) }
         for plan in try fetch(FetchDescriptor<RepeatingPlan>()) { delete(plan) }
         for run in try fetch(FetchDescriptor<PlanRun>()) { delete(run) }

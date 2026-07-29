@@ -262,13 +262,6 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(complexComponents.buttons["complex-component-2"].exists)
         saveScreenshot("active-workout/07f_Complex_Component_Results")
 
-        let draft = launchFixture("active-draft")
-        tapButton("exercise-menu-Bench Press", in: draft)
-        tapButton("swap-exercise-Bench Press", in: draft)
-        XCTAssertTrue(draft.navigationBars["Swap Exercise"].waitForExistence(timeout: 5))
-        XCTAssertTrue(draft.buttons["swap-option-Dumbbell Bench Press"].waitForExistence(timeout: 5))
-        saveScreenshot("active-workout/08j_Exercise_Swap")
-
         let completedSet = launchFixture("active-completed-set")
         XCTAssertTrue(completedSet.buttons["complete-set-Bench Press-1"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08_Active_Workout_With_Set")
@@ -288,6 +281,30 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("save-workout", in: partial)
         XCTAssertTrue(partial.buttons["Save completed sets"].waitForExistence(timeout: 5))
         saveScreenshot("review/09b_Partial_Save_Confirmation")
+    }
+
+    /// Kept independent from the wide Active Workout tour: decision-aware
+    /// substitution owns three related screens and needs a stable fixture for
+    /// its reason → option → explanation → confirmation path.
+    func testCaptureDecisionAwareSubstitutionScreenshots() {
+        let draft = launchFixture("active-draft")
+        tapButton("exercise-menu-Bench Press", in: draft)
+        tapButton("swap-exercise-Bench Press", in: draft)
+        XCTAssertTrue(draft.navigationBars["Why are you swapping?"].waitForExistence(timeout: 5))
+        tapButton("swap-reason-preference", in: draft)
+        XCTAssertTrue(draft.navigationBars["Swap Exercise"].waitForExistence(timeout: 5))
+        XCTAssertTrue(draft.buttons["swap-option-Dumbbell Bench Press"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/08j_Exercise_Swap")
+
+        tapButton("swap-why-Dumbbell Bench Press", in: draft)
+        XCTAssertTrue(draft.navigationBars["Why?"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/08o_Substitution_Why")
+        tapButton("why-explanation-done", in: draft)
+
+        tapButton("swap-option-Dumbbell Bench Press", in: draft)
+        XCTAssertTrue(draft.navigationBars["Confirm swap"].waitForExistence(timeout: 5))
+        XCTAssertTrue(draft.buttons["swap-scope-today"].exists)
+        saveScreenshot("active-workout/08p_Substitution_Confirmation")
     }
 
     func testSupersetCompletionAdvancesWithoutRest() {
@@ -501,6 +518,23 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("progression/10g_Progression_With_Rest_Paused")
     }
 
+    func testCaptureProgressionReceiptWhyScreenshot() {
+        let app = launchFixture("progression-receipt", expectsActiveWorkout: false)
+        let card = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "progression-receipt-card-")
+        ).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        let why = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "progression-receipt-why-")
+        ).firstMatch
+        XCTAssertTrue(why.waitForExistence(timeout: 5))
+        why.tap()
+        XCTAssertTrue(app.navigationBars["Why?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Progression rule v2")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["The rule's condition was met."].exists)
+        saveScreenshot("progression/10g_Progression_Receipt_Why")
+    }
+
     func testCapturePerformanceComparisonReviewScreenshot() {
         let app = launchFixture("performance-comparison")
 
@@ -623,6 +657,46 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         )
         XCTAssertTrue(app.buttons["complete-mobility-movement"].waitForExistence(timeout: 5))
         saveScreenshot("mobility/19_Active_Mobility")
+    }
+
+    func testCaptureMobilityRoutinePurposeScreenshot() {
+        let app = launchFreshApp()
+        selectTab(.library, in: app)
+        tapButton("train-mobility-library", in: app)
+        XCTAssertTrue(app.navigationBars["Mobility"].waitForExistence(timeout: 5))
+
+        let all = app.buttons["mobility-purpose-filter-all"]
+        let preparation = app.buttons["mobility-purpose-filter-preparation"]
+        let development = app.buttons["mobility-purpose-filter-development"]
+        let postWorkout = app.buttons["mobility-purpose-filter-cooldown"]
+        for chip in [all, preparation, development, postWorkout] {
+            XCTAssertTrue(chip.waitForExistence(timeout: 5))
+            XCTAssertTrue(chip.isHittable, "Each purpose chip must remain independently tappable inside its List row")
+        }
+
+        preparation.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["mobility-purpose-section-preparation"].waitForExistence(timeout: 5))
+        development.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["mobility-purpose-section-development"].waitForExistence(timeout: 5))
+        postWorkout.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["mobility-purpose-section-cooldown"].waitForExistence(timeout: 5))
+
+        let unspecified = app.buttons["mobility-purpose-filter-unspecified"]
+        XCTAssertTrue(unspecified.waitForExistence(timeout: 5))
+        unspecified.tap()
+        let clear = app.buttons["clear-mobility-purpose-filter"]
+        XCTAssertTrue(clear.waitForExistence(timeout: 5))
+        clear.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["mobility-purpose-section-preparation"].waitForExistence(timeout: 5))
+
+        let createRoutine = app.buttons["create-mobility-routine"]
+        scrollToElement(createRoutine, in: app)
+        XCTAssertTrue(createRoutine.waitForExistence(timeout: 5))
+        createRoutine.tap()
+        let picker = app.buttons["mobility-routine-purpose-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.tap()
+        saveScreenshot("mobility/18b_Mobility_Routine_Purpose")
     }
 
     func testCaptureNutritionTodayScreenshot() {

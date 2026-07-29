@@ -28,6 +28,7 @@ enum UITestFixture: String {
     case progressionInsufficientHistory = "progression-insufficient-history"
     case progressionRestRunning = "progression-rest-running"
     case progressionRestPaused = "progression-rest-paused"
+    case progressionReceipt = "progression-receipt"
     case performanceComparison = "performance-comparison"
     case performanceHistoryComparison = "performance-history-comparison"
     case homeActiveConflict = "home-active-conflict"
@@ -35,12 +36,18 @@ enum UITestFixture: String {
     case planCalendar = "plan-calendar"
     case planRelaunchSchedule = "plan-relaunch-schedule"
     case planPartialSave = "plan-partial-save"
+    case programPathFixed = "program-path-fixed"
+    case programPathRotation = "program-path-rotation"
     case repeatingPlanActive = "repeating-plan-active"
     case backupImportTarget = "backup-import-target"
     case todayComplete = "today-complete"
     case todayWeightDue = "today-weight-due"
     case bodyWeightHistory = "body-weight-history"
     case mobilityActive = "mobility-active"
+    case mobilityAssessmentRecorded = "mobility-assessment-recorded"
+    case mobilityAssessmentInProgress = "mobility-assessment-in-progress"
+    case mobilityAssessmentHistory = "mobility-assessment-history"
+    case mobilityAssessmentHistoryDetail = "mobility-assessment-history-detail"
     case nutritionToday = "nutrition-today"
     case trainingCalendar = "training-calendar"
 
@@ -56,7 +63,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .nutritionToday, .trainingCalendar:
+        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .programPathFixed, .programPathRotation, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .mobilityAssessmentRecorded, .mobilityAssessmentInProgress, .mobilityAssessmentHistory, .mobilityAssessmentHistoryDetail, .nutritionToday, .trainingCalendar, .progressionReceipt:
             false
         default:
             true
@@ -122,6 +129,8 @@ enum UITestFixture: String {
             try makeProgressionAndRestWorkout(restState: .running, using: context)
         case .progressionRestPaused:
             try makeProgressionAndRestWorkout(restState: .paused, using: context)
+        case .progressionReceipt:
+            try makeProgressionReceipt(using: context)
         case .performanceComparison:
             try makePerformanceComparisonWorkout(using: context)
         case .performanceHistoryComparison:
@@ -136,6 +145,10 @@ enum UITestFixture: String {
             try makePlanRelaunchSchedule(using: context)
         case .planPartialSave:
             try makePartialPlannedWorkout(using: context)
+        case .programPathFixed:
+            try makeProgramPathFixed(using: context)
+        case .programPathRotation:
+            try makeProgramPathRotation(using: context)
         case .repeatingPlanActive:
             try makeActiveRepeatingPlan(using: context)
         case .backupImportTarget:
@@ -178,6 +191,34 @@ enum UITestFixture: String {
             guard MobilitySessionService.start(routine: routine, using: context) != nil else {
                 throw FixtureError.invalidPlan
             }
+        case .mobilityAssessmentRecorded:
+            try makeMobilityAssessmentHistory(
+                includeEmptySession: false,
+                includeIncomparableObservation: false,
+                using: context
+            )
+        case .mobilityAssessmentInProgress:
+            let definitions = try assessmentDefinitions(using: context)
+            guard let first = definitions.first else { throw FixtureError.invalidPlan }
+            let session = MobilityAssessmentSession(
+                day: .today,
+                selectedDefinitionKeys: [first.catalogueKey, definitions.dropFirst().first?.catalogueKey].compactMap { $0 },
+                startedAt: Date.now.addingTimeInterval(-900)
+            )
+            context.insert(session)
+            try context.save()
+        case .mobilityAssessmentHistory:
+            try makeMobilityAssessmentHistory(
+                includeEmptySession: true,
+                includeIncomparableObservation: false,
+                using: context
+            )
+        case .mobilityAssessmentHistoryDetail:
+            try makeMobilityAssessmentHistory(
+                includeEmptySession: false,
+                includeIncomparableObservation: true,
+                using: context
+            )
         case .nutritionToday:
             let foods = try context.fetch(FetchDescriptor<FoodItem>())
             guard let yogurt = foods.first(where: { $0.name == "Greek yogurt" }),
@@ -218,6 +259,177 @@ enum UITestFixture: String {
         workout.startTime = Date.now.addingTimeInterval(-47)
         workout.exercises = exercises
         context.insert(workout)
+        try context.save()
+    }
+
+    private static func assessmentDefinitions(using context: ModelContext) throws -> [MobilityAssessmentDefinition] {
+        try MobilityAssessmentCatalogService.definitions(using: context)
+    }
+
+    private static func makeMobilityAssessmentHistory(
+        includeEmptySession: Bool,
+        includeIncomparableObservation: Bool,
+        using context: ModelContext
+    ) throws {
+        let definitions = try assessmentDefinitions(using: context)
+        guard let definition = definitions.first else { throw FixtureError.invalidPlan }
+
+        if includeEmptySession {
+            let empty = MobilityAssessmentSession(
+                day: .today,
+                selectedDefinitionKeys: [definition.catalogueKey],
+                startedAt: Date.now.addingTimeInterval(-10_800)
+            )
+            empty.status = .completed
+            empty.completedAt = empty.startedAt.addingTimeInterval(60)
+            context.insert(empty)
+        }
+
+        let first = MobilityAssessmentSession(
+            day: .today,
+            selectedDefinitionKeys: [definition.catalogueKey],
+            startedAt: Date.now.addingTimeInterval(-7_200)
+        )
+        context.insert(first)
+        _ = try MobilityAssessmentSessionService.saveResult(
+            in: first,
+            definition: definition,
+            input: assessmentInput(
+                value: 40,
+                side: .left,
+                definition: definition,
+                day: .today,
+                isWarm: false
+            ),
+            now: first.startedAt.addingTimeInterval(30),
+            using: context
+        )
+        try MobilityAssessmentSessionService.complete(
+            first,
+            completedAt: first.startedAt.addingTimeInterval(60),
+            using: context
+        )
+
+        guard includeIncomparableObservation else { return }
+
+        let second = MobilityAssessmentSession(
+            day: .today,
+            selectedDefinitionKeys: [definition.catalogueKey],
+            startedAt: Date.now.addingTimeInterval(-3_600)
+        )
+        context.insert(second)
+        _ = try MobilityAssessmentSessionService.saveResult(
+            in: second,
+            definition: definition,
+            input: assessmentInput(
+                value: 45,
+                side: .left,
+                definition: definition,
+                day: .today,
+                isWarm: false
+            ),
+            now: second.startedAt.addingTimeInterval(30),
+            using: context
+        )
+        _ = try MobilityAssessmentSessionService.saveResult(
+            in: second,
+            definition: definition,
+            input: assessmentInput(
+                value: 35,
+                side: .right,
+                definition: definition,
+                day: .today,
+                isWarm: true
+            ),
+            now: second.startedAt.addingTimeInterval(31),
+            using: context
+        )
+        try MobilityAssessmentSessionService.complete(
+            second,
+            completedAt: second.startedAt.addingTimeInterval(60),
+            using: context
+        )
+    }
+
+    private static func assessmentInput(
+        value: Double,
+        side: MobilityAssessmentSide,
+        definition: MobilityAssessmentDefinition,
+        day: LocalDay,
+        isWarm: Bool
+    ) -> MobilityAssessmentResultInput {
+        MobilityAssessmentResultInput(
+            numericValue: value,
+            side: side,
+            isWarm: isWarm,
+            setupKey: definition.defaultSetupKey,
+            method: definition.manualMode,
+            unit: definition.unit,
+            isActiveRange: definition.defaultIsActiveRange,
+            day: day
+        )
+    }
+
+    private static func makeProgressionReceipt(using context: ModelContext) throws {
+        let exercise = try exercise(named: "Bench Press", using: context)
+        let plannedExercise = PlannedExercise(
+            exercise: exercise,
+            orderIndex: 0,
+            suggestedLoad: 60,
+            suggestedLoadType: .kg,
+            plannedSets: [PlannedSet(orderIndex: 0, repetitions: 5)]
+        )
+        let plannedWorkout = PlannedWorkout(
+            name: "Receipt Day",
+            orderIndex: 0,
+            dayOffset: 0,
+            plannedExercises: [plannedExercise]
+        )
+        let plan = WorkoutPlan(
+            name: "Receipt Fixture",
+            daysPerWeek: 1,
+            durationWeeks: 1,
+            blocks: [PlanBlock(
+                name: "Build",
+                phaseType: .strength,
+                orderIndex: 0,
+                weeks: [PlanWeek(weekIndex: 0, plannedWorkouts: [plannedWorkout])]
+            )]
+        )
+        context.insert(plan)
+        guard let run = PlanCoordinator.startRun(for: plan, using: context) else {
+            throw FixtureError.invalidPlan
+        }
+        let workout = Workout(plannedWorkout: plannedWorkout, planRun: run, unitSystem: .metric)
+        workout.status = .completed
+        workout.endTime = .now
+        context.insert(workout)
+
+        let record = try PlanProgressionRecommendationRecord(
+            recommendation: ProgressionRecommendation(
+                id: UUID(),
+                ruleID: UUID(),
+                action: .addLoad(2.5),
+                cadence: .nextExerciseOccurrence,
+                scope: .exerciseExposure,
+                reason: "Every required set reached the upper rep bound.",
+                reasonKey: "progression.receipt.reason.triggerSatisfied",
+                applicationMode: .recommendation,
+                proposedState: ProgressionEvaluationState(currentLoad: 62.5),
+                performance: ProgressionPerformance(
+                    requiredSets: 3,
+                    completedSets: 3,
+                    requiredRepetitions: 30,
+                    completedRepetitions: 30
+                ),
+                ruleVersion: 2
+            ),
+            planRunID: run.id,
+            workoutID: workout.id,
+            proposedLoadUnit: .kg
+        )
+        record.progressionKey = plannedExercise.progressionKey
+        context.insert(record)
         try context.save()
     }
 
@@ -630,7 +842,13 @@ enum UITestFixture: String {
 
         let freeWorkout = Workout(name: "Accessory Work", endTime: Date.now.addingTimeInterval(-1_800))
         freeWorkout.startTime = Date.now.addingTimeInterval(-2_700)
-        let mobility = MobilitySession(nameSnapshot: "Hip Mobility", startTime: Date.now.addingTimeInterval(-5_400))
+        let midday = Calendar.current.date(
+            bySettingHour: 12,
+            minute: 0,
+            second: 0,
+            of: today
+        ) ?? today
+        let mobility = MobilitySession(nameSnapshot: "Hip Mobility", startTime: midday)
         mobility.status = .completed
         let meal = LoggedMeal(day: .today, nameSnapshot: "Calendar Lunch")
         meal.items = [LoggedMealItem(
@@ -693,6 +911,338 @@ enum UITestFixture: String {
         progress[5].status = .upcoming
 
         context.insert(run)
+        try context.save()
+    }
+
+    /// A deliberately complete Program Path graph. It keeps every session's
+    /// authored order while exposing the calendar lifecycle states a path needs
+    /// to render: completed, skipped, derived-missed, in-progress, available,
+    /// rescheduled, upcoming, and unscheduled. The final block is an authored
+    /// deload so the UI never needs to infer a phase from a workout name.
+    private static func makeProgramPathFixed(using context: ModelContext) throws {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        func day(_ offset: Int) -> Date {
+            calendar.date(byAdding: .day, value: offset, to: today) ?? today
+        }
+
+        let foundationWeek = PlanWeek(
+            weekIndex: 0,
+            name: "Foundation",
+            plannedWorkouts: [
+                PlannedWorkout(name: "Path Squat Strength", orderIndex: 0, dayOffset: 0),
+                PlannedWorkout(name: "Path Bench Volume", orderIndex: 1, dayOffset: 3)
+            ]
+        )
+        let buildWeek = PlanWeek(
+            weekIndex: 1,
+            name: "Build",
+            plannedWorkouts: [
+                PlannedWorkout(name: "Path Deadlift Strength", orderIndex: 0, dayOffset: 0),
+                PlannedWorkout(name: "Path Row Accessory", orderIndex: 1, dayOffset: 3)
+            ]
+        )
+        let peakWeek = PlanWeek(
+            weekIndex: 2,
+            name: "Peak",
+            plannedWorkouts: [
+                PlannedWorkout(name: "Path Press Strength", orderIndex: 0, dayOffset: 0),
+                PlannedWorkout(name: "Path Pull Volume", orderIndex: 1, dayOffset: 3)
+            ]
+        )
+        let deloadWeek = PlanWeek(
+            weekIndex: 3,
+            name: "Deload",
+            plannedWorkouts: [
+                PlannedWorkout(name: "Path Deload Lower", orderIndex: 0, dayOffset: 0),
+                PlannedWorkout(name: "Path Deload Upper", orderIndex: 1, dayOffset: 3)
+            ]
+        )
+        let plan = WorkoutPlan(
+            name: "Program Path Fixed Fixture",
+            goal: .generalStrength,
+            experienceLevel: .intermediate,
+            daysPerWeek: 2,
+            durationWeeks: 4,
+            blocks: [
+                PlanBlock(name: "Foundation", phaseType: .accumulation, orderIndex: 0, weeks: [foundationWeek]),
+                PlanBlock(name: "Build", phaseType: .strength, orderIndex: 1, weeks: [buildWeek]),
+                PlanBlock(name: "Peak", phaseType: .peaking, orderIndex: 2, weeks: [peakWeek]),
+                PlanBlock(
+                    name: "Planned Deload",
+                    phaseType: .deload,
+                    orderIndex: 3,
+                    deloadVolumeReductionPercent: 50,
+                    deloadIntensityReductionPercent: 10,
+                    weeks: [deloadWeek]
+                )
+            ]
+        )
+        let run = PlanRun(plan: plan, startDate: day(-21))
+        let plannedWorkouts = plan.orderedWeeks.flatMap(\.orderedPlannedWorkouts)
+        guard plannedWorkouts.count == 8 else { throw FixtureError.invalidPlan }
+
+        let completedWorkout = Workout(name: "Path Squat Strength", endTime: day(-20).addingTimeInterval(3_600))
+        completedWorkout.startTime = day(-20).addingTimeInterval(900)
+        let progress = [
+            PlanWorkoutProgress(
+                plannedWorkoutID: plannedWorkouts[0].id,
+                plannedWorkoutName: plannedWorkouts[0].name,
+                weekIndex: 0,
+                sourceWeekIndex: 0,
+                workoutIndex: 0,
+                scheduledDate: day(-21)
+            ),
+            PlanWorkoutProgress(
+                plannedWorkoutID: plannedWorkouts[1].id,
+                plannedWorkoutName: plannedWorkouts[1].name,
+                weekIndex: 0,
+                sourceWeekIndex: 0,
+                workoutIndex: 1,
+                scheduledDate: day(-18)
+            ),
+            PlanWorkoutProgress(
+                plannedWorkoutID: plannedWorkouts[2].id,
+                plannedWorkoutName: plannedWorkouts[2].name,
+                weekIndex: 1,
+                sourceWeekIndex: 1,
+                workoutIndex: 0,
+                scheduledDate: day(-4)
+            ),
+            PlanWorkoutProgress(
+                plannedWorkoutID: plannedWorkouts[3].id,
+                plannedWorkoutName: plannedWorkouts[3].name,
+                weekIndex: 1,
+                sourceWeekIndex: 1,
+                workoutIndex: 1,
+                scheduledDate: day(-1)
+            ),
+            PlanWorkoutProgress(
+                plannedWorkoutID: plannedWorkouts[4].id,
+                plannedWorkoutName: plannedWorkouts[4].name,
+                weekIndex: 2,
+                sourceWeekIndex: 2,
+                workoutIndex: 0,
+                scheduledDate: day(4)
+            ),
+            PlanWorkoutProgress(
+                plannedWorkoutID: plannedWorkouts[5].id,
+                plannedWorkoutName: plannedWorkouts[5].name,
+                weekIndex: 2,
+                sourceWeekIndex: 2,
+                workoutIndex: 1,
+                scheduledDate: nil
+            ),
+            PlanWorkoutProgress(
+                plannedWorkoutID: plannedWorkouts[6].id,
+                plannedWorkoutName: plannedWorkouts[6].name,
+                weekIndex: 3,
+                sourceWeekIndex: 3,
+                workoutIndex: 0,
+                scheduledDate: day(7)
+            ),
+            PlanWorkoutProgress(
+                plannedWorkoutID: plannedWorkouts[7].id,
+                plannedWorkoutName: plannedWorkouts[7].name,
+                weekIndex: 3,
+                sourceWeekIndex: 3,
+                workoutIndex: 1,
+                scheduledDate: day(10)
+            )
+        ]
+
+        progress[0].status = .completed
+        progress[0].completedAt = completedWorkout.endTime
+        progress[0].completedWorkout = completedWorkout
+        progress[1].status = .skipped
+        // `.upcoming` on a past local day is the intentionally derived missed
+        // state. It is not persisted as a distinct lifecycle value.
+        progress[2].status = .upcoming
+        progress[3].status = .inProgress
+        progress[3].startedAt = Date.now.addingTimeInterval(-1_800)
+        progress[4].status = .available
+        progress[4].originalScheduledDate = day(1)
+        progress[4].lastRescheduledAt = Date.now.addingTimeInterval(-600)
+        progress[5].status = .upcoming
+        progress[6].status = .upcoming
+        progress[7].status = .upcoming
+
+        run.currentWeekIndex = 1
+        run.currentWorkoutIndex = 1
+        run.workoutProgress = progress
+        plan.runs = [run]
+
+        context.insert(plan)
+        context.insert(run)
+        context.insert(completedWorkout)
+        try context.save()
+    }
+
+    /// A rotation history with the distinct persisted events Program Path must
+    /// explain: expected completion, alternate/keep-expected, repeat,
+    /// alternate/continue-after-selected, skip, and undo. The current cursor
+    /// is deliberately in the middle of the third cycle, so the view can show
+    /// history beside an actionable next slot without inventing a finite total.
+    private static func makeProgramPathRotation(using context: ModelContext) throws {
+        let benchPress = try exercise(named: "Bench Press", using: context)
+        let backSquat = try exercise(named: "Back Squat", using: context)
+        let barbellRow = try exercise(named: "Barbell Row", using: context)
+        let bench = WorkoutTemplate(name: "Path Rotation Bench", exercises: [benchPress])
+        let squat = WorkoutTemplate(name: "Path Rotation Squat", exercises: [backSquat])
+        let row = WorkoutTemplate(name: "Path Rotation Row", exercises: [barbellRow])
+        context.insert(bench)
+        context.insert(squat)
+        context.insert(row)
+
+        let plan = RepeatingPlan(
+            name: "Program Path Rotation Fixture",
+            goal: .generalStrength,
+            experienceLevel: .intermediate,
+            notes: "Deterministic occurrence history for Program Path presentation.",
+            slots: [
+                RepeatingPlanSlot(orderIndex: 0, workoutTemplate: bench),
+                RepeatingPlanSlot(orderIndex: 1, workoutTemplate: squat),
+                RepeatingPlanSlot(orderIndex: 2, workoutTemplate: row)
+            ]
+        )
+        let run = RepeatingPlanRun(plan: plan, startedAt: Date.now.addingTimeInterval(-30 * 86_400))
+        run.currentSlotIndex = 1
+        run.completedCycleCount = 2
+        run.updatedAt = .now
+
+        func completedWorkout(named name: String, hoursAgo: TimeInterval) -> Workout {
+            let end = Date.now.addingTimeInterval(-hoursAgo * 3_600)
+            let workout = Workout(name: name, endTime: end)
+            workout.startTime = end.addingTimeInterval(-3_600)
+            return workout
+        }
+
+        let expectedWorkout = completedWorkout(named: "Path Rotation Bench", hoursAgo: 144)
+        let alternateKeepExpectedWorkout = completedWorkout(named: "Path Rotation Row", hoursAgo: 132)
+        let repeatedWorkout = completedWorkout(named: "Path Rotation Row", hoursAgo: 120)
+        let alternateContinueWorkout = completedWorkout(named: "Path Rotation Row", hoursAgo: 96)
+        let currentCycleWorkout = completedWorkout(named: "Path Rotation Bench", hoursAgo: 24)
+        let occurrences = [
+            RepeatingPlanOccurrence(
+                cycleIndex: 0,
+                expectedSlotIndex: 0,
+                selectedSlotIndex: 0,
+                kind: .expected,
+                status: .completed,
+                cursorBefore: 0,
+                cursorAfter: 1,
+                cycleBefore: 0,
+                cycleAfter: 0,
+                createdAt: Date.now.addingTimeInterval(-144 * 3_600),
+                completedAt: expectedWorkout.endTime,
+                completedWorkout: expectedWorkout
+            ),
+            RepeatingPlanOccurrence(
+                cycleIndex: 0,
+                expectedSlotIndex: 1,
+                selectedSlotIndex: 2,
+                kind: .alternate,
+                continuationMode: .keepExpected,
+                status: .completed,
+                cursorBefore: 1,
+                cursorAfter: 1,
+                cycleBefore: 0,
+                cycleAfter: 0,
+                createdAt: Date.now.addingTimeInterval(-132 * 3_600),
+                completedAt: alternateKeepExpectedWorkout.endTime,
+                completedWorkout: alternateKeepExpectedWorkout
+            ),
+            RepeatingPlanOccurrence(
+                cycleIndex: 0,
+                expectedSlotIndex: 1,
+                selectedSlotIndex: 2,
+                kind: .repeatWorkout,
+                continuationMode: .keepExpected,
+                status: .completed,
+                cursorBefore: 1,
+                cursorAfter: 1,
+                cycleBefore: 0,
+                cycleAfter: 0,
+                createdAt: Date.now.addingTimeInterval(-120 * 3_600),
+                completedAt: repeatedWorkout.endTime,
+                completedWorkout: repeatedWorkout
+            ),
+            RepeatingPlanOccurrence(
+                cycleIndex: 0,
+                expectedSlotIndex: 1,
+                kind: .skip,
+                status: .skipped,
+                cursorBefore: 1,
+                cursorAfter: 2,
+                cycleBefore: 0,
+                cycleAfter: 0,
+                createdAt: Date.now.addingTimeInterval(-108 * 3_600),
+                completedAt: Date.now.addingTimeInterval(-108 * 3_600)
+            ),
+            RepeatingPlanOccurrence(
+                cycleIndex: 0,
+                expectedSlotIndex: 2,
+                selectedSlotIndex: 2,
+                kind: .expected,
+                status: .completed,
+                cursorBefore: 2,
+                cursorAfter: 0,
+                cycleBefore: 0,
+                cycleAfter: 1,
+                createdAt: Date.now.addingTimeInterval(-102 * 3_600),
+                completedAt: Date.now.addingTimeInterval(-102 * 3_600)
+            ),
+            RepeatingPlanOccurrence(
+                cycleIndex: 1,
+                expectedSlotIndex: 0,
+                selectedSlotIndex: 2,
+                kind: .alternate,
+                continuationMode: .continueAfterSelected,
+                status: .completed,
+                cursorBefore: 0,
+                cursorAfter: 0,
+                cycleBefore: 1,
+                cycleAfter: 2,
+                createdAt: Date.now.addingTimeInterval(-96 * 3_600),
+                completedAt: alternateContinueWorkout.endTime,
+                completedWorkout: alternateContinueWorkout
+            ),
+            RepeatingPlanOccurrence(
+                cycleIndex: 2,
+                expectedSlotIndex: 0,
+                selectedSlotIndex: 0,
+                kind: .expected,
+                status: .completed,
+                cursorBefore: 0,
+                cursorAfter: 1,
+                cycleBefore: 2,
+                cycleAfter: 2,
+                createdAt: Date.now.addingTimeInterval(-24 * 3_600),
+                completedAt: currentCycleWorkout.endTime,
+                completedWorkout: currentCycleWorkout
+            ),
+            RepeatingPlanOccurrence(
+                cycleIndex: 2,
+                expectedSlotIndex: 1,
+                selectedSlotIndex: 0,
+                kind: .alternate,
+                continuationMode: .keepExpected,
+                status: .undone,
+                cursorBefore: 1,
+                cursorAfter: 1,
+                cycleBefore: 2,
+                cycleAfter: 2,
+                createdAt: Date.now.addingTimeInterval(-12 * 3_600),
+                undoneAt: Date.now.addingTimeInterval(-11 * 3_600)
+            )
+        ]
+
+        run.occurrences = occurrences
+        plan.runs = [run]
+        context.insert(plan)
+        context.insert(run)
+        [expectedWorkout, alternateKeepExpectedWorkout, repeatedWorkout, alternateContinueWorkout, currentCycleWorkout]
+            .forEach { context.insert($0) }
         try context.save()
     }
 

@@ -11,7 +11,15 @@ final class PlanWorkoutProgress {
     /// stable when a run repeats a week or block and shifts occurrence indices.
     var sourceWeekIndex: Int?
     var workoutIndex: Int
+    /// The first known scheduled local day for this run occurrence. It is
+    /// immutable once established so a later schedule edit can be presented
+    /// as a reschedule without consulting the mutable plan definition.
+    var originalScheduledDate: Date?
     var scheduledDate: Date?
+    /// Evidence that the user explicitly moved this occurrence. Automatic
+    /// run re-anchoring may change `scheduledDate`, but does not fabricate a
+    /// user reschedule event.
+    var lastRescheduledAt: Date?
     var status: PlanWorkoutStatus
     var startedAt: Date?
     var completedAt: Date?
@@ -49,6 +57,8 @@ final class PlanWorkoutProgress {
         self.sourceWeekIndex = sourceWeekIndex ?? weekIndex
         self.workoutIndex = workoutIndex
         self.scheduledDate = scheduledDate
+        self.originalScheduledDate = scheduledDate
+        self.lastRescheduledAt = nil
         self.status = .upcoming
     }
 }

@@ -23,6 +23,10 @@ struct RootView: View {
     @State private var activeWorkoutPath: [ActiveWorkoutRoute] = []
     @State private var isShowingActiveWorkout = false
     @State private var activeMobilitySession: MobilitySession?
+    /// The assessment flow is presented from the root, like the active workout
+    /// and the active mobility session: the presenter owns dismissal, and the
+    /// flow only reports that it is finished.
+    @State private var activeAssessmentSession: MobilityAssessmentSession?
     @State private var shouldDiscardActiveWorkout = false
     @State private var selectedTab: AppTab = .today
     @State private var requestedRescheduleProgressID: UUID?
@@ -98,6 +102,8 @@ struct RootView: View {
                             HistoryMuscleBalanceDestination()
                         case .mobilityHistory:
                             MobilityHistoryView()
+                        case .mobilityAssessmentHistory:
+                            MobilityAssessmentHistoryView()
                         case .nutritionHistory:
                             NutritionHistoryView()
                         case .journalHistory:
@@ -192,6 +198,13 @@ struct RootView: View {
                 MobilitySessionView(session: session) {
                     activeMobilitySession = nil
                     resumeWorkoutAfterWarmupIfNeeded(session)
+                }
+            }
+        }
+        .fullScreenCover(item: $activeAssessmentSession) { session in
+            NavigationStack {
+                MobilityAssessmentFlowView(session: session) {
+                    activeAssessmentSession = nil
                 }
             }
         }
@@ -459,6 +472,8 @@ struct RootView: View {
     private var trainRoot: some View {
         FolderView(
             onOpenRoute: { trainPath.append($0) },
+            onOpenProgramPath: { trainPath.append(.programPath($0)) },
+            onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) },
             onResumePlan: resumeFixedPlan,
             onPauseRepeatingPlan: pauseRepeatingPlan,
             onResumeRepeatingPlan: resumeRepeatingPlan,
@@ -494,7 +509,9 @@ struct RootView: View {
                     onStartPlannedWorkout: startPlannedWorkout,
                     onStartPlan: startFixedPlan,
                     onResumePlan: resumeFixedPlan,
-                    onStartTestDay: startFixedPlanTestDay
+                    onStartTestDay: startFixedPlanTestDay,
+                    onOpenProgramPath: { todayPath.append(.programPath($0)) },
+                    onOpenWeeklyReview: { todayPath.append(.weeklyReview($0)) }
                 )
             } else {
                 ContentUnavailableView(
@@ -516,7 +533,8 @@ struct RootView: View {
                     onSkipRepeatingWorkout: skipRepeatingWorkout,
                     onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
                     onRestartRepeatingPlan: restartRepeatingPlan,
-                    onEndRepeatingPlan: endRepeatingPlan
+                    onEndRepeatingPlan: endRepeatingPlan,
+                    onOpenProgramPath: { todayPath.append(.programPath($0)) }
                 )
             } else {
                 ContentUnavailableView(
@@ -525,7 +543,38 @@ struct RootView: View {
                     description: Text("This rotation may have been removed or replaced.")
                 )
             }
+        case .programPath(let route):
+            programPathDestination(route, onOpenWeeklyReview: { todayPath.append(.weeklyReview($0)) })
+        case .weeklyReview(let route):
+            weeklyReviewDestination(route)
         }
+    }
+
+    /// Plan Path is reachable from Today and from Train, so it registers as its
+    /// own destination type on both stacks instead of duplicating a case in two
+    /// route enums. Workout starts stay here, where the guarded conflict-aware
+    /// handlers live. `onOpenWeeklyReview` is supplied per call site because,
+    /// unlike the root-level workout actions, it pushes onto whichever typed
+    /// path array reached this destination.
+    private func programPathDestination(
+        _ route: ProgramPathRoute,
+        onOpenWeeklyReview: @escaping (WeeklyProgramReviewRoute) -> Void
+    ) -> some View {
+        ProgramPathView(
+            route: route,
+            onStartPlannedWorkout: startPlannedWorkout,
+            onStartRepeatingWorkout: startRepeatingWorkout,
+            onResumeActiveWorkout: { isShowingActiveWorkout = true },
+            onOpenWeeklyReview: onOpenWeeklyReview
+        )
+    }
+
+    /// Weekly Review resolves its own projection from `route` and has no
+    /// forward navigation into a typed path itself (its one pushed
+    /// destination, a completed workout, is reached the same inline way
+    /// `PlanCalendarView` and `FixedProgramPathTimeline` already push theirs).
+    private func weeklyReviewDestination(_ route: WeeklyProgramReviewRoute) -> some View {
+        WeeklyProgramReviewView(route: route)
     }
 
     @ViewBuilder
@@ -573,7 +622,9 @@ struct RootView: View {
                     onStartPlannedWorkout: startPlannedWorkout,
                     onStartPlan: startFixedPlan,
                     onResumePlan: resumeFixedPlan,
-                    onStartTestDay: startFixedPlanTestDay
+                    onStartTestDay: startFixedPlanTestDay,
+                    onOpenProgramPath: { trainPath.append(.programPath($0)) },
+                    onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) }
                 )
             } else {
                 ContentUnavailableView(
@@ -595,7 +646,8 @@ struct RootView: View {
                     onSkipRepeatingWorkout: skipRepeatingWorkout,
                     onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
                     onRestartRepeatingPlan: restartRepeatingPlan,
-                    onEndRepeatingPlan: endRepeatingPlan
+                    onEndRepeatingPlan: endRepeatingPlan,
+                    onOpenProgramPath: { trainPath.append(.programPath($0)) }
                 )
             } else {
                 ContentUnavailableView(
@@ -625,7 +677,14 @@ struct RootView: View {
                 )
             }
         case .mobility:
-            MobilityLibraryView(onStart: startMobility)
+            MobilityLibraryView(
+                onStart: startMobility,
+                onStartAssessment: { activeAssessmentSession = $0 }
+            )
+        case .programPath(let route):
+            programPathDestination(route, onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) })
+        case .weeklyReview(let route):
+            weeklyReviewDestination(route)
         }
     }
 
@@ -662,6 +721,15 @@ struct RootView: View {
                 _ = workoutVM.restoreActiveWorkout(using: modelContext)
                 isShowingActiveWorkout = fixture.opensActiveWorkout && workoutVM.hasActiveWorkout
                 isShowingActiveWorkoutConflictAlert = fixture.showsActiveWorkoutConflict
+                if fixture == .progressionReceipt,
+                   let record = try modelContext.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()).first(where: { !$0.isResolved }) {
+                    DispatchQueue.main.async {
+                        progressionReceiptRequest = ProgressionReceiptRequest(
+                            planRunID: record.planRunID,
+                            workoutID: record.workoutID
+                        )
+                    }
+                }
             } catch {
                 print("Failed to prepare UI-test fixture '\(fixture.rawValue)': \(error)")
             }
@@ -1087,10 +1155,15 @@ struct RootView: View {
     }
 
     private func resumeWorkoutAfterWarmupIfNeeded(_ session: MobilitySession) {
-        guard session.workoutID == warmupWorkoutID,
-              workoutVM.activeWorkout?.id == warmupWorkoutID
+        guard let warmupWorkoutID,
+              WorkoutMobilityContinuationPolicy.shouldResumeWorkout(
+                sessionContext: session.context,
+                sessionWorkoutID: session.workoutID,
+                pendingWarmupWorkoutID: warmupWorkoutID,
+                activeWorkoutID: workoutVM.activeWorkout?.id
+              )
         else { return }
-        warmupWorkoutID = nil
+        self.warmupWorkoutID = nil
         DispatchQueue.main.async {
             isShowingActiveWorkout = true
         }
@@ -1507,6 +1580,7 @@ struct RootView: View {
         workoutVM.workout = nil
         workoutVM.activeWorkout = nil
         activeLoggingMetrics.reset()
+        UserDefaults.standard.set(true, forKey: DefaultsKey.useMetric)
 
         do {
             try modelContext.clearAllGymData()
@@ -1587,6 +1661,19 @@ struct RootView: View {
             modelContext.rollback()
             print("Failed to refresh plan-run availability: \(error)")
         }
+    }
+}
+
+enum WorkoutMobilityContinuationPolicy {
+    static func shouldResumeWorkout(
+        sessionContext: MobilitySessionContext,
+        sessionWorkoutID: UUID?,
+        pendingWarmupWorkoutID: UUID,
+        activeWorkoutID: UUID?
+    ) -> Bool {
+        sessionContext == .warmup
+            && sessionWorkoutID == pendingWarmupWorkoutID
+            && activeWorkoutID == pendingWarmupWorkoutID
     }
 }
 

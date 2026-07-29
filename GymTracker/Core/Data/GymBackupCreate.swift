@@ -45,7 +45,12 @@ extension BackupDTO {
             return ExerciseRelationshipDTO(
                 sourceExerciseName: source.name,
                 targetExerciseName: target.name,
-                type: relationship.type.rawValue
+                type: relationship.type.rawValue,
+                provenance: relationship.provenanceRaw,
+                rationaleCode: relationship.rationaleCode,
+                appliesToGoals: relationship.appliesToGoalsRaw.isEmpty ? nil : relationship.appliesToGoalsRaw,
+                appliesToRoles: relationship.appliesToRolesRaw.isEmpty ? nil : relationship.appliesToRolesRaw,
+                reviewVersion: relationship.reviewVersion
             )
         }
 
@@ -255,6 +260,14 @@ extension BackupDTO {
                         selectedSubstituteExerciseIDSnapshot: exercise.selectedSubstituteExerciseIDSnapshot?.uuidString,
                         substitutionReason: exercise.substitutionReason,
                         substitutionSharesProgressionState: exercise.substitutionSharesProgressionState,
+                        substitutionReasonCode: exercise.substitutionReasonCode,
+                        substitutionSuitability: exercise.substitutionSuitabilityRaw,
+                        substitutionComparability: exercise.substitutionComparabilityRaw,
+                        substitutionProgressionPolicy: exercise.substitutionProgressionPolicyRaw,
+                        substitutionScope: exercise.substitutionScopeRaw,
+                        substitutionEvidenceConfidence: exercise.substitutionEvidenceConfidenceRaw,
+                        substitutionEvaluationVersion: exercise.substitutionEvaluationVersion,
+                        substitutionEvaluationData: exercise.substitutionEvaluationData,
                         variationSourceExerciseIDSnapshot: exercise.variationSourceExerciseIDSnapshot?.uuidString,
                         variationSelectedExerciseIDSnapshot: exercise.variationSelectedExerciseIDSnapshot?.uuidString,
                         prescriptionDefinitionData: exercise.prescriptionDefinitionData,
@@ -460,7 +473,9 @@ extension BackupDTO {
                         weekIndex: progress.weekIndex,
                         sourceWeekIndex: progress.sourceWeekIndex,
                         workoutIndex: progress.workoutIndex,
+                        originalScheduledDate: progress.originalScheduledDate,
                         scheduledDate: progress.scheduledDate,
+                        lastRescheduledAt: progress.lastRescheduledAt,
                         status: progress.status.rawValue,
                         startedAt: progress.startedAt,
                         completedAt: progress.completedAt,
@@ -620,9 +635,11 @@ extension BackupDTO {
                 scope: record.scope.rawValue,
                 scopeOwnerKey: record.scopeOwnerKey,
                 reason: record.reason,
+                reasonKey: record.reasonKey,
                 applicationMode: record.applicationMode.rawValue,
                 performanceData: record.performanceData,
                 proposedLoad: record.proposedLoad,
+                proposedLoadUnit: record.proposedLoadUnit?.rawValue,
                 proposedTrainingMax: record.proposedTrainingMax,
                 proposedEstimatedOneRepMax: record.proposedEstimatedOneRepMax,
                 proposedActualOneRepMax: record.proposedActualOneRepMax,
@@ -723,7 +740,10 @@ extension BackupDTO {
                         restSeconds: item.restSeconds,
                         notes: item.notes
                     )
-                }
+                },
+                // Do not export an unrecognized raw value from a future build:
+                // this build cannot validate it on a subsequent restore.
+                purpose: routine.purpose?.rawValue
             )
         }
         let mobilitySessionDTOs = try context.fetch(FetchDescriptor<MobilitySession>()).map { session in
@@ -771,6 +791,89 @@ extension BackupDTO {
                                 discomfortNote: result.discomfortNote,
                                 startedAt: result.startedAt,
                                 completedAt: result.completedAt
+                            )
+                        }
+                    )
+                }
+            )
+        }
+        let mobilityAssessmentDefinitionDTOs = try context.fetch(
+            FetchDescriptor<MobilityAssessmentDefinition>()
+        ).map { definition in
+            MobilityAssessmentDefinitionDTO(
+                id: definition.id.uuidString,
+                catalogueKey: definition.catalogueKey,
+                name: definition.name,
+                nameLocalizationKey: definition.nameLocalizationKey,
+                instructionsLocalizationKey: definition.instructionsLocalizationKey,
+                setupInstructionsLocalizationKey: definition.setupInstructionsLocalizationKey,
+                measurementDescriptionLocalizationKey: definition.measurementDescriptionLocalizationKey,
+                measurementLimitationsLocalizationKey: definition.measurementLimitationsLocalizationKey,
+                zone: definition.zone.rawValue,
+                definitionVersion: definition.definitionVersion,
+                preferredMode: definition.preferredMode.rawValue,
+                manualMode: definition.manualMode.rawValue,
+                unit: definition.unit.rawValue,
+                supportedSides: definition.supportedSides.map(\.rawValue),
+                setupKeys: definition.setupKeys,
+                defaultSetupKey: definition.defaultSetupKey,
+                defaultIsActiveRange: definition.defaultIsActiveRange,
+                sortOrder: definition.sortOrder,
+                isArchived: definition.isArchived,
+                createdAt: definition.createdAt,
+                updatedAt: definition.updatedAt
+            )
+        }
+        let mobilityAssessmentSessionDTOs = try context.fetch(
+            FetchDescriptor<MobilityAssessmentSession>()
+        ).map { session in
+            MobilityAssessmentSessionDTO(
+                id: session.id.uuidString,
+                status: session.status.rawValue,
+                dayKey: session.dayKey,
+                selectedDefinitionKeys: session.selectedDefinitionKeys,
+                skippedDefinitionKeys: session.skippedDefinitionKeys,
+                currentDefinitionIndex: session.currentDefinitionIndex,
+                startedAt: session.startedAt,
+                completedAt: session.completedAt,
+                createdAt: session.createdAt,
+                updatedAt: session.updatedAt,
+                results: session.orderedResults.map { result in
+                    MobilityAssessmentResultDTO(
+                        id: result.id.uuidString,
+                        orderIndex: result.orderIndex,
+                        numericValue: result.numericValue,
+                        criteria: result.criteria?.rawValue,
+                        side: result.side.rawValue,
+                        isWarm: result.isWarm,
+                        setupKey: result.setupKey,
+                        method: result.method.rawValue,
+                        unit: result.unit.rawValue,
+                        isActiveRange: result.isActiveRange,
+                        dayKey: result.dayKey,
+                        source: result.source.rawValue,
+                        confidence: result.confidence.rawValue,
+                        definitionIDSnapshot: result.definitionIDSnapshot.uuidString,
+                        definitionCatalogueKeySnapshot: result.definitionCatalogueKeySnapshot,
+                        definitionNameSnapshot: result.definitionNameSnapshot,
+                        definitionVersionSnapshot: result.definitionVersionSnapshot,
+                        instructionsLocalizationKeySnapshot: result.instructionsLocalizationKeySnapshot,
+                        setupInstructionsLocalizationKeySnapshot: result.setupInstructionsLocalizationKeySnapshot,
+                        measurementDescriptionLocalizationKeySnapshot: result.measurementDescriptionLocalizationKeySnapshot,
+                        measurementLimitationsLocalizationKeySnapshot: result.measurementLimitationsLocalizationKeySnapshot,
+                        createdAt: result.createdAt,
+                        updatedAt: result.updatedAt,
+                        sample: result.sample.map {
+                            MobilityAssessmentSampleDTO(
+                                id: $0.id.uuidString,
+                                sampleCount: $0.sampleCount,
+                                median: $0.median,
+                                minimum: $0.minimum,
+                                maximum: $0.maximum,
+                                standardDeviation: $0.standardDeviation,
+                                offAxisExcessDegrees: $0.offAxisExcessDegrees,
+                                captureDuration: $0.captureDuration,
+                                createdAt: $0.createdAt
                             )
                         }
                     )
@@ -903,6 +1006,8 @@ extension BackupDTO {
             mobilityDefinitions: mobilityDefinitionDTOs,
             mobilityRoutines: mobilityRoutineDTOs,
             mobilitySessions: mobilitySessionDTOs,
+            mobilityAssessmentDefinitions: mobilityAssessmentDefinitionDTOs,
+            mobilityAssessmentSessions: mobilityAssessmentSessionDTOs,
             foods: foodDTOs,
             mealTemplates: mealTemplateDTOs,
             loggedMeals: loggedMealDTOs,

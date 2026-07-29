@@ -233,6 +233,39 @@ final class BackupFieldCoverageTests: XCTestCase {
         XCTAssertEqual(restoredComponent.liftQuality, .technicallyPoor)
     }
 
+    func testMobilityRoutineRoundTripsEveryPersistedField() throws {
+        let source = try makeContext()
+        let createdAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let updatedAt = Date(timeIntervalSince1970: 1_700_000_123)
+        let routine = MobilityRoutine(
+            name: "Sentinel Mobility Routine",
+            notes: "sentinel-mobility-notes",
+            purpose: .development,
+            isArchived: true,
+            id: UUID(uuidString: "A8E1E5A1-1C14-446E-9C71-3E6DA2DA675E")!,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+        source.insert(routine)
+        try source.save()
+
+        let restored = try XCTUnwrap(
+            roundTrip(source)
+                .fetch(FetchDescriptor<MobilityRoutine>())
+                .first { $0.name == "Sentinel Mobility Routine" }
+        )
+
+        XCTAssertEqual(restored.id, routine.id)
+        XCTAssertEqual(restored.name, "Sentinel Mobility Routine")
+        XCTAssertEqual(restored.notes, "sentinel-mobility-notes")
+        XCTAssertEqual(restored.purpose, .development)
+        XCTAssertEqual(restored.purposeRaw, MobilityRoutinePurpose.development.rawValue)
+        XCTAssertTrue(restored.isArchived)
+        XCTAssertEqual(restored.createdAt, createdAt)
+        XCTAssertEqual(restored.updatedAt, updatedAt)
+        XCTAssertTrue(restored.orderedItems.isEmpty)
+    }
+
     func testExerciseRoundTripsEveryPersistedField() throws {
         let source = try makeContext()
         let exercise = Exercise(
@@ -321,6 +354,14 @@ final class BackupFieldCoverageTests: XCTestCase {
         entry.originalExerciseNameSnapshot = "sentinel-original-name"
         entry.substitutionReason = "sentinel-substitution-reason"
         entry.substitutionSharesProgressionState = true
+        entry.substitutionReasonCode = SubstitutionReason.preference.rawValue
+        entry.substitutionSuitabilityRaw = SubstitutionSuitability.good.rawValue
+        entry.substitutionComparabilityRaw = SubstitutionComparability.limited.rawValue
+        entry.substitutionProgressionPolicyRaw = ProgressionTransferPolicy.continueShared.rawValue
+        entry.substitutionScopeRaw = SubstitutionScope.futurePlan.rawValue
+        entry.substitutionEvidenceConfidenceRaw = SubstitutionEvidenceConfidence.moderate.rawValue
+        entry.substitutionEvaluationVersion = 71
+        entry.substitutionEvaluationData = Data("sentinel-substitution-evidence".utf8)
         entry.lateralitySnapshot = .unilateral
         entry.repCountingStyleSnapshot = .perSide
         entry.weightEntryStyleSnapshot = .perLoadUnit
@@ -369,10 +410,52 @@ final class BackupFieldCoverageTests: XCTestCase {
         XCTAssertEqual(restored.originalExerciseNameSnapshot, "sentinel-original-name")
         XCTAssertEqual(restored.substitutionReason, "sentinel-substitution-reason")
         XCTAssertTrue(restored.substitutionSharesProgressionState)
+        XCTAssertEqual(restored.substitutionReasonCode, SubstitutionReason.preference.rawValue)
+        XCTAssertEqual(restored.substitutionSuitability, .good)
+        XCTAssertEqual(restored.substitutionComparability, .limited)
+        XCTAssertEqual(restored.substitutionProgressionPolicy, .continueShared)
+        XCTAssertEqual(restored.substitutionScope, .futurePlan)
+        XCTAssertEqual(restored.substitutionEvidenceConfidence, .moderate)
+        XCTAssertEqual(restored.substitutionEvaluationVersion, 71)
+        XCTAssertEqual(restored.substitutionEvaluationData, Data("sentinel-substitution-evidence".utf8))
         XCTAssertEqual(restored.lateralitySnapshot, .unilateral)
         XCTAssertEqual(restored.repCountingStyleSnapshot, .perSide)
         XCTAssertEqual(restored.weightEntryStyleSnapshot, .perLoadUnit)
         XCTAssertEqual(restored.loadUnitCountSnapshot, 2)
+    }
+
+    func testExerciseRelationshipRoundTripsDecisionAwareFields() throws {
+        let source = try makeContext()
+        let original = Exercise(name: "Sentinel Relationship Source", primaryMuscles: [.upperChest])
+        let replacement = Exercise(name: "Sentinel Relationship Target", primaryMuscles: [.upperChest])
+        let relationship = ExerciseRelationship(
+            sourceExercise: original,
+            targetExercise: replacement,
+            type: .substitution,
+            provenance: .systemReviewed,
+            rationaleCode: "substitution.rationale.sentinel",
+            appliesToGoals: [.hypertrophy],
+            appliesToRoles: [.accessory],
+            reviewVersion: 17
+        )
+        source.insert(original)
+        source.insert(replacement)
+        source.insert(relationship)
+        try source.save()
+
+        let restored = try XCTUnwrap(
+            roundTrip(source)
+                .fetch(FetchDescriptor<ExerciseRelationship>())
+                .first {
+                    $0.sourceExercise?.name == "Sentinel Relationship Source"
+                        && $0.targetExercise?.name == "Sentinel Relationship Target"
+                }
+        )
+        XCTAssertEqual(restored.resolvedProvenance, .systemReviewed)
+        XCTAssertEqual(restored.rationaleCode, "substitution.rationale.sentinel")
+        XCTAssertEqual(restored.appliesToGoals, [.hypertrophy])
+        XCTAssertEqual(restored.appliesToRoles, [.accessory])
+        XCTAssertEqual(restored.reviewVersion, 17)
     }
 
     func testWorkoutRoundTripsEveryPersistedField() throws {
@@ -597,11 +680,16 @@ final class BackupFieldCoverageTests: XCTestCase {
         assertFieldCount(of: ExerciseSetDTO.self, equals: 58)
         assertFieldCount(of: ExerciseSetSegmentDTO.self, equals: 11)
         assertFieldCount(of: ComplexComponentResultDTO.self, equals: 8)
-        assertFieldCount(of: ExerciseEntryDTO.self, equals: 50)
+        assertFieldCount(of: ExerciseEntryDTO.self, equals: 58)
         assertFieldCount(of: WorkoutDTO.self, equals: 23)
         assertFieldCount(of: ExerciseTemplateDTO.self, equals: 28)
         assertFieldCount(of: FoodItemDTO.self, equals: 21)
         assertFieldCount(of: LoggedMealDTO.self, equals: 10)
+        assertFieldCount(of: MobilityRoutineDTO.self, equals: 8)
+        assertFieldCount(of: MobilityAssessmentDefinitionDTO.self, equals: 21)
+        assertFieldCount(of: MobilityAssessmentSampleDTO.self, equals: 9)
+        assertFieldCount(of: MobilityAssessmentResultDTO.self, equals: 24)
+        assertFieldCount(of: MobilityAssessmentSessionDTO.self, equals: 11)
     }
 
     /// The count guard above only protects the eight DTO types it already
@@ -662,7 +750,12 @@ final class BackupFieldCoverageTests: XCTestCase {
         "WorkoutDTO",
         "ExerciseTemplateDTO",
         "FoodItemDTO",
-        "LoggedMealDTO"
+        "LoggedMealDTO",
+        "MobilityRoutineDTO",
+        "MobilityAssessmentDefinitionDTO",
+        "MobilityAssessmentSampleDTO",
+        "MobilityAssessmentResultDTO",
+        "MobilityAssessmentSessionDTO"
     ]
 
     /// DTO types with no Mirror-based field-count guard *in this file* yet.
@@ -707,7 +800,6 @@ final class BackupFieldCoverageTests: XCTestCase {
         "MobilityDefinitionDTO",
         "MobilityPhasePrescriptionDTO",
         "MobilityRoutineItemDTO",
-        "MobilityRoutineDTO",
         "MobilityPhaseResultDTO",
         "MobilityResultDTO",
         "MobilityEntryDTO",
@@ -867,6 +959,94 @@ final class BackupFieldCoverageTests: XCTestCase {
                 createdAt: .now,
                 updatedAt: .now,
                 items: []
+            )
+        case "MobilityRoutineDTO":
+            return MobilityRoutineDTO(
+                id: UUID().uuidString,
+                name: "",
+                notes: nil,
+                isArchived: false,
+                createdAt: .now,
+                updatedAt: .now,
+                items: [],
+                purpose: nil
+            )
+        case "MobilityAssessmentDefinitionDTO":
+            return MobilityAssessmentDefinitionDTO(
+                id: UUID().uuidString,
+                catalogueKey: "mobility-assessment.sentinel",
+                name: "",
+                nameLocalizationKey: "",
+                instructionsLocalizationKey: "",
+                setupInstructionsLocalizationKey: "",
+                measurementDescriptionLocalizationKey: "",
+                measurementLimitationsLocalizationKey: "",
+                zone: MobilityAssessmentZone.hips.rawValue,
+                definitionVersion: 1,
+                preferredMode: MobilityMeasurementMode.inclinometer.rawValue,
+                manualMode: MobilityMeasurementMode.manualAngle.rawValue,
+                unit: MobilityMeasurementUnit.degrees.rawValue,
+                supportedSides: [MobilityAssessmentSide.left.rawValue],
+                setupKeys: ["sentinel"],
+                defaultSetupKey: "sentinel",
+                defaultIsActiveRange: true,
+                sortOrder: 0,
+                isArchived: false,
+                createdAt: .now,
+                updatedAt: .now
+            )
+        case "MobilityAssessmentSampleDTO":
+            return MobilityAssessmentSampleDTO(
+                id: UUID().uuidString,
+                sampleCount: 1,
+                median: 0,
+                minimum: 0,
+                maximum: 0,
+                standardDeviation: 0,
+                offAxisExcessDegrees: 0,
+                captureDuration: 1,
+                createdAt: .now
+            )
+        case "MobilityAssessmentResultDTO":
+            return MobilityAssessmentResultDTO(
+                id: UUID().uuidString,
+                orderIndex: 0,
+                numericValue: 0,
+                criteria: nil,
+                side: MobilityAssessmentSide.left.rawValue,
+                isWarm: false,
+                setupKey: "sentinel",
+                method: MobilityMeasurementMode.manualAngle.rawValue,
+                unit: MobilityMeasurementUnit.degrees.rawValue,
+                isActiveRange: true,
+                dayKey: "2026-01-01",
+                source: MobilityMeasurementSource.manual.rawValue,
+                confidence: MobilityMeasurementConfidence.moderate.rawValue,
+                definitionIDSnapshot: UUID().uuidString,
+                definitionCatalogueKeySnapshot: "mobility-assessment.sentinel",
+                definitionNameSnapshot: "",
+                definitionVersionSnapshot: 1,
+                instructionsLocalizationKeySnapshot: "",
+                setupInstructionsLocalizationKeySnapshot: "",
+                measurementDescriptionLocalizationKeySnapshot: "",
+                measurementLimitationsLocalizationKeySnapshot: "",
+                createdAt: .now,
+                updatedAt: .now,
+                sample: nil
+            )
+        case "MobilityAssessmentSessionDTO":
+            return MobilityAssessmentSessionDTO(
+                id: UUID().uuidString,
+                status: MobilityAssessmentSessionStatus.active.rawValue,
+                dayKey: "2026-01-01",
+                selectedDefinitionKeys: [],
+                skippedDefinitionKeys: [],
+                currentDefinitionIndex: 0,
+                startedAt: .now,
+                completedAt: nil,
+                createdAt: .now,
+                updatedAt: .now,
+                results: []
             )
         default:
             return nil

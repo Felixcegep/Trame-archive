@@ -260,7 +260,11 @@ enum PlanCoordinator {
         for progress in run.workoutProgress where progress.weekIndex >= weekIndex && progress.status != .completed {
             progress.weekIndex += amount
             if let date = progress.scheduledDate {
-                progress.scheduledDate = calendar.date(byAdding: .day, value: amount * 7, to: date)
+                applyAutomaticSchedule(
+                    calendar.date(byAdding: .day, value: amount * 7, to: date),
+                    to: progress,
+                    calendar: calendar
+                )
             }
         }
     }
@@ -290,7 +294,18 @@ enum PlanCoordinator {
     @discardableResult
     static func reschedule(_ progress: PlanWorkoutProgress, to date: Date, in run: PlanRun) -> Bool {
         guard canEditSchedule(progress, in: run) else { return false }
-        progress.scheduledDate = Calendar.current.startOfDay(for: date)
+        let calendar = Calendar.current
+        let targetDay = calendar.startOfDay(for: date)
+        if let scheduledDate = progress.scheduledDate,
+           calendar.startOfDay(for: scheduledDate) == targetDay {
+            return true
+        }
+        applyUserScheduleChange(
+            targetDay,
+            to: progress,
+            calendar: calendar,
+            at: .now
+        )
         refreshAvailability(for: run)
         return true
     }
@@ -341,16 +356,25 @@ enum PlanCoordinator {
         guard let dayDelta = calendar.dateComponents([.day], from: originalDay, to: targetDay).day else {
             return false
         }
+        if dayDelta == 0 {
+            return true
+        }
 
         let editable = run.orderedWorkoutProgress.filter {
             canEditSchedule($0, in: run)
                 && ($0.scheduledDate.map { calendar.startOfDay(for: $0) >= originalDay } ?? false)
         }
+        let rescheduledAt = Date.now
         for item in editable {
             guard let scheduledDate = item.scheduledDate,
                   let shifted = calendar.date(byAdding: .day, value: dayDelta, to: scheduledDate)
             else { continue }
-            item.scheduledDate = calendar.startOfDay(for: shifted)
+            applyUserScheduleChange(
+                calendar.startOfDay(for: shifted),
+                to: item,
+                calendar: calendar,
+                at: rescheduledAt
+            )
         }
         refreshAvailability(for: run)
         return saveAndNotify(using: modelContext)
@@ -454,8 +478,49 @@ enum PlanCoordinator {
             case .everyNDays:
                 dayOffset = sequenceIndex * max(1, plan.scheduleIntervalDays)
             }
-            progress.scheduledDate = calendar.date(byAdding: .day, value: dayOffset, to: anchor)
+            applyAutomaticSchedule(
+                calendar.date(byAdding: .day, value: dayOffset, to: anchor),
+                to: progress,
+                calendar: calendar
+            )
         }
+    }
+
+    /// Records an explicit user schedule change without ever rewriting the
+    /// original occurrence date. A legacy record may not yet carry origin
+    /// evidence; its current date is the best preserved baseline. An
+    /// initially-unscheduled occurrence instead establishes its first date
+    /// without being labelled as rescheduled.
+    private static func applyUserScheduleChange(
+        _ date: Date,
+        to progress: PlanWorkoutProgress,
+        calendar: Calendar,
+        at timestamp: Date
+    ) {
+        let targetDay = calendar.startOfDay(for: date)
+        if progress.originalScheduledDate == nil {
+            progress.originalScheduledDate = progress.scheduledDate.map(calendar.startOfDay(for:)) ?? targetDay
+        }
+        let existingDay = progress.scheduledDate.map(calendar.startOfDay(for:))
+        progress.scheduledDate = targetDay
+        if let existingDay, existingDay != targetDay {
+            progress.lastRescheduledAt = timestamp
+        }
+    }
+
+    /// Automatic schedule changes retain the first known occurrence date but
+    /// do not claim the user explicitly rescheduled the session.
+    private static func applyAutomaticSchedule(
+        _ date: Date?,
+        to progress: PlanWorkoutProgress,
+        calendar: Calendar
+    ) {
+        guard let date else { return }
+        let targetDay = calendar.startOfDay(for: date)
+        if progress.originalScheduledDate == nil {
+            progress.originalScheduledDate = progress.scheduledDate.map(calendar.startOfDay(for:)) ?? targetDay
+        }
+        progress.scheduledDate = targetDay
     }
 
     static func archive(_ run: PlanRun) {

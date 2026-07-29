@@ -215,6 +215,7 @@ enum PlanProgressionEvaluationService {
                         planRunID: run.id,
                         workoutID: workout.id,
                         scopeOwnerKey: scopedState.scopeOwnerKey,
+                        proposedLoadUnit: plannedExercise.suggestedLoadType,
                         isResolvedOverride: recommendation.applicationMode == .automatic
                             && !automaticCadences.contains(recommendation.cadence) ? false : nil
                     )

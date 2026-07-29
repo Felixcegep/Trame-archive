@@ -410,7 +410,7 @@
             "metric": "load",
             "trigger": {
               "type": "failureCountReached",
-              "count": 3
+              "count": 2
             },
             "success": {
               "type": "reduceLoadPercentage",
@@ -425,7 +425,7 @@
             "metric": "load",
             "trigger": {
               "type": "failureCountReached",
-              "count": 3
+              "count": 2
             },
             "success": {
               "type": "resetFailureCount"

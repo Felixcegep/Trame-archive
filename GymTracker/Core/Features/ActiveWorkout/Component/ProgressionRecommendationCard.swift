@@ -8,11 +8,23 @@ struct ProgressionRecommendationCard: View {
     let state: RecommendationPresentationState
     let onAction: (RecommendationAction) -> Void
 
+    // The sheet is the expansion of the card's inline one-liner, not a
+    // replacement for it — `explanation` keeps rendering below unchanged.
+    @State private var isShowingWhy = false
+
     var body: some View {
         GymCard(variant: .current, radius: Radius.medium) {
-            Label("Progression recommendation", systemImage: AppIcon.progression)
-                .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymPrimary)
+            HStack(alignment: .firstTextBaseline) {
+                Label("Progression recommendation", systemImage: AppIcon.progression)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymPrimary)
+
+                Spacer()
+
+                WhyButton(identifier: "progression-recommendation-why") {
+                    isShowingWhy = true
+                }
+            }
 
             switch state {
             case .recommendation(let presentation):
@@ -25,6 +37,18 @@ struct ProgressionRecommendationCard: View {
         // action buttons from VoiceOver and UI tests.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("progression-recommendation-card-\(exerciseName)")
+        .sheet(isPresented: $isShowingWhy) {
+            WhyExplanationView(model: whyModel)
+        }
+    }
+
+    private var whyModel: WhyExplanationModel {
+        switch state {
+        case .recommendation(let presentation):
+            return presentation.whyModel
+        case .insufficientHistory:
+            return RecommendationPresentationState.insufficientHistoryWhyModel()
+        }
     }
 
     private func recommendationContent(_ presentation: RecommendationPresentation) -> some View {

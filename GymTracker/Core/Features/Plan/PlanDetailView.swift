@@ -9,6 +9,8 @@ struct PlanDetailView: View {
     let onStartPlan: (WorkoutPlan, Date) -> Void
     let onResumePlan: (PlanRun) -> Void
     let onStartTestDay: (PlanRun) -> Void
+    let onOpenProgramPath: (ProgramPathRoute) -> Void
+    let onOpenWeeklyReview: (WeeklyProgramReviewRoute) -> Void
 
     @State private var isShowingStartDate = false
     @State private var isShowingArchiveConfirmation = false
@@ -69,6 +71,9 @@ struct PlanDetailView: View {
                 }
             } else if let run = activeRun, let progress = nextProgress(in: run) {
                 Section("In progress") {
+                    programPathLink(for: run)
+                    weeklyReviewLink(for: run)
+
                     NavigationLink {
                         PlanCalendarView(run: run)
                     } label: {
@@ -98,6 +103,9 @@ struct PlanDetailView: View {
                 }
             } else if let run = pausedRun {
                 Section("Plan paused") {
+                    programPathLink(for: run)
+                    weeklyReviewLink(for: run)
+
                     NavigationLink {
                         PlanCalendarView(run: run)
                     } label: {
@@ -116,6 +124,9 @@ struct PlanDetailView: View {
                 }
             } else if let run = testDayRun, nextProgress(in: run) != nil {
                 Section("Test day") {
+                    programPathLink(for: run)
+                    weeklyReviewLink(for: run)
+
                     Button {
                         onStartTestDay(run)
                     } label: {
@@ -234,6 +245,31 @@ struct PlanDetailView: View {
         } message: {
             Text("Your completed workouts remain in History. You can start this plan again later.")
         }
+    }
+
+    /// The run's derived position and history. Kept beside "View Schedule"
+    /// because both answer questions about this run rather than about the
+    /// reusable plan the rest of the screen describes.
+    private func programPathLink(for run: PlanRun) -> some View {
+        Button {
+            onOpenProgramPath(.fixedRun(run.id))
+        } label: {
+            Label(ProgramPathPresentation.entryTitle, systemImage: AppIcon.routine)
+        }
+        .accessibilityIdentifier("view-plan-program-path")
+        .accessibilityHint(Text(ProgramPathPresentation.entryDetail))
+    }
+
+    /// Fixed-plan only — this view has no repeating-plan equivalent, so no
+    /// extra gating beyond "a run exists" is needed here.
+    private func weeklyReviewLink(for run: PlanRun) -> some View {
+        Button {
+            onOpenWeeklyReview(WeeklyProgramReviewRoute(runID: run.id))
+        } label: {
+            Label(WeeklyProgramReviewPresentation.entryTitle, systemImage: AppIcon.chart)
+        }
+        .accessibilityIdentifier("view-plan-weekly-review")
+        .accessibilityHint(Text(WeeklyProgramReviewPresentation.entryDetail))
     }
 
     private var activeRun: PlanRun? {

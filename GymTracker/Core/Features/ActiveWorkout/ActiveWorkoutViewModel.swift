@@ -598,35 +598,109 @@ class ActiveWorkoutViewModel {
     /// A replacement is intentionally allowed only before the entry has any
     /// completed sets. Completed entries are part of the workout's historical
     /// record and must not be reinterpreted as another exercise.
+    ///
+    /// The `decision` carries the structured reason, the separate suitability
+    /// and comparability verdicts, the explicit progression-transfer policy,
+    /// the rule version, and the evidence snapshot. It is applied through
+    /// `SubstitutionDecisionService` in one transaction so the persisted
+    /// decision can never be half-written.
     @discardableResult
-    func swapExercise(_ exerciseEntry: ExerciseEntry, with replacement: Exercise) -> Bool {
+    func swapExercise(
+        _ exerciseEntry: ExerciseEntry,
+        with replacement: Exercise,
+        decision: SubstitutionDecision
+    ) -> Bool {
         guard
             let workout = workoutVM.activeWorkout,
-            let storedExercise = workout.exercises.first(where: { $0.id == exerciseEntry.id }),
-            storedExercise.exercise.id != replacement.id,
-            !storedExercise.sets.contains(where: \.done)
+            let storedExercise = workout.exercises.first(where: { $0.id == exerciseEntry.id })
         else {
             return false
         }
 
-        let setCount = max(storedExercise.sets.count, 1)
-        if storedExercise.originalExerciseIDSnapshot == nil {
-            storedExercise.originalExerciseIDSnapshot = storedExercise.exercise.id
-            storedExercise.originalExerciseNameSnapshot = storedExercise.nameSnapshot
+        do {
+            try SubstitutionDecisionService.apply(
+                decision: decision,
+                replacement: replacement,
+                to: storedExercise.persistentModelID,
+                in: workout,
+                modelContext: modelContext
+            )
+        } catch {
+            return false
         }
-        storedExercise.selectedSubstituteExerciseIDSnapshot = replacement.id
-        storedExercise.substitutionReason = "User-selected substitution"
-        storedExercise.substitutionSharesProgressionState = false
-        for set in storedExercise.sets {
-            modelContext.delete(set)
-        }
-        storedExercise.sets.removeAll()
-        storedExercise.updateExerciseSnapshot(from: replacement)
-        storedExercise.addDefaultSets(count: setCount)
+
         previousPerformances.removeValue(forKey: storedExercise.persistentModelID)
-        persistChanges()
         loadPreviousPerformance(for: storedExercise)
         return true
+    }
+
+    /// A swap performed without going through the decision flow — no reason
+    /// was stated and no evaluation was run.
+    ///
+    /// It records exactly that rather than inventing a verdict: the evidence
+    /// snapshot is `insufficientInformation` / `unknown` / `insufficient` with
+    /// the missing evidence named, and the progression policy is
+    /// `.undetermined`, which resolves to *separate* progression. An unknown
+    /// substitution must never inherit another exercise's load history.
+    @discardableResult
+    func swapExercise(_ exerciseEntry: ExerciseEntry, with replacement: Exercise) -> Bool {
+        let decision = SubstitutionDecision(
+            reason: .notSure,
+            scope: .todayOnly,
+            progressionPolicy: .undetermined,
+            evaluation: SubstitutionEvaluationSnapshot(
+                version: SubstitutionEvaluationService.ruleVersion,
+                ruleID: SubstitutionEvaluationService.ruleID,
+                sourceExerciseID: exerciseEntry.exercise.id,
+                candidateExerciseID: replacement.id,
+                reason: .notSure,
+                suitability: .insufficientInformation,
+                comparability: .unknown,
+                confidence: .insufficient,
+                matchedFactorCodes: [],
+                differingFactorCodes: [],
+                missingEvidenceCodes: [SubstitutionFactorCode.goal],
+                hardFilterFailureCodes: [],
+                candidateProvenance: .userAuthored
+            )
+        )
+        return swapExercise(exerciseEntry, with: replacement, decision: decision)
+    }
+
+    /// Future-plan scope. Kept separate from `swapExercise` on purpose: this
+    /// edits the plan's prescription, which is a different change from logging
+    /// today's session, and it is never applied as a side effect of one.
+    @discardableResult
+    func applyPlanSubstitution(
+        _ exerciseEntry: ExerciseEntry,
+        with replacement: Exercise
+    ) -> Bool {
+        guard let plannedExerciseID = exerciseEntry.sourcePlannedExerciseID else { return false }
+        let run = activePlanRun()
+        do {
+            try PlanSubstitutionPreviewService.apply(
+                plannedExerciseID: plannedExerciseID,
+                replacement: replacement,
+                run: run,
+                modelContext: modelContext
+            )
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// The run this workout was started from, when it came from a plan.
+    func activePlanRun() -> PlanRun? {
+        guard let runID = workoutVM.activeWorkout?.sourcePlanRunID else { return nil }
+        return (try? modelContext.fetch(FetchDescriptor<PlanRun>()))?.first { $0.id == runID }
+    }
+
+    /// Today's plan goal, used as substitution context. `nil` for free and
+    /// template workouts — the evaluator treats that as weaker evidence rather
+    /// than guessing an intent the session never stated.
+    func activePlanGoal() -> PlanGoal? {
+        activePlanRun()?.plan?.goal
     }
 
     func persistChanges() {

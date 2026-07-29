@@ -94,8 +94,7 @@ struct ProgressionReceiptSheet: View {
         let plannedExercise = plannedExercisesByProgressionKey[record.progressionKey]
         let presentation = ProgressionReceiptPresentation(
             record: record,
-            exerciseName: plannedExercise?.exercise.name ?? String(localized: "Exercise"),
-            unit: plannedExercise?.suggestedLoadType
+            exerciseName: plannedExercise?.exercise.name ?? String(localized: "Exercise")
         )
         ProgressionReceiptCard(
             presentation: presentation,
@@ -151,6 +150,7 @@ private struct ProgressionReceiptCard: View {
 
     @State private var isEditingLoad = false
     @State private var editedLoad: Double = 0
+    @State private var isShowingWhy = false
 
     var body: some View {
         GymCard(variant: .current, radius: Radius.medium) {
@@ -168,6 +168,10 @@ private struct ProgressionReceiptCard: View {
                     .foregroundStyle(Color.gymText)
                     .fixedSize(horizontal: false, vertical: true)
 
+                whyButton
+
+                // Kept inline: the sheet below is the expanded form, not a
+                // replacement, so the fast path stays fast.
                 evidence
 
                 actions
@@ -178,6 +182,15 @@ private struct ProgressionReceiptCard: View {
         // exposing every action button to VoiceOver and UI tests.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("progression-receipt-card-\(presentation.id.uuidString)")
+        .sheet(isPresented: $isShowingWhy) {
+            WhyExplanationView(model: presentation.whyModel)
+        }
+    }
+
+    private var whyButton: some View {
+        WhyButton(identifier: "progression-receipt-why-\(presentation.id.uuidString)") {
+            isShowingWhy = true
+        }
     }
 
     @ViewBuilder

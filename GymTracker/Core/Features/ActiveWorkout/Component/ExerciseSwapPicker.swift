@@ -1,73 +1,141 @@
 import SwiftUI
 import SwiftData
 
-/// Presents only explicit substitution relationships. Similar exercises in a
-/// variation family are intentionally not offered here unless the user adds a
-/// substitution relationship in the exercise library.
+/// Decision-aware exercise substitution.
+///
+/// Presents only *known* candidates: explicit `ExerciseRelationship.substitution`
+/// links and plan-authored `PlannedExerciseAlternative` rows. Similar exercises
+/// in a variation family are still not offered here — metadata ranks and
+/// explains known options, it never invents one.
+///
+/// Three steps: state the reason, choose among explained options, confirm what
+/// accepting will do. Each option reports its **suitability for today** and its
+/// **historical comparability** separately; the app never merges them into a
+/// single equivalence score.
 struct ExerciseSwapPicker: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var relationships: [ExerciseRelationship]
 
     let exerciseEntry: ExerciseEntry
-    let onSelect: (Exercise) -> Void
+    /// Today's plan goal when the workout came from a plan. `nil` for free and
+    /// template workouts, which weakens evidence rather than inventing intent.
+    var planGoal: PlanGoal?
+    /// Plan-authored alternatives for this exposure, when there are any.
+    var plannedAlternatives: [PlannedExerciseAlternative] = []
+    let onSelect: (Exercise, SubstitutionDecision) -> Void
 
-    private var substitutions: [Exercise] {
-        var seen = Set<PersistentIdentifier>()
-        return relationships.compactMap { relationship in
-            guard relationship.type == .substitution else { return nil }
+    @State private var reason: SubstitutionReason?
+    @State private var selected: SubstitutionEvaluation?
+    @State private var scope: SubstitutionScope = .todayOnly
+    @State private var progressionPolicy: ProgressionTransferPolicy = .separate
+    @State private var explaining: SubstitutionEvaluation?
 
-            if relationship.sourceExercise?.id == exerciseEntry.exercise.id {
-                return relationship.targetExercise
-            }
-            if relationship.targetExercise?.id == exerciseEntry.exercise.id {
-                return relationship.sourceExercise
-            }
-            return nil
-        }
-        .filter { !$0.isArchived && seen.insert($0.persistentModelID).inserted }
-        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    private var context: SubstitutionContext? {
+        guard let reason else { return nil }
+        return SubstitutionContext.from(
+            entry: exerciseEntry,
+            goal: planGoal,
+            reason: reason
+        )
+    }
+
+    private var evaluations: [SubstitutionEvaluation] {
+        guard let context else { return [] }
+        let candidates = SubstitutionCandidateSource.candidates(
+            for: exerciseEntry.exercise,
+            relationships: relationships,
+            plannedAlternatives: plannedAlternatives,
+            goal: planGoal,
+            role: exerciseEntry.prescribedRole
+        )
+        return SubstitutionEvaluationService.rankedEvaluations(
+            for: exerciseEntry.exercise,
+            candidates: candidates,
+            context: context
+        )
     }
 
     var body: some View {
-        List {
-            if substitutions.isEmpty {
-                ContentUnavailableView(
-                    "No substitutions configured",
-                    systemImage: AppIcon.relationship,
-                    description: Text("Add a substitution relationship from this exercise’s details before starting the swap.")
-                )
-                .listRowBackground(Color.clear)
-            } else {
-                Section {
-                    ForEach(substitutions, id: \.persistentModelID) { exercise in
-                        Button {
-                            onSelect(exercise)
-                            dismiss()
-                        } label: {
-                            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                                Text(exercise.name)
-                                    .font(AppFont.bodyMedium)
-                                    .foregroundStyle(Color.gymText)
-                                Text(exercise.subtitle)
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
-                            }
-                        }
-                        .accessibilityIdentifier("swap-option-\(exercise.name)")
-                    }
-                } header: {
-                    Text("Substitute \(exerciseEntry.nameSnapshot) with")
-                } footer: {
-                    Text("The current uncompleted sets will be reset for the replacement exercise. Your prescription stays in place.")
+        Group {
+            if reason == nil {
+                SubstitutionReasonPicker(exerciseName: exerciseEntry.displayName) { chosen in
+                    reason = chosen
                 }
+            } else if let selected {
+                SubstitutionConfirmationView(
+                    originalName: exerciseEntry.displayName,
+                    evaluation: selected,
+                    reason: reason ?? .notSure,
+                    scope: $scope,
+                    progressionPolicy: $progressionPolicy,
+                    onExplain: { explaining = selected },
+                    onConfirm: { confirm(selected) }
+                )
+            } else {
+                optionsList
             }
         }
-        .navigationTitle("Swap Exercise")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") { dismiss() }
-            }
+        .sheet(item: $explaining) { evaluation in
+            WhyExplanationView(
+                model: SubstitutionPresentation.whyModel(
+                    for: evaluation,
+                    replacing: exerciseEntry.displayName,
+                    scope: scope,
+                    policy: progressionPolicy
+                )
+            )
         }
     }
+
+    private var optionsList: some View {
+        ScrollView {
+            LazyVStack(spacing: Spacing.m) {
+                if evaluations.isEmpty {
+                    ContentUnavailableView(
+                        "No substitutions configured",
+                        systemImage: AppIcon.relationship,
+                        description: Text("Add a substitution relationship from this exercise’s details before starting the swap.")
+                    )
+                } else {
+                    ForEach(evaluations, id: \.exercise.persistentModelID) { evaluation in
+                        SubstitutionOptionRow(
+                            evaluation: evaluation,
+                            isSelected: selected?.exercise.id == evaluation.exercise.id,
+                            onSelect: { select(evaluation) },
+                            onExplain: { explaining = evaluation }
+                        )
+                    }
+                }
+            }
+            .padding(Spacing.l)
+        }
+        .background(Color.gymBackground.ignoresSafeArea())
+        .navigationTitle("Swap Exercise")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func select(_ evaluation: SubstitutionEvaluation) {
+        selected = evaluation
+        scope = .todayOnly
+        // Never carried over from a previous selection: each option earns its
+        // own progression decision, and the default is always separate.
+        progressionPolicy = .separate
+    }
+
+    private func confirm(_ evaluation: SubstitutionEvaluation) {
+        guard let reason else { return }
+        let decision = SubstitutionDecision(
+            reason: reason,
+            scope: scope,
+            progressionPolicy: progressionPolicy,
+            evaluation: evaluation.snapshot
+        )
+        onSelect(evaluation.exercise, decision)
+        dismiss()
+    }
+}
+
+/// `sheet(item:)` needs identity; the evaluated exercise supplies it.
+extension SubstitutionEvaluation: Identifiable {
+    var id: UUID { exercise.id }
 }

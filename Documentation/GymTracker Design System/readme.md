@@ -39,7 +39,7 @@ The accepted PivotReport (July 17, 2026) commits **nutrition** as the second pil
 - The app uses **SF Symbols exclusively**, referenced by semantic token in `Icons.swift` (e.g. `house.fill`, `dumbbell.fill`, `clock.arrow.circlepath`, `timer`, `chart.line.uptrend.xyaxis`, `trophy.fill`, `flame`). No custom SVGs, no PNG icons, no emoji.
 - SF Symbols has no webfont/CDN. **Substitution flagged:** this system uses **Material Symbols Rounded** (Google Fonts CDN) with a semantic mapping in `components/core/Icon.jsx` that mirrors `AppIcon`. Closest match to SF's filled, rounded style. Ask the user for exported SF Symbol SVGs for pixel-perfect production work.
 - Icons sit in tinted chips: circle (38px, quick actions) or rounded-rect 12px (34–42px, library rows), glyph in the accent color over its 12% tint.
-- **No logo exists in the repo** (empty app icon set). Render "GymTracker" in plain display type wherever a mark would go.
+- **Logo & Motion Identity assets**: Official brand assets live in `Documentation/Brand/` (`Logo.svg` for vector mark, `Trame Motion Identity.html` for interactive motion identity). Render "GymTracker" or the official mark where appropriate.
 
 ## Fonts
 

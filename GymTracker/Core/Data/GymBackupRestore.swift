@@ -45,6 +45,7 @@ extension BackupDTO {
             // links. Mobility sessions remain an independent performed graph;
             // restoring them here does not create an ownership edge to Workout.
             try restoreMobility(into: &restoreCtx)
+            try restoreMobilityAssessments(into: &restoreCtx)
             try restoreFoldersAndTemplates(into: &restoreCtx)
             try restoreRepeatingPlansAndRuns(into: &restoreCtx)
             try restoreProgramDefinitions(into: &restoreCtx)
@@ -164,7 +165,15 @@ extension BackupDTO {
             restoreCtx.context.insert(ExerciseRelationship(
                 sourceExercise: source,
                 targetExercise: target,
-                type: type
+                type: type,
+                // Absent provenance stays absent rather than being upgraded to
+                // "reviewed" on restore: `resolvedProvenance` reads a nil as
+                // `systemUnreviewed`, which is the honest default.
+                provenance: relationshipDTO.provenance.flatMap(SubstitutionProvenance.init(rawValue:)),
+                rationaleCode: relationshipDTO.rationaleCode,
+                appliesToGoals: (relationshipDTO.appliesToGoals ?? []).compactMap(PlanGoal.init(rawValue:)),
+                appliesToRoles: (relationshipDTO.appliesToRoles ?? []).compactMap(ExerciseRole.init(rawValue:)),
+                reviewVersion: relationshipDTO.reviewVersion
             ))
         }
     }
@@ -693,6 +702,23 @@ extension BackupDTO {
             entry.selectedSubstituteExerciseIDSnapshot = entryDTO.selectedSubstituteExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
             entry.substitutionReason = entryDTO.substitutionReason
             entry.substitutionSharesProgressionState = entryDTO.substitutionSharesProgressionState ?? false
+            entry.substitutionReasonCode = entryDTO.substitutionReasonCode
+            entry.substitutionSuitabilityRaw = entryDTO.substitutionSuitability
+            entry.substitutionComparabilityRaw = entryDTO.substitutionComparability
+            entry.substitutionProgressionPolicyRaw = entryDTO.substitutionProgressionPolicy
+            entry.substitutionScopeRaw = entryDTO.substitutionScope
+            entry.substitutionEvidenceConfidenceRaw = entryDTO.substitutionEvidenceConfidence
+            entry.substitutionEvaluationVersion = entryDTO.substitutionEvaluationVersion
+            entry.substitutionEvaluationData = entryDTO.substitutionEvaluationData
+            // The invariant restore must not break: a payload whose policy and
+            // Boolean disagree (hand-edited, or written by a build with a bug)
+            // is resolved in favor of the conservative reading. Shared
+            // progression is only ever restored when the policy explicitly
+            // says so.
+            if let policy = entryDTO.substitutionProgressionPolicy
+                .flatMap(ProgressionTransferPolicy.init(rawValue:)) {
+                entry.substitutionSharesProgressionState = policy.sharesProgressionState
+            }
             entry.variationSourceExerciseIDSnapshot = entryDTO.variationSourceExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
             entry.variationSelectedExerciseIDSnapshot = entryDTO.variationSelectedExerciseIDSnapshot.flatMap(UUID.init(uuidString:))
             entry.prescriptionDefinitionData = entryDTO.prescriptionDefinitionData
@@ -886,6 +912,8 @@ extension BackupDTO {
                     scheduledDate: progressDTO.scheduledDate
                 )
                 progress.id = try requiredUUID(progressDTO.id, named: "plan workout progress")
+                progress.originalScheduledDate = progressDTO.originalScheduledDate
+                progress.lastRescheduledAt = progressDTO.lastRescheduledAt
                 progress.status = PlanWorkoutStatus(rawValue: progressDTO.status) ?? .upcoming
                 progress.startedAt = progressDTO.startedAt
                 progress.completedAt = progressDTO.completedAt
@@ -954,6 +982,7 @@ extension BackupDTO {
                 cadence: cadence,
                 scope: scope,
                 reason: recommendationDTO.reason,
+                reasonKey: recommendationDTO.reasonKey,
                 applicationMode: applicationMode,
                 proposedState: ProgressionEvaluationState(
                     currentLoad: recommendationDTO.proposedLoad,
@@ -981,7 +1010,8 @@ extension BackupDTO {
                 recommendation: recommendation,
                 planRunID: try requiredUUID(recommendationDTO.planRunID, named: "progression recommendation plan run"),
                 workoutID: try requiredUUID(recommendationDTO.workoutID, named: "progression recommendation workout"),
-                scopeOwnerKey: recommendationDTO.scopeOwnerKey ?? ""
+                scopeOwnerKey: recommendationDTO.scopeOwnerKey ?? "",
+                proposedLoadUnit: recommendationDTO.proposedLoadUnit.flatMap(WeightType.init(rawValue:))
             )
             record.id = recommendation.id
             record.progressionKey = recommendationDTO.progressionKey
@@ -1096,6 +1126,11 @@ extension BackupDTO {
             let routine = MobilityRoutine(
                 name: routineDTO.name,
                 notes: routineDTO.notes,
+                // Purpose keys in an older-format payload predate this field's
+                // meaning, so they are deliberately ignored rather than trusted.
+                purpose: version >= Self.mobilityRoutinePurposeVersion
+                    ? routineDTO.purpose.flatMap(MobilityRoutinePurpose.init(rawValue:))
+                    : nil,
                 isArchived: routineDTO.isArchived,
                 id: try requiredUUID(routineDTO.id, named: "mobility routine"),
                 createdAt: routineDTO.createdAt,
@@ -1229,6 +1264,127 @@ extension BackupDTO {
                     return phaseResult
                 }
                 return entry
+            }
+            restoreCtx.context.insert(session)
+        }
+    }
+
+    private func restoreMobilityAssessments(into restoreCtx: inout RestoreContext) throws {
+        guard version >= Self.mobilityAssessmentVersion else { return }
+
+        for definitionDTO in mobilityAssessmentDefinitions {
+            guard let zone = MobilityAssessmentZone(rawValue: definitionDTO.zone),
+                  let preferredMode = MobilityMeasurementMode(rawValue: definitionDTO.preferredMode),
+                  let manualMode = MobilityMeasurementMode(rawValue: definitionDTO.manualMode),
+                  let unit = MobilityMeasurementUnit(rawValue: definitionDTO.unit) else {
+                throw BackupValidationError.invalidIdentifier("mobility assessment definition")
+            }
+            let definition = MobilityAssessmentDefinition(
+                catalogueKey: definitionDTO.catalogueKey,
+                name: definitionDTO.name,
+                nameLocalizationKey: definitionDTO.nameLocalizationKey,
+                instructionsLocalizationKey: definitionDTO.instructionsLocalizationKey,
+                setupInstructionsLocalizationKey: definitionDTO.setupInstructionsLocalizationKey,
+                measurementDescriptionLocalizationKey: definitionDTO.measurementDescriptionLocalizationKey,
+                measurementLimitationsLocalizationKey: definitionDTO.measurementLimitationsLocalizationKey,
+                zone: zone,
+                definitionVersion: definitionDTO.definitionVersion,
+                preferredMode: preferredMode,
+                manualMode: manualMode,
+                unit: unit,
+                supportedSides: try definitionDTO.supportedSides.map {
+                    guard let side = MobilityAssessmentSide(rawValue: $0) else {
+                        throw BackupValidationError.invalidIdentifier("mobility assessment definition side")
+                    }
+                    return side
+                },
+                setupKeys: definitionDTO.setupKeys,
+                defaultSetupKey: definitionDTO.defaultSetupKey,
+                defaultIsActiveRange: definitionDTO.defaultIsActiveRange,
+                sortOrder: definitionDTO.sortOrder,
+                isArchived: definitionDTO.isArchived,
+                id: try requiredUUID(definitionDTO.id, named: "mobility assessment definition"),
+                createdAt: definitionDTO.createdAt,
+                updatedAt: definitionDTO.updatedAt
+            )
+            restoreCtx.mobilityAssessmentDefinitionsByKey[definition.catalogueKey] = definition
+            restoreCtx.context.insert(definition)
+        }
+
+        for sessionDTO in mobilityAssessmentSessions {
+            guard let status = MobilityAssessmentSessionStatus(rawValue: sessionDTO.status) else {
+                throw BackupValidationError.invalidIdentifier("mobility assessment session")
+            }
+            let session = MobilityAssessmentSession(
+                day: LocalDay(rawValue: sessionDTO.dayKey),
+                selectedDefinitionKeys: sessionDTO.selectedDefinitionKeys,
+                id: try requiredUUID(sessionDTO.id, named: "mobility assessment session"),
+                startedAt: sessionDTO.startedAt,
+                createdAt: sessionDTO.createdAt,
+                updatedAt: sessionDTO.updatedAt
+            )
+            session.status = status
+            session.skippedDefinitionKeys = sessionDTO.skippedDefinitionKeys
+            session.currentDefinitionIndex = sessionDTO.currentDefinitionIndex
+            session.completedAt = sessionDTO.completedAt
+            session.results = try sessionDTO.results.map { resultDTO in
+                guard let definition = restoreCtx.mobilityAssessmentDefinitionsByKey[
+                    resultDTO.definitionCatalogueKeySnapshot
+                ],
+                    let side = MobilityAssessmentSide(rawValue: resultDTO.side),
+                    let method = MobilityMeasurementMode(rawValue: resultDTO.method),
+                    let unit = MobilityMeasurementUnit(rawValue: resultDTO.unit),
+                    let source = MobilityMeasurementSource(rawValue: resultDTO.source),
+                    let confidence = MobilityMeasurementConfidence(rawValue: resultDTO.confidence) else {
+                    throw BackupValidationError.invalidIdentifier("mobility assessment result")
+                }
+                let input = MobilityAssessmentResultInput(
+                    numericValue: resultDTO.numericValue,
+                    criteria: resultDTO.criteria.flatMap(MobilityAssessmentCriteriaObservation.init(rawValue:)),
+                    side: side,
+                    isWarm: resultDTO.isWarm,
+                    setupKey: resultDTO.setupKey,
+                    method: method,
+                    unit: unit,
+                    isActiveRange: resultDTO.isActiveRange,
+                    day: LocalDay(rawValue: resultDTO.dayKey),
+                    source: source,
+                    confidence: confidence
+                )
+                let result = MobilityAssessmentResult(
+                    definition: definition,
+                    input: input,
+                    orderIndex: resultDTO.orderIndex,
+                    id: try requiredUUID(resultDTO.id, named: "mobility assessment result"),
+                    createdAt: resultDTO.createdAt,
+                    updatedAt: resultDTO.updatedAt
+                )
+                result.definitionIDSnapshot = try requiredUUID(
+                    resultDTO.definitionIDSnapshot,
+                    named: "mobility assessment result definition"
+                )
+                result.definitionCatalogueKeySnapshot = resultDTO.definitionCatalogueKeySnapshot
+                result.definitionNameSnapshot = resultDTO.definitionNameSnapshot
+                result.definitionVersionSnapshot = resultDTO.definitionVersionSnapshot
+                result.instructionsLocalizationKeySnapshot = resultDTO.instructionsLocalizationKeySnapshot
+                result.setupInstructionsLocalizationKeySnapshot = resultDTO.setupInstructionsLocalizationKeySnapshot
+                result.measurementDescriptionLocalizationKeySnapshot = resultDTO.measurementDescriptionLocalizationKeySnapshot
+                result.measurementLimitationsLocalizationKeySnapshot = resultDTO.measurementLimitationsLocalizationKeySnapshot
+                if let sampleDTO = resultDTO.sample {
+                    let sample = MobilityAssessmentSample(
+                        sampleCount: sampleDTO.sampleCount,
+                        median: sampleDTO.median,
+                        minimum: sampleDTO.minimum,
+                        maximum: sampleDTO.maximum,
+                        standardDeviation: sampleDTO.standardDeviation,
+                        offAxisExcessDegrees: sampleDTO.offAxisExcessDegrees,
+                        captureDuration: sampleDTO.captureDuration,
+                        id: try requiredUUID(sampleDTO.id, named: "mobility assessment sample"),
+                        createdAt: sampleDTO.createdAt
+                    )
+                    result.sample = sample
+                }
+                return result
             }
             restoreCtx.context.insert(session)
         }
@@ -1394,6 +1550,7 @@ private struct RestoreContext {
     var mobilityFamiliesByID: [String: MobilityFamily] = [:]
     var mobilityDefinitionsByID: [String: MobilityDefinition] = [:]
     var mobilityRoutinesByName: [String: MobilityRoutine] = [:]
+    var mobilityAssessmentDefinitionsByKey: [String: MobilityAssessmentDefinition] = [:]
     var foodsByID: [String: FoodItem] = [:]
     var restoredRecipePhotoIdentifiers: [String: String] = [:]
 }
