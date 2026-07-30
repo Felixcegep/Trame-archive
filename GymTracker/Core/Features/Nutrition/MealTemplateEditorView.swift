@@ -277,6 +277,18 @@ struct MealTemplateEditorView: View {
 
     @ViewBuilder
     private var generationControls: some View {
+        // The `recipeGeneration` flag existed but nothing ever asked it, so the
+        // prototype was reachable in every build. It is gated here rather than at
+        // the editor, because the editor itself is finished work — it is the
+        // generation controls, the transient photo, and the availability notice
+        // that are not.
+        if FeatureFlags.current.isEnabled(.recipeGeneration) {
+            availableGenerationControls
+        }
+    }
+
+    @ViewBuilder
+    private var availableGenerationControls: some View {
         switch availability {
         case .fullyAvailable, .textOnly:
             photoControl

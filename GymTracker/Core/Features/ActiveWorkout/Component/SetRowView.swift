@@ -54,12 +54,18 @@ struct SetRowView: View {
             RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
                 .stroke(isEditingCompletedSet ? Color.gymPrimary : .clear, lineWidth: 1)
         }
+        // A shape, not a hue. The current row was previously marked by a tinted
+        // fill, a tinted index, and this bar — three cues that are all the same
+        // cue, and all of which vanish in grayscale, under Increase Contrast, or
+        // for a red/green-blind lifter. The pointer reads as "you are here" from
+        // its silhouette. It stays inside the row's own leading padding, so the
+        // value columns lose no width to it.
         .overlay(alignment: .leading) {
             if isCurrentSet, !exerciseSet.done, !isEditingCompletedSet {
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(Color.gymPrimary)
-                    .frame(width: 3)
-                    .padding(.vertical, Spacing.m)
+                Image(systemName: AppIcon.currentPointer)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Color.gymPrimary)
+                    .accessibilityHidden(true)
             }
         }
         .animation(reduceMotion ? nil : AppMotion.compact, value: exerciseSet.done)
@@ -161,6 +167,18 @@ struct SetRowView: View {
         exerciseEntry.orderedSets.first(where: { !$0.done })?.persistentModelID == exerciseSet.persistentModelID
     }
 
+    /// Only a state gets a fill. A plain incomplete row draws none and inherits
+    /// the card's surface.
+    ///
+    /// `gymRowSurface` was a third tone that bought no separation: in dark mode it
+    /// is `#26262B` against a current exercise card's `#222838`, near-identical in
+    /// luminance and merely different in hue, and a completed row's
+    /// `gymSecondarySurface` is already *exactly* the completed card's own fill —
+    /// so fills were demonstrably not what distinguished one row from the next.
+    /// Removing the ambient one leaves current, done, and editing as the only
+    /// filled rows in the list, which is what makes those fills read as meaning
+    /// rather than as texture. Rows stay separated by the list's spacing and by
+    /// the field outlines they contain.
     private var rowSurface: Color {
         if isEditingCompletedSet {
             return Color.gymPrimarySurface
@@ -169,7 +187,7 @@ struct SetRowView: View {
             return Color.gymSecondarySurface
         }
 
-        return isCurrentSet ? Color.gymCurrentSetSurface : Color.gymRowSurface
+        return isCurrentSet ? Color.gymCurrentSetSurface : .clear
     }
 
     private var rowActions: some View {
@@ -210,7 +228,10 @@ struct SetRowView: View {
         completedEditSnapshot = CompletedSetEditSnapshot(exerciseSet)
         editingCompletedSetID = exerciseSet.persistentModelID
         completionValidationMessage = nil
-        UIAccessibility.post(notification: .announcement, argument: "Editing set \(index + 1)")
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: String(localized: "Editing set \(index + 1)")
+        )
         coordinator.focus = SetInputFocus(
             exerciseID: exerciseEntry.persistentModelID,
             setID: exerciseSet.persistentModelID,

@@ -23,16 +23,23 @@ struct MobilityLibraryView: View {
     /// View-local. A filter is a momentary way of looking at the library, not
     /// a preference, so it is deliberately not persisted.
     @State private var purposeFilter: MobilityPurposeFilter = .all
+    private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var body: some View {
         List {
             // The hub leads with the assessment because it is the only surface
             // here that produces evidence; routines are the work it points at.
-            Section {
-                assessmentCard
-                    .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+            // Gated because the assessment UI is unfinished while its data model
+            // is not: with the flag off, this screen is the routine library it
+            // was before assessments existed, and no persisted assessment is
+            // touched or migrated.
+            if featureFlags.isEnabled(.mobilityAssessment) {
+                Section {
+                    assessmentCard
+                        .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
             }
 
             Section {
@@ -127,20 +134,28 @@ struct MobilityLibraryView: View {
                     MobilityHistoryView()
                 }
 
-                historyLink(
-                    title: String(localized: "Mobility assessments"),
-                    detail: assessmentHistoryDetail,
-                    icon: AppIcon.mobilityAssessment,
-                    identifier: "open-mobility-assessment-history-from-hub"
-                ) {
-                    MobilityAssessmentHistoryView()
+                if featureFlags.isEnabled(.mobilityAssessment) {
+                    historyLink(
+                        title: String(localized: "Mobility assessments"),
+                        detail: assessmentHistoryDetail,
+                        icon: AppIcon.mobilityAssessment,
+                        identifier: "open-mobility-assessment-history-from-hub"
+                    ) {
+                        MobilityAssessmentHistoryView()
+                    }
                 }
             } header: {
                 Text("History")
             } footer: {
                 // Two different kinds of record. Naming both is what keeps a
-                // performed routine from being read as an observation.
-                Text("Routine history records the work you performed. Assessment history records what you observed.")
+                // performed routine from being read as an observation. With
+                // assessments gated off there is only one kind on screen, so the
+                // distinction would describe something the user cannot see.
+                if featureFlags.isEnabled(.mobilityAssessment) {
+                    Text("Routine history records the work you performed. Assessment history records what you observed.")
+                } else {
+                    Text("Routine history records the work you performed.")
+                }
             }
         }
         .scrollContentBackground(.hidden)

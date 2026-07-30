@@ -10,6 +10,7 @@ struct ProgressHubView: View {
     @Query(sort: \MobilityAssessmentSession.startedAt, order: .reverse) private var assessmentSessions: [MobilityAssessmentSession]
     @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var loggedMeals: [LoggedMeal]
     @Query(sort: \DailyLogEntry.createdAt, order: .reverse) private var dailyLogEntries: [DailyLogEntry]
+    private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var body: some View {
         List {
@@ -54,15 +55,17 @@ struct ProgressHubView: View {
                     ),
                     icon: AppIcon.mobility
                 )
-                progressLink(
-                    route: .mobilityAssessmentHistory,
-                    title: "Mobility assessments",
-                    detail: String(
-                        localized: "mobility.hub.history.assessments",
-                        defaultValue: "^[\(recordedAssessmentSessions.count) recorded assessment](inflect: true)"
-                    ),
-                    icon: AppIcon.mobilityAssessment
-                )
+                if featureFlags.isEnabled(.mobilityAssessment) {
+                    progressLink(
+                        route: .mobilityAssessmentHistory,
+                        title: "Mobility assessments",
+                        detail: String(
+                            localized: "mobility.hub.history.assessments",
+                            defaultValue: "^[\(recordedAssessmentSessions.count) recorded assessment](inflect: true)"
+                        ),
+                        icon: AppIcon.mobilityAssessment
+                    )
+                }
                 progressLink(
                     route: .nutritionHistory,
                     title: "Nutrition history",

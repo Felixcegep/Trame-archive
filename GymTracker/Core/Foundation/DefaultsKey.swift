@@ -16,7 +16,17 @@ struct DefaultsKey {
     static let bodyWeightPromptCadence = "bodyWeightPromptCadence"
     static let caffeineBirthdateTimestamp = "caffeineBirthdateTimestamp"
     static let effortMeasure = "effortMeasure"
+    /// Comma-joined `SetType` raw values, most recent first. See `RecentSetTypes`.
+    static let recentSetTypes = "recentSetTypes.v1"
     static let activeLoggingMetrics = "activeLoggingMetrics.v1"
+    /// When a backup file was last produced, and when one was last restored.
+    ///
+    /// Local-first only reassures a user who can see their own exposure, so these
+    /// two dates are what the Data Safety section reports. Deliberately
+    /// preference-shaped rather than user data: they describe this installation's
+    /// safety state, so a restored backup must not carry another device's dates in.
+    static let lastBackupExportTimestamp = "lastBackupExportTimestamp"
+    static let lastBackupRestoreTimestamp = "lastBackupRestoreTimestamp"
 }
 
 enum EffortMeasure: String, CaseIterable {

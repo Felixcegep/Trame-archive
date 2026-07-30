@@ -40,6 +40,10 @@ struct AppIcon {
     static let failureCircle = "xmark.circle.fill"
     static let circle = "circle"
     static let circleFill = "circle.fill"
+    /// Marks the one row a user is acting on. A silhouette rather than a tint,
+    /// so "you are here" survives grayscale, Increase Contrast, and colour
+    /// blindness instead of resting on an accent hue alone.
+    static let currentPointer = "arrowtriangle.forward.fill"
     static let circleDashed = "circle.dashed"
     static let skip = "circle.slash"
     static let info = "info.circle"

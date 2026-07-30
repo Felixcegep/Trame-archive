@@ -77,14 +77,14 @@ struct ExerciceEntryCard: View {
                 ? Color.gymSecondarySurface
                 : (isCurrentExercise ? Color.gymPrimarySurface : Color.gymCard)
         )
+        // One neutral hairline for every card. The expanded card used to get a
+        // primary-tinted stroke as well, which said "this is the one you are on"
+        // for a third time — the header already says it in words ("CURRENT
+        // EXERCISE") and the card already says it with `gymPrimarySurface`. A
+        // border's job here is to define an edge, not to carry state.
         .overlay {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(
-                    expandedExerciseID == exerciseEntry.persistentModelID
-                        ? Color.gymPrimary.opacity(0.42)
-                        : Color.gymBorder,
-                    lineWidth: 1
-                )
+                .stroke(Color.gymBorder, lineWidth: 1)
         }
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }

@@ -1581,6 +1581,8 @@ struct RootView: View {
         workoutVM.activeWorkout = nil
         activeLoggingMetrics.reset()
         UserDefaults.standard.set(true, forKey: DefaultsKey.useMetric)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.lastBackupExportTimestamp)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.lastBackupRestoreTimestamp)
 
         do {
             try modelContext.clearAllGymData()

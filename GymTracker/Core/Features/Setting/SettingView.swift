@@ -22,6 +22,8 @@ struct SettingView: View {
     @AppStorage(DefaultsKey.useMetric) private var unitSystem: UnitSystem = .metric
     @AppStorage(DefaultsKey.bodyWeightPromptCadence) private var bodyWeightPromptCadence: BodyWeightPromptCadence = .off
     @AppStorage(DefaultsKey.caffeineBirthdateTimestamp) private var caffeineBirthdateTimestamp: Double?
+    @AppStorage(DefaultsKey.lastBackupExportTimestamp) private var lastBackupExportTimestamp: Double?
+    @AppStorage(DefaultsKey.lastBackupRestoreTimestamp) private var lastBackupRestoreTimestamp: Double?
     @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var bodyWeightEntries: [BodyWeightEntry]
     @State private var isShowingResetConfirmation = false
     @State private var isShowingFileImporter = false
@@ -139,6 +141,8 @@ struct SettingView: View {
 
             workoutRemindersSection
             checkInRemindersSection
+
+            dataSafetySection
 
             Section("Backup & Restore") {
                 if let exportURL {
@@ -411,6 +415,59 @@ struct SettingView: View {
         }
     }
 
+    /// What the user actually risks, stated plainly.
+    ///
+    /// "Local-first" only reassures someone who can see their own exposure: where
+    /// the data lives, whether a copy exists, how old it is, and whether restoring
+    /// one has ever been proven to work on this device. Without sync, that last
+    /// question is the difference between a promise and a guarantee — so it is
+    /// answered honestly, including when the answer is "not yet".
+    private var dataSafetySection: some View {
+        Section {
+            LabeledContent {
+                Text("This iPhone")
+            } label: {
+                Label("Stored", systemImage: AppIcon.lock)
+            }
+            .accessibilityIdentifier("settings-data-safety-storage")
+
+            LabeledContent {
+                Text(relativeBackupDate(lastBackupExportTimestamp))
+            } label: {
+                Label("Last export", systemImage: AppIcon.export)
+            }
+            .accessibilityIdentifier("settings-data-safety-last-export")
+
+            LabeledContent {
+                Text(lastBackupRestoreTimestamp == nil ? "Not yet" : relativeBackupDate(lastBackupRestoreTimestamp))
+            } label: {
+                Label("Restore tested", systemImage: AppIcon.restore)
+            }
+            .accessibilityIdentifier("settings-data-safety-restore-tested")
+
+            LabeledContent {
+                Text(verbatim: "v\(BackupDTO.currentVersion)")
+            } label: {
+                Label("Backup format", systemImage: AppIcon.import)
+            }
+            .accessibilityIdentifier("settings-data-safety-backup-format")
+        } header: {
+            Text("Data Safety")
+        } footer: {
+            if lastBackupExportTimestamp == nil {
+                Text("Your training history lives only on this iPhone. There is no cloud copy, so an export is the only way to survive losing or replacing the device.")
+            } else {
+                Text("Your training history lives only on this iPhone. Anything logged since your last export is not in that copy.")
+            }
+        }
+    }
+
+    private func relativeBackupDate(_ timestamp: Double?) -> String {
+        guard let timestamp else { return String(localized: "Never") }
+        return Date(timeIntervalSince1970: timestamp)
+            .formatted(.dateTime.year().month(.abbreviated).day())
+    }
+
     private func prepareExport() {
         guard isPreparingExport == false else { return }
         isPreparingExport = true
@@ -429,6 +486,10 @@ struct SettingView: View {
                         return fileURL
                     }.value
                     exportURL = fileURL
+                    // Recorded when the file exists, not when the share sheet is
+                    // dismissed: the user may share it anywhere, or nowhere, and
+                    // the fact this section reports is that a backup was produced.
+                    lastBackupExportTimestamp = Date.now.timeIntervalSince1970
                 } catch {
                     showImportError("The backup could not be exported. \(error.localizedDescription)")
                 }
@@ -472,6 +533,11 @@ struct SettingView: View {
             self.unitSystem = UnitSystem(rawValue: preferences.unitSystem) ?? .metric
             self.bodyWeightPromptCadence = preferences.bodyWeightPromptCadence.flatMap(BodyWeightPromptCadence.init(rawValue:)) ?? .off
             self.caffeineBirthdateTimestamp = preferences.birthdateTimestamp
+            // Set after the restore transaction commits, so "restore tested" can
+            // never claim a restore that rolled back. Written locally rather than
+            // carried in the backup: it records that *this* installation has been
+            // proven recoverable, which is the question the user is asking.
+            lastBackupRestoreTimestamp = Date.now.timeIntervalSince1970
             NotificationCenter.default.post(name: .gymDataRestored, object: nil)
         } catch {
             showImportError("Failed to restore backup: \(error.localizedDescription)")

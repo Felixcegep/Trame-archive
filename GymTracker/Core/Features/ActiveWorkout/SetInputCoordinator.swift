@@ -125,6 +125,26 @@ final class SetInputCoordinator {
         return text
     }
 
+    /// Ends the in-progress entry so the display falls back to the stored value.
+    ///
+    /// Call this from every path that changes a set's value by something other
+    /// than the keypad — a stepper, the unit toggle, copying the last set, a
+    /// sheet. Typed text is committed on each keystroke, so it is purely a
+    /// display artifact; leaving it behind makes the pill keep showing the old
+    /// digits while the model moves underneath it, and the next digit typed
+    /// would append to a number the lifter had already stepped away from.
+    func endEntry() {
+        entryText = nil
+    }
+
+    /// Ends the entry only when the change lands on the field being typed into.
+    /// Typed text is shown for the focused field alone, so a write to any other
+    /// field leaves it untouched — that pill already renders the stored value.
+    func endEntry(ifEditing field: SetInputFocus.Field) {
+        guard focusStorage?.field == field else { return }
+        endEntry()
+    }
+
     /// The text a field should display: the in-progress entry while this field
     /// is the one being typed into, and the stored value otherwise.
     func displayText(for input: SetInputFocus, storedValue: String) -> String {

@@ -20,6 +20,7 @@ struct SetInputAccessoryPanel: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.locale) private var locale
     @AppStorage(DefaultsKey.effortMeasure) private var effortMeasure: EffortMeasure = .rir
+    @AppStorage(DefaultsKey.recentSetTypes) private var recentSetTypesRaw: String = ""
     @State private var isShowingPlateCalculator = false
     @State private var isShowingSetDetails = false
     @State private var validationMessage: String?
@@ -64,7 +65,10 @@ struct SetInputAccessoryPanel: View {
     }
 
     private func content(exercise: ExerciseEntry, set: ExerciseSet) -> some View {
-        VStack(spacing: Spacing.m) {
+        // The panel competes with the set list for the same screen. Every block
+        // here is load-bearing, so the height comes out of the gaps between them
+        // and out of the keypad rather than out of any control.
+        VStack(spacing: Spacing.s) {
             contextHeader(exercise: exercise, set: set)
 
             valueRow(exercise: exercise, set: set)
@@ -93,8 +97,8 @@ struct SetInputAccessoryPanel: View {
             }
         }
         .padding(.horizontal, Spacing.l)
-        .padding(.top, Spacing.m)
-        .padding(.bottom, Spacing.m)
+        .padding(.top, Spacing.s)
+        .padding(.bottom, Spacing.s)
         .background(Color.gymCard)
         .clipShape(UnevenRoundedRectangle(
             topLeadingRadius: Radius.card,
@@ -109,7 +113,12 @@ struct SetInputAccessoryPanel: View {
         .shadow(color: Color.gymText.opacity(0.03), radius: 6, y: -2)
         .animation(reduceMotion ? nil : AppMotion.compact, value: coordinator.focus)
         .onChange(of: coordinator.focus) { _, _ in validationMessage = nil }
+        // Both sheets can write the value the panel is displaying, so the typed
+        // text has to be dropped when they close for the same reason a stepper
+        // press drops it. The plate calculator only writes load; Set details can
+        // write any of them.
         .sheet(isPresented: $isShowingPlateCalculator, onDismiss: {
+            coordinator.endEntry(ifEditing: .weight)
             viewModel.persistChanges()
         }) {
             PlateCalculatorView(
@@ -120,6 +129,7 @@ struct SetInputAccessoryPanel: View {
             .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $isShowingSetDetails, onDismiss: {
+            coordinator.endEntry()
             viewModel.persistChanges()
         }) {
             SetDetailSheet(
@@ -254,21 +264,40 @@ struct SetInputAccessoryPanel: View {
 
     // MARK: - Values
 
+    /// Side by side for the usual reps-and-weight pair, stacked only when the
+    /// layout genuinely cannot work.
+    ///
+    /// This deliberately does **not** use `ViewThatFits`. That measures the
+    /// pill's ideal width, so a merely long value — "225.97 lbs" — made the
+    /// whole panel jump to the stacked layout and every control moved. The
+    /// value is already free to shrink; a wide number should cost a point of
+    /// type size, never a change of layout mid-set.
     private func valueRow(exercise: ExerciseEntry, set: ExerciseSet) -> some View {
         let fields = SetInputCoordinator.inputFields(for: exercise.trackingTypeSnapshot)
 
-        return ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: Spacing.m) {
-                ForEach(fields, id: \.self) { field in
-                    valuePill(field: field, exercise: exercise, set: set)
+        return Group {
+            if usesStackedValues(fieldCount: fields.count) {
+                VStack(spacing: Spacing.s) {
+                    ForEach(fields, id: \.self) { field in
+                        valuePill(field: field, exercise: exercise, set: set)
+                    }
                 }
-            }
-            VStack(spacing: Spacing.s) {
-                ForEach(fields, id: \.self) { field in
-                    valuePill(field: field, exercise: exercise, set: set)
+            } else {
+                HStack(alignment: .top, spacing: Spacing.s) {
+                    ForEach(fields, id: \.self) { field in
+                        valuePill(field: field, exercise: exercise, set: set)
+                    }
                 }
             }
         }
+    }
+
+    /// Two columns hold a 44-point stepper on each side of the value, so a third
+    /// field leaves nothing for the number itself. Accessibility text sizes get
+    /// the stacked layout for the reason `Documentation/Accessibility.md` gives:
+    /// at those sizes a vertical layout beats shrinking text.
+    private func usesStackedValues(fieldCount: Int) -> Bool {
+        dynamicTypeSize.isAccessibilitySize || fieldCount > 2
     }
 
     /// Label above, value centered between a symmetric minus/plus pair below —
@@ -318,7 +347,13 @@ struct SetInputAccessoryPanel: View {
                 )
             }
 
-            if isWeight {
+            // Only while weight is the field being typed into. It is a
+            // 44-point row that answers a question — "how much does ± move?" —
+            // which nobody is asking while they are entering reps, and it costs
+            // a set row of the list to keep on screen the rest of the time. The
+            // chosen step still applies to the ± buttons when the field is not
+            // focused; this hides the control, not the behaviour.
+            if isWeight, isActive {
                 if abs(fine - coarse) > 0.001 {
                     weightStepMenu(fine: fine, equipment: coarse, selectedStep: selectedStep, set: set)
                 } else {
@@ -384,6 +419,10 @@ struct SetInputAccessoryPanel: View {
                         .foregroundStyle(Color.gymPrimary)
                         .underline()
                         .lineLimit(1)
+                        // Shrinks with the value beside it. "225.97" and "lbs"
+                        // share one pill, and a fixed-size unit would push the
+                        // number out rather than give way to it.
+                        .minimumScaleFactor(0.6)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.gymPress)
@@ -402,8 +441,10 @@ struct SetInputAccessoryPanel: View {
                     .minimumScaleFactor(0.6)
             }
         }
-        .frame(minHeight: 44)
-        .padding(.horizontal, Spacing.s)
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+        // Tight on purpose: the two 44-point steppers beside it are fixed, so
+        // every point of pill padding comes straight out of the number.
+        .padding(.horizontal, Spacing.xs)
         .background(isActive ? Color.gymPrimarySurface : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
         .overlay {
@@ -503,6 +544,7 @@ struct SetInputAccessoryPanel: View {
 
                 if exercise.exercise.supportsPlateCalculator {
                     chip(title: "Plates", systemImage: AppIcon.plateCalculator, identifier: "panel-chip-plates") {
+                        viewModel.noteSetEntryTool(.plateCalculator)
                         isShowingPlateCalculator = true
                     }
                 }
@@ -510,6 +552,7 @@ struct SetInputAccessoryPanel: View {
                 if viewModel.canCopyValuesForFocusedSet(coordinator.focus) {
                     chip(title: "Last set", systemImage: AppIcon.copy, identifier: "panel-chip-last set") {
                         viewModel.copyValuesForFocusedSet(coordinator.focus)
+                        coordinator.endEntry()
                     }
                 }
 
@@ -523,17 +566,21 @@ struct SetInputAccessoryPanel: View {
         .scrollIndicators(.hidden)
     }
 
+    /// Grouped rather than one flat list of eleven. A menu scrolls, so nothing
+    /// was unreachable before — but mid-set the lifter is scanning, not
+    /// reading, and four common types buried among seven rare ones is the same
+    /// problem the Set details sheet had.
     private func setTypeChip(set: ExerciseSet) -> some View {
         Menu {
-            Picker("Set type", selection: Binding(
-                get: { set.setType },
-                set: {
-                    set.setType = $0
-                    viewModel.persistChanges()
+            let recent = RecentSetTypes.decode(recentSetTypesRaw).filter { $0 != set.setType }
+            if recent.isEmpty == false {
+                Section(String(localized: "Recently used")) {
+                    setTypeOptions(recent, set: set)
                 }
-            )) {
-                ForEach(SetType.allCases, id: \.self) { type in
-                    Label(type.title, systemImage: type.icon).tag(type)
+            }
+            ForEach(SetTypeGroup.allCases, id: \.self) { group in
+                Section(group.title) {
+                    setTypeOptions(group.members, set: set)
                 }
             }
         } label: {
@@ -547,6 +594,27 @@ struct SetInputAccessoryPanel: View {
         .accessibilityLabel("Set type, \(set.setType.title)")
         .accessibilityHint("Change set type")
         .accessibilityIdentifier("panel-set-type")
+    }
+
+    /// Buttons with an explicit checkmark rather than a `Picker`, because a
+    /// picker cannot be split into sections. This is the same idiom the effort
+    /// and weight-step menus in this file already use.
+    @ViewBuilder
+    private func setTypeOptions(_ types: [SetType], set: ExerciseSet) -> some View {
+        ForEach(types, id: \.self) { type in
+            Button {
+                set.setType = type
+                recentSetTypesRaw = RecentSetTypes.recording(type, into: recentSetTypesRaw)
+                viewModel.persistChanges()
+            } label: {
+                if set.setType == type {
+                    Label(type.title, systemImage: AppIcon.checkmark)
+                } else {
+                    Label(type.title, systemImage: type.icon)
+                }
+            }
+            .accessibilityIdentifier("panel-set-type-option-\(type.rawValue)")
+        }
     }
 
     /// Quick effort logging without leaving the keypad: the chip shows the
@@ -589,6 +657,7 @@ struct SetInputAccessoryPanel: View {
             ForEach(0...6, id: \.self) { value in
                 Button {
                     set.recordRIR(value)
+                    viewModel.noteSetEntryTool(.effortChip)
                     viewModel.persistChanges()
                 } label: {
                     if set.rir == value {
@@ -602,6 +671,7 @@ struct SetInputAccessoryPanel: View {
             ForEach(Array(stride(from: 10.0, through: 6.0, by: -0.5)), id: \.self) { value in
                 Button {
                     set.recordRPE(value)
+                    viewModel.noteSetEntryTool(.effortChip)
                     viewModel.persistChanges()
                 } label: {
                     if set.rpe == value {
@@ -740,6 +810,11 @@ struct SetInputAccessoryPanel: View {
         case .calories:
             set.calories = max(0, (set.calories ?? 0) + step)
         }
+        // A stepper press ends the typing session for the field it moved.
+        // Without this the pill keeps rendering the digits typed a moment ago
+        // while the stored value moves underneath it, so the first ± after
+        // typing looks like it did nothing at all.
+        coordinator.endEntry(ifEditing: field)
         validationMessage = nil
         viewModel.persistChanges()
     }
@@ -748,6 +823,9 @@ struct SetInputAccessoryPanel: View {
         let target: WeightType = set.weightType == .kg ? .lbs : .kg
         set.weight = UnitConversion.weight(set.weight, from: set.weightType, to: target)
         set.weightType = target
+        // The number itself changed under the conversion, so typed text is now
+        // describing a value in the previous unit.
+        coordinator.endEntry(ifEditing: .weight)
         viewModel.persistChanges()
     }
 

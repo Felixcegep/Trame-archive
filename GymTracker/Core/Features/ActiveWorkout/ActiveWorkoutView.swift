@@ -764,8 +764,12 @@ struct ActiveWorkoutView: View {
         switch action {
         case .accept:
             viewModel.applyRecommendation(to: exercise)
+            // Rewrites the load of every incomplete set, which can include the
+            // one the panel is showing typed digits for.
+            coordinator.endEntry(ifEditing: .weight)
         case .keepLast:
             viewModel.applyPriorRecommendationLoad(to: exercise)
+            coordinator.endEntry(ifEditing: .weight)
         case .edit:
             expandedExerciseID = exercise.persistentModelID
             if let set = exercise.orderedSets.first(where: { !$0.done }) {

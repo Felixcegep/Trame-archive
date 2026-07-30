@@ -99,9 +99,17 @@ struct SetRowFieldStack: View {
             .frame(minHeight: 44)
             .background(isActive ? Color.gymPrimarySurface : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+            // A locked value keeps no border, because it is not a control. It
+            // previously looked exactly like an editable field and silently did
+            // nothing when tapped — the "dimmed control that is still apparently
+            // enabled" the accessibility pass flags. Dropping the outline is a
+            // shape cue rather than another tint, and it quiets a completed row
+            // by three to five outlines it had no reason to draw.
             .overlay {
-                RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                    .stroke(isActive ? Color.gymPrimary : Color.gymBorder, lineWidth: isActive ? 1.5 : 1)
+                if isCompletedAndLocked == false {
+                    RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                        .stroke(isActive ? Color.gymPrimary : Color.gymBorder, lineWidth: isActive ? 1.5 : 1)
+                }
             }
             .contentShape(Rectangle())
         }
@@ -109,7 +117,7 @@ struct SetRowFieldStack: View {
         .disabled(isFieldDisabled(field))
         .accessibilityLabel(fieldAccessibilityLabel(field))
         .accessibilityValue(accessibilityValue(for: field, shown: shown))
-        .accessibilityHint(isActive ? "Currently editing" : "Opens the keypad for this value")
+        .accessibilityHint(accessibilityHint(field, isActive: isActive))
         .accessibilityAddTraits(isActive ? [.isSelected] : [])
         .accessibilityIdentifier("\(identifierPrefix(field))-field-\(exerciseEntry.exercise.name)-\(index)")
     }
@@ -206,6 +214,21 @@ struct SetRowFieldStack: View {
 
     private func accessibilityValue(for field: SetInputFocus.Field, shown: String) -> String {
         shown.isEmpty ? String(localized: "Not entered") : shown
+    }
+
+    /// A locked field used to promise the keypad it would never open. The hint
+    /// now names the state and the way out of it; the timer case is separate
+    /// because that field unlocks on its own when the timer stops.
+    private func accessibilityHint(_ field: SetInputFocus.Field, isActive: Bool) -> String {
+        if isCompletedAndLocked {
+            return String(localized: "Locked. Use the edit button to change this value.")
+        }
+        if field == .duration && isTimerRunning {
+            return String(localized: "Locked while the timer is running.")
+        }
+        return isActive
+            ? String(localized: "Currently editing")
+            : String(localized: "Opens the keypad for this value")
     }
 
     private func selectField(_ field: SetInputFocus.Field) {

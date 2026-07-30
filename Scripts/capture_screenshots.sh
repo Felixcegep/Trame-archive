@@ -36,6 +36,7 @@ Capture all screenshots (the default) or only selected scene groups.
 
 Scenes:
   overview               Main Today, Train, empty Progress, and Settings screens
+  settings-data-safety   Settings Data Safety section
   pages                  Today, Train, Nutrition, and Settings secondary page states
   mobility               Mobility routine library and active execution
   active                 Active Workout, tools, completed, discard, and review states
@@ -73,7 +74,8 @@ EOF
 tests_for_scene() {
   case "$1" in
     overview) echo "testCaptureOverviewAndLibraryTourScreenshots" ;;
-    pages) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureHomeConflictScreenshot testCaptureTodayCompleteTourScreenshots testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCapturePlanActiveRunScreenshots testCaptureNotificationRescheduleScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsAndBetaFeedbackScreenshots testCaptureBetaFeedbackActiveLoggingScreenshot" ;;
+    settings-data-safety) echo "testCaptureSettingsDataSafetyScreenshot" ;;
+    pages) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureHomeConflictScreenshot testCaptureTodayCompleteTourScreenshots testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCapturePlanActiveRunScreenshots testCaptureNotificationRescheduleScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsAndBetaFeedbackScreenshots testCaptureSettingsDataSafetyScreenshot testCaptureBetaFeedbackActiveLoggingScreenshot" ;;
   mobility) echo "testCaptureTodayCompleteTourScreenshots testCaptureMobilityRoutinePurposeScreenshot testCaptureActiveMobilityScreenshot" ;;
     mobility-assessment) echo "MobilityAssessmentUITests/testCaptureMobilityHubCards MobilityAssessmentUITests/testCaptureAssessmentFlow MobilityAssessmentUITests/testCaptureAssessmentLandingAndHistoryDetail" ;;
     nutrition) echo "testCaptureNutritionTodayScreenshot testCaptureNutritionTargetsEmptyScreenshot testCaptureTodayCompleteTourScreenshots testCaptureRecipeGenerationControlsScreenshot testCaptureRecipeGeneratingScreenshot testCaptureRecipeGeneratedDraftScreenshot testCaptureRecipePartialMatchScreenshot testCaptureRecipeManualFallbackAndCatalogScreenshots" ;;
@@ -103,7 +105,8 @@ tests_for_scene() {
 files_for_scene() {
   case "$1" in
     overview) echo "overview/01_Today.png overview/02_Train.png overview/03_Progress_Empty.png overview/04_Settings.png" ;;
-    pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01h_Daily_Check_In_Weight_Due.png overview/04a_Body_Weight_History.png overview/01f_Today_Reschedule_Workout.png overview/01g_Notification_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png nutrition/20_Nutrition_Today.png overview/02b_Train_Templates.png overview/02c_Train_Plans.png overview/02d_Train_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png overview/04d_Settings_Shortcuts.png overview/04e_Settings_Beta_Feedback.png overview/04f_Settings_Beta_Feedback_Active_Logging.png" ;;
+    settings-data-safety) echo "overview/04g_Settings_Data_Safety.png" ;;
+    pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01h_Daily_Check_In_Weight_Due.png overview/04a_Body_Weight_History.png overview/01f_Today_Reschedule_Workout.png overview/01g_Notification_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png nutrition/20_Nutrition_Today.png overview/02b_Train_Templates.png overview/02c_Train_Plans.png overview/02d_Train_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png overview/04d_Settings_Shortcuts.png overview/04e_Settings_Beta_Feedback.png overview/04f_Settings_Beta_Feedback_Active_Logging.png overview/04g_Settings_Data_Safety.png" ;;
     mobility) echo "mobility/18_Mobility_Routines.png mobility/18b_Mobility_Routine_Purpose.png mobility/19_Active_Mobility.png" ;;
     mobility-assessment) echo "mobility/18e_Mobility_Hub_Card_Empty.png mobility/18f_Mobility_Hub_Card_Recorded.png mobility/18g_Mobility_Hub_Card_InProgress.png mobility-assessment/21_Assessment_Landing_Empty.png mobility-assessment/21a_Assessment_Landing_Recorded.png mobility-assessment/21b_Assessment_Selection.png mobility-assessment/21c_Assessment_Instruction.png mobility-assessment/21d_Assessment_Manual_Entry.png mobility-assessment/21e_Assessment_Confirmation.png mobility-assessment/21f_Assessment_Summary.png mobility-assessment/21g_Assessment_History_Detail.png" ;;
     nutrition) echo "nutrition/20_Nutrition_Today.png nutrition/20a_Caffeine_Quick_Log.png nutrition/20b_Nutrition_Targets_Empty.png nutrition/20c_Recipe_Generation_Controls.png nutrition/20d_Recipe_Generating.png nutrition/20e_Recipe_Generated_Draft.png nutrition/20f_Recipe_Partial_Match.png nutrition/20g_Recipe_Manual_Fallback.png nutrition/20h_Food_Picker.png nutrition/20i_Recipe_Detail.png nutrition/20j_Log_Recipe.png" ;;
@@ -130,7 +133,7 @@ files_for_scene() {
   esac
 }
 
-ALL_SCENES="overview pages mobility mobility-assessment nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review"
+ALL_SCENES="overview pages settings-data-safety mobility mobility-assessment nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 

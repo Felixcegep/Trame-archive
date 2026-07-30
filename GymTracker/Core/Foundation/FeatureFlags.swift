@@ -13,6 +13,22 @@ enum FeatureFlag: String, CaseIterable, Codable, Sendable {
     case advancedExecution
     case betaFeedback
     case recipeGeneration
+    /// The assessment surface inside Mobility. Separate from `mobility` because
+    /// its data model shipped well before its UI, localization, accessibility,
+    /// and screenshots did — and a ready model is not a reason to expose a
+    /// half-finished screen to a tester.
+    case mobilityAssessment
+
+    /// The flag this one cannot be reachable without. Declared per case rather
+    /// than as a lookup table so a new flag has to answer the question.
+    var prerequisite: FeatureFlag? {
+        switch self {
+        case .mobilityAssessment: .mobility
+        case .recipeGeneration: .nutrition
+        case .today, .mobility, .nutrition, .bodyWeight, .dailyCheckIn,
+             .programBuilder, .advancedExecution, .betaFeedback: nil
+        }
+    }
 }
 
 /// The rollout matrix a build was produced for. `internalDevelopment` is the
@@ -23,6 +39,36 @@ enum FeatureFlagBuildChannel: String, CaseIterable, Sendable {
     case internalDevelopment
     case beta
     case release
+}
+
+extension FeatureFlagBuildChannel {
+    /// The Info.plist key an archive uses to declare which matrix it was built
+    /// for. Set it per build configuration (`INFOPLIST_KEY_GTFeatureFlagChannel`).
+    static let infoDictionaryKey = "GTFeatureFlagChannel"
+
+    /// Resolves the matrix a build was produced for.
+    ///
+    /// This exists because `.beta` was previously unreachable: the channel came
+    /// from `#if DEBUG` alone, so every distributed build resolved to `.release`
+    /// and turned on every flag. A staged wave no build can select is not a gate.
+    ///
+    /// A distributed build that declares no channel resolves to `.beta`, not
+    /// `.release`. The asymmetry is deliberate — an unlabelled archive is far more
+    /// likely to be a tester build than general availability, and the expensive
+    /// mistake is exposing an unfinished surface, not withholding a finished one.
+    /// General availability says so explicitly by declaring `release`.
+    ///
+    /// Pure, so the mapping is verifiable without a build or a device. Deliberately
+    /// not inferred from the App Store receipt: that API is deprecated in favour of
+    /// StoreKit's `AppTransaction`, and StoreKit is explicitly deferred from the
+    /// first beta (`FeaturesList.md` §4).
+    static func resolve(infoDictionary: [String: Any]?, isDebugBuild: Bool) -> FeatureFlagBuildChannel {
+        if let raw = infoDictionary?[infoDictionaryKey] as? String,
+           let declared = FeatureFlagBuildChannel(rawValue: raw.trimmingCharacters(in: .whitespaces)) {
+            return declared
+        }
+        return isDebugBuild ? .internalDevelopment : .beta
+    }
 }
 
 /// Read-only capability surface. Views ask this instead of reading
@@ -67,17 +113,47 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
         case .internalDevelopment, .release:
             return Set(FeatureFlag.allCases)
         case .beta:
-            // Beta 1 — Core workout reliability: hide every secondary
-            // domain until its own beta wave begins (RoadMap.md §4).
-            return [.today, .betaFeedback]
+            return currentWave
         }
     }
+
+    /// What a TestFlight tester sees: everything already shipped, minus the two
+    /// surfaces whose UI is unfinished. This is the freeze the product audit
+    /// asks for — hide what is incomplete, not what is merely secondary.
+    ///
+    /// Written as a subtraction so a flag added later is exposed by default and
+    /// has to be argued out of the wave, rather than silently omitted from a
+    /// hand-maintained list.
+    static let currentWave: Set<FeatureFlag> = Set(FeatureFlag.allCases)
+        .subtracting([.mobilityAssessment, .recipeGeneration])
+
+    /// The narrower RoadMap.md §4 "Beta 1 — core workout reliability" wave, kept
+    /// because it is a real staged option and selectable by launch argument. It
+    /// is no longer the default: the live TestFlight build already ships Today,
+    /// Mobility, and Nutrition, so applying this set to it would withdraw
+    /// working features from testers who have them.
+    static let coreReliabilityOnly: Set<FeatureFlag> = [.today, .betaFeedback]
 
     /// Fails a dependent flag closed whenever its prerequisite is disabled,
     /// so an override set can never produce a combination no UI can express
     /// safely (e.g. Nutrition off but a Nutrition-only surface reachable).
+    ///
+    /// Resolved to a fixed point rather than in one pass, so a chain — a flag
+    /// whose prerequisite has a prerequisite — cannot leave a dependant enabled.
     private static func applyingDependencies(to flags: Set<FeatureFlag>) -> Set<FeatureFlag> {
-        flags
+        var resolved = flags
+        var didRemove = true
+        while didRemove {
+            didRemove = false
+            for flag in resolved {
+                guard let prerequisite = flag.prerequisite,
+                      resolved.contains(prerequisite) == false
+                else { continue }
+                resolved.remove(flag)
+                didRemove = true
+            }
+        }
+        return resolved
     }
 
     func isEnabled(_ flag: FeatureFlag) -> Bool { enabled.contains(flag) }
@@ -96,18 +172,26 @@ enum FeatureFlags {
     /// source for Beta 0.
     static func makeCurrent(
         arguments: [String] = CommandLine.arguments,
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        channel: FeatureFlagBuildChannel = .resolve(
+            infoDictionary: Bundle.main.infoDictionary,
+            isDebugBuild: isDebugBuild
+        )
     ) -> FeatureFlagConfiguration {
-        #if DEBUG
-        let defaultChannel: FeatureFlagBuildChannel = .internalDevelopment
-        #else
-        let defaultChannel: FeatureFlagBuildChannel = .release
-        #endif
+        let defaultChannel = channel
 
         if let overrides = overrideFlags(arguments: arguments, environment: environment) {
             return DefaultFeatureFlagConfiguration(buildChannel: defaultChannel, overrides: overrides)
         }
         return DefaultFeatureFlagConfiguration(buildChannel: defaultChannel)
+    }
+
+    static var isDebugBuild: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
     }
 
     private static func overrideFlags(

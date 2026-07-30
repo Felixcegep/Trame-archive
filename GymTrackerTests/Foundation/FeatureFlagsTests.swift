@@ -15,13 +15,66 @@ final class FeatureFlagsTests: XCTestCase {
         XCTAssertEqual(Set(configuration.enabledFlags), Set(FeatureFlag.allCases))
     }
 
-    func testBetaChannelHidesEverySecondaryDomain() {
+    func testUndeclaredDistributedBuildResolvesToBeta() {
+        XCTAssertEqual(
+            FeatureFlagBuildChannel.resolve(infoDictionary: [:], isDebugBuild: false),
+            .beta
+        )
+    }
+
+    func testDeclaredChannelWins() {
+        XCTAssertEqual(
+            FeatureFlagBuildChannel.resolve(
+                infoDictionary: [FeatureFlagBuildChannel.infoDictionaryKey: "release"],
+                isDebugBuild: false
+            ),
+            .release
+        )
+        XCTAssertEqual(
+            FeatureFlagBuildChannel.resolve(
+                infoDictionary: [FeatureFlagBuildChannel.infoDictionaryKey: "beta"],
+                isDebugBuild: true
+            ),
+            .beta
+        )
+        XCTAssertEqual(
+            FeatureFlagBuildChannel.resolve(
+                infoDictionary: [FeatureFlagBuildChannel.infoDictionaryKey: "unknown"],
+                isDebugBuild: false
+            ),
+            .beta
+        )
+    }
+
+    func testDebugBuildResolvesToInternalDevelopment() {
+        XCTAssertEqual(
+            FeatureFlagBuildChannel.resolve(infoDictionary: nil, isDebugBuild: true),
+            .internalDevelopment
+        )
+    }
+
+    func testDependentFlagFailsClosed() {
+        let assessmentOnly = DefaultFeatureFlagConfiguration(
+            buildChannel: .release,
+            overrides: [.mobilityAssessment]
+        )
+        XCTAssertFalse(assessmentOnly.isEnabled(.mobilityAssessment))
+
+        let generationOnly = DefaultFeatureFlagConfiguration(
+            buildChannel: .release,
+            overrides: [.recipeGeneration]
+        )
+        XCTAssertFalse(generationOnly.isEnabled(.recipeGeneration))
+    }
+
+    func testCurrentWaveExcludesUnfinishedSurfacesOnly() {
         let configuration = DefaultFeatureFlagConfiguration(buildChannel: .beta)
-        XCTAssertTrue(configuration.isEnabled(.today))
-        XCTAssertTrue(configuration.isEnabled(.betaFeedback))
-        for hidden: FeatureFlag in [.mobility, .nutrition, .bodyWeight, .dailyCheckIn, .programBuilder, .advancedExecution] {
-            XCTAssertFalse(configuration.isEnabled(hidden), "\(hidden) must stay hidden in the Beta 1 matrix.")
-        }
+        XCTAssertEqual(
+            Set(configuration.enabledFlags),
+            Set(FeatureFlag.allCases).subtracting([.mobilityAssessment, .recipeGeneration])
+        )
+        XCTAssertFalse(configuration.isEnabled(.mobilityAssessment))
+        XCTAssertFalse(configuration.isEnabled(.recipeGeneration))
     }
 
     func testCaffeineQuickLoggingRequiresNutrition() {

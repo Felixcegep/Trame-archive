@@ -1,136 +1,274 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Measure your mobility" : {
+    "Data Safety" : {
+      "comment" : "A settings section header for where data lives and whether it is backed up.",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mesurez votre mobilité"
+            "value" : "Sécurité des données"
           }
         }
       }
     },
-    "Get started" : {
+    "Stored" : {
+      "comment" : "A label for where the app's data physically lives.",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Commencer"
+            "value" : "Stockage"
           }
         }
       }
     },
-    "Open assessment" : {
+    "This iPhone" : {
+      "comment" : "The value for where data is stored: on the device itself.",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ouvrir l’évaluation"
+            "value" : "Cet iPhone"
           }
         }
       }
     },
-    "Mobility routines" : {
+    "Last export" : {
+      "comment" : "A label for the date of the most recent backup export.",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Routines de mobilité"
+            "value" : "Dernière exportation"
           }
         }
       }
     },
-    "Mobility assessments" : {
+    "Restore tested" : {
+      "comment" : "A label for whether the user has ever restored a backup on this device.",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Évaluations de mobilité"
+            "value" : "Restauration testée"
           }
         }
       }
     },
-    "Movements listed here are the ones your recent sessions recorded." : {
+    "Not yet" : {
+      "comment" : "The value shown when the user has never restored a backup.",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les mouvements listés ici sont ceux qu’ont enregistrés vos séances récentes."
+            "value" : "Pas encore"
           }
         }
       }
     },
-    "Routine history records the work you performed. Assessment history records what you observed." : {
+    "Never" : {
+      "comment" : "The value shown when no backup has ever been exported.",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’historique des routines enregistre le travail que vous avez effectué. L’historique des évaluations enregistre ce que vous avez observé."
+            "value" : "Jamais"
           }
         }
       }
     },
-    "mobility.assessment.hub.dated" : {
+    "Backup format" : {
+      "comment" : "A label for the portable backup format version.",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · %2$@"
-          }
-        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ · %2$@"
+            "value" : "Format de sauvegarde"
           }
         }
       }
     },
-    "mobility.assessment.hub.involves" : {
+    "Your training history lives only on this iPhone. There is no cloud copy, so an export is the only way to survive losing or replacing the device." : {
+      "comment" : "A Data Safety footer shown when no backup has ever been exported.",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%1$lld assessment](inflect: true), each entered by hand. You need wall and floor space, and you can skip any of them."
-          }
-        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "^[%1$lld évaluation](inflect: true), chacune saisie à la main. Il vous faut un mur et de l’espace au sol, et vous pouvez en passer n’importe laquelle."
+            "value" : "Votre historique d'entraînement n'existe que sur cet iPhone. Il n'y a aucune copie infonuagique : une exportation est le seul moyen de survivre à la perte ou au remplacement de l'appareil."
           }
         }
       }
     },
-    "mobility.hub.history.routines" : {
+    "Your training history lives only on this iPhone. Anything logged since your last export is not in that copy." : {
+      "comment" : "A Data Safety footer shown once a backup has been exported.",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%1$lld completed session](inflect: true)"
-          }
-        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "^[%1$lld séance terminée](inflect: true)"
+            "value" : "Votre historique d'entraînement n'existe que sur cet iPhone. Tout ce qui a été enregistré depuis votre dernière exportation ne figure pas dans cette copie."
           }
         }
       }
     },
-    "mobility.hub.history.assessments" : {
+    "Reps only" : {
+      "comment" : "A set-entry timing scenario: only repetitions were typed.",
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%1$lld recorded assessment](inflect: true)"
-          }
-        },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "^[%1$lld évaluation enregistrée](inflect: true)"
+            "value" : "Répétitions seulement"
+          }
+        }
+      }
+    },
+    "Weighted" : {
+      "comment" : "A set-entry timing scenario: a load was typed.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avec charge"
+          }
+        }
+      }
+    },
+    "Corrected a value" : {
+      "comment" : "A set-entry timing scenario: an existing value was overwritten.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valeur corrigée"
+          }
+        }
+      }
+    },
+    "Accepted previous values" : {
+      "comment" : "A set-entry timing scenario: prefilled values were kept unchanged.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valeurs précédentes acceptées"
+          }
+        }
+      }
+    },
+    "Copied last set" : {
+      "comment" : "A set-entry timing scenario: the copy-last-set action was used.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Série précédente copiée"
+          }
+        }
+      }
+    },
+    "Used plate calculator" : {
+      "comment" : "A set-entry timing scenario: the plate calculator was opened.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculateur de disques utilisé"
+          }
+        }
+      }
+    },
+    "Logged effort" : {
+      "comment" : "A set-entry timing scenario: RIR or RPE was recorded from the panel.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort enregistré"
+          }
+        }
+      }
+    },
+    "Routine history records the work you performed." : {
+      "comment" : "A mobility hub history footer shown when assessments are not available.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'historique des routines enregistre le travail que vous avez effectué."
+          }
+        }
+      }
+    },
+    "Current set" : {
+      "comment" : "An accessibility value marking the set the lifter is currently on.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Série en cours"
+          }
+        }
+      }
+    },
+    "Editing set %lld" : {
+      "comment" : "An accessibility label and announcement for a completed set being edited. The argument is the set index.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modification de la série %lld"
+          }
+        }
+      }
+    },
+    "Locked. Use the edit button to change this value." : {
+      "comment" : "A hint on a completed set's value, which cannot be edited until the set is unlocked.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verrouillé. Utilisez le bouton de modification pour changer cette valeur."
+          }
+        }
+      }
+    },
+    "Locked while the timer is running." : {
+      "comment" : "A hint on a duration value that the running timer owns.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verrouillé pendant que le minuteur tourne."
+          }
+        }
+      }
+    },
+    "Common" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Courant"
+          }
+        }
+      }
+    },
+    "Special" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spécial"
+          }
+        }
+      }
+    },
+    "Recently used" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisés récemment"
           }
         }
       }
@@ -4212,7 +4350,15 @@
     },
     "Currently editing" : {
       "comment" : "A hint that describes the current focus in a set input accessory panel.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En cours de modification"
+          }
+        }
+      }
     },
     "Custom Exercises" : {
       "comment" : "A label for the number of custom exercises in a backup.",
@@ -5720,6 +5866,16 @@
         }
       }
     },
+    "Get started" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencer"
+          }
+        }
+      }
+    },
     "Give this session a name, then save it to your history." : {
       "comment" : "A description of the workout name field.",
       "isCommentAutoGenerated" : true,
@@ -6955,6 +7111,16 @@
       "comment" : "A label for the mean velocity of a set.",
       "isCommentAutoGenerated" : true
     },
+    "Measure your mobility" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesurez votre mobilité"
+          }
+        }
+      }
+    },
     "Measured with device motion" : {
       "localizations" : {
         "fr" : {
@@ -7140,6 +7306,16 @@
         }
       }
     },
+    "Mobility assessments" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Évaluations de mobilité"
+          }
+        }
+      }
+    },
     "Mobility complete" : {
       "comment" : "A title for a completed mobility session.",
       "isCommentAutoGenerated" : true
@@ -7155,6 +7331,16 @@
     "Mobility routine" : {
       "comment" : "The type of entity used for mobility routines.",
       "isCommentAutoGenerated" : true
+    },
+    "Mobility routines" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Routines de mobilité"
+          }
+        }
+      }
     },
     "Mobility Routines" : {
       "comment" : "A label for the number of mobility routines in the backup.",
@@ -7530,6 +7716,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ · Arrêtée en cours"
+          }
+        }
+      }
+    },
+    "mobility.assessment.hub.dated" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "mobility.assessment.hub.involves" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld assessment](inflect: true), each entered by hand. You need wall and floor space, and you can skip any of them."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld évaluation](inflect: true), chacune saisie à la main. Il vous faut un mur et de l’espace au sol, et vous pouvez en passer n’importe laquelle."
           }
         }
       }
@@ -8624,6 +8842,38 @@
         }
       }
     },
+    "mobility.hub.history.assessments" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld recorded assessment](inflect: true)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld évaluation enregistrée](inflect: true)"
+          }
+        }
+      }
+    },
+    "mobility.hub.history.routines" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld completed session](inflect: true)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld séance terminée](inflect: true)"
+          }
+        }
+      }
+    },
     "Mode" : {
 
     },
@@ -8662,7 +8912,15 @@
     },
     "More" : {
       "comment" : "A button that displays a menu.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus"
+          }
+        }
+      }
     },
     "More options" : {
       "localizations" : {
@@ -8786,6 +9044,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mouvements"
+          }
+        }
+      }
+    },
+    "Movements listed here are the ones your recent sessions recorded." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les mouvements listés ici sont ceux qu’ont enregistrés vos séances récentes."
           }
         }
       }
@@ -9971,6 +10239,16 @@
       "comment" : "A description of the behavior of the save button in the workout review.",
       "isCommentAutoGenerated" : true
     },
+    "Open assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir l’évaluation"
+          }
+        }
+      }
+    },
     "Open GymTracker to review and finish" : {
       "comment" : "A label describing the action of opening the app to review and finish the workout.",
       "isCommentAutoGenerated" : true
@@ -10032,7 +10310,15 @@
     },
     "Opens the keypad for this value" : {
       "comment" : "A hint that describes the purpose of a button.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre le pavé numérique pour cette valeur"
+          }
+        }
+      }
     },
     "Opens the plan." : {
       "comment" : "A hint that describes an action.",
@@ -11919,10 +12205,6 @@
       "comment" : "A section of a nutrition history view that shows the user's most recent meals.",
       "isCommentAutoGenerated" : true
     },
-    "Recent movements" : {
-      "comment" : "A section of a Mobility library view that shows a list of recently completed mobility routines.",
-      "isCommentAutoGenerated" : true
-    },
     "Recipe" : {
       "comment" : "A section for the recipe information.",
       "isCommentAutoGenerated" : true
@@ -12108,6 +12390,7 @@
       }
     },
     "Record what you observe under conditions you choose." : {
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -13153,6 +13436,16 @@
       "comment" : "A section of a mobility routine editor that displays the routine's name and notes.",
       "isCommentAutoGenerated" : true
     },
+    "Routine history records the work you performed. Assessment history records what you observed." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’historique des routines enregistre le travail que vous avez effectué. L’historique des évaluations enregistre ce que vous avez observé."
+          }
+        }
+      }
+    },
     "Routines" : {
       "comment" : "A section title in the Mobility Library.",
       "isCommentAutoGenerated" : true,
@@ -13831,7 +14124,15 @@
     },
     "Set type" : {
       "comment" : "A label for a menu that lets the user select the type of a set.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type de série"
+          }
+        }
+      }
     },
     "Set type, %@" : {
       "comment" : "A label that reads \"Set type, [set type]\".",

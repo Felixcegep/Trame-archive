@@ -158,6 +158,20 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("overview/04e_Settings_Beta_Feedback")
     }
 
+    func testCaptureSettingsDataSafetyScreenshot() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
+        app.launch()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 45))
+        let dataSafety = app.descendants(matching: .any)["settings-data-safety-last-export"]
+        for _ in 0..<6 where dataSafety.exists == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(dataSafety.exists)
+        app.swipeUp()
+        saveScreenshot("overview/04g_Settings_Data_Safety")
+    }
+
     func testCaptureBetaFeedbackActiveLoggingScreenshot() {
         let app = launchFixture("active-in-progress")
         enterValidValues(for: "Bench Press", set: 0, in: app)

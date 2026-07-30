@@ -472,6 +472,55 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(weightField.isEnabled)
     }
 
+    func testCurrentSetExposesCurrentAccessibilityValue() {
+        let app = launchFixture("active-completed-set")
+
+        let completed = app.buttons["complete-set-Bench Press-0"]
+        let current = app.buttons["complete-set-Bench Press-1"]
+        XCTAssertTrue(current.waitForExistence(timeout: 5))
+        XCTAssertEqual(current.value as? String, "Current set")
+        XCTAssertNotEqual(completed.value as? String, "Current set")
+    }
+
+    func testEditingCompletedSetShowsPersistentEditingIndicator() {
+        let app = launchFixture("active-completed-set")
+
+        tapButton("edit-completed-set-Bench Press-0", in: app)
+        XCTAssertTrue(app.images["editing-set-Bench Press-0"].waitForExistence(timeout: 5))
+    }
+
+    func testDataSafetySectionReportsExportState() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
+        app.launch()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 45))
+        let lastExport = app.descendants(matching: .any)["settings-data-safety-last-export"]
+        let restoreTested = app.descendants(matching: .any)["settings-data-safety-restore-tested"]
+
+        for _ in 0..<6 where lastExport.exists == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(lastExport.exists)
+        XCTAssertTrue(lastExport.label.contains("Never") || (lastExport.value as? String) == "Never")
+        XCTAssertTrue(
+            restoreTested.label.contains("Not yet") || (restoreTested.value as? String) == "Not yet"
+        )
+
+        let exportButton = app.buttons["settings-export-data"]
+        for _ in 0..<4 where exportButton.exists == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(exportButton.exists)
+        exportButton.tap()
+        XCTAssertTrue(
+            app.buttons["Share Export"].waitForExistence(timeout: 10),
+            "A produced backup should expose the share action."
+        )
+        let updatedLastExport = app.descendants(matching: .any)["settings-data-safety-last-export"]
+        XCTAssertFalse(updatedLastExport.label.contains("Never"))
+        XCTAssertNotEqual(updatedLastExport.value as? String, "Never")
+    }
+
     func testRejectsEmptyWorkoutSave() {
         let app = launchFreshApp()
         startEmptyWorkout(in: app)

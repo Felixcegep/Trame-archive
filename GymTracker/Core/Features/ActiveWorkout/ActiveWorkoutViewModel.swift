@@ -731,7 +731,15 @@ class ActiveWorkoutViewModel {
             return
         }
 
+        activeLoggingMetrics?.toolUsed(.copyLastSet)
         copyPreviousSetValue(exerciseEntry: exercise, currentSetIndex: setIndex)
+    }
+
+    /// Forwarded so a surface that owns a mid-entry tool can report reaching for
+    /// it without holding the recorder itself. The recorder ignores the report
+    /// when no entry is in progress, so a call site never has to check.
+    func noteSetEntryTool(_ tool: ActiveLoggingMetricsRecorder.SetEntryTool) {
+        activeLoggingMetrics?.toolUsed(tool)
     }
 
     func canCopyValuesForFocusedSet(_ focus: SetInputFocus?) -> Bool {

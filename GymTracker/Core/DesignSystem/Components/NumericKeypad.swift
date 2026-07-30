@@ -42,7 +42,11 @@ struct NumericKeypad: View {
     ]
 
     var body: some View {
-        VStack(spacing: Spacing.s) {
+        // Rows are tighter vertically than horizontally on purpose. Four rows
+        // of keys are the tallest block on the screen, and vertical gaps buy
+        // far less thumb accuracy than the key height itself does — a mistap
+        // goes sideways, onto the neighbouring digit, not up or down.
+        VStack(spacing: Spacing.xs) {
             ForEach(rows, id: \.self) { row in
                 HStack(spacing: Spacing.s) {
                     ForEach(row, id: \.self) { key in
@@ -60,14 +64,14 @@ struct NumericKeypad: View {
                     // to whatever height the row is proposed — stretching the
                     // whole keypad and pushing 0/backspace toward the bottom of
                     // the screen instead of sitting directly under row three.
-                    Color.clear.frame(maxWidth: .infinity, maxHeight: 48)
+                    Color.clear.frame(maxWidth: .infinity, maxHeight: ComponentSize.keypadKeyHeight)
                 }
                 keyButton(.digit(0))
                 keyButton(.backspace)
             }
         }
         .padding(.horizontal, Spacing.s)
-        .padding(.vertical, Spacing.m)
+        .padding(.vertical, Spacing.s)
         .frame(maxWidth: .infinity)
         .background(Color.gymBackground)
         // Digits are already oversized, so growth past this point only steals
@@ -83,7 +87,7 @@ struct NumericKeypad: View {
         } label: {
             keyLabel(key)
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
+                .frame(height: ComponentSize.keypadKeyHeight)
                 .background(keyBackground(for: key))
                 .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
                 .overlay {

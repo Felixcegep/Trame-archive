@@ -86,6 +86,8 @@ extension SetType {
 struct SetDetailSheet: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(DefaultsKey.effortMeasure) private var effortMeasure: EffortMeasure = .rir
+    @AppStorage(DefaultsKey.recentSetTypes) private var recentSetTypesRaw: String = ""
+    @State private var isShowingMoreSetTypes = false
     let index: Int
     @Bindable var exerciseSet: ExerciseSet
     let exerciseName: String
@@ -119,6 +121,9 @@ struct SetDetailSheet: View {
         .onAppear {
             isRecordingVelocity = hasVelocityDataOrPrescription
             isShowingAdvancedOptions = hasRecordedOrPrescribedAdvancedData
+            // A disclosure must never hide the current answer: if this set is
+            // already one of the rarer types, the group opens showing it.
+            isShowingMoreSetTypes = exerciseSet.setType.group == .more
         }
         .confirmationDialog(
             "Switch to \(pendingEffortMeasure == .rpe ? "RPE" : "RIR")?",
@@ -339,20 +344,84 @@ struct SetDetailSheet: View {
         }
     }
 
+    /// Eleven types shown at once made a routine mid-set choice into a scanning
+    /// problem. They are grouped by how often a session actually needs them,
+    /// and the rarest four sit behind a disclosure — never hidden when one of
+    /// them is the current selection.
     private var setTypeSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
+        VStack(alignment: .leading, spacing: Spacing.m) {
             eyebrow("Set type")
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 104), spacing: Spacing.s)],
-                alignment: .leading,
-                spacing: Spacing.s
-            ) {
-                ForEach(SetType.allCases, id: \.self) { type in
-                    setTypeChip(type)
-                }
+            if recentSetTypes.isEmpty == false {
+                setTypeGroup(
+                    title: String(localized: "Recently used"),
+                    types: recentSetTypes,
+                    identifier: "recent"
+                )
+            }
+
+            setTypeGroup(
+                title: SetTypeGroup.common.title,
+                types: SetTypeGroup.common.members,
+                identifier: SetTypeGroup.common.rawValue
+            )
+
+            setTypeGroup(
+                title: SetTypeGroup.special.title,
+                types: SetTypeGroup.special.members,
+                identifier: SetTypeGroup.special.rawValue
+            )
+
+            DisclosureGroup(isExpanded: $isShowingMoreSetTypes) {
+                setTypeGrid(SetTypeGroup.more.members)
+                    .padding(.top, Spacing.s)
+            } label: {
+                Text(SetTypeGroup.more.title)
+                    .font(AppFont.caption2Bold)
+                    .textCase(.uppercase)
+                    .tracking(0.6)
+                    .foregroundStyle(Color.gymSubtleText)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .tint(Color.gymPrimary)
+            .accessibilityIdentifier("set-type-more-toggle")
+        }
+    }
+
+    private func setTypeGroup(title: String, types: [SetType], identifier: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text(title)
+                .font(AppFont.caption2Bold)
+                .textCase(.uppercase)
+                .tracking(0.6)
+                .foregroundStyle(Color.gymSubtleText)
+                .accessibilityIdentifier("set-type-group-\(identifier)")
+            setTypeGrid(types, isShortcut: identifier == "recent")
+        }
+    }
+
+    /// `isShortcut` keeps the Recently used row's chips addressable separately.
+    /// A type shown there is deliberately also present in its own group, and two
+    /// live elements answering to one identifier is ambiguous for VoiceOver and
+    /// unusable from a UI test.
+    private func setTypeGrid(_ types: [SetType], isShortcut: Bool = false) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 104), spacing: Spacing.s)],
+            alignment: .leading,
+            spacing: Spacing.s
+        ) {
+            ForEach(types, id: \.self) { type in
+                setTypeChip(type, isShortcut: isShortcut)
             }
         }
+    }
+
+    private var recentSetTypes: [SetType] {
+        // The current selection is already visible in its own group, so it
+        // never also occupies a shortcut slot.
+        RecentSetTypes.decode(recentSetTypesRaw).filter { $0 != exerciseSet.setType }
     }
 
     private var setMethodSection: some View {
@@ -554,7 +623,7 @@ struct SetDetailSheet: View {
         }
     }
 
-    private func setTypeChip(_ type: SetType) -> some View {
+    private func setTypeChip(_ type: SetType, isShortcut: Bool = false) -> some View {
         let isSelected = exerciseSet.setType == type
         let accent = type.accentColor ?? Color.gymPrimary
 
@@ -575,11 +644,14 @@ struct SetDetailSheet: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityIdentifier("set-type-option-\(type.rawValue)")
+        .accessibilityIdentifier(
+            isShortcut ? "set-type-recent-\(type.rawValue)" : "set-type-option-\(type.rawValue)"
+        )
     }
 
     private func selectSetType(_ type: SetType) {
         exerciseSet.setType = type
+        recentSetTypesRaw = RecentSetTypes.recording(type, into: recentSetTypesRaw)
         if type == .dropSet {
             exerciseSet.setMethod = .dropSet
             exerciseSet.ensureSegmentsForMethod()

@@ -12,12 +12,30 @@ struct SetRowStatusControl: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             if isEditingCompletedSet {
-                Color.clear.frame(width: 44, height: 44)
+                editingIndicator
             } else {
                 doneButton
             }
             setTypeAccessory
         }
+    }
+
+    /// Editing a completed set used to leave this slot empty, so the state was
+    /// carried by the row's tinted fill and border plus a single announcement
+    /// posted at the moment editing began — nothing a lifter who looked away
+    /// and back, or who cannot separate those tints, can read. The slot that
+    /// holds the checkmark holds a pencil instead.
+    private var editingIndicator: some View {
+        Image(systemName: AppIcon.edit)
+            .font(AppFont.subheadlineSemiboldMonospaced)
+            .foregroundStyle(Color.gymPrimary)
+            .frame(width: 36, height: 36)
+            .overlay {
+                Circle().stroke(Color.gymPrimary, lineWidth: 1.5)
+            }
+            .frame(width: 44, height: 44)
+            .accessibilityLabel(String(localized: "Editing set \(index + 1)"))
+            .accessibilityIdentifier("editing-set-\(exerciseEntry.exercise.name)-\(index)")
     }
 
     private var doneButton: some View {
@@ -30,24 +48,53 @@ struct SetRowStatusControl: View {
                 }
             }
             .font(AppFont.subheadlineSemiboldMonospaced)
-            .foregroundStyle(exerciseSet.done ? .white : (isCurrentSet ? Color.gymPrimary : Color.gymSubduedText))
+            .foregroundStyle(badgeForeground)
             .frame(width: 36, height: 36)
-            .background(exerciseSet.done ? Color.gymSecondary : Color.clear)
+            .background(badgeFill)
             .clipShape(Circle())
             .overlay {
-                Circle()
-                    .stroke(
-                        exerciseSet.done ? Color.clear : (isCurrentSet ? Color.gymPrimary : Color.gymBorder),
-                        lineWidth: isCurrentSet && !exerciseSet.done ? 1.5 : 1
-                    )
+                Circle().stroke(badgeStroke, lineWidth: badgeStrokeWidth)
             }
         }
         .buttonStyle(.borderless)
         .frame(width: 44, height: 44)
         .contentTransition(.symbolEffect(.replace))
         .accessibilityLabel(completionAccessibilityLabel)
+        // Which set am I on is the most important question on this screen, and it
+        // was answerable only by sight: the label read "Complete set 3" whether
+        // or not that set was the current one. VoiceOver now gets in words what
+        // the pointer and the tinted fill say visually.
+        .accessibilityValue(isMarkedCurrent ? Text("Current set") : Text(verbatim: ""))
         .accessibilityHint(exerciseSet.done ? "Opens confirmation before marking this set incomplete." : "Marks this set complete.")
         .accessibilityIdentifier("complete-set-\(exerciseEntry.exercise.name)-\(index)")
+    }
+
+    /// The row-level marker in `SetRowView` uses the same three conditions, so
+    /// the pointer and this value can never disagree about which set is current.
+    private var isMarkedCurrent: Bool {
+        isCurrentSet && !exerciseSet.done && !isEditingCompletedSet
+    }
+
+    // The badge's four appearance values are named rather than written as
+    // nested ternaries inside the modifiers. Three states share one control, and
+    // inline conditionals made the whole chain expensive to type-check.
+
+    private var badgeForeground: Color {
+        if exerciseSet.done { return .white }
+        return isCurrentSet ? Color.gymPrimary : Color.gymSubduedText
+    }
+
+    private var badgeFill: Color {
+        exerciseSet.done ? Color.gymSecondary : Color.clear
+    }
+
+    private var badgeStroke: Color {
+        if exerciseSet.done { return .clear }
+        return isCurrentSet ? Color.gymPrimary : Color.gymBorder
+    }
+
+    private var badgeStrokeWidth: CGFloat {
+        isCurrentSet && !exerciseSet.done ? 1.5 : 1
     }
 
     private var completionAccessibilityLabel: String {
