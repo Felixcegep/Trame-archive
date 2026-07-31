@@ -97,7 +97,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         selectTab(.library, in: app)
         saveScreenshot("overview/02_Train")
 
-        let libraryHeader = app.staticTexts["LIBRARY"].firstMatch
+        let libraryHeader = app.staticTexts["BROWSE"].firstMatch
         XCTAssertTrue(libraryHeader.waitForExistence(timeout: 5))
         tapButton("workouts-browser", in: app)
         saveScreenshot("overview/02b_Train_Templates")
@@ -144,7 +144,12 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         app.launch()
 
         let shortcutsLink = app.descendants(matching: .any)["settings-shortcuts-link"]
-        XCTAssertTrue(shortcutsLink.waitForExistence(timeout: 10))
+        // Settings is a lazy Form; the link is below the initial viewport and
+        // is not materialized until the form has been scrolled toward it.
+        for _ in 0..<8 where !shortcutsLink.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(shortcutsLink.waitForExistence(timeout: 45))
         scrollToElement(shortcutsLink, in: app)
         saveScreenshot("overview/04d_Settings_Shortcuts")
 

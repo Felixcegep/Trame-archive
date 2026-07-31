@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-struct ExerciceEntryCard: View {
+struct ExerciseEntryCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var exerciseEntry: ExerciseEntry
     let executionBlock: WorkoutExecutionBlock?
@@ -20,8 +20,20 @@ struct ExerciceEntryCard: View {
     /// to. The root owns that selection so no second card can appear.
     let recommendationState: RecommendationPresentationState?
     let onRecommendationAction: (RecommendationAction) -> Void
+    /// Moves this exercise one position. `nil` at the ends of the list.
+    ///
+    /// Reordering was drag-only, via `onDrag`/`onDrop`, which VoiceOver and
+    /// Switch Control cannot reach at all — and which nothing on the card
+    /// advertised, so most sighted users never found it either. Every other
+    /// reorderable list in the app uses `List.onMove`, which gets an accessible
+    /// path for free; Active Workout was the one that did not, and it is the
+    /// one used mid-session when a rack is occupied.
+    let onMoveUp: (() -> Void)?
+    let onMoveDown: (() -> Void)?
 
     @State private var horizontalOffset: CGFloat = 0
+    @State private var hasCrossedSwipeThreshold = false
+    @State private var isShowingRemoveConfirmation = false
 
     private let swipeTriggerDistance: CGFloat = 70
 
@@ -34,6 +46,42 @@ struct ExerciceEntryCard: View {
                 .gesture(swipeGesture)
         }
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        // Swiping is unreachable under VoiceOver and Switch Control, so the
+        // same capability is exposed as a named action. It resolves the set
+        // through the identical selector the gesture uses, so the two paths
+        // can never disagree about which set is next.
+        .accessibilityAction(named: Text("Complete current set")) {
+            completeCurrentSet()
+        }
+        .accessibilityActions {
+            if let onMoveUp {
+                Button("Move \(exerciseEntry.exercise.name) up", action: onMoveUp)
+            }
+            if let onMoveDown {
+                Button("Move \(exerciseEntry.exercise.name) down", action: onMoveDown)
+            }
+        }
+        // Crossing the trigger distance is a snap point: the lifter learns
+        // where the gesture commits before releasing, which is the difference
+        // between a deliberate swipe and an accidental one.
+        .gymFeedback(.swipeArmed, trigger: hasCrossedSwipeThreshold) { _, crossed in
+            crossed
+        }
+        .confirmationDialog(
+            "Remove \(exerciseEntry.exercise.name)?",
+            isPresented: $isShowingRemoveConfirmation,
+            titleVisibility: .visible
+        ) {
+            // Names the consequence rather than repeating the menu item's
+            // "Remove exercise", which would put two identically-labelled
+            // controls in one transition.
+            Button("Remove and delete sets", role: .destructive) {
+                viewModel.removeExercise(exerciseEntry)
+            }
+            .accessibilityIdentifier("confirm-remove-exercise-\(exerciseEntry.exercise.name)")
+        } message: {
+            Text("^[\(completedSetCount) completed set](inflect: true) will be deleted and will not appear in History.")
+        }
     }
 
     private var activeExerciseCard: some View {
@@ -153,10 +201,22 @@ struct ExerciceEntryCard: View {
                 HStack(spacing: Spacing.s) {
                     Text("\(completedSetCount)/\(exerciseEntry.sets.count) sets")
                     Text("•")
-                    TimelineView(.periodic(from: .now, by: 1)) { context in
-                        Text(exerciseDurationText(at: context.date))
+                    // Only the exercise being worked ticks. Every card — expanded
+                    // or collapsed — used to host its own 1Hz TimelineView, so an
+                    // eight-exercise session invalidated eight subtrees a second
+                    // while the lifter typed, and rewrote eight accessibility
+                    // labels with it. A finished or waiting exercise's duration
+                    // is not changing, so it is rendered once.
+                    if isCurrentExercise {
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            Text(exerciseDurationText(at: context.date))
+                                .monospacedDigit()
+                        }
+                        .accessibilityLabel("Exercise time")
+                    } else {
+                        Text(exerciseDurationText(at: .now))
                             .monospacedDigit()
-                            .accessibilityLabel("Exercise time \(exerciseDurationText(at: context.date))")
+                            .accessibilityLabel("Exercise time")
                     }
                 }
                 .font(AppFont.caption)
@@ -167,6 +227,41 @@ struct ExerciceEntryCard: View {
             Spacer(minLength: 0)
 
             Menu {
+                // The same capability as the left swipe, given a name. The
+                // gesture is undiscoverable on its own and unreachable with
+                // assistive technology.
+                if canCompleteCurrentSet {
+                    Button {
+                        completeCurrentSet()
+                    } label: {
+                        Label("Complete current set", systemImage: AppIcon.checkmark)
+                    }
+                    .accessibilityIdentifier("complete-current-set-\(exerciseEntry.exercise.name)")
+                }
+
+                // Named alternatives to the drag gesture, so reordering is both
+                // discoverable and reachable without one.
+                if onMoveUp != nil || onMoveDown != nil {
+                    Section {
+                        if let onMoveUp {
+                            Button {
+                                onMoveUp()
+                            } label: {
+                                Label("Move up", systemImage: AppIcon.chevronUp)
+                            }
+                            .accessibilityIdentifier("move-exercise-up-\(exerciseEntry.exercise.name)")
+                        }
+                        if let onMoveDown {
+                            Button {
+                                onMoveDown()
+                            } label: {
+                                Label("Move down", systemImage: AppIcon.chevronDown)
+                            }
+                            .accessibilityIdentifier("move-exercise-down-\(exerciseEntry.exercise.name)")
+                        }
+                    }
+                }
+
                 if completedSetCount == 0 {
                     Button {
                         onSwapRequested()
@@ -191,8 +286,16 @@ struct ExerciceEntryCard: View {
                     .accessibilityIdentifier("remove-from-superset-\(exerciseEntry.exercise.name)")
                 }
 
+                // Removing an untouched exercise loses nothing and stays
+                // immediate. Removing one that has been performed destroys
+                // logged sets, so it has to state what it is destroying —
+                // the same standard the discard-workout dialog already meets.
                 Button(role: .destructive) {
-                    viewModel.removeExercise(exerciseEntry)
+                    if completedSetCount > 0 {
+                        isShowingRemoveConfirmation = true
+                    } else {
+                        viewModel.removeExercise(exerciseEntry)
+                    }
                 } label: {
                     Label("Remove exercise", systemImage: AppIcon.trash)
                 }
@@ -204,6 +307,14 @@ struct ExerciceEntryCard: View {
                     .frame(width: 30, height: 30)
                     .background(Color.gymText.opacity(0.06))
                     .clipShape(Circle())
+                    // The visual chip stays 30pt; the hit area does not. This
+                    // menu holds "Remove exercise", so a near-miss here is the
+                    // one that matters most.
+                    .frame(
+                        width: ComponentSize.minimumTouchTarget,
+                        height: ComponentSize.minimumTouchTarget
+                    )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("exercise-menu-\(exerciseEntry.exercise.name)")
@@ -255,6 +366,8 @@ struct ExerciceEntryCard: View {
             viewModel.addSet(exerciseEntry)
         } label: {
             Label("Add set", systemImage: AppIcon.plus)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .contentShape(Rectangle())
         }
         .accessibilityIdentifier("add-set-\(exerciseEntry.exercise.name)")
         .font(AppFont.subheadlineSemibold)
@@ -262,45 +375,78 @@ struct ExerciceEntryCard: View {
         .buttonStyle(.borderless)
     }
 
+    /// Revealed as the card translates. It names the set, not the exercise:
+    /// the gesture completes the next incomplete set, and "Complete" read as
+    /// though it finished the whole exercise.
     private var exerciseDoneBackground: some View {
         HStack {
             Spacer()
-            Label("Complete", systemImage: AppIcon.checkmarkCircle)
+            Label("Complete set", systemImage: AppIcon.checkmarkCircle)
                 .font(AppFont.subheadlineBold)
                 .foregroundStyle(.white)
                 .padding(.trailing, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.gymSecondary)
+        .accessibilityHidden(true)
     }
 
+    /// Drag left to complete the next set.
+    ///
+    /// The card tracks the finger under Reduce Motion exactly as it does
+    /// otherwise. Suppressing the translation there previously left the
+    /// gesture armed but invisible, so a diagonal scroll could complete a set
+    /// — and fire its success haptic — with nothing on screen having indicated
+    /// that anything was about to happen. Reduce Motion removes the springy
+    /// settle on release, which is the part that is actually vestibular; the
+    /// finger-tracked travel is the affordance and has to stay.
     private var swipeGesture: some Gesture {
         DragGesture(minimumDistance: 18)
             .onChanged { value in
                 guard value.translation.width < 0, abs(value.translation.width) > abs(value.translation.height) else { return }
-                guard !reduceMotion else { return }
                 let travel = abs(value.translation.width)
                 let resistedTravel = travel <= swipeTriggerDistance
                     ? travel
                     : swipeTriggerDistance + ((travel - swipeTriggerDistance) * 0.2)
                 horizontalOffset = -resistedTravel
+                // One tick per crossing, in either direction, rather than one
+                // per gesture: dragging back below the threshold disarms, and
+                // the lifter should feel that too.
+                hasCrossedSwipeThreshold = travel >= swipeTriggerDistance
             }
             .onEnded { value in
                 let projectedTravel = min(value.translation.width, value.predictedEndTranslation.width)
-                guard projectedTravel <= -swipeTriggerDistance,
-                      let exerciseSet = viewModel.getNextSet(in: exerciseEntry),
-                      viewModel.canComplete(exerciseSet, for: exerciseEntry)
-                else {
-                    withAnimation(reduceMotion ? nil : AppMotion.gesture) { horizontalOffset = 0 }
-                    return
-                }
+                let didTrigger = projectedTravel <= -swipeTriggerDistance
+                hasCrossedSwipeThreshold = false
 
-                viewModel.switchStateDoneSet(exerciseEntry, exerciseSet)
-                onButtonPress()
-                handleSetCompletion()
+                if didTrigger {
+                    completeCurrentSet()
+                }
 
                 withAnimation(reduceMotion ? nil : AppMotion.gesture) { horizontalOffset = 0 }
             }
+    }
+
+    private var canCompleteCurrentSet: Bool {
+        guard let exerciseSet = viewModel.getNextSet(in: exerciseEntry) else { return false }
+        return viewModel.canComplete(exerciseSet, for: exerciseEntry)
+    }
+
+    /// The single completion path shared by the swipe, the overflow menu item,
+    /// and the accessibility action, so all three validate and advance
+    /// identically. `getNextSet` returns nil unless this entry owns the
+    /// workout's next incomplete set, so the action is a no-op on any other
+    /// card.
+    private func completeCurrentSet() {
+        guard let exerciseSet = viewModel.getNextSet(in: exerciseEntry),
+              viewModel.canComplete(exerciseSet, for: exerciseEntry)
+        else {
+            return
+        }
+
+        viewModel.switchStateDoneSet(exerciseEntry, exerciseSet)
+        onButtonPress()
+        handleSetCompletion()
     }
 
     private var completedSetCount: Int {
@@ -315,9 +461,6 @@ struct ExerciceEntryCard: View {
         expandedExerciseID == exerciseEntry.persistentModelID
     }
 
-    private var exerciseSummaryText: String {
-        exerciseEntry.orderedSets.first?.displayText() ?? "No sets"
-    }
 
     private func exerciseDurationText(at date: Date) -> String {
         let totalSeconds = max(0, Int(exerciseEntry.activeDuration(at: date)))

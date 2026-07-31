@@ -114,8 +114,8 @@ struct ActiveWorkoutView: View {
                 ExerciseLibraryView(
                     isSelectingExercise: true,
                     availableExercises: exerciseTemplates,
-                    selectedExerciseNames: Set(viewModel.activeWorkout?.orderedExercises.map(\.exercise.name) ?? []),
-                    onSelect: toggleExerciseFromPicker
+                    addedExerciseIDs: Set(viewModel.activeWorkout?.orderedExercises.map(\.exercise.id) ?? []),
+                    onSelect: addExerciseFromPicker
                 )
             }
         }
@@ -177,14 +177,6 @@ struct ActiveWorkoutView: View {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     sessionHeader(for: workout)
 
-                    if viewModel.isTimerVisible && viewModel.hasIncompleteSet {
-                        // A paused timer intentionally has no end date. Keep its
-                        // controls visible by supplying an unused placeholder; the
-                        // paused branch of `restTimer` renders the saved remaining
-                        // duration instead of this value.
-                        restTimer(endDate: viewModel.timerPause ?? .now)
-                    }
-
                     if !workout.orderedExecutionBlocks.isEmpty {
                         executionBlocks(for: workout)
                     }
@@ -197,6 +189,34 @@ struct ActiveWorkoutView: View {
             }
             .scrollIndicators(.hidden)
             .background(Color.gymBackground)
+            .safeAreaInset(edge: .top) {
+                // Pinned, not scrolled. Rest matters precisely when the session
+                // is long enough to scroll, which is exactly when the old
+                // in-content card was off screen.
+                if viewModel.isTimerVisible && viewModel.hasIncompleteSet {
+                    // A paused timer has no end date; the paused branch renders
+                    // the saved remaining duration instead of this placeholder.
+                    RestStatusStrip(
+                        viewModel: viewModel,
+                        activeLoggingMetrics: activeLoggingMetrics,
+                        endDate: viewModel.timerPause ?? .now,
+                        nextSetDescription: nextSetDescription,
+                        isCompact: coordinator.focus != nil,
+                        onStartNextSet: startNextSet
+                    )
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(reduceMotion ? nil : AppMotion.compact, value: viewModel.isTimerVisible)
+            // Attached to the list, not the strip: the strip is removed the
+            // instant rest ends, and the completion signal must outlive it.
+            // `restCompletionCount` only increments from a countdown reaching
+            // its deadline, never from restoring a rest that expired while the
+            // app was away.
+            .gymFeedback(.restReady, trigger: viewModel.restCompletionCount)
+            .onChange(of: viewModel.restCompletionCount) { _, _ in
+                GymAnnouncement.post(restCompletionAnnouncement)
+            }
             .safeAreaInset(edge: .bottom) {
                 if coordinator.focus == nil {
                     finishButton(for: workout)
@@ -307,6 +327,11 @@ struct ActiveWorkoutView: View {
 
     /// Built as `Text` rather than `String` so the exercise count keeps its
     /// automatic grammatical agreement in every localization.
+    ///
+    /// One `Text` per branch rather than concatenated fragments: `Text + Text`
+    /// is deprecated on iOS 26, and the inflection markup resolves inside a
+    /// single interpolated key anyway. Keeping the whole sentence in one key
+    /// also gives translators the surrounding context the fragments withheld.
     @ViewBuilder
     private func sessionProgressSummary(for workout: Workout) -> some View {
         if workout.totalSetCount == 0 {
@@ -314,9 +339,7 @@ struct ActiveWorkoutView: View {
         } else if workout.exercises.isEmpty {
             Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
         } else {
-            Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
-                + Text(" · ")
-                + Text("^[\(workout.exercises.count) exercise](inflect: true)")
+            Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets · ^[\(workout.exercises.count) exercise](inflect: true)")
         }
     }
 
@@ -341,111 +364,13 @@ struct ActiveWorkoutView: View {
         )
     }
 
-    private func restTimer(endDate: Date) -> some View {
-        VStack(spacing: Spacing.m) {
-            HStack(spacing: Spacing.s) {
-                Image(systemName: AppIcon.timer)
-                    .font(AppFont.headlineSemibold)
-                    .frame(width: 42, height: 42)
-                    .foregroundStyle(Color.gymAccent)
-                    .background(Color.gymAccentSurface)
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("Rest between sets")
-                        .font(AppFont.subheadlineSemibold)
-                    Text(restStatusMessage)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
-                }
-
-                Spacer(minLength: 0)
-
-                if viewModel.isRestReady {
-                    Text("Ready")
-                        .font(AppFont.headlineSemibold)
-                        .foregroundStyle(Color.gymSecondary)
-                } else if viewModel.isTimerPaused {
-                    Text(formatRemainingTime(viewModel.pausedTimeRemaining))
-                        .font(AppFont.headlineMonospaced)
-                        .foregroundStyle(Color.gymAccent)
-                } else if let interval = LiveActivityTimeRange.restInterval(now: .now, end: endDate) {
-                    Text(timerInterval: interval, countsDown: true)
-                        .font(AppFont.headlineMonospaced)
-                        .foregroundStyle(Color.gymAccent)
-                } else {
-                    // The persisted deadline can expire while SwiftUI is
-                    // waiting for the rest-state task to mark it ready.
-                    // Never construct an invalid timer range in that gap.
-                    Text("Ready")
-                        .font(AppFont.headlineSemibold)
-                        .foregroundStyle(Color.gymSecondary)
-                }
-            }
-
-            if viewModel.isRestReady {
-                Button("Start next set") {
-                    startNextSet()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.gymPrimary)
-                .frame(maxWidth: .infinity)
-                .accessibilityIdentifier("start-next-set")
-            } else {
-                HStack(spacing: Spacing.s) {
-                    Button("+15s") {
-                        viewModel.addRestTime(15)
-                    }
-
-                    Button("+30s") {
-                        viewModel.addRestTime(30)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    Button {
-                        if viewModel.isTimerPaused {
-                            viewModel.resumeTimer()
-                        } else {
-                            viewModel.pauseTimer()
-                        }
-                    } label: {
-                        Image(systemName: viewModel.isTimerPaused ? "play.fill" : "pause.fill")
-                    }
-                    .accessibilityLabel(viewModel.isTimerPaused ? "Resume rest" : "Pause rest")
-
-                    Button {
-                        activeLoggingMetrics.restSkipped()
-                        viewModel.cancelTimer()
-                    } label: {
-                        Image(systemName: AppIcon.fastForward)
-                    }
-                    .accessibilityLabel("Skip rest")
-                }
-                .buttonStyle(.bordered)
-                .tint(Color.gymAccent)
-            }
+    /// Spoken at the deadline. Names what to do next rather than only that rest
+    /// is over, because that is the question the lifter actually has.
+    private var restCompletionAnnouncement: String {
+        guard let next = nextSetDescription else {
+            return String(localized: "Rest complete.")
         }
-        .padding(Spacing.m + 2)
-        .background(Color.gymAccentSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
-        .accessibilityIdentifier(restAccessibilityIdentifier)
-    }
-
-    private var restStatusMessage: String {
-        if viewModel.isRestReady {
-            if let next = nextSetDescription {
-                return String(localized: "Rest complete · \(next)")
-            }
-            return String(localized: "Rest complete")
-        }
-        if viewModel.isTimerPaused {
-            return String(localized: "Rest paused.")
-        }
-        if let next = nextSetDescription {
-            return next
-        }
-        return String(localized: "Take a breath.")
+        return String(localized: "Rest complete. \(next)")
     }
 
     /// "Next: Lat Pulldown · Set 2" — names the exercise and set the lifter will
@@ -479,17 +404,6 @@ struct ActiveWorkoutView: View {
         )
     }
 
-    private var restAccessibilityIdentifier: String {
-        if viewModel.isRestReady { return "rest-ready" }
-        return viewModel.isTimerPaused ? "rest-paused" : "rest-running"
-    }
-
-    private func formatRemainingTime(_ seconds: TimeInterval) -> String {
-        let minutes = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", minutes, secs)
-    }
-
     private func exerciseList(for workout: Workout) -> some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             HStack {
@@ -501,12 +415,16 @@ struct ActiveWorkoutView: View {
                 Spacer()
 
                 if !workout.exercises.isEmpty {
+                    // Both were bare labels, so their hit areas were the text
+                    // itself — roughly 20pt tall, in the session header.
                     Button {
                         isShowingExecutionBlockBuilder = true
                     } label: {
                         Label("Block", systemImage: AppIcon.relationship)
                             .font(AppFont.subheadlineSemibold)
                             .foregroundStyle(Color.gymPrimary)
+                            .frame(minHeight: ComponentSize.minimumTouchTarget)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("add-execution-block")
@@ -517,6 +435,8 @@ struct ActiveWorkoutView: View {
                         Label("Add", systemImage: AppIcon.plus)
                             .font(AppFont.subheadlineSemibold)
                             .foregroundStyle(Color.gymPrimary)
+                            .frame(minHeight: ComponentSize.minimumTouchTarget)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("add-active-exercise")
@@ -603,7 +523,7 @@ struct ActiveWorkoutView: View {
         let recommendation = firstRecommendation(in: workout)
 
         ForEach(exercises, id: \.persistentModelID) { exercise in
-            ExerciceEntryCard(
+            ExerciseEntryCard(
                 exerciseEntry: exercise,
                 executionBlock: workout.orderedExecutionBlocks.first { $0.id == exercise.executionBlockID },
                 viewModel: viewModel,
@@ -630,7 +550,13 @@ struct ActiveWorkoutView: View {
                     : nil,
                 onRecommendationAction: { action in
                     handleRecommendationAction(action, for: exercise)
-                }
+                },
+                onMoveUp: canMove(exercise, by: -1, in: workout)
+                    ? { move(exercise, by: -1, in: workout) }
+                    : nil,
+                onMoveDown: canMove(exercise, by: 1, in: workout)
+                    ? { move(exercise, by: 1, in: workout) }
+                    : nil
             )
             .onDrag {
                 self.draggedExercise = exercise
@@ -646,6 +572,41 @@ struct ActiveWorkoutView: View {
         }
     }
 
+    private func canMove(_ exercise: ExerciseEntry, by offset: Int, in workout: Workout) -> Bool {
+        let ordered = workout.orderedExercises
+        guard let index = ordered.firstIndex(where: { $0.persistentModelID == exercise.persistentModelID })
+        else { return false }
+        return ordered.indices.contains(index + offset)
+    }
+
+    /// The non-drag reorder path. Writes the same `orderIndex` sequence the
+    /// drag delegate does and animates identically, so the two are
+    /// indistinguishable in result — and announces the new position, which the
+    /// drag never did either.
+    private func move(_ exercise: ExerciseEntry, by offset: Int, in workout: Workout) {
+        var ordered = workout.orderedExercises
+        guard let index = ordered.firstIndex(where: { $0.persistentModelID == exercise.persistentModelID }),
+              ordered.indices.contains(index + offset)
+        else {
+            return
+        }
+
+        withAnimation(reduceMotion ? nil : AppMotion.layout) {
+            let moved = ordered.remove(at: index)
+            ordered.insert(moved, at: index + offset)
+            for (position, entry) in ordered.enumerated() {
+                entry.orderIndex = position
+            }
+            viewModel.persistChanges()
+        }
+
+        GymAnnouncement.post(
+            String(
+                localized: "\(exercise.exercise.name) moved to position \(index + offset + 1) of \(ordered.count)."
+            )
+        )
+    }
+
     private var emptyExerciseState: some View {
         VStack(spacing: Spacing.m) {
             Image(systemName: AppIcon.workout)
@@ -658,14 +619,9 @@ struct ActiveWorkoutView: View {
                 isShowingExercisePicker = true
             } label: {
                 Text("Browse exercise library")
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, Spacing.m)
-                    .padding(.vertical, Spacing.s)
-                    .background(Color.gymPrimary)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.gymPrimary)
+            .fixedSize(horizontal: true, vertical: false)
             .accessibilityIdentifier("add-active-exercise")
         }
         .frame(maxWidth: .infinity)
@@ -685,17 +641,21 @@ struct ActiveWorkoutView: View {
                     navigationPath.append(.saveWorkout)
                 } label: {
                     Label("Review Workout", systemImage: AppIcon.checkmark)
-                        .font(AppFont.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 17)
-                        .foregroundStyle(.white)
-                        .background(Color.gymPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.gymPrimaryProminent)
                 .disabled(workout.completedSetCount == 0)
-                .opacity(workout.completedSetCount == 0 ? 0.45 : 1)
                 .accessibilityHint(workout.completedSetCount == 0 ? "Complete at least one set before finishing." : "Review and save your workout.")
+
+                // A disabled control has to say why. This was previously
+                // carried only by an accessibility hint, which a sighted user
+                // never receives.
+                if workout.completedSetCount == 0 {
+                    Text("Complete at least one set to finish.")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityHidden(true)
+                }
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.m)
@@ -715,24 +675,42 @@ struct ActiveWorkoutView: View {
         expandedExerciseID = WorkoutSetSelector.nextIncompleteSet(in: workout)?.entry.persistentModelID
     }
 
+    /// Where to open next after a set is completed.
+    ///
+    /// This used to hand back whatever `WorkoutSetSelector` considered the
+    /// workout's next incomplete set, which is the *first* one in document
+    /// order. A lifter who skipped ahead because a rack was busy would complete
+    /// a set on exercise four and watch the app collapse it and reopen exercise
+    /// one — every single set. Working out of order is normal in a shared gym,
+    /// and the app already permits it: any card can be opened by tapping.
+    ///
+    /// So an exercise that still has work keeps the disclosure. Supersets are
+    /// excluded, because there the selector's alternation between members is
+    /// the point rather than an interruption.
     private func advanceDisclosure(after completedExercise: ExerciseEntry, in workout: Workout) {
-        let nextExercise = WorkoutSetSelector.nextEntry(
-            afterCompleting: completedExercise,
-            in: workout
-        )
+        let staysOnCurrent = completedExercise.supersetGroupID == nil
+            && completedExercise.orderedSets.contains { !$0.done }
+
+        let nextExercise = staysOnCurrent
+            ? completedExercise
+            : WorkoutSetSelector.nextEntry(afterCompleting: completedExercise, in: workout)
 
         withAnimation(reduceMotion ? nil : AppMotion.layout) {
             expandedExerciseID = nextExercise?.persistentModelID
         }
     }
 
-    private func toggleExerciseFromPicker(_ exercise: Exercise) {
-        if let existingExercise = viewModel.activeWorkout?.orderedExercises.first(where: { $0.exercise.name == exercise.name }) {
-            viewModel.removeExercise(existingExercise)
-        } else {
-            viewModel.addExercise(exercise)
-            expandedExerciseID = viewModel.activeWorkout?.orderedExercises.last?.persistentModelID
+    /// The picker adds only. It used to toggle, so tapping an exercise that
+    /// was already in the session deleted it along with every set logged
+    /// against it — from a sheet where none of that work was on screen.
+    /// Removal now lives solely on the exercise's own card, which confirms and
+    /// names what would be lost.
+    private func addExerciseFromPicker(_ exercise: Exercise) {
+        guard viewModel.activeWorkout?.orderedExercises.contains(where: { $0.exercise.id == exercise.id }) != true else {
+            return
         }
+        viewModel.addExercise(exercise)
+        expandedExerciseID = viewModel.activeWorkout?.orderedExercises.last?.persistentModelID
     }
 
     private func discardWorkout() {
@@ -791,8 +769,15 @@ struct ExerciseDragDelegate: DropDelegate {
     @Binding var draggedItem: ExerciseEntry?
     let reduceMotion: Bool
 
+    /// The drop is the commit.
+    ///
+    /// `dropEntered` fires once per card the finger passes over, and it used to
+    /// persist each time — so dragging across four positions wrote four
+    /// orderings. The live reorder still happens there, because that is the
+    /// feedback that makes the gesture legible; only the write moved here.
     func performDrop(info: DropInfo) -> Bool {
         draggedItem = nil
+        viewModel.persistChanges()
         return true
     }
 
@@ -811,7 +796,6 @@ struct ExerciseDragDelegate: DropDelegate {
             for (index, ex) in ordered.enumerated() {
                 ex.orderIndex = index
             }
-            viewModel.persistChanges()
         }
     }
 }

@@ -173,29 +173,9 @@ struct PlanCalendarStateBadge: View {
     let state: PlanCalendarDisplayState
 
     var body: some View {
-        Label(state.title, systemImage: icon)
+        Label(state.title, systemImage: state.icon)
             .font(AppFont.caption2Bold)
-            .foregroundStyle(color)
+            .foregroundStyle(state.tint)
             .accessibilityIdentifier(state.accessibilityIdentifier)
-    }
-
-    private var icon: String {
-        switch state {
-        case .completed: AppIcon.checkmarkCircle
-        case .missed: AppIcon.warning
-        case .upcoming: AppIcon.circleDashed
-        case .available: AppIcon.circleFill
-        case .inProgress: AppIcon.workout
-        case .skipped: AppIcon.circleDashed
-        }
-    }
-
-    private var color: Color {
-        switch state {
-        case .completed: Color.gymSuccess
-        case .available, .inProgress: Color.gymPrimary
-        case .missed: Color.gymDestructive
-        case .upcoming, .skipped: .secondary
-        }
     }
 }

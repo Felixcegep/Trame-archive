@@ -44,6 +44,7 @@ struct PlanFormView: View {
     @State private var deloadVolumeReductionPercent = 50
     @State private var deloadIntensityReductionPercent = 10
     @State private var isShowingOptions = false
+    @State private var isShowingDiscardConfirmation = false
 
     var body: some View {
         Form {
@@ -58,13 +59,34 @@ struct PlanFormView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
+                Button("Cancel") {
+                    if hasUnsavedWork {
+                        isShowingDiscardConfirmation = true
+                    } else {
+                        dismiss()
+                    }
+                }
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save", action: save)
                     .disabled(!canSave)
                     .accessibilityIdentifier("save-plan")
             }
+        }
+        // A plan is the longest form in the app — a name, a length, a training
+        // week, and a workout per day. All of it was one downward swipe from
+        // gone, with no warning and nothing to recover.
+        .interactiveDismissDisabled(hasUnsavedWork)
+        .confirmationDialog(
+            "Discard this plan?",
+            isPresented: $isShowingDiscardConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Discard plan", role: .destructive) { dismiss() }
+                .accessibilityIdentifier("confirm-discard-plan")
+            Button("Keep editing", role: .cancel) {}
+        } message: {
+            Text("The name, schedule, and workouts you have chosen will not be saved.")
         }
         .onAppear(perform: applyInitialState)
         .onChange(of: durationWeeks) { _, newDuration in
@@ -263,6 +285,16 @@ private extension PlanFormView {
             requiredEquipment: requiredEquipment,
             slots: slots
         )
+    }
+
+    /// Whether dismissing would lose something the lifter chose.
+    ///
+    /// Deliberately coarse: a name or any assigned workout. The form has
+    /// fourteen pieces of state and most carry defaults, so comparing all of
+    /// them would be fragile and would treat merely opening the options section
+    /// as an edit. These two are what a person would describe as "the work".
+    var hasUnsavedWork: Bool {
+        !trimmedName.isEmpty || !templateIDByDay.isEmpty
     }
 
     var canSave: Bool {

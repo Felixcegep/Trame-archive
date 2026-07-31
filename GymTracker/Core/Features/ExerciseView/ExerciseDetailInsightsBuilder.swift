@@ -124,7 +124,11 @@ enum ExerciseDetailInsightsBuilder {
     ) -> ExerciseDetailProgression? {
         guard
             let workout = try? context.fetch(FetchDescriptor<Workout>()).first(where: { $0.status == .active }),
-            let entry = workout.orderedExercises.first(where: { $0.exercise.persistentModelID == exercise.persistentModelID }),
+            // An active entry, not completed history — but the identity
+            // question is the same one, and the snapshot is written at entry
+            // creation, so this uses the one matcher rather than reintroducing
+            // a second idiom for the same comparison.
+            let entry = HistoricalExerciseIdentityPolicy.entry(for: exercise, in: workout),
             let decision = entry.recommendedDecision,
             let recommendedLoad = entry.recommendedLoad,
             let unit = entry.recommendedUnit

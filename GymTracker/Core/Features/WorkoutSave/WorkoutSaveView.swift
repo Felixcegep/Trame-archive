@@ -14,6 +14,10 @@ struct WorkoutSaveView: View {
     @State private var isShowingDiscardConfirmation = false
     @State private var isShowingPartialSaveConfirmation = false
     @State private var saveErrorMessage: String?
+    /// Separate counters so success and failure can never fire together, and
+    /// so neither can fire from anything except a completed attempt.
+    @State private var saveSucceededCount = 0
+    @State private var saveFailedCount = 0
     @FocusState private var isNotesFocused: Bool
 
     var body: some View {
@@ -55,6 +59,12 @@ struct WorkoutSaveView: View {
         } message: {
             Text(saveErrorMessage ?? "")
         }
+        // Saving is the most significant thing that happens in this app and it
+        // used to end in a silent dismissal — visually identical to discarding
+        // or to a crash. Both signals fire strictly after the attempt resolves,
+        // and they are mutually exclusive.
+        .gymFeedback(.sessionSaved, trigger: saveSucceededCount)
+        .gymFeedback(.saveFailed, trigger: saveFailedCount)
     }
 
     private func saveReview(for workout: Workout) -> some View {
@@ -93,14 +103,8 @@ struct WorkoutSaveView: View {
                     navigationPath.removeLast()
                 } label: {
                     Text("Return to Workout")
-                        .font(AppFont.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 17)
-                        .foregroundStyle(.white)
-                        .background(Color.gymPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.gymPrimaryProminent)
                 
                 Button("Discard Workout", role: .destructive) {
                     isShowingDiscardConfirmation = true
@@ -215,14 +219,8 @@ struct WorkoutSaveView: View {
 
                 Button(action: requestSave) {
                     Label("Save workout", systemImage: AppIcon.save)
-                        .font(AppFont.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 17)
-                        .foregroundStyle(.white)
-                        .background(Color.gymPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.gymPrimaryProminent)
                 .accessibilityIdentifier("save-workout")
 
                 Button("Discard workout", role: .destructive) {
@@ -442,19 +440,38 @@ struct WorkoutSaveView: View {
 
     private func saveWorkout() {
         guard let workout = workoutVM.activeWorkout else {
-            saveErrorMessage = String(localized: "Your workout is still open. Try saving again.")
+            // Distinct from a failed write: there is nothing here to save, so
+            // "try again" would be false advice.
+            saveFailedCount += 1
+            saveErrorMessage = String(localized: "This workout is no longer open, so there was nothing to save. Return home to start a new session.")
             return
         }
         let workoutID = workout.id
         let wasPartial = workout.incompleteSetCount > 0
         guard workoutVM.saveWorkout(using: modelContext) else {
-            saveErrorMessage = String(localized: "Your workout is still open. Try saving again.")
+            saveFailedCount += 1
+            saveErrorMessage = String(localized: "Your workout could not be saved and is still open, with every logged set intact. Try saving again.")
             return
         }
+
+        saveSucceededCount += 1
+        GymAnnouncement.post(savedAnnouncement)
         activeLoggingMetrics.workoutSaved(isPartial: wasPartial)
         onWorkoutSaved(workoutID)
         navigationPath.removeAll()
         isPresented = false
+    }
+
+    /// Reports what was actually written, using the counts recorded by the save
+    /// itself. They cannot be recomputed here: the graph has been pruned and
+    /// `activeWorkout` cleared by the time this runs.
+    private var savedAnnouncement: String {
+        guard let summary = workoutVM.lastSavedSummary else {
+            return String(localized: "Workout saved.")
+        }
+        return String(
+            localized: "Workout saved. ^[\(summary.savedSetCount) set](inflect: true) added to History."
+        )
     }
 
     private func discardWorkout() {

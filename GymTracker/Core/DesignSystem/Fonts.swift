@@ -2,8 +2,18 @@ import SwiftUI
 
 struct AppFont {
     // Large Title / Rounded Display
-    static let displayLarge = Font.system(size: 34, weight: .bold, design: .rounded).monospacedDigit()
-    static let displayMedium = Font.system(size: 32, weight: .bold, design: .rounded)
+    //
+    // Declared against text styles rather than fixed point sizes. As
+    // `.system(size:)` these were the only two roles in the file that did not
+    // scale, so at large accessibility sizes the body text around them grew
+    // while the headline they were meant to lead stayed put — inverting the
+    // hierarchy exactly where it was most deliberate.
+    //
+    // `displayMedium` lands at 28pt rather than its previous 32: `.title` is
+    // the nearest scaling style below `.largeTitle`, and matching the old size
+    // exactly would have meant keeping it fixed.
+    static let displayLarge = Font.system(.largeTitle, design: .rounded).weight(.bold).monospacedDigit()
+    static let displayMedium = Font.system(.title, design: .rounded).weight(.bold)
     
     // Titles
     static let title = Font.title

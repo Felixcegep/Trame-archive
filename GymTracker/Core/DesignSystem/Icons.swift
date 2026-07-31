@@ -13,6 +13,8 @@ struct AppIcon {
     static let minimize = "chevron.down"
     static let chevronLeft = "chevron.left"
     static let chevronRight = "chevron.right"
+    static let chevronUp = "chevron.up"
+    static let chevronDown = "chevron.down"
     static let picker = "chevron.up.chevron.down"
     
     // Action Icons

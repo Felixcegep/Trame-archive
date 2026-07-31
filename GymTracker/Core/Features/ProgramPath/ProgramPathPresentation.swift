@@ -26,50 +26,23 @@ enum ProgramPathPresentation {
         let identifier: String
     }
 
+    /// Title, icon, and tint come from `PlanCalendarDisplayState` so the
+    /// program path, the plan calendar, and the training calendar describe the
+    /// same state identically. Only the accessibility identifier stays local,
+    /// because it names the surface a test is asserting against.
     static func style(for state: PlanCalendarDisplayState) -> StateStyle {
+        StateStyle(
+            title: state.title,
+            systemImage: state.icon,
+            tint: state.tint,
+            identifier: identifier(for: state)
+        )
+    }
+
+    private static func identifier(for state: PlanCalendarDisplayState) -> String {
         switch state {
-        case .completed:
-            StateStyle(
-                title: String(localized: "Completed"),
-                systemImage: AppIcon.checkmarkCircle,
-                tint: .gymSuccess,
-                identifier: "program-path-state-completed"
-            )
-        case .available:
-            StateStyle(
-                title: String(localized: "Ready"),
-                systemImage: AppIcon.circleFill,
-                tint: .gymPrimary,
-                identifier: "program-path-state-available"
-            )
-        case .inProgress:
-            StateStyle(
-                title: String(localized: "In progress"),
-                systemImage: AppIcon.workout,
-                tint: .gymPrimary,
-                identifier: "program-path-state-in-progress"
-            )
-        case .missed:
-            StateStyle(
-                title: String(localized: "Missed"),
-                systemImage: AppIcon.warning,
-                tint: .gymDestructive,
-                identifier: "program-path-state-missed"
-            )
-        case .upcoming:
-            StateStyle(
-                title: String(localized: "Upcoming"),
-                systemImage: AppIcon.circleDashed,
-                tint: .gymSubduedText,
-                identifier: "program-path-state-upcoming"
-            )
-        case .skipped:
-            StateStyle(
-                title: String(localized: "Skipped"),
-                systemImage: AppIcon.skip,
-                tint: .gymSubduedText,
-                identifier: "program-path-state-skipped"
-            )
+        case .inProgress: "program-path-state-in-progress"
+        default: "program-path-state-\(state.rawValue)"
         }
     }
 

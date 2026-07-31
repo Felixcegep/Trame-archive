@@ -136,7 +136,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
-        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["Rest between sets"].waitForExistence(timeout: 5))
         XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "8")
         XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
     }
@@ -159,7 +159,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             tapButton("+30s", in: app)
         }
 
-        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["Rest between sets"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Pause rest"].exists)
     }
 
@@ -174,7 +174,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["resume-active-workout"].waitForExistence(timeout: 15))
         resumeActiveWorkout(in: app)
 
-        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["Rest between sets"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Pause rest"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Bench Press"].exists)
         XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "8")
@@ -182,7 +182,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         // Confirm the restored countdown is live, not merely a stale card.
         tapButton("Pause rest", in: app)
-        XCTAssertTrue(app.staticTexts["Rest paused."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["Rest paused"].waitForExistence(timeout: 5))
         tapButton("Resume rest", in: app)
         XCTAssertTrue(app.buttons["Pause rest"].waitForExistence(timeout: 5))
     }
@@ -208,7 +208,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
-        XCTAssertTrue(app.staticTexts["Rest paused."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["Rest paused"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Resume rest"].exists)
     }
 
@@ -430,7 +430,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["complete-set-Bench Press-4"].waitForExistence(timeout: 5))
         enterValidValues(for: "Bench Press", set: 0, in: app)
         app.buttons["complete-set-Bench Press-0"].tap()
-        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["Rest between sets"].waitForExistence(timeout: 5))
 
         // Completing a set moves the keypad to the next one, which is the set
         // whose details the deletion below belongs to.
@@ -438,6 +438,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         tapButton("panel-details", in: app)
         XCTAssertTrue(app.buttons["delete-set-Bench Press-1"].waitForExistence(timeout: 5))
         app.buttons["delete-set-Bench Press-1"].tap()
+        app.buttons["confirm-delete-set-Bench Press-1"].firstMatch.tap()
         XCTAssertTrue(app.buttons["complete-set-Bench Press-3"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["complete-set-Bench Press-4"].exists)
 
@@ -446,6 +447,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         exerciseMenu.tap()
         XCTAssertTrue(app.buttons["remove-exercise-Bench Press"].waitForExistence(timeout: 5))
         app.buttons["remove-exercise-Bench Press"].tap()
+        app.buttons["confirm-remove-exercise-Bench Press"].firstMatch.tap()
         XCTAssertFalse(app.staticTexts["Bench Press"].exists)
     }
 

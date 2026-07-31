@@ -18,7 +18,14 @@ struct SettingView: View {
     @State private var isShowingBetaFeedback = false
     @Environment(\.modelContext) private var modelContext
     @AppStorage(DefaultsKey.darkMode) private var darkMode: Bool = false
-    @AppStorage(DefaultsKey.restTimer) private var restTimer: Int = 20
+    /// Zero means automatic: rest is derived from the exercise. A positive
+    /// value is an explicit override that applies everywhere.
+    ///
+    /// The declared default was 20, which is why every install that never
+    /// opened Settings got a 20-second rest. Defaulting to 0 hands those
+    /// installs the derived duration instead, while anyone who did set a value
+    /// keeps it — an explicit choice is not overridden by a new feature.
+    @AppStorage(DefaultsKey.restTimer) private var restTimer: Int = 0
     @AppStorage(DefaultsKey.useMetric) private var unitSystem: UnitSystem = .metric
     @AppStorage(DefaultsKey.bodyWeightPromptCadence) private var bodyWeightPromptCadence: BodyWeightPromptCadence = .off
     @AppStorage(DefaultsKey.caffeineBirthdateTimestamp) private var caffeineBirthdateTimestamp: Double?
@@ -116,11 +123,21 @@ struct SettingView: View {
                 Text("Used only to personalize the daily caffeine reference amount shown in Nutrition. Never required, and never shared.")
             }
 
-            Section("Rest Timer") {
-                Stepper(value: $restTimer, in: 10...300, step: 5) {
-                    LabeledContent("Duration", value: formattedRestTimer)
+            Section {
+                Toggle("Automatic", isOn: isAutomaticRestBinding)
+                    .accessibilityIdentifier("settings-rest-automatic")
+                    .accessibilityHint("Chooses rest length from the exercise instead of using one duration everywhere.")
+
+                if restTimer > 0 {
+                    Stepper(value: $restTimer, in: 10...300, step: 5) {
+                        LabeledContent("Duration", value: formattedRestTimer)
+                    }
+                    .accessibilityIdentifier("settings-rest-duration")
                 }
-                .accessibilityIdentifier("settings-rest-duration")
+            } header: {
+                Text("Rest Timer")
+            } footer: {
+                Text(restTimerFooter)
             }
 
             Section("Workout") {
@@ -386,6 +403,21 @@ struct SettingView: View {
         }
     }
 
+    private var isAutomaticRestBinding: Binding<Bool> {
+        Binding(
+            get: { restTimer == 0 },
+            // 90 is the general-purpose middle of the derived tiers, so turning
+            // automatic off lands somewhere sensible rather than at a bound.
+            set: { restTimer = $0 ? 0 : 90 }
+        )
+    }
+
+    private var restTimerFooter: String {
+        restTimer > 0
+            ? String(localized: "Every exercise rests for this long unless its plan says otherwise.")
+            : String(localized: "Rest length is chosen from the exercise — longest for heavy compound lifts, shortest for core work. A plan's own rest always takes priority.")
+    }
+
     private var formattedRestTimer: String {
         if restTimer < 60 {
             return String(localized: "\(restTimer) sec")
@@ -584,7 +616,13 @@ struct ImportPreviewView: View {
                 Section("Backup Details") {
                     LabeledContent("Version", value: "\(backup.version)")
                     LabeledContent("Units", value: backup.preferences.unitSystem.capitalized)
-                    LabeledContent("Default Rest", value: "\(backup.preferences.restTimer)s")
+                    // Zero is the automatic sentinel, not a zero-second rest.
+                    LabeledContent(
+                        "Default Rest",
+                        value: backup.preferences.restTimer > 0
+                            ? "\(backup.preferences.restTimer)s"
+                            : String(localized: "Automatic")
+                    )
                 }
 
                 Section("Contents to Restore") {

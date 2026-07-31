@@ -26,59 +26,32 @@ class WorkoutViewModel {
         _ = modelContext.saveOrRollback()
     }
 
+    /// What the most recent successful save actually wrote.
+    ///
+    /// `saveWorkout` still answers `Bool` because that is what every caller and
+    /// every existing test asserts on. The counts a save confirmation needs
+    /// cannot be recomputed afterwards — the graph has been pruned and
+    /// `activeWorkout` cleared — so they are recorded here instead of changing
+    /// that signature.
+    private(set) var lastSavedSummary: CompletedWorkoutSummary?
+
     func saveWorkout(using modelContext: ModelContext) -> Bool {
+        lastSavedSummary = nil
+
         guard let activeWorkout else {
             return false
         }
 
-        // Validate before pruning incomplete sets or empty exercises. An invalid
-        // save must leave the active draft untouched so the user can complete it.
-        guard activeWorkout.completedSetCount > 0 else {
+        // Pruning and finalization live in one described step so what a save
+        // removed can be asserted directly. A nil result means the workout had
+        // no completed set and the graph was left untouched.
+        guard let summary = CompletedWorkoutPreparationService.prepare(
+            activeWorkout,
+            using: modelContext
+        ) else {
             return false
         }
 
-        // Incomplete work is intentionally excluded from historical truth. Removing
-        // a SwiftData relationship alone does not delete its model, so explicitly
-        // delete each child as well.
-        for exercise in activeWorkout.exercises {
-            let incompleteSets = exercise.sets.filter { !$0.done }
-            exercise.sets.removeAll { !$0.done }
-            for set in incompleteSets {
-                modelContext.delete(set)
-            }
-            exercise.normalizeSetOrder()
-        }
-
-        // Do not carry added-but-never-started exercises into workout history.
-        // An empty component entry in an execution block is different: keeping
-        // it preserves the intended circuit/complex membership when the
-        // lifter saves a partial block.
-        let emptyExercises = activeWorkout.exercises.filter {
-            $0.sets.isEmpty && $0.executionBlockID == nil
-        }
-        activeWorkout.exercises.removeAll { exercise in
-            emptyExercises.contains { $0.persistentModelID == exercise.persistentModelID }
-        }
-        for exercise in emptyExercises {
-            modelContext.delete(exercise)
-        }
-
-        for block in activeWorkout.orderedExecutionBlocks {
-            if WorkoutExecutionBlockService.entries(in: block, workout: activeWorkout).isEmpty {
-                activeWorkout.executionBlocks.removeAll { $0 === block }
-                modelContext.delete(block)
-            } else {
-                WorkoutExecutionBlockService.finalizeForWorkoutSave(block)
-            }
-        }
-
-        activeWorkout.name = normalized(activeWorkout.name)
-        activeWorkout.notes = normalized(activeWorkout.notes)
-
-        activeWorkout.normalizeExerciseOrder()
-        activeWorkout.status = .completed
-        activeWorkout.endTime = Date.now
-        activeWorkout.restEndDate = nil
         completePlannedWorkoutIfNeeded(activeWorkout, using: modelContext)
         do {
             try completeRepeatingPlanOccurrenceIfNeeded(activeWorkout, using: modelContext)
@@ -94,6 +67,9 @@ class WorkoutViewModel {
         }
 
         self.activeWorkout = nil
+        // Recorded only once persistence has actually succeeded, so a
+        // confirmation can never report a save that did not happen.
+        lastSavedSummary = summary
         NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         Task {
             await LiveActivityManager.shared.end()

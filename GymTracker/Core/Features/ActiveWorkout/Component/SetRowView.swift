@@ -69,7 +69,7 @@ struct SetRowView: View {
             }
         }
         .animation(reduceMotion ? nil : AppMotion.compact, value: exerciseSet.done)
-        .sensoryFeedback(.success, trigger: exerciseSet.done) { _, newValue in
+        .gymFeedback(.setCompleted, trigger: exerciseSet.done) { _, newValue in
             newValue
         }
         .confirmationDialog(
@@ -295,6 +295,7 @@ struct SetRowView: View {
     private func synchronizeIncompleteSetUnits() {
         if SetRowPreparation.synchronizeUnits(
             for: exerciseSet,
+            in: exerciseEntry,
             preferredSystem: UserDefaults.standard.unitSystem
         ) {
             viewModel.persistChanges()

@@ -177,9 +177,13 @@ struct SetInputAccessoryPanel: View {
                     Image(systemName: AppIcon.minimize)
                         .font(AppFont.captionBold)
                         .foregroundStyle(Color.gymSubduedText)
-                        .frame(width: 36, height: 36)
+                        .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
                         .background(Color.gymRowSurface, in: Circle())
-                        .contentShape(Circle())
+                        .frame(
+                            width: ComponentSize.minimumTouchTarget,
+                            height: ComponentSize.minimumTouchTarget
+                        )
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.gymPress)
                 .accessibilityLabel("Hide keypad")
@@ -254,7 +258,12 @@ struct SetInputAccessoryPanel: View {
         }
 
         if let load = set.prescribedSuggestedLoad, let type = set.prescribedSuggestedLoadType {
-            let converted = UnitConversion.weight(Float(load), from: type, to: set.weightType)
+            let converted = WorkoutLoadRounding.converted(
+                Float(load),
+                from: type,
+                to: set.weightType,
+                for: exercise.exercise
+            )
             parts.append("\(Formatters.formatFloat(converted)) \(set.weightType.rawValue)")
         }
 
@@ -367,6 +376,19 @@ struct SetInputAccessoryPanel: View {
         }
     }
 
+    /// The same step the ± buttons apply, so the adjustable action and the
+    /// visible controls can never disagree.
+    private func adjustmentStep(
+        for field: SetInputFocus.Field,
+        exercise: ExerciseEntry,
+        set: ExerciseSet
+    ) -> Double {
+        guard field == .weight else { return 1 }
+        return weightStepSelection == .fine
+            ? fineWeightStep(for: set)
+            : coarseWeightStep(for: exercise, set: set)
+    }
+
     private func fieldCaption(_ field: SetInputFocus.Field) -> String {
         switch field {
         case .repetitions: String(localized: "Reps")
@@ -406,6 +428,17 @@ struct SetInputAccessoryPanel: View {
             .accessibilityLabel("\(fieldName(field)) \(unitLabel(field: field, exercise: exercise, set: set))")
             .accessibilityHint(isActive ? "Currently editing" : "Edit \(fieldName(field))")
             .accessibilityAddTraits(isActive ? [.isSelected] : [])
+            // Swipe up/down adjusts by the same step the ± buttons use. Those
+            // buttons are reachable individually, but a VoiceOver user had to
+            // leave the value, find the right one, and return for each press —
+            // the idiom for a number is to adjust it in place.
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: adjust(field: field, by: adjustmentStep(for: field, exercise: exercise, set: set), set: set)
+                case .decrement: adjust(field: field, by: -adjustmentStep(for: field, exercise: exercise, set: set), set: set)
+                @unknown default: break
+                }
+            }
             .accessibilityIdentifier("panel-value-\(fieldName(field))")
 
             if field == .weight {
@@ -473,8 +506,14 @@ struct SetInputAccessoryPanel: View {
                     .font(AppFont.caption2Bold)
             }
             .foregroundStyle(Color.gymPrimary)
-            .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
-            .contentShape(Rectangle())
+            // Given the same capsule the other panel chips wear. As bare tinted
+            // text beside a caption it read as a label, so the fact that the
+            // step size could be changed at all was invisible.
+            .padding(.horizontal, Spacing.m)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .background(Color.gymPrimary.opacity(0.12), in: Capsule())
+            .overlay { Capsule().stroke(Color.gymPrimary.opacity(0.3), lineWidth: 1) }
+            .contentShape(Capsule())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityLabel("Weight adjustment increment")
@@ -563,7 +602,10 @@ struct SetInputAccessoryPanel: View {
             }
             .padding(.horizontal, Spacing.xxs)
         }
-        .scrollIndicators(.hidden)
+        // The indicator stays. Hiding it left a clipped trailing chip as the
+        // only hint that this row scrolls, so "Details" looked like the end of
+        // the list rather than the edge of the viewport.
+        .scrollIndicators(.visible)
     }
 
     /// Grouped rather than one flat list of eleven. A menu scrolls, so nothing
@@ -726,7 +768,10 @@ struct SetInputAccessoryPanel: View {
             .font(AppFont.footnoteMedium)
             .foregroundStyle(tint ?? Color.gymText)
             .padding(.horizontal, Spacing.m)
-            .frame(minHeight: 36)
+            // 44, not 36. These are the mid-set tools — set type, effort,
+            // plates, copy-last, details — reached with chalky or sweaty hands
+            // while the keypad occupies most of the screen.
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
             .background(tint.map { $0.opacity(0.12) } ?? Color.gymRowSurface)
             .clipShape(Capsule())
             .overlay { Capsule().stroke(tint.map { $0.opacity(0.3) } ?? Color.gymBorder, lineWidth: 1) }
@@ -839,17 +884,11 @@ struct SetInputAccessoryPanel: View {
 
     /// The jump this equipment actually makes: plate pairs for a barbell, rack
     /// steps for dumbbells, pin steps for a stack.
+    ///
+    /// Shared with the rounding applied at unit crossings, so a converted
+    /// target and the ± buttons that move it can never sit on different grids.
     private func coarseWeightStep(for exercise: ExerciseEntry, set: ExerciseSet) -> Double {
-        let template = exercise.exercise
-        if let increment = EquipmentLoadRounding.increment(
-            equipment: template.equipmentType,
-            resistance: template.resistanceType,
-            isPlateLoaded: template.isPlateLoaded,
-            unit: set.weightType
-        ) {
-            return increment
-        }
-        return Double(Constants.Progression.increment(for: set.weightType))
+        WorkoutLoadRounding.stepperIncrement(for: exercise.exercise, unit: set.weightType)
     }
 
     // MARK: - Formatting

@@ -127,7 +127,10 @@ struct SetRowFieldStack: View {
     }
 
     private var weightField: some View {
-        valueButton(.weight, textColor: .gymAccent)
+        // Data, not a warning. This is the number the lifter is about to put
+        // on the bar; it was the same hue as the rest timer and the validation
+        // messages.
+        valueButton(.weight, textColor: .gymDataEmphasis)
     }
 
     private var durationField: some View {
@@ -244,8 +247,16 @@ struct SetRowFieldStack: View {
         )
     }
 
+    /// The placeholder is a suggestion the lifter may be about to match, not a
+    /// report of history, so it is shown on the equipment's grid. The recorded
+    /// set it derives from is unchanged; History reports it as performed.
     private func displayWeight(for previousSet: PreviousSetPerformance) -> Float {
-        UnitConversion.weight(previousSet.weight, from: previousSet.weightType, to: exerciseSet.weightType)
+        WorkoutLoadRounding.converted(
+            previousSet.weight,
+            from: previousSet.weightType,
+            to: exerciseSet.weightType,
+            for: exerciseEntry.exercise
+        )
     }
 
     private func displayDistance(for previousSet: PreviousSetPerformance) -> Float {
@@ -258,7 +269,12 @@ struct SetRowFieldStack: View {
             // No prescription and nothing logged is a missing value, not a zero.
             return "\u{2014}"
         }
-        let converted = UnitConversion.weight(Float(load), from: type, to: exerciseSet.weightType)
+        let converted = WorkoutLoadRounding.converted(
+            Float(load),
+            from: type,
+            to: exerciseSet.weightType,
+            for: exerciseEntry.exercise
+        )
         return Formatters.formatFloat(converted)
     }
 }

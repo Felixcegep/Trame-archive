@@ -6,14 +6,25 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     let viewModel: WorkoutViewModel
     var onStartFreeWorkout: (() -> Void)? = nil
     @State private var selectedTab: HistoryTab
+    /// A workout the lifter has deleted but can still recover. It is withheld
+    /// from every tab for the length of the undo window and only reaches
+    /// `modelContext.delete` once that window closes, so "Undo" restores the
+    /// row rather than rebuilding a destroyed object graph.
+    @State private var pendingDeletion: PendingWorkoutDeletion?
+    @State private var deletionTask: Task<Void, Never>?
+    /// Increments once per committed deletion. Used only as a feedback trigger
+    /// so the haptic fires on the irreversible step, never on the swipe.
+    @State private var committedDeletionCount = 0
 
     init(
         viewModel: WorkoutViewModel,
@@ -64,12 +75,17 @@ struct HistoryView: View {
                                         .accessibilityIdentifier("history-workout-row")
                                         .listRowBackground(Color.gymCard)
                                         .listRowSeparator(.hidden)
-                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        // Full swipe is deliberately disabled: a
+                                        // drifting one-handed scroll must never be
+                                        // able to destroy a completed session
+                                        // without a deliberate second tap.
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                             Button(role: .destructive) {
-                                                viewModel.removeWorkout(using: modelContext, workout: workout)
+                                                beginDeletion(of: workout)
                                             } label: {
                                                 Label("Delete", systemImage: AppIcon.trash)
                                             }
+                                            .accessibilityIdentifier("history-delete-workout")
                                         }
                                     }
                                 }
@@ -90,14 +106,133 @@ struct HistoryView: View {
         .background(Color.gymBackground)
         .accessibilityIdentifier("history-screen")
         .navigationTitle("History")
-    }
-
-    private var completedWorkouts: [Workout] {
-        workouts.filter { workout in
-            workout.status == .completed && workout.orderedExercises.contains { exercise in
-                exercise.orderedSets.contains(where: \.done)
+        .overlay(alignment: .bottom) {
+            if let pendingDeletion {
+                undoBanner(for: pendingDeletion)
+                    .transition(
+                        reduceMotion
+                            ? .opacity
+                            : .move(edge: .bottom).combined(with: .opacity)
+                    )
             }
         }
+        .gymFeedback(.destructiveCommitted, trigger: committedDeletionCount)
+        .onDisappear {
+            // Leaving the screen honours the delete the lifter already asked
+            // for. The alternative — cancelling on disappear — would leave a
+            // row they watched animate away still present when they return.
+            commitPendingDeletion()
+        }
+    }
+
+    /// Deleted-but-recoverable workouts are withheld here rather than only in
+    /// the list, so the Progress, Records, and Volume tabs never keep counting
+    /// a session the lifter has just removed.
+    private var completedWorkouts: [Workout] {
+        workouts.filter { workout in
+            workout.persistentModelID != pendingDeletion?.id
+                && workout.status == .completed
+                && workout.orderedExercises.contains { exercise in
+                    exercise.orderedSets.contains(where: \.done)
+                }
+        }
+    }
+
+    // MARK: - Deletion with undo
+
+    private struct PendingWorkoutDeletion {
+        let id: PersistentIdentifier
+        let workout: Workout
+        let title: String
+    }
+
+    /// Longer while VoiceOver is running: the banner has to be found in the
+    /// rotor and read before it can be acted on.
+    private var undoWindowSeconds: TimeInterval {
+        UIAccessibility.isVoiceOverRunning ? 16 : 8
+    }
+
+    private func undoBanner(for pending: PendingWorkoutDeletion) -> some View {
+        HStack(spacing: Spacing.m) {
+            Image(systemName: AppIcon.trash)
+                .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(Color.gymSubduedText)
+                .accessibilityHidden(true)
+
+            Text("Deleted \(pending.title)")
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymText)
+                .lineLimit(2)
+
+            Spacer(minLength: Spacing.s)
+
+            Button("Undo") {
+                undoPendingDeletion()
+            }
+            .font(AppFont.subheadlineSemibold)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .accessibilityIdentifier("history-undo-delete")
+            .accessibilityHint("Restores the deleted workout and all of its sets.")
+        }
+        .padding(.horizontal, Spacing.l)
+        .padding(.vertical, Spacing.s)
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.section, style: .continuous)
+                .stroke(Color.gymBorder, lineWidth: 1)
+        }
+        .shadow(color: Color.gymText.opacity(0.08), radius: 8, y: 2)
+        .padding(.horizontal, Spacing.l)
+        .padding(.bottom, Spacing.m)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("history-undo-banner")
+    }
+
+    private func beginDeletion(of workout: Workout) {
+        // A second delete during an open window commits the first rather than
+        // silently dropping it: only one workout is ever recoverable at a time.
+        commitPendingDeletion()
+
+        let pending = PendingWorkoutDeletion(
+            id: workout.persistentModelID,
+            workout: workout,
+            title: workout.displayTitle
+        )
+        withAnimation(reduceMotion ? nil : AppMotion.compact) {
+            pendingDeletion = pending
+        }
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: String(localized: "Deleted \(pending.title). Undo is available.")
+        )
+
+        deletionTask = Task {
+            try? await Task.sleep(for: .seconds(undoWindowSeconds))
+            guard !Task.isCancelled else { return }
+            await MainActor.run { commitPendingDeletion() }
+        }
+    }
+
+    private func undoPendingDeletion() {
+        guard pendingDeletion != nil else { return }
+        deletionTask?.cancel()
+        deletionTask = nil
+        withAnimation(reduceMotion ? nil : AppMotion.compact) {
+            pendingDeletion = nil
+        }
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: String(localized: "Deletion undone.")
+        )
+    }
+
+    private func commitPendingDeletion() {
+        guard let pending = pendingDeletion else { return }
+        deletionTask?.cancel()
+        deletionTask = nil
+        pendingDeletion = nil
+        viewModel.removeWorkout(using: modelContext, workout: pending.workout)
+        committedDeletionCount += 1
     }
 
     private var historySections: [HistorySection] {

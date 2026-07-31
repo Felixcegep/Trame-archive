@@ -97,6 +97,7 @@ struct SetDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var pendingEffortMeasure: EffortMeasure?
     @State private var isShowingEffortSwitchConfirmation = false
+    @State private var isShowingDeleteConfirmation = false
     @State private var isShowingAdvancedOptions = false
     @State private var isRecordingVelocity = false
 
@@ -142,6 +143,22 @@ struct SetDetailSheet: View {
             }
         } message: {
             Text("This set has \(activeEffortValueText). Recording \(pendingEffortMeasure == .rpe ? "RPE" : "RIR") will remove it from this set.")
+        }
+        .confirmationDialog(
+            "Delete set \(index + 1)?",
+            isPresented: $isShowingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            // Deliberately not "Delete set": that is the label of the button
+            // that opened this dialog, and two identically-labelled controls
+            // in one transition are ambiguous to read and to automate.
+            Button("Delete set \(index + 1)", role: .destructive) {
+                dismiss()
+                onDelete()
+            }
+            .accessibilityIdentifier("confirm-delete-set-\(exerciseName)-\(index)")
+        } message: {
+            Text("Its logged values (\(exerciseSet.displayText())) will not be saved.")
         }
     }
 
@@ -199,7 +216,7 @@ struct SetDetailSheet: View {
         // their own identifiers (drop-set-structure, set-method-picker, …).
         VStack(alignment: .leading, spacing: Spacing.l) {
             Button {
-                withAnimation { isShowingAdvancedOptions.toggle() }
+                withAnimation(reduceMotion ? nil : AppMotion.compact) { isShowingAdvancedOptions.toggle() }
             } label: {
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -884,10 +901,18 @@ struct SetDetailSheet: View {
             .foregroundStyle(Color.gymSubduedText)
     }
 
+    /// An untouched set holds nothing, so deleting it is immediate. A set the
+    /// lifter has performed or typed into is confirmed first, and the message
+    /// reads back the values that would be lost — the sheet is scrollable and
+    /// this button sits under content, so a mistap here is plausible.
     private var deleteButton: some View {
         Button(role: .destructive) {
-            dismiss()
-            onDelete()
+            if hasLoggedContent {
+                isShowingDeleteConfirmation = true
+            } else {
+                dismiss()
+                onDelete()
+            }
         } label: {
             Label("Delete set", systemImage: AppIcon.trash)
                 .font(AppFont.subheadlineSemibold)
@@ -895,7 +920,17 @@ struct SetDetailSheet: View {
         }
         .buttonStyle(.bordered)
         .tint(Color.gymDestructive)
+        .accessibilityHint(hasLoggedContent ? "Opens confirmation before deleting this set." : "Deletes this empty set.")
         .accessibilityIdentifier("delete-set-\(exerciseName)-\(index)")
+    }
+
+    private var hasLoggedContent: Bool {
+        exerciseSet.done
+            || exerciseSet.repetitions > 0
+            || exerciseSet.weight > 0
+            || (exerciseSet.duration ?? 0) > 0
+            || (exerciseSet.distance ?? 0) > 0
+            || (exerciseSet.calories ?? 0) > 0
     }
 
     private func eyebrow(_ title: LocalizedStringKey) -> some View {

@@ -206,9 +206,10 @@ struct ExerciseDetailAnalyticsService {
     /// Chronological (oldest first) sessions so the latest is always `.last`.
     private func sessions(from workouts: [Workout], for exercise: Exercise) -> [ExerciseSession] {
         workouts.compactMap { workout -> ExerciseSession? in
-            guard let entry = workout.orderedExercises.first(where: {
-                $0.exercise.persistentModelID == exercise.persistentModelID
-            }) else { return nil }
+            guard let entry = HistoricalExerciseIdentityPolicy.entry(
+                for: exercise,
+                in: workout
+            ) else { return nil }
 
             let sets = entry.orderedSets
                 .filter(\.done)
@@ -235,9 +236,10 @@ struct ExerciseDetailAnalyticsService {
 
     private func notes(from workouts: [Workout], for exercise: Exercise) -> [ExerciseNote] {
         workouts.compactMap { workout -> ExerciseNote? in
-            guard let entry = workout.orderedExercises.first(where: {
-                $0.exercise.persistentModelID == exercise.persistentModelID
-            }) else { return nil }
+            guard let entry = HistoricalExerciseIdentityPolicy.entry(
+                for: exercise,
+                in: workout
+            ) else { return nil }
             let text = entry.comment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !text.isEmpty else { return nil }
             return ExerciseNote(workoutDate: workout.startTime, text: text)

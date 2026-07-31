@@ -102,8 +102,12 @@ enum StrengthAnalyticsPolicy {
     }
 
     private static func blockComparisonKey(_ block: WorkoutExecutionBlock, workout: Workout) -> String {
+        // Compares one completed block against another across sessions, so the
+        // components are keyed by their historical identity. Keying on the
+        // live relationship would have let a catalogue change silently make
+        // two structurally identical blocks stop comparing.
         let componentIDs = WorkoutExecutionBlockService.entries(in: block, workout: workout)
-            .map { $0.exercise.id.uuidString }
+            .map(HistoricalExerciseIdentityPolicy.comparisonKey(for:))
             .joined(separator: ",")
         let targetRounds = block.targetRounds.map(String.init) ?? ""
         let repetitionStart = block.repetitionStart.map(String.init) ?? ""

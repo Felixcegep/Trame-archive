@@ -239,10 +239,13 @@ struct HistoryExerciseProgressCard: View {
                     }
                 }
                 .frame(height: ComponentSize.compactChartHeight)
+                // `children: .ignore` so the label below is what VoiceOver
+                // reads. Without it the chart's own marks stay traversable and
+                // shadow it — the frequency chart already did this; this one
+                // did not.
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(series.name) \(metric.title) trend")
-                .accessibilityValue(series.points(for: metric).map {
-                    "\($0.date.formatted(.dateTime.month(.abbreviated).day())): \(formatted($0.value))"
-                }.joined(separator: ", "))
+                .accessibilityValue(seriesAccessibilityValue)
             }
         }
         .onAppear {
@@ -262,6 +265,26 @@ struct HistoryExerciseProgressCard: View {
         let percentage = Int((abs(change) * 100).rounded())
         if percentage < 1 { return "The first and latest completed-session values were about the same." }
         return "The latest value was \(percentage)% \(change > 0 ? "higher" : "lower") than the first recorded value."
+    }
+
+    /// Every period, but summarised past a readable length.
+    ///
+    /// Concatenating an unbounded series produced a single utterance that could
+    /// run for minutes on a long history — technically complete, practically
+    /// unusable. The recent points are what a trend question is about, so those
+    /// are spoken and the remainder is counted.
+    private var seriesAccessibilityValue: String {
+        let points = series.points(for: metric)
+        guard !points.isEmpty else { return String(localized: "No data") }
+
+        let spokenLimit = 12
+        let spoken = points.suffix(spokenLimit).map {
+            "\($0.date.formatted(.dateTime.month(.abbreviated).day())): \(formatted($0.value))"
+        }.joined(separator: ", ")
+
+        guard points.count > spokenLimit else { return spoken }
+        let earlier = points.count - spokenLimit
+        return String(localized: "Most recent \(spokenLimit) of \(points.count) values. \(spoken). \(earlier) earlier values not listed.")
     }
 
     private func formatted(_ value: Float) -> String {

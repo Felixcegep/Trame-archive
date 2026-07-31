@@ -1,6 +1,55 @@
 import SwiftData
 import SwiftUI
 
+/// The elapsed/target readout for a duration-tracked hold.
+///
+/// A hold used to be a bare counter that ran past its target and changed
+/// nothing. A lifter in a floor stretch, often with their eyes shut, had no way
+/// to know the hold was over except to keep watching the number — the one thing
+/// that position makes hardest. Reaching the target is now a state: stated in
+/// words, announced, and felt.
+///
+/// Its own view rather than a builder on `MobilitySessionView` because it is
+/// rebuilt once a second inside a `TimelineView` nested in that view's already
+/// large `body`, and this file is close to the type-checker's budget.
+private struct MobilityHoldProgressLabel: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let elapsedSeconds: Int
+    let targetSeconds: Int
+    let movementName: String
+
+    private var hasReachedTarget: Bool { elapsedSeconds >= targetSeconds }
+
+    var body: some View {
+        label
+            .foregroundStyle(hasReachedTarget ? Color.gymSecondary : Color.gymPrimary)
+            .animation(reduceMotion ? nil : AppMotion.compact, value: hasReachedTarget)
+            // A Bool trigger never fires on its initial value, so re-entering a
+            // movement whose target already passed stays silent: reaching the
+            // target is the event, not observing that it was reached.
+            .gymFeedback(.timedTargetReached, trigger: hasReachedTarget) { _, reached in
+                reached
+            }
+            .onChange(of: hasReachedTarget) { _, reached in
+                guard reached else { return }
+                GymAnnouncement.post(
+                    String(localized: "Target duration reached for \(movementName).")
+                )
+            }
+    }
+
+    @ViewBuilder
+    private var label: some View {
+        if hasReachedTarget {
+            Label("Target reached · \(elapsedSeconds) sec", systemImage: AppIcon.checkmarkCircle)
+                .monospacedDigit()
+        } else {
+            Text("\(elapsedSeconds) / \(targetSeconds) sec")
+                .monospacedDigit()
+        }
+    }
+}
+
 struct MobilitySessionView: View {
     @Environment(\.modelContext) private var modelContext
     let session: MobilitySession
@@ -101,8 +150,11 @@ struct MobilitySessionView: View {
                 Label(entry.side.displayName, systemImage: AppIcon.mobility)
                 if entry.trackingType == .duration, let target = entry.targetDurationSeconds {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
-                        Text("\(elapsedSeconds(for: entry)) / \(target) sec")
-                            .monospacedDigit()
+                        MobilityHoldProgressLabel(
+                            elapsedSeconds: elapsedSeconds(for: entry),
+                            targetSeconds: target,
+                            movementName: entry.definitionNameSnapshot
+                        )
                     }
                 } else if let target = entry.targetRepetitions {
                     Text("Target \(target) reps")

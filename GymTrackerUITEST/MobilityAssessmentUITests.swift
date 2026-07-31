@@ -66,7 +66,9 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
 
         tapButton("toggle-all-mobility-assessments", in: app)
         tapButton("mobility-assessment-select-mobility-assessment.thoracic-rotation-seated", in: app)
-        tapButton("begin-mobility-assessment", in: app)
+        let beginAssessment = app.buttons["begin-mobility-assessment"]
+        scrollToElement(beginAssessment, in: app)
+        beginAssessment.tap()
         XCTAssertTrue(app.descendants(matching: .any)["mobility-assessment-progress"].waitForExistence(timeout: 5))
         saveScreenshot("mobility-assessment/21c_Assessment_Instruction")
 

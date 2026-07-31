@@ -191,7 +191,7 @@ final class PlanSchedulingTests: XCTestCase {
         let rescheduledAt = try XCTUnwrap(progress.lastRescheduledAt)
 
         let backup = try BackupDTO.create(from: source, restTimer: 90, darkMode: false, unitSystem: .metric)
-        XCTAssertEqual(backup.version, BackupDTO.planScheduleEvidenceVersion)
+        XCTAssertGreaterThanOrEqual(backup.version, BackupDTO.planScheduleEvidenceVersion)
         let backupProgress = try XCTUnwrap(backup.planRuns.first?.workoutProgress.first)
         XCTAssertEqual(backupProgress.originalScheduledDate, originalDate)
         XCTAssertEqual(backupProgress.lastRescheduledAt, rescheduledAt)

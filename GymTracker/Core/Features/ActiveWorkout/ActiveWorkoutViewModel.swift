@@ -18,6 +18,16 @@ class ActiveWorkoutViewModel {
 
     var isTimerVisible: Bool { restTimer.isVisible }
     var timerPause: Date? { restTimer.endDate }
+
+    /// Increments only when a running countdown actually reaches its deadline
+    /// while the lifter is here to notice.
+    ///
+    /// `restorePersistedRestTimer` also moves the controller to `.ready`, for a
+    /// deadline that expired while the app was backgrounded. That is a
+    /// restoration, not an event: the rest ended minutes ago, and buzzing on
+    /// return would be reporting old news. It deliberately does not increment
+    /// this, so nothing observing it can fire on relaunch or on a fixture load.
+    private(set) var restCompletionCount = 0
     
     init(
         workoutVM: WorkoutViewModel,
@@ -33,15 +43,17 @@ class ActiveWorkoutViewModel {
         workoutVM.activeWorkout
     }
 
-    private var restDuration: TimeInterval {
-        let defaults = UserDefaults.standard
-        let savedDuration = defaults.integer(forKey: DefaultsKey.restTimer)
-
-        guard defaults.object(forKey: DefaultsKey.restTimer) != nil, savedDuration > 0 else {
-            return 20
-        }
-
-        return TimeInterval(savedDuration)
+    /// The rest to offer after this exercise when nothing prescribes one.
+    ///
+    /// An explicit Settings value wins — the lifter has stated a preference and
+    /// it applies everywhere. Zero (or unset) means automatic, and the duration
+    /// is derived from what the exercise actually is. The previous behaviour
+    /// was a single global 20 seconds, which was shorter than any strength
+    /// protocol and taught people to ignore the timer.
+    private func restDefaultSeconds(for entry: ExerciseEntry) -> Int {
+        let explicit = UserDefaults.standard.integer(forKey: DefaultsKey.restTimer)
+        guard explicit <= 0 else { return explicit }
+        return WorkoutRestPolicy.defaultSeconds(for: entry)
     }
 
     func getNextExerciseToDo() -> (exercise: ExerciseEntry, set: ExerciseSet)? {
@@ -194,10 +206,14 @@ class ActiveWorkoutViewModel {
             set.repetitions = previousSet.repetitions
         }
         if exercise.trackingTypeSnapshot.usesWeight {
-            set.weight = UnitConversion.weight(
+            // Prefills a load the lifter is about to put on the bar, so it is
+            // snapped to the equipment when the units differ. The historical
+            // set it came from is not touched.
+            set.weight = WorkoutLoadRounding.converted(
                 previousSet.weight,
                 from: previousSet.weightType,
-                to: set.weightType
+                to: set.weightType,
+                for: exercise.exercise
             )
         }
         if exercise.trackingTypeSnapshot.usesDuration {
@@ -239,7 +255,12 @@ class ActiveWorkoutViewModel {
         }
 
         for set in exercise.orderedSets where !set.done {
-            set.weight = UnitConversion.weight(load, from: unit, to: set.weightType)
+            set.weight = WorkoutLoadRounding.converted(
+                load,
+                from: unit,
+                to: set.weightType,
+                for: exercise.exercise
+            )
         }
         persistChanges()
     }
@@ -257,7 +278,12 @@ class ActiveWorkoutViewModel {
         }
 
         for set in exercise.orderedSets where !set.done {
-            set.weight = UnitConversion.weight(load, from: unit, to: set.weightType)
+            set.weight = WorkoutLoadRounding.converted(
+                load,
+                from: unit,
+                to: set.weightType,
+                for: exercise.exercise
+            )
         }
         persistChanges()
     }
@@ -396,7 +422,7 @@ class ActiveWorkoutViewModel {
             WorkoutSetSelector.restSeconds(
                 afterCompleting: $0,
                 in: workout,
-                defaultSeconds: Int(restDuration)
+                defaultSeconds: restDefaultSeconds(for: $0)
             )
         }
 
@@ -480,6 +506,7 @@ class ActiveWorkoutViewModel {
         workoutVM.activeWorkout?.restEndDate = nil
         restTimer.pause(remaining: remaining)
         persistChanges()
+        cancelPendingRestNotification()
         activeLoggingMetrics?.restPaused()
 
         workoutVM.reconcileLiveActivity()
@@ -517,12 +544,23 @@ class ActiveWorkoutViewModel {
         timerTask?.cancel()
         timerTask = nil
         restTimer.cancel()
+        // Skipping, finishing, or discarding all land here. A reminder for a
+        // rest that no longer exists is worse than none.
+        cancelPendingRestNotification()
         if workoutVM.activeWorkout?.restEndDate != nil || workoutVM.activeWorkout?.pausedRemainingTime != nil {
             workoutVM.activeWorkout?.restEndDate = nil
             workoutVM.activeWorkout?.pausedRemainingTime = nil
             persistChanges()
         }
         workoutVM.reconcileLiveActivity()
+    }
+
+    /// Drops any reminder scheduled for a rest period that has since been
+    /// skipped, paused, or ended. Scheduling happens only on backgrounding
+    /// (see `RootView.handleScenePhaseChange`); cancelling happens wherever the
+    /// rest stops being true, because those paths can run in either state.
+    private func cancelPendingRestNotification() {
+        Task { await RestNotificationScheduler.shared.cancel() }
     }
 
     /// The single countdown path used by a newly started, restored, resumed, or
@@ -544,6 +582,9 @@ class ActiveWorkoutViewModel {
                     restTimer.ready()
                     workoutVM.activeWorkout?.restEndDate = nil
                     persistChanges()
+                    // The one place a rest period genuinely *ends* in front of
+                    // the lifter. Every other path to `.ready` is a restore.
+                    restCompletionCount += 1
                 }
 
                 await MainActor.run {

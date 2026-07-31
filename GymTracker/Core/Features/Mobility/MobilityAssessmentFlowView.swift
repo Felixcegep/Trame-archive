@@ -80,7 +80,7 @@ struct MobilityAssessmentFlowView: View {
             }
             // Fires only after a save is persisted — never on appearance, and
             // never during the entry itself.
-            .sensoryFeedback(.success, trigger: saveCount)
+            .gymFeedback(.sessionSaved, trigger: saveCount)
     }
 
     private var scrollingContent: some View {

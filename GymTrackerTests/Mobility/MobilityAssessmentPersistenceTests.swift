@@ -19,7 +19,7 @@ final class MobilityAssessmentPersistenceTests: XCTestCase {
         _ = try MobilityAssessmentSessionService.saveResult(
             in: session,
             definition: definition,
-            input: input(for: definition, side: .left, value: 41),
+            input: input(for: definition, side: .left, value: 41, day: session.day),
             using: context
         )
 
@@ -46,13 +46,13 @@ final class MobilityAssessmentPersistenceTests: XCTestCase {
         let first = try MobilityAssessmentSessionService.saveResult(
             in: session,
             definition: definition,
-            input: input(for: definition, side: .left, value: 41),
+            input: input(for: definition, side: .left, value: 41, day: session.day),
             using: context
         )
         let edited = try MobilityAssessmentSessionService.saveResult(
             in: session,
             definition: definition,
-            input: input(for: definition, side: .left, value: 44),
+            input: input(for: definition, side: .left, value: 44, day: session.day),
             using: context
         )
 
@@ -73,7 +73,7 @@ final class MobilityAssessmentPersistenceTests: XCTestCase {
         let result = try MobilityAssessmentSessionService.saveResult(
             in: session,
             definition: definition,
-            input: input(for: definition, side: .left, value: 41),
+            input: input(for: definition, side: .left, value: 41, day: session.day),
             using: context
         )
         let snapshotName = result.definitionNameSnapshot
@@ -93,7 +93,8 @@ final class MobilityAssessmentPersistenceTests: XCTestCase {
     private func input(
         for definition: MobilityAssessmentDefinition,
         side: MobilityAssessmentSide,
-        value: Double
+        value: Double,
+        day: LocalDay
     ) -> MobilityAssessmentResultInput {
         MobilityAssessmentResultInput(
             numericValue: value,
@@ -103,7 +104,7 @@ final class MobilityAssessmentPersistenceTests: XCTestCase {
             method: definition.manualMode,
             unit: definition.unit,
             isActiveRange: definition.defaultIsActiveRange,
-            day: LocalDay(rawValue: "2026-07-29")
+            day: day
         )
     }
 }

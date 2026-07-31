@@ -195,7 +195,7 @@ struct MealTemplateEditorView: View {
                 Button("Replace", role: .destructive) { runGeneration() }
                 Button("Keep editing", role: .cancel) {}
             }
-            .sensoryFeedback(.success, trigger: draftGeneratedFeedbackTrigger) { _, newValue in newValue }
+            .gymFeedback(.generationCompleted, trigger: draftGeneratedFeedbackTrigger) { _, newValue in newValue }
         }
     }
 

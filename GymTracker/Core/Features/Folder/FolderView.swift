@@ -51,7 +51,12 @@ struct FolderView: View {
             .padding(.bottom, 104)
         }
         .folderScreenStyle()
-        .navigationTitle("")
+        // The tab is "Train". This was empty, so the screen had no name, pushed
+        // screens' back buttons read "Back" instead of naming the parent, and
+        // the first heading in the content said "Library" — three different
+        // answers to what this tab is called, left over from a half-finished
+        // rename.
+        .navigationTitle("Train")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -157,7 +162,10 @@ struct FolderView: View {
     /// the user has to answer before they can start.
     private var librarySection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            LibrarySectionTitle("Library")
+            // "Browse", not "Library": the tab is named in the navigation bar
+            // now, and this heading introduces the browsing destinations rather
+            // than renaming the screen a second time.
+            LibrarySectionTitle("Browse")
 
             LibraryGroupCard {
                 NavigationLink(value: LibraryRoute.plans) {

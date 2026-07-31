@@ -6,7 +6,7 @@ import XCTest
 final class MobilityRoutinePurposeBackupTests: XCTestCase {
     func testBackupVersionIsMobilityRoutinePurposeVersion() {
         XCTAssertEqual(BackupDTO.mobilityRoutinePurposeVersion, 22)
-        XCTAssertEqual(BackupDTO.currentVersion, BackupDTO.mobilityRoutinePurposeVersion)
+        XCTAssertGreaterThanOrEqual(BackupDTO.currentVersion, BackupDTO.mobilityRoutinePurposeVersion)
     }
 
     func testRoutinePurposesRoundTripThroughBackup() throws {

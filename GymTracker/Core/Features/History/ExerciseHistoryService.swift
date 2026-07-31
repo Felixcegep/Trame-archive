@@ -64,9 +64,10 @@ struct ExerciseHistoryService {
         let completedWorkouts = try modelContext.fetch(descriptor)
 
         for workout in completedWorkouts where workout.status == .completed && workout.startTime < date {
-            guard let entry = workout.orderedExercises.first(where: {
-                $0.exercise.persistentModelID == exercise.persistentModelID
-            }) else {
+            guard let entry = HistoricalExerciseIdentityPolicy.entry(
+                for: exercise,
+                in: workout
+            ) else {
                 continue
             }
 

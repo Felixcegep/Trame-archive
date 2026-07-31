@@ -3,9 +3,20 @@ import Foundation
 enum SetRowPreparation {
     static func synchronizeUnits(
         for exerciseSet: ExerciseSet,
+        in exerciseEntry: ExerciseEntry,
         preferredSystem: UnitSystem
     ) -> Bool {
-        WorkoutSetInputNormalizer.synchronize(exerciseSet, to: preferredSystem)
+        let preferredWeightType: WeightType = preferredSystem == .metric ? .kg : .lbs
+        return WorkoutSetInputNormalizer.synchronize(
+            exerciseSet,
+            to: preferredSystem,
+            // Resolved here, where the exercise is in scope. The normalizer
+            // itself must stay free of catalogue types — see its parameter doc.
+            loadIncrement: WorkoutLoadRounding.equipmentIncrement(
+                for: exerciseEntry.exercise,
+                unit: preferredWeightType
+            )
+        )
     }
 
     static func prefillPrescribedDuration(

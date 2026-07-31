@@ -130,7 +130,7 @@ struct SetDurationCountdownView: View {
             countdownFinished = true
             isTimerRunning = false
         }
-        .sensoryFeedback(.success, trigger: countdownFinished) { _, newValue in
+        .gymFeedback(.timedTargetReached, trigger: countdownFinished) { _, newValue in
             newValue
         }
     }

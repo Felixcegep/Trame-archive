@@ -381,23 +381,58 @@ extension View {
     }
 }
 
+/// The app's one filled action.
+///
+/// Four screens previously hand-rolled this — `.buttonStyle(.plain)` plus a
+/// manual fill, corner radius, and `padding(.vertical, 17)` — which is why the
+/// bottom-bar buttons and the styled ones had drifted apart in height, font,
+/// and disabled behaviour. `prominence` covers the one real difference between
+/// them: a bottom-bar call to action is taller and bolder than an inline one.
 struct GymPrimaryButtonStyle: ButtonStyle {
+    enum Prominence {
+        /// Inline. 44pt.
+        case standard
+        /// A screen's committing action, in a bottom bar or an empty state.
+        case prominent
+    }
+
+    var prominence: Prominence = .standard
+
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(AppFont.bodyMedium)
-            .foregroundStyle(Color.white)
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .font(prominence == .prominent ? AppFont.headline : AppFont.bodyMedium)
+            // Disabled is an outline, not a faded fill. White on a 45%-opacity
+            // blue computed to about 1.9:1 — the label was the least legible
+            // text on screen at the moment it most needed to explain itself.
+            .foregroundStyle(isEnabled ? Color.white : Color.gymSubduedText)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: prominence == .prominent ? 54 : ComponentSize.minimumTouchTarget
+            )
             .padding(.horizontal, Spacing.l)
-            .background(Color.gymPrimary, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+            .background {
+                RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                    // `gymPrimaryDeep`, not `gymPrimary`: white on the latter is
+                    // 4.46:1, which misses AA for the 17pt label this carries.
+                    .fill(isEnabled ? Color.gymPrimaryDeep : Color.clear)
+            }
+            .overlay {
+                if !isEnabled {
+                    RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                        .stroke(Color.gymBorder, lineWidth: 1)
+                }
+            }
             .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.97)
             .animation(AppMotion.pressResponse, value: configuration.isPressed)
-            .opacity(isEnabled ? 1 : 0.45)
     }
 }
 
 extension ButtonStyle where Self == GymPrimaryButtonStyle {
     static var gymPrimary: GymPrimaryButtonStyle { GymPrimaryButtonStyle() }
+    static var gymPrimaryProminent: GymPrimaryButtonStyle {
+        GymPrimaryButtonStyle(prominence: .prominent)
+    }
 }

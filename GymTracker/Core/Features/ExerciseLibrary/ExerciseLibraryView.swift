@@ -19,20 +19,24 @@ struct ExerciseLibraryView : View {
 
     @State private var searchText = ""
     @State private var filter = ExerciseFilterState()
-    @State private var selectedExerciseNames: Set<String>
+    /// Exercises already in the destination. This picker only ever adds to it:
+    /// an entry here can never be tapped back out. Removal belongs to the
+    /// exercise's own card, which is the only place the sets that would be
+    /// destroyed are visible.
+    @State private var addedExerciseIDs: Set<UUID>
 
     init(
         isSelectingExercise: Bool,
         selectedExercise: Exercise? = nil,
         availableExercises: [Exercise],
-        selectedExerciseNames: Set<String> = [],
+        addedExerciseIDs: Set<UUID> = [],
         onSelect: @escaping (Exercise) -> Void
     ) {
         self.isSelectingExercise = isSelectingExercise
         self.selectedExercise = selectedExercise
         self.availableExercises = availableExercises
         self.onSelect = onSelect
-        _selectedExerciseNames = State(initialValue: selectedExerciseNames)
+        _addedExerciseIDs = State(initialValue: addedExerciseIDs)
     }
 
     var body: some View {
@@ -84,15 +88,14 @@ struct ExerciseLibraryView : View {
     }
 
     private func exerciseRow(for exercise: Exercise) -> some View {
-        let isSelected = selectedExerciseNames.contains(exercise.name)
+        // Identity is the catalog id, not the name: two exercises can share a
+        // name, and a name match would let one stand in for the other.
+        let isAdded = addedExerciseIDs.contains(exercise.id)
 
-        return ExerciseLibrarySelectionRow(exercise: exercise, isSelected: isSelected) {
-                if isSelected {
-                    selectedExerciseNames.remove(exercise.name)
-                } else {
-                    selectedExerciseNames.insert(exercise.name)
-                }
-                onSelect(exercise)
+        return ExerciseLibrarySelectionRow(exercise: exercise, isAdded: isAdded) {
+            guard !isAdded else { return }
+            addedExerciseIDs.insert(exercise.id)
+            onSelect(exercise)
         }
     }
 
@@ -113,8 +116,8 @@ struct ExerciseLibraryView : View {
 
 private struct ExerciseLibrarySelectionRow: View {
     let exercise: Exercise
-    let isSelected: Bool
-    let onToggle: () -> Void
+    let isAdded: Bool
+    let onAdd: () -> Void
     @State private var isShowingDetails = false
 
     var body: some View {
@@ -141,17 +144,29 @@ private struct ExerciseLibrarySelectionRow: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("exercise-link-\(exercise.name)")
 
-            Button(action: onToggle) {
-                Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.plus)
+            // An already-added exercise renders as a status, not a control.
+            // As a button it read as a toggle, and tapping it deleted the
+            // exercise and every set logged against it from a screen where
+            // none of that work was visible.
+            if isAdded {
+                Image(systemName: AppIcon.checkmarkCircle)
                     .font(AppFont.headlineSemibold)
-                    .foregroundStyle(isSelected ? Color.gymSecondary : Color.gymPrimary)
+                    .foregroundStyle(Color.gymSecondary)
                     .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+                    .accessibilityIdentifier("added-exercise-\(exercise.name)")
+                    .accessibilityLabel("\(exercise.name), already added")
+            } else {
+                Button(action: onAdd) {
+                    Image(systemName: AppIcon.plus)
+                        .font(AppFont.headlineSemibold)
+                        .foregroundStyle(Color.gymPrimary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .accessibilityIdentifier("add-exercise-\(exercise.name)")
+                .accessibilityLabel("Add \(exercise.name)")
             }
-            .buttonStyle(.borderless)
-            .accessibilityIdentifier("add-exercise-\(exercise.name)")
-            .accessibilityLabel("\(isSelected ? "Remove" : "Add") \(exercise.name)")
-            .accessibilityValue(isSelected ? "Selected" : "Not selected")
         }
         .navigationDestination(isPresented: $isShowingDetails) {
             ExerciseView(exercise: exercise)

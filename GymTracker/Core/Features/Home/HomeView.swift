@@ -16,6 +16,10 @@ struct HomeView: View {
     let onOpenTrainingCalendar: () -> Void
     let onOpenSettings: () -> Void
     @Binding var requestedRescheduleProgressID: UUID?
+    /// Owned by the root so a confirmation raised elsewhere — saving a workout,
+    /// which dismisses its own screen — can still land here, where the user
+    /// ends up.
+    @Binding var statusMessage: GymStatusMessage?
 
     @Query private var workoutTemplates: [WorkoutTemplate]
     @Query private var planRuns: [PlanRun]
@@ -27,6 +31,9 @@ struct HomeView: View {
     @State private var rescheduleDate = Date.now
     @State private var progressToSkip: PlanWorkoutProgress?
     @State private var scheduleActionError: ValidationIssue?
+    /// Increments only on a schedule mutation that actually committed, so the
+    /// error branches stay silent.
+    @State private var scheduleChangeCount = 0
 
     private var activeFixedPlanRuns: [PlanRun] {
         planRuns
@@ -96,7 +103,11 @@ struct HomeView: View {
             ) {
                 Button("Skip Workout", role: .destructive, action: skipPlannedWorkout)
                     .accessibilityIdentifier("today-confirm-skip-workout")
-                Button("Cancel", role: .cancel) { progressToSkip = nil }
+                // Keep an explicit action here rather than relying on the
+                // platform's implicit cancel row; it remains discoverable to
+                // VoiceOver and UI automation on iOS 26.
+                Button("Cancel") { progressToSkip = nil }
+                    .accessibilityIdentifier("today-cancel-skip-workout")
             } message: {
                 Text("This session will remain in the plan schedule as skipped. Your plan and workout history will not change.")
             }
@@ -107,6 +118,16 @@ struct HomeView: View {
                 Button("OK", role: .cancel) { scheduleActionError = nil }
             } message: {
                 Text(scheduleActionError?.message ?? "Please try again.")
+            }
+            // Moving or skipping a session used to change the card and say
+            // nothing. "Tomorrow" sits eight points from "Reschedule", so a
+            // near-miss silently moved a workout by a day with no way to tell.
+            .gymStatusBanner($statusMessage)
+            .gymFeedback(.scheduleChanged, trigger: scheduleChangeCount)
+            .onDisappear {
+                // Confirmations are scoped to Today; leaving the screen must
+                // not make an old message reappear on a later return.
+                statusMessage = nil
             }
     }
 
@@ -188,9 +209,22 @@ struct HomeView: View {
     }
 
     private func rescheduleSheet(for progress: PlanWorkoutProgress) -> some View {
-        NavigationStack {
+        let originalDate = progress.scheduledDate
+        let isUnchanged = originalDate.map {
+            Calendar.current.isDate($0, inSameDayAs: rescheduleDate)
+        } ?? false
+
+        return NavigationStack {
             Form {
-                DatePicker("Scheduled date", selection: $rescheduleDate, displayedComponents: .date)
+                Section {
+                    DatePicker("Scheduled date", selection: $rescheduleDate, displayedComponents: .date)
+                } footer: {
+                    // A past date is allowed and becomes a missed session. That
+                    // is deliberate, but nothing said so, and a date picker with
+                    // no stated bounds invites the assumption that it is
+                    // constrained.
+                    Text("Any date is allowed. A date in the past is recorded as missed, and one outside the plan's range still keeps the plan's order.")
+                }
             }
             .navigationTitle("Reschedule workout")
             .navigationBarTitleDisplayMode(.inline)
@@ -200,6 +234,10 @@ struct HomeView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { saveReschedule(progress) }
+                        // Saving the date it already has is a no-op that still
+                        // reported "Moved to …", which is a confirmation of
+                        // nothing.
+                        .disabled(isUnchanged)
                         .accessibilityIdentifier("today-confirm-reschedule")
                 }
             }
@@ -247,6 +285,11 @@ private extension HomeView {
             return
         }
         reschedulingProgress = nil
+        confirmScheduleChange(
+            String(
+                localized: "Moved to \(rescheduleDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
+            )
+        )
     }
     func presentRequestedRescheduleIfNeeded() {
         guard let progressID = requestedRescheduleProgressID else { return }
@@ -271,7 +314,9 @@ private extension HomeView {
             )
             return
         }
+        confirmScheduleChange(String(localized: "Moved to tomorrow."))
     }
+
     func skipPlannedWorkout() {
         defer { progressToSkip = nil }
         guard let progress = progressToSkip,
@@ -284,6 +329,18 @@ private extension HomeView {
             )
             return
         }
+        confirmScheduleChange(
+            String(localized: "Workout skipped. It stays in your plan schedule."),
+            systemImage: AppIcon.skip
+        )
+    }
+
+    /// The single success path for a schedule mutation, so the visible, spoken,
+    /// and tactile confirmations can never disagree about whether one happened.
+    /// Called only after the coordinator has reported success.
+    func confirmScheduleChange(_ text: String, systemImage: String = AppIcon.checkmarkCircle) {
+        statusMessage = GymStatusMessage(text, systemImage: systemImage)
+        scheduleChangeCount += 1
     }
 
 }

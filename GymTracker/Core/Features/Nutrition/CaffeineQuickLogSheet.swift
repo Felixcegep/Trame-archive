@@ -170,6 +170,7 @@ enum PreWorkoutIntensity: String, CaseIterable, Identifiable {
 }
 
 struct CaffeineQuickLogSheet: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query private var foods: [FoodItem]
@@ -300,7 +301,7 @@ struct CaffeineQuickLogSheet: View {
                         title: candidate.title,
                         isSelected: source == candidate
                     ) {
-                        withAnimation(AppMotion.compact) { source = candidate }
+                        withAnimation(reduceMotion ? nil : AppMotion.compact) { source = candidate }
                     }
                 }
             }
@@ -311,7 +312,7 @@ struct CaffeineQuickLogSheet: View {
     private var otherSourceRow: some View {
         let isSelected = source == .other
         return Button {
-            withAnimation(AppMotion.compact) { source = .other }
+            withAnimation(reduceMotion ? nil : AppMotion.compact) { source = .other }
         } label: {
             HStack(spacing: Spacing.s) {
                 Image(systemName: AppIcon.plus)
@@ -440,7 +441,7 @@ struct CaffeineQuickLogSheet: View {
     private func intensityRow(_ intensity: PreWorkoutIntensity) -> some View {
         let isSelected = preWorkoutIntensity == intensity
         return Button {
-            withAnimation(AppMotion.compact) { preWorkoutIntensity = intensity }
+            withAnimation(reduceMotion ? nil : AppMotion.compact) { preWorkoutIntensity = intensity }
         } label: {
             HStack(spacing: Spacing.m) {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {

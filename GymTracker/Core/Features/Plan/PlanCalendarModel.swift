@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum PlanCalendarDisplayState: String, CaseIterable {
     case upcoming
@@ -23,6 +24,40 @@ enum PlanCalendarDisplayState: String, CaseIterable {
         switch self {
         case .inProgress: "plan-calendar-state-in-progress"
         default: "plan-calendar-state-\(rawValue)"
+        }
+    }
+
+    /// One icon per state, owned here so the plan calendar, the training
+    /// calendar, and the program path cannot drift apart.
+    ///
+    /// They had. `PlanCalendarStateBadge` drew `skipped` with the same dashed
+    /// circle as `upcoming`, making a session you chose to skip
+    /// indistinguishable from one that has not happened yet; the program path
+    /// used a distinct skip glyph. The distinct glyph wins, because those are
+    /// different states with different consequences.
+    var icon: String {
+        switch self {
+        case .completed: AppIcon.checkmarkCircle
+        case .available: AppIcon.circleFill
+        case .inProgress: AppIcon.workout
+        case .missed: AppIcon.warning
+        case .upcoming: AppIcon.circleDashed
+        case .skipped: AppIcon.skip
+        }
+    }
+
+    /// Never the only carrier of meaning — every surface pairs it with
+    /// `title` — but it must mean the same thing everywhere.
+    ///
+    /// `PlanCalendarStateBadge` was the one place in the app that tinted with
+    /// the system `.secondary` instead of a design token, so quiet states
+    /// rendered a different grey here than on the program path.
+    var tint: Color {
+        switch self {
+        case .completed: .gymSuccess
+        case .available, .inProgress: .gymPrimary
+        case .missed: .gymDestructive
+        case .upcoming, .skipped: .gymSubduedText
         }
     }
 }

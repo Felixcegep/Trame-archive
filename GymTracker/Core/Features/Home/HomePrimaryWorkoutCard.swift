@@ -23,6 +23,10 @@ struct HomePrimaryWorkoutCard: View {
             }
             .buttonStyle(.gymPress)
             .disabled(summary.kind == .unavailable)
+            // Stated explicitly rather than left to the automatic combination
+            // of five child views, which read the eyebrow, title, subtitle, and
+            // progress bar in layout order and repeated the set count twice.
+            .accessibilityLabel(cardAccessibilityLabel)
             .accessibilityHint(cardHint)
             .accessibilityIdentifier(cardAccessibilityIdentifier)
 
@@ -30,11 +34,14 @@ struct HomePrimaryWorkoutCard: View {
         }
         .background {
             if hasActiveWorkout {
-                LinearGradient(
-                    colors: [Color.gymPrimary, Color.gymPrimary.opacity(0.85)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                // Flat, not a gradient. The gradient faded toward transparency,
+                // which over the cream background made the *lower* half lighter
+                // — exactly where the subtitle sits — and left white text at
+                // 2.89:1 there. Deepening it instead still left the top stop at
+                // 4.46:1, so any gradient across this hue has one end failing.
+                // The gradient carried no information, so the fill is uniform
+                // and every point of the card clears 4.5:1.
+                Color.gymPrimaryDeep
             } else {
                 Color.gymCard
             }
@@ -72,17 +79,25 @@ struct HomePrimaryWorkoutCard: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
+            // Full white, not 86%. This line carries "3 / 12 sets · Next: Bench
+            // Press · Set 2" — the most useful sentence on the screen while a
+            // workout is running — and at 86% on the old gradient it computed
+            // to 3.74:1, the least legible text on the app's most important
+            // card.
             Text(cardSubtitle)
                 .font(AppFont.subheadline)
-                .foregroundStyle(hasActiveWorkout ? .white.opacity(0.86) : Color.gymSubduedText)
+                .foregroundStyle(hasActiveWorkout ? .white : Color.gymSubduedText)
 
             if let activeWorkout, activeWorkout.totalSetCount > 0 {
                 ProgressView(
                     value: Double(activeWorkout.completedSetCount),
                     total: Double(activeWorkout.totalSetCount)
                 )
-                .tint(.white.opacity(0.95))
+                .tint(.white)
                 .padding(.top, Spacing.xxs)
+                // The subtitle already states the same progress in words, so
+                // the bar is a visual restatement rather than a second stop.
+                .accessibilityHidden(true)
             }
 
             if !hasActiveWorkout {
@@ -110,32 +125,56 @@ struct HomePrimaryWorkoutCard: View {
                 .overlay(Color.gymBorder)
                 .padding(.horizontal, Spacing.l)
 
+            // The vertical padding used to sit on this HStack, which put it
+            // outside every button's hit region and left three ~20pt targets —
+            // two of which mutate the plan schedule, eight points apart. Each
+            // label now carries its own 44pt box.
             HStack(spacing: Spacing.s) {
-                Button(action: onPostpone) {
-                    Label("Tomorrow", systemImage: AppIcon.tomorrow)
-                }
-                .accessibilityIdentifier("today-postpone-planned-workout")
+                scheduleActionButton(
+                    "Tomorrow",
+                    systemImage: AppIcon.tomorrow,
+                    identifier: "today-postpone-planned-workout",
+                    action: onPostpone
+                )
 
-                Button {
+                scheduleActionButton(
+                    "Reschedule",
+                    systemImage: AppIcon.reschedule,
+                    identifier: "today-reschedule-planned-workout"
+                ) {
                     onReschedule(activePlanProgress)
-                } label: {
-                    Label("Reschedule", systemImage: AppIcon.reschedule)
                 }
-                .accessibilityIdentifier("today-reschedule-planned-workout")
 
-                Spacer(minLength: Spacing.s)
+                Spacer(minLength: Spacing.m)
 
-                Button(role: .destructive) {
+                scheduleActionButton(
+                    "Skip",
+                    systemImage: AppIcon.skip,
+                    identifier: "today-skip-planned-workout",
+                    role: .destructive
+                ) {
                     onSkip(activePlanProgress)
-                } label: {
-                    Label("Skip", systemImage: AppIcon.skip)
                 }
-                .accessibilityIdentifier("today-skip-planned-workout")
             }
             .font(AppFont.subheadlineSemibold)
             .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.m)
+            .padding(.vertical, Spacing.xs)
         }
+    }
+
+    private func scheduleActionButton(
+        _ title: LocalizedStringKey,
+        systemImage: String,
+        identifier: String,
+        role: ButtonRole? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(role: role, action: action) {
+            Label(title, systemImage: systemImage)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .contentShape(Rectangle())
+        }
+        .accessibilityIdentifier(identifier)
     }
 
     private var cardTitle: LocalizedStringKey {
@@ -172,6 +211,21 @@ struct HomePrimaryWorkoutCard: View {
         case .free:
             return AppIcon.play
         }
+    }
+
+    /// Subject first, then state, then what is next — the order the lifter
+    /// needs it, rather than the order the card happens to lay it out in.
+    private var cardAccessibilityLabel: String {
+        var parts = [summary.title]
+        if let activeWorkout, activeWorkout.totalSetCount > 0 {
+            parts.append(String(
+                localized: "\(activeWorkout.completedSetCount) of \(activeWorkout.totalSetCount) sets complete"
+            ))
+            parts.append(nextExerciseDescription(in: activeWorkout))
+        } else if !summary.subtitle.isEmpty {
+            parts.append(summary.subtitle)
+        }
+        return parts.joined(separator: ". ")
     }
 
     private var cardHint: String {

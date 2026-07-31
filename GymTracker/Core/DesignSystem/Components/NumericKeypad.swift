@@ -77,7 +77,7 @@ struct NumericKeypad: View {
         // Digits are already oversized, so growth past this point only steals
         // room from the set list without improving legibility.
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-        .sensoryFeedback(.impact(weight: .light), trigger: lastPressedKey)
+        .gymFeedback(.keyPressed, trigger: lastPressedKey)
     }
 
     private func keyButton(_ key: KeypadKey) -> some View {

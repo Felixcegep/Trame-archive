@@ -41,6 +41,12 @@ struct RootView: View {
     @State private var guidedSourceConflictRequest: GuidedSourceConflictRequest?
     @State private var guidedSourceActionError: String?
     @State private var isShowingActiveWorkoutConflictAlert = false
+    /// Confirmations shown on Today. Owned here because the two events that
+    /// raise them do not happen on Today: saving a workout dismisses its own
+    /// screen, and a plan action can be taken from Train.
+    @State private var todayStatusMessage: GymStatusMessage?
+    /// Increments only when a plan or rotation action actually committed.
+    @State private var planStateChangeCount = 0
     @AppStorage(DefaultsKey.darkMode) private var darkMode: Bool = false
     @AppStorage(DefaultsKey.hasCompletedWelcome) private var hasCompletedWelcome: Bool = false
     @State private var isPreparingApp = true
@@ -117,6 +123,12 @@ struct RootView: View {
             .tag(AppTab.progress)
         }
         .preferredColorScheme(darkMode ? .dark : nil)
+        .gymFeedback(.planStateChanged, trigger: planStateChangeCount)
+        // A Today confirmation belongs to the screen where the user saw the
+        // result. Do not resurrect it when returning from another tab.
+        .onChange(of: selectedTab) { _, _ in
+            todayStatusMessage = nil
+        }
         .accessibilityHidden(isPreparingApp)
         .overlay {
             if isPreparingApp {
@@ -186,6 +198,11 @@ struct RootView: View {
                             onWorkoutSaved: { workoutID in
                                 prepareCooldown(for: workoutID)
                                 preparePendingProgressionReceipts(for: workoutID)
+                                // Raised here rather than on the save screen,
+                                // which is dismissing. It lands on Today, where
+                                // the user is being sent, so the session ends
+                                // with something other than a screen vanishing.
+                                todayStatusMessage = savedWorkoutMessage()
                             },
                             onDiscardRequested: requestDiscardActiveWorkout
                         )
@@ -420,13 +437,41 @@ struct RootView: View {
                 print("Failed to save modelContext on backgrounding: \(error)")
             }
             WidgetSnapshotService.refresh(using: modelContext)
+            // Rest is the interval the phone spends in a pocket. The deadline
+            // is already persisted on the workout, so scheduling here — and
+            // only here — means the reminder can never arrive while the app is
+            // on screen competing with its own haptic and announcement.
+            let restEndDate = workoutVM.activeWorkout?.restEndDate
+            let nextSet = nextSetNotificationDescription()
+            Task {
+                await RestNotificationScheduler.shared.schedule(
+                    restEndDate: restEndDate,
+                    nextSetDescription: nextSet
+                )
+            }
         } else if newPhase == .active {
             workoutVM.reconcileLiveActivity()
             Task {
+                await RestNotificationScheduler.shared.cancel()
                 await PlanNotificationScheduler.shared.reconcile(using: modelContext)
                 await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
             }
         }
+    }
+
+    /// "Next: Lat Pulldown · Set 2" for the rest reminder, derived from the same
+    /// selector Active Workout uses, so the notification and the screen name the
+    /// same set. `nil` when nothing is left to do.
+    private func nextSetNotificationDescription() -> String? {
+        guard let workout = workoutVM.activeWorkout,
+              let next = WorkoutSetSelector.nextIncompleteSet(in: workout)
+        else {
+            return nil
+        }
+        let setNumber = (next.entry.orderedSets.firstIndex {
+            $0.persistentModelID == next.set.persistentModelID
+        } ?? 0) + 1
+        return String(localized: "Next: \(next.entry.exercise.name) · Set \(setNumber)")
     }
 
     /// Held back until seeding finishes, so "Follow a plan" never lands on an
@@ -465,8 +510,30 @@ struct RootView: View {
             onOpenPlan: openPlanFromToday,
             onOpenTrainingCalendar: { todayPath.append(.trainingCalendar) },
             onOpenSettings: { todayPath.append(.settings) },
-            requestedRescheduleProgressID: $requestedRescheduleProgressID
+            requestedRescheduleProgressID: $requestedRescheduleProgressID,
+            statusMessage: $todayStatusMessage
         )
+    }
+
+    /// Reports what the save actually wrote, from the counts the save itself
+    /// recorded. They cannot be recomputed once `activeWorkout` is cleared.
+    private func savedWorkoutMessage() -> GymStatusMessage {
+        guard let summary = workoutVM.lastSavedSummary else {
+            return GymStatusMessage(String(localized: "Workout saved."))
+        }
+        return GymStatusMessage(
+            String(localized: "Workout saved · ^[\(summary.savedSetCount) set](inflect: true)")
+        )
+    }
+
+    /// Records that a plan or rotation action committed. The state badge on the
+    /// affected screen is the visible confirmation; this adds the spoken and
+    /// tactile channels, which were both missing. Called only after
+    /// `saveOrRollback` has succeeded — never on the error branches, which
+    /// already have their own alert.
+    private func confirmPlanStateChange(_ text: String) {
+        planStateChangeCount += 1
+        GymAnnouncement.post(text)
     }
 
     private var trainRoot: some View {
@@ -949,6 +1016,7 @@ struct RootView: View {
                 guidedSourceActionError = "The plan could not be resumed. Try again."
                 return false
             }
+            confirmPlanStateChange(String(localized: "Plan resumed."))
         case .startTestDay(let run):
             guard let progress = ProgramRunLifecycleService.activateTestDay(for: run, using: modelContext) else {
                 guidedSourceActionError = "The test day could not be started. Try again."
@@ -1279,6 +1347,7 @@ struct RootView: View {
                 guidedSourceActionError = "The rotation could not be activated. Try again."
                 return
             }
+            confirmPlanStateChange(String(localized: "Rotation activated."))
             NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         } catch RepeatingPlanCoordinatorError.activationConflict {
             guidedSourceConflictRequest = .activate(plan)
@@ -1294,6 +1363,7 @@ struct RootView: View {
                 guidedSourceActionError = "The rotation could not be paused. Try again."
                 return
             }
+            confirmPlanStateChange(String(localized: "Rotation paused."))
             NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         } catch {
             guidedSourceActionError = "Only an active rotation can be paused."
@@ -1315,6 +1385,7 @@ struct RootView: View {
                 guidedSourceActionError = "The rotation could not be resumed. Try again."
                 return
             }
+            confirmPlanStateChange(String(localized: "Rotation resumed."))
             NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         } catch {
             modelContext.rollback()
@@ -1330,6 +1401,7 @@ struct RootView: View {
                 guidedSourceActionError = "The workout could not be skipped. Try again."
                 return
             }
+            confirmPlanStateChange(String(localized: "Rotation workout skipped."))
             NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         } catch RepeatingPlanCoordinatorError.runHasActiveOccurrence {
             modelContext.rollback()
@@ -1358,6 +1430,7 @@ struct RootView: View {
                 guidedSourceActionError = "The rotation could not be restarted. Try again."
                 return
             }
+            confirmPlanStateChange(String(localized: "Rotation restarted."))
             NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         } catch RepeatingPlanCoordinatorError.runHasActiveOccurrence {
             modelContext.rollback()
@@ -1375,6 +1448,7 @@ struct RootView: View {
                 guidedSourceActionError = "The rotation could not be ended. Try again."
                 return
             }
+            confirmPlanStateChange(String(localized: "Rotation ended."))
             NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         } catch RepeatingPlanCoordinatorError.runHasActiveOccurrence {
             modelContext.rollback()

@@ -21,6 +21,19 @@ final class ProgramPathPresentationTests: XCTestCase {
         }
     }
 
+    func testProgramPathUsesCanonicalPlanCalendarStateStyle() {
+        for state in PlanCalendarDisplayState.allCases {
+            let style = ProgramPathPresentation.style(for: state)
+
+            XCTAssertEqual(style.title, state.title, "Title drifted for \(state)")
+            XCTAssertEqual(style.systemImage, state.icon, "Icon drifted for \(state)")
+            XCTAssertEqual(style.tint, state.tint, "Tint drifted for \(state)")
+        }
+
+        XCTAssertNotEqual(PlanCalendarDisplayState.skipped.icon, PlanCalendarDisplayState.upcoming.icon)
+        XCTAssertFalse(PlanCalendarDisplayState.allCases.contains { $0.tint == .secondary })
+    }
+
     func testFixedRunAndPhaseTitlesCoverEveryPersistedCase() {
         XCTAssertEqual(ProgramPathPresentation.runStatusTitle(.active), "Active")
         XCTAssertEqual(ProgramPathPresentation.runStatusTitle(.paused), "Paused")

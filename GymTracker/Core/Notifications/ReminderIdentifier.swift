@@ -17,6 +17,10 @@ enum ReminderIdentifier {
         prefix + "check-in." + day.rawValue
     }
 
+    /// One at a time: a workout has a single rest period, and re-scheduling on
+    /// extend must replace the pending request rather than add a second.
+    static let restComplete = prefix + "rest-complete"
+
     static func matchesPlanWorkout(_ identifier: String) -> Bool {
         identifier.hasPrefix(prefix + "plan.")
     }

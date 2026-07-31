@@ -18,6 +18,7 @@ private let moodOptions: [MoodOption] = [
 ]
 
 struct DailyCheckInSheet: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @AppStorage(DefaultsKey.bodyWeightPromptCadence) private var weightCadence: BodyWeightPromptCadence = .off
@@ -140,7 +141,7 @@ struct DailyCheckInSheet: View {
     private func moodChip(_ option: MoodOption) -> some View {
         let isSelected = energy == option.score
         return Button {
-            withAnimation(AppMotion.compact) {
+            withAnimation(reduceMotion ? nil : AppMotion.compact) {
                 energy = isSelected ? 0 : option.score
             }
         } label: {
@@ -188,7 +189,7 @@ struct DailyCheckInSheet: View {
                 ForEach(options, id: \.1) { option in
                     let isSelected = selection.wrappedValue == option.1
                     Button {
-                        withAnimation(AppMotion.compact) {
+                        withAnimation(reduceMotion ? nil : AppMotion.compact) {
                             selection.wrappedValue = isSelected ? 0 : option.1
                         }
                     } label: {
@@ -225,7 +226,7 @@ struct DailyCheckInSheet: View {
             HStack(alignment: .firstTextBaseline) {
                 GymEyebrow("Body weight")
                 Spacer(minLength: Spacing.s)
-                Button("Not now") { withAnimation(AppMotion.compact) { hidesWeightPrompt = true } }
+                Button("Not now") { withAnimation(reduceMotion ? nil : AppMotion.compact) { hidesWeightPrompt = true } }
                     .font(AppFont.footnoteMedium)
                     .foregroundStyle(Color.gymPrimary)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
