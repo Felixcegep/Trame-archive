@@ -239,6 +239,22 @@ struct ProgressionReceiptPresentation: WhyExplainable {
         String(localized: "progression.receipt.action.applyDifferent", defaultValue: "Apply a different value")
     }
 
+    /// What applying this changes — and, just as importantly, what it does not.
+    ///
+    /// Promoted out of the Why sheet and onto the card itself. This is the one
+    /// moment where the separation between prescription and performed truth
+    /// becomes a decision the lifter is actually making, and it is exactly the
+    /// moment they need to be told that the sessions they already did are not
+    /// being rewritten underneath them. Buried behind a "Why?" tap, the
+    /// guarantee was doing none of that work.
+    var planEffectText: String {
+        let format = String(
+            localized: "progression.receipt.effect.plan",
+            defaultValue: "This changes future %@ prescriptions. Your completed workouts stay exactly as you performed them."
+        )
+        return String(format: format, exerciseName)
+    }
+
     /// What was decided, for a record already resolved. A `nil`
     /// `decisionOutcome` on a resolved row is a legacy row written before
     /// outcomes were recorded — it reads plainly as "resolved without a

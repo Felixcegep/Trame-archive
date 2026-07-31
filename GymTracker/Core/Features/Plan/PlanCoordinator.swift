@@ -337,6 +337,50 @@ enum PlanCoordinator {
         return saveAndNotify(using: modelContext)
     }
 
+    /// What a reschedule would do, described before it happens.
+    struct ReschedulePreview: Equatable {
+        /// Calendar days from the current date to the proposed one. Negative
+        /// when the session moves earlier.
+        let dayDelta: Int
+        /// Editable sessions scheduled after this one that a shifting
+        /// reschedule would move too. Excludes the selected session.
+        let followingSessionCount: Int
+        /// A session with no scheduled date has nothing to shift *from*, so
+        /// the remainder cannot be moved by a delta.
+        let canShiftRemaining: Bool
+    }
+
+    /// Computes `ReschedulePreview` with exactly the predicate
+    /// `rescheduleRemaining` applies below, so a sheet describing the change
+    /// can never promise something different from what the save performs.
+    ///
+    /// This is why the count is derived here rather than in the view: a
+    /// date-only sheet gave the user no way to tell "move this one session"
+    /// from "move the rest of the plan with it", and a count computed
+    /// separately would eventually disagree with the code that moves them.
+    static func reschedulePreview(
+        for progress: PlanWorkoutProgress,
+        to date: Date,
+        in run: PlanRun,
+        calendar: Calendar = .current
+    ) -> ReschedulePreview {
+        guard let originalDate = progress.scheduledDate else {
+            return ReschedulePreview(dayDelta: 0, followingSessionCount: 0, canShiftRemaining: false)
+        }
+        let originalDay = calendar.startOfDay(for: originalDate)
+        let targetDay = calendar.startOfDay(for: date)
+        let following = run.orderedWorkoutProgress.filter {
+            $0.id != progress.id
+                && canEditSchedule($0, in: run)
+                && ($0.scheduledDate.map { calendar.startOfDay(for: $0) >= originalDay } ?? false)
+        }
+        return ReschedulePreview(
+            dayDelta: calendar.dateComponents([.day], from: originalDay, to: targetDay).day ?? 0,
+            followingSessionCount: following.count,
+            canShiftRemaining: true
+        )
+    }
+
     /// Moves the selected session and every editable session scheduled after it
     /// by the same number of calendar days. Completed truth and active work stay
     /// fixed in place.

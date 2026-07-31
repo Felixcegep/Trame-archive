@@ -24,8 +24,12 @@ enum StrengthInsightPresentationPolicy {
 
     static func volumeTakeaway(sessionCount: Int, weeklyVolumes: [Float]) -> String? {
         guard sessionCount > 0 else { return nil }
-        guard sessionCount >= 4, weeklyVolumes.count >= 8 else {
-            return "Early pattern — based on \(sessionCount) completed \(sessionCount == 1 ? "session" : "sessions")."
+        // Shares `StrengthEvidenceLevel`'s vocabulary so this line and an
+        // exercise chart's evidence badge cannot describe the same amount of
+        // history with different words.
+        guard sessionCount >= StrengthEvidenceLevel.trendSessionCount, weeklyVolumes.count >= 8 else {
+            let level = StrengthEvidenceLevel.resolve(comparableSessionCount: sessionCount)
+            return level.evidenceText(comparableSessionCount: sessionCount)
         }
 
         let previous = weeklyVolumes.prefix(4).reduce(Float.zero, +)

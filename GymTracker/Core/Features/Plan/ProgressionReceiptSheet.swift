@@ -154,25 +154,28 @@ private struct ProgressionReceiptCard: View {
 
     var body: some View {
         GymCard(variant: .current, radius: Radius.medium) {
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                Label(presentation.exerciseName, systemImage: AppIcon.progression)
-                    .font(AppFont.headlineSemibold)
-                    .foregroundStyle(Color.gymText)
+            VStack(alignment: .leading, spacing: Spacing.l) {
+                header
 
-                Text(presentation.ruleLabel)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymPrimary)
+                // Named sections, because a receipt is not a confirmation
+                // prompt. The card previously ran identity, rule, proposal and
+                // evidence together as four undifferentiated lines, which read
+                // as an ordinary "are you sure?" — and this is the surface
+                // where the product's reasoning is meant to be legible.
+                receiptSection("WHY THIS CHANGED") {
+                    evidence
 
-                Text(presentation.proposedChangeText)
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymText)
-                    .fixedSize(horizontal: false, vertical: true)
+                    // The sheet below is the expanded form, not a replacement,
+                    // so the fast path stays on the card.
+                    whyButton
+                }
 
-                whyButton
-
-                // Kept inline: the sheet below is the expanded form, not a
-                // replacement, so the fast path stays fast.
-                evidence
+                receiptSection("EFFECT ON YOUR PLAN") {
+                    Text(presentation.planEffectText)
+                        .font(AppFont.footnote)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 actions
             }
@@ -184,6 +187,50 @@ private struct ProgressionReceiptCard: View {
         .accessibilityIdentifier("progression-receipt-card-\(presentation.id.uuidString)")
         .sheet(isPresented: $isShowingWhy) {
             WhyExplanationView(model: presentation.whyModel)
+        }
+    }
+
+    /// Who the change is for, and what it proposes — in that order, with the
+    /// number carrying the weight.
+    ///
+    /// The rule label moved below the target and lost its primary tint. It is
+    /// provenance, not the headline; tinted and placed above the proposal it
+    /// competed with the one value the lifter is here to decide about.
+    private var header: some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Label(presentation.exerciseName, systemImage: AppIcon.progression)
+                .font(AppFont.headlineSemibold)
+                .foregroundStyle(Color.gymText)
+
+            if let target = presentation.proposedLoadText {
+                Text("Next target: \(target)")
+                    .font(AppFont.titleMedium)
+                    .foregroundStyle(Color.gymText)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text(presentation.proposedChangeText)
+                    .font(AppFont.titleSmallSemibold)
+                    .foregroundStyle(Color.gymText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text(presentation.ruleLabel)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+        }
+    }
+
+    private func receiptSection<Content: View>(
+        _ title: LocalizedStringKey,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text(title)
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(Color.gymSubduedText)
+
+            content()
         }
     }
 
@@ -217,47 +264,52 @@ private struct ProgressionReceiptCard: View {
         if isEditingLoad {
             editLoadActions
         } else {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: Spacing.s) { primaryActions }
-                VStack(spacing: Spacing.s) { primaryActions }
+            // Three tiers, stacked, never packed side by side. The old layout
+            // put a filled button and two identical bordered ones in a row,
+            // which made "apply", "choose another value" and "keep what I
+            // have" look like three equivalent choices — and pushed all three
+            // labels into truncation at larger text sizes. Applying is the
+            // recommendation, choosing a value is a deliberate override, and
+            // keeping the current load is an ordinary decline; the weight of
+            // each control now says so.
+            VStack(spacing: Spacing.s) {
+                Button {
+                    onApply()
+                } label: {
+                    Text(presentation.acceptActionTitle)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.gymPrimary)
+                .accessibilityIdentifier("progression-receipt-apply-\(presentation.id.uuidString)")
+
+                if presentation.canApplyDifferentValue {
+                    Button {
+                        editedLoad = presentation.proposedLoad ?? 0
+                        isEditingLoad = true
+                    } label: {
+                        Text(presentation.applyDifferentActionTitle)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+                    .accessibilityIdentifier("progression-receipt-apply-different-\(presentation.id.uuidString)")
+                }
+
+                // Text, not a bordered box. Declining stays a first-class,
+                // one-tap choice — it is simply not the proposal.
+                Button {
+                    onDecline()
+                } label: {
+                    Text(presentation.declineActionTitle)
+                        .font(AppFont.subheadlineSemibold)
+                        .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.gymPrimary)
+                .accessibilityIdentifier("progression-receipt-decline-\(presentation.id.uuidString)")
             }
         }
-    }
-
-    @ViewBuilder
-    private var primaryActions: some View {
-        Button {
-            onApply()
-        } label: {
-            Text(presentation.acceptActionTitle)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.gymPrimary)
-        .frame(minHeight: 44)
-        .accessibilityIdentifier("progression-receipt-apply-\(presentation.id.uuidString)")
-
-        if presentation.canApplyDifferentValue {
-            Button {
-                editedLoad = presentation.proposedLoad ?? 0
-                isEditingLoad = true
-            } label: {
-                Text(presentation.applyDifferentActionTitle)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .frame(minHeight: 44)
-            .accessibilityIdentifier("progression-receipt-apply-different-\(presentation.id.uuidString)")
-        }
-
-        Button {
-            onDecline()
-        } label: {
-            Text(presentation.declineActionTitle)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.bordered)
-        .frame(minHeight: 44)
-        .accessibilityIdentifier("progression-receipt-decline-\(presentation.id.uuidString)")
     }
 
     private var editLoadActions: some View {

@@ -72,11 +72,18 @@ struct MobilitySessionView: View {
                         currentEntry(entry)
                         resultInputs(entry)
                         previousPerformance(entry)
-                        actions
                     }
                     .padding(.horizontal, Spacing.xl)
                     .padding(.vertical, Spacing.l)
                 }
+                // Pinned, exactly as Active Workout pins its finish button.
+                // Mobility execution and workout execution are separate
+                // domains but the same *act* — work through prescribed items,
+                // record what was performed, commit — and a lifter should not
+                // have to relearn where the committing action lives when they
+                // cross from one to the other. It also stops the action from
+                // scrolling off under a long list of result inputs.
+                .safeAreaInset(edge: .bottom) { actions }
             } else {
                 ContentUnavailableView(
                     session.status == .completed ? "Mobility complete" : "Mobility stopped",
@@ -136,6 +143,15 @@ struct MobilitySessionView: View {
 
     private func currentEntry(_ entry: MobilityEntry) -> some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
+            // Says "you are here" in words, the way Active Workout's exercise
+            // card does, so the state does not rest on the tinted surface
+            // alone — which is invisible in grayscale and under Increase
+            // Contrast.
+            Label("CURRENT MOVEMENT", systemImage: AppIcon.circleFill)
+                .font(AppFont.caption2Bold)
+                .tracking(0.55)
+                .foregroundStyle(Color.gymPrimary)
+
             Text(entry.definitionNameSnapshot)
                 .font(AppFont.displayMedium)
                 .fixedSize(horizontal: false, vertical: true)
@@ -165,7 +181,11 @@ struct MobilitySessionView: View {
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        // `gymPrimarySurface`, the same fill Active Workout gives the exercise
+        // being worked. Mobility used the neutral card surface, so the item
+        // under the lifter's attention looked identical to every other card on
+        // the screen.
+        .background(Color.gymPrimarySurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(Color.gymBorder, lineWidth: 1)
@@ -219,25 +239,38 @@ struct MobilitySessionView: View {
     }
 
     private var actions: some View {
-        VStack(spacing: Spacing.s) {
+        VStack(spacing: Spacing.m) {
             Button {
                 completeCurrent()
             } label: {
                 Label("Complete movement", systemImage: AppIcon.checkmarkCircle)
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color.gymPrimary)
+            // The app's own prominent style, not `.borderedProminent`: this is
+            // the same committing action as Active Workout's, and it was the
+            // one place in an execution flow still wearing a system button.
+            .buttonStyle(.gymPrimaryProminent)
             .accessibilityIdentifier("complete-mobility-movement")
 
-            Button("Save partial result") { savePartialCurrent() }
-                .font(AppFont.subheadlineSemibold)
-                .accessibilityIdentifier("save-partial-mobility-movement")
+            HStack(spacing: Spacing.xl) {
+                Button("Save partial result") { savePartialCurrent() }
+                    .accessibilityIdentifier("save-partial-mobility-movement")
 
-            Button("Skip movement") { skipCurrent() }
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymSubduedText)
-                .accessibilityIdentifier("skip-mobility-movement")
+                Spacer(minLength: Spacing.s)
+
+                Button("Skip movement") { skipCurrent() }
+                    .foregroundStyle(Color.gymSubduedText)
+                    .accessibilityIdentifier("skip-mobility-movement")
+            }
+            .font(AppFont.subheadlineSemibold)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+        }
+        .padding(.horizontal, Spacing.xl)
+        .padding(.vertical, Spacing.m)
+        .background(Color.gymBackground)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.gymBorder)
+                .frame(height: 1)
         }
     }
 
@@ -305,7 +338,11 @@ struct MobilitySessionView: View {
         } else {
             target = "\(entry.targetRepetitions ?? 0) repetitions"
         }
-        return "\(entry.definitionNameSnapshot), \(entry.side.displayName), target \(target)"
+        // The eyebrow is inside a combined element, so without this the spoken
+        // label loses the one word that says which movement this is.
+        return String(
+            localized: "Current movement. \(entry.definitionNameSnapshot), \(entry.side.displayName), target \(target)"
+        )
     }
 
     private func loadCurrentEntry() {

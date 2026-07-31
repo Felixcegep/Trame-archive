@@ -295,7 +295,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/08d_Completed_Exercise_Collapsed")
 
         let partial = launchFixture("active-partial-save")
-        tapButton("Review Workout", in: partial)
+        tapButton("Finish workout", in: partial)
         saveScreenshot("review/09_Save_Workout")
         tapButton("save-workout", in: partial)
         XCTAssertTrue(partial.buttons["Save completed sets"].waitForExistence(timeout: 5))
@@ -567,47 +567,60 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         welcome.launch()
         XCTAssertTrue(welcome.descendants(matching: .any)["welcome"].waitForExistence(timeout: 30))
         saveScreenshot("overview/00_Welcome")
+        welcome.terminate()
 
         let storage = XCUIApplication()
         storage.launchArguments = ["-ui-testing", "-ui-testing-storage-unavailable"]
         storage.launch()
         XCTAssertTrue(storage.descendants(matching: .any)["storage-unavailable"].waitForExistence(timeout: 15))
         saveScreenshot("overview/00b_Storage_Unavailable")
+        storage.terminate()
 
         let missingRoute = XCUIApplication()
         missingRoute.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-missing-route"]
         missingRoute.launch()
         XCTAssertTrue(missingRoute.staticTexts["Exercise unavailable"].waitForExistence(timeout: 30))
         saveScreenshot("overview/02e_Route_Unavailable")
+        missingRoute.terminate()
 
         let guidedError = XCUIApplication()
         guidedError.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-guided-source-error"]
         guidedError.launch()
         XCTAssertTrue(guidedError.alerts["Couldn’t update training source"].waitForExistence(timeout: 30))
         saveScreenshot("active-workout/08s_Guided_Source_Error")
+        guidedError.terminate()
 
         let mobilityError = XCUIApplication()
         mobilityError.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-mobility-link-error"]
         mobilityError.launch()
         XCTAssertTrue(mobilityError.alerts["Couldn’t start mobility"].waitForExistence(timeout: 30))
         saveScreenshot("active-workout/08t_Mobility_Link_Error")
+        mobilityError.terminate()
 
         let failedSave = launchFixture(
             "active-completed-set",
             additionalArguments: ["-ui-testing-fail-workout-save"]
         )
-        tapButton("Review Workout", in: failedSave)
+        tapButton("Finish workout", in: failedSave)
         tapButton("save-workout", in: failedSave)
         if failedSave.buttons["Save completed sets"].waitForExistence(timeout: 5) {
             tapButton("Save completed sets", in: failedSave)
         }
         XCTAssertTrue(failedSave.alerts.firstMatch.waitForExistence(timeout: 10))
         saveScreenshot("review/09c_Save_Failure_Alert")
+        failedSave.terminate()
 
         let linked = launchFixture("linked-mobility-workout", expectsActiveWorkout: false)
         tapButton("start-free-workout", in: linked)
         let linkedTemplate = linked.buttons["workout-template-Linked Mobility Screenshot"]
-        scrollToElement(linkedTemplate, in: linked)
+        // The picker is a lazy List. The fixture template is sorted into the
+        // middle of the catalogue, so it may not be materialized until the
+        // list has been scrolled far enough for its row to enter the viewport.
+        for _ in 0..<12 where !linkedTemplate.isHittable {
+            linked.swipeUp()
+        }
+        XCTAssertTrue(linkedTemplate.waitForExistence(timeout: 10))
+        XCTAssertTrue(linkedTemplate.isHittable)
         linkedTemplate.tap()
         XCTAssertTrue(linked.buttons["skip-linked-warmup"].waitForExistence(timeout: 10))
         saveScreenshot("active-workout/08q_Warmup_Preparation_Dialog")
@@ -615,7 +628,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(linked.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
         enterValidValues(for: "Bench Press", set: 0, in: linked)
         completeSet("Bench Press", index: 0, dismissRest: true, in: linked)
-        tapButton("Review Workout", in: linked)
+        tapButton("Finish workout", in: linked)
         tapButton("save-workout", in: linked)
         if linked.buttons["Save completed sets"].waitForExistence(timeout: 5) {
             tapButton("Save completed sets", in: linked)
@@ -687,7 +700,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCapturePerformanceComparisonReviewScreenshot() {
         let app = launchFixture("performance-comparison")
 
-        tapButton("Review Workout", in: app)
+        tapButton("Finish workout", in: app)
         let comparison = app.descendants(matching: .any)["performance-comparison"].firstMatch
         scrollToElement(comparison, in: app)
         app.swipeUp()
@@ -721,6 +734,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureTodayCompleteTourScreenshots() {
         let app = launchFixture("today-complete", expectsActiveWorkout: false)
 
+        // A completed check-in is intentionally tucked behind Today's handled
+        // support disclosure. Expand it before reopening the entry.
+        tapButton("today-toggle-handled-support", in: app)
         tapButton("open-daily-check-in", in: app)
         XCTAssertTrue(app.navigationBars["Daily check-in"].waitForExistence(timeout: 5))
         saveScreenshot("overview/01e_Daily_Check_In")
@@ -1051,6 +1067,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(back.waitForExistence(timeout: 5))
         back.tap()
 
+        let deloadToggle = app.switches["plan-deload-toggle"]
+        scrollToElement(deloadToggle, in: app)
+        XCTAssertTrue(deloadToggle.waitForExistence(timeout: 5))
+        deloadToggle.tap()
+
         let deloadIntensity = app.steppers["plan-deload-intensity-reduction"]
         scrollToElement(deloadIntensity, in: app)
         XCTAssertTrue(deloadIntensity.waitForExistence(timeout: 5))
@@ -1064,10 +1085,17 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         openPlans(.mine, in: app)
         tapButton("plan-row-Screenshot Plan", in: app)
         tapButton("edit-plan", in: app)
-        XCTAssertTrue(app.buttons["edit-plan-workout"].firstMatch.waitForExistence(timeout: 5))
-        app.buttons["edit-plan-workout"].firstMatch.tap()
+        let editWorkout = app.buttons["edit-plan-workout"].firstMatch
+        scrollToElement(editWorkout, in: app)
+        editWorkout.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let executionBlock = app.buttons["add-plan-execution-block"]
-        XCTAssertTrue(executionBlock.waitForExistence(timeout: 5))
+        if executionBlock.exists == false {
+            // The editor row is a nested SwiftUI button inside a Form cell;
+            // retry once through XCTest's semantic tap if the coordinate event
+            // was consumed by the cell's scroll transition.
+            editWorkout.tap()
+        }
+        scrollToElement(executionBlock, in: app)
         executionBlock.tap()
         XCTAssertTrue(app.navigationBars["Execution Block"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13n_Plan_Execution_Block")

@@ -27,7 +27,11 @@ final class ScheduleConfirmationUITests: GymTrackerUITestCase {
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
         datePicker.tap()
         let tomorrowLabel = tomorrow.formatted(.dateTime.weekday(.wide).month(.wide).day())
-        let tomorrowButton = app.buttons[tomorrowLabel]
+        var tomorrowButton = app.buttons[tomorrowLabel]
+        if !tomorrowButton.exists {
+            app.buttons["DatePicker.NextMonth"].tap()
+            tomorrowButton = app.buttons[tomorrowLabel]
+        }
         XCTAssertTrue(tomorrowButton.waitForExistence(timeout: 5))
         tomorrowButton.tap()
         let dismissDatePicker = app.buttons["PopoverDismissRegion"]

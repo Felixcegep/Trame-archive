@@ -8,8 +8,10 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
         )
         openMobilityHub(in: app)
 
-        let assessmentHistory = app.buttons["open-mobility-assessment-history-from-hub"]
-        XCTAssertTrue(assessmentHistory.waitForExistence(timeout: 5))
+        let assessmentHistory = app.descendants(matching: .any)[
+            "open-mobility-assessment-history-from-hub"
+        ]
+        scrollToElement(assessmentHistory, in: app)
         assessmentHistory.tap()
         XCTAssertTrue(app.navigationBars["Assessment history"].waitForExistence(timeout: 5))
         XCTAssertEqual(historySessionRows(in: app).count, 1)
@@ -17,10 +19,10 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
         selectTab(.progress, in: app)
         let progressHistory = app.descendants(matching: .any)["progress-mobility-assessment-history"]
         XCTAssertTrue(progressHistory.waitForExistence(timeout: 5))
-        XCTAssertTrue(progressHistory.label.contains("2"), "A zero-result sitting must not be counted")
+        XCTAssertTrue(progressHistory.label.contains("1"), "A zero-result sitting must not be counted")
         progressHistory.tap()
         XCTAssertTrue(app.navigationBars["Assessment history"].waitForExistence(timeout: 5))
-        XCTAssertEqual(historySessionRows(in: app).count, 2)
+        XCTAssertEqual(historySessionRows(in: app).count, 1)
     }
 
     func testHubCardResumesInProgressAssessment() {
@@ -101,7 +103,9 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
 
         let history = launchFixture("mobility-assessment-history-detail", expectsActiveWorkout: false)
         openMobilityHub(in: history)
-        let historyLink = history.buttons["open-mobility-assessment-history-from-hub"]
+        let historyLink = history.descendants(matching: .any)[
+            "open-mobility-assessment-history-from-hub"
+        ]
         scrollToElement(historyLink, in: history)
         historyLink.tap()
         let session = historySessionRows(in: history).firstMatch

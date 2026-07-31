@@ -197,27 +197,34 @@ struct GymChartSelectionAnnotation: View {
     let value: String
     var detail: String? = nil
 
+    /// A line, not a box.
+    ///
+    /// This is only ever rendered inside `GymChartCard`'s `GymCard`, where it
+    /// used to draw a second `gymCard` fill and a tinted stroke on top of the
+    /// first — a card inside a card, in the same colour, to hold two short
+    /// strings. Every analytics screen paid for that nesting: chart card,
+    /// annotation card, evidence text, takeaway row. The selected reading is
+    /// now a labelled value on the card it already belongs to, and the tinted
+    /// rule mark on the chart is what says which point it refers to.
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
             Text(title)
                 .font(AppFont.caption)
                 .foregroundStyle(Color.gymSubduedText)
+
             Text(value)
                 .font(AppFont.captionSemiboldMonospaced)
                 .foregroundStyle(Color.gymText)
+
             if let detail {
                 Text(detail)
                     .font(AppFont.caption2)
                     .foregroundStyle(Color.gymSubduedText)
             }
+
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, Spacing.m)
-        .padding(.vertical, Spacing.s)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                .stroke(Color.gymPrimary.opacity(0.42), lineWidth: 1)
-        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -399,7 +406,6 @@ struct GymPrimaryButtonStyle: ButtonStyle {
     var prominence: Prominence = .standard
 
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -425,8 +431,11 @@ struct GymPrimaryButtonStyle: ButtonStyle {
                         .stroke(Color.gymBorder, lineWidth: 1)
                 }
             }
-            .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.97)
-            .animation(AppMotion.pressResponse, value: configuration.isPressed)
+            // The same Weighted Pulse the plain press style uses. It was a
+            // near-copy of that logic before, which is how the two drifted:
+            // this one never dimmed, so the app's most prominent button gave
+            // the *weakest* press response.
+            .weightedPulse(isPressed: configuration.isPressed)
     }
 }
 

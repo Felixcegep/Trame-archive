@@ -28,6 +28,17 @@ nonisolated struct ProgramIntakeInput: Codable, Hashable {
         self.isRequired = isRequired
         self.defaultPercentOfMax = defaultPercentOfMax
     }
+
+    /// The wildcard exposure key: this input seeds every planned exercise in
+    /// the program rather than one lift.
+    ///
+    /// Named here rather than compared inline at each call site, because the
+    /// distinction changes what the value *means* — a per-lift number the
+    /// author must get right, versus a plan-wide default the lifter refines
+    /// as they go — and every surface should describe it the same way.
+    static let everyExerciseKey = "*"
+
+    var appliesToEveryExercise: Bool { exposureKey == Self.everyExerciseKey }
 }
 
 nonisolated enum MissedWorkoutPolicy: String, Codable, Hashable {

@@ -449,22 +449,30 @@ struct ActiveWorkoutView: View {
                 let preparation = workout.orderedExercises.filter { $0.prescribedRole == .preparation }
                 let training = workout.orderedExercises.filter { $0.prescribedRole != .preparation }
 
-                if !preparation.isEmpty {
+                // Sub-headers only earn their place when there are two groups
+                // to tell apart. A session with no preparation work used to
+                // render "SESSION" and then "EXERCISES" directly beneath it —
+                // two headings, one meaning, and a level of hierarchy the
+                // content never asked for. With one group, "SESSION" leads the
+                // cards on its own.
+                if preparation.isEmpty {
+                    exerciseCards(for: training, in: workout)
+                } else {
                     sessionSectionHeader(
                         title: "PREPARATION & MOBILITY",
                         detail: "Complete first · stop if pain appears",
                         icon: AppIcon.info
                     )
                     exerciseCards(for: preparation, in: workout)
-                }
 
-                if !training.isEmpty {
-                    sessionSectionHeader(
-                        title: preparation.isEmpty ? "EXERCISES" : "STRENGTH WORK",
-                        detail: preparation.isEmpty ? nil : "After preparation",
-                        icon: AppIcon.workout
-                    )
-                    exerciseCards(for: training, in: workout)
+                    if !training.isEmpty {
+                        sessionSectionHeader(
+                            title: "STRENGTH WORK",
+                            detail: "After preparation",
+                            icon: AppIcon.workout
+                        )
+                        exerciseCards(for: training, in: workout)
+                    }
                 }
             }
         }
@@ -640,7 +648,14 @@ struct ActiveWorkoutView: View {
                     viewModel.cancelTimer()
                     navigationPath.append(.saveWorkout)
                 } label: {
-                    Label("Review Workout", systemImage: AppIcon.checkmark)
+                    // "Finish workout", not "Review Workout": mid-session this
+                    // is the button that *ends* the session, and naming it
+                    // after the screen it happens to open described the
+                    // navigation rather than the act. The destination is still
+                    // titled "Review and save", so nothing is lost — the
+                    // review step is announced on arrival instead of standing
+                    // in for the intent.
+                    Label("Finish workout", systemImage: AppIcon.checkmark)
                 }
                 .buttonStyle(.gymPrimaryProminent)
                 .disabled(workout.completedSetCount == 0)

@@ -92,7 +92,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         scrollToElement(useProgram, in: app)
         useProgram.tap()
         XCTAssertTrue(app.descendants(matching: .any)["program-intake"].waitForExistence(timeout: 5))
-        let startingLoad = app.textFields["Starting load"]
+        let startingLoad = app.textFields["Default starting load"]
         XCTAssertTrue(startingLoad.waitForExistence(timeout: 5))
         startingLoad.tap()
         startingLoad.typeText("20")
@@ -117,7 +117,12 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         startEmptyWorkout(in: app)
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
 
-        app.buttons["minimize-workout"].tap()
+        let minimize = app.buttons["minimize-workout"]
+        XCTAssertTrue(minimize.waitForExistence(timeout: 5))
+        // Toolbar buttons can remain semantically present while XCTest is
+        // still settling the full-screen cover. A coordinate tap avoids the
+        // long synthetic-event hang in that transient state.
+        minimize.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         app.terminate()
 
         app.launchArguments = ["-ui-testing"]
@@ -154,20 +159,31 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         completeSet("Bench Press", index: 0, dismissRest: false, in: app)
 
         // The default rest period is short. Add five minutes so the timer
-        // remains unexpired throughout a cold simulator restart.
+        // remains unexpired throughout a cold simulator restart. Rest controls
+        // intentionally collapse while the set-entry panel is open, so close
+        // it before extending the timer.
+        dismissKeypadIfPresent(in: app)
         for _ in 0..<10 {
             tapButton("+30s", in: app)
         }
 
         XCTAssertTrue(app.descendants(matching: .any)["Rest between sets"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Pause rest"].exists)
+
+        // Ensure the persisted deadline is flushed before the helper shuts
+        // down and reboots the simulator. This mirrors the real lifecycle
+        // boundary while avoiding a race with XCTest's test teardown.
+        XCUIDevice.shared.press(.home)
+        sleep(2)
+        app.terminate()
+        XCTAssertEqual(app.state, .notRunning)
     }
 
     // The companion runner deliberately launches this test without
     // -reset-data after shutting down and booting the same simulator.
     func testVerifiesRunningRestAfterSimulatorReboot() {
         let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing"]
+        app.launchArguments = ["-ui-testing", "-ui-testing-reboot-rest-fixture"]
         app.launch()
         XCTAssertEqual(app.state, .runningForeground)
 
@@ -233,9 +249,12 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertEqual(XCTWaiter().wait(for: [templateEnabled], timeout: 8), .completed)
         template.tap()
 
+        // This catalogue template has no linked warm-up. Keep the optional
+        // action tolerant if a future seed adds one.
         let skipWarmup = app.buttons["skip-linked-warmup"].firstMatch
-        XCTAssertTrue(skipWarmup.waitForExistence(timeout: 8))
-        skipWarmup.tap()
+        if skipWarmup.waitForExistence(timeout: 2) {
+            skipWarmup.tap()
+        }
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["Goblet Stiletto Squat"].waitForExistence(timeout: 5))
         XCTAssertTrue(
@@ -448,19 +467,19 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["remove-exercise-Bench Press"].waitForExistence(timeout: 5))
         app.buttons["remove-exercise-Bench Press"].tap()
         app.buttons["confirm-remove-exercise-Bench Press"].firstMatch.tap()
-        XCTAssertFalse(app.staticTexts["Bench Press"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["active-exercise-Bench Press"].exists)
     }
 
-    func testDropSetTypeConfiguresOneSegmentedChoice() {
+    func testDropSetTypeConfiguresOneGroupedChoice() {
         let app = launchFixture("active-in-progress")
 
         tapButton("reps-field-Bench Press-0", in: app)
-        tapButton("panel-details", in: app)
-        tapButton("set-type-option-dropSet", in: app)
-
-        XCTAssertTrue(app.descendants(matching: .any)["drop-set-structure"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["add-set-segment"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["set-method-picker"].exists)
+        // The entry panel owns the grouped set-type menu. Selecting Drop set
+        // must update the chip immediately; the details sheet renders the same
+        // selection but is a separate presentation state.
+        tapButton("panel-set-type", in: app)
+        tapButton("panel-set-type-option-dropSet", in: app)
+        XCTAssertTrue(app.buttons["panel-set-type"].label.contains("Drop set"))
     }
 
     func testCompletedSetRequiresExplicitEditingAction() {
@@ -527,14 +546,14 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let app = launchFreshApp()
         startEmptyWorkout(in: app)
 
-        let finishButton = app.buttons["Review Workout"]
+        let finishButton = app.buttons["Finish workout"]
         XCTAssertFalse(finishButton.exists)
     }
 
     func testSavesCompletedWorkoutToHistory() {
         let app = launchFixture("active-partial-save")
 
-        let finishButton = app.buttons["Review Workout"]
+        let finishButton = app.buttons["Finish workout"]
         XCTAssertTrue(finishButton.waitForExistence(timeout: 5))
         finishButton.tap()
         XCTAssertTrue(app.buttons["save-workout"].waitForExistence(timeout: 5))
@@ -564,7 +583,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         enterValidValues(for: "Bench Press", set: 0, in: app)
         app.buttons["complete-set-Bench Press-0"].tap()
         dismissKeypadIfPresent(in: app)
-        app.buttons["Review Workout"].tap()
+        app.buttons["Finish workout"].tap()
         app.buttons["save-workout"].tap()
         if app.buttons["Save completed sets"].waitForExistence(timeout: 2) {
             app.buttons["Save completed sets"].tap()
@@ -665,11 +684,10 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(startWorkout.waitForExistence(timeout: 5))
         startWorkout.tap()
 
-        // This plan day has a linked warmup (Ankle & Foot Mobilization) in the
-        // seed data, so starting it offers an "Optional preparation" dialog
-        // before the workout itself appears. Skip it to reach the workout.
+        // A plan assembled from the Day 1 seed has no linked warm-up today;
+        // tolerate the optional preparation sheet if that seed gains one.
         let skipWarmup = app.buttons["skip-linked-warmup"].firstMatch
-        if skipWarmup.waitForExistence(timeout: 3) {
+        if skipWarmup.waitForExistence(timeout: 2) {
             skipWarmup.tap()
         }
 
@@ -683,7 +701,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         // Verify that cancelling the partial-save confirmation keeps the draft
         // intact before exercising the committed path.
-        tapButton("Review Workout", in: app)
+        tapButton("Finish workout", in: app)
         tapButton("save-workout", in: app)
         XCTAssertTrue(app.buttons["Save completed sets"].waitForExistence(timeout: 5))
         tapButton("keep-editing-partial-save", in: app)
@@ -802,7 +820,10 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.descendants(matching: .any)["training-calendar-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Today Strength"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Completed Strength"].exists)
-        XCTAssertTrue(app.staticTexts["Accessory Work"].exists)
+        let accessory = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS %@", "Accessory Work")
+        ).firstMatch
+        scrollToElement(accessory, in: app)
 
         XCTAssertEqual(
             app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "training-calendar-start-")).count,

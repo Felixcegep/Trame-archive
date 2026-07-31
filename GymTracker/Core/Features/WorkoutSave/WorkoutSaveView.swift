@@ -35,7 +35,7 @@ struct WorkoutSaveView: View {
         .foregroundStyle(Color.gymText)
         .background(Color.gymBackground.ignoresSafeArea())
         .tint(Color.gymPrimary)
-        .navigationTitle("Review workout")
+        .navigationTitle("Review and save")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)

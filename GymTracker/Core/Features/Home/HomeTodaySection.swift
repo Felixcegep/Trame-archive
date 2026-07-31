@@ -1,13 +1,19 @@
 import SwiftData
 import SwiftUI
 
-/// Today's daily log, as one grouped card.
+/// What supports today's training, as one grouped card.
 ///
-/// This replaces the former `TODAY` / `NUTRITION` / `MOBILITY` sections, which
-/// stacked six full-width cards under three headings to convey five one-line
-/// facts. Rows are state-driven: a row that has nothing to say is not rendered
-/// at all rather than rendered as an empty state, so the card only ever shows
-/// actions the user can take right now.
+/// Named "Today's support", not "Today": the screen is already called Today,
+/// and repeating it made the group read as *the* content of the screen rather
+/// than as the tier below the workout. Everything here exists to serve the
+/// session — preparing for it, fuelling it, recording context for it — and the
+/// heading now says so.
+///
+/// Rows are state-driven twice over. A row with nothing to say is not rendered
+/// at all, and a row whose action is already *handled* drops behind a
+/// disclosure instead of holding a full-weight slot. Six domains existing is
+/// not a reason to show six equal rows; the group should only ever lead with
+/// what the user can still usefully do.
 struct HomeTodaySection: View {
     @Environment(\.modelContext) private var modelContext
 
@@ -27,31 +33,144 @@ struct HomeTodaySection: View {
     @Query(sort: \MobilitySession.updatedAt, order: .reverse) private var mobilitySessions: [MobilitySession]
     @AppStorage(DefaultsKey.caffeineBirthdateTimestamp) private var caffeineBirthdateTimestamp: Double?
 
+    @State private var isShowingHandledItems = false
+
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            LibrarySectionTitle("Today")
+            LibrarySectionTitle("Today's support")
 
             LibraryGroupCard {
-                checkInRow
+                let open = openItems
+                let handled = handledItems
 
-                if featureFlags.isEnabled(.nutrition) {
-                    LibraryGroupDivider()
-                    nutritionRow
+                rows(for: open, isFirstInCard: true)
 
-                    LibraryGroupDivider()
-                    caffeineRow
-                }
+                if !handled.isEmpty {
+                    // No leading rule when nothing precedes it — a day with
+                    // everything handled would otherwise open the card with a
+                    // divider separating the disclosure row from nothing.
+                    if !open.isEmpty {
+                        LibraryGroupDivider()
+                    }
+                    handledDisclosureRow(for: handled)
 
-                LibraryGroupDivider()
-                creatineRow
-
-                if hasMobilityRow {
-                    LibraryGroupDivider()
-                    mobilityRow
+                    if isShowingHandledItems {
+                        rows(for: handled, isFirstInCard: false)
+                    }
                 }
             }
+        }
+    }
+
+    /// The rows the user can still act on, in the order they matter: work
+    /// already in progress, then what is due, then the day's running totals.
+    private var openItems: [SupportItem] {
+        var items: [SupportItem] = []
+        // Routed through the policy rather than testing the session inline, so
+        // the rule that Today resumes work but never picks a routine stays in
+        // one place with its own coverage.
+        if TodayMobilityRowPolicy.shouldShowRow(hasActiveMobilitySession: activeMobilitySession != nil) {
+            items.append(.mobility)
+        }
+        if dailyLogEntry == nil { items.append(.checkIn) }
+        if featureFlags.isEnabled(.nutrition) { items.append(.nutrition) }
+        if !creatineTaken { items.append(.creatine) }
+        if featureFlags.isEnabled(.nutrition), nutritionSummary.totals.caffeineMilligrams > 0 {
+            items.append(.caffeine)
+        }
+        return items
+    }
+
+    /// Settled or not-yet-relevant rows. They stay reachable — confirming
+    /// creatine by mistake has to be undoable, and the caffeine quick log has
+    /// to survive a day with nothing logged — but they do not compete with
+    /// what is still open.
+    private var handledItems: [SupportItem] {
+        var items: [SupportItem] = []
+        if dailyLogEntry != nil { items.append(.checkIn) }
+        if creatineTaken { items.append(.creatine) }
+        if featureFlags.isEnabled(.nutrition), nutritionSummary.totals.caffeineMilligrams == 0 {
+            items.append(.caffeine)
+        }
+        return items
+    }
+
+    private func rows(for items: [SupportItem], isFirstInCard: Bool) -> some View {
+        ForEach(Array(items.enumerated()), id: \.element) { index, item in
+            if index > 0 || !isFirstInCard {
+                LibraryGroupDivider()
+            }
+            row(for: item)
+        }
+    }
+
+    @ViewBuilder
+    private func row(for item: SupportItem) -> some View {
+        switch item {
+        case .mobility: mobilityRow
+        case .checkIn: checkInRow
+        case .nutrition: nutritionRow
+        case .creatine: creatineRow
+        case .caffeine: caffeineRow
+        }
+    }
+
+    private func handledDisclosureRow(for items: [SupportItem]) -> some View {
+        let summary = handledSummary(for: items)
+        return Button {
+            withAnimation(AppMotion.compact) { isShowingHandledItems.toggle() }
+        } label: {
+            HStack(spacing: Spacing.m) {
+                Text(summary)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .lineLimit(1)
+
+                Spacer(minLength: Spacing.s)
+
+                Image(systemName: isShowingHandledItems ? AppIcon.chevronUp : AppIcon.chevronDown)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubtleText)
+            }
+            .padding(.horizontal, Spacing.l - 2)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityIdentifier("today-toggle-handled-support")
+        .accessibilityLabel(summary)
+        .accessibilityHint(
+            isShowingHandledItems
+                ? String(localized: "Hides items you have already handled today.")
+                : String(localized: "Shows items you have already handled today.")
+        )
+    }
+
+    /// Names what is hidden rather than saying "More", so collapsing never
+    /// costs the user the answer to "did I take creatine?".
+    private func handledSummary(for items: [SupportItem]) -> String {
+        items.map(\.shortName).formatted(.list(type: .and))
+    }
+}
+
+/// The rows Today's support can offer, in one place so ordering and
+/// open/handled classification cannot disagree about what exists.
+private enum SupportItem: Hashable {
+    case mobility
+    case checkIn
+    case nutrition
+    case creatine
+    case caffeine
+
+    var shortName: String {
+        switch self {
+        case .mobility: String(localized: "Mobility")
+        case .checkIn: String(localized: "Check-in")
+        case .nutrition: String(localized: "Nutrition")
+        case .creatine: String(localized: "Creatine")
+        case .caffeine: String(localized: "Caffeine")
         }
     }
 }
@@ -200,6 +319,9 @@ private extension HomeTodaySection {
     /// Compact enough for a trailing value. The full daily-reference comparison
     /// stays in the accessibility label, where there is room for it.
     func caffeineValue(summary: NutritionDaySummary) -> String {
+        guard summary.totals.caffeineMilligrams > 0 else {
+            return String(localized: "Add a drink")
+        }
         let milligrams = "\(FoodLibraryService.format(summary.totals.caffeineMilligrams)) mg"
         if case .milligrams(let limit, _) = caffeineDailyLimit,
            summary.totals.caffeineMilligrams > limit {
@@ -232,17 +354,6 @@ private extension HomeTodaySection {
 private extension HomeTodaySection {
     var activeMobilitySession: MobilitySession? {
         mobilitySessions.first { $0.status == .active }
-    }
-
-    /// Discovering and creating routines is the Train tab's job, so Today stays
-    /// silent when there is nothing to run rather than advertising an empty state.
-    var hasMobilityRow: Bool {
-        // Today never chooses a reusable routine on the lifter's behalf. An
-        // already-running session still resumes even when the feature flag is
-        // disabled, because hiding a domain must not strand in-progress work.
-        TodayMobilityRowPolicy.shouldShowRow(
-            hasActiveMobilitySession: activeMobilitySession != nil
-        )
     }
 
     @ViewBuilder

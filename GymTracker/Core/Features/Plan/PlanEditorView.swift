@@ -8,9 +8,6 @@ struct PlanEditorView: View {
     let plan: WorkoutPlan
     @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exercises: [Exercise]
     @State private var draft: PlanEditorDraft
-    @State private var selectedWeekIndex: Int?
-    @State private var selectedWorkoutIndex: Int?
-    @State private var isShowingWorkoutEditor = false
     @State private var isShowingReview = false
 
     init(plan: WorkoutPlan) {
@@ -49,10 +46,11 @@ struct PlanEditorView: View {
             ForEach($draft.weeks) { $week in
                 Section("Week \(week.weekIndex + 1)") {
                     ForEach($week.workouts) { $workout in
-                        Button {
-                            selectedWeekIndex = week.weekIndex
-                            selectedWorkoutIndex = week.workouts.firstIndex { $0.id == workout.id }
-                            isShowingWorkoutEditor = true
+                        NavigationLink {
+                            PlanWorkoutEditorView(
+                                workout: $workout,
+                                exercises: exercises
+                            )
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -68,7 +66,6 @@ struct PlanEditorView: View {
                                     .foregroundStyle(Color.gymSubduedText)
                             }
                         }
-                        .buttonStyle(.plain)
                         .accessibilityIdentifier("edit-plan-workout")
                     }
                 }
@@ -87,18 +84,6 @@ struct PlanEditorView: View {
                 }
                 .disabled(draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .accessibilityIdentifier("save-plan-edits")
-            }
-        }
-        .sheet(isPresented: $isShowingWorkoutEditor) {
-            if let weekIndex = selectedWeekIndex,
-               let workoutIndex = selectedWorkoutIndex,
-               let weekIndexInDraft = draft.weeks.firstIndex(where: { $0.weekIndex == weekIndex }) {
-                NavigationStack {
-                    PlanWorkoutEditorView(
-                        workout: $draft.weeks[weekIndexInDraft].workouts[workoutIndex],
-                        exercises: exercises
-                    )
-                }
             }
         }
         .sheet(isPresented: $isShowingReview) {

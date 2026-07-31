@@ -29,6 +29,9 @@ struct HomeView: View {
     @State private var isShowingCaffeineLog = false
     @State private var reschedulingProgress: PlanWorkoutProgress?
     @State private var rescheduleDate = Date.now
+    /// Reset on every presentation. Carrying a shift decision from one
+    /// reschedule into the next would move sessions the user never looked at.
+    @State private var rescheduleShiftsRemaining = false
     @State private var progressToSkip: PlanWorkoutProgress?
     @State private var scheduleActionError: ValidationIssue?
     /// Increments only on a schedule mutation that actually committed, so the
@@ -209,40 +212,14 @@ struct HomeView: View {
     }
 
     private func rescheduleSheet(for progress: PlanWorkoutProgress) -> some View {
-        let originalDate = progress.scheduledDate
-        let isUnchanged = originalDate.map {
-            Calendar.current.isDate($0, inSameDayAs: rescheduleDate)
-        } ?? false
-
-        return NavigationStack {
-            Form {
-                Section {
-                    DatePicker("Scheduled date", selection: $rescheduleDate, displayedComponents: .date)
-                        .accessibilityIdentifier("today-reschedule-date")
-                } footer: {
-                    // A past date is allowed and becomes a missed session. That
-                    // is deliberate, but nothing said so, and a date picker with
-                    // no stated bounds invites the assumption that it is
-                    // constrained.
-                    Text("Any date is allowed. A date in the past is recorded as missed, and one outside the plan's range still keeps the plan's order.")
-                }
-            }
-            .navigationTitle("Reschedule workout")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { reschedulingProgress = nil }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { saveReschedule(progress) }
-                        // Saving the date it already has is a no-op that still
-                        // reported "Moved to …", which is a confirmation of
-                        // nothing.
-                        .disabled(isUnchanged)
-                        .accessibilityIdentifier("today-confirm-reschedule")
-                }
-            }
-        }
+        RescheduleWorkoutSheet(
+            progress: progress,
+            run: run(containing: progress),
+            date: $rescheduleDate,
+            shiftsRemaining: $rescheduleShiftsRemaining,
+            onCancel: { reschedulingProgress = nil },
+            onSave: { saveReschedule(progress) }
+        )
     }
 
 }
@@ -271,14 +248,29 @@ private extension HomeView {
         workoutVM.startWorkout(using: modelContext)
         isShowingActiveWorkout = true
     }
+    func run(containing progress: PlanWorkoutProgress) -> PlanRun? {
+        planRuns.first { $0.workoutProgress.contains { $0.id == progress.id } }
+    }
+
     func beginRescheduling(_ progress: PlanWorkoutProgress) {
         rescheduleDate = progress.scheduledDate ?? .now
+        rescheduleShiftsRemaining = false
         reschedulingProgress = progress
     }
     func saveReschedule(_ progress: PlanWorkoutProgress) {
-        guard let run = planRuns.first(where: { $0.workoutProgress.contains(where: { $0.id == progress.id }) }),
-              PlanCoordinator.reschedule(progress, to: rescheduleDate, in: run, using: modelContext)
-        else {
+        guard let run = run(containing: progress) else {
+            scheduleActionError = ValidationIssue(
+                severity: .error,
+                message: "The workout could not be rescheduled. Try again."
+            )
+            return
+        }
+
+        let didReschedule = rescheduleShiftsRemaining
+            ? PlanCoordinator.rescheduleRemaining(from: progress, to: rescheduleDate, in: run, using: modelContext)
+            : PlanCoordinator.reschedule(progress, to: rescheduleDate, in: run, using: modelContext)
+
+        guard didReschedule else {
             scheduleActionError = ValidationIssue(
                 severity: .error,
                 message: "The workout could not be rescheduled. Try again."
@@ -286,10 +278,14 @@ private extension HomeView {
             return
         }
         reschedulingProgress = nil
+
+        // The confirmation names the scope of what happened, because "Moved to
+        // Friday" reads identically whether one session moved or twelve did.
+        let movedTo = rescheduleDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
         confirmScheduleChange(
-            String(
-                localized: "Moved to \(rescheduleDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
-            )
+            rescheduleShiftsRemaining
+                ? String(localized: "Moved to \(movedTo). Later workouts moved with it.")
+                : String(localized: "Moved to \(movedTo).")
         )
     }
     func presentRequestedRescheduleIfNeeded() {

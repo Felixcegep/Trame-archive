@@ -208,7 +208,6 @@ private extension PlanFormView {
                     deloadControls
                 }
             }
-            .accessibilityIdentifier("plan-options")
         }
     }
 

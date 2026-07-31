@@ -12,7 +12,7 @@ final class Batch4FeedbackUITests: GymTrackerUITestCase {
         // advance to its 45-second hold so this test exercises the new state.
         tapButton("skip-mobility-movement", in: app)
 
-        let targetReached = app.staticTexts.matching(
+        let targetReached = app.descendants(matching: .any).matching(
             NSPredicate(format: "label BEGINSWITH 'Target reached'")
         ).firstMatch
         XCTAssertTrue(targetReached.waitForExistence(timeout: 55))
@@ -20,7 +20,7 @@ final class Batch4FeedbackUITests: GymTrackerUITestCase {
 
     func testSaveSuccessDismissesReviewAndShowsHistoryEntry() {
         let app = launchFixture("active-partial-save")
-        tapButton("Review Workout", in: app)
+        tapButton("Finish workout", in: app)
         tapButton("save-workout", in: app)
         let partialSave = app.buttons["Save completed sets"]
         if partialSave.waitForExistence(timeout: 3) {

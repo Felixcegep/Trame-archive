@@ -47,7 +47,16 @@ struct NutritionCenterView: View {
 
             Section("Log food") {
                 if recents.isEmpty && favorites.isEmpty {
-                    ContentUnavailableView("No foods ready to log", systemImage: AppIcon.nutrition, description: Text("Create a food in your library, then it will be available here offline."))
+                    // "No foods ready to log" described the *app* as
+                    // unprepared, and did so while the library sat full of
+                    // seeded foods one row below. This section is the
+                    // one-tap shortcut list, so it should report the only
+                    // thing that is actually empty: the user's own history.
+                    ContentUnavailableView(
+                        "Nothing logged yet",
+                        systemImage: AppIcon.nutrition,
+                        description: Text("Foods you log or mark as a favorite appear here for one-tap logging. Find food to add your first one.")
+                    )
                 } else {
                     if favorites.isEmpty == false {
                         ForEach(favorites) { food in

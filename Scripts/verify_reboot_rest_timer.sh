@@ -19,19 +19,24 @@ XCODE_ARGUMENTS=(
 )
 
 echo "Preparing a running rest timer on simulator $SIMULATOR_ID"
-xcodebuild "${XCODE_ARGUMENTS[@]}" test \
+xcodebuild "${XCODE_ARGUMENTS[@]}" build-for-testing
+xcodebuild "${XCODE_ARGUMENTS[@]}" test-without-building \
   -only-testing:GymTrackerUITEST/GymTrackerUITEST/testPrepareRunningRestForSimulatorReboot
 
 echo "Restarting the same simulator without erasing app data"
 # Xcode may already shut down the simulator after the preparation test. Both
 # states are valid: the key requirement is that we boot the same, un-erased
 # simulator before the verification phase.
+# Give the app's background save a moment to finish before CoreSimulator is
+# stopped. The preparation test deliberately backgrounds and terminates the
+# app, but SwiftData can still be committing its store transaction here.
+sleep 2
 xcrun simctl shutdown "$SIMULATOR_ID" 2>/dev/null || true
 xcrun simctl boot "$SIMULATOR_ID"
 xcrun simctl bootstatus "$SIMULATOR_ID" -b
 
 echo "Verifying persisted rest timer after simulator reboot"
-xcodebuild "${XCODE_ARGUMENTS[@]}" test \
+xcodebuild "${XCODE_ARGUMENTS[@]}" test-without-building \
   -only-testing:GymTrackerUITEST/GymTrackerUITEST/testVerifiesRunningRestAfterSimulatorReboot
 
 echo "Simulator reboot rest-timer verification passed."

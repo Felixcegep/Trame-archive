@@ -223,7 +223,7 @@ enum UITestFixture: String {
         case .nutritionToday:
             let foods = try context.fetch(FetchDescriptor<FoodItem>())
             guard let yogurt = foods.first(where: { $0.name == "Greek yogurt" }),
-                  let chicken = foods.first(where: { $0.name == "Cooked chicken breast" }) else {
+                  let chicken = foods.first(where: { $0.name == "Chicken breast" }) else {
                 throw FixtureError.invalidPlan
             }
             guard NutritionLoggingService.log(food: yogurt, using: context) != nil,
@@ -843,8 +843,13 @@ enum UITestFixture: String {
         run.workoutProgress = [ready, completed]
         plan.runs = [run]
 
-        let freeWorkout = Workout(name: "Accessory Work", endTime: Date.now.addingTimeInterval(-1_800))
-        freeWorkout.startTime = Date.now.addingTimeInterval(-2_700)
+        // Keep this completed workout on the selected local day even when the
+        // fixture launches shortly after midnight. Subtracting a fixed offset
+        // from `Date.now` made the row belong to yesterday for the first
+        // 45 minutes of each day, so the Today agenda correctly omitted it.
+        let fixtureNow = Date.now
+        let freeWorkout = Workout(name: "Accessory Work", endTime: fixtureNow)
+        freeWorkout.startTime = max(today, fixtureNow.addingTimeInterval(-900))
         let midday = Calendar.current.date(
             bySettingHour: 12,
             minute: 0,

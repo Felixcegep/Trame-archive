@@ -68,32 +68,42 @@ struct SetInputAccessoryPanel: View {
         // The panel competes with the set list for the same screen. Every block
         // here is load-bearing, so the height comes out of the gaps between them
         // and out of the keypad rather than out of any control.
-        VStack(spacing: Spacing.s) {
-            contextHeader(exercise: exercise, set: set)
+        Group {
+            if isShowingSetDetails {
+                // The details sheet is presented from this safe-area inset.
+                // Keep the presenting view alive for the sheet, but remove
+                // the keypad itself so it cannot cover the sheet's lower
+                // controls.
+                Color.clear.frame(height: 0)
+            } else {
+                VStack(spacing: Spacing.s) {
+                    contextHeader(exercise: exercise, set: set)
 
-            valueRow(exercise: exercise, set: set)
+                    valueRow(exercise: exercise, set: set)
 
-            if let validationMessage {
-                Text(validationMessage)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymAccent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityLabel(validationMessage)
-            }
+                    if let validationMessage {
+                        Text(validationMessage)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymAccent)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityLabel(validationMessage)
+                    }
 
-            chipRow(exercise: exercise, set: set)
+                    chipRow(exercise: exercise, set: set)
 
-            footer(exercise: exercise, set: set)
+                    footer(exercise: exercise, set: set)
 
-            // The keypad is part of this panel rather than a text field's
-            // `inputView`. Nothing here is a first responder, so no system
-            // keyboard is raised and no keyboard-avoidance inset competes with
-            // the panel's own height.
-            NumericKeypad(
-                decimalSeparator: decimalSeparator,
-                showsDecimalKey: fieldAllowsDecimals(focusedField)
-            ) { key in
-                handle(key, field: focusedField, set: set)
+                    // The keypad is part of this panel rather than a text
+                    // field's `inputView`. Nothing here is a first responder,
+                    // so no system keyboard is raised and no keyboard-
+                    // avoidance inset competes with the panel's own height.
+                    NumericKeypad(
+                        decimalSeparator: decimalSeparator,
+                        showsDecimalKey: fieldAllowsDecimals(focusedField)
+                    ) { key in
+                        handle(key, field: focusedField, set: set)
+                    }
+                }
             }
         }
         .padding(.horizontal, Spacing.l)
@@ -142,7 +152,12 @@ struct SetInputAccessoryPanel: View {
                     coordinator.focus = nil
                 }
             )
-            .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.height(480), .large])
+            // The accessory keypad remains a safe-area inset while this sheet
+            // is presented. A medium detent would leave that keypad over the
+            // lower set-type choices, making the details sheet appear open but
+            // not interactable. Details is already a dense editing surface;
+            // present it full-screen so every option remains reachable.
+            .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
         // Declared a container so the panel keeps one addressable identifier for

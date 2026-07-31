@@ -1,278 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "Data Safety" : {
-      "comment" : "A settings section header for where data lives and whether it is backed up.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sécurité des données"
-          }
-        }
-      }
-    },
-    "Stored" : {
-      "comment" : "A label for where the app's data physically lives.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stockage"
-          }
-        }
-      }
-    },
-    "This iPhone" : {
-      "comment" : "The value for where data is stored: on the device itself.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cet iPhone"
-          }
-        }
-      }
-    },
-    "Last export" : {
-      "comment" : "A label for the date of the most recent backup export.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dernière exportation"
-          }
-        }
-      }
-    },
-    "Restore tested" : {
-      "comment" : "A label for whether the user has ever restored a backup on this device.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restauration testée"
-          }
-        }
-      }
-    },
-    "Not yet" : {
-      "comment" : "The value shown when the user has never restored a backup.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pas encore"
-          }
-        }
-      }
-    },
-    "Never" : {
-      "comment" : "The value shown when no backup has ever been exported.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jamais"
-          }
-        }
-      }
-    },
-    "Backup format" : {
-      "comment" : "A label for the portable backup format version.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Format de sauvegarde"
-          }
-        }
-      }
-    },
-    "Your training history lives only on this iPhone. There is no cloud copy, so an export is the only way to survive losing or replacing the device." : {
-      "comment" : "A Data Safety footer shown when no backup has ever been exported.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre historique d'entraînement n'existe que sur cet iPhone. Il n'y a aucune copie infonuagique : une exportation est le seul moyen de survivre à la perte ou au remplacement de l'appareil."
-          }
-        }
-      }
-    },
-    "Your training history lives only on this iPhone. Anything logged since your last export is not in that copy." : {
-      "comment" : "A Data Safety footer shown once a backup has been exported.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Votre historique d'entraînement n'existe que sur cet iPhone. Tout ce qui a été enregistré depuis votre dernière exportation ne figure pas dans cette copie."
-          }
-        }
-      }
-    },
-    "Reps only" : {
-      "comment" : "A set-entry timing scenario: only repetitions were typed.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Répétitions seulement"
-          }
-        }
-      }
-    },
-    "Weighted" : {
-      "comment" : "A set-entry timing scenario: a load was typed.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Avec charge"
-          }
-        }
-      }
-    },
-    "Corrected a value" : {
-      "comment" : "A set-entry timing scenario: an existing value was overwritten.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Valeur corrigée"
-          }
-        }
-      }
-    },
-    "Accepted previous values" : {
-      "comment" : "A set-entry timing scenario: prefilled values were kept unchanged.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Valeurs précédentes acceptées"
-          }
-        }
-      }
-    },
-    "Copied last set" : {
-      "comment" : "A set-entry timing scenario: the copy-last-set action was used.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Série précédente copiée"
-          }
-        }
-      }
-    },
-    "Used plate calculator" : {
-      "comment" : "A set-entry timing scenario: the plate calculator was opened.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Calculateur de disques utilisé"
-          }
-        }
-      }
-    },
-    "Logged effort" : {
-      "comment" : "A set-entry timing scenario: RIR or RPE was recorded from the panel.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Effort enregistré"
-          }
-        }
-      }
-    },
-    "Routine history records the work you performed." : {
-      "comment" : "A mobility hub history footer shown when assessments are not available.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L'historique des routines enregistre le travail que vous avez effectué."
-          }
-        }
-      }
-    },
-    "Current set" : {
-      "comment" : "An accessibility value marking the set the lifter is currently on.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Série en cours"
-          }
-        }
-      }
-    },
-    "Editing set %lld" : {
-      "comment" : "An accessibility label and announcement for a completed set being edited. The argument is the set index.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modification de la série %lld"
-          }
-        }
-      }
-    },
-    "Locked. Use the edit button to change this value." : {
-      "comment" : "A hint on a completed set's value, which cannot be edited until the set is unlocked.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verrouillé. Utilisez le bouton de modification pour changer cette valeur."
-          }
-        }
-      }
-    },
-    "Locked while the timer is running." : {
-      "comment" : "A hint on a duration value that the running timer owns.",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verrouillé pendant que le minuteur tourne."
-          }
-        }
-      }
-    },
-    "Common" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Courant"
-          }
-        }
-      }
-    },
-    "Special" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spécial"
-          }
-        }
-      }
-    },
-    "Recently used" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Utilisés récemment"
-          }
-        }
-      }
-    },
     "" : {
       "localizations" : {
         "fr" : {
@@ -282,10 +10,6 @@
           }
         }
       }
-    },
-    " · " : {
-      "comment" : "A separator between the number of sets and the number of exercises.",
-      "isCommentAutoGenerated" : true
     },
     "—" : {
 
@@ -607,6 +331,18 @@
         }
       }
     },
+    "%@ moved to position %lld of %lld." : {
+      "comment" : "A gym announcement announcing the new position of an exercise in a workout. The first argument is the name of the exercise. The second argument is the 1-based index of the exercise in the new position. The third argument is the total number of exercises in the workout.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ moved to position %2$lld of %3$lld."
+          }
+        }
+      }
+    },
     "%@ per %@ %@" : {
       "comment" : "A label describing the nutritional content of a food item. The argument is the string “%1$arg · %2$arg”.",
       "isCommentAutoGenerated" : true,
@@ -759,6 +495,10 @@
         }
       }
     },
+    "%@, already added" : {
+      "comment" : "A label that reads the name of an exercise followed by \"already added\".",
+      "isCommentAutoGenerated" : true
+    },
     "%@: %@" : {
       "comment" : "A label that shows a dimension name and a status icon. The icon is a system icon that indicates the performance status of the dimension.",
       "isCommentAutoGenerated" : true,
@@ -874,6 +614,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$lld / %2$lld séries · %3$@"
+          }
+        }
+      }
+    },
+    "%lld / %lld sets · ^[%lld exercise](inflect: true)" : {
+      "comment" : "A label that shows the number of sets",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld sets · ^[%3$lld exercise](inflect: true)"
           }
         }
       }
@@ -1024,6 +776,18 @@
         }
       }
     },
+    "%lld of %lld sets complete" : {
+      "comment" : "A sentence describing the progress of an active workout. The argument is the number of sets completed, the second argument is the total number of sets.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld sets complete"
+          }
+        }
+      }
+    },
     "%lld of %lld workouts" : {
       "localizations" : {
         "en" : {
@@ -1077,6 +841,10 @@
           }
         }
       }
+    },
+    "%lld seconds remaining" : {
+      "comment" : "A sentence that describes a workout that is paused.",
+      "isCommentAutoGenerated" : true
     },
     "%lld selected" : {
       "comment" : "A label showing the number of exercises that have been selected for the current workout.",
@@ -1245,6 +1013,10 @@
         }
       }
     },
+    "^[%lld completed set](inflect: true) will be deleted and will not appear in History." : {
+      "comment" : "A message in a confirmation dialog that",
+      "isCommentAutoGenerated" : true
+    },
     "^[%lld completed set](inflect: true) will be saved to History. ^[%lld incomplete set](inflect: true) will be excluded. Your workout name and notes will be saved." : {
       "localizations" : {
         "en" : {
@@ -1277,6 +1049,7 @@
     },
     "^[%lld exercise](inflect: true)" : {
       "comment" : "A label showing the number of exercises in a workout. The argument is the number of exercises in the workout.",
+      "extractionState" : "stale",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "fr" : {
@@ -1583,6 +1356,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Accepté"
+          }
+        }
+      }
+    },
+    "Accepted previous values" : {
+      "comment" : "A set-entry timing scenario: prefilled values were kept unchanged.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valeurs précédentes acceptées"
           }
         }
       }
@@ -2428,6 +2212,10 @@
         }
       }
     },
+    "Any date is allowed. A date in the past is recorded as missed, and one outside the plan's range still keeps the plan's order." : {
+      "comment" : "A description of how a user can reschedule a workout.",
+      "isCommentAutoGenerated" : true
+    },
     "Anything worth remembering?" : {
       "comment" : "A placeholder for a note in a daily check-in.",
       "isCommentAutoGenerated" : true
@@ -2614,6 +2402,9 @@
       "comment" : "A phrase that describes the remaining number of repetitions. The argument is the number of remaining reps.",
       "isCommentAutoGenerated" : true
     },
+    "Automatic" : {
+
+    },
     "Automatic deload" : {
 
     },
@@ -2662,6 +2453,17 @@
     "Backup Details" : {
       "comment" : "A section that shows the version, units, and default rest time of the backup.",
       "isCommentAutoGenerated" : true
+    },
+    "Backup format" : {
+      "comment" : "A label for the portable backup format version.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Format de sauvegarde"
+          }
+        }
+      }
     },
     "Backup Format" : {
       "comment" : "Diagnostic label for the portable backup format version.",
@@ -3523,6 +3325,9 @@
       "comment" : "A hint for a button that lets the user choose, replace, or remove a routine.",
       "isCommentAutoGenerated" : true
     },
+    "Chooses rest length from the exercise instead of using one duration everywhere." : {
+
+    },
     "Clamp 0–100" : {
 
     },
@@ -3639,8 +3444,19 @@
         }
       }
     },
+    "Common" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Courant"
+          }
+        }
+      }
+    },
     "Complete" : {
       "comment" : "A label for a button that marks an exercise as complete.",
+      "extractionState" : "stale",
       "isCommentAutoGenerated" : true,
       "localizations" : {
         "fr" : {
@@ -3678,6 +3494,10 @@
           }
         }
       }
+    },
+    "Complete at least one set to finish." : {
+      "comment" : "A message that appears when the user tries to finish a workout without completing any sets.",
+      "isCommentAutoGenerated" : true
     },
     "Complete current set" : {
       "comment" : "Title of an intent that completes the current set of an active workout.",
@@ -3920,6 +3740,17 @@
       "comment" : "The title of the control rest intent.",
       "isCommentAutoGenerated" : true
     },
+    "Copied last set" : {
+      "comment" : "A set-entry timing scenario: the copy-last-set action was used.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Série précédente copiée"
+          }
+        }
+      }
+    },
     "Copies the values from the preceding set in this workout" : {
       "comment" : "A hint that describes the action of copying values from a previous set.",
       "extractionState" : "stale",
@@ -3975,6 +3806,17 @@
     "Core" : {
       "comment" : "Display representation for the core muscle group.",
       "isCommentAutoGenerated" : true
+    },
+    "Corrected a value" : {
+      "comment" : "A set-entry timing scenario: an existing value was overwritten.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valeur corrigée"
+          }
+        }
+      }
     },
     "Could do 1 more rep" : {
       "comment" : "A description of a RPE value of 9.",
@@ -4344,6 +4186,17 @@
         }
       }
     },
+    "Current set" : {
+      "comment" : "An accessibility value marking the set the lifter is currently on.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Série en cours"
+          }
+        }
+      }
+    },
     "Current weight" : {
       "comment" : "A label displayed above a field for the user's current weight.",
       "isCommentAutoGenerated" : true
@@ -4409,6 +4262,17 @@
     },
     "Dark Mode" : {
 
+    },
+    "Data Safety" : {
+      "comment" : "A settings section header for where data lives and whether it is backed up.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sécurité des données"
+          }
+        }
+      }
     },
     "Date" : {
       "comment" : "Label for the x-axis in a line chart",
@@ -4498,11 +4362,35 @@
         }
       }
     },
+    "Delete set %lld" : {
+      "comment" : "A button that deletes a set.",
+      "isCommentAutoGenerated" : true
+    },
+    "Delete set %lld?" : {
+      "comment" : "A confirmation dialog asking the user to confirm the deletion of a set. The argument is the set's index, starting at 1.",
+      "isCommentAutoGenerated" : true
+    },
     "Delete week" : {
 
     },
     "Delete workout" : {
 
+    },
+    "Deleted %@" : {
+      "comment" : "A banner that appears when a workout is deleted. The argument is the name of the workout.",
+      "isCommentAutoGenerated" : true
+    },
+    "Deleted %@. Undo is available." : {
+      "comment" : "A spoken announcement that a workout is",
+      "isCommentAutoGenerated" : true
+    },
+    "Deletes this empty set." : {
+      "comment" : "A hint for the user that deletes an empty set.",
+      "isCommentAutoGenerated" : true
+    },
+    "Deletion undone." : {
+      "comment" : "Text spoken by VoiceOver when a pending workout deletion is undone.",
+      "isCommentAutoGenerated" : true
     },
     "Deload" : {
       "localizations" : {
@@ -4683,6 +4571,14 @@
     },
     "Discard changes" : {
       "comment" : "A destructive button that discards changes made to a completed set.",
+      "isCommentAutoGenerated" : true
+    },
+    "Discard plan" : {
+      "comment" : "A button that discards a plan.",
+      "isCommentAutoGenerated" : true
+    },
+    "Discard this plan?" : {
+      "comment" : "Confirmation dialog title.",
       "isCommentAutoGenerated" : true
     },
     "Discard this workout?" : {
@@ -5004,6 +4900,17 @@
       "comment" : "A title for a view that edits a user's body weight.",
       "isCommentAutoGenerated" : true
     },
+    "Editing set %lld" : {
+      "comment" : "An accessibility label and announcement for a completed set being edited. The argument is the set index.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modification de la série %lld"
+          }
+        }
+      }
+    },
     "Effort" : {
       "localizations" : {
         "fr" : {
@@ -5260,6 +5167,10 @@
       "comment" : "A stepper that lets the user select the number of days between workouts.",
       "isCommentAutoGenerated" : true
     },
+    "Every exercise rests for this long unless its plan says otherwise." : {
+      "comment" : "A footer for the rest timer setting.",
+      "isCommentAutoGenerated" : true
+    },
     "Every routine stays available — only this view is filtered." : {
       "localizations" : {
         "en" : {
@@ -5356,9 +5267,8 @@
         }
       }
     },
-    "Exercise time %@" : {
-      "comment" : "The exercise time. The argument is the string “%1$d:%2$02d”.",
-      "isCommentAutoGenerated" : true
+    "Exercise time" : {
+
     },
     "Exercise trends" : {
       "comment" : "A heading for the exercise trends section in the history view.",
@@ -6481,6 +6391,10 @@
         }
       }
     },
+    "Its logged values (%@) will not be saved." : {
+      "comment" : "A confirmation dialog that asks the user to confirm the deletion of a set.",
+      "isCommentAutoGenerated" : true
+    },
     "Its logged values will stay in place and become editable." : {
       "comment" : "A confirmation dialog message displayed when the user confirms that they want to mark a set as incomplete.",
       "isCommentAutoGenerated" : true
@@ -6633,6 +6547,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dernière évaluation"
+          }
+        }
+      }
+    },
+    "Last export" : {
+      "comment" : "A label for the date of the most recent backup export.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière exportation"
           }
         }
       }
@@ -6843,6 +6768,28 @@
       "comment" : "Text displayed below the list of starting values for a program.",
       "isCommentAutoGenerated" : true
     },
+    "Locked while the timer is running." : {
+      "comment" : "A hint on a duration value that the running timer owns.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verrouillé pendant que le minuteur tourne."
+          }
+        }
+      }
+    },
+    "Locked. Use the edit button to change this value." : {
+      "comment" : "A hint on a completed set's value, which cannot be edited until the set is unlocked.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verrouillé. Utilisez le bouton de modification pour changer cette valeur."
+          }
+        }
+      }
+    },
     "Log a meal" : {
       "comment" : "The title of the \"Log a meal\" intent.",
       "isCommentAutoGenerated" : true
@@ -6889,6 +6836,17 @@
     "Logged %@ mg of caffeine." : {
       "comment" : "A dialog response that logs caffeine. The argument is the amount of caffeine in milligrams.",
       "isCommentAutoGenerated" : true
+    },
+    "Logged effort" : {
+      "comment" : "A set-entry timing scenario: RIR or RPE was recorded from the panel.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort enregistré"
+          }
+        }
+      }
     },
     "Logging" : {
       "comment" : "A section of the exercise advanced details view that allows the user to log the exercise.",
@@ -8974,6 +8932,26 @@
     "More than one plan is running" : {
 
     },
+    "Most recent %lld of %lld values. %@. %lld earlier values not listed." : {
+      "comment" : "A label that describes a trend of a series of values. The first argument is the number of values spoken. The second argument is the number of values that aren't spoken.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Most recent %1$lld of %2$lld values. %3$@. %4$lld earlier values not listed."
+          }
+        }
+      }
+    },
+    "Move %@ down" : {
+      "comment" : "A button that moves an exercise up in a workout.",
+      "isCommentAutoGenerated" : true
+    },
+    "Move %@ up" : {
+      "comment" : "A button that moves an exercise up in a workout. The argument is the name of the exercise.",
+      "isCommentAutoGenerated" : true
+    },
     "Move down" : {
 
     },
@@ -8999,6 +8977,14 @@
           }
         }
       }
+    },
+    "Moved to %@." : {
+      "comment" : "A message that is displayed to the user when a workout is rescheduled.",
+      "isCommentAutoGenerated" : true
+    },
+    "Moved to tomorrow." : {
+      "comment" : "Confirmation message when a workout is moved to tomorrow.",
+      "isCommentAutoGenerated" : true
     },
     "Movement" : {
       "comment" : "The movement pattern of the exercise.",
@@ -9160,6 +9146,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "À vérifier"
+          }
+        }
+      }
+    },
+    "Never" : {
+      "comment" : "The value shown when no backup has ever been exported.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jamais"
           }
         }
       }
@@ -9484,6 +9481,10 @@
     },
     "No completed sets yet" : {
       "comment" : "A label displayed when an exercise has no completed sets.",
+      "isCommentAutoGenerated" : true
+    },
+    "No data" : {
+      "comment" : "A label that indicates that there is no data.",
       "isCommentAutoGenerated" : true
     },
     "No eligible completed strength work was recorded this week." : {
@@ -10021,6 +10022,18 @@
         }
       }
     },
+    "Not yet" : {
+      "comment" : "The value shown when the user has never restored a backup.",
+      "extractionState" : "stale",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore"
+          }
+        }
+      }
+    },
     "Not yet today" : {
       "comment" : "A label that indicates that creatine is not confirmed for today.",
       "isCommentAutoGenerated" : true
@@ -10285,6 +10298,10 @@
     },
     "Open target" : {
 
+    },
+    "Opens confirmation before deleting this set." : {
+      "comment" : "A hint that appears when tapping the delete button.",
+      "isCommentAutoGenerated" : true
     },
     "Opens confirmation before marking this set incomplete." : {
       "comment" : "A hint for the accessibility of the complete set button.",
@@ -10821,6 +10838,10 @@
     },
     "Plan Phases" : {
       "comment" : "A title for a view that lets the user edit the phases of a workout plan.",
+      "isCommentAutoGenerated" : true
+    },
+    "Plan resumed." : {
+      "comment" : "Confirmation message when resuming a plan.",
       "isCommentAutoGenerated" : true
     },
     "Plan runs" : {
@@ -12205,6 +12226,16 @@
       "comment" : "A section of a nutrition history view that shows the user's most recent meals.",
       "isCommentAutoGenerated" : true
     },
+    "Recently used" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisés récemment"
+          }
+        }
+      }
+    },
     "Recipe" : {
       "comment" : "A section for the recipe information.",
       "isCommentAutoGenerated" : true
@@ -12492,6 +12523,10 @@
       "comment" : "A button that removes an alternative exercise from a plan exercise.",
       "isCommentAutoGenerated" : true
     },
+    "Remove %@?" : {
+      "comment" : "A confirmation dialog that lets the user",
+      "isCommentAutoGenerated" : true
+    },
     "Remove a pair of %@ %@ plates" : {
       "comment" : "A button that removes a pair of plates.",
       "extractionState" : "stale",
@@ -12513,6 +12548,10 @@
     },
     "Remove all plates" : {
       "comment" : "A button that removes all the plates from a plate calculator.",
+      "isCommentAutoGenerated" : true
+    },
+    "Remove and delete sets" : {
+      "comment" : "A button that removes an exercise and its sets from a workout.",
       "isCommentAutoGenerated" : true
     },
     "Remove block" : {
@@ -12779,6 +12818,17 @@
         }
       }
     },
+    "Reps only" : {
+      "comment" : "A set-entry timing scenario: only repetitions were typed.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Répétitions seulement"
+          }
+        }
+      }
+    },
     "Reps Only" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -12927,6 +12977,7 @@
       }
     },
     "Rest complete · %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -12942,6 +12993,14 @@
         }
       }
     },
+    "Rest complete." : {
+      "comment" : "Spoken at the end of a rest.",
+      "isCommentAutoGenerated" : true
+    },
+    "Rest complete. %@" : {
+      "comment" : "A spoken message that announces that the",
+      "isCommentAutoGenerated" : true
+    },
     "Rest controls" : {
       "localizations" : {
         "fr" : {
@@ -12951,6 +13010,13 @@
           }
         }
       }
+    },
+    "Rest length is chosen from the exercise — longest for heavy compound lifts, shortest for core work. A plan's own rest always takes priority." : {
+      "comment" : "A footer for the rest timer setting.",
+      "isCommentAutoGenerated" : true
+    },
+    "Rest paused" : {
+
     },
     "Rest paused." : {
       "comment" : "Text displayed in a dialog when pausing a rest.",
@@ -13030,6 +13096,21 @@
     },
     "Restore Backup?" : {
       "comment" : "A confirmation dialog asking the user to confirm restoring a backup.",
+      "isCommentAutoGenerated" : true
+    },
+    "Restore tested" : {
+      "comment" : "A label for whether the user has ever restored a backup on this device.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restauration testée"
+          }
+        }
+      }
+    },
+    "Restores the deleted workout and all of its sets." : {
+      "comment" : "A button that restores a deleted workout and its sets.",
       "isCommentAutoGenerated" : true
     },
     "RESULT" : {
@@ -13338,6 +13419,10 @@
         }
       }
     },
+    "Rotation activated." : {
+      "comment" : "Confirmation message when a rotation is activated.",
+      "isCommentAutoGenerated" : true
+    },
     "Rotation active" : {
       "localizations" : {
         "fr" : {
@@ -13357,6 +13442,10 @@
           }
         }
       }
+    },
+    "Rotation ended." : {
+      "comment" : "Text displayed in a notification when a rotation is ended.",
+      "isCommentAutoGenerated" : true
     },
     "Rotation needs attention" : {
       "localizations" : {
@@ -13378,6 +13467,10 @@
         }
       }
     },
+    "Rotation paused." : {
+      "comment" : "Text displayed in a notification when a rotation is paused.",
+      "isCommentAutoGenerated" : true
+    },
     "Rotation restarted" : {
       "localizations" : {
         "fr" : {
@@ -13387,6 +13480,14 @@
           }
         }
       }
+    },
+    "Rotation restarted." : {
+      "comment" : "Text displayed in a notification when a rotation is restarted.",
+      "isCommentAutoGenerated" : true
+    },
+    "Rotation resumed." : {
+      "comment" : "Text displayed in a notification when a rotation is resumed.",
+      "isCommentAutoGenerated" : true
     },
     "Rotation unavailable" : {
       "localizations" : {
@@ -13407,6 +13508,10 @@
           }
         }
       }
+    },
+    "Rotation workout skipped." : {
+      "comment" : "Text displayed in a notification when a workout is skipped.",
+      "isCommentAutoGenerated" : true
     },
     "Rotation: %@" : {
       "localizations" : {
@@ -13435,6 +13540,17 @@
     "Routine" : {
       "comment" : "A section of a mobility routine editor that displays the routine's name and notes.",
       "isCommentAutoGenerated" : true
+    },
+    "Routine history records the work you performed." : {
+      "comment" : "A mobility hub history footer shown when assessments are not available.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'historique des routines enregistre le travail que vous avez effectué."
+          }
+        }
+      }
     },
     "Routine history records the work you performed. Assessment history records what you observed." : {
       "localizations" : {
@@ -14513,6 +14629,16 @@
       "comment" : "A section that provides information about caffeine sources.",
       "isCommentAutoGenerated" : true
     },
+    "Special" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spécial"
+          }
+        }
+      }
+    },
     "Specialized performance" : {
       "comment" : "A heading for the specialized performance section of a set.",
       "isCommentAutoGenerated" : true
@@ -15020,6 +15146,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Arrêté"
+          }
+        }
+      }
+    },
+    "Stored" : {
+      "comment" : "A label for where the app's data physically lives.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stockage"
           }
         }
       }
@@ -16259,6 +16396,7 @@
       }
     },
     "Take a breath." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -16322,6 +16460,10 @@
       "comment" : "A label that shows the target number of repetitions for a mobility exercise.",
       "isCommentAutoGenerated" : true
     },
+    "Target duration reached for %@." : {
+      "comment" : "A voice announcement of a movement's target duration being reached.",
+      "isCommentAutoGenerated" : true
+    },
     "Target is below the %@ %@ bar." : {
       "comment" : "A warning label that indicates that the target weight is below the weight of the bar.",
       "isCommentAutoGenerated" : true,
@@ -16333,6 +16475,10 @@
           }
         }
       }
+    },
+    "Target reached · %lld sec" : {
+      "comment" : "A label that shows a checkmark and the number of seconds elapsed.",
+      "isCommentAutoGenerated" : true
     },
     "Target RIR" : {
       "localizations" : {
@@ -16588,6 +16734,9 @@
         }
       }
     },
+    "The name, schedule, and workouts you have chosen will not be saved." : {
+
+    },
     "The next rotation position no longer has an available workout. Choose another rotation or correct this rotation before starting." : {
       "localizations" : {
         "fr" : {
@@ -16786,7 +16935,6 @@
       }
     },
     "The workout could not be started. Check the selected plan or rotation and try again." : {
-      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -16951,6 +17099,17 @@
     },
     "This folder may have been removed or replaced." : {
 
+    },
+    "This iPhone" : {
+      "comment" : "The value for where data is stored: on the device itself.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet iPhone"
+          }
+        }
+      }
     },
     "This is lighter than the %@ %@ bar." : {
       "extractionState" : "stale",
@@ -17226,6 +17385,10 @@
         }
       }
     },
+    "This workout is no longer open, so there was nothing to save. Return home to start a new session." : {
+      "comment" : "A message that appears when a workout is saved but the user has navigated away from the workout view.",
+      "isCommentAutoGenerated" : true
+    },
     "This workout may have been removed from History." : {
       "localizations" : {
         "fr" : {
@@ -17238,6 +17401,10 @@
     },
     "This workout may have been removed or replaced." : {
 
+    },
+    "This workout's linked routine is no longer available. It may have been deleted." : {
+      "comment" : "Alert message when a workout's linked routine is no longer available.",
+      "isCommentAutoGenerated" : true
     },
     "Thorax" : {
       "localizations" : {
@@ -17312,6 +17479,10 @@
     },
     "Time complete" : {
       "comment" : "A label displayed when a countdown timer is complete.",
+      "isCommentAutoGenerated" : true
+    },
+    "Time for your next set." : {
+      "comment" : "Text of the body of a notification that reminds the user of their next workout set.",
       "isCommentAutoGenerated" : true
     },
     "Timing" : {
@@ -17673,6 +17844,10 @@
         }
       }
     },
+    "Undo" : {
+      "comment" : "A button that undoes a workout deletion.",
+      "isCommentAutoGenerated" : true
+    },
     "Undo Last Advancement" : {
       "localizations" : {
         "fr" : {
@@ -17872,6 +18047,17 @@
     },
     "Used only to personalize the daily caffeine reference amount shown in Nutrition. Never required, and never shared." : {
 
+    },
+    "Used plate calculator" : {
+      "comment" : "A set-entry timing scenario: the plate calculator was opened.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculateur de disques utilisé"
+          }
+        }
+      }
     },
     "Uses weight plates" : {
       "localizations" : {
@@ -18190,6 +18376,17 @@
     "Weight Entry" : {
       "comment" : "A label for the weight entry style.",
       "isCommentAutoGenerated" : true
+    },
+    "Weighted" : {
+      "comment" : "A set-entry timing scenario: a load was typed.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avec charge"
+          }
+        }
+      }
     },
     "Weighted Bodyweight" : {
       "extractionState" : "stale",
@@ -18678,6 +18875,22 @@
       "comment" : "A section of the settings view that allows the user to enable or disable workout reminders.",
       "isCommentAutoGenerated" : true
     },
+    "Workout saved · ^[%lld set](inflect: true)" : {
+      "comment" : "A gym status message that reports the number of sets saved.",
+      "isCommentAutoGenerated" : true
+    },
+    "Workout saved." : {
+      "comment" : "A message that is displayed when a workout is saved.",
+      "isCommentAutoGenerated" : true
+    },
+    "Workout saved. ^[%lld set](inflect: true) added to History." : {
+      "comment" : "A workout-saved announcement that includes the number of sets that were saved.",
+      "isCommentAutoGenerated" : true
+    },
+    "Workout skipped. It stays in your plan schedule." : {
+      "comment" : "Confirmation message when a workout is skipped.",
+      "isCommentAutoGenerated" : true
+    },
     "Workout unavailable" : {
       "localizations" : {
         "fr" : {
@@ -18857,6 +19070,32 @@
     "Your schedule repeats each week." : {
 
     },
+    "Your training history lives only on this iPhone. Anything logged since your last export is not in that copy." : {
+      "comment" : "A Data Safety footer shown once a backup has been exported.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre historique d'entraînement n'existe que sur cet iPhone. Tout ce qui a été enregistré depuis votre dernière exportation ne figure pas dans cette copie."
+          }
+        }
+      }
+    },
+    "Your training history lives only on this iPhone. There is no cloud copy, so an export is the only way to survive losing or replacing the device." : {
+      "comment" : "A Data Safety footer shown when no backup has ever been exported.",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre historique d'entraînement n'existe que sur cet iPhone. Il n'y a aucune copie infonuagique : une exportation est le seul moyen de survivre à la perte ou au remplacement de l'appareil."
+          }
+        }
+      }
+    },
+    "Your workout could not be saved and is still open, with every logged set intact. Try saving again." : {
+      "comment" : "A message that appears when a workout is saved, but not without errors.",
+      "isCommentAutoGenerated" : true
+    },
     "Your workout is ready." : {
       "comment" : "A description of the workout screen.",
       "isCommentAutoGenerated" : true,
@@ -18870,6 +19109,7 @@
       }
     },
     "Your workout is still open. Try saving again." : {
+      "extractionState" : "stale",
       "localizations" : {
         "fr" : {
           "stringUnit" : {

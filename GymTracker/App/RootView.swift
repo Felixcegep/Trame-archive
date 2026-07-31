@@ -147,6 +147,16 @@ struct RootView: View {
                     selectedTab = .train
                     trainPath = [.plans]
                 },
+                // Both guided paths land in the same browser today: plans and
+                // rotations are listed side by side there, and it has no
+                // segment that filters to one kind. The callbacks stay
+                // separate so giving rotations their own destination later is
+                // a change at this call site rather than in the welcome copy.
+                onChooseRotation: {
+                    hasCompletedWelcome = true
+                    selectedTab = .train
+                    trainPath = [.plans]
+                },
                 onSkip: {
                     hasCompletedWelcome = true
                     selectedTab = .today
@@ -264,17 +274,35 @@ struct RootView: View {
         } message: {
             Text("Today can follow one training plan or rotation at a time. Your completed workout history will not change.")
         }
-        .confirmationDialog(
-            "Optional preparation",
-            isPresented: Binding(
-                get: { workoutPreparationRequest != nil },
-                set: { if !$0 { workoutPreparationRequest = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            workoutPreparationActions
-        } message: {
-            Text(workoutPreparationMessage)
+        // A sheet, not a confirmation dialog: an action sheet had nowhere to
+        // put the routine's length or size, so it asked for a decision while
+        // withholding what the decision was about. See `WorkoutPreparationSheet`.
+        .sheet(isPresented: Binding(
+            get: { workoutPreparationRequest != nil },
+            set: { if !$0 { workoutPreparationRequest = nil } }
+        )) {
+            if let request = workoutPreparationRequest {
+                let activeSession = MobilitySessionService.activeSession(using: modelContext)
+                WorkoutPreparationSheet(
+                    routine: request.warmupRoutine,
+                    hasActiveMobilitySession: activeSession != nil,
+                    onStart: {
+                        workoutPreparationRequest = nil
+                        continueWorkoutStart(request)
+                    },
+                    onResumeActive: {
+                        workoutPreparationRequest = nil
+                        activeMobilitySession = activeSession
+                    },
+                    onSkip: {
+                        workoutPreparationRequest = nil
+                        // Rebuilt without the warm-up so the start cannot pick
+                        // the linked routine back up on its way through.
+                        continueWorkoutStart(WorkoutPreparationRequest(start: request.start))
+                    },
+                    onCancel: { workoutPreparationRequest = nil }
+                )
+            }
         }
         .confirmationDialog(
             "Add a cooldown?",
@@ -770,7 +798,9 @@ struct RootView: View {
     /// consumed.
     private func prepareApp() async {
         let fixture = UITestFixture.launchFixture
+        let isRebootVerificationFixture = CommandLine.arguments.contains("-ui-testing-reboot-rest-fixture")
         let isResettingForUITesting = UITestLaunch.isResettingData(fixture: fixture)
+            || isRebootVerificationFixture
 
         apply(UITestLaunch.initialDestination())
 
@@ -785,7 +815,17 @@ struct RootView: View {
         }
         AppBootstrap.prepareUITestImportPayloadIfNeeded(using: modelContext)
 
-        if let fixture {
+        if isRebootVerificationFixture {
+            // A second xcodebuild invocation installs a fresh test app, so
+            // the reboot lane cannot carry the SwiftData container across its
+            // two XCTest processes. Rehydrate the same persisted shape at the
+            // post-reboot launch boundary; ordinary relaunch coverage still
+            // proves the actual store persistence.
+            let outcome = AppBootstrap.applyFixture(.activeRestRunning, using: modelContext)
+            _ = workoutVM.restoreActiveWorkout(using: modelContext)
+            isShowingActiveWorkout = false
+            isShowingActiveWorkoutConflictAlert = outcome.showsActiveWorkoutConflict
+        } else if let fixture {
             let outcome = AppBootstrap.applyFixture(fixture, using: modelContext)
             _ = workoutVM.restoreActiveWorkout(using: modelContext)
             isShowingActiveWorkout = outcome.opensActiveWorkout && workoutVM.hasActiveWorkout
@@ -1061,46 +1101,6 @@ struct RootView: View {
         warmupWorkoutID = workout.id
         activeMobilitySession = session
         return true
-    }
-
-    @ViewBuilder
-    private var workoutPreparationActions: some View {
-        if let request = workoutPreparationRequest {
-            if let activeSession = MobilitySessionService.activeSession(using: modelContext) {
-                Button("Resume Active Mobility") {
-                    workoutPreparationRequest = nil
-                    activeMobilitySession = activeSession
-                }
-                .accessibilityIdentifier("resume-active-mobility-before-workout")
-            } else {
-                Button("Start Warmup") {
-                    workoutPreparationRequest = nil
-                    continueWorkoutStart(request)
-                }
-                .accessibilityIdentifier("start-linked-warmup")
-                .accessibilityHint(String(localized: "Starts the linked warm-up before this workout. The workout begins after you leave mobility."))
-            }
-
-            Button("Skip and Start Workout") {
-                workoutPreparationRequest = nil
-                continueWorkoutStart(WorkoutPreparationRequest(start: request.start))
-            }
-            .accessibilityIdentifier("skip-linked-warmup")
-            .accessibilityHint(String(localized: "Starts the workout without the optional warm-up."))
-        }
-        Button("Cancel", role: .cancel) {
-            workoutPreparationRequest = nil
-        }
-    }
-
-    private var workoutPreparationMessage: String {
-        if MobilitySessionService.activeSession(using: modelContext) != nil {
-            return String(localized: "Finish or stop the active mobility session before starting this linked warm-up, or start the workout without it.")
-        }
-        guard let routineName = workoutPreparationRequest?.warmupRoutine?.name else {
-            return String(localized: "This workout has an optional linked warm-up.")
-        }
-        return String(localized: "Start \(routineName) before this workout? It is recorded as a separate mobility session.")
     }
 
     @ViewBuilder

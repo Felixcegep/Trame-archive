@@ -14,7 +14,11 @@ struct HistoryProgressView: View {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text("Progress")
                         .font(AppFont.displayMedium)
-                    Text("Trends from completed workouts only.")
+                    // "Based on", not "Trends from": the page shows whatever
+                    // evidence exists, and most of it will not be a trend on a
+                    // new install. The heading should not assert one before a
+                    // single chart has been drawn.
+                    Text("Based on completed workouts only.")
                         .font(AppFont.subheadline)
                         .foregroundStyle(Color.gymSubduedText)
                 }
@@ -29,7 +33,7 @@ struct HistoryProgressView: View {
                     )
                 } else {
                     VStack(alignment: .leading, spacing: Spacing.m) {
-                        Text("Exercise trends")
+                        Text("By exercise")
                             .font(AppFont.titleSmallSemibold)
 
                         ForEach(Array(series.prefix(5))) { item in
@@ -194,7 +198,7 @@ struct HistoryExerciseProgressCard: View {
     var body: some View {
         GymChartCard(
             title: series.name,
-            evidence: "\(series.points(for: metric).count) completed-session values.",
+            evidence: evidenceLevel.evidenceText(comparableSessionCount: series.points(for: metric).count),
             takeaway: takeaway
         ) {
             Picker("Metric", selection: $metric) {
@@ -245,7 +249,9 @@ struct HistoryExerciseProgressCard: View {
                 // shadow it — the frequency chart already did this; this one
                 // did not.
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(series.name) \(metric.title) trend")
+                // Not "trend": VoiceOver would assert a pattern the evidence line
+        // beneath may be explicitly declining to claim.
+        .accessibilityLabel("\(series.name) \(metric.title) over time")
                 .accessibilityValue(seriesAccessibilityValue)
             }
         }
@@ -257,15 +263,54 @@ struct HistoryExerciseProgressCard: View {
         }
     }
 
+    private var evidenceLevel: StrengthEvidenceLevel {
+        .resolve(comparableSessionCount: series.points(for: metric).count)
+    }
+
+    /// The one sentence under the chart — and only when the data can carry it.
+    ///
+    /// This used to make the same percentage claim from two points as from
+    /// twenty: "The latest value was 24% higher than the first recorded
+    /// value", drawn across a chart whose width implied months of evidence.
+    /// With a single comparison the direction is as likely to be a good day as
+    /// a change in strength, so two or three sessions now get the same
+    /// sentence explicitly marked as early, and one session gets no direction
+    /// at all — just the value it actually recorded.
     private var takeaway: String? {
         let points = series.points(for: metric)
         guard let first = points.first, let last = points.last else { return nil }
-        guard points.count >= 2 else { return "Early pattern — one completed-session value is available." }
+
+        let level = evidenceLevel
+        guard level.allowsDirectionalClaim else {
+            let format = String(
+                localized: "strength.takeaway.latestOnly",
+                defaultValue: "Latest completed-session value: %@. A second session is needed before anything can be called a change."
+            )
+            return String(format: format, formatted(last.value))
+        }
+
         guard first.value != 0 else { return "No non-zero baseline is available for a percentage comparison." }
         let change = (last.value - first.value) / abs(first.value)
         let percentage = Int((abs(change) * 100).rounded())
-        if percentage < 1 { return "The first and latest completed-session values were about the same." }
-        return "The latest value was \(percentage)% \(change > 0 ? "higher" : "lower") than the first recorded value."
+        if percentage < 1 {
+            return level == .trend
+                ? String(localized: "The first and latest completed-session values were about the same.")
+                : String(localized: "So far the first and latest completed-session values are about the same.")
+        }
+
+        let format = level == .trend
+            ? String(
+                localized: "strength.takeaway.trend",
+                defaultValue: "The latest value was %1$lld%% %2$@ than the first recorded value."
+            )
+            : String(
+                localized: "strength.takeaway.early",
+                defaultValue: "Across only a few sessions so far, the latest value was %1$lld%% %2$@ than the first recorded value."
+            )
+        let direction = change > 0
+            ? String(localized: "higher")
+            : String(localized: "lower")
+        return String(format: format, Int64(percentage), direction)
     }
 
     /// Every period, but summarised past a readable length.

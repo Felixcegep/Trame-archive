@@ -19,7 +19,7 @@ final class InsightPresentationPolicyTests: XCTestCase {
                 sessionCount: 2,
                 weeklyVolumes: [100, 0, 0, 0, 120, 0, 0, 0]
             ),
-            "Early pattern — based on 2 completed sessions."
+            "Early comparison · completed sessions: 2"
         )
     }
 

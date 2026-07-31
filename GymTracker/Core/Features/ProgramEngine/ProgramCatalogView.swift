@@ -247,9 +247,10 @@ private struct ProgramActivationSetupView: View {
                             HStack {
                             VStack(alignment: .leading, spacing: Spacing.xxs) {
                                 Text(inputTitle(input))
-                                Text(input.exposureKey == "*" ? "Applies to every exercise" : input.exposureKey)
+                                Text(inputDetail(input))
                                     .font(AppFont.caption)
                                     .foregroundStyle(Color.gymSubduedText)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer()
                             TextField(input.kind == .probeVelocity ? "m/s" : "kg", text: valueBinding(for: input))
@@ -263,7 +264,14 @@ private struct ProgramActivationSetupView: View {
                 } header: {
                     Text("Starting values")
                 } footer: {
-                    Text("Loads use kilograms and bar velocity uses metres per second. Optional values can be left blank.")
+                    // The old footer explained units and stopped there, which
+                    // left the impression that one number had to be right for
+                    // every lift in the plan before it could start. It does
+                    // not: a plan-wide value is a seed for the first
+                    // prescription, and every load is editable in the workout
+                    // that uses it. Saying so is what makes a single field
+                    // across squats and curls credible.
+                    Text("Loads use kilograms and bar velocity uses metres per second. Optional values can be left blank. Every load stays editable in the workout that uses it, so a rough starting point is enough.")
                 }
             }
 
@@ -310,10 +318,21 @@ private struct ProgramActivationSetupView: View {
         case .oneRepMax: return "One-rep max"
         case .estimatedOneRepMaxReps: return "Estimated one-rep max"
         case .trainingMax: return "Training Max"
-        case .startingLoad: return "Starting load"
+        // A `*` exposure key seeds every exercise in the plan, so calling it
+        // "Starting load" invited the reasonable objection that no single
+        // number is the starting load for both a squat and a curl. It is a
+        // default, and the label now says which of the two it is.
+        case .startingLoad: return input.appliesToEveryExercise ? "Default starting load" : "Starting load"
         case .startingVariation: return "Starting variation"
         case .probeVelocity: return "Probe velocity"
         }
+    }
+
+    /// The caption under an input: which exercise it is for, or — for a
+    /// plan-wide default — what actually happens to it afterwards.
+    private func inputDetail(_ input: ProgramIntakeInput) -> String {
+        guard input.appliesToEveryExercise else { return input.exposureKey }
+        return String(localized: "Seeds every exercise · adjust each one in the workout that uses it")
     }
 
     private func valueBinding(for input: ProgramIntakeInput) -> Binding<String> {
@@ -384,7 +403,7 @@ private extension ProgramDefinitionPayload {
                 for workoutIndex in blocks[blockIndex].weeks[weekIndex].workouts.indices {
                     for exerciseIndex in blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises.indices {
                         var exercise = blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises[exerciseIndex]
-                        guard input.exposureKey == "*" || exercise.exposureKey == input.exposureKey else { continue }
+                        guard input.appliesToEveryExercise || exercise.exposureKey == input.exposureKey else { continue }
                         switch input.kind {
                         case .oneRepMax:
                             exercise.initialActualOneRepMax = value
