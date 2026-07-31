@@ -218,6 +218,7 @@ struct HomeView: View {
             Form {
                 Section {
                     DatePicker("Scheduled date", selection: $rescheduleDate, displayedComponents: .date)
+                        .accessibilityIdentifier("today-reschedule-date")
                 } footer: {
                     // A past date is allowed and becomes a missed session. That
                     // is deliberate, but nothing said so, and a date picker with

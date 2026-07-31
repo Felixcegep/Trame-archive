@@ -22,7 +22,22 @@ final class ScheduleConfirmationUITests: GymTrackerUITestCase {
 
         tapButton("today-reschedule-planned-workout", in: app)
         XCTAssertTrue(app.navigationBars["Reschedule workout"].waitForExistence(timeout: 5))
-        tapButton("today-confirm-reschedule", in: app)
+        let datePicker = app.datePickers["today-reschedule-date"]
+        XCTAssertTrue(datePicker.waitForExistence(timeout: 5))
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
+        datePicker.tap()
+        let tomorrowLabel = tomorrow.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        let tomorrowButton = app.buttons[tomorrowLabel]
+        XCTAssertTrue(tomorrowButton.waitForExistence(timeout: 5))
+        tomorrowButton.tap()
+        let dismissDatePicker = app.buttons["PopoverDismissRegion"]
+        if dismissDatePicker.exists {
+            dismissDatePicker.tap()
+        }
+        let save = app.buttons["today-confirm-reschedule"]
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
 
         let banner = app.staticTexts.matching(
             NSPredicate(format: "label BEGINSWITH 'Moved to '")
