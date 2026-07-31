@@ -50,6 +50,7 @@ enum UITestFixture: String {
     case mobilityAssessmentHistoryDetail = "mobility-assessment-history-detail"
     case nutritionToday = "nutrition-today"
     case trainingCalendar = "training-calendar"
+    case linkedMobilityWorkout = "linked-mobility-workout"
 
     static var launchFixture: UITestFixture? {
         guard
@@ -63,7 +64,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .programPathFixed, .programPathRotation, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .mobilityAssessmentRecorded, .mobilityAssessmentInProgress, .mobilityAssessmentHistory, .mobilityAssessmentHistoryDetail, .nutritionToday, .trainingCalendar, .progressionReceipt:
+        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .programPathFixed, .programPathRotation, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .mobilityAssessmentRecorded, .mobilityAssessmentInProgress, .mobilityAssessmentHistory, .mobilityAssessmentHistoryDetail, .nutritionToday, .trainingCalendar, .progressionReceipt, .linkedMobilityWorkout:
             false
         default:
             true
@@ -235,6 +236,8 @@ enum UITestFixture: String {
                 rest: NutritionTargetValues(calories: 2_700, protein: 180, carbohydrates: 280, fat: 90)
             ))
             try context.save()
+        case .linkedMobilityWorkout:
+            try makeLinkedMobilityWorkoutFixture(using: context)
         case .trainingCalendar:
             try makeTrainingCalendarFixture(using: context)
         }
@@ -1414,6 +1417,26 @@ enum UITestFixture: String {
             entry.recommendationPriorWorkoutDate = Date.now.addingTimeInterval(-86_400)
         }
         return entry
+    }
+
+    /// A template carrying both mobility links, so the two `RootView`-owned
+    /// confirmation dialogs — "Optional preparation" on start and "Add a
+    /// cooldown?" after save — are reachable from one start-and-save pass.
+    /// Nothing in the seeded catalogue links a routine to a template, so
+    /// neither dialog can be captured without this.
+    private static func makeLinkedMobilityWorkoutFixture(using context: ModelContext) throws {
+        let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
+            .sorted { $0.name < $1.name }
+        guard let warmup = routines.first else { throw FixtureError.invalidPlan }
+        let benchPress = try exercise(named: "Bench Press", using: context)
+        let template = WorkoutTemplate(
+            name: "Linked Mobility Screenshot",
+            exercises: [benchPress],
+            preWorkoutMobilityRoutine: warmup,
+            postWorkoutMobilityRoutine: routines.dropFirst().first ?? warmup
+        )
+        context.insert(template)
+        try context.save()
     }
 
     private static func exercise(named name: String, using context: ModelContext) throws -> Exercise {

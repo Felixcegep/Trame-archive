@@ -25,6 +25,14 @@ enum GymTrackerModelContainer {
     /// recovery state without attaching a context, so it cannot overwrite a
     /// recoverable on-disk store with a fresh empty one.
     static let bootstrapState: BootstrapState = {
+        // The recovery state is otherwise reachable only through a real store
+        // failure, which no UI test can provoke, so it has never had a
+        // screenshot. Capture-only: the argument is never passed by a shipped
+        // launch, and the branch attaches no context, exactly like the real
+        // failure path.
+        if CommandLine.arguments.contains("-ui-testing-storage-unavailable") {
+            return .unavailable("Simulated store failure for screenshot capture.")
+        }
         do {
             return .ready(try ModelContainer(for: schema))
         } catch {

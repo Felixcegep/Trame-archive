@@ -439,6 +439,15 @@ struct WorkoutSaveView: View {
     }
 
     private func saveWorkout() {
+        // The failed-write branch below needs a write that actually fails, which
+        // a UI test cannot arrange. This reproduces its exact outcome — counted,
+        // workout left open, every logged set intact — so the alert has a
+        // screenshot. Capture-only; no shipped launch carries the argument.
+        if CommandLine.arguments.contains("-ui-testing-fail-workout-save") {
+            saveFailedCount += 1
+            saveErrorMessage = String(localized: "Your workout could not be saved and is still open, with every logged set intact. Try saving again.")
+            return
+        }
         guard let workout = workoutVM.activeWorkout else {
             // Distinct from a failed write: there is nothing here to save, so
             // "try again" would be false advice.

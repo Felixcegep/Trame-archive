@@ -477,11 +477,16 @@ struct RootView: View {
     /// Held back until seeding finishes, so "Follow a plan" never lands on an
     /// empty catalogue. UI-test launches skip it outright — every fixture asserts
     /// against a specific screen, not a welcome sheet — including relaunches,
-    /// which carry `-ui-testing` but not the reset or fixture arguments.
+    /// which carry `-ui-testing` but not the reset or fixture arguments. That
+    /// suppression is why the first-launch screen has never been captured, so
+    /// `-ui-testing-show-welcome` opts a single screenshot scene back in.
     private var shouldShowWelcome: Binding<Bool> {
         Binding(
             get: {
-                !hasCompletedWelcome
+                if CommandLine.arguments.contains("-ui-testing-show-welcome") {
+                    return !isPreparingApp
+                }
+                return !hasCompletedWelcome
                     && !isPreparingApp
                     && !CommandLine.arguments.contains("-ui-testing")
             },
@@ -840,6 +845,26 @@ struct RootView: View {
                 selectedTab = .train
                 trainPath = [.exercise(benchPress.id)]
             }
+        }
+
+        // A route whose id resolves to nothing, so the "may have been removed
+        // or replaced" fallback can be captured once. All seven such routes
+        // render the same `ContentUnavailableView` shape; this is the cheapest
+        // of them to reach.
+        if CommandLine.arguments.contains("-ui-testing-open-missing-route") {
+            selectedTab = .train
+            trainPath = [.exercise(UUID())]
+        }
+
+        // The two RootView alerts are raised from failure branches that a UI
+        // test cannot provoke — a plan that will not start, a routine deleted
+        // between link and launch. Setting the state directly captures the
+        // alert without faking the failure that would produce it.
+        if CommandLine.arguments.contains("-ui-testing-guided-source-error") {
+            guidedSourceActionError = String(localized: "The workout could not be started. Check the selected plan or rotation and try again.")
+        }
+        if CommandLine.arguments.contains("-ui-testing-mobility-link-error") {
+            mobilityLinkError = String(localized: "This workout's linked routine is no longer available. It may have been deleted.")
         }
 
         guard CommandLine.arguments.contains("-ui-testing-open-plan-reminder-reschedule") else {
