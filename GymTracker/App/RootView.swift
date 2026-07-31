@@ -163,19 +163,17 @@ struct RootView: View {
             } else {
                 if let pendingCooldownAfterWorkoutDismissal {
                     self.pendingCooldownAfterWorkoutDismissal = nil
-                    DispatchQueue.main.async {
+                    presentAfterDismissal {
                         cooldownRequest = pendingCooldownAfterWorkoutDismissal
                     }
                 }
                 if let pendingProgressionReceiptWorkoutID,
-                   let planRunID = workout(id: pendingProgressionReceiptWorkoutID)?.sourcePlanRunID {
+                   let receipt = ProgressionReceiptPolicy.receipt(
+                    forWorkoutID: pendingProgressionReceiptWorkoutID,
+                    using: modelContext
+                   ) {
                     self.pendingProgressionReceiptWorkoutID = nil
-                    DispatchQueue.main.async {
-                        progressionReceiptRequest = ProgressionReceiptRequest(
-                            planRunID: planRunID,
-                            workoutID: pendingProgressionReceiptWorkoutID
-                        )
-                    }
+                    presentAfterDismissal { progressionReceiptRequest = receipt }
                 }
             }
         }) {
@@ -793,7 +791,7 @@ struct RootView: View {
             isShowingActiveWorkout = outcome.opensActiveWorkout && workoutVM.hasActiveWorkout
             isShowingActiveWorkoutConflictAlert = outcome.showsActiveWorkoutConflict
             if let receipt = outcome.progressionReceipt {
-                DispatchQueue.main.async {
+                presentAfterDismissal {
                     progressionReceiptRequest = ProgressionReceiptRequest(
                         planRunID: receipt.planRunID,
                         workoutID: receipt.workoutID
@@ -936,42 +934,20 @@ struct RootView: View {
 
     @discardableResult
     private func performFixedPlanAction(_ action: FixedPlanAction) -> Bool {
-        switch action {
-        case .start(let plan, let startDate):
-            let started: PlanRun?
-            if let completedRun = plan.runs
-                .filter({ $0.status == .completed || $0.status == .archived })
-                .sorted(by: { ($0.endDate ?? .distantPast) > ($1.endDate ?? .distantPast) })
-                .first,
-               case .offerRestart(let carryState) = plan.programCompletionPolicy {
-                started = ProgramRunLifecycleService.restartRun(
-                    for: plan,
-                    from: completedRun,
-                    startDate: startDate,
-                    carryState: carryState,
-                    using: modelContext
-                )
-            } else {
-                started = PlanCoordinator.startRun(for: plan, startDate: startDate, using: modelContext)
-            }
-            guard started != nil else {
-                guidedSourceActionError = "The plan could not be started. Check its workouts and try again."
-                return false
-            }
-        case .resume(let run):
-            guard PlanCoordinator.resume(run, using: modelContext) else {
-                guidedSourceActionError = "The plan could not be resumed. Try again."
-                return false
-            }
-            confirmPlanStateChange(String(localized: "Plan resumed."))
-        case .startTestDay(let run):
-            guard let progress = ProgramRunLifecycleService.activateTestDay(for: run, using: modelContext) else {
-                guidedSourceActionError = "The test day could not be started. Try again."
-                return false
-            }
-            startPlannedWorkout(run, progress)
+        let outcome = PlanLifecycleService.perform(action, using: modelContext)
+        if let message = outcome.errorMessage {
+            guidedSourceActionError = message
+            return false
         }
-        NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+        if let confirmation = outcome.confirmation {
+            confirmPlanStateChange(confirmation)
+        }
+        // A test day activates a planned workout that still has to be started,
+        // and starting one is presentation: it can raise a conflict dialog and
+        // a warm-up prompt, neither of which belongs behind a data call.
+        if let start = outcome.plannedWorkoutToStart {
+            requestWorkoutStart(.planned(start))
+        }
         return true
     }
 
@@ -1004,7 +980,11 @@ struct RootView: View {
     }
 
     private func requestWorkoutPreparation(for start: PendingWorkoutStart) {
-        guard let warmupRoutine = linkedMobilityRoutine(for: start, phase: .warmup) else {
+        guard let warmupRoutine = WorkoutMobilityLinkResolver.linkedRoutine(
+            for: start,
+            phase: .warmup,
+            using: modelContext
+        ) else {
             continueWorkoutStart(WorkoutPreparationRequest(start: start))
             return
         }
@@ -1179,14 +1159,32 @@ struct RootView: View {
               )
         else { return }
         self.warmupWorkoutID = nil
-        DispatchQueue.main.async {
-            isShowingActiveWorkout = true
-        }
+        presentAfterDismissal { isShowingActiveWorkout = true }
+    }
+
+    /// SwiftUI swallows a presentation raised in the same runloop turn as the
+    /// dismissal of the cover it replaces. Every hand-off in the
+    /// workout → warm-up → workout → save → cooldown → receipt chain therefore
+    /// lands one turn later, and routing them all through here states that
+    /// reason once instead of repeating a bare `DispatchQueue.main.async` at
+    /// each site with no explanation.
+    ///
+    /// Removing the deferral outright means collapsing the root's four
+    /// independent presentations into a single stage-driven one. That is a
+    /// behavioural change to the chain rather than a cleanup, and it needs the
+    /// flow exercised on a device before it ships — see T-37 in
+    /// `Documentation/UIUXInteractionPlan.md`.
+    private func presentAfterDismissal(_ present: @escaping () -> Void) {
+        DispatchQueue.main.async(execute: present)
     }
 
     private func prepareCooldown(for workoutID: UUID) {
         guard let workout = workout(id: workoutID),
-              let routine = linkedMobilityRoutine(for: workout, phase: .cooldown)
+              let routine = WorkoutMobilityLinkResolver.linkedRoutine(
+                for: workout,
+                phase: .cooldown,
+                using: modelContext
+              )
         else { return }
         pendingCooldownAfterWorkoutDismissal = MobilityRoutineLaunchRequest(
             routine: routine,
@@ -1196,166 +1194,47 @@ struct RootView: View {
     }
 
     private func workout(id: UUID) -> Workout? {
-        (try? modelContext.fetch(FetchDescriptor<Workout>()))?.first { $0.id == id }
+        ProgressionReceiptPolicy.workout(id: id, using: modelContext)
     }
 
-    /// Flags a just-saved workout for the progression receipt sheet when it
-    /// belongs to a fixed plan run and left unresolved
-    /// `PlanProgressionRecommendationRecord` rows behind. Free workouts and
-    /// repeating-plan runs have no `sourcePlanRunID` and never surface a
-    /// receipt in this slice.
+    /// Flags a just-saved workout for the progression receipt sheet. The sheet
+    /// itself cannot be raised here: the save screen is dismissing, so the
+    /// request is held until the cover is gone.
     private func preparePendingProgressionReceipts(for workoutID: UUID) {
-        guard let planRunID = workout(id: workoutID)?.sourcePlanRunID,
-              hasUnresolvedProgressionReceipts(planRunID: planRunID, workoutID: workoutID)
-        else { return }
+        guard ProgressionReceiptPolicy.owesReceipt(forWorkoutID: workoutID, using: modelContext) else {
+            return
+        }
         pendingProgressionReceiptWorkoutID = workoutID
     }
 
-    private func hasUnresolvedProgressionReceipts(planRunID: UUID, workoutID: UUID) -> Bool {
-        let predicate = #Predicate<PlanProgressionRecommendationRecord> { record in
-            record.planRunID == planRunID && record.workoutID == workoutID && record.isResolved == false
-        }
-        var descriptor = FetchDescriptor<PlanProgressionRecommendationRecord>(predicate: predicate)
-        descriptor.fetchLimit = 1
-        return !((try? modelContext.fetch(descriptor)) ?? []).isEmpty
-    }
-
-    private func linkedMobilityRoutine(
-        for start: PendingWorkoutStart,
-        phase: WorkoutMobilityLinkPhase
-    ) -> MobilityRoutine? {
-        switch start {
-        case .template(let template):
-            return resolvedMobilityRoutine(
-                liveRoutine: phase.liveRoutine(in: template),
-                snapshotID: nil
-            )
-        case .planned(let pending):
-            return resolvedMobilityRoutine(
-                liveRoutine: pending.plannedWorkout.sourceTemplate.flatMap { phase.liveRoutine(in: $0) },
-                snapshotID: nil
-            )
-        case .repeating(let run, let command):
-            guard let slot = WorkoutMobilityLinkResolver.slot(in: run, for: command) else { return nil }
-            return resolvedMobilityRoutine(
-                liveRoutine: phase.liveRoutine(in: slot),
-                snapshotID: phase.snapshotID(in: slot)
-            )
-        }
-    }
-
-    private func linkedMobilityRoutine(
-        for workout: Workout,
-        phase: WorkoutMobilityLinkPhase
-    ) -> MobilityRoutine? {
-        if let runID = workout.sourceRepeatingPlanRunID,
-              let occurrenceID = workout.sourceRepeatingPlanOccurrenceID,
-              let run = (try? modelContext.fetch(FetchDescriptor<RepeatingPlanRun>()))?.first(where: { $0.id == runID }),
-              let occurrence = run.occurrences.first(where: { $0.id == occurrenceID }),
-              let slot = WorkoutMobilityLinkResolver.slot(in: run, for: occurrence)
-        {
-            return resolvedMobilityRoutine(
-                liveRoutine: phase.liveRoutine(in: slot),
-                snapshotID: phase.snapshotID(in: slot)
-            )
-        }
-        guard let template = workout.sourceTemplate else { return nil }
-        return resolvedMobilityRoutine(
-            liveRoutine: phase.liveRoutine(in: template),
-            snapshotID: nil
-        )
-    }
-
-    private func resolvedMobilityRoutine(
-        liveRoutine: MobilityRoutine?,
-        snapshotID: UUID?
-    ) -> MobilityRoutine? {
-        if let liveRoutine, isRunnableMobilityRoutine(liveRoutine) {
-            return liveRoutine
-        }
-        guard let snapshotID else { return nil }
-        return (try? modelContext.fetch(FetchDescriptor<MobilityRoutine>()))?
-            .first { $0.id == snapshotID && isRunnableMobilityRoutine($0) }
-    }
-
-    private func isRunnableMobilityRoutine(_ routine: MobilityRoutine) -> Bool {
-        !routine.isArchived && !routine.orderedItems.isEmpty
-    }
-
     private func activateRepeatingPlan(_ plan: RepeatingPlan) {
-        do {
-            let run = try RepeatingPlanCoordinator.activate(
-                plan,
-                fixedPlanRuns: activeFixedPlanRuns(),
-                repeatingPlanRuns: activeRepeatingPlanRuns()
-            )
-            modelContext.insert(run)
-            guard modelContext.saveOrRollback() else {
-                guidedSourceActionError = "The rotation could not be activated. Try again."
-                return
-            }
-            confirmPlanStateChange(String(localized: "Rotation activated."))
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-        } catch RepeatingPlanCoordinatorError.activationConflict {
-            guidedSourceConflictRequest = .activate(plan)
-        } catch {
-            guidedSourceActionError = "The rotation is unavailable. Check its workouts and try again."
-        }
+        apply(PlanLifecycleService.activate(plan, using: modelContext))
     }
 
     private func pauseRepeatingPlan(_ run: RepeatingPlanRun) {
-        do {
-            try RepeatingPlanCoordinator.pause(run)
-            guard modelContext.saveOrRollback() else {
-                guidedSourceActionError = "The rotation could not be paused. Try again."
-                return
-            }
-            confirmPlanStateChange(String(localized: "Rotation paused."))
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-        } catch {
-            guidedSourceActionError = "Only an active rotation can be paused."
-        }
+        apply(PlanLifecycleService.pause(run, using: modelContext))
     }
 
     private func resumeRepeatingPlan(_ run: RepeatingPlanRun) {
-        let conflicts = RepeatingPlanCoordinator.guidedSourceConflicts(
-            fixedPlanRuns: activeFixedPlanRuns(),
-            repeatingPlanRuns: activeRepeatingPlanRuns().filter { $0.id != run.id }
-        )
-        guard conflicts.isEmpty else {
-            guidedSourceConflictRequest = .resume(run)
-            return
-        }
-        do {
-            try RepeatingPlanCoordinator.resume(run)
-            guard modelContext.saveOrRollback() else {
-                guidedSourceActionError = "The rotation could not be resumed. Try again."
-                return
-            }
-            confirmPlanStateChange(String(localized: "Rotation resumed."))
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-        } catch {
-            modelContext.rollback()
-            guidedSourceActionError = "Only a paused rotation can be resumed."
-        }
+        apply(PlanLifecycleService.resume(run, using: modelContext))
     }
 
     private func skipRepeatingWorkout(_ run: RepeatingPlanRun) {
-        do {
-            let occurrence = try RepeatingPlanCoordinator.skip(in: run)
-            modelContext.insert(occurrence)
-            guard modelContext.saveOrRollback() else {
-                guidedSourceActionError = "The workout could not be skipped. Try again."
-                return
-            }
-            confirmPlanStateChange(String(localized: "Rotation workout skipped."))
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-        } catch RepeatingPlanCoordinatorError.runHasActiveOccurrence {
-            modelContext.rollback()
-            guidedSourceActionError = "Finish or discard the active rotation workout before skipping the next one."
-        } catch {
-            modelContext.rollback()
-            guidedSourceActionError = "The workout could not be skipped. Check the rotation and try again."
+        apply(PlanLifecycleService.skipNextWorkout(in: run, using: modelContext))
+    }
+
+    /// Renders what a plan action did. The service decides and commits; this
+    /// decides only what the person is told about it.
+    private func apply(_ outcome: PlanActionOutcome) {
+        switch outcome {
+        case .succeeded(let confirmation):
+            confirmPlanStateChange(confirmation)
+        case .succeededSilently:
+            break
+        case .failed(let message):
+            guidedSourceActionError = message
+        case .needsConflictResolution(let request):
+            guidedSourceConflictRequest = request
         }
     }
 
@@ -1371,57 +1250,19 @@ struct RootView: View {
     }
 
     private func restartRepeatingPlan(_ run: RepeatingPlanRun) {
-        do {
-            try RepeatingPlanCoordinator.restart(run)
-            guard modelContext.saveOrRollback() else {
-                guidedSourceActionError = "The rotation could not be restarted. Try again."
-                return
-            }
-            confirmPlanStateChange(String(localized: "Rotation restarted."))
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-        } catch RepeatingPlanCoordinatorError.runHasActiveOccurrence {
-            modelContext.rollback()
-            guidedSourceActionError = "Finish or discard the active rotation workout before restarting the rotation."
-        } catch {
-            modelContext.rollback()
-            guidedSourceActionError = "The rotation could not be restarted. Check its workouts and try again."
-        }
+        apply(PlanLifecycleService.restart(run, using: modelContext))
     }
 
     private func endRepeatingPlan(_ run: RepeatingPlanRun) {
-        do {
-            try RepeatingPlanCoordinator.end(run)
-            guard modelContext.saveOrRollback() else {
-                guidedSourceActionError = "The rotation could not be ended. Try again."
-                return
-            }
-            confirmPlanStateChange(String(localized: "Rotation ended."))
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-        } catch RepeatingPlanCoordinatorError.runHasActiveOccurrence {
-            modelContext.rollback()
-            guidedSourceActionError = "Finish or discard the active rotation workout before ending the rotation."
-        } catch {
-            modelContext.rollback()
-            guidedSourceActionError = "The rotation could not be ended. Try again."
-        }
+        apply(PlanLifecycleService.end(run, using: modelContext))
     }
 
     private func activeFixedPlanRuns() -> [PlanRun] {
-        ((try? modelContext.fetch(FetchDescriptor<PlanRun>())) ?? [])
-            .filter { $0.status == .active }
-            .sorted {
-                if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
-                return $0.id.uuidString < $1.id.uuidString
-            }
+        PlanLifecycleService.activeFixedRuns(using: modelContext)
     }
 
     private func activeRepeatingPlanRuns() -> [RepeatingPlanRun] {
-        ((try? modelContext.fetch(FetchDescriptor<RepeatingPlanRun>())) ?? [])
-            .filter { $0.status == .active }
-            .sorted {
-                if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
-                return $0.id.uuidString < $1.id.uuidString
-            }
+        PlanLifecycleService.activeRepeatingRuns(using: modelContext)
     }
 
     @ViewBuilder
@@ -1484,10 +1325,10 @@ struct RootView: View {
         do {
             switch request.start {
             case .planned:
-                try stagePauseRepeatingRuns()
+                try PlanLifecycleService.stagePauseRepeatingRuns(using: modelContext)
             case .repeating(let target, _):
-                stagePauseFixedRuns()
-                try stagePauseRepeatingRuns(except: target.id)
+                PlanLifecycleService.stagePauseFixedRuns(using: modelContext)
+                try PlanLifecycleService.stagePauseRepeatingRuns(except: target.id, using: modelContext)
             case .template:
                 break
             }
@@ -1503,44 +1344,19 @@ struct RootView: View {
 
     private func resolveGuidedConflictAndActivate(_ plan: RepeatingPlan) {
         guidedSourceConflictRequest = nil
-        do {
-            stagePauseFixedRuns()
-            try stagePauseRepeatingRuns()
-            let run = try RepeatingPlanCoordinator.activate(plan)
-            modelContext.insert(run)
-            guard modelContext.saveOrRollback() else {
-                guidedSourceActionError = "The rotation could not be activated. Try again."
-                return
-            }
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-        } catch {
-            modelContext.rollback()
-            guidedSourceActionError = "The rotation could not be activated. Check its workouts and try again."
-        }
+        apply(PlanLifecycleService.resolveConflictAndActivate(plan, using: modelContext))
     }
 
     private func resolveGuidedConflictAndResume(_ run: RepeatingPlanRun) {
         guidedSourceConflictRequest = nil
-        do {
-            stagePauseFixedRuns()
-            try stagePauseRepeatingRuns(except: run.id)
-            try RepeatingPlanCoordinator.resume(run)
-            guard modelContext.saveOrRollback() else {
-                guidedSourceActionError = "The rotation could not be resumed. Try again."
-                return
-            }
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-        } catch {
-            modelContext.rollback()
-            guidedSourceActionError = "The rotation could not be resumed. Try again."
-        }
+        apply(PlanLifecycleService.resolveConflictAndResume(run, using: modelContext))
     }
 
     private func resolveGuidedConflictAndPerformFixedPlanAction(_ action: FixedPlanAction) {
         guidedSourceConflictRequest = nil
         do {
-            stagePauseFixedRuns(except: action.retainedRunID)
-            try stagePauseRepeatingRuns()
+            PlanLifecycleService.stagePauseFixedRuns(except: action.retainedRunID, using: modelContext)
+            try PlanLifecycleService.stagePauseRepeatingRuns(using: modelContext)
             guard performFixedPlanAction(action) else {
                 modelContext.rollback()
                 return
@@ -1553,43 +1369,7 @@ struct RootView: View {
 
     private func resolveTodayGuidedSource(preferRepeating: Bool) {
         guidedSourceConflictRequest = nil
-        do {
-            if preferRepeating {
-                let repeatingRuns = activeRepeatingPlanRuns()
-                guard repeatingRuns.count == 1, let retained = repeatingRuns.first else {
-                    throw GuidedSourceResolutionError.missingSource
-                }
-                stagePauseFixedRuns()
-                try stagePauseRepeatingRuns(except: retained.id)
-            } else {
-                let fixedRuns = activeFixedPlanRuns()
-                guard fixedRuns.count == 1, let retained = fixedRuns.first else {
-                    throw GuidedSourceResolutionError.missingSource
-                }
-                stagePauseFixedRuns(except: retained.id)
-                try stagePauseRepeatingRuns()
-            }
-            guard modelContext.saveOrRollback() else {
-                guidedSourceActionError = "The training source could not be changed. Try again."
-                return
-            }
-            NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
-        } catch {
-            modelContext.rollback()
-            guidedSourceActionError = "The training source could not be changed. Try again."
-        }
-    }
-
-    private func stagePauseFixedRuns(except retainedRunID: UUID? = nil) {
-        for run in activeFixedPlanRuns() where run.id != retainedRunID {
-            PlanCoordinator.pause(run)
-        }
-    }
-
-    private func stagePauseRepeatingRuns(except retainedRunID: UUID? = nil) throws {
-        for run in activeRepeatingPlanRuns() where run.id != retainedRunID {
-            try RepeatingPlanCoordinator.pause(run)
-        }
+        apply(PlanLifecycleService.resolveTodaySource(preferRepeating: preferRepeating, using: modelContext))
     }
 
     /// The view's half of a UI-test reset. `AppBootstrap` owns the persisted
@@ -1618,136 +1398,4 @@ struct RootView: View {
         shouldDiscardActiveWorkout = true
         isShowingActiveWorkout = false
     }
-}
-
-enum WorkoutMobilityContinuationPolicy {
-    static func shouldResumeWorkout(
-        sessionContext: MobilitySessionContext,
-        sessionWorkoutID: UUID?,
-        pendingWarmupWorkoutID: UUID,
-        activeWorkoutID: UUID?
-    ) -> Bool {
-        sessionContext == .warmup
-            && sessionWorkoutID == pendingWarmupWorkoutID
-            && activeWorkoutID == pendingWarmupWorkoutID
-    }
-}
-
-private enum PendingWorkoutStart {
-    case template(WorkoutTemplate)
-    case planned(PendingPlannedWorkout)
-    case repeating(RepeatingPlanRun, RepeatingPlanWorkoutStartCommand)
-}
-
-private struct WorkoutPreparationRequest {
-    let start: PendingWorkoutStart
-    let warmupRoutine: MobilityRoutine?
-
-    init(start: PendingWorkoutStart, warmupRoutine: MobilityRoutine? = nil) {
-        self.start = start
-        self.warmupRoutine = warmupRoutine
-    }
-}
-
-private struct MobilityRoutineLaunchRequest {
-    let routine: MobilityRoutine
-    let context: MobilitySessionContext
-    let workoutID: UUID
-}
-
-private struct ProgressionReceiptRequest: Identifiable {
-    let planRunID: UUID
-    let workoutID: UUID
-    var id: UUID { workoutID }
-}
-
-private enum WorkoutMobilityLinkPhase {
-    case warmup
-    case cooldown
-
-    func liveRoutine(in template: WorkoutTemplate) -> MobilityRoutine? {
-        switch self {
-        case .warmup: template.preWorkoutMobilityRoutine
-        case .cooldown: template.postWorkoutMobilityRoutine
-        }
-    }
-
-    func liveRoutine(in slot: RepeatingPlanRunSlot) -> MobilityRoutine? {
-        switch self {
-        case .warmup: slot.preWorkoutMobilityRoutine
-        case .cooldown: slot.postWorkoutMobilityRoutine
-        }
-    }
-
-    func snapshotID(in slot: RepeatingPlanRunSlot) -> UUID? {
-        switch self {
-        case .warmup: slot.preWorkoutMobilityRoutineIDSnapshot
-        case .cooldown: slot.postWorkoutMobilityRoutineIDSnapshot
-        }
-    }
-}
-
-enum WorkoutMobilityLinkResolver {
-    static func slot(
-        in run: RepeatingPlanRun,
-        for command: RepeatingPlanWorkoutStartCommand
-    ) -> RepeatingPlanRunSlot? {
-        let slots = run.orderedSlots
-        switch command {
-        case .expected:
-            guard slots.indices.contains(run.currentSlotIndex) else { return nil }
-            return slots[run.currentSlotIndex]
-        case .alternate(let slotIndex, _):
-            guard slots.indices.contains(slotIndex) else { return nil }
-            return slots[slotIndex]
-        case .repeatLast:
-            guard let occurrence = run.orderedOccurrences.reversed().first(where: {
-                $0.status == .completed && $0.kind != .skip && $0.kind != .restart
-            }) else { return nil }
-            return slot(in: run, for: occurrence)
-        }
-    }
-
-    static func slot(
-        in run: RepeatingPlanRun,
-        for occurrence: RepeatingPlanOccurrence
-    ) -> RepeatingPlanRunSlot? {
-        let slotIndex = occurrence.selectedSlotIndex ?? occurrence.expectedSlotIndex
-        let slots = run.orderedSlots
-        guard slots.indices.contains(slotIndex) else { return nil }
-        return slots[slotIndex]
-    }
-}
-
-private enum GuidedSourceConflictRequest {
-    case chooseFromToday
-    case workoutStart(WorkoutPreparationRequest)
-    case activate(RepeatingPlan)
-    case resume(RepeatingPlanRun)
-    case fixedPlan(FixedPlanAction)
-}
-
-private enum FixedPlanAction {
-    case start(WorkoutPlan, Date)
-    case resume(PlanRun)
-    case startTestDay(PlanRun)
-
-    var retainedRunID: UUID? {
-        switch self {
-        case .start:
-            nil
-        case .resume(let run), .startTestDay(let run):
-            run.id
-        }
-    }
-}
-
-private enum GuidedSourceResolutionError: Error {
-    case missingSource
-}
-
-private struct PendingPlannedWorkout {
-    let planRun: PlanRun
-    let progress: PlanWorkoutProgress
-    let plannedWorkout: PlannedWorkout
 }
