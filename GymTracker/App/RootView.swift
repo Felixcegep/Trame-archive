@@ -760,57 +760,52 @@ struct RootView: View {
         }
     }
 
+    /// The launch sequence, now a list of steps rather than their bodies. The
+    /// store work lives in `AppBootstrap` and the launch-argument routing in
+    /// `UITestLaunch`; what stays here is the part that is genuinely the view's:
+    /// deciding what is on screen once the data underneath it is trustworthy.
+    ///
+    /// Order is load-bearing in three places. Tabs are selected before the
+    /// store work so a slow seed cannot flash the wrong one. Record-specific
+    /// destinations are resolved after it, because they name rows that do not
+    /// exist yet. And the notification destination is submitted before it is
+    /// consumed.
     private func prepareApp() async {
         let fixture = UITestFixture.launchFixture
-        let isResettingForUITesting = CommandLine.arguments.contains("-reset-data") || fixture != nil
+        let isResettingForUITesting = UITestLaunch.isResettingData(fixture: fixture)
 
-        if CommandLine.arguments.contains("-ui-testing-open-history") {
-            selectedTab = .progress
-            progressPath = [.workoutHistory]
-        }
-        if CommandLine.arguments.contains("-ui-testing-open-library") {
-            selectedTab = .train
-        }
-        if CommandLine.arguments.contains("-ui-testing-open-settings") {
-            selectedTab = .today
-            todayPath = [.settings]
-        }
+        apply(UITestLaunch.initialDestination())
 
         if isResettingForUITesting {
-            resetDataForUITesting()
+            resetForUITesting()
         }
-        runDataMaintenance()
-        seedSystemCatalog()
-        normalizePersistedWorkoutData()
+        AppBootstrap.runDataMaintenance(using: modelContext)
+        AppBootstrap.seedSystemCatalog(using: modelContext)
+        AppBootstrap.normalizePersistedWorkoutData(using: modelContext)
         if fixture?.refreshesPlanRunAvailability != false {
-            refreshActivePlanRuns()
+            AppBootstrap.refreshActivePlanRuns(using: modelContext)
         }
-        prepareUITestImportPayloadIfNeeded()
+        AppBootstrap.prepareUITestImportPayloadIfNeeded(using: modelContext)
 
         if let fixture {
-            do {
-                try UITestFixture.apply(fixture, using: modelContext)
-                _ = workoutVM.restoreActiveWorkout(using: modelContext)
-                isShowingActiveWorkout = fixture.opensActiveWorkout && workoutVM.hasActiveWorkout
-                isShowingActiveWorkoutConflictAlert = fixture.showsActiveWorkoutConflict
-                if fixture == .progressionReceipt,
-                   let record = try modelContext.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()).first(where: { !$0.isResolved }) {
-                    DispatchQueue.main.async {
-                        progressionReceiptRequest = ProgressionReceiptRequest(
-                            planRunID: record.planRunID,
-                            workoutID: record.workoutID
-                        )
-                    }
+            let outcome = AppBootstrap.applyFixture(fixture, using: modelContext)
+            _ = workoutVM.restoreActiveWorkout(using: modelContext)
+            isShowingActiveWorkout = outcome.opensActiveWorkout && workoutVM.hasActiveWorkout
+            isShowingActiveWorkoutConflictAlert = outcome.showsActiveWorkoutConflict
+            if let receipt = outcome.progressionReceipt {
+                DispatchQueue.main.async {
+                    progressionReceiptRequest = ProgressionReceiptRequest(
+                        planRunID: receipt.planRunID,
+                        workoutID: receipt.workoutID
+                    )
                 }
-            } catch {
-                print("Failed to prepare UI-test fixture '\(fixture.rawValue)': \(error)")
             }
         } else if !isResettingForUITesting {
             workoutVM.restoreActiveWorkout(using: modelContext)
         }
 
         activeMobilitySession = MobilitySessionService.activeSession(using: modelContext)
-        configureUITestDestinations()
+        apply(UITestLaunch.seededDestination(using: modelContext))
         consumePendingPlanNotificationDestination()
         consumePendingAppIntentDestination()
         isPreparingApp = false
@@ -819,75 +814,19 @@ struct RootView: View {
         await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
     }
 
-    private func prepareUITestImportPayloadIfNeeded() {
-        guard CommandLine.arguments.contains("-ui-testing-import-valid") else { return }
-        do {
-            let backup = try BackupDTO.create(
-                from: modelContext,
-                restTimer: 120,
-                darkMode: true,
-                unitSystem: .imperial
-            )
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            UITestFixture.UITestImportPayload.validData = try encoder.encode(backup)
-        } catch {
-            print("Failed to prepare valid UI-test import payload: \(error)")
+    /// Applies whatever a UI-test launch asked for. Every field is optional so
+    /// that an argument the launch did not pass cannot overwrite state another
+    /// one already set.
+    private func apply(_ destination: UITestLaunch.Destination) {
+        if let tab = destination.tab { selectedTab = tab }
+        if let path = destination.todayPath { todayPath = path }
+        if let path = destination.trainPath { trainPath = path }
+        if let path = destination.progressPath { progressPath = path }
+        if let message = destination.guidedSourceError { guidedSourceActionError = message }
+        if let message = destination.mobilityLinkError { mobilityLinkError = message }
+        if let notification = destination.planNotification {
+            PlanNotificationRouter.shared.submit(notification)
         }
-    }
-
-    private func configureUITestDestinations() {
-        if CommandLine.arguments.contains("-ui-testing-open-exercise-detail") {
-            let descriptor = FetchDescriptor<Exercise>(
-                predicate: #Predicate { $0.name == "Bench Press" }
-            )
-            if let benchPress = try? modelContext.fetch(descriptor).first {
-                selectedTab = .train
-                trainPath = [.exercise(benchPress.id)]
-            }
-        }
-
-        // A route whose id resolves to nothing, so the "may have been removed
-        // or replaced" fallback can be captured once. All seven such routes
-        // render the same `ContentUnavailableView` shape; this is the cheapest
-        // of them to reach.
-        if CommandLine.arguments.contains("-ui-testing-open-missing-route") {
-            selectedTab = .train
-            trainPath = [.exercise(UUID())]
-        }
-
-        // The two RootView alerts are raised from failure branches that a UI
-        // test cannot provoke — a plan that will not start, a routine deleted
-        // between link and launch. Setting the state directly captures the
-        // alert without faking the failure that would produce it.
-        if CommandLine.arguments.contains("-ui-testing-guided-source-error") {
-            guidedSourceActionError = String(localized: "The workout could not be started. Check the selected plan or rotation and try again.")
-        }
-        if CommandLine.arguments.contains("-ui-testing-mobility-link-error") {
-            mobilityLinkError = String(localized: "This workout's linked routine is no longer available. It may have been deleted.")
-        }
-
-        guard CommandLine.arguments.contains("-ui-testing-open-plan-reminder-reschedule") else {
-            return
-        }
-        guard let run = try? modelContext.fetch(FetchDescriptor<PlanRun>())
-            .first(where: { $0.status == .active })
-        else {
-            return
-        }
-        guard let progress = run.orderedWorkoutProgress.first(where: {
-            PlanReminderEligibility.isActionableToday($0, in: run)
-        }) else {
-            return
-        }
-        PlanNotificationRouter.shared.submit(
-            PlanNotificationDestination(
-                planID: run.sourcePlanID,
-                runID: run.id,
-                progressID: progress.id,
-                action: .reschedule
-            )
-        )
     }
 
     private func handlePlanNotificationDestination(_ destination: PlanNotificationDestination) {
@@ -944,23 +883,6 @@ struct RootView: View {
 
     private func exercise(id: UUID) -> Exercise? {
         try? modelContext.fetch(FetchDescriptor<Exercise>()).first { $0.id == id }
-    }
-
-    private func seedSystemCatalog() {
-        do {
-            guard try SystemSeedCatalogCoordinator.needsInstallation(in: modelContext) else { return }
-            _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: modelContext)
-        } catch {
-            print("Failed to install bundled system catalogue: \(error)")
-        }
-    }
-
-    private func runDataMaintenance() {
-        do {
-            _ = try DataMaintenanceService.runOrphanCleanupIfNeeded(using: modelContext)
-        } catch {
-            print("Failed to clean orphaned workout data: \(error)")
-        }
     }
 
     private func startFreeWorkout() {
@@ -1670,7 +1592,10 @@ struct RootView: View {
         }
     }
 
-    private func resetDataForUITesting() {
+    /// The view's half of a UI-test reset. `AppBootstrap` owns the persisted
+    /// half; what is left here is presentation state and the view model, which
+    /// nothing outside the view can reach.
+    private func resetForUITesting() {
         isShowingActiveWorkout = false
         shouldDiscardActiveWorkout = false
         activeWorkoutPath.removeAll()
@@ -1679,89 +1604,19 @@ struct RootView: View {
         workoutVM.workout = nil
         workoutVM.activeWorkout = nil
         activeLoggingMetrics.reset()
-        UserDefaults.standard.set(true, forKey: DefaultsKey.useMetric)
-        UserDefaults.standard.removeObject(forKey: DefaultsKey.lastBackupExportTimestamp)
-        UserDefaults.standard.removeObject(forKey: DefaultsKey.lastBackupRestoreTimestamp)
 
-        do {
-            try modelContext.clearAllGymData()
-            workoutVM.activeWorkout = nil
-            workoutVM.workout = nil
-        } catch {
-            print("Failed to reset UI test data: \(error)")
-        }
+        AppBootstrap.resetPersistedDataForUITesting(using: modelContext)
+
+        // Cleared again after the store is emptied: the view model would
+        // otherwise be left holding models the delete has already removed.
+        workoutVM.activeWorkout = nil
+        workoutVM.workout = nil
     }
 
     private func requestDiscardActiveWorkout() {
         activeLoggingMetrics.workoutDiscarded()
         shouldDiscardActiveWorkout = true
         isShowingActiveWorkout = false
-    }
-
-    private func normalizePersistedWorkoutData() {
-        let normalizationVersion = 1
-        guard UserDefaults.standard.integer(forKey: DefaultsKey.workoutNormalizationVersion) < normalizationVersion else {
-            return
-        }
-        do {
-            var didChange = false
-
-            let workouts = try modelContext.fetch(FetchDescriptor<Workout>())
-            for workout in workouts {
-                let expectedStatus: WorkoutStatus = workout.endTime == nil ? .active : .completed
-                if workout.status != expectedStatus {
-                    workout.status = expectedStatus
-                    didChange = true
-                }
-
-                let workoutExercises = workout.exercises
-                let hasStableExerciseOrder = Set(workoutExercises.map(\.orderIndex)).count == workoutExercises.count
-                let orderedExercises = hasStableExerciseOrder ? workout.orderedExercises : workoutExercises
-                for (exerciseIndex, exercise) in orderedExercises.enumerated() {
-                    if exercise.orderIndex != exerciseIndex {
-                        exercise.orderIndex = exerciseIndex
-                        didChange = true
-                    }
-                    // Rows persisted before `exerciseIDSnapshot` existed derive
-                    // it once from their still-live relationship. Later renames
-                    // or archival must never overwrite it again.
-                    if exercise.exerciseIDSnapshot == nil {
-                        exercise.exerciseIDSnapshot = exercise.exercise.id
-                        didChange = true
-                    }
-                    let exerciseSets = exercise.sets
-                    let hasStableSetOrder = Set(exerciseSets.map(\.orderIndex)).count == exerciseSets.count
-                    let orderedSets = hasStableSetOrder ? exercise.orderedSets : exerciseSets
-                    for (setIndex, set) in orderedSets.enumerated() where set.orderIndex != setIndex {
-                        set.orderIndex = setIndex
-                        didChange = true
-                    }
-                }
-            }
-
-            if didChange {
-                try modelContext.save()
-            }
-            UserDefaults.standard.set(normalizationVersion, forKey: DefaultsKey.workoutNormalizationVersion)
-        } catch {
-            modelContext.rollback()
-            print("Failed to normalize persisted workout data: \(error)")
-        }
-    }
-
-    /// Re-evaluates active run availability after a cold launch. A session can
-    /// be rescheduled while the app is not running, so persisted `.available`
-    /// flags must not outrank a newly due session after relaunch.
-    private func refreshActivePlanRuns() {
-        do {
-            let runs = try modelContext.fetch(FetchDescriptor<PlanRun>())
-                .filter { $0.status == .active }
-            runs.forEach { PlanCoordinator.refreshAvailability(for: $0) }
-            try modelContext.save()
-        } catch {
-            modelContext.rollback()
-            print("Failed to refresh plan-run availability: \(error)")
-        }
     }
 }
 

@@ -19,7 +19,7 @@ import Foundation
 ///
 /// **Legacy fallback.** Rows persisted before `exerciseIDSnapshot` existed carry
 /// `nil`, and `historicalExerciseID` falls back to the live relationship's id
-/// for exactly those rows. `RootView.normalizePersistedWorkoutData` backfills
+/// for exactly those rows. `AppBootstrap.normalizePersistedWorkoutData` backfills
 /// them once per install, so the fallback only covers a store that has not yet
 /// been through that migration — including one restored from an old backup.
 ///
