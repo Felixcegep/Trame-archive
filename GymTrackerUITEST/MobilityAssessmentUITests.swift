@@ -101,8 +101,10 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
 
         let history = launchFixture("mobility-assessment-history-detail", expectsActiveWorkout: false)
         openMobilityHub(in: history)
-        tapButton("open-mobility-assessment-history-from-hub", in: history)
-        let session = history.descendants(matching: .any)["mobility-assessment-history-session"].firstMatch
+        let historyLink = history.buttons["open-mobility-assessment-history-from-hub"]
+        scrollToElement(historyLink, in: history)
+        historyLink.tap()
+        let session = historySessionRows(in: history).firstMatch
         XCTAssertTrue(session.waitForExistence(timeout: 5))
         session.tap()
         XCTAssertTrue(history.navigationBars["Assessment"].waitForExistence(timeout: 5))
@@ -130,7 +132,7 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
         let directory = environment["SCREENSHOT_OUTPUT_DIR"]
             ?? "/Users/felixlachapelle/Desktop/GymTracker/Screenshots"
         let fileURL = URL(fileURLWithPath: directory, isDirectory: true)
-            .appendingPathComponent("(name).png")
+            .appendingPathComponent("\(name).png")
 
         do {
             try FileManager.default.createDirectory(

@@ -58,6 +58,7 @@ Scenes:
   rotation               Active rotation detail, controls, Home context, and workout source
   program-path           Plan Path entry, fixed path, reschedule sheet, and rotation path
   weekly-review          Fixed-plan Weekly Review
+  t36                    T-36 missing reachability states
 
 Options:
   list                   Print every scene and its screenshot paths
@@ -98,6 +99,7 @@ tests_for_scene() {
     rotation) echo "testCaptureRepeatingPlanScreenshots" ;;
     program-path) echo "ProgramPathScreenshotUITests/testCaptureProgramPathFixedScreenshots ProgramPathScreenshotUITests/testCaptureProgramPathRotationScreenshot" ;;
     weekly-review) echo "WeeklyProgramReviewUITests/testCaptureWeeklyProgramReviewScreenshot" ;;
+    t36) echo "testCaptureT36MissingStatesScreenshots" ;;
     *) return 1 ;;
   esac
 }
@@ -113,7 +115,8 @@ files_for_scene() {
     active) echo "active-workout/05_Active_Workout_Empty.png overview/05_Home_With_Active_Workout.png active-workout/06_Add_Exercise_Sheet.png active-workout/07_Plate_Calculator.png active-workout/07b_Set_Details.png active-workout/07c_Execution_Block_Builder.png active-workout/07d_Execution_Block_Active.png active-workout/07e_Set_Method_Segments.png active-workout/07f_Complex_Component_Results.png active-workout/08j_Exercise_Swap.png active-workout/08o_Substitution_Why.png active-workout/08p_Substitution_Confirmation.png active-workout/08_Active_Workout_With_Set.png active-workout/08k_Active_Superset.png active-workout/08d_Completed_Exercise_Collapsed.png active-workout/08e_Discard_Workout.png active-workout/08f_Duration_Timer_Idle.png active-workout/08g_Duration_Timer_Running.png active-workout/08h_Duration_Timer_Paused.png active-workout/08i_Duration_Timer_Complete.png review/09_Save_Workout.png review/09b_Partial_Save_Confirmation.png" ;;
     rest) echo "active-workout/08_Rest_Countdown.png active-workout/08b_Rest_Paused.png active-workout/08c_Rest_Ready.png" ;;
     history) echo "history/10_History_With_Workout.png history/10b_Expanded_Records.png history/11_History_Detail.png" ;;
-    recommendation) echo "progression/10_Previous_Performance.png progression/10b_Progression_Hold.png progression/10c_Progression_Starting_Weight.png progression/10d_Progression_Manual_Edit.png progression/10e_Progression_Applied_Weight.png progression/10f_Progression_With_Rest_Running.png progression/10g_Progression_With_Rest_Paused.png progression/10g_Progression_Receipt_Why.png" ;;
+    recommendation) echo "progression/10_Previous_Performance.png progression/10b_Progression_Hold.png progression/10c_Progression_Starting_Weight.png progression/10d_Progression_Manual_Edit.png progression/10e_Progression_Applied_Weight.png progression/10f_Progression_With_Rest_Running.png progression/10g_Progression_With_Rest_Paused.png progression/10h_Progression_Receipt.png progression/10g_Progression_Receipt_Why.png" ;;
+    t36) echo "overview/00_Welcome.png overview/00b_Storage_Unavailable.png overview/02e_Route_Unavailable.png active-workout/08s_Guided_Source_Error.png active-workout/08t_Mobility_Link_Error.png review/09c_Save_Failure_Alert.png active-workout/08q_Warmup_Preparation_Dialog.png active-workout/08r_Cooldown_Prompt.png history/03b_Progress_Trends_Frequency.png history/03c_Progress_Trends_Exercise_Selected.png nutrition/20b_Food_Library.png nutrition/20c_Meal_Template_Library.png nutrition/20d_Repeat_Meal_Sheet.png overview/02f_Archived_Exercises_Empty.png overview/02g_Workout_Collection_Detail.png" ;;
     performance) echo "review/14_Save_Performance_Comparison.png history/15_History_Performance_Comparison.png" ;;
     template-progression) echo "templates/12_Template_Progression.png templates/12d_Template_Execution_Block.png" ;;
     workout-form) echo "templates/12b_New_Workout_Form.png templates/12c_Exercise_Filters.png" ;;
@@ -133,7 +136,7 @@ files_for_scene() {
   esac
 }
 
-ALL_SCENES="overview pages settings-data-safety mobility mobility-assessment nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review"
+ALL_SCENES="overview pages settings-data-safety mobility mobility-assessment nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review t36"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 

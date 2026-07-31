@@ -538,11 +538,16 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     }
 
     func testCaptureProgressionReceiptWhyScreenshot() {
-        let app = launchFixture("progression-receipt", expectsActiveWorkout: false)
+        let app = launchFixture(
+            "progression-receipt",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "progression-receipt-done"
+        )
         let card = app.descendants(matching: .any).matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "progression-receipt-card-")
         ).firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 10))
+        saveScreenshot("progression/10h_Progression_Receipt")
         let why = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "progression-receipt-why-")
         ).firstMatch
@@ -552,6 +557,131 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Progression rule v2")).firstMatch.exists)
         XCTAssertTrue(app.staticTexts["The rule's condition was met."].exists)
         saveScreenshot("progression/10g_Progression_Receipt_Why")
+    }
+
+    /// T-36 reachability pass. These states were previously either behind a
+    /// capture-only launch hook or reachable only after seeded navigation.
+    func testCaptureT36MissingStatesScreenshots() {
+        let welcome = XCUIApplication()
+        welcome.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-show-welcome"]
+        welcome.launch()
+        XCTAssertTrue(welcome.descendants(matching: .any)["welcome"].waitForExistence(timeout: 30))
+        saveScreenshot("overview/00_Welcome")
+
+        let storage = XCUIApplication()
+        storage.launchArguments = ["-ui-testing", "-ui-testing-storage-unavailable"]
+        storage.launch()
+        XCTAssertTrue(storage.descendants(matching: .any)["storage-unavailable"].waitForExistence(timeout: 15))
+        saveScreenshot("overview/00b_Storage_Unavailable")
+
+        let missingRoute = XCUIApplication()
+        missingRoute.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-missing-route"]
+        missingRoute.launch()
+        XCTAssertTrue(missingRoute.staticTexts["Exercise unavailable"].waitForExistence(timeout: 30))
+        saveScreenshot("overview/02e_Route_Unavailable")
+
+        let guidedError = XCUIApplication()
+        guidedError.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-guided-source-error"]
+        guidedError.launch()
+        XCTAssertTrue(guidedError.alerts["Couldn’t update training source"].waitForExistence(timeout: 30))
+        saveScreenshot("active-workout/08s_Guided_Source_Error")
+
+        let mobilityError = XCUIApplication()
+        mobilityError.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-mobility-link-error"]
+        mobilityError.launch()
+        XCTAssertTrue(mobilityError.alerts["Couldn’t start mobility"].waitForExistence(timeout: 30))
+        saveScreenshot("active-workout/08t_Mobility_Link_Error")
+
+        let failedSave = launchFixture(
+            "active-completed-set",
+            additionalArguments: ["-ui-testing-fail-workout-save"]
+        )
+        tapButton("Review Workout", in: failedSave)
+        tapButton("save-workout", in: failedSave)
+        if failedSave.buttons["Save completed sets"].waitForExistence(timeout: 5) {
+            tapButton("Save completed sets", in: failedSave)
+        }
+        XCTAssertTrue(failedSave.alerts.firstMatch.waitForExistence(timeout: 10))
+        saveScreenshot("review/09c_Save_Failure_Alert")
+
+        let linked = launchFixture("linked-mobility-workout", expectsActiveWorkout: false)
+        tapButton("start-free-workout", in: linked)
+        let linkedTemplate = linked.buttons["workout-template-Linked Mobility Screenshot"]
+        scrollToElement(linkedTemplate, in: linked)
+        linkedTemplate.tap()
+        XCTAssertTrue(linked.buttons["skip-linked-warmup"].waitForExistence(timeout: 10))
+        saveScreenshot("active-workout/08q_Warmup_Preparation_Dialog")
+        tapButton("skip-linked-warmup", in: linked)
+        XCTAssertTrue(linked.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
+        enterValidValues(for: "Bench Press", set: 0, in: linked)
+        completeSet("Bench Press", index: 0, dismissRest: true, in: linked)
+        tapButton("Review Workout", in: linked)
+        tapButton("save-workout", in: linked)
+        if linked.buttons["Save completed sets"].waitForExistence(timeout: 5) {
+            tapButton("Save completed sets", in: linked)
+        }
+        XCTAssertTrue(linked.buttons["start-linked-cooldown"].waitForExistence(timeout: 10))
+        saveScreenshot("active-workout/08r_Cooldown_Prompt")
+
+        let history = launchFixture("history-bench", expectsActiveWorkout: false)
+        selectTab(.progress, in: history)
+        let trendsLink = history.descendants(matching: .any)["progress-training-trends"]
+        XCTAssertTrue(trendsLink.waitForExistence(timeout: 10))
+        trendsLink.tap()
+        XCTAssertTrue(history.navigationBars["History"].waitForExistence(timeout: 10))
+        XCTAssertTrue(history.descendants(matching: .any)["training-frequency-chart"].waitForExistence(timeout: 10))
+        saveScreenshot("history/03b_Progress_Trends_Frequency")
+        history.swipeUp()
+        let chartPoint = history.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.72))
+        chartPoint.press(forDuration: 0.1)
+        saveScreenshot("history/03c_Progress_Trends_Exercise_Selected")
+
+        let nutrition = launchFixture(
+            "nutrition-today",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "open-nutrition-today"
+        )
+        tapButton("open-nutrition-today", in: nutrition)
+        tapButton("open-food-library", in: nutrition)
+        XCTAssertTrue(nutrition.navigationBars["Food library"].waitForExistence(timeout: 10))
+        saveScreenshot("nutrition/20b_Food_Library")
+        nutrition.navigationBars.buttons.element(boundBy: 0).tap()
+        tapButton("open-meal-templates", in: nutrition)
+        XCTAssertTrue(nutrition.navigationBars["Recipes"].waitForExistence(timeout: 10))
+        saveScreenshot("nutrition/20c_Meal_Template_Library")
+
+        let repeatMeal = launchFixture(
+            "today-complete",
+            expectsActiveWorkout: false
+        )
+        tapButton("open-nutrition-today", in: repeatMeal)
+        XCTAssertTrue(repeatMeal.descendants(matching: .any)["nutrition-today-totals"].waitForExistence(timeout: 10))
+        let repeatButton = repeatMeal.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "repeat-logged-meal-")
+        ).firstMatch
+        scrollToElement(repeatButton, in: repeatMeal)
+        XCTAssertTrue(repeatButton.waitForExistence(timeout: 10))
+        repeatButton.tap()
+        XCTAssertTrue(repeatMeal.navigationBars["Repeat meal"].waitForExistence(timeout: 10))
+        saveScreenshot("nutrition/20d_Repeat_Meal_Sheet")
+
+        let archived = launchFreshApp()
+        selectTab(.library, in: archived)
+        tapButton("exercises-browser", in: archived)
+        let archivedLink = archived.buttons["hidden-exercises"]
+        scrollToElement(archivedLink, in: archived)
+        archivedLink.tap()
+        XCTAssertTrue(archived.navigationBars["Hidden Exercises"].waitForExistence(timeout: 10))
+        saveScreenshot("overview/02f_Archived_Exercises_Empty")
+
+        let collection = launchFreshApp()
+        selectTab(.library, in: collection)
+        tapButton("workouts-browser", in: collection)
+        let collectionLink = collection.descendants(matching: .any)["workout-collection-Upper/Lower Program – 4 Days"]
+        scrollToElement(collectionLink, in: collection)
+        collectionLink.tap()
+        XCTAssertTrue(collection.navigationBars["Upper/Lower Program – 4 Days"].waitForExistence(timeout: 10))
+        saveScreenshot("overview/02g_Workout_Collection_Detail")
     }
 
     func testCapturePerformanceComparisonReviewScreenshot() {

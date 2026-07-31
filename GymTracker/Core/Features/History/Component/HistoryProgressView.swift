@@ -131,7 +131,8 @@ private struct HistoryFrequencyChart: View {
         GymChartCard(
             title: "Training frequency · 8 weeks",
             evidence: "Completed workouts only; every week is shown.",
-            takeaway: takeaway
+            takeaway: takeaway,
+            titleIdentifier: "training-frequency-chart"
         ) {
             if let selectedPoint {
                 GymChartSelectionAnnotation(
