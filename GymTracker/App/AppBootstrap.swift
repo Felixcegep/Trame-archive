@@ -207,6 +207,13 @@ enum UITestLaunch {
         arguments.contains("-reset-data") || fixture != nil
     }
 
+    /// Keeps the completed brand frame visible for deterministic visual
+    /// verification. It has no effect outside a launch that explicitly names
+    /// the capture-only argument.
+    static func holdsLaunchExperience(arguments: [String] = CommandLine.arguments) -> Bool {
+        arguments.contains("-ui-testing-hold-launch-experience")
+    }
+
     /// Tab and path arguments that need no seeded data.
     static func initialDestination(arguments: [String] = CommandLine.arguments) -> Destination {
         var destination = Destination()

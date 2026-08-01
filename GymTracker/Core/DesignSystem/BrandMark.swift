@@ -23,6 +23,14 @@ enum TrameMarkComponent: CaseIterable, Hashable, Sendable {
 /// applied, so this file is the flattened truth — re-exporting the SVG means
 /// re-flattening, not pasting new transforms on top.
 ///
+/// The source is `Documentation/Brand/TrameLogo.svg`: three rounded rects, each
+/// carrying its own translate/rotate. Every part below is one of those rects
+/// as 8 cubics — 4 corner arcs plus 4 edges written as degenerate curves —
+/// with the transforms baked in, which is why the bar arrives already at its
+/// -10.33° angle rather than being rotated at draw time. That is the same
+/// geometry `Documentation/Brand/TrameLogo.svg` and the app-icon PNGs use, so
+/// the launch animation and the icon it launches from are one mark.
+///
 /// The collars overlap the bar, so **the mark must be filled non-zero**.
 /// `fill()` is non-zero by default; an even-odd fill punches holes where the
 /// parts cross.
@@ -39,7 +47,10 @@ struct TrameMark: Shape {
     /// Every component normalises against *this*, not against its own extent,
     /// so drawing one part alone leaves it registered where it belongs
     /// relative to the others.
-    private static let designBounds = CGRect(x: 3.403, y: 2.074, width: 330.321, height: 250.674)
+    ///
+    /// The origin is zero because the generator shifts the mark's exact curve
+    /// bounds — solved from the cubics, not sampled — to the origin.
+    private static let designBounds = CGRect(x: 0, y: 0, width: 772.1533, height: 479.3066)
 
     /// The mark's aspect ratio, for callers sizing a container around it.
     static let aspectRatio: CGFloat = designBounds.width / designBounds.height
@@ -81,66 +92,46 @@ struct TrameMark: Shape {
 
     private static let barPath: Path = {
         var path = Path()
-        path.move(to: CGPoint(x: 305.351, y: 43.139))
+        path.move(to: CGPoint(x: 12.313, y: 261.830))
         path.addCurve(
-            to: CGPoint(x: 315.239, y: 43.398),
-            control1: CGPoint(x: 308.551, y: 41.911),
-            control2: CGPoint(x: 312.108, y: 42.004)
+            to: CGPoint(x: 743.653, y: 128.527),
+            control1: CGPoint(x: 256.093, y: 217.396),
+            control2: CGPoint(x: 499.873, y: 172.961)
         )
         path.addCurve(
-            to: CGPoint(x: 322.049, y: 50.574),
-            control1: CGPoint(x: 318.371, y: 44.793),
-            control2: CGPoint(x: 320.821, y: 47.374)
+            to: CGPoint(x: 761.100, y: 140.594),
+            control1: CGPoint(x: 751.803, y: 127.042),
+            control2: CGPoint(x: 759.615, y: 132.444)
         )
         path.addCurve(
-            to: CGPoint(x: 332.495, y: 77.788),
-            control1: CGPoint(x: 325.198, y: 58.776),
-            control2: CGPoint(x: 329.347, y: 69.586)
+            to: CGPoint(x: 771.908, y: 199.887),
+            control1: CGPoint(x: 764.703, y: 160.359),
+            control2: CGPoint(x: 768.305, y: 180.123)
         )
         path.addCurve(
-            to: CGPoint(x: 332.236, y: 87.677),
-            control1: CGPoint(x: 333.724, y: 80.988),
-            control2: CGPoint(x: 333.630, y: 84.545)
+            to: CGPoint(x: 759.840, y: 217.334),
+            control1: CGPoint(x: 773.393, y: 208.037),
+            control2: CGPoint(x: 767.990, y: 215.849)
         )
         path.addCurve(
-            to: CGPoint(x: 325.061, y: 94.486),
-            control1: CGPoint(x: 330.842, y: 90.809),
-            control2: CGPoint(x: 328.261, y: 93.258)
+            to: CGPoint(x: 28.500, y: 350.637),
+            control1: CGPoint(x: 516.060, y: 261.768),
+            control2: CGPoint(x: 272.280, y: 306.203)
         )
         path.addCurve(
-            to: CGPoint(x: 31.777, y: 207.068),
-            control1: CGPoint(x: 274.763, y: 113.794),
-            control2: CGPoint(x: 82.074, y: 187.760)
+            to: CGPoint(x: 11.053, y: 338.570),
+            control1: CGPoint(x: 20.350, y: 352.122),
+            control2: CGPoint(x: 12.539, y: 346.720)
         )
         path.addCurve(
-            to: CGPoint(x: 21.888, y: 206.809),
-            control1: CGPoint(x: 28.576, y: 208.296),
-            control2: CGPoint(x: 25.020, y: 208.203)
+            to: CGPoint(x: 0.246, y: 279.277),
+            control1: CGPoint(x: 7.451, y: 318.805),
+            control2: CGPoint(x: 3.848, y: 299.041)
         )
         path.addCurve(
-            to: CGPoint(x: 15.078, y: 199.633),
-            control1: CGPoint(x: 18.756, y: 205.414),
-            control2: CGPoint(x: 16.307, y: 202.833)
-        )
-        path.addCurve(
-            to: CGPoint(x: 4.632, y: 172.419),
-            control1: CGPoint(x: 11.930, y: 191.431),
-            control2: CGPoint(x: 7.780, y: 180.621)
-        )
-        path.addCurve(
-            to: CGPoint(x: 4.891, y: 162.530),
-            control1: CGPoint(x: 3.403, y: 169.219),
-            control2: CGPoint(x: 3.497, y: 165.662)
-        )
-        path.addCurve(
-            to: CGPoint(x: 12.066, y: 155.721),
-            control1: CGPoint(x: 6.285, y: 159.398),
-            control2: CGPoint(x: 8.866, y: 156.949)
-        )
-        path.addCurve(
-            to: CGPoint(x: 305.351, y: 43.139),
-            control1: CGPoint(x: 62.364, y: 136.413),
-            control2: CGPoint(x: 255.053, y: 62.447)
+            to: CGPoint(x: 12.313, y: 261.830),
+            control1: CGPoint(x: -1.240, y: 271.127),
+            control2: CGPoint(x: 4.163, y: 263.315)
         )
         path.closeSubpath()
         return path
@@ -148,46 +139,46 @@ struct TrameMark: Shape {
 
     private static let collarUpperPath: Path = {
         var path = Path()
-        path.move(to: CGPoint(x: 198.925, y: 33.569))
+        path.move(to: CGPoint(x: 584.298, y: 382.378))
         path.addCurve(
-            to: CGPoint(x: 206.359, y: 16.870),
-            control1: CGPoint(x: 196.367, y: 26.905),
-            control2: CGPoint(x: 199.696, y: 19.428)
+            to: CGPoint(x: 521.189, y: 36.082),
+            control1: CGPoint(x: 563.262, y: 266.946),
+            control2: CGPoint(x: 542.225, y: 151.514)
         )
         path.addCurve(
-            to: CGPoint(x: 238.241, y: 4.632),
-            control1: CGPoint(x: 218.483, y: 12.216),
-            control2: CGPoint(x: 236.555, y: 5.279)
+            to: CGPoint(x: 533.256, y: 18.635),
+            control1: CGPoint(x: 519.703, y: 27.931),
+            control2: CGPoint(x: 525.106, y: 20.121)
         )
         path.addCurve(
-            to: CGPoint(x: 254.940, y: 12.067),
-            control1: CGPoint(x: 244.905, y: 2.074),
-            control2: CGPoint(x: 252.381, y: 5.403)
+            to: CGPoint(x: 634.164, y: 0.246),
+            control1: CGPoint(x: 566.892, y: 12.505),
+            control2: CGPoint(x: 600.528, y: 6.376)
         )
         path.addCurve(
-            to: CGPoint(x: 310.182, y: 155.978),
-            control1: CGPoint(x: 266.824, y: 43.027),
-            control2: CGPoint(x: 298.297, y: 125.017)
+            to: CGPoint(x: 651.611, y: 12.313),
+            control1: CGPoint(x: 642.314, y: -1.240),
+            control2: CGPoint(x: 650.125, y: 4.163)
         )
         path.addCurve(
-            to: CGPoint(x: 302.747, y: 172.676),
-            control1: CGPoint(x: 312.740, y: 162.642),
-            control2: CGPoint(x: 309.411, y: 170.118)
+            to: CGPoint(x: 714.720, y: 358.610),
+            control1: CGPoint(x: 672.647, y: 127.745),
+            control2: CGPoint(x: 693.684, y: 243.178)
         )
         path.addCurve(
-            to: CGPoint(x: 270.866, y: 184.915),
-            control1: CGPoint(x: 293.323, y: 176.294),
-            control2: CGPoint(x: 280.290, y: 181.297)
+            to: CGPoint(x: 702.652, y: 376.056),
+            control1: CGPoint(x: 716.205, y: 366.760),
+            control2: CGPoint(x: 710.802, y: 374.571)
         )
         path.addCurve(
-            to: CGPoint(x: 254.167, y: 177.480),
-            control1: CGPoint(x: 264.202, y: 187.473),
-            control2: CGPoint(x: 256.725, y: 184.144)
+            to: CGPoint(x: 601.744, y: 394.446),
+            control1: CGPoint(x: 669.016, y: 382.186),
+            control2: CGPoint(x: 635.380, y: 388.316)
         )
         path.addCurve(
-            to: CGPoint(x: 198.925, y: 33.569),
-            control1: CGPoint(x: 242.282, y: 146.519),
-            control2: CGPoint(x: 210.809, y: 64.530)
+            to: CGPoint(x: 584.298, y: 382.378),
+            control1: CGPoint(x: 593.594, y: 395.931),
+            control2: CGPoint(x: 585.783, y: 390.528)
         )
         path.closeSubpath()
         return path
@@ -195,46 +186,46 @@ struct TrameMark: Shape {
 
     private static let collarLowerPath: Path = {
         var path = Path()
-        path.move(to: CGPoint(x: 28.875, y: 98.845))
+        path.move(to: CGPoint(x: 119.974, y: 466.993))
         path.addCurve(
-            to: CGPoint(x: 36.310, y: 82.146),
-            control1: CGPoint(x: 26.317, y: 92.181),
-            control2: CGPoint(x: 29.646, y: 84.704)
+            to: CGPoint(x: 56.865, y: 120.697),
+            control1: CGPoint(x: 98.938, y: 351.561),
+            control2: CGPoint(x: 77.902, y: 236.129)
         )
         path.addCurve(
-            to: CGPoint(x: 68.192, y: 69.908),
-            control1: CGPoint(x: 48.434, y: 77.492),
-            control2: CGPoint(x: 66.506, y: 70.555)
+            to: CGPoint(x: 68.933, y: 103.251),
+            control1: CGPoint(x: 55.380, y: 112.547),
+            control2: CGPoint(x: 60.783, y: 104.736)
         )
         path.addCurve(
-            to: CGPoint(x: 84.890, y: 77.343),
-            control1: CGPoint(x: 74.856, y: 67.350),
-            control2: CGPoint(x: 82.332, y: 70.679)
+            to: CGPoint(x: 169.841, y: 84.861),
+            control1: CGPoint(x: 102.569, y: 97.121),
+            control2: CGPoint(x: 136.205, y: 90.991)
         )
         path.addCurve(
-            to: CGPoint(x: 140.133, y: 221.254),
-            control1: CGPoint(x: 96.775, y: 108.303),
-            control2: CGPoint(x: 128.248, y: 190.293)
+            to: CGPoint(x: 187.287, y: 96.929),
+            control1: CGPoint(x: 177.991, y: 83.376),
+            control2: CGPoint(x: 185.802, y: 88.779)
         )
         path.addCurve(
-            to: CGPoint(x: 132.698, y: 237.952),
-            control1: CGPoint(x: 142.691, y: 227.918),
-            control2: CGPoint(x: 139.362, y: 235.394)
+            to: CGPoint(x: 250.396, y: 443.225),
+            control1: CGPoint(x: 208.323, y: 212.361),
+            control2: CGPoint(x: 229.360, y: 327.793)
         )
         path.addCurve(
-            to: CGPoint(x: 100.816, y: 250.190),
-            control1: CGPoint(x: 123.274, y: 241.570),
-            control2: CGPoint(x: 110.240, y: 246.573)
+            to: CGPoint(x: 238.329, y: 460.671),
+            control1: CGPoint(x: 251.882, y: 451.375),
+            control2: CGPoint(x: 246.479, y: 459.186)
         )
         path.addCurve(
-            to: CGPoint(x: 84.118, y: 242.756),
-            control1: CGPoint(x: 94.152, y: 252.748),
-            control2: CGPoint(x: 86.676, y: 249.420)
+            to: CGPoint(x: 137.421, y: 479.061),
+            control1: CGPoint(x: 204.693, y: 466.801),
+            control2: CGPoint(x: 171.057, y: 472.931)
         )
         path.addCurve(
-            to: CGPoint(x: 28.875, y: 98.845),
-            control1: CGPoint(x: 72.233, y: 211.795),
-            control2: CGPoint(x: 40.760, y: 129.805)
+            to: CGPoint(x: 119.974, y: 466.993),
+            control1: CGPoint(x: 129.271, y: 480.546),
+            control2: CGPoint(x: 121.460, y: 475.143)
         )
         path.closeSubpath()
         return path

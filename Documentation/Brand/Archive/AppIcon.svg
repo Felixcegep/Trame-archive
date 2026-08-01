@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Trame iOS app-icon tile. Generated from Documentation/Brand/Logo.svg;
+     the three rects below are that file's geometry verbatim. The wrapping
+     transform is the icon placement: mark at 0.7747 of the tile
+     width, horizontally centred, lifted 15.5px
+     above centre so it optically centres under the home-screen label.
+     Fill is trameNavy on trameParchment (BrandColors.swift), and there is
+     deliberately no stroke. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" fill="#F6F0E7"/>
+  <g fill="#272635" transform="translate(512 496.497) scale(1.027389) translate(-776.3990 -518.7790)">
+    <rect x="389.69" y="473.6" width="773.39" height="90.27" rx="15" ry="15" transform="translate(-80.42 147.6) rotate(-10.33)"/>
+    <rect x="352.95" y="494.81" width="382" height="132.57" rx="15" ry="15" transform="translate(89.4735 1196.8205) rotate(-100.3283)"/>
+    <rect x="817.27" y="410.19" width="382" height="132.57" rx="15" ry="15" transform="translate(720.2931 1553.8302) rotate(-100.3283)"/>
+  </g>
+</svg>

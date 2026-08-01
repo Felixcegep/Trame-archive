@@ -2,6 +2,25 @@ import XCTest
 @testable import GymTracker
 
 final class ScreenshotUITests: GymTrackerUITestCase {
+    func testCaptureLaunchBrandScreenshot() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-testing-hold-launch-experience"
+        ]
+        app.launch()
+
+        let brandMark = app.descendants(matching: .any)["launch-brand-mark"]
+        XCTAssertTrue(brandMark.waitForExistence(timeout: 15))
+        let completedFrame = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "Ready"),
+            object: brandMark
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [completedFrame], timeout: 15), .completed)
+        saveScreenshot("overview/00a_Launch_Brand")
+    }
+
     /// New Workout and New Exercise are two mutually exclusive options of the
     /// same "Create library item" menu, both dismissible without saving, and
     /// hiding an exercise is the one destructive step — kept last so it

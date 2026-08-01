@@ -7,7 +7,9 @@ import SwiftUI
 /// wordmark also resolves inside that launch budget. It plays once per cold
 /// launch; foregrounding an existing scene does not recreate `RootView`.
 struct TrameBuild: View {
-    var markHeight: CGFloat = 68
+    /// Launch-scale mark. The symbol is the identity's focal point, so it
+    /// receives substantially more area than an in-app lockup.
+    var markHeight: CGFloat = 96
     var color: Color = .trameMark
     var onFinish: (() -> Void)?
 
@@ -86,7 +88,7 @@ struct TrameBuild: View {
     }
 
     private func lockup(_ frame: TrameBuildFrame) -> some View {
-        HStack(spacing: markHeight * 0.34) {
+        VStack(spacing: markHeight * 0.22) {
             ZStack {
                 Ellipse()
                     .fill(Color.trameNavy.opacity(0.112 * Double(frame.shadowProgress)))
@@ -104,7 +106,7 @@ struct TrameBuild: View {
             .opacity(frame.markOpacity)
 
             TrameWordmark(color: color)
-                .offset(x: unit * frame.wordmarkSlide)
+                .offset(y: unit * frame.wordmarkSlide)
                 .opacity(frame.wordmarkOpacity)
         }
     }

@@ -35,6 +35,7 @@ Usage: ./capture_screenshots.sh [--open] [list|all|SCENE ...]
 Capture all screenshots (the default) or only selected scene groups.
 
 Scenes:
+  brand                  Completed cold-launch brand frame
   overview               Main Today, Train, empty Progress, and Settings screens
   settings-data-safety   Settings Data Safety section
   pages                  Today, Train, Nutrition, and Settings secondary page states
@@ -74,6 +75,7 @@ EOF
 
 tests_for_scene() {
   case "$1" in
+    brand) echo "testCaptureLaunchBrandScreenshot" ;;
     overview) echo "testCaptureOverviewAndLibraryTourScreenshots" ;;
     settings-data-safety) echo "testCaptureSettingsDataSafetyScreenshot" ;;
     pages) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureHomeConflictScreenshot testCaptureTodayCompleteTourScreenshots testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCapturePlanActiveRunScreenshots testCaptureNotificationRescheduleScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsAndBetaFeedbackScreenshots testCaptureSettingsDataSafetyScreenshot testCaptureBetaFeedbackActiveLoggingScreenshot" ;;
@@ -106,6 +108,7 @@ tests_for_scene() {
 
 files_for_scene() {
   case "$1" in
+    brand) echo "overview/00a_Launch_Brand.png" ;;
     overview) echo "overview/01_Today.png overview/02_Train.png overview/03_Progress_Empty.png overview/04_Settings.png" ;;
     settings-data-safety) echo "overview/04g_Settings_Data_Safety.png" ;;
     pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01h_Daily_Check_In_Weight_Due.png overview/04a_Body_Weight_History.png overview/01f_Today_Reschedule_Workout.png overview/01g_Notification_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png nutrition/20_Nutrition_Today.png overview/02b_Train_Templates.png overview/02c_Train_Plans.png overview/02d_Train_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png overview/04d_Settings_Shortcuts.png overview/04e_Settings_Beta_Feedback.png overview/04f_Settings_Beta_Feedback_Active_Logging.png overview/04g_Settings_Data_Safety.png" ;;
@@ -136,7 +139,7 @@ files_for_scene() {
   esac
 }
 
-ALL_SCENES="overview pages settings-data-safety mobility mobility-assessment nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review t36"
+ALL_SCENES="brand overview pages settings-data-safety mobility mobility-assessment nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review t36"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 

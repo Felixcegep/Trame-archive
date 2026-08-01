@@ -59,7 +59,9 @@ struct RootView: View {
     /// overlap, so the animation never extends a launch whose data work takes
     /// longer than the authored 1.05 seconds.
     private var isShowingLaunchExperience: Bool {
-        isPreparingApp || !hasFinishedLaunchAnimation
+        isPreparingApp
+            || !hasFinishedLaunchAnimation
+            || UITestLaunch.holdsLaunchExperience()
     }
 
     var body: some View {
@@ -144,11 +146,9 @@ struct RootView: View {
                 ZStack {
                     Color.gymBackground.ignoresSafeArea()
 
-                    TrameBuild(
-                        markHeight: 56,
-                        onFinish: { hasFinishedLaunchAnimation = true }
-                    )
+                    TrameBuild(onFinish: { hasFinishedLaunchAnimation = true })
                     .accessibilityIdentifier("launch-brand-mark")
+                    .accessibilityValue(hasFinishedLaunchAnimation ? "Ready" : "Animating")
                 }
                 .accessibilityIdentifier("app-preparing")
                 .transition(.opacity)
