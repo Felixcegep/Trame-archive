@@ -1,5 +1,164 @@
 import SwiftUI
 
+/// **Build the Trame** — the mark assembles bar, collar, collar, then locks.
+///
+/// This is the 1.05 second identity sequence authored in
+/// `Documentation/Brand/Trame Motion Identity.html`, tightened so its
+/// wordmark also resolves inside that launch budget. It plays once per cold
+/// launch; foregrounding an existing scene does not recreate `RootView`.
+struct TrameBuild: View {
+    var markHeight: CGFloat = 68
+    var color: Color = .trameMark
+    var onFinish: (() -> Void)?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var plays = 0
+
+    private let duration: TimeInterval = 1.050
+    private var unit: CGFloat { markHeight / 68 }
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                KeyframeAnimator(initialValue: TrameBuildFrame.reducedStart, trigger: plays) { frame in
+                    lockup(frame)
+                } keyframes: { _ in
+                    KeyframeTrack(\.lockScale) {
+                        LinearKeyframe(1, duration: 0.320, timingCurve: AppMotion.lockCurve)
+                    }
+                    KeyframeTrack(\.markOpacity) {
+                        LinearKeyframe(1, duration: 0.320, timingCurve: AppMotion.lockCurve)
+                    }
+                    KeyframeTrack(\.wordmarkOpacity) {
+                        LinearKeyframe(1, duration: 0.320, timingCurve: AppMotion.lockCurve)
+                    }
+                }
+            } else {
+                KeyframeAnimator(initialValue: TrameBuildFrame.start, trigger: plays) { frame in
+                    lockup(frame)
+                } keyframes: { _ in
+                    KeyframeTrack(\.barProgress) {
+                        LinearKeyframe(1, duration: 0.400, timingCurve: AppMotion.assemblyCurve)
+                        LinearKeyframe(1, duration: 0.650)
+                    }
+                    KeyframeTrack(\.upperProgress) {
+                        LinearKeyframe(0, duration: 0.400)
+                        LinearKeyframe(1, duration: 0.270, timingCurve: AppMotion.assemblyCurve)
+                        LinearKeyframe(1, duration: 0.380)
+                    }
+                    KeyframeTrack(\.lowerProgress) {
+                        LinearKeyframe(0, duration: 0.560)
+                        LinearKeyframe(1, duration: 0.270, timingCurve: AppMotion.assemblyCurve)
+                        LinearKeyframe(1, duration: 0.220)
+                    }
+                    KeyframeTrack(\.lockScale) {
+                        LinearKeyframe(1, duration: 0.830)
+                        LinearKeyframe(1.02, duration: 0.095, timingCurve: AppMotion.assemblyCurve)
+                        LinearKeyframe(1, duration: 0.125, timingCurve: AppMotion.settleCurve)
+                    }
+                    KeyframeTrack(\.shadowProgress) {
+                        LinearKeyframe(0, duration: 0.830)
+                        LinearKeyframe(1, duration: 0.220, timingCurve: AppMotion.settleCurve)
+                    }
+                    KeyframeTrack(\.wordmarkOpacity) {
+                        LinearKeyframe(0, duration: 0.880)
+                        LinearKeyframe(1, duration: 0.170, timingCurve: AppMotion.lockCurve)
+                    }
+                    KeyframeTrack(\.wordmarkSlide) {
+                        LinearKeyframe(9, duration: 0.880)
+                        LinearKeyframe(0, duration: 0.170, timingCurve: AppMotion.lockCurve)
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: "Trame"))
+        .onAppear { plays += 1 }
+        .task(id: plays) {
+            guard plays > 0, onFinish != nil else { return }
+            do {
+                try await Task.sleep(for: .seconds(reduceMotion ? 0.320 : duration))
+            } catch {
+                return
+            }
+            onFinish?()
+        }
+    }
+
+    private func lockup(_ frame: TrameBuildFrame) -> some View {
+        HStack(spacing: markHeight * 0.34) {
+            ZStack {
+                Ellipse()
+                    .fill(Color.trameNavy.opacity(0.112 * Double(frame.shadowProgress)))
+                    .frame(width: markHeight * 0.76, height: markHeight * 0.09)
+                    .scaleEffect(x: 0.75 + (0.25 * frame.shadowProgress), y: 1)
+                    .blur(radius: unit * 1.5)
+                    .offset(y: markHeight * 0.58)
+
+                component(.bar, progress: frame.barProgress, start: CGSize(width: -9, height: 6), rotation: 7)
+                component(.collarUpper, progress: frame.upperProgress, start: CGSize(width: -8, height: -4))
+                component(.collarLower, progress: frame.lowerProgress, start: CGSize(width: 8, height: 4))
+            }
+            .frame(width: markHeight * TrameMark.aspectRatio, height: markHeight)
+            .scaleEffect(frame.lockScale)
+            .opacity(frame.markOpacity)
+
+            TrameWordmark(color: color)
+                .offset(x: unit * frame.wordmarkSlide)
+                .opacity(frame.wordmarkOpacity)
+        }
+    }
+
+    private func component(
+        _ component: TrameMarkComponent,
+        progress: CGFloat,
+        start: CGSize,
+        rotation: Double = 0
+    ) -> some View {
+        TrameMarkView(height: markHeight, color: color, components: [component])
+            .scaleEffect(0.88 + (0.12 * progress))
+            .rotationEffect(.degrees(rotation * (1 - progress)))
+            .offset(
+                x: unit * start.width * (1 - progress),
+                y: unit * start.height * (1 - progress)
+            )
+            .opacity(0.1 + (0.9 * Double(progress)))
+    }
+}
+
+private struct TrameBuildFrame {
+    var barProgress: CGFloat
+    var upperProgress: CGFloat
+    var lowerProgress: CGFloat
+    var lockScale: CGFloat
+    var shadowProgress: CGFloat
+    var wordmarkOpacity: Double
+    var wordmarkSlide: CGFloat
+    var markOpacity: Double
+
+    static let start = TrameBuildFrame(
+        barProgress: 0,
+        upperProgress: 0,
+        lowerProgress: 0,
+        lockScale: 1,
+        shadowProgress: 0,
+        wordmarkOpacity: 0,
+        wordmarkSlide: 9,
+        markOpacity: 1
+    )
+
+    static let reducedStart = TrameBuildFrame(
+        barProgress: 1,
+        upperProgress: 1,
+        lowerProgress: 1,
+        lockScale: 0.97,
+        shadowProgress: 1,
+        wordmarkOpacity: 0,
+        wordmarkSlide: 0,
+        markOpacity: 0
+    )
+}
+
 /// **Lift and Lock** — the signature brand animation.
 ///
 /// Compress, rise, lock, one settle beat, then absolute stillness. It means

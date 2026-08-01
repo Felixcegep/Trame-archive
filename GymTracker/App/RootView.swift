@@ -50,8 +50,17 @@ struct RootView: View {
     @AppStorage(DefaultsKey.darkMode) private var darkMode: Bool = false
     @AppStorage(DefaultsKey.hasCompletedWelcome) private var hasCompletedWelcome: Bool = false
     @State private var isPreparingApp = true
+    @State private var hasFinishedLaunchAnimation = false
     @State private var appIntentRouteStore = AppIntentRouteStore.shared
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
+
+    /// The root becomes interactive only after both the persisted state is
+    /// trustworthy and the short brand motion has resolved. These normally
+    /// overlap, so the animation never extends a launch whose data work takes
+    /// longer than the authored 1.05 seconds.
+    private var isShowingLaunchExperience: Bool {
+        isPreparingApp || !hasFinishedLaunchAnimation
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -129,17 +138,23 @@ struct RootView: View {
         .onChange(of: selectedTab) { _, _ in
             todayStatusMessage = nil
         }
-        .accessibilityHidden(isPreparingApp)
+        .accessibilityHidden(isShowingLaunchExperience)
         .overlay {
-            if isPreparingApp {
+            if isShowingLaunchExperience {
                 ZStack {
                     Color.gymBackground.ignoresSafeArea()
-                    ProgressView("Preparing GymTracker…")
-                        .tint(Color.gymPrimary)
+
+                    TrameBuild(
+                        markHeight: 56,
+                        onFinish: { hasFinishedLaunchAnimation = true }
+                    )
+                    .accessibilityIdentifier("launch-brand-mark")
                 }
                 .accessibilityIdentifier("app-preparing")
+                .transition(.opacity)
             }
         }
+        .animation(AppMotion.compact, value: isShowingLaunchExperience)
         .fullScreenCover(isPresented: shouldShowWelcome) {
             WelcomeView(
                 onChoosePlan: {

@@ -50,6 +50,12 @@ enum AppMotion {
         startControlPoint: UnitPoint(x: 0.3, y: 0.6),
         endControlPoint: UnitPoint(x: 0.3, y: 1)
     )
+
+    /// Components arriving on rails in the Trame assembly identity.
+    static let assemblyCurve = UnitCurve.bezier(
+        startControlPoint: UnitPoint(x: 0.22, y: 0.85),
+        endControlPoint: UnitPoint(x: 0.3, y: 1)
+    )
 }
 
 /// The Weighted Pulse: the one press response in the app.
