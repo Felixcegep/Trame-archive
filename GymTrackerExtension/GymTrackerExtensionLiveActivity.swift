@@ -84,7 +84,7 @@ struct GymTrackerExtensionLiveActivity: Widget {
             case .readyForReview:
                 Text("All sets completed")
                     .font(.headline)
-                Text("Open GymTracker to review and finish")
+                Text("Open Trame to review and finish")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.84))
                 ProgressView(value: 1, total: 1)
@@ -208,7 +208,7 @@ struct GymTrackerExtensionLiveActivity: Widget {
         case .emptyWorkout: "Workout started, no exercises yet"
         case let .activeSet(exercise, set, total): "Workout in progress, \(exercise), set \(set) of \(total)"
         case let .resting(nextExercise): nextExercise.map { "Rest between sets, next up \($0)" } ?? "Rest between sets, review your workout next"
-        case .readyForReview: "All sets completed. Open GymTracker to review and finish."
+        case .readyForReview: "All sets completed. Open Trame to review and finish."
         }
     }
 }

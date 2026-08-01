@@ -93,11 +93,11 @@ struct PlanDetailView: View {
                     }
                     .accessibilityIdentifier("start-planned-workout")
 
-                    Button("Pause Plan") {
+                    Button("Pause This Plan") {
                         PlanCoordinator.pause(run, using: modelContext)
                     }
 
-                    Button("Stop Following This Plan", role: .destructive) {
+                    Button("End This Plan Run", role: .destructive) {
                         isShowingArchiveConfirmation = true
                     }
                 }
@@ -118,7 +118,7 @@ struct PlanDetailView: View {
                     }
                     .accessibilityIdentifier("resume-plan")
 
-                    Button("Stop Following This Plan", role: .destructive) {
+                    Button("End This Plan Run", role: .destructive) {
                         isShowingArchiveConfirmation = true
                     }
                 }
@@ -234,16 +234,16 @@ struct PlanDetailView: View {
             }
         }
         .confirmationDialog(
-            "Stop following this plan?",
+            "End this plan run?",
             isPresented: $isShowingArchiveConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Stop Following This Plan", role: .destructive) {
+            Button("End Plan Run", role: .destructive) {
                 guard let run = currentRun else { return }
                 PlanCoordinator.archive(run, using: modelContext)
             }
         } message: {
-            Text("Your completed workouts remain in History. You can start this plan again later.")
+            Text("This run will end, but the plan, its progress, and completed workouts remain available. You can start a new run later.")
         }
     }
 

@@ -61,7 +61,7 @@ struct BetaFeedbackScreen: View {
     }
 
     var shareText: String {
-        var lines = [String(localized: "GymTracker Beta Feedback"), ""]
+        var lines = [String(localized: "Trame Beta Feedback"), ""]
         if !feedbackText.isEmpty {
             lines.append(feedbackText)
             lines.append("")

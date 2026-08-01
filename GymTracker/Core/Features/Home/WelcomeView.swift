@@ -26,15 +26,17 @@ struct WelcomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 VStack(alignment: .leading, spacing: Spacing.m) {
-                    Image(systemName: AppIcon.workout)
-                        .font(.system(size: 40, weight: .semibold))
-                        .foregroundStyle(Color.gymPrimary)
-                        .padding(.bottom, Spacing.s)
+                    VStack(spacing: Spacing.m) {
+                        TrameMarkView(height: 44)
 
-                    Text("Welcome to GymTracker")
-                        .font(AppFont.displayMedium)
-                        .foregroundStyle(Color.gymText)
-                        .fixedSize(horizontal: false, vertical: true)
+                        Text("Welcome to Trame")
+                            .font(AppFont.displayMedium)
+                            .foregroundStyle(Color.gymText)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, Spacing.s)
 
                     Text("Choose how your next workout gets decided. You can switch at any time, and nothing you have already done ever changes.")
                         .font(AppFont.body)

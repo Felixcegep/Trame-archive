@@ -90,11 +90,11 @@ struct StartTodaysWorkoutIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         let context = ModelContext(container)
         guard let workout = WorkoutIntentService.startToday(using: context) else {
-            return .result(dialog: "GymTracker could not start a workout.")
+            return .result(dialog: "Trame could not start a workout.")
         }
         AppIntentRouteStore.shared.submit(.activeWorkout(workout.id))
         return .result(dialog: "Your workout is ready.")
@@ -110,7 +110,7 @@ struct ShowTodayPlanIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         let context = ModelContext(container)
         let plan = WorkoutIntentProjectionService.todayPlan(using: context)
@@ -140,12 +140,12 @@ struct StartFreeWorkoutIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         let context = ModelContext(container)
         let result = WorkoutIntentService.startFree(using: context)
         guard let workout = result.workout else {
-            return .result(dialog: "GymTracker could not start a free workout.")
+            return .result(dialog: "Trame could not start a free workout.")
         }
         AppIntentRouteStore.shared.submit(.activeWorkout(workout.id))
         switch result {
@@ -154,7 +154,7 @@ struct StartFreeWorkoutIntent: AppIntent {
         case .resumed:
             return .result(dialog: "Resuming your active workout.")
         case .failed:
-            return .result(dialog: "GymTracker could not start a free workout.")
+            return .result(dialog: "Trame could not start a free workout.")
         }
     }
 }
@@ -194,7 +194,7 @@ struct ShowWeeklyVolumeIntent: AppIntent {
         }
 
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         let context = ModelContext(container)
         let unit: WeightType = UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
@@ -248,7 +248,7 @@ struct LogCurrentSetIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         let context = ModelContext(container)
         guard let workout = WorkoutIntentService.activeWorkout(using: context) else {
@@ -264,7 +264,7 @@ struct LogCurrentSetIntent: AppIntent {
         case .applied:
             return .result(dialog: "Set logged. Rest is ready when you are.")
         case .invalid:
-            return .result(dialog: "GymTracker needs valid values for the current set before it can log it.")
+            return .result(dialog: "Trame needs valid values for the current set before it can log it.")
         case .stale:
             return .result(dialog: "That set is no longer current. Check your active workout.")
         case .unavailable:
@@ -295,7 +295,7 @@ struct ControlRestIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         let context = ModelContext(container)
         guard let workout = WorkoutIntentService.activeWorkout(using: context) else {
@@ -355,7 +355,7 @@ struct ViewPreviousPerformanceIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         let context = ModelContext(container)
         let selectedExercise = exercise ?? activeExerciseEntity(using: context)
@@ -461,7 +461,7 @@ struct LogCaffeineIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         guard FeatureFlags.current.isCaffeineQuickLoggingAvailable else {
             return .result(dialog: "Caffeine logging is not available in this build.")
@@ -476,7 +476,7 @@ struct LogCaffeineIntent: AppIntent {
             sizeTitle: sizeValue.title,
             using: context
         ) != nil else {
-            return .result(dialog: "GymTracker could not log that caffeine.")
+            return .result(dialog: "Trame could not log that caffeine.")
         }
         let mg = FoodLibraryService.format(preset.caffeineMilligrams(for: sizeValue))
         return .result(dialog: "Logged \(mg) mg of caffeine.")
@@ -492,11 +492,11 @@ struct ConfirmCreatineIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         let context = ModelContext(container)
         guard SupplementOccurrenceService.confirmCreatine(using: context) != nil else {
-            return .result(dialog: "GymTracker could not confirm today's creatine.")
+            return .result(dialog: "Trame could not confirm today's creatine.")
         }
         return .result(dialog: "Today's creatine is confirmed.")
     }
@@ -573,7 +573,7 @@ struct LogMealIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         guard FeatureFlags.current.isEnabled(.nutrition) else {
             return .result(dialog: "Nutrition logging is not available in this build.")
@@ -585,7 +585,7 @@ struct LogMealIntent: AppIntent {
             return .result(dialog: "\(meal.name) is no longer available.")
         }
         guard NutritionLoggingService.log(template: template, using: context) != nil else {
-            return .result(dialog: "GymTracker could not log \(template.name).")
+            return .result(dialog: "Trame could not log \(template.name).")
         }
         let totals = MealTemplateNutrition.totals(for: template)
         let calories = FoodLibraryService.format(totals.calories)
@@ -665,7 +665,7 @@ struct StartMobilityRoutineIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let container = GymTrackerModelContainer.shared else {
-            return .result(dialog: "GymTracker data is temporarily unavailable.")
+            return .result(dialog: "Trame data is temporarily unavailable.")
         }
         guard FeatureFlags.current.isEnabled(.mobility) else {
             return .result(dialog: "Mobility is not available in this build.")
@@ -689,7 +689,7 @@ struct StartMobilityRoutineIntent: AppIntent {
             return .result(dialog: "No mobility routine is available to start.")
         }
         guard let session = MobilitySessionService.start(routine: resolvedRoutine, using: context) else {
-            return .result(dialog: "GymTracker could not start that mobility routine.")
+            return .result(dialog: "Trame could not start that mobility routine.")
         }
         AppIntentRouteStore.shared.submit(.activeMobility(session.id))
         return .result(dialog: "\(resolvedRoutine.name) is ready.")

@@ -272,7 +272,7 @@ struct SettingView: View {
             didHandleUITestImport = true
 
             if CommandLine.arguments.contains("-ui-testing-import-error") {
-                showImportError("This file is not a valid GymTracker backup. Choose a backup exported from GymTracker.")
+                showImportError("This file is not a valid Trame backup. Choose a backup exported from Trame.")
             } else if CommandLine.arguments.contains("-ui-testing-import-corrupt") {
                 do {
                     _ = try BackupImportService.decodeAndValidate(Data("not-json".utf8))
@@ -349,7 +349,7 @@ struct SettingView: View {
         } header: {
             Text("Workout Reminders")
         } footer: {
-            Text("GymTracker schedules reminders only for future workouts in your active plan.")
+            Text("Trame schedules reminders only for future workouts in your active plan.")
         }
     }
 
@@ -513,7 +513,7 @@ struct SettingView: View {
                         encoder.dateEncodingStrategy = .iso8601
                         let data = try encoder.encode(backup)
                         let fileURL = FileManager.default.temporaryDirectory
-                            .appendingPathComponent("GymTrackerBackup.json")
+                            .appendingPathComponent("TrameBackup.json")
                         try data.write(to: fileURL, options: .atomic)
                         return fileURL
                     }.value

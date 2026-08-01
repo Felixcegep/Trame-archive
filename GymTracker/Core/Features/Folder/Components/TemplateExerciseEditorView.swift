@@ -54,7 +54,7 @@ struct TemplateExerciseEditorView: View {
                 } header: {
                     Text("Progression")
                 } footer: {
-                    Text("When every set reaches the top of the rep range, GymTracker recommends adding 2.5 kg / 5 lb next time. Recommendations are suggestions — your logged weights always win.")
+                    Text("When every set reaches the top of the rep range, Trame recommends adding 2.5 kg / 5 lb next time. Recommendations are suggestions — your logged weights always win.")
                 }
             }
 

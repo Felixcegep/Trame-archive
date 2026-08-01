@@ -32,7 +32,7 @@ private struct StorageUnavailableView: View {
         ContentUnavailableView {
             Label("Your data couldn’t be opened", systemImage: "externaldrive.badge.exclamationmark")
         } description: {
-            Text("GymTracker has not changed your data. Restart the app after freeing storage or updating the app. If this continues, contact support with your diagnostic report.")
+            Text("Trame has not changed your data. Restart the app after freeing storage or updating the app. If this continues, contact support with your diagnostic report.")
         }
         .padding(Spacing.xl)
         .foregroundStyle(Color.gymText)

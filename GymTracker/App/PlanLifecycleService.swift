@@ -2,14 +2,28 @@ import Foundation
 import SwiftData
 
 /// Today can follow one training plan or one rotation, never both. Every action
-/// that would create a second guided source raises one of these instead of
-/// silently picking a winner.
+/// that would create a second guided source offers to switch the current source
+/// instead of presenting the state as a data error.
 enum GuidedSourceConflictRequest {
     case chooseFromToday
     case workoutStart(WorkoutPreparationRequest)
     case activate(RepeatingPlan)
     case resume(RepeatingPlanRun)
     case fixedPlan(FixedPlanAction)
+}
+
+/// The minimum committed state needed to reverse a guided-source switch without
+/// re-anchoring schedules. Pausing and immediately resuming through the normal
+/// coordinator would move unfinished fixed-plan dates, so undo restores the
+/// exact prior active status and timestamp instead.
+struct GuidedSourceSwitchSnapshot: Equatable {
+    struct RunState: Equatable {
+        let id: UUID
+        let updatedAt: Date
+    }
+
+    let fixedRuns: [RunState]
+    let repeatingRuns: [RunState]
 }
 
 enum FixedPlanAction {
@@ -73,6 +87,56 @@ enum PlanLifecycleService {
                 if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
                 return $0.id.uuidString < $1.id.uuidString
             }
+    }
+
+    static func switchSnapshot(using context: ModelContext) -> GuidedSourceSwitchSnapshot {
+        GuidedSourceSwitchSnapshot(
+            fixedRuns: activeFixedRuns(using: context).map { .init(id: $0.id, updatedAt: $0.updatedAt) },
+            repeatingRuns: activeRepeatingRuns(using: context).map { .init(id: $0.id, updatedAt: $0.updatedAt) }
+        )
+    }
+
+    /// Reverses only the source selection. Completed workouts, run progress,
+    /// rotation occurrences, and reusable plan definitions are never touched.
+    static func undoSwitch(
+        to snapshot: GuidedSourceSwitchSnapshot,
+        using context: ModelContext
+    ) -> PlanActionOutcome {
+        let priorFixed = Dictionary(uniqueKeysWithValues: snapshot.fixedRuns.map { ($0.id, $0.updatedAt) })
+        let priorRepeating = Dictionary(uniqueKeysWithValues: snapshot.repeatingRuns.map { ($0.id, $0.updatedAt) })
+        guard priorFixed.count + priorRepeating.count == 1 else {
+            return .failed(message: "The previous plan could not be restored automatically.")
+        }
+
+        let fixedRuns = (try? context.fetch(FetchDescriptor<PlanRun>())) ?? []
+        let repeatingRuns = (try? context.fetch(FetchDescriptor<RepeatingPlanRun>())) ?? []
+        guard fixedRuns.contains(where: { priorFixed[$0.id] != nil })
+                || repeatingRuns.contains(where: { priorRepeating[$0.id] != nil }) else {
+            return .failed(message: "The previous plan is no longer available.")
+        }
+
+        for run in fixedRuns where run.status == .active && priorFixed[run.id] == nil {
+            PlanCoordinator.pause(run)
+        }
+        for run in repeatingRuns where run.status == .active && priorRepeating[run.id] == nil {
+            try? RepeatingPlanCoordinator.pause(run)
+        }
+        for run in fixedRuns {
+            guard let updatedAt = priorFixed[run.id], run.status == .paused else { continue }
+            run.status = .active
+            run.updatedAt = updatedAt
+        }
+        for run in repeatingRuns {
+            guard let updatedAt = priorRepeating[run.id], run.status == .paused else { continue }
+            run.status = .active
+            run.updatedAt = updatedAt
+        }
+
+        guard context.saveOrRollback() else {
+            return .failed(message: "The previous plan could not be restored. Try again.")
+        }
+        NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
+        return .succeeded(confirmation: String(localized: "Previous plan restored."))
     }
 
     // MARK: - Rotation lifecycle

@@ -221,6 +221,55 @@ final class WorkoutPlanLifecycleTests: XCTestCase {
         XCTAssertTrue(try context.fetch(FetchDescriptor<Workout>()).contains { $0 === workout })
     }
 
+    func testUndoGuidedSourceSwitchRestoresPriorPlanWithoutMovingItsSchedule() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        let fixedPlan = PlanCoordinator.createRepeatedPlan(
+            name: "Original Plan",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            template: template,
+            dayOffsets: [0, 2]
+        )
+        let fixedRun = try XCTUnwrap(PlanCoordinator.startRun(for: fixedPlan))
+        let originalUpdatedAt = Date(timeIntervalSince1970: 1_000)
+        fixedRun.updatedAt = originalUpdatedAt
+        let originalDates = fixedRun.orderedWorkoutProgress.map(\.scheduledDate)
+
+        let rotationTemplate = WorkoutTemplate(name: "Rotation Workout", exercises: [])
+        let rotation = RepeatingPlan(
+            name: "Temporary Rotation",
+            slots: [RepeatingPlanSlot(orderIndex: 0, workoutTemplate: rotationTemplate)]
+        )
+
+        context.insert(exercise)
+        context.insert(template)
+        context.insert(fixedPlan)
+        context.insert(fixedRun)
+        context.insert(rotationTemplate)
+        context.insert(rotation)
+        try context.save()
+
+        let snapshot = PlanLifecycleService.switchSnapshot(using: context)
+        let switchOutcome = PlanLifecycleService.resolveConflictAndActivate(rotation, using: context)
+        guard case .succeededSilently = switchOutcome else {
+            return XCTFail("Expected the rotation switch to commit")
+        }
+        XCTAssertEqual(fixedRun.status, .paused)
+        XCTAssertEqual(PlanLifecycleService.activeRepeatingRuns(using: context).count, 1)
+
+        let undoOutcome = PlanLifecycleService.undoSwitch(to: snapshot, using: context)
+        guard case .succeeded = undoOutcome else {
+            return XCTFail("Expected the previous plan to be restored")
+        }
+        XCTAssertEqual(fixedRun.status, .active)
+        XCTAssertEqual(fixedRun.updatedAt, originalUpdatedAt)
+        XCTAssertEqual(fixedRun.orderedWorkoutProgress.map(\.scheduledDate), originalDates)
+        XCTAssertTrue(PlanLifecycleService.activeRepeatingRuns(using: context).isEmpty)
+    }
+
 
     private func makeContext() throws -> ModelContext {
         try GymTrackerTestStore.makeInMemoryContext()

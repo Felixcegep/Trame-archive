@@ -39,6 +39,8 @@ struct RootView: View {
     @State private var progressionReceiptRequest: ProgressionReceiptRequest?
     @State private var mobilityLinkError: String?
     @State private var guidedSourceConflictRequest: GuidedSourceConflictRequest?
+    @State private var pendingGuidedSourceUndo: GuidedSourceSwitchSnapshot?
+    @State private var guidedSourceUndoTask: Task<Void, Never>?
     @State private var guidedSourceActionError: String?
     @State private var isShowingActiveWorkoutConflictAlert = false
     /// Confirmations shown on Today. Owned here because the two events that
@@ -278,7 +280,7 @@ struct RootView: View {
             Text("Do you want to continue your active workout, or discard it and start a new one?")
         }
         .confirmationDialog(
-            "Choose one guided training source",
+            guidedSourceSwitchTitle,
             isPresented: Binding(
                 get: { guidedSourceConflictRequest != nil },
                 set: { if !$0 { guidedSourceConflictRequest = nil } }
@@ -287,7 +289,7 @@ struct RootView: View {
         ) {
             guidedSourceConflictActions
         } message: {
-            Text("Today can follow one training plan or rotation at a time. Your completed workout history will not change.")
+            Text(guidedSourceSwitchMessage)
         }
         // A sheet, not a confirmation dialog: an action sheet had nowhere to
         // put the routine's length or size, so it asked for a decision while
@@ -388,6 +390,11 @@ struct RootView: View {
             consumePendingAppIntentDestination()
         }
         .onChange(of: scenePhase) { _, newPhase in handleScenePhaseChange(newPhase) }
+        .safeAreaInset(edge: .bottom) {
+            if pendingGuidedSourceUndo != nil {
+                guidedSourceUndoBanner
+            }
+        }
     }
 
     /// The coarse product destination currently visible, derived from
@@ -1286,13 +1293,13 @@ struct RootView: View {
             switch request {
             case .chooseFromToday:
                 if !activeFixedPlanRuns().isEmpty {
-                    Button("Follow Training Plan") {
+                    Button("Make Training Plan Active") {
                         resolveTodayGuidedSource(preferRepeating: false)
                     }
                     .accessibilityIdentifier("follow-fixed-plan")
                 }
                 if !activeRepeatingPlanRuns().isEmpty {
-                    Button("Follow Rotation") {
+                    Button("Make Rotation Active") {
                         resolveTodayGuidedSource(preferRepeating: true)
                     }
                     .accessibilityIdentifier("follow-repeating-plan")
@@ -1303,17 +1310,17 @@ struct RootView: View {
                 }
                 .accessibilityIdentifier("resolve-guided-conflict-and-start")
             case .activate(let plan):
-                Button("Pause Current Source & Activate Rotation") {
+                Button("Pause Current Plan & Start Rotation") {
                     resolveGuidedConflictAndActivate(plan)
                 }
                 .accessibilityIdentifier("resolve-guided-conflict-and-activate")
             case .resume(let run):
-                Button("Pause Current Source & Resume Rotation") {
+                Button("Pause Current Plan & Resume Rotation") {
                     resolveGuidedConflictAndResume(run)
                 }
                 .accessibilityIdentifier("resolve-guided-conflict-and-resume")
             case .fixedPlan(let action):
-                Button("Pause Current Source & Continue Plan") {
+                Button("Pause Current Plan & Continue") {
                     resolveGuidedConflictAndPerformFixedPlanAction(action)
                 }
                 .accessibilityIdentifier("resolve-guided-conflict-and-continue-plan")
@@ -1327,12 +1334,67 @@ struct RootView: View {
     private func guidedConflictContinuationTitle(for start: PendingWorkoutStart) -> String {
         switch start {
         case .planned:
-            return "Pause Rotation & Start Plan Workout"
+            return "Pause Rotation & Start Workout"
         case .repeating:
-            return "Pause Other Sources & Start Rotation"
+            return "Pause Current Plan & Start Rotation"
         case .template:
             return "Continue"
         }
+    }
+
+    private var guidedSourceSwitchTitle: String {
+        guard let request = guidedSourceConflictRequest else { return String(localized: "Change active plan?") }
+        switch request {
+        case .chooseFromToday:
+            return String(localized: "Choose your active plan")
+        case .activate(_), .resume(_):
+            return String(localized: "Switch to this rotation?")
+        case .workoutStart(let request):
+            if case .planned = request.start {
+                return String(localized: "Switch to this training plan?")
+            }
+            return String(localized: "Switch to this rotation?")
+        case .fixedPlan(_):
+            return String(localized: "Switch to this training plan?")
+        }
+    }
+
+    private var guidedSourceSwitchMessage: String {
+        guard case .chooseFromToday? = guidedSourceConflictRequest else {
+            return String(localized: "Your current plan will be paused, not deleted. Its progress and completed workouts stay available, and you can resume it later.")
+        }
+        return String(localized: "Choose which plan appears in Today. The other plan will be paused, while its progress and completed workouts remain available.")
+    }
+
+    private var guidedSourceUndoBanner: some View {
+        HStack(spacing: Spacing.m) {
+            Image(systemName: AppIcon.pause)
+                .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(Color.gymSubduedText)
+                .accessibilityHidden(true)
+            Text("Active plan changed")
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymText)
+                .lineLimit(2)
+            Spacer(minLength: Spacing.s)
+            Button("Undo") { undoGuidedSourceSwitch() }
+                .font(AppFont.subheadlineSemibold)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .accessibilityIdentifier("undo-guided-source-switch")
+                .accessibilityHint("Pauses the new plan and restores the previously active plan.")
+        }
+        .padding(.horizontal, Spacing.l)
+        .padding(.vertical, Spacing.s)
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.section, style: .continuous)
+                .stroke(Color.gymBorder, lineWidth: 1)
+        }
+        .shadow(color: Color.gymText.opacity(0.08), radius: 8, y: 2)
+        .padding(.horizontal, Spacing.l)
+        .padding(.bottom, Spacing.m)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("guided-source-undo-banner")
     }
 
     private func resolveGuidedConflictAndStart(_ request: WorkoutPreparationRequest) {
@@ -1358,16 +1420,23 @@ struct RootView: View {
     }
 
     private func resolveGuidedConflictAndActivate(_ plan: RepeatingPlan) {
+        let snapshot = PlanLifecycleService.switchSnapshot(using: modelContext)
         guidedSourceConflictRequest = nil
-        apply(PlanLifecycleService.resolveConflictAndActivate(plan, using: modelContext))
+        let outcome = PlanLifecycleService.resolveConflictAndActivate(plan, using: modelContext)
+        apply(outcome)
+        registerGuidedSourceUndo(snapshot, after: outcome)
     }
 
     private func resolveGuidedConflictAndResume(_ run: RepeatingPlanRun) {
+        let snapshot = PlanLifecycleService.switchSnapshot(using: modelContext)
         guidedSourceConflictRequest = nil
-        apply(PlanLifecycleService.resolveConflictAndResume(run, using: modelContext))
+        let outcome = PlanLifecycleService.resolveConflictAndResume(run, using: modelContext)
+        apply(outcome)
+        registerGuidedSourceUndo(snapshot, after: outcome)
     }
 
     private func resolveGuidedConflictAndPerformFixedPlanAction(_ action: FixedPlanAction) {
+        let snapshot = PlanLifecycleService.switchSnapshot(using: modelContext)
         guidedSourceConflictRequest = nil
         do {
             PlanLifecycleService.stagePauseFixedRuns(except: action.retainedRunID, using: modelContext)
@@ -1376,6 +1445,7 @@ struct RootView: View {
                 modelContext.rollback()
                 return
             }
+            registerGuidedSourceUndo(snapshot)
         } catch {
             modelContext.rollback()
             guidedSourceActionError = "The rotation could not be paused. Try again."
@@ -1383,8 +1453,48 @@ struct RootView: View {
     }
 
     private func resolveTodayGuidedSource(preferRepeating: Bool) {
+        let snapshot = PlanLifecycleService.switchSnapshot(using: modelContext)
         guidedSourceConflictRequest = nil
-        apply(PlanLifecycleService.resolveTodaySource(preferRepeating: preferRepeating, using: modelContext))
+        let outcome = PlanLifecycleService.resolveTodaySource(preferRepeating: preferRepeating, using: modelContext)
+        apply(outcome)
+        registerGuidedSourceUndo(snapshot, after: outcome)
+    }
+
+    private func registerGuidedSourceUndo(
+        _ snapshot: GuidedSourceSwitchSnapshot,
+        after outcome: PlanActionOutcome = .succeededSilently
+    ) {
+        guard !workoutVM.hasActiveWorkout else { return }
+        guard snapshot.fixedRuns.count + snapshot.repeatingRuns.count == 1 else { return }
+        switch outcome {
+        case .succeeded, .succeededSilently:
+            break
+        case .failed, .needsConflictResolution:
+            return
+        }
+        guidedSourceUndoTask?.cancel()
+        pendingGuidedSourceUndo = snapshot
+        GymAnnouncement.post(String(localized: "Active plan changed. Undo is available."))
+        guidedSourceUndoTask = Task {
+            try? await Task.sleep(for: .seconds(UIAccessibility.isVoiceOverRunning ? 16 : 8))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                pendingGuidedSourceUndo = nil
+                guidedSourceUndoTask = nil
+            }
+        }
+    }
+
+    private func undoGuidedSourceSwitch() {
+        guard let snapshot = pendingGuidedSourceUndo else { return }
+        guard !workoutVM.hasActiveWorkout else {
+            guidedSourceActionError = "Finish or discard the active workout before restoring the previous plan."
+            return
+        }
+        guidedSourceUndoTask?.cancel()
+        guidedSourceUndoTask = nil
+        pendingGuidedSourceUndo = nil
+        apply(PlanLifecycleService.undoSwitch(to: snapshot, using: modelContext))
     }
 
     /// The view's half of a UI-test reset. `AppBootstrap` owns the persisted
@@ -1396,6 +1506,9 @@ struct RootView: View {
         activeWorkoutPath.removeAll()
         pendingWorkoutStart = nil
         guidedSourceConflictRequest = nil
+        guidedSourceUndoTask?.cancel()
+        guidedSourceUndoTask = nil
+        pendingGuidedSourceUndo = nil
         workoutVM.workout = nil
         workoutVM.activeWorkout = nil
         activeLoggingMetrics.reset()
