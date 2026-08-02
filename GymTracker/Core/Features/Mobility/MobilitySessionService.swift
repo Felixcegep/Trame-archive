@@ -17,6 +17,29 @@ enum MobilityPhaseCompletionOutcome: Equatable {
     case persistenceFailure
 }
 
+enum MobilityTimerMutationOutcome: Equatable {
+    case applied
+    case alreadyPaused
+    case alreadyRunning
+    case stale
+    case persistenceFailure
+}
+
+enum MobilityUndoOutcome: Equatable {
+    case applied
+    case nothingToUndo
+    case stale
+    case persistenceFailure
+}
+
+enum MobilitySessionRestorationOutcome {
+    case none
+    case restored(MobilitySession)
+    case repaired(MobilitySession)
+    case invalid
+    case persistenceFailure
+}
+
 @MainActor
 enum MobilitySessionService {
     @discardableResult
@@ -69,6 +92,52 @@ enum MobilitySessionService {
             .filter { $0.status == .active }
             .sorted { $0.updatedAt > $1.updatedAt }
             .first
+    }
+
+    /// Restores one active session only when its performed-evidence graph has
+    /// one unambiguous current execution node. Narrow legacy cursor/status
+    /// mismatches are repaired in one save; ambiguous graphs remain untouched.
+    static func restoreActiveSession(
+        now: Date = .now,
+        using modelContext: ModelContext
+    ) -> MobilitySessionRestorationOutcome {
+        let sessions: [MobilitySession]
+        do {
+            sessions = try modelContext.fetch(FetchDescriptor<MobilitySession>())
+        } catch {
+            return .invalid
+        }
+        let activeSessions = sessions.filter { $0.status == .active }
+        guard activeSessions.isEmpty == false else { return .none }
+        guard activeSessions.count == 1, let session = activeSessions.first else { return .invalid }
+
+        switch reconciliationPlan(for: session) {
+        case .valid:
+            return .restored(session)
+        case .repair(let entry, let phase, let repairSideResult):
+            session.currentEntryIndex = entry.orderIndex
+            if let phase {
+                entry.currentCycleIndex = phase.cycleIndex
+                entry.currentPhaseIndex = phaseIndex(of: phase, in: entry)
+                if repairSideResult,
+                   let result = entry.results.first(where: { $0.side == phase.side }) {
+                    result.status = .inProgress
+                    result.startedAt = result.startedAt ?? phase.startedAt ?? now
+                    result.completedAt = nil
+                }
+            }
+            session.endTime = nil
+            session.updatedAt = now
+            do {
+                try modelContext.save()
+                return .repaired(session)
+            } catch {
+                modelContext.rollback()
+                return .persistenceFailure
+            }
+        case .invalid:
+            return .invalid
+        }
     }
 
     @discardableResult
@@ -148,6 +217,58 @@ enum MobilitySessionService {
         now: Date = .now,
         using modelContext: ModelContext
     ) -> MobilityPhaseCompletionOutcome {
+        finishCurrentPhase(
+            in: session,
+            status: .completed,
+            performedDurationSeconds: performedDurationSeconds,
+            performedIntensity: performedIntensity,
+            now: now,
+            using: modelContext
+        )
+    }
+
+    @discardableResult
+    static func savePartialCurrentPhase(
+        in session: MobilitySession,
+        performedDurationSeconds: Int? = nil,
+        performedIntensity: ContractionIntensity? = nil,
+        now: Date = .now,
+        using modelContext: ModelContext
+    ) -> MobilityPhaseCompletionOutcome {
+        finishCurrentPhase(
+            in: session,
+            status: .partial,
+            performedDurationSeconds: performedDurationSeconds,
+            performedIntensity: performedIntensity,
+            now: now,
+            using: modelContext
+        )
+    }
+
+    @discardableResult
+    static func skipCurrentPhase(
+        in session: MobilitySession,
+        now: Date = .now,
+        using modelContext: ModelContext
+    ) -> MobilityPhaseCompletionOutcome {
+        finishCurrentPhase(
+            in: session,
+            status: .skipped,
+            performedDurationSeconds: nil,
+            performedIntensity: nil,
+            now: now,
+            using: modelContext
+        )
+    }
+
+    private static func finishCurrentPhase(
+        in session: MobilitySession,
+        status: MobilityResultStatus,
+        performedDurationSeconds: Int?,
+        performedIntensity: ContractionIntensity?,
+        now: Date,
+        using modelContext: ModelContext
+    ) -> MobilityPhaseCompletionOutcome {
         guard performedDurationSeconds.map({ $0 >= 0 }) ?? true else {
             return .invalidPerformedDuration
         }
@@ -170,12 +291,13 @@ enum MobilitySessionService {
         )
         guard transition.stale == false else { return .stale(transition) }
 
-        currentPhase.performedDurationSeconds = performedDurationSeconds
-            ?? elapsedSeconds(for: entry, now: now)
-        currentPhase.performedIntensity = performedIntensity
-        currentPhase.status = .completed
+        currentPhase.performedDurationSeconds = status == .skipped
+            ? nil
+            : performedDurationSeconds ?? elapsedSeconds(for: entry, now: now)
+        currentPhase.performedIntensity = status == .skipped ? nil : performedIntensity
+        currentPhase.status = status
         currentPhase.completedAt = now
-        completeSideIfFinished(currentPhase.side, in: entry, now: now)
+        reconcileSideStatus(currentPhase.side, in: entry, now: now)
         apply(transition, afterCompletingPhaseIn: entry, session: session, now: now)
         session.updatedAt = now
 
@@ -186,6 +308,132 @@ enum MobilitySessionService {
             modelContext.rollback()
             return .persistenceFailure
         }
+    }
+
+    @discardableResult
+    static func pause(
+        _ session: MobilitySession,
+        now: Date = .now,
+        using modelContext: ModelContext
+    ) -> MobilityTimerMutationOutcome {
+        guard session.status == .active,
+              let entry = session.currentEntry,
+              hasValidCurrentEvidence(in: entry),
+              let startedAt = entry.timerStartedAt else {
+            if session.status == .active, session.currentEntry?.isTimerPaused == true {
+                return .alreadyPaused
+            }
+            return .stale
+        }
+        entry.pausedElapsedSeconds += max(0, Int(now.timeIntervalSince(startedAt)))
+        entry.timerStartedAt = nil
+        session.updatedAt = now
+        do {
+            try modelContext.save()
+            return .applied
+        } catch {
+            modelContext.rollback()
+            return .persistenceFailure
+        }
+    }
+
+    @discardableResult
+    static func resume(
+        _ session: MobilitySession,
+        now: Date = .now,
+        using modelContext: ModelContext
+    ) -> MobilityTimerMutationOutcome {
+        guard session.status == .active,
+              let entry = session.currentEntry,
+              hasValidCurrentEvidence(in: entry) else { return .stale }
+        guard entry.timerStartedAt == nil else { return .alreadyRunning }
+        entry.timerStartedAt = now
+        session.updatedAt = now
+        do {
+            try modelContext.save()
+            return .applied
+        } catch {
+            modelContext.rollback()
+            return .persistenceFailure
+        }
+    }
+
+    @discardableResult
+    static func undoLatestCompletion(
+        in session: MobilitySession,
+        now: Date = .now,
+        using modelContext: ModelContext
+    ) -> MobilityUndoOutcome {
+        guard session.status == .active || session.status == .completed else { return .stale }
+        if session.status == .active {
+            guard case .valid = reconciliationPlan(for: session) else { return .stale }
+        } else {
+            guard isCompletedGraphValid(session) else { return .stale }
+        }
+        let undo = MobilityFlowResolver.resolveUndo(in: flowSnapshot(for: session))
+        guard undo.stale == false else { return .stale }
+        guard let target = undo.target,
+              let targetEntry = session.entries.first(where: { $0.id == target.entryID })
+        else { return .nothingToUndo }
+
+        if let successor = undo.successor {
+            guard resetStartedSuccessor(successor, in: session) else { return .stale }
+        }
+
+        let restoredElapsed: Int
+        if let phaseID = target.phaseResultID {
+            guard let phase = targetEntry.phaseResults.first(where: { $0.id == phaseID }),
+                  isTerminal(phase.status) else { return .stale }
+            restoredElapsed = max(0, phase.performedDurationSeconds ?? 0)
+            phase.status = .inProgress
+            phase.completedAt = nil
+            phase.startedAt = now
+            targetEntry.currentCycleIndex = phase.cycleIndex
+            targetEntry.currentPhaseIndex = phaseIndex(of: phase, in: targetEntry)
+            if let sideResult = targetEntry.results.first(where: { $0.side == phase.side }) {
+                sideResult.status = .inProgress
+                sideResult.completedAt = nil
+                sideResult.startedAt = sideResult.startedAt ?? now
+            }
+        } else {
+            guard targetEntry.isPhaseDriven == false,
+                  targetEntry.results.isEmpty == false,
+                  targetEntry.results.allSatisfy({ isTerminal($0.status) }) else { return .stale }
+            restoredElapsed = max(
+                0,
+                targetEntry.results.compactMap(\.performedDurationSeconds).max() ?? 0
+            )
+            for result in targetEntry.results {
+                result.status = .inProgress
+                result.completedAt = nil
+                result.startedAt = result.startedAt ?? now
+            }
+        }
+
+        targetEntry.pausedElapsedSeconds = restoredElapsed
+        targetEntry.timerStartedAt = now
+        session.currentEntryIndex = targetEntry.orderIndex
+        session.status = .active
+        session.endTime = nil
+        session.updatedAt = now
+        do {
+            try modelContext.save()
+            return .applied
+        } catch {
+            modelContext.rollback()
+            return .persistenceFailure
+        }
+    }
+
+    static func canUndo(in session: MobilitySession) -> Bool {
+        guard session.status == .active || session.status == .completed else { return false }
+        if session.status == .active {
+            guard case .valid = reconciliationPlan(for: session) else { return false }
+        } else if isCompletedGraphValid(session) == false {
+            return false
+        }
+        let transition = MobilityFlowResolver.resolveUndo(in: flowSnapshot(for: session))
+        return transition.stale == false && transition.target != nil
     }
 
     private static func finishCurrent(
@@ -215,33 +463,48 @@ enum MobilitySessionService {
     @discardableResult
     static func stop(_ session: MobilitySession, using modelContext: ModelContext) -> Bool {
         guard session.status == .active else { return false }
+        let now = Date.now
+        if let currentEntry = session.currentEntry {
+            let elapsed = elapsedSeconds(for: currentEntry, now: now)
+            currentEntry.currentPhaseResult?.performedDurationSeconds = elapsed
+            if currentEntry.isPhaseDriven == false, currentEntry.trackingType == .duration {
+                for result in currentEntry.results where result.status == .inProgress {
+                    result.performedDurationSeconds = elapsed
+                }
+            }
+        }
         for entry in session.orderedEntries {
             for result in entry.results where result.status == .notStarted || result.status == .inProgress {
                 result.status = .stopped
-                result.completedAt = .now
+                result.completedAt = now
             }
             for phaseResult in entry.phaseResults
                 where phaseResult.status == .notStarted || phaseResult.status == .inProgress {
                 phaseResult.status = .stopped
-                phaseResult.completedAt = .now
+                phaseResult.completedAt = now
             }
             entry.timerStartedAt = nil
+            entry.pausedElapsedSeconds = 0
         }
         session.status = .stopped
-        session.endTime = .now
+        session.endTime = now
         return save(session: session, using: modelContext)
     }
 
     static func elapsedSeconds(for entry: MobilityEntry, now: Date = .now) -> Int {
-        guard let startedAt = entry.timerStartedAt else { return 0 }
-        return max(0, Int(now.timeIntervalSince(startedAt)))
+        let runningElapsed = entry.timerStartedAt.map {
+            max(0, Int(now.timeIntervalSince($0)))
+        } ?? 0
+        return max(0, entry.pausedElapsedSeconds) + runningElapsed
     }
 
     private static func begin(entry: MobilityEntry?, now: Date = .now) {
         guard let entry else { return }
+        entry.pausedElapsedSeconds = 0
         guard entry.isPhaseDriven else {
-            // Preserve the existing simple duration/repetition start contract.
-            entry.timerStartedAt = entry.trackingType == .duration ? now : nil
+            // Simple duration and repetition work share one operational timer
+            // so either can pause/resume; only duration completion consumes it.
+            entry.timerStartedAt = now
             for result in entry.results {
                 result.status = .inProgress
                 result.startedAt = now
@@ -303,7 +566,7 @@ enum MobilitySessionService {
         entry.timerStartedAt = nil
     }
 
-    private static func completeSideIfFinished(
+    private static func reconcileSideStatus(
         _ side: MobilitySide,
         in entry: MobilityEntry,
         now: Date
@@ -314,7 +577,14 @@ enum MobilitySessionService {
         guard hasUnfinishedPhase == false,
               let result = entry.results.first(where: { $0.side == side })
         else { return }
-        result.status = .completed
+        let sidePhases = entry.phaseResults.filter { $0.side == side }
+        if sidePhases.allSatisfy({ $0.status == .skipped }) {
+            result.status = .skipped
+        } else if sidePhases.allSatisfy({ $0.status == .completed }) {
+            result.status = .completed
+        } else {
+            result.status = .partial
+        }
         result.completedAt = now
     }
 
@@ -354,6 +624,7 @@ enum MobilitySessionService {
     ) {
         entry.currentCycleIndex = phase.cycleIndex
         entry.currentPhaseIndex = phaseIndex
+        entry.pausedElapsedSeconds = 0
         entry.timerStartedAt = now
         phase.status = .inProgress
         phase.startedAt = now
@@ -390,6 +661,178 @@ enum MobilitySessionService {
         )
     }
 
+    private enum ReconciliationPlan {
+        case valid
+        case repair(entry: MobilityEntry, phase: MobilityPhaseResult?, repairSideResult: Bool)
+        case invalid
+    }
+
+    private static func reconciliationPlan(for session: MobilitySession) -> ReconciliationPlan {
+        guard session.status == .active,
+              session.endTime == nil,
+              session.entries.isEmpty == false,
+              Set(session.entries.map(\.id)).count == session.entries.count,
+              Set(session.entries.map(\.orderIndex)).count == session.entries.count,
+              session.entries.allSatisfy({ $0.pausedElapsedSeconds >= 0 })
+        else { return .invalid }
+
+        let orderedEntries = session.orderedEntries
+        let inProgressPhases = orderedEntries.flatMap(\.phaseResults).filter { $0.status == .inProgress }
+        if inProgressPhases.isEmpty == false {
+            guard inProgressPhases.count == 1,
+                  let phase = inProgressPhases.first,
+                  let entry = phase.entry ?? orderedEntries.first(where: { $0.phaseResults.contains(where: { $0.id == phase.id }) }),
+                  entry.isPhaseDriven,
+                  phase.performedDurationSeconds == nil,
+                  phase.performedIntensity == nil,
+                  isOrderedPhaseGraphValid(entry, currentPhase: phase),
+                  isEntryOrderValid(orderedEntries, currentEntry: entry),
+                  entry.results.filter({ $0.side == phase.side }).count == 1,
+                  entry.results.filter({ $0.status == .inProgress }).count <= 1,
+                  orderedEntries.filter({ $0.timerStartedAt != nil }).allSatisfy({ $0.id == entry.id })
+            else { return .invalid }
+
+            guard let sideResult = entry.results.first(where: { $0.side == phase.side }),
+                  sideResult.status == .inProgress || sideResult.status == .notStarted
+            else { return .invalid }
+            let cursorMatches = session.currentEntryIndex == entry.orderIndex
+                && entry.currentCycleIndex == phase.cycleIndex
+                && entry.currentPhaseIndex == phaseIndex(of: phase, in: entry)
+            if cursorMatches && sideResult.status == .inProgress {
+                return .valid
+            }
+            return .repair(
+                entry: entry,
+                phase: phase,
+                repairSideResult: sideResult.status == .notStarted
+            )
+        }
+
+        let simpleCandidates = orderedEntries.filter { entry in
+            entry.isPhaseDriven == false
+                && entry.results.isEmpty == false
+                && entry.results.allSatisfy({ $0.status == .inProgress })
+        }
+        guard simpleCandidates.count == 1,
+              let currentEntry = simpleCandidates.first,
+              isEntryOrderValid(orderedEntries, currentEntry: currentEntry),
+              orderedEntries.flatMap(\.phaseResults).allSatisfy({ $0.status != .inProgress }),
+              orderedEntries.filter({ $0.timerStartedAt != nil }).allSatisfy({ $0.id == currentEntry.id })
+        else { return .invalid }
+        return session.currentEntryIndex == currentEntry.orderIndex
+            ? .valid
+            : .repair(entry: currentEntry, phase: nil, repairSideResult: false)
+    }
+
+    private static func isOrderedPhaseGraphValid(
+        _ entry: MobilityEntry,
+        currentPhase: MobilityPhaseResult
+    ) -> Bool {
+        let nodes = entry.orderedPhaseResults
+        guard nodes.isEmpty == false,
+              Set(nodes.map(\.id)).count == nodes.count,
+              let index = nodes.firstIndex(where: { $0.id == currentPhase.id })
+        else { return false }
+        return nodes.prefix(index).allSatisfy { isTerminal($0.status) }
+            && nodes.dropFirst(index + 1).allSatisfy { $0.status == .notStarted }
+    }
+
+    private static func isEntryOrderValid(
+        _ entries: [MobilityEntry],
+        currentEntry: MobilityEntry
+    ) -> Bool {
+        guard let index = entries.firstIndex(where: { $0.id == currentEntry.id }) else { return false }
+        let earlierValid = entries.prefix(index).allSatisfy { entry in
+            entry.results.isEmpty == false
+                && entry.results.allSatisfy { isTerminal($0.status) }
+                && entry.phaseResults.allSatisfy { isTerminal($0.status) }
+        }
+        let laterValid = entries.dropFirst(index + 1).allSatisfy { entry in
+            entry.results.allSatisfy { $0.status == .notStarted }
+                && entry.phaseResults.allSatisfy { $0.status == .notStarted }
+                && entry.timerStartedAt == nil
+        }
+        return earlierValid && laterValid
+    }
+
+    private static func hasValidCurrentEvidence(in entry: MobilityEntry) -> Bool {
+        if entry.isPhaseDriven {
+            return entry.phaseResults.filter({ $0.status == .inProgress }).count == 1
+                && entry.currentPhaseResult != nil
+        }
+        return entry.results.isEmpty == false
+            && entry.results.allSatisfy { $0.status == .inProgress }
+    }
+
+    private static func isCompletedGraphValid(_ session: MobilitySession) -> Bool {
+        session.status == .completed
+            && session.endTime != nil
+            && session.entries.isEmpty == false
+            && session.entries.allSatisfy { entry in
+                entry.timerStartedAt == nil
+                    && entry.results.isEmpty == false
+                    && entry.results.allSatisfy { isTerminal($0.status) }
+                    && entry.phaseResults.allSatisfy { isTerminal($0.status) }
+            }
+    }
+
+    private static func resetStartedSuccessor(
+        _ successor: MobilityFlowTarget,
+        in session: MobilitySession
+    ) -> Bool {
+        guard let entry = session.entries.first(where: { $0.id == successor.entryID }) else { return false }
+        if let phaseID = successor.phaseResultID {
+            guard let phase = entry.phaseResults.first(where: { $0.id == phaseID }),
+                  phase.status == .inProgress,
+                  phase.performedDurationSeconds == nil,
+                  phase.performedIntensity == nil,
+                  phase.completedAt == nil else { return false }
+            phase.status = .notStarted
+            phase.startedAt = nil
+            let sidePhases = entry.phaseResults.filter { $0.side == phase.side && $0.id != phase.id }
+            if let sideResult = entry.results.first(where: { $0.side == phase.side }) {
+                let hasPriorEvidence = sidePhases.contains { isTerminal($0.status) }
+                sideResult.status = hasPriorEvidence ? .inProgress : .notStarted
+                sideResult.completedAt = nil
+                if hasPriorEvidence == false { sideResult.startedAt = nil }
+            }
+        } else {
+            guard entry.isPhaseDriven == false,
+                  entry.results.isEmpty == false,
+                  entry.results.allSatisfy({ $0.status == .inProgress && $0.completedAt == nil })
+            else { return false }
+            for result in entry.results {
+                result.status = .notStarted
+                result.performedDurationSeconds = nil
+                result.performedRepetitions = nil
+                result.performedLoadValue = nil
+                result.performedLoadUnit = nil
+                result.perceivedIntensity = nil
+                result.discomfortNote = nil
+                result.startedAt = nil
+            }
+        }
+        entry.timerStartedAt = nil
+        entry.pausedElapsedSeconds = 0
+        return true
+    }
+
+    private static func phaseIndex(
+        of phase: MobilityPhaseResult,
+        in entry: MobilityEntry
+    ) -> Int {
+        entry.orderedPhaseResults
+            .filter { $0.side == phase.side && $0.cycleIndex == phase.cycleIndex }
+            .firstIndex(where: { $0.id == phase.id }) ?? 0
+    }
+
+    private static func isTerminal(_ status: MobilityResultStatus) -> Bool {
+        switch status {
+        case .notStarted, .inProgress: false
+        case .completed, .partial, .skipped, .stopped: true
+        }
+    }
+
     private static func flowSnapshot(for session: MobilitySession) -> MobilityFlowSnapshot {
         MobilityFlowSnapshot(
             currentEntryIndex: session.currentEntryIndex,
@@ -417,6 +860,7 @@ enum MobilitySessionService {
                     currentCycleIndex: entry.currentCycleIndex,
                     currentPhaseIndex: entry.currentPhaseIndex,
                     restSeconds: entry.restSeconds,
+                    resultStatuses: entry.orderedResults.map(\.status),
                     phaseNodes: nodes
                 )
             }

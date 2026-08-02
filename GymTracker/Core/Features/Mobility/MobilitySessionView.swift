@@ -89,10 +89,7 @@ struct MobilitySessionView: View {
                 // scrolling off under a long list of result inputs.
                 .safeAreaInset(edge: .bottom) { actions }
             } else {
-                ContentUnavailableView(
-                    session.status == .completed ? "Mobility complete" : "Mobility stopped",
-                    systemImage: session.status == .completed ? AppIcon.checkmarkCircle : AppIcon.stop,
-                    description: Text("Your performed results have been saved."))
+                terminalContent
             }
         }
         .foregroundStyle(Color.gymText)
@@ -173,11 +170,16 @@ struct MobilitySessionView: View {
                     Text(phaseProgressLabel(phase, in: entry))
                         .foregroundStyle(Color.gymSubduedText)
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
-                        MobilityHoldProgressLabel(
-                            elapsedSeconds: elapsedSeconds(for: entry),
-                            targetSeconds: phase.prescribedDurationSeconds,
-                            movementName: "\(entry.definitionNameSnapshot), \(phase.phaseType.title)"
-                        )
+                        if entry.isTimerPaused {
+                            Label("Paused at \(elapsedSeconds(for: entry)) sec", systemImage: AppIcon.pause)
+                                .monospacedDigit()
+                        } else {
+                            MobilityHoldProgressLabel(
+                                elapsedSeconds: elapsedSeconds(for: entry),
+                                targetSeconds: phase.prescribedDurationSeconds,
+                                movementName: "\(entry.definitionNameSnapshot), \(phase.phaseType.title)"
+                            )
+                        }
                     }
                     if let intensity = phase.prescribedIntensity {
                         Text("Prescribed effort: \(intensity.title)")
@@ -191,11 +193,16 @@ struct MobilitySessionView: View {
                     Label(entry.side.displayName, systemImage: AppIcon.mobility)
                     if entry.trackingType == .duration, let target = entry.targetDurationSeconds {
                         TimelineView(.periodic(from: .now, by: 1)) { _ in
-                            MobilityHoldProgressLabel(
-                                elapsedSeconds: elapsedSeconds(for: entry),
-                                targetSeconds: target,
-                                movementName: entry.definitionNameSnapshot
-                            )
+                            if entry.isTimerPaused {
+                                Label("Paused at \(elapsedSeconds(for: entry)) sec", systemImage: AppIcon.pause)
+                                    .monospacedDigit()
+                            } else {
+                                MobilityHoldProgressLabel(
+                                    elapsedSeconds: elapsedSeconds(for: entry),
+                                    targetSeconds: target,
+                                    movementName: entry.definitionNameSnapshot
+                                )
+                            }
                         }
                     } else if let target = entry.targetRepetitions {
                         Text("Target \(target) reps")
@@ -308,6 +315,7 @@ struct MobilitySessionView: View {
 
     private var actions: some View {
         VStack(spacing: Spacing.m) {
+            executionControls
             if session.currentEntry?.isPhaseDriven == true {
                 Button {
                     completeCurrentPhase()
@@ -316,6 +324,19 @@ struct MobilitySessionView: View {
                 }
                 .buttonStyle(.gymPrimaryProminent)
                 .accessibilityIdentifier("complete-mobility-phase")
+
+                HStack(spacing: Spacing.xl) {
+                    Button("Save partial phase") { savePartialCurrentPhase() }
+                        .accessibilityIdentifier("save-partial-mobility-phase")
+
+                    Spacer(minLength: Spacing.s)
+
+                    Button("Skip phase") { skipCurrentPhase() }
+                        .foregroundStyle(Color.gymSubduedText)
+                        .accessibilityIdentifier("skip-mobility-phase")
+                }
+                .font(AppFont.subheadlineSemibold)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
             } else {
                 Button {
                     completeCurrent()
@@ -350,6 +371,63 @@ struct MobilitySessionView: View {
                 .fill(Color.gymBorder)
                 .frame(height: 1)
         }
+    }
+
+    @ViewBuilder
+    private var executionControls: some View {
+        if let entry = session.currentEntry {
+            HStack(spacing: Spacing.xl) {
+                Button {
+                    entry.isTimerPaused ? resumeTimer() : pauseTimer()
+                } label: {
+                    Label(
+                        entry.isTimerPaused ? "Resume timer" : "Pause timer",
+                        systemImage: entry.isTimerPaused ? AppIcon.play : AppIcon.pause
+                    )
+                }
+                .accessibilityIdentifier(entry.isTimerPaused ? "resume-mobility-timer" : "pause-mobility-timer")
+
+                Spacer(minLength: Spacing.s)
+
+                if MobilitySessionService.canUndo(in: session) {
+                    Button {
+                        undoLatestCompletion()
+                    } label: {
+                        Label("Undo last", systemImage: AppIcon.restore)
+                    }
+                    .accessibilityIdentifier("undo-mobility-completion")
+                }
+            }
+            .font(AppFont.subheadlineSemibold)
+            .foregroundStyle(Color.gymPrimary)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+        }
+    }
+
+    private var terminalContent: some View {
+        VStack(spacing: Spacing.l) {
+            ContentUnavailableView(
+                session.status == .completed ? "Mobility complete" : "Mobility stopped",
+                systemImage: session.status == .completed ? AppIcon.checkmarkCircle : AppIcon.stop,
+                description: Text("Your performed results have been saved."))
+
+            if session.status == .completed,
+               session.orderedEntries.contains(where: { $0.isPhaseDriven }),
+               MobilitySessionService.canUndo(in: session) {
+                Button {
+                    undoLatestCompletion()
+                } label: {
+                    Label("Undo last phase", systemImage: AppIcon.restore)
+                }
+                .buttonStyle(.gymPrimary)
+                .accessibilityIdentifier("undo-completed-mobility-phase")
+            }
+
+            Button("Done") { onFinished() }
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .accessibilityIdentifier("finish-mobility-session")
+        }
+        .padding(Spacing.xl)
     }
 
     @ViewBuilder
@@ -411,8 +489,11 @@ struct MobilitySessionView: View {
 
     private func entryAccessibilityLabel(_ entry: MobilityEntry) -> String {
         if let phase = entry.currentPhaseResult {
+            let timerState = entry.isTimerPaused
+                ? String(localized: "Timer paused at \(elapsedSeconds(for: entry)) seconds.")
+                : String(localized: "Timer running.")
             return String(
-                localized: "Current movement. \(entry.definitionNameSnapshot). Current phase \(phase.phaseType.title), \(phase.side.displayName), cycle \(phase.cycleIndex + 1) of \(entry.cycleCount), target \(phase.prescribedDurationSeconds) seconds."
+                localized: "Current movement. \(entry.definitionNameSnapshot). Current phase \(phase.phaseType.title), \(phase.side.displayName), cycle \(phase.cycleIndex + 1) of \(entry.cycleCount), target \(phase.prescribedDurationSeconds) seconds. \(timerState)"
             )
         }
         let target: String
@@ -423,9 +504,10 @@ struct MobilitySessionView: View {
         }
         // The eyebrow is inside a combined element, so without this the spoken
         // label loses the one word that says which movement this is.
-        return String(
-            localized: "Current movement. \(entry.definitionNameSnapshot), \(entry.side.displayName), target \(target)"
-        )
+        let timerState = entry.isTimerPaused
+            ? String(localized: "Timer paused at \(elapsedSeconds(for: entry)) seconds.")
+            : String(localized: "Timer running.")
+        return String(localized: "Current movement. \(entry.definitionNameSnapshot), \(entry.side.displayName), target \(target). \(timerState)")
     }
 
     private func loadCurrentEntry() {
@@ -475,7 +557,7 @@ struct MobilitySessionView: View {
         )
         switch outcome {
         case .applied:
-            if session.status != .active { onFinished() }
+            break
         case .stale:
             loadCurrentEntry()
             error = ValidationIssue(severity: .error, message: "The current phase changed. Review it and try again.")
@@ -483,6 +565,86 @@ struct MobilitySessionView: View {
             error = ValidationIssue(severity: .error, message: "Enter a valid performed duration before continuing.")
         case .persistenceFailure:
             error = ValidationIssue(severity: .error, message: "The phase could not be saved. Try again.")
+        }
+    }
+
+    private func savePartialCurrentPhase() {
+        guard let entry = session.currentEntry,
+              let phase = entry.currentPhaseResult else {
+            error = ValidationIssue(severity: .error, message: "The current phase changed. Review it and try again.")
+            return
+        }
+        handlePhaseOutcome(
+            MobilitySessionService.savePartialCurrentPhase(
+                in: session,
+                performedDurationSeconds: phaseDurationsByResult[phase.id] ?? elapsedSeconds(for: entry),
+                performedIntensity: phaseIntensityByResult[phase.id].flatMap(ContractionIntensity.init(rawValue:)),
+                using: modelContext
+            ),
+            failureMessage: "The partial phase could not be saved. Try again."
+        )
+    }
+
+    private func skipCurrentPhase() {
+        handlePhaseOutcome(
+            MobilitySessionService.skipCurrentPhase(in: session, using: modelContext),
+            failureMessage: "The phase could not be skipped. Try again."
+        )
+    }
+
+    private func handlePhaseOutcome(
+        _ outcome: MobilityPhaseCompletionOutcome,
+        failureMessage: String
+    ) {
+        switch outcome {
+        case .applied:
+            break
+        case .stale:
+            loadCurrentEntry()
+            error = ValidationIssue(severity: .error, message: "The current phase changed. Review it and try again.")
+        case .invalidPerformedDuration:
+            error = ValidationIssue(severity: .error, message: "Enter a valid performed duration before continuing.")
+        case .persistenceFailure:
+            error = ValidationIssue(severity: .error, message: failureMessage)
+        }
+    }
+
+    private func pauseTimer() {
+        switch MobilitySessionService.pause(session, using: modelContext) {
+        case .applied, .alreadyPaused:
+            loadCurrentEntry()
+        case .alreadyRunning:
+            break
+        case .stale:
+            error = ValidationIssue(severity: .error, message: "The current movement changed. Review it and try again.")
+        case .persistenceFailure:
+            error = ValidationIssue(severity: .error, message: "The timer could not be paused. Try again.")
+        }
+    }
+
+    private func resumeTimer() {
+        switch MobilitySessionService.resume(session, using: modelContext) {
+        case .applied, .alreadyRunning:
+            loadCurrentEntry()
+        case .alreadyPaused:
+            break
+        case .stale:
+            error = ValidationIssue(severity: .error, message: "The current movement changed. Review it and try again.")
+        case .persistenceFailure:
+            error = ValidationIssue(severity: .error, message: "The timer could not be resumed. Try again.")
+        }
+    }
+
+    private func undoLatestCompletion() {
+        switch MobilitySessionService.undoLatestCompletion(in: session, using: modelContext) {
+        case .applied:
+            loadCurrentEntry()
+        case .nothingToUndo:
+            break
+        case .stale:
+            error = ValidationIssue(severity: .error, message: "The latest result changed and could not be undone.")
+        case .persistenceFailure:
+            error = ValidationIssue(severity: .error, message: "The latest result could not be undone. Try again.")
         }
     }
 

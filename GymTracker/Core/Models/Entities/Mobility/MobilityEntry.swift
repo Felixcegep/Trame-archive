@@ -118,6 +118,18 @@ final class MobilityEntry {
 
     var isPhaseDriven: Bool { phaseResults.isEmpty == false }
 
+    /// Timer state is represented without another persisted flag. An active
+    /// execution node with no start instant is paused; accumulated time lives
+    /// in `pausedElapsedSeconds` and resumes from a fresh start instant.
+    var isTimerPaused: Bool {
+        timerStartedAt == nil && hasInProgressEvidence
+    }
+
+    var hasInProgressEvidence: Bool {
+        phaseResults.contains { $0.status == .inProgress }
+            || results.contains { $0.status == .inProgress }
+    }
+
     /// The in-progress row is the durable current-side cursor. There is no
     /// second persisted `currentSide` field because the phase result already
     /// owns side, cycle, phase and status evidence.

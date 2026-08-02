@@ -957,13 +957,18 @@ extension BackupDTO {
         var entryIDs = [String]()
         var resultIDs = [String]()
         var phaseResultIDs = [String]()
+        var activeSessionCount = 0
         for session in mobilitySessions {
-            guard MobilitySessionStatus(rawValue: session.status) != nil,
+            guard let sessionStatus = MobilitySessionStatus(rawValue: session.status),
                   MobilitySessionContext(rawValue: session.context) != nil,
                   session.currentEntryIndex >= 0,
                   session.sourceRoutineID.map({ UUID(uuidString: $0) != nil }) ?? true,
                   session.workoutID.map({ UUID(uuidString: $0) != nil }) ?? true else {
                 throw BackupValidationError.invalidIdentifier("mobility session")
+            }
+            if sessionStatus == .active { activeSessionCount += 1 }
+            guard Set(session.entries.map(\.orderIndex)).count == session.entries.count else {
+                throw BackupValidationError.invalidIdentifier("mobility entry order")
             }
             for entry in session.entries {
                 entryIDs.append(entry.id)
@@ -1019,10 +1024,153 @@ extension BackupDTO {
                     }
                 }
             }
+            try validateMobilityExecutionGraph(session, status: sessionStatus)
+        }
+        guard activeSessionCount <= 1 else {
+            throw BackupValidationError.invalidIdentifier("active mobility session")
         }
         try validateUniqueIdentifiers(entryIDs, named: "mobility entry")
         try validateUniqueIdentifiers(resultIDs, named: "mobility result")
         try validateUniqueIdentifiers(phaseResultIDs, named: "mobility phase result")
+    }
+
+    private func validateMobilityExecutionGraph(
+        _ session: MobilitySessionDTO,
+        status: MobilitySessionStatus
+    ) throws {
+        let entries = session.entries.sorted {
+            $0.orderIndex == $1.orderIndex ? $0.id < $1.id : $0.orderIndex < $1.orderIndex
+        }
+        guard entries.isEmpty == false else {
+            throw BackupValidationError.invalidIdentifier("mobility session execution graph")
+        }
+
+        let terminal: (String) -> Bool = { raw in
+            guard let status = MobilityResultStatus(rawValue: raw) else { return false }
+            switch status {
+            case .notStarted, .inProgress: false
+            case .completed, .partial, .skipped, .stopped: true
+            }
+        }
+        let isNotStarted: (String) -> Bool = {
+            MobilityResultStatus(rawValue: $0) == .notStarted
+        }
+
+        for entry in entries where (entry.phaseResults ?? []).isEmpty == false {
+            let phases = entry.phaseResults ?? []
+            let resultSides = Set(entry.results.map(\.side))
+            let phaseSides = Set(phases.map(\.side))
+            let cycles = entry.cycleCount ?? 1
+            let groups = Dictionary(grouping: phases) { "\($0.side)|\($0.cycleIndex)" }
+            let signatures = groups.values.map { group in
+                group.sorted { $0.orderIndex < $1.orderIndex }.map {
+                    "\($0.orderIndex)|\($0.phaseType)|\($0.prescribedDurationSeconds)|\($0.prescribedIntensity ?? "")"
+                }
+            }
+            guard resultSides == phaseSides,
+                  groups.count == resultSides.count * cycles,
+                  Set(signatures).count == 1,
+                  groups.values.allSatisfy({ group in
+                      let order = group.map(\.orderIndex)
+                      return Set(order).count == order.count
+                  }) else {
+                throw BackupValidationError.invalidIdentifier("mobility phase execution graph")
+            }
+        }
+
+        switch status {
+        case .active:
+            guard session.endTime == nil,
+                  let currentIndex = entries.firstIndex(where: { $0.orderIndex == session.currentEntryIndex })
+            else {
+                throw BackupValidationError.invalidIdentifier("active mobility cursor")
+            }
+            let current = entries[currentIndex]
+            guard entries.enumerated().allSatisfy({ index, entry in
+                if index < currentIndex {
+                    return entry.results.allSatisfy { terminal($0.status) }
+                        && (entry.phaseResults ?? []).allSatisfy { terminal($0.status) }
+                        && entry.timerStartedAt == nil
+                }
+                if index > currentIndex {
+                    return entry.results.allSatisfy { isNotStarted($0.status) }
+                        && (entry.phaseResults ?? []).allSatisfy { isNotStarted($0.status) }
+                        && entry.timerStartedAt == nil
+                        && (entry.pausedElapsedSeconds ?? 0) == 0
+                }
+                return true
+            }) else {
+                throw BackupValidationError.invalidIdentifier("active mobility execution order")
+            }
+
+            let phaseResults = current.phaseResults ?? []
+            if phaseResults.isEmpty {
+                guard current.results.isEmpty == false,
+                      current.results.allSatisfy({ MobilityResultStatus(rawValue: $0.status) == .inProgress })
+                else {
+                    throw BackupValidationError.invalidIdentifier("active mobility result")
+                }
+            } else {
+                let ordered = phaseResults.sorted {
+                    if mobilitySideOrder($0.side) != mobilitySideOrder($1.side) {
+                        return mobilitySideOrder($0.side) < mobilitySideOrder($1.side)
+                    }
+                    if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
+                    if $0.orderIndex != $1.orderIndex { return $0.orderIndex < $1.orderIndex }
+                    return $0.id < $1.id
+                }
+                let inProgress = ordered.filter {
+                    MobilityResultStatus(rawValue: $0.status) == .inProgress
+                }
+                guard inProgress.count == 1,
+                      let node = inProgress.first,
+                      let nodeIndex = ordered.firstIndex(where: { $0.id == node.id }),
+                      ordered.prefix(nodeIndex).allSatisfy({ terminal($0.status) }),
+                      ordered.dropFirst(nodeIndex + 1).allSatisfy({ isNotStarted($0.status) }),
+                      node.cycleIndex == (current.currentCycleIndex ?? 0),
+                      phaseIndex(of: node, in: phaseResults) == (current.currentPhaseIndex ?? 0),
+                      current.results.filter({ $0.side == node.side }).count == 1,
+                      current.results.filter({ MobilityResultStatus(rawValue: $0.status) == .inProgress }).count == 1,
+                      current.results.first(where: { $0.side == node.side }).map({
+                          MobilityResultStatus(rawValue: $0.status) == .inProgress
+                      }) == true else {
+                    throw BackupValidationError.invalidIdentifier("active mobility phase cursor")
+                }
+            }
+
+        case .completed, .stopped:
+            guard session.endTime != nil,
+                  entries.allSatisfy({ entry in
+                      entry.timerStartedAt == nil
+                          && entry.results.allSatisfy { terminal($0.status) }
+                          && (entry.phaseResults ?? []).allSatisfy { terminal($0.status) }
+                  }) else {
+                throw BackupValidationError.invalidIdentifier("terminal mobility execution graph")
+            }
+        }
+    }
+
+    private func phaseIndex(
+        of phase: MobilityPhaseResultDTO,
+        in phases: [MobilityPhaseResultDTO]
+    ) -> Int {
+        phases
+            .filter { $0.side == phase.side && $0.cycleIndex == phase.cycleIndex }
+            .sorted {
+                $0.orderIndex == $1.orderIndex ? $0.id < $1.id : $0.orderIndex < $1.orderIndex
+            }
+            .firstIndex(where: { $0.id == phase.id }) ?? -1
+    }
+
+    private func mobilitySideOrder(_ rawValue: String) -> Int {
+        switch MobilitySide(rawValue: rawValue) {
+        case .none: 0
+        case .left: 1
+        case .right: 2
+        case .bilateral: 3
+        case .alternating: 4
+        case nil: Int.max
+        }
     }
 
     private func validateMobilityAssessments() throws {

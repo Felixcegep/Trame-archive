@@ -372,6 +372,7 @@ struct RootView: View {
             // here would be a second, non-atomic transaction whose failure
             // could not roll back the already-committed restore.
             workoutVM.restoreActiveWorkout(using: modelContext)
+            activeMobilitySession = reconciledActiveMobilitySession()
             Task {
                 await PlanNotificationScheduler.shared.reconcile(using: modelContext)
                 await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
@@ -473,8 +474,8 @@ struct RootView: View {
             isShowingActiveWorkout = true
         case .activeMobility(let sessionID):
             guard featureFlags.isEnabled(.mobility),
-                  let session = (try? modelContext.fetch(FetchDescriptor<MobilitySession>()))?
-                    .first(where: { $0.id == sessionID && $0.status == .active })
+                  let session = reconciledActiveMobilitySession(),
+                  session.id == sessionID
             else {
                 selectedTab = .today
                 return
@@ -964,7 +965,7 @@ struct RootView: View {
             workoutVM.restoreActiveWorkout(using: modelContext)
         }
 
-        activeMobilitySession = MobilitySessionService.activeSession(using: modelContext)
+        activeMobilitySession = reconciledActiveMobilitySession()
         apply(UITestLaunch.seededDestination(using: modelContext))
         consumePendingPlanNotificationDestination()
         consumePendingAppIntentDestination()
@@ -1020,7 +1021,17 @@ struct RootView: View {
     }
 
     private func resumeMobility(_ session: MobilitySession) {
-        activeMobilitySession = session
+        guard let restored = reconciledActiveMobilitySession(), restored.id == session.id else { return }
+        activeMobilitySession = restored
+    }
+
+    private func reconciledActiveMobilitySession() -> MobilitySession? {
+        switch MobilitySessionService.restoreActiveSession(using: modelContext) {
+        case .restored(let session), .repaired(let session):
+            return session
+        case .none, .invalid, .persistenceFailure:
+            return nil
+        }
     }
 
     /// Central gate for every path that can navigate to Mobility. An

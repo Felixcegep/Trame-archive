@@ -23,6 +23,7 @@ nonisolated struct MobilityFlowEntrySnapshot: Hashable, Sendable {
     let currentCycleIndex: Int
     let currentPhaseIndex: Int
     let restSeconds: Int?
+    let resultStatuses: [MobilityResultStatus]
     let phaseNodes: [MobilityFlowNodeSnapshot]
 }
 
@@ -37,6 +38,12 @@ nonisolated struct MobilityFlowTarget: Hashable, Sendable {
     let side: MobilitySide?
     let cycleIndex: Int?
     let phaseIndex: Int?
+}
+
+nonisolated struct MobilityUndoTransition: Hashable, Sendable {
+    let target: MobilityFlowTarget?
+    let successor: MobilityFlowTarget?
+    let stale: Bool
 }
 
 /// This slice only represents the two rest concepts already persisted by the
@@ -134,6 +141,51 @@ nonisolated enum MobilityFlowResolver {
             )
         }
         return transitionAfterEntry(completedEntry, entries: entries, semantics: .phaseDriven)
+    }
+
+    /// Selects the latest terminal execution node in durable execution order.
+    /// The optional successor is the node that completion started and is the
+    /// only later node an Undo transaction may reset.
+    nonisolated static func resolveUndo(
+        in session: MobilityFlowSnapshot
+    ) -> MobilityUndoTransition {
+        let entries = orderedEntries(session)
+        guard entries.isEmpty == false else {
+            return MobilityUndoTransition(target: nil, successor: nil, stale: true)
+        }
+
+        var terminalTargets: [MobilityFlowTarget] = []
+        for entry in entries {
+            let nodes = orderedNodes(entry)
+            if nodes.isEmpty {
+                guard entry.resultStatuses.isEmpty == false else { continue }
+                if entry.resultStatuses.allSatisfy(isTerminal) {
+                    terminalTargets.append(
+                        MobilityFlowTarget(
+                            entryID: entry.id,
+                            phaseResultID: nil,
+                            side: nil,
+                            cycleIndex: nil,
+                            phaseIndex: nil
+                        )
+                    )
+                }
+            } else {
+                terminalTargets.append(contentsOf: nodes.filter { isTerminal($0.status) }.map {
+                    target(entryID: entry.id, node: $0)
+                })
+            }
+        }
+        guard let target = terminalTargets.last else {
+            return MobilityUndoTransition(target: nil, successor: nil, stale: false)
+        }
+
+        let current = currentTarget(in: session)
+        return MobilityUndoTransition(
+            target: target,
+            successor: current == target ? nil : current,
+            stale: current == nil && terminalTargets.count < executionNodeCount(in: entries)
+        )
     }
 
     private nonisolated static func transitionAfterEntry(
@@ -241,6 +293,14 @@ nonisolated enum MobilityFlowResolver {
         switch status {
         case .notStarted, .inProgress: false
         case .completed, .partial, .skipped, .stopped: true
+        }
+    }
+
+    private nonisolated static func executionNodeCount(
+        in entries: [MobilityFlowEntrySnapshot]
+    ) -> Int {
+        entries.reduce(into: 0) { count, entry in
+            count += entry.phaseNodes.isEmpty ? 1 : entry.phaseNodes.count
         }
     }
 
