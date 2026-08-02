@@ -111,6 +111,35 @@ enum ProgramDefinitionCompiler {
         for blockDefinition in definition.blocks.sorted(by: { $0.orderIndex < $1.orderIndex }) {
             let weeks = try blockDefinition.weeks.sorted(by: { $0.weekIndex < $1.weekIndex }).map { weekDefinition in
                 let workouts = try weekDefinition.workouts.sorted(by: { $0.orderIndex < $1.orderIndex }).map { workoutDefinition in
+                    var compiledBlockIDsByKey: [String: UUID] = [:]
+                    let executionBlocks = workoutDefinition.executionBlocks
+                        .sorted(by: { $0.orderIndex < $1.orderIndex })
+                        .map { blockDefinition in
+                            let definitionBlockKey = blockDefinition.blockKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let block = PlannedExerciseBlock(
+                                orderIndex: blockDefinition.orderIndex,
+                                kind: blockDefinition.kind,
+                                name: blockDefinition.name.flatMap { name in
+                                    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    return trimmed.isEmpty ? nil : trimmed
+                                },
+                                targetRounds: blockDefinition.targetRounds,
+                                isSharedLoad: blockDefinition.isSharedLoad,
+                                restSeconds: blockDefinition.restSeconds,
+                                clockMode: blockDefinition.clockMode,
+                                prescribedDurationSeconds: blockDefinition.prescribedDurationSeconds,
+                                timeCapSeconds: blockDefinition.timeCapSeconds,
+                                intervalSeconds: blockDefinition.intervalSeconds,
+                                scoreKind: blockDefinition.scoreKind,
+                                repetitionScheme: blockDefinition.repetitionScheme,
+                                repetitionStart: blockDefinition.repetitionStart,
+                                repetitionEnd: blockDefinition.repetitionEnd,
+                                repetitionStep: blockDefinition.repetitionStep,
+                                definitionBlockKey: definitionBlockKey
+                            )
+                            compiledBlockIDsByKey[definitionBlockKey] = block.id
+                            return block
+                        }
                     let exercises = try workoutDefinition.plannedExercises
                         .sorted(by: { $0.orderIndex < $1.orderIndex })
                         .map { exerciseDefinition in
@@ -128,7 +157,17 @@ enum ProgramDefinitionCompiler {
                                 }
                                 return PlannedExerciseAlternative(exercise: alternative, orderIndex: index)
                             }
-                            return try compileExercise(exerciseDefinition, exercise: exercise, alternatives: alternatives)
+                            let plannedExercise = try compileExercise(
+                                exerciseDefinition,
+                                exercise: exercise,
+                                alternatives: alternatives
+                            )
+                            if let authoredBlockKey = exerciseDefinition.executionBlockKey {
+                                let definitionBlockKey = authoredBlockKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                                plannedExercise.executionBlockID = compiledBlockIDsByKey[definitionBlockKey]
+                                plannedExercise.executionBlockComponentOrder = exerciseDefinition.executionBlockComponentOrder
+                            }
+                            return plannedExercise
                         }
                     return PlannedWorkout(
                         name: workoutDefinition.name,
@@ -140,7 +179,8 @@ enum ProgramDefinitionCompiler {
                                 || exercise.waves.flatMap(\.plannedSets).contains { $0.role == .test }
                                 || exercise.stages.flatMap(\.plannedSets).contains { $0.role == .test }
                         },
-                        plannedExercises: exercises
+                        plannedExercises: exercises,
+                        executionBlocks: executionBlocks
                     )
                 }
                 return PlanWeek(

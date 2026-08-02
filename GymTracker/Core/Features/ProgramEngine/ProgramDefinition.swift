@@ -62,13 +62,80 @@ nonisolated enum EngineCapabilities {
     static let variationLadders = "variationLadders"
     static let amrapRepetitions = "amrapRepetitions"
     static let velocity = "velocity"
+    static let executionBlocks = "executionBlocks"
 
     static let current: Set<String> = [
-        compositeTriggers, stages, waves, variationLadders, amrapRepetitions, velocity
+        compositeTriggers, stages, waves, variationLadders, amrapRepetitions, velocity,
+        executionBlocks
     ]
 
     static func missing(from requiredCapabilities: [String]) -> Set<String> {
         Set(requiredCapabilities).subtracting(current)
+    }
+}
+
+/// Data-only within-workout execution prescription. `blockKey` is stable in
+/// the recipe, while compilation always creates a fresh plan-local UUID.
+///
+/// The fields intentionally mirror the execution semantics the current
+/// `PlannedExerciseBlock` and `WorkoutExecutionBlock` graph can execute. A
+/// separate work/rest interval pair is not authored here because the runtime
+/// currently owns one repeating interval length.
+nonisolated struct ProgramExecutionBlockDefinition: Codable, Hashable, Identifiable {
+    var id: UUID
+    var blockKey: String
+    var orderIndex: Int
+    var name: String?
+    var kind: ExerciseBlockKind
+    var targetRounds: Int?
+    var isSharedLoad: Bool
+    var restSeconds: Int?
+    var clockMode: BlockClockMode
+    var prescribedDurationSeconds: Int?
+    var timeCapSeconds: Int?
+    var intervalSeconds: Int?
+    var scoreKind: BlockScoreKind
+    var repetitionScheme: BlockRepetitionScheme
+    var repetitionStart: Int?
+    var repetitionEnd: Int?
+    var repetitionStep: Int?
+
+    init(
+        id: UUID = UUID(),
+        blockKey: String,
+        orderIndex: Int,
+        name: String? = nil,
+        kind: ExerciseBlockKind,
+        targetRounds: Int? = nil,
+        isSharedLoad: Bool = false,
+        restSeconds: Int? = nil,
+        clockMode: BlockClockMode = .none,
+        prescribedDurationSeconds: Int? = nil,
+        timeCapSeconds: Int? = nil,
+        intervalSeconds: Int? = nil,
+        scoreKind: BlockScoreKind = .none,
+        repetitionScheme: BlockRepetitionScheme = .fixed,
+        repetitionStart: Int? = nil,
+        repetitionEnd: Int? = nil,
+        repetitionStep: Int? = nil
+    ) {
+        self.id = id
+        self.blockKey = blockKey
+        self.orderIndex = orderIndex
+        self.name = name
+        self.kind = kind
+        self.targetRounds = targetRounds
+        self.isSharedLoad = isSharedLoad
+        self.restSeconds = restSeconds
+        self.clockMode = clockMode
+        self.prescribedDurationSeconds = prescribedDurationSeconds
+        self.timeCapSeconds = timeCapSeconds
+        self.intervalSeconds = intervalSeconds
+        self.scoreKind = scoreKind
+        self.repetitionScheme = repetitionScheme
+        self.repetitionStart = repetitionStart
+        self.repetitionEnd = repetitionEnd
+        self.repetitionStep = repetitionStep
     }
 }
 
@@ -281,6 +348,7 @@ nonisolated struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
     var dayOffset: Int
     var role: String
     var isOptional: Bool
+    var executionBlocks: [ProgramExecutionBlockDefinition]
     var plannedExercises: [ProgramExerciseDefinition]
 
     init(
@@ -290,6 +358,7 @@ nonisolated struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
         dayOffset: Int,
         role: String = "strength",
         isOptional: Bool = false,
+        executionBlocks: [ProgramExecutionBlockDefinition] = [],
         plannedExercises: [ProgramExerciseDefinition]
     ) {
         self.id = id
@@ -298,11 +367,13 @@ nonisolated struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
         self.dayOffset = dayOffset
         self.role = role
         self.isOptional = isOptional
+        self.executionBlocks = executionBlocks
         self.plannedExercises = plannedExercises
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, orderIndex, name, dayOffset, role, isOptional, plannedExercises
+        case id, orderIndex, name, dayOffset, role, isOptional, executionBlocks,
+             plannedExercises
     }
 
     init(from decoder: Decoder) throws {
@@ -313,6 +384,10 @@ nonisolated struct ProgramWorkoutDefinition: Codable, Hashable, Identifiable {
         dayOffset = try container.decode(Int.self, forKey: .dayOffset)
         role = try container.decodeIfPresent(String.self, forKey: .role) ?? "strength"
         isOptional = try container.decodeIfPresent(Bool.self, forKey: .isOptional) ?? false
+        executionBlocks = try container.decodeIfPresent(
+            [ProgramExecutionBlockDefinition].self,
+            forKey: .executionBlocks
+        ) ?? []
         plannedExercises = try container.decode([ProgramExerciseDefinition].self, forKey: .plannedExercises)
     }
 }
@@ -380,6 +455,8 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
     var role: ExerciseRole?
     var orderIndex: Int
     var isOptional: Bool
+    var executionBlockKey: String?
+    var executionBlockComponentOrder: Int?
     var plannedSets: [SetPrescriptionDefinition]
     var waves: [ProgramWaveDefinition]
     var stages: [ProgramStageDefinition]
@@ -403,6 +480,8 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         role: ExerciseRole? = nil,
         orderIndex: Int,
         isOptional: Bool = false,
+        executionBlockKey: String? = nil,
+        executionBlockComponentOrder: Int? = nil,
         plannedSets: [SetPrescriptionDefinition],
         waves: [ProgramWaveDefinition] = [],
         stages: [ProgramStageDefinition] = [],
@@ -425,6 +504,8 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         self.role = role
         self.orderIndex = orderIndex
         self.isOptional = isOptional
+        self.executionBlockKey = executionBlockKey
+        self.executionBlockComponentOrder = executionBlockComponentOrder
         self.plannedSets = plannedSets
         self.waves = waves
         self.stages = stages

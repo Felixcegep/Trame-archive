@@ -5,6 +5,7 @@ import Foundation
 enum ProgramDefinitionBuilderError: Error, Equatable {
     case invalidIndex
     case invalidExposureKey
+    case invalidExecutionBlockKey
     case validation([ProgramValidationIssue])
 }
 
@@ -114,6 +115,77 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
         return index
     }
 
+    @discardableResult
+    mutating func addExecutionBlock(
+        toBlock blockIndex: Int,
+        week weekIndex: Int,
+        workout workoutIndex: Int,
+        blockKey: String,
+        kind: ExerciseBlockKind
+    ) throws -> Int {
+        let normalizedKey = blockKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedKey.isEmpty else {
+            throw ProgramDefinitionBuilderError.invalidExecutionBlockKey
+        }
+        guard definition.blocks.indices.contains(blockIndex),
+              definition.blocks[blockIndex].weeks.indices.contains(weekIndex),
+              definition.blocks[blockIndex].weeks[weekIndex].workouts.indices.contains(workoutIndex)
+        else { throw ProgramDefinitionBuilderError.invalidIndex }
+        let blocks = definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].executionBlocks
+        guard !blocks.contains(where: {
+            $0.blockKey.trimmingCharacters(in: .whitespacesAndNewlines) == normalizedKey
+        }) else {
+            throw ProgramDefinitionBuilderError.invalidExecutionBlockKey
+        }
+        let index = blocks.count
+        definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].executionBlocks.append(
+            ProgramExecutionBlockDefinition(
+                blockKey: normalizedKey,
+                orderIndex: index,
+                kind: kind
+            )
+        )
+        return index
+    }
+
+    mutating func setExecutionBlockMembership(
+        inBlock blockIndex: Int,
+        week weekIndex: Int,
+        workout workoutIndex: Int,
+        exercise exerciseIndex: Int,
+        executionBlock executionBlockIndex: Int?,
+        componentOrder: Int? = nil
+    ) throws {
+        guard definition.blocks.indices.contains(blockIndex),
+              definition.blocks[blockIndex].weeks.indices.contains(weekIndex),
+              definition.blocks[blockIndex].weeks[weekIndex].workouts.indices.contains(workoutIndex),
+              definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises.indices.contains(exerciseIndex)
+        else { throw ProgramDefinitionBuilderError.invalidIndex }
+        if let executionBlockIndex {
+            guard definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].executionBlocks.indices.contains(executionBlockIndex) else {
+                throw ProgramDefinitionBuilderError.invalidIndex
+            }
+            let key = definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                .executionBlocks[executionBlockIndex].blockKey
+            let currentCount = definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                .plannedExercises.filter { $0.executionBlockKey == key }.count
+            definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                .plannedExercises[exerciseIndex].executionBlockKey = key
+            definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                .plannedExercises[exerciseIndex].executionBlockComponentOrder = componentOrder ?? currentCount
+        } else {
+            definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                .plannedExercises[exerciseIndex].executionBlockKey = nil
+            definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                .plannedExercises[exerciseIndex].executionBlockComponentOrder = nil
+        }
+        normalizeExecutionBlockMembership(
+            blockIndex: blockIndex,
+            weekIndex: weekIndex,
+            workoutIndex: workoutIndex
+        )
+    }
+
     mutating func addSet(
         toBlock blockIndex: Int,
         week weekIndex: Int,
@@ -186,6 +258,31 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
         else { throw ProgramDefinitionBuilderError.invalidIndex }
         definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises.remove(at: exerciseIndex)
         normalizeExerciseOrder(blockIndex: blockIndex, weekIndex: weekIndex, workoutIndex: workoutIndex)
+        normalizeExecutionBlockMembership(blockIndex: blockIndex, weekIndex: weekIndex, workoutIndex: workoutIndex)
+    }
+
+    mutating func removeExecutionBlock(
+        fromBlock blockIndex: Int,
+        week weekIndex: Int,
+        workout workoutIndex: Int,
+        at executionBlockIndex: Int
+    ) throws {
+        guard definition.blocks.indices.contains(blockIndex),
+              definition.blocks[blockIndex].weeks.indices.contains(weekIndex),
+              definition.blocks[blockIndex].weeks[weekIndex].workouts.indices.contains(workoutIndex),
+              definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].executionBlocks.indices.contains(executionBlockIndex)
+        else { throw ProgramDefinitionBuilderError.invalidIndex }
+        let key = definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+            .executionBlocks.remove(at: executionBlockIndex).blockKey
+        for exerciseIndex in definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises.indices
+        where definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+            .plannedExercises[exerciseIndex].executionBlockKey == key {
+            definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                .plannedExercises[exerciseIndex].executionBlockKey = nil
+            definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                .plannedExercises[exerciseIndex].executionBlockComponentOrder = nil
+        }
+        normalizeExecutionBlockOrder(blockIndex: blockIndex, weekIndex: weekIndex, workoutIndex: workoutIndex)
     }
 
     mutating func moveExercise(fromBlock blockIndex: Int, week weekIndex: Int, workout workoutIndex: Int, from source: Int, to destination: Int) throws {
@@ -242,6 +339,37 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
     private mutating func normalizeExerciseOrder(blockIndex: Int, weekIndex: Int, workoutIndex: Int) {
         for index in definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises.indices {
             definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises[index].orderIndex = index
+        }
+    }
+
+    private mutating func normalizeExecutionBlockOrder(blockIndex: Int, weekIndex: Int, workoutIndex: Int) {
+        for index in definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].executionBlocks.indices {
+            definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                .executionBlocks[index].orderIndex = index
+        }
+    }
+
+    private mutating func normalizeExecutionBlockMembership(blockIndex: Int, weekIndex: Int, workoutIndex: Int) {
+        let keys = definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+            .executionBlocks.map(\.blockKey)
+        for key in keys {
+            let members = definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                .plannedExercises.indices
+                .filter {
+                    definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                        .plannedExercises[$0].executionBlockKey == key
+                }
+                .sorted {
+                    let lhs = definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                        .plannedExercises[$0].executionBlockComponentOrder ?? .max
+                    let rhs = definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                        .plannedExercises[$1].executionBlockComponentOrder ?? .max
+                    return lhs == rhs ? $0 < $1 : lhs < rhs
+                }
+            for (componentOrder, exerciseIndex) in members.enumerated() {
+                definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex]
+                    .plannedExercises[exerciseIndex].executionBlockComponentOrder = componentOrder
+            }
         }
     }
 

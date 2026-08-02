@@ -25,6 +25,17 @@ struct ProgramDefinitionPayloadPreviewView: View {
                             Text("\(row.exposureKey) · \(row.setCount) sets · \(row.progressionRuleCount) progression rules")
                                 .font(AppFont.caption)
                                 .foregroundStyle(Color.gymSubduedText)
+                            if let executionBlock = row.executionBlock {
+                                Label(
+                                    executionBlockText(
+                                        executionBlock,
+                                        componentOrder: row.executionBlockComponentOrder
+                                    ),
+                                    systemImage: AppIcon.relationship
+                                )
+                                .font(AppFont.captionBold)
+                                .foregroundStyle(Color.gymPrimary)
+                            }
                             if !row.stageNames.isEmpty {
                                 Text("Stages: \(row.stageNames.joined(separator: " → "))")
                                     .font(AppFont.caption)
@@ -90,6 +101,23 @@ struct ProgramDefinitionPayloadPreviewView: View {
             text += " · recommendation"
         }
         return text
+    }
+
+    private func executionBlockText(
+        _ block: ProgramDefinitionPreviewExecutionBlock,
+        componentOrder: Int?
+    ) -> String {
+        let trimmedName = block.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        var components = [trimmedName.flatMap { $0.isEmpty ? nil : $0 } ?? block.kind.title]
+        if let componentOrder {
+            components.append("component \(componentOrder + 1) of \(block.componentCount)")
+        }
+        if let rounds = block.targetRounds { components.append("\(rounds) rounds") }
+        if block.clockMode != .none { components.append(block.clockMode.title) }
+        if let cap = block.timeCapSeconds { components.append("\(cap)s cap") }
+        if let interval = block.intervalSeconds { components.append("\(interval)s interval") }
+        if block.scoreKind != .none { components.append(block.scoreKind.title) }
+        return components.joined(separator: " · ")
     }
 
     private func repText(_ repetitions: RepPrescription) -> String {

@@ -196,6 +196,34 @@ struct ProgramDefinitionWorkoutEditor: View {
             Button("Add exercise", systemImage: AppIcon.plus) {
                 addExercise()
             }
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Execution blocks")
+                    .font(AppFont.captionBold)
+                if workout.executionBlocks.isEmpty {
+                    Text("No shared execution blocks. Exercises will run in their normal order.")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+                ForEach($workout.executionBlocks) { $executionBlock in
+                    ProgramDefinitionExecutionBlockEditor(
+                        block: $executionBlock,
+                        plannedExercises: $workout.plannedExercises,
+                        catalog: exercises
+                    ) {
+                        removeExecutionBlock(executionBlock.id)
+                    }
+                }
+                .onMove { source, destination in
+                    workout.executionBlocks.move(fromOffsets: source, toOffset: destination)
+                    normalizeExecutionBlocks()
+                }
+                Button("Add execution block", systemImage: AppIcon.relationship) {
+                    addExecutionBlock()
+                }
+                .disabled(workout.plannedExercises.isEmpty)
+                .accessibilityIdentifier("definition-add-execution-block")
+            }
             Button("Delete workout", role: .destructive, action: onDelete)
         } label: {
             HStack {
@@ -242,11 +270,69 @@ struct ProgramDefinitionWorkoutEditor: View {
             )
         }
         normalizeExercises()
+        normalizeExecutionBlockMembership()
     }
 
     private func normalizeExercises() {
         for index in workout.plannedExercises.indices {
             workout.plannedExercises[index].orderIndex = index
+        }
+    }
+
+    private func addExecutionBlock() {
+        let index = workout.executionBlocks.count
+        let existingKeys = Set(workout.executionBlocks.map {
+            $0.blockKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        })
+        var suffix = index + 1
+        var blockKey = "block-\(suffix)"
+        while existingKeys.contains(blockKey) {
+            suffix += 1
+            blockKey = "block-\(suffix)"
+        }
+        workout.executionBlocks.append(
+            ProgramExecutionBlockDefinition(
+                blockKey: blockKey,
+                orderIndex: index,
+                kind: .circuit,
+                targetRounds: 3
+            )
+        )
+    }
+
+    private func removeExecutionBlock(_ id: UUID) {
+        guard let block = workout.executionBlocks.first(where: { $0.id == id }) else { return }
+        let key = block.blockKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        workout.executionBlocks.removeAll { $0.id == id }
+        for index in workout.plannedExercises.indices
+        where workout.plannedExercises[index].executionBlockKey?.trimmingCharacters(in: .whitespacesAndNewlines) == key {
+            workout.plannedExercises[index].executionBlockKey = nil
+            workout.plannedExercises[index].executionBlockComponentOrder = nil
+        }
+        normalizeExecutionBlocks()
+    }
+
+    private func normalizeExecutionBlocks() {
+        for index in workout.executionBlocks.indices {
+            workout.executionBlocks[index].orderIndex = index
+        }
+    }
+
+    private func normalizeExecutionBlockMembership() {
+        for block in workout.executionBlocks {
+            let key = block.blockKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            let members = workout.plannedExercises.indices
+                .filter {
+                    workout.plannedExercises[$0].executionBlockKey?.trimmingCharacters(in: .whitespacesAndNewlines) == key
+                }
+                .sorted {
+                    let lhs = workout.plannedExercises[$0].executionBlockComponentOrder ?? .max
+                    let rhs = workout.plannedExercises[$1].executionBlockComponentOrder ?? .max
+                    return lhs == rhs ? $0 < $1 : lhs < rhs
+                }
+            for (componentOrder, exerciseIndex) in members.enumerated() {
+                workout.plannedExercises[exerciseIndex].executionBlockComponentOrder = componentOrder
+            }
         }
     }
 }

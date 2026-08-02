@@ -280,6 +280,12 @@ struct ProgramDefinitionBuilderView: View {
                                 name: workout.name,
                                 dayOffset: workout.dayOffset,
                                 role: workout.role,
+                                isOptional: workout.isOptional,
+                                executionBlocks: workout.executionBlocks.map { block in
+                                    var copy = block
+                                    copy.id = UUID()
+                                    return copy
+                                },
                                 plannedExercises: workout.plannedExercises.map { exercise in
                                     var copy = exercise
                                     copy.id = UUID()

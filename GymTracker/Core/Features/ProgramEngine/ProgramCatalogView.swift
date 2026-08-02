@@ -116,14 +116,24 @@ struct ProgramCatalogDetailView: View {
                             .tracking(0.8)
                             .foregroundStyle(Color.gymSubduedText)
                         ForEach(Array(workout.rows.enumerated()), id: \.offset) { _, row in
-                            HStack {
-                                Text(names[row.exerciseID] ?? row.exposureKey)
-                                    .font(AppFont.bodyMedium)
-                                    .foregroundStyle(Color.gymText)
-                                Spacer()
-                                Text("\(row.setCount) sets")
-                                    .font(AppFont.subheadlineMonospaced)
-                                    .foregroundStyle(Color.gymSubduedText)
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                HStack {
+                                    Text(names[row.exerciseID] ?? row.exposureKey)
+                                        .font(AppFont.bodyMedium)
+                                        .foregroundStyle(Color.gymText)
+                                    Spacer()
+                                    Text("\(row.setCount) sets")
+                                        .font(AppFont.subheadlineMonospaced)
+                                        .foregroundStyle(Color.gymSubduedText)
+                                }
+                                if let executionBlock = row.executionBlock {
+                                    Label(
+                                        "\(executionBlock.name ?? executionBlock.kind.title) · component \((row.executionBlockComponentOrder ?? 0) + 1) of \(executionBlock.componentCount)",
+                                        systemImage: AppIcon.relationship
+                                    )
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.gymPrimary)
+                                }
                             }
                         }
                     }
