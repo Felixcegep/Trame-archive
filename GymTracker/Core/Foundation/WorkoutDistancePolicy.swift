@@ -27,7 +27,7 @@ nonisolated enum WorkoutDistancePolicy {
         return (meters ?? 0) >= 1_000 ? .kilometers : .meters
     }
 
-    @MainActor static func displayMeasurement(
+    nonisolated static func displayMeasurement(
         storedValue: Float,
         storedUnit: DistanceType,
         system: UnitSystem
@@ -40,7 +40,7 @@ nonisolated enum WorkoutDistancePolicy {
         )
     }
 
-    nonisolated static func displayMeasurement(
+    @MainActor static func displayMeasurement(
         for set: ExerciseSet,
         system: UnitSystem? = nil
     ) -> DistanceMeasurement? {
