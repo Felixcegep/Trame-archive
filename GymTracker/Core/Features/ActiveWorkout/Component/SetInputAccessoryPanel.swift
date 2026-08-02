@@ -12,8 +12,9 @@ struct SetInputAccessoryPanel: View {
     let viewModel: ActiveWorkoutViewModel
     let coordinator: SetInputCoordinator
     let unitSystem: UnitSystem
-    /// Invoked after a set is completed so the owner can start rest and advance
-    /// the disclosure, exactly as the row's own completion button does.
+    /// Invoked after the transactional completion has committed so the owner
+    /// can advance disclosure. Rest presentation is already reconciled by the
+    /// view model from the post-commit receipt.
     let onSetCompleted: (ExerciseEntry) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

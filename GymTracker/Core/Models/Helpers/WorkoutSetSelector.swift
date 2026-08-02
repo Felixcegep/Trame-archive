@@ -45,6 +45,30 @@ enum WorkoutSetSelector {
         return seconds
     }
 
+    /// Resolves the full post-completion transition for a concrete performed
+    /// set. This is the mutation workflow's bridge into the pure resolver;
+    /// presentation callers that only need a duration keep using
+    /// `restSeconds(afterCompleting:in:defaultSeconds:)`.
+    static func transition(
+        afterCompleting set: ExerciseSet,
+        in entry: ExerciseEntry,
+        workout: Workout,
+        defaultSeconds: Int
+    ) -> WorkoutTransition? {
+        let adapter = Adapter(workout: workout)
+        guard let entryID = adapter.ids[ObjectIdentifier(entry)] else { return nil }
+        let result = WorkoutFlowResolver.resolve(
+            WorkoutFlowContext(
+                workout: adapter.snapshot,
+                completedEntryID: entryID,
+                completedSetID: set.id,
+                defaultRestSeconds: defaultSeconds
+            )
+        )
+        guard case .transition(let transition) = result else { return nil }
+        return transition
+    }
+
     static func groupMembers(of entry: ExerciseEntry, in workout: Workout) -> [ExerciseEntry] {
         guard let groupID = entry.supersetGroupID else { return [entry] }
         return workout.orderedExercises.filter { $0.supersetGroupID == groupID }

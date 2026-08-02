@@ -229,7 +229,6 @@ struct ActiveWorkoutView: View {
                         coordinator: coordinator,
                         unitSystem: unitSystem,
                         onSetCompleted: { exercise in
-                            viewModel.startTime(after: exercise)
                             advanceDisclosure(after: exercise, in: workout)
                         }
                     )
@@ -535,7 +534,6 @@ struct ActiveWorkoutView: View {
                 exerciseEntry: exercise,
                 executionBlock: workout.orderedExecutionBlocks.first { $0.id == exercise.executionBlockID },
                 viewModel: viewModel,
-                onButtonPress: { viewModel.startTime(after: exercise) },
                 unitSystem: unitSystem,
                 coordinator: coordinator,
                 expandedExerciseID: $expandedExerciseID,

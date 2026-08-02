@@ -7,7 +7,6 @@ struct ExerciseEntryCard: View {
     let executionBlock: WorkoutExecutionBlock?
 
     let viewModel: ActiveWorkoutViewModel
-    let onButtonPress: () -> Void
     let unitSystem: UnitSystem
     let coordinator: SetInputCoordinator
     @Binding var expandedExerciseID: PersistentIdentifier?
@@ -351,7 +350,6 @@ struct ExerciseEntryCard: View {
                     viewModel: viewModel,
                     coordinator: coordinator,
                     editingCompletedSetID: $editingCompletedSetID,
-                    onButtonPress: onButtonPress,
                     onSetCompleted: handleSetCompletion,
                     previousSet: previousPerformance?.set(at: exerciseSet.orderIndex),
                     onRemove: { viewModel.removeSet(exerciseEntry, exerciseSet) }
@@ -444,9 +442,9 @@ struct ExerciseEntryCard: View {
             return
         }
 
-        viewModel.switchStateDoneSet(exerciseEntry, exerciseSet)
-        onButtonPress()
-        handleSetCompletion()
+        if case .completed = viewModel.completeSet(exerciseSet, in: exerciseEntry) {
+            handleSetCompletion()
+        }
     }
 
     private var completedSetCount: Int {

@@ -358,31 +358,23 @@ class ActiveWorkoutViewModel {
             return false
         }
 
-        guard set.done || canComplete(set, for: exercise) else {
-            return false
+        if !set.done {
+            guard canComplete(set, for: exercise) else { return false }
+            guard case .applied = completeSetTransaction(set, in: exercise) else { return false }
+            return true
         }
 
-        set.done.toggle()
+        set.done = false
         // Segments are internal evidence for this one performed set, not
         // independently counted top-level work. Their completion follows the
         // parent attempt so an undo restores a coherent in-progress state.
         set.synchronizeSegmentCompletion()
         set.synchronizeComplexCompletion()
-        if !set.done {
-            // A selected source must remain a completed performed attempt.
-            // Derived work falls back to the latest remaining completed
-            // maximum until the lifter makes another explicit selection.
-            set.isSelectedDailyMaximum = false
-        }
+        // A selected source must remain a completed performed attempt.
+        // Derived work falls back to the latest remaining completed maximum
+        // until the lifter makes another explicit selection.
+        set.isSelectedDailyMaximum = false
         #if !GYMTRACKER_EXTENSION
-        if set.done {
-            ActiveWorkoutProgressionService.applyAfterCompleting(
-                set: set,
-                in: exercise,
-                workout: workout,
-                modelContext: modelContext
-            )
-        }
         ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
         #endif
         persistChanges()
@@ -854,10 +846,26 @@ class ActiveWorkoutViewModel {
             )
         }
 
-        guard switchStateDoneSet(exercise, set) else { return .failed }
         guard isCompleting else {
+            guard switchStateDoneSet(exercise, set) else { return .failed }
             activeLoggingMetrics?.completedSetReopened()
             return .reopened
+        }
+
+        let outcome = completeSetTransaction(set, in: exercise)
+        guard case .applied = outcome else {
+            if case .invalid = outcome {
+                activeLoggingMetrics?.setCompletionBlocked()
+                return .blocked(
+                    message: validationMessage(for: set, in: exercise),
+                    focus: SetInputFocus(
+                        exerciseID: exercise.persistentModelID,
+                        setID: set.persistentModelID,
+                        field: firstField
+                    )
+                )
+            }
+            return .failed
         }
 
         activeLoggingMetrics?.setCompleted(id: set.id)
@@ -877,5 +885,42 @@ class ActiveWorkoutViewModel {
             for: set,
             trackingType: exercise.trackingTypeSnapshot
         )
+    }
+
+    private func completeSetTransaction(
+        _ set: ExerciseSet,
+        in exercise: ExerciseEntry,
+        now: Date = .now
+    ) -> WorkoutSetCompletionWorkflow.Outcome {
+        guard let workout = workoutVM.activeWorkout else { return .unavailable }
+        let outcome = WorkoutSetCompletionWorkflow(modelContext: modelContext).execute(
+            .init(
+                workoutID: workout.id,
+                target: .identified(entryID: exercise.id, setID: set.id),
+                fallbackRestSeconds: restDefaultSeconds(for: exercise),
+                now: now
+            )
+        )
+        if case .applied(let receipt) = outcome {
+            applyCompletionPostCommit(receipt)
+        }
+        return outcome
+    }
+
+    /// Mirrors durable rest state into the foreground countdown only after the
+    /// workflow's save succeeds. No model mutation or second save happens here.
+    private func applyCompletionPostCommit(_ receipt: WorkoutSetCompletionWorkflow.Receipt) {
+        guard let endDate = receipt.restEndDate, endDate > .now else {
+            timerTask?.cancel()
+            timerTask = nil
+            restTimer.cancel()
+            cancelPendingRestNotification()
+            workoutVM.reconcileLiveActivity()
+            return
+        }
+
+        activeLoggingMetrics?.restExpected()
+        runRestCountdown(until: endDate)
+        activeLoggingMetrics?.restStarted()
     }
 }

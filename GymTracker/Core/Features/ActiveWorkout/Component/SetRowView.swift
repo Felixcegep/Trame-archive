@@ -10,7 +10,6 @@ struct SetRowView: View {
     let viewModel: ActiveWorkoutViewModel
     let coordinator: SetInputCoordinator
     @Binding var editingCompletedSetID: PersistentIdentifier?
-    let onButtonPress: () -> Void
     let onSetCompleted: () -> Void
     let previousSet: PreviousSetPerformance?
     let onRemove: () -> Void
@@ -309,7 +308,6 @@ struct SetRowView: View {
             coordinator.focus = focus
         case .completed(let nextFocus):
             completionValidationMessage = nil
-            onButtonPress()
             onSetCompleted()
             coordinator.focus = nextFocus
         case .reopened:
