@@ -736,9 +736,21 @@ extension BackupDTO {
                         targetRepetitions: item.targetRepetitions,
                         targetLoadValue: item.targetLoadValue,
                         targetLoadUnit: item.targetLoadUnit?.rawValue,
+                        cycleCount: item.cycleCount,
                         side: item.side.rawValue,
                         restSeconds: item.restSeconds,
-                        notes: item.notes
+                        notes: item.notes,
+                        phases: item.orderedPhases.map { phase in
+                            MobilityPhasePrescriptionDTO(
+                                id: phase.id.uuidString,
+                                orderIndex: phase.orderIndex,
+                                phaseType: phase.phaseType.rawValue,
+                                durationSeconds: phase.durationSeconds,
+                                contractionIntensity: phase.contractionIntensity?.rawValue,
+                                instructions: phase.instructions,
+                                side: phase.side.rawValue
+                            )
+                        }
                     )
                 },
                 // Do not export an unrecognized raw value from a future build:
@@ -772,10 +784,14 @@ extension BackupDTO {
                         targetRepetitions: entry.targetRepetitions,
                         prescribedLoadValue: entry.prescribedLoadValue,
                         prescribedLoadUnit: entry.prescribedLoadUnit?.rawValue,
+                        cycleCount: entry.cycleCount,
+                        currentCycleIndex: entry.currentCycleIndex,
+                        currentPhaseIndex: entry.currentPhaseIndex,
                         side: entry.side.rawValue,
                         restSeconds: entry.restSeconds,
                         notesSnapshot: entry.notesSnapshot,
                         timerStartedAt: entry.timerStartedAt,
+                        pausedElapsedSeconds: entry.pausedElapsedSeconds,
                         results: entry.orderedResults.map { result in
                             MobilityResultDTO(
                                 id: result.id.uuidString,
@@ -791,6 +807,22 @@ extension BackupDTO {
                                 discomfortNote: result.discomfortNote,
                                 startedAt: result.startedAt,
                                 completedAt: result.completedAt
+                            )
+                        },
+                        phaseResults: entry.orderedPhaseResults.map { phaseResult in
+                            MobilityPhaseResultDTO(
+                                id: phaseResult.id.uuidString,
+                                orderIndex: phaseResult.orderIndex,
+                                phaseType: phaseResult.phaseType.rawValue,
+                                prescribedDurationSeconds: phaseResult.prescribedDurationSeconds,
+                                performedDurationSeconds: phaseResult.performedDurationSeconds,
+                                cycleIndex: phaseResult.cycleIndex,
+                                side: phaseResult.side.rawValue,
+                                prescribedIntensity: phaseResult.prescribedIntensity?.rawValue,
+                                performedIntensity: phaseResult.performedIntensity?.rawValue,
+                                status: phaseResult.status.rawValue,
+                                startedAt: phaseResult.startedAt,
+                                completedAt: phaseResult.completedAt
                             )
                         }
                     )

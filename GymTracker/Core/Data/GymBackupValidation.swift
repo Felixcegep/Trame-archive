@@ -921,23 +921,42 @@ extension BackupDTO {
         }
 
         var routineItemIDs = [String]()
+        var phasePrescriptionIDs = [String]()
         for routine in mobilityRoutines {
             for item in routine.items {
                 routineItemIDs.append(item.id)
                 guard definitionIDs.contains(item.definitionID),
                       item.orderIndex >= 0,
+                      (item.cycleCount ?? 1) > 0,
                       MobilitySide(rawValue: item.side) != nil,
                       item.targetDurationSeconds.map({ $0 > 0 }) ?? true,
                       item.targetRepetitions.map({ $0 > 0 }) ?? true,
                       item.restSeconds.map({ $0 >= 0 }) ?? true else {
                     throw BackupValidationError.invalidIdentifier("mobility routine item")
                 }
+                let phases = item.phases ?? []
+                let phaseOrder = phases.map(\.orderIndex)
+                guard Set(phaseOrder).count == phaseOrder.count else {
+                    throw BackupValidationError.invalidIdentifier("mobility phase prescription order")
+                }
+                for phase in phases {
+                    phasePrescriptionIDs.append(phase.id)
+                    guard phase.orderIndex >= 0,
+                          PNFPhaseType(rawValue: phase.phaseType) != nil,
+                          phase.durationSeconds > 0,
+                          phase.contractionIntensity.map({ ContractionIntensity(rawValue: $0) != nil }) ?? true,
+                          MobilitySide(rawValue: phase.side) != nil else {
+                        throw BackupValidationError.invalidIdentifier("mobility phase prescription")
+                    }
+                }
             }
         }
         try validateUniqueIdentifiers(routineItemIDs, named: "mobility routine item")
+        try validateUniqueIdentifiers(phasePrescriptionIDs, named: "mobility phase prescription")
 
         var entryIDs = [String]()
         var resultIDs = [String]()
+        var phaseResultIDs = [String]()
         for session in mobilitySessions {
             guard MobilitySessionStatus(rawValue: session.status) != nil,
                   MobilitySessionContext(rawValue: session.context) != nil,
@@ -948,10 +967,22 @@ extension BackupDTO {
             }
             for entry in session.entries {
                 entryIDs.append(entry.id)
+                let cycleCount = entry.cycleCount ?? 1
+                let phaseResults = entry.phaseResults ?? []
+                let phaseCountPerExecutionGroup = Dictionary(
+                    grouping: phaseResults,
+                    by: { "\($0.side)|\($0.cycleIndex)" }
+                ).values.map(\.count)
+                let maximumPhaseCount = phaseCountPerExecutionGroup.max() ?? 0
                 guard entry.orderIndex >= 0,
                       UUID(uuidString: entry.definitionIDSnapshot) != nil,
                       MobilityTrackingType(rawValue: entry.trackingType) != nil,
                       MobilitySide(rawValue: entry.side) != nil,
+                      cycleCount > 0,
+                      (0..<cycleCount).contains(entry.currentCycleIndex ?? 0),
+                      (entry.currentPhaseIndex ?? 0) >= 0,
+                      maximumPhaseCount == 0 || (entry.currentPhaseIndex ?? 0) < maximumPhaseCount,
+                      (entry.pausedElapsedSeconds ?? 0) >= 0,
                       entry.targetDurationSeconds.map({ $0 > 0 }) ?? true,
                       entry.targetRepetitions.map({ $0 > 0 }) ?? true,
                       entry.restSeconds.map({ $0 >= 0 }) ?? true else {
@@ -969,10 +1000,29 @@ extension BackupDTO {
                         throw BackupValidationError.invalidIdentifier("mobility result")
                     }
                 }
+                var phaseExecutionPositions = Set<String>()
+                for phaseResult in phaseResults {
+                    phaseResultIDs.append(phaseResult.id)
+                    guard phaseResult.orderIndex >= 0,
+                          PNFPhaseType(rawValue: phaseResult.phaseType) != nil,
+                          phaseResult.prescribedDurationSeconds > 0,
+                          phaseResult.performedDurationSeconds.map({ $0 >= 0 }) ?? true,
+                          (0..<cycleCount).contains(phaseResult.cycleIndex),
+                          MobilitySide(rawValue: phaseResult.side) != nil,
+                          phaseResult.prescribedIntensity.map({ ContractionIntensity(rawValue: $0) != nil }) ?? true,
+                          phaseResult.performedIntensity.map({ ContractionIntensity(rawValue: $0) != nil }) ?? true,
+                          MobilityResultStatus(rawValue: phaseResult.status) != nil,
+                          phaseExecutionPositions.insert(
+                              "\(phaseResult.side)|\(phaseResult.cycleIndex)|\(phaseResult.orderIndex)"
+                          ).inserted else {
+                        throw BackupValidationError.invalidIdentifier("mobility phase result")
+                    }
+                }
             }
         }
         try validateUniqueIdentifiers(entryIDs, named: "mobility entry")
         try validateUniqueIdentifiers(resultIDs, named: "mobility result")
+        try validateUniqueIdentifiers(phaseResultIDs, named: "mobility phase result")
     }
 
     private func validateMobilityAssessments() throws {

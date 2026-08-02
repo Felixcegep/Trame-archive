@@ -58,6 +58,13 @@ enum GymTrackerCurrentBaselineSchema: VersionedSchema {
             MobilityFamily.self,
             MobilityDefinition.self,
             MobilityRoutine.self,
+            // SwiftData expands the registered relationship graph: the
+            // cascade children MobilityPhasePrescription and
+            // MobilityPhaseResult are already part of the effective schema
+            // through MobilityRoutineItem and MobilityEntry. Keep this frozen
+            // explicit list identical to the verified pre-versioning list;
+            // redundantly naming relationship-discovered children here would
+            // not represent a new persisted model version.
             MobilityRoutineItem.self,
             MobilitySession.self,
             MobilityEntry.self,

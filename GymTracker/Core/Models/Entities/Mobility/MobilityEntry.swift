@@ -57,6 +57,9 @@ final class MobilityEntry {
         self.targetRepetitions = routineItem.targetRepetitions ?? routineItem.definition.defaultRepetitions
         self.prescribedLoadValue = routineItem.targetLoadValue
         self.prescribedLoadUnitRaw = routineItem.targetLoadUnitRaw
+        self.cycleCount = routineItem.cycleCount
+        self.currentCycleIndex = 0
+        self.currentPhaseIndex = 0
         self.sideRaw = routineItem.side.rawValue
         self.restSeconds = routineItem.restSeconds
         self.notesSnapshot = routineItem.notes
@@ -97,5 +100,38 @@ final class MobilityEntry {
 
     var orderedResults: [MobilityResult] {
         results.sorted { $0.sideRaw < $1.sideRaw }
+    }
+
+    /// Side-major, then cycle, then authored phase order. This is both the
+    /// immutable snapshot order and the execution order consumed by the next
+    /// mobility-flow slice.
+    var orderedPhaseResults: [MobilityPhaseResult] {
+        phaseResults.sorted {
+            let lhsSide = Self.sideOrder($0.side)
+            let rhsSide = Self.sideOrder($1.side)
+            if lhsSide != rhsSide { return lhsSide < rhsSide }
+            if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
+            if $0.orderIndex != $1.orderIndex { return $0.orderIndex < $1.orderIndex }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+    }
+
+    var isPhaseDriven: Bool { phaseResults.isEmpty == false }
+
+    /// The in-progress row is the durable current-side cursor. There is no
+    /// second persisted `currentSide` field because the phase result already
+    /// owns side, cycle, phase and status evidence.
+    var currentPhaseResult: MobilityPhaseResult? {
+        orderedPhaseResults.first { $0.status == .inProgress }
+    }
+
+    private static func sideOrder(_ side: MobilitySide) -> Int {
+        switch side {
+        case .none: 0
+        case .left: 1
+        case .right: 2
+        case .bilateral: 3
+        case .alternating: 4
+        }
     }
 }

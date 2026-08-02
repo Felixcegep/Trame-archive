@@ -17,17 +17,22 @@ enum MobilitySessionService {
         routine: MobilityRoutine,
         context: MobilitySessionContext = .standalone,
         workoutID: UUID? = nil,
+        now: Date = .now,
         using modelContext: ModelContext
     ) -> MobilitySession? {
         guard routine.isArchived == false, routine.orderedItems.isEmpty == false else { return nil }
         guard activeSession(using: modelContext) == nil else { return nil }
+        guard routine.orderedItems.allSatisfy(canSnapshot) else { return nil }
 
         let session = MobilitySession(
             nameSnapshot: routine.name,
             sourceRoutineID: routine.id,
             sourceRoutineName: routine.name,
             workoutID: workoutID,
-            context: context
+            context: context,
+            startTime: now,
+            createdAt: now,
+            updatedAt: now
         )
         session.entries = routine.orderedItems.enumerated().map { index, item in
             let entry = MobilityEntry(routineItem: item, orderIndex: index)
@@ -38,9 +43,10 @@ enum MobilitySessionService {
                     prescribedRepetitions: entry.targetRepetitions
                 )
             }
+            entry.phaseResults = phaseSnapshots(for: item)
             return entry
         }
-        begin(entry: session.currentEntry)
+        begin(entry: session.currentEntry, now: now)
         modelContext.insert(session)
         do {
             try modelContext.save()
@@ -132,6 +138,10 @@ enum MobilitySessionService {
         using modelContext: ModelContext
     ) -> Bool {
         guard session.status == .active, let entry = session.currentEntry else { return false }
+        // Phase-driven work is intentionally not collapsed into the legacy
+        // whole-entry action. PR 13 owns completing one phase and advancing
+        // side/cycle/phase cursors.
+        guard entry.isPhaseDriven == false else { return false }
         complete(entry: entry, status: status, resultInputs: resultInputs)
         advance(session: session)
         return save(session: session, using: modelContext)
@@ -145,6 +155,11 @@ enum MobilitySessionService {
                 result.status = .stopped
                 result.completedAt = .now
             }
+            for phaseResult in entry.phaseResults
+                where phaseResult.status == .notStarted || phaseResult.status == .inProgress {
+                phaseResult.status = .stopped
+                phaseResult.completedAt = .now
+            }
             entry.timerStartedAt = nil
         }
         session.status = .stopped
@@ -157,13 +172,58 @@ enum MobilitySessionService {
         return max(0, Int(now.timeIntervalSince(startedAt)))
     }
 
-    private static func begin(entry: MobilityEntry?) {
+    private static func begin(entry: MobilityEntry?, now: Date = .now) {
         guard let entry else { return }
-        entry.timerStartedAt = entry.trackingType == .duration ? .now : nil
-        for result in entry.results {
-            result.status = .inProgress
-            result.startedAt = .now
+        guard entry.isPhaseDriven else {
+            // Preserve the existing simple duration/repetition start contract.
+            entry.timerStartedAt = entry.trackingType == .duration ? now : nil
+            for result in entry.results {
+                result.status = .inProgress
+                result.startedAt = now
+            }
+            return
         }
+
+        guard let firstPhase = entry.orderedPhaseResults.first else { return }
+        entry.currentCycleIndex = firstPhase.cycleIndex
+        entry.currentPhaseIndex = 0
+        entry.timerStartedAt = now
+        firstPhase.status = .inProgress
+        firstPhase.startedAt = now
+        if let sideResult = entry.results.first(where: { $0.side == firstPhase.side }) {
+            sideResult.status = .inProgress
+            sideResult.startedAt = now
+        }
+    }
+
+    private static func phaseSnapshots(
+        for item: MobilityRoutineItem
+    ) -> [MobilityPhaseResult] {
+        guard item.orderedPhases.isEmpty == false else { return [] }
+        return item.side.resultSides.flatMap { side in
+            (0..<item.cycleCount).flatMap { cycleIndex in
+                item.orderedPhases.map { phase in
+                    MobilityPhaseResult(
+                        orderIndex: phase.orderIndex,
+                        phaseType: phase.phaseType,
+                        prescribedDurationSeconds: phase.durationSeconds,
+                        cycleIndex: cycleIndex,
+                        side: side,
+                        prescribedIntensity: phase.contractionIntensity
+                    )
+                }
+            }
+        }
+    }
+
+    private static func canSnapshot(_ item: MobilityRoutineItem) -> Bool {
+        guard item.orderedPhases.isEmpty == false else { return true }
+        let order = item.orderedPhases.map(\.orderIndex)
+        let identifiers = item.orderedPhases.map(\.id)
+        return item.cycleCount > 0
+            && Set(order).count == order.count
+            && Set(identifiers).count == identifiers.count
+            && item.orderedPhases.allSatisfy { $0.orderIndex >= 0 && $0.durationSeconds > 0 }
     }
 
     private static func complete(
