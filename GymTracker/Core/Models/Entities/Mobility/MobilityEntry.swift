@@ -103,8 +103,8 @@ final class MobilityEntry {
     }
 
     /// Side-major, then cycle, then authored phase order. This is both the
-    /// immutable snapshot order and the execution order consumed by the next
-    /// mobility-flow slice.
+    /// immutable snapshot order and the execution order consumed by
+    /// `MobilityFlowResolver`.
     var orderedPhaseResults: [MobilityPhaseResult] {
         phaseResults.sorted {
             let lhsSide = Self.sideOrder($0.side)

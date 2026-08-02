@@ -10,6 +10,13 @@ struct MobilityResultInput {
     var discomfortNote: String?
 }
 
+enum MobilityPhaseCompletionOutcome: Equatable {
+    case applied(MobilityTransition)
+    case stale(MobilityTransition)
+    case invalidPerformedDuration
+    case persistenceFailure
+}
+
 @MainActor
 enum MobilitySessionService {
     @discardableResult
@@ -131,6 +138,56 @@ enum MobilitySessionService {
         finishCurrent(in: session, status: .partial, resultInputs: resultInputs, using: modelContext)
     }
 
+    /// Completes exactly the durable current phase and applies the pure
+    /// side/cycle/phase transition in one SwiftData commit.
+    @discardableResult
+    static func completeCurrentPhase(
+        in session: MobilitySession,
+        performedDurationSeconds: Int? = nil,
+        performedIntensity: ContractionIntensity? = nil,
+        now: Date = .now,
+        using modelContext: ModelContext
+    ) -> MobilityPhaseCompletionOutcome {
+        guard performedDurationSeconds.map({ $0 >= 0 }) ?? true else {
+            return .invalidPerformedDuration
+        }
+        let snapshot = flowSnapshot(for: session)
+        guard session.status == .active,
+              let entry = session.currentEntry,
+              let currentPhase = entry.currentPhaseResult,
+              session.entries.flatMap(\.phaseResults).filter({ $0.status == .inProgress }).count == 1,
+              entry.results.first(where: { $0.side == currentPhase.side })?.status == .inProgress
+        else {
+            return .stale(staleTransition(for: snapshot, entryID: session.currentEntry?.id))
+        }
+
+        let transition = MobilityFlowResolver.resolve(
+            MobilityFlowContext(
+                session: snapshot,
+                completedEntryID: entry.id,
+                completedPhaseResultID: currentPhase.id
+            )
+        )
+        guard transition.stale == false else { return .stale(transition) }
+
+        currentPhase.performedDurationSeconds = performedDurationSeconds
+            ?? elapsedSeconds(for: entry, now: now)
+        currentPhase.performedIntensity = performedIntensity
+        currentPhase.status = .completed
+        currentPhase.completedAt = now
+        completeSideIfFinished(currentPhase.side, in: entry, now: now)
+        apply(transition, afterCompletingPhaseIn: entry, session: session, now: now)
+        session.updatedAt = now
+
+        do {
+            try modelContext.save()
+            return .applied(transition)
+        } catch {
+            modelContext.rollback()
+            return .persistenceFailure
+        }
+    }
+
     private static func finishCurrent(
         in session: MobilitySession,
         status: MobilityResultStatus,
@@ -139,11 +196,19 @@ enum MobilitySessionService {
     ) -> Bool {
         guard session.status == .active, let entry = session.currentEntry else { return false }
         // Phase-driven work is intentionally not collapsed into the legacy
-        // whole-entry action. PR 13 owns completing one phase and advancing
-        // side/cycle/phase cursors.
+        // whole-entry action. `completeCurrentPhase` owns one-node evidence
+        // and side/cycle/phase advancement.
         guard entry.isPhaseDriven == false else { return false }
+        let transition = MobilityFlowResolver.resolve(
+            MobilityFlowContext(
+                session: flowSnapshot(for: session),
+                completedEntryID: entry.id,
+                completedPhaseResultID: nil
+            )
+        )
+        guard transition.stale == false else { return false }
         complete(entry: entry, status: status, resultInputs: resultInputs)
-        advance(session: session)
+        apply(transition, afterCompletingPhaseIn: nil, session: session, now: .now)
         return save(session: session, using: modelContext)
     }
 
@@ -185,15 +250,7 @@ enum MobilitySessionService {
         }
 
         guard let firstPhase = entry.orderedPhaseResults.first else { return }
-        entry.currentCycleIndex = firstPhase.cycleIndex
-        entry.currentPhaseIndex = 0
-        entry.timerStartedAt = now
-        firstPhase.status = .inProgress
-        firstPhase.startedAt = now
-        if let sideResult = entry.results.first(where: { $0.side == firstPhase.side }) {
-            sideResult.status = .inProgress
-            sideResult.startedAt = now
-        }
+        begin(phase: firstPhase, phaseIndex: 0, in: entry, now: now)
     }
 
     private static func phaseSnapshots(
@@ -246,15 +303,134 @@ enum MobilitySessionService {
         entry.timerStartedAt = nil
     }
 
-    private static func advance(session: MobilitySession) {
-        session.currentEntryIndex += 1
-        if session.currentEntry == nil {
-            session.status = .completed
-            session.endTime = .now
-        } else {
-            begin(entry: session.currentEntry)
+    private static func completeSideIfFinished(
+        _ side: MobilitySide,
+        in entry: MobilityEntry,
+        now: Date
+    ) {
+        let hasUnfinishedPhase = entry.phaseResults.contains {
+            $0.side == side && ($0.status == .notStarted || $0.status == .inProgress)
         }
-        session.updatedAt = .now
+        guard hasUnfinishedPhase == false,
+              let result = entry.results.first(where: { $0.side == side })
+        else { return }
+        result.status = .completed
+        result.completedAt = now
+    }
+
+    private static func apply(
+        _ transition: MobilityTransition,
+        afterCompletingPhaseIn completedEntry: MobilityEntry?,
+        session: MobilitySession,
+        now: Date
+    ) {
+        completedEntry?.timerStartedAt = nil
+        guard transition.sessionCompleted == false,
+              let nextEntryID = transition.nextEntryID,
+              let nextEntry = session.entries.first(where: { $0.id == nextEntryID })
+        else {
+            session.status = .completed
+            session.endTime = now
+            session.updatedAt = now
+            return
+        }
+
+        session.currentEntryIndex = nextEntry.orderIndex
+        if let nextPhaseResultID = transition.nextPhaseResultID,
+           let nextPhase = nextEntry.phaseResults.first(where: { $0.id == nextPhaseResultID }),
+           let nextPhaseIndex = transition.nextPhaseIndex {
+            begin(phase: nextPhase, phaseIndex: nextPhaseIndex, in: nextEntry, now: now)
+        } else {
+            begin(entry: nextEntry, now: now)
+        }
+        session.updatedAt = now
+    }
+
+    private static func begin(
+        phase: MobilityPhaseResult,
+        phaseIndex: Int,
+        in entry: MobilityEntry,
+        now: Date
+    ) {
+        entry.currentCycleIndex = phase.cycleIndex
+        entry.currentPhaseIndex = phaseIndex
+        entry.timerStartedAt = now
+        phase.status = .inProgress
+        phase.startedAt = now
+        if let sideResult = entry.results.first(where: { $0.side == phase.side }),
+           sideResult.status == .notStarted {
+            sideResult.status = .inProgress
+            sideResult.startedAt = now
+        }
+    }
+
+    private static func staleTransition(
+        for snapshot: MobilityFlowSnapshot,
+        entryID: UUID?
+    ) -> MobilityTransition {
+        guard let entryID else {
+            return MobilityTransition(
+                semantics: .sequential,
+                nextEntryID: nil,
+                nextPhaseResultID: nil,
+                nextSide: nil,
+                nextCycleIndex: nil,
+                nextPhaseIndex: nil,
+                restDirective: .none,
+                sessionCompleted: false,
+                stale: true
+            )
+        }
+        return MobilityFlowResolver.resolve(
+            MobilityFlowContext(
+                session: snapshot,
+                completedEntryID: entryID,
+                completedPhaseResultID: UUID()
+            )
+        )
+    }
+
+    private static func flowSnapshot(for session: MobilitySession) -> MobilityFlowSnapshot {
+        MobilityFlowSnapshot(
+            currentEntryIndex: session.currentEntryIndex,
+            entries: session.orderedEntries.map { entry in
+                var phaseIndexByGroup: [String: Int] = [:]
+                let nodes = entry.orderedPhaseResults.map { phase -> MobilityFlowNodeSnapshot in
+                    let groupKey = "\(phase.side.rawValue)|\(phase.cycleIndex)"
+                    let phaseIndex = phaseIndexByGroup[groupKey, default: 0]
+                    phaseIndexByGroup[groupKey] = phaseIndex + 1
+                    return MobilityFlowNodeSnapshot(
+                        id: phase.id,
+                        orderIndex: phase.orderIndex,
+                        phaseIndex: phaseIndex,
+                        cycleIndex: phase.cycleIndex,
+                        side: phase.side,
+                        sideOrder: sideOrder(phase.side),
+                        phaseType: phase.phaseType,
+                        prescribedDurationSeconds: phase.prescribedDurationSeconds,
+                        status: phase.status
+                    )
+                }
+                return MobilityFlowEntrySnapshot(
+                    id: entry.id,
+                    orderIndex: entry.orderIndex,
+                    currentCycleIndex: entry.currentCycleIndex,
+                    currentPhaseIndex: entry.currentPhaseIndex,
+                    restSeconds: entry.restSeconds,
+                    phaseNodes: nodes
+                )
+            }
+        )
+    }
+
+    private static func sideOrder(_ side: MobilitySide) -> Int {
+        switch side {
+        case .none: 0
+        case .left: 1
+        case .right: 2
+        case .bilateral: 3
+        case .alternating: 4
+        }
     }
 
     private static func save(session: MobilitySession, using modelContext: ModelContext) -> Bool {

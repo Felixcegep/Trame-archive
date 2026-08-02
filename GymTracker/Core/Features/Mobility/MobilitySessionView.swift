@@ -60,6 +60,8 @@ struct MobilitySessionView: View {
     @State private var repetitionsByResult: [UUID: Int] = [:]
     @State private var intensitiesByResult: [UUID: Int] = [:]
     @State private var discomfortNotesByResult: [UUID: String] = [:]
+    @State private var phaseDurationsByResult: [UUID: Int] = [:]
+    @State private var phaseIntensityByResult: [UUID: String] = [:]
     @State private var isShowingStopConfirmation = false
     @State private var error: ValidationIssue?
 
@@ -71,7 +73,9 @@ struct MobilitySessionView: View {
                         progressHeader
                         currentEntry(entry)
                         resultInputs(entry)
-                        previousPerformance(entry)
+                        if entry.isPhaseDriven == false {
+                            previousPerformance(entry)
+                        }
                     }
                     .padding(.horizontal, Spacing.xl)
                     .padding(.vertical, Spacing.l)
@@ -125,6 +129,7 @@ struct MobilitySessionView: View {
         }
         .onAppear(perform: loadCurrentEntry)
         .onChange(of: session.currentEntryIndex) { _, _ in loadCurrentEntry() }
+        .onChange(of: currentPhaseResultID) { _, _ in loadCurrentEntry() }
     }
 
     private var progressHeader: some View {
@@ -162,22 +167,43 @@ struct MobilitySessionView: View {
                     .foregroundStyle(Color.gymSubduedText)
             }
 
-            HStack(spacing: Spacing.s) {
-                Label(entry.side.displayName, systemImage: AppIcon.mobility)
-                if entry.trackingType == .duration, let target = entry.targetDurationSeconds {
+            if let phase = entry.currentPhaseResult {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    Label(phase.phaseType.title, systemImage: AppIcon.timer)
+                    Text(phaseProgressLabel(phase, in: entry))
+                        .foregroundStyle(Color.gymSubduedText)
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         MobilityHoldProgressLabel(
                             elapsedSeconds: elapsedSeconds(for: entry),
-                            targetSeconds: target,
-                            movementName: entry.definitionNameSnapshot
+                            targetSeconds: phase.prescribedDurationSeconds,
+                            movementName: "\(entry.definitionNameSnapshot), \(phase.phaseType.title)"
                         )
                     }
-                } else if let target = entry.targetRepetitions {
-                    Text("Target \(target) reps")
+                    if let intensity = phase.prescribedIntensity {
+                        Text("Prescribed effort: \(intensity.title)")
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
                 }
+                .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(Color.gymPrimary)
+            } else {
+                HStack(spacing: Spacing.s) {
+                    Label(entry.side.displayName, systemImage: AppIcon.mobility)
+                    if entry.trackingType == .duration, let target = entry.targetDurationSeconds {
+                        TimelineView(.periodic(from: .now, by: 1)) { _ in
+                            MobilityHoldProgressLabel(
+                                elapsedSeconds: elapsedSeconds(for: entry),
+                                targetSeconds: target,
+                                movementName: entry.definitionNameSnapshot
+                            )
+                        }
+                    } else if let target = entry.targetRepetitions {
+                        Text("Target \(target) reps")
+                    }
+                }
+                .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(Color.gymPrimary)
             }
-            .font(AppFont.subheadlineSemibold)
-            .foregroundStyle(Color.gymPrimary)
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -196,6 +222,48 @@ struct MobilitySessionView: View {
 
     @ViewBuilder
     private func resultInputs(_ entry: MobilityEntry) -> some View {
+        if let phase = entry.currentPhaseResult {
+            phaseResultInput(phase)
+        } else {
+            legacyResultInputs(entry)
+        }
+    }
+
+    private func phaseResultInput(_ phase: MobilityPhaseResult) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("PHASE RESULT")
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(Color.gymSubduedText)
+
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Text(phase.side == .none ? phase.phaseType.title : phase.side.displayName)
+                    .font(AppFont.subheadlineSemibold)
+
+                Stepper(
+                    "Performed duration: \(phaseDuration(for: phase)) sec",
+                    value: phaseDurationBinding(for: phase),
+                    in: 0...max(600, phase.prescribedDurationSeconds),
+                    step: 5
+                )
+                .accessibilityIdentifier("mobility-phase-duration")
+
+                if phaseUsesIntensity(phase) {
+                    Picker("Performed effort", selection: phaseIntensityBinding(for: phase)) {
+                        Text("Not recorded").tag("")
+                        ForEach(ContractionIntensity.allCases, id: \.self) { intensity in
+                            Text(intensity.title).tag(intensity.rawValue)
+                        }
+                    }
+                    .accessibilityIdentifier("mobility-phase-intensity")
+                }
+            }
+            .padding(Spacing.m)
+            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        }
+    }
+
+    private func legacyResultInputs(_ entry: MobilityEntry) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text("RESULT")
                 .font(AppFont.captionBold)
@@ -240,29 +308,39 @@ struct MobilitySessionView: View {
 
     private var actions: some View {
         VStack(spacing: Spacing.m) {
-            Button {
-                completeCurrent()
-            } label: {
-                Label("Complete movement", systemImage: AppIcon.checkmarkCircle)
+            if session.currentEntry?.isPhaseDriven == true {
+                Button {
+                    completeCurrentPhase()
+                } label: {
+                    Label("Complete phase", systemImage: AppIcon.checkmarkCircle)
+                }
+                .buttonStyle(.gymPrimaryProminent)
+                .accessibilityIdentifier("complete-mobility-phase")
+            } else {
+                Button {
+                    completeCurrent()
+                } label: {
+                    Label("Complete movement", systemImage: AppIcon.checkmarkCircle)
+                }
+                // The app's own prominent style, not `.borderedProminent`: this is
+                // the same committing action as Active Workout's, and it was the
+                // one place in an execution flow still wearing a system button.
+                .buttonStyle(.gymPrimaryProminent)
+                .accessibilityIdentifier("complete-mobility-movement")
+
+                HStack(spacing: Spacing.xl) {
+                    Button("Save partial result") { savePartialCurrent() }
+                        .accessibilityIdentifier("save-partial-mobility-movement")
+
+                    Spacer(minLength: Spacing.s)
+
+                    Button("Skip movement") { skipCurrent() }
+                        .foregroundStyle(Color.gymSubduedText)
+                        .accessibilityIdentifier("skip-mobility-movement")
+                }
+                .font(AppFont.subheadlineSemibold)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
             }
-            // The app's own prominent style, not `.borderedProminent`: this is
-            // the same committing action as Active Workout's, and it was the
-            // one place in an execution flow still wearing a system button.
-            .buttonStyle(.gymPrimaryProminent)
-            .accessibilityIdentifier("complete-mobility-movement")
-
-            HStack(spacing: Spacing.xl) {
-                Button("Save partial result") { savePartialCurrent() }
-                    .accessibilityIdentifier("save-partial-mobility-movement")
-
-                Spacer(minLength: Spacing.s)
-
-                Button("Skip movement") { skipCurrent() }
-                    .foregroundStyle(Color.gymSubduedText)
-                    .accessibilityIdentifier("skip-mobility-movement")
-            }
-            .font(AppFont.subheadlineSemibold)
-            .frame(minHeight: ComponentSize.minimumTouchTarget)
         }
         .padding(.horizontal, Spacing.xl)
         .padding(.vertical, Spacing.m)
@@ -332,6 +410,11 @@ struct MobilitySessionView: View {
     }
 
     private func entryAccessibilityLabel(_ entry: MobilityEntry) -> String {
+        if let phase = entry.currentPhaseResult {
+            return String(
+                localized: "Current movement. \(entry.definitionNameSnapshot). Current phase \(phase.phaseType.title), \(phase.side.displayName), cycle \(phase.cycleIndex + 1) of \(entry.cycleCount), target \(phase.prescribedDurationSeconds) seconds."
+            )
+        }
         let target: String
         if entry.trackingType == .duration {
             target = "\(entry.targetDurationSeconds ?? 0) seconds"
@@ -355,6 +438,15 @@ struct MobilitySessionView: View {
         })
         intensitiesByResult = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.id, $0.perceivedIntensity ?? 0) })
         discomfortNotesByResult = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.id, $0.discomfortNote ?? "") })
+        if let phase = entry.currentPhaseResult {
+            phaseDurationsByResult = [
+                phase.id: phase.performedDurationSeconds ?? elapsedSeconds(for: entry)
+            ]
+            phaseIntensityByResult = [phase.id: phase.performedIntensity?.rawValue ?? ""]
+        } else {
+            phaseDurationsByResult = [:]
+            phaseIntensityByResult = [:]
+        }
     }
 
     private func completeCurrent() {
@@ -367,6 +459,31 @@ struct MobilitySessionView: View {
             return
         }
         if session.status != .active { onFinished() }
+    }
+
+    private func completeCurrentPhase() {
+        guard let entry = session.currentEntry,
+              let phase = entry.currentPhaseResult else {
+            error = ValidationIssue(severity: .error, message: "The current phase changed. Review it and try again.")
+            return
+        }
+        let outcome = MobilitySessionService.completeCurrentPhase(
+            in: session,
+            performedDurationSeconds: phaseDurationsByResult[phase.id] ?? elapsedSeconds(for: entry),
+            performedIntensity: phaseIntensityByResult[phase.id].flatMap(ContractionIntensity.init(rawValue:)),
+            using: modelContext
+        )
+        switch outcome {
+        case .applied:
+            if session.status != .active { onFinished() }
+        case .stale:
+            loadCurrentEntry()
+            error = ValidationIssue(severity: .error, message: "The current phase changed. Review it and try again.")
+        case .invalidPerformedDuration:
+            error = ValidationIssue(severity: .error, message: "Enter a valid performed duration before continuing.")
+        case .persistenceFailure:
+            error = ValidationIssue(severity: .error, message: "The phase could not be saved. Try again.")
+        }
     }
 
     private func skipCurrent() {
@@ -402,6 +519,45 @@ struct MobilitySessionView: View {
                 )
             )
         })
+    }
+
+    private var currentPhaseResultID: UUID? {
+        session.currentEntry?.currentPhaseResult?.id
+    }
+
+    private func phaseProgressLabel(_ phase: MobilityPhaseResult, in entry: MobilityEntry) -> String {
+        let phaseCount = entry.phaseResults.filter {
+            $0.side == phase.side && $0.cycleIndex == phase.cycleIndex
+        }.count
+        return String(
+            localized: "\(phase.side.displayName) · Cycle \(phase.cycleIndex + 1) of \(entry.cycleCount) · Phase \(entry.currentPhaseIndex + 1) of \(phaseCount)"
+        )
+    }
+
+    private func phaseUsesIntensity(_ phase: MobilityPhaseResult) -> Bool {
+        phase.prescribedIntensity != nil
+            || phase.phaseType == .contraction
+            || phase.phaseType == .activeContraction
+    }
+
+    private func phaseDuration(for phase: MobilityPhaseResult) -> Int {
+        phaseDurationsByResult[phase.id]
+            ?? session.currentEntry.map { elapsedSeconds(for: $0) }
+            ?? 0
+    }
+
+    private func phaseDurationBinding(for phase: MobilityPhaseResult) -> Binding<Int> {
+        Binding(
+            get: { phaseDuration(for: phase) },
+            set: { phaseDurationsByResult[phase.id] = $0 }
+        )
+    }
+
+    private func phaseIntensityBinding(for phase: MobilityPhaseResult) -> Binding<String> {
+        Binding(
+            get: { phaseIntensityByResult[phase.id] ?? "" },
+            set: { phaseIntensityByResult[phase.id] = $0 }
+        )
     }
 
     private func durationBinding(for result: MobilityResult, defaultValue: Int) -> Binding<Int> {

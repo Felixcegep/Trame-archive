@@ -12,7 +12,7 @@ enum MobilityTrackingType: String, Codable, CaseIterable, Hashable {
     }
 }
 
-enum MobilitySide: String, Codable, CaseIterable, Hashable {
+nonisolated enum MobilitySide: String, Codable, CaseIterable, Hashable, Sendable {
     case none
     case left
     case right
@@ -43,7 +43,7 @@ enum MobilitySessionStatus: String, Codable, CaseIterable, Hashable {
     case stopped
 }
 
-enum MobilityResultStatus: String, Codable, CaseIterable, Hashable {
+nonisolated enum MobilityResultStatus: String, Codable, CaseIterable, Hashable, Sendable {
     case notStarted
     case inProgress
     case completed
