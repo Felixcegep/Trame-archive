@@ -244,6 +244,7 @@ enum ProgramPrescriptionSnapshotService {
                 set.duration = seconds.map { max(1, $0 + (state?.durationOffset ?? 0)) }
             case .distance(let meters):
                 set.distance = meters.map { Float(max(0.01, $0 + (state?.distanceOffset ?? 0))) }
+                set.distanceType = .meters
             case .calories(let calories):
                 set.calories = calories.map { max(0, $0 + (state?.caloriesOffset ?? 0)) }
             set.prescribedCalories = set.calories

@@ -261,8 +261,11 @@ struct WorkoutDetailView: View {
     }
 
     private func distanceText(for set: ExerciseSet) -> String {
-        guard let distance = set.distance else { return "—" }
-        return "\(Formatters.formatFloat(distance)) \(set.distanceType.rawValue)"
+        guard let measurement = WorkoutDistancePolicy.displayMeasurement(
+            for: set,
+            system: UserDefaults.standard.unitSystem
+        ) else { return "—" }
+        return "\(Formatters.formatFloat(measurement.value)) \(measurement.unit.symbol)"
     }
 
     private func caloriesText(for set: ExerciseSet) -> String {

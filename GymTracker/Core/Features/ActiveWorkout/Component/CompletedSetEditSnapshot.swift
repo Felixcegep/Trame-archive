@@ -5,6 +5,7 @@ struct CompletedSetEditSnapshot {
     let weight: Float
     let duration: TimeInterval?
     let distance: Float?
+    let distanceType: DistanceType
     let calories: Double?
 
     init(_ set: ExerciseSet) {
@@ -12,6 +13,7 @@ struct CompletedSetEditSnapshot {
         weight = set.weight
         duration = set.duration
         distance = set.distance
+        distanceType = set.distanceType
         calories = set.calories
     }
 
@@ -20,6 +22,7 @@ struct CompletedSetEditSnapshot {
         set.weight = weight
         set.duration = duration
         set.distance = distance
+        set.distanceType = distanceType
         set.calories = calories
     }
 }

@@ -135,7 +135,9 @@ final class ExerciseSet {
     ) {
         self.orderIndex = orderIndex
         self.weightType = usedMetric == .metric ? .kg : .lbs
-        self.distanceType = usedMetric == .metric ? .kilometers : .miles
+        // New performed/prescribed distance is canonical metres. Restored
+        // legacy rows overwrite this with their portable semantic unit.
+        self.distanceType = .meters
         self.repetitions = repetitions
         self.weight = weight
         self.duration = duration
@@ -205,7 +207,7 @@ final class ExerciseSet {
             repetitions: repetitions,
             weight: weight,
             duration: duration,
-            distance: distance,
+            distance: WorkoutDistancePolicy.meters(of: self),
             calories: calories,
             
             
@@ -232,7 +234,7 @@ final class ExerciseSet {
             usedMetric: usedMetric
         )
         copy.weightType = weightType
-        copy.distanceType = distanceType
+        copy.distanceType = .meters
         // A copied active set is a new performed effort, but it remains part
         // of the same active prescription. Retain immutable target evidence
         // so an appended daily-maximum attempt or working set can still feed
@@ -350,7 +352,13 @@ final class ExerciseSet {
         }
         if let duration = duration, duration > 0 {
             if let distance = distance, distance > 0 {
-                return String(format: "%ds @ %.2f %@", Int(duration), distance, distanceType.rawValue)
+                let measurement = WorkoutDistancePolicy.displayMeasurement(for: self)
+                return String(
+                    format: "%ds @ %.2f %@",
+                    Int(duration),
+                    measurement?.value ?? distance,
+                    measurement?.unit.symbol ?? distanceType.symbol
+                )
             }
             return "\(Int(duration))s"
         }

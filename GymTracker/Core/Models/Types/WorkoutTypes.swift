@@ -72,13 +72,21 @@ enum LiftQuality: String, Codable, CaseIterable, Hashable {
     }
 }
 
-enum WeightType: String, Codable, CaseIterable {
+nonisolated enum WeightType: String, Codable, CaseIterable, Sendable {
     case kg
     case lbs
 }
 
-enum DistanceType: String, Codable, CaseIterable {
+nonisolated enum DistanceType: String, Codable, CaseIterable, Sendable {
     case meters
     case kilometers
     case miles
+
+    nonisolated var symbol: String {
+        switch self {
+        case .meters: "m"
+        case .kilometers: "km"
+        case .miles: "mi"
+        }
+    }
 }

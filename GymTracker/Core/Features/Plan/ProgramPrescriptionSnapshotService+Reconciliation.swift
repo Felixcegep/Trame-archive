@@ -169,6 +169,7 @@ extension ProgramPrescriptionSnapshotService {
             set.duration = seconds
         case .distance(let meters):
             set.distance = meters.map { Float($0) }
+            set.distanceType = .meters
         case .calories(let calories):
             set.calories = calories
             set.prescribedCalories = calories
@@ -257,11 +258,8 @@ extension ProgramPrescriptionSnapshotService {
         }
         if trackingType.usesDuration { target.duration = source.duration }
         if trackingType.usesDistance {
-            if let distance = source.distance {
-                target.distance = UnitConversion.distance(distance, from: source.distanceType, to: target.distanceType)
-            } else {
-                target.distance = nil
-            }
+            target.distance = WorkoutDistancePolicy.meters(of: source)
+            target.distanceType = .meters
         }
         if trackingType.usesCalories { target.calories = source.calories }
         target.isUserOverridden = true

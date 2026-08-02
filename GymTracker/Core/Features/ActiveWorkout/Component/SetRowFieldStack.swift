@@ -142,7 +142,7 @@ struct SetRowFieldStack: View {
     }
 
     private var distanceField: some View {
-        valueButton(.distance)
+        valueButton(.distance, unit: distanceMeasurement?.unit.symbol)
     }
 
     private func storedText(for field: SetInputFocus.Field) -> String {
@@ -155,8 +155,8 @@ struct SetRowFieldStack: View {
             guard let duration = exerciseSet.duration, duration > 0 else { return "" }
             return String(Int(duration))
         case .distance:
-            guard let distance = exerciseSet.distance, distance > 0 else { return "" }
-            return Formatters.formatFloat(distance)
+            guard let measurement = distanceMeasurement, measurement.value > 0 else { return "" }
+            return Formatters.formatFloat(measurement.value)
         case .calories:
             guard let calories = exerciseSet.calories, calories > 0 else { return "" }
             return Formatters.formatFloat(Float(calories))
@@ -209,7 +209,7 @@ struct SetRowFieldStack: View {
         case .duration:
             return String(localized: "Set \(index + 1) duration in seconds")
         case .distance:
-            return String(localized: "Set \(index + 1) distance, \(exerciseSet.distanceType.rawValue)")
+            return String(localized: "Set \(index + 1) distance, \(distanceMeasurement?.unit.rawValue ?? preferredDistanceUnit.rawValue)")
         case .calories:
             return String(localized: "Set \(index + 1) calories")
         }
@@ -260,7 +260,25 @@ struct SetRowFieldStack: View {
     }
 
     private func displayDistance(for previousSet: PreviousSetPerformance) -> Float {
-        UnitConversion.distance(previousSet.distance ?? 0, from: previousSet.distanceType, to: exerciseSet.distanceType)
+        let meters = WorkoutDistancePolicy.meters(
+            storedValue: previousSet.distance ?? 0,
+            storedUnit: previousSet.distanceType
+        )
+        return UnitConversion.distance(meters, from: .meters, to: preferredDistanceUnit)
+    }
+
+    private var distanceMeasurement: DistanceMeasurement? {
+        WorkoutDistancePolicy.displayMeasurement(
+            for: exerciseSet,
+            system: UserDefaults.standard.unitSystem
+        )
+    }
+
+    private var preferredDistanceUnit: DistanceType {
+        WorkoutDistancePolicy.preferredDisplayUnit(
+            forMeters: WorkoutDistancePolicy.meters(of: exerciseSet),
+            system: UserDefaults.standard.unitSystem
+        )
     }
 
     private var prescribedWeightPrompt: String {

@@ -85,8 +85,8 @@ struct ExerciseHistoryService {
                         weight: set.weight,
                         weightType: set.weightType,
                         duration: set.duration,
-                        distance: set.distance,
-                        distanceType: set.distanceType,
+                        distance: WorkoutDistancePolicy.meters(of: set),
+                        distanceType: .meters,
                         calories: set.calories,
                         setType: set.setType
                     )

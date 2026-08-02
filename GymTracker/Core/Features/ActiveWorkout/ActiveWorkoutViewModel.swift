@@ -161,7 +161,8 @@ class ActiveWorkoutViewModel {
         currentSet.repetitions = previousSet.repetitions
         currentSet.weight = previousSet.weight
         currentSet.duration = previousSet.duration
-        currentSet.distance = previousSet.distance
+        currentSet.distance = WorkoutDistancePolicy.meters(of: previousSet)
+        currentSet.distanceType = .meters
         currentSet.calories = previousSet.calories
         // Performed effort is intentionally exclusive for a new logged set.
         // Legacy history may contain both values, but copying it forward must
@@ -220,11 +221,11 @@ class ActiveWorkoutViewModel {
             set.duration = previousSet.duration
         }
         if exercise.trackingTypeSnapshot.usesDistance, let distance = previousSet.distance {
-            set.distance = UnitConversion.distance(
-                distance,
-                from: previousSet.distanceType,
-                to: set.distanceType
+            set.distance = WorkoutDistancePolicy.meters(
+                storedValue: distance,
+                storedUnit: previousSet.distanceType
             )
+            set.distanceType = .meters
         }
         if exercise.trackingTypeSnapshot.usesCalories {
             set.calories = previousSet.calories
@@ -307,7 +308,16 @@ class ActiveWorkoutViewModel {
         case .duration:
             set.duration = parsed
         case .distance:
-            set.distance = parsed.map(Float.init)
+            let meters = WorkoutDistancePolicy.meters(of: set)
+            let displayUnit = WorkoutDistancePolicy.preferredDisplayUnit(
+                forMeters: meters,
+                system: UserDefaults.standard.unitSystem
+            )
+            WorkoutDistancePolicy.storeDisplayValue(
+                parsed.map(Float.init),
+                displayUnit: displayUnit,
+                on: set
+            )
         case .calories:
             set.calories = parsed
         }

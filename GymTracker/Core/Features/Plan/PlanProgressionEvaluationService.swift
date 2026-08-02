@@ -87,7 +87,9 @@ enum PlanProgressionEvaluationService {
                     metrics[.amrapRepetitions] = Double(amrap.repetitions)
                 }
                 metrics[.duration] = completedSets.compactMap(\.duration).reduce(0, +)
-                metrics[.distance] = completedSets.compactMap { $0.distance.map(Double.init) }.reduce(0, +)
+                metrics[.distance] = completedSets
+                    .compactMap { WorkoutDistancePolicy.meters(of: $0).map(Double.init) }
+                    .reduce(0, +)
                 metrics[.calories] = completedSets.compactMap(\.calories).reduce(0, +)
                 if let rpe = completedSets.compactMap(\.rpe).average { metrics[.rpe] = rpe }
                 if let rir = completedSets.compactMap(\.rir).map(Double.init).average { metrics[.rir] = rir }
