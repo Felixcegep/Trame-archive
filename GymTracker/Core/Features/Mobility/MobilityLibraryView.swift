@@ -300,10 +300,7 @@ struct MobilityLibraryView: View {
     }
 
     private func assessmentObservationCount(_ session: MobilityAssessmentSession) -> String {
-        String(
-            localized: "mobility.assessment.observation.count",
-            defaultValue: "^[\(session.results.count) observation](inflect: true)"
-        )
+        CountPhrase.observations(session.results.count)
     }
 
     private func assessmentProgressDetail(_ session: MobilityAssessmentSession) -> String {
@@ -319,7 +316,7 @@ struct MobilityLibraryView: View {
     private var assessmentInvolvementDetail: String {
         String(
             localized: "mobility.assessment.hub.involves",
-            defaultValue: "^[\(availableAssessmentCount) assessment](inflect: true), each entered by hand. You need wall and floor space, and you can skip any of them."
+            defaultValue: "\(CountPhrase.assessments(availableAssessmentCount)), each entered by hand. You need wall and floor space, and you can skip any of them."
         )
     }
 
@@ -328,17 +325,11 @@ struct MobilityLibraryView: View {
     }
 
     private var routineHistoryDetail: String {
-        String(
-            localized: "mobility.hub.history.routines",
-            defaultValue: "^[\(completedSessionCount) completed session](inflect: true)"
-        )
+        CountPhrase.completedSessions(completedSessionCount)
     }
 
     private var assessmentHistoryDetail: String {
-        String(
-            localized: "mobility.hub.history.assessments",
-            defaultValue: "^[\(recordedAssessmentCount) recorded assessment](inflect: true)"
-        )
+        CountPhrase.recordedAssessments(recordedAssessmentCount)
     }
 
     private var completedSessionCount: Int {
@@ -382,7 +373,7 @@ struct MobilityLibraryView: View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(routine.name)
                     .font(AppFont.subheadlineSemibold)
-                Text("^[\(routine.items.count) movement](inflect: true)")
+                Text(CountPhrase.movements(routine.items.count))
                     .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
                 if let purpose = routine.purpose {

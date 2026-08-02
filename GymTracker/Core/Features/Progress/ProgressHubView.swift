@@ -49,20 +49,14 @@ struct ProgressHubView: View {
                 progressLink(
                     route: .mobilityHistory,
                     title: "Mobility routines",
-                    detail: String(
-                        localized: "mobility.hub.history.routines",
-                        defaultValue: "^[\(completedMobilitySessions.count) completed session](inflect: true)"
-                    ),
+                    detail: CountPhrase.completedSessions(completedMobilitySessions.count),
                     icon: AppIcon.mobility
                 )
                 if featureFlags.isEnabled(.mobilityAssessment) {
                     progressLink(
                         route: .mobilityAssessmentHistory,
                         title: "Mobility assessments",
-                        detail: String(
-                            localized: "mobility.hub.history.assessments",
-                            defaultValue: "^[\(recordedAssessmentSessions.count) recorded assessment](inflect: true)"
-                        ),
+                        detail: CountPhrase.recordedAssessments(recordedAssessmentSessions.count),
                         icon: AppIcon.mobilityAssessment
                     )
                 }

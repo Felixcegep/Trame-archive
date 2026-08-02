@@ -54,6 +54,7 @@ extension BackupDTO {
             try restoreRepeatingPlanOccurrences(into: &restoreCtx)
             try restoreDailyContextAndPreferences(into: &restoreCtx)
             try restoreNutrition(into: &restoreCtx)
+            try restoreTrainingProfile(into: &restoreCtx)
 
 #if !GYMTRACKER_EXTENSION
             // The manifest is rebuildable installation state, not backup
@@ -1032,6 +1033,66 @@ extension BackupDTO {
             record.appliedLoad = recommendationDTO.appliedLoad
             restoreCtx.context.insert(record)
         }
+    }
+
+    /// Restores the lifter's stated preferences.
+    ///
+    /// Nothing here can fail the restore. Every value is decoded leniently: an
+    /// identifier this build does not recognise — a discipline added in a later
+    /// version, say — is dropped, and the rest of the profile lands intact. A
+    /// preference is never worth losing a backup over.
+    private func restoreTrainingProfile(into restoreCtx: inout RestoreContext) throws {
+#if !GYMTRACKER_EXTENSION
+        guard let dto = trainingProfile else { return }
+        let profile = TrainingProfile()
+        profile.schemaVersion = dto.schemaVersion ?? 1
+        profile.onboardingVersion = dto.onboardingVersion ?? 1
+        profile.preferredTrainingStructureRaw = validated(dto.preferredTrainingStructure, as: TrainingStructureChoice.self)
+        profile.primaryDisciplineRaw = validated(dto.primaryDiscipline, as: TrainingDisciplinePreference.self)
+        profile.secondaryDisciplineIDs = dto.secondaryDisciplineIDs ?? []
+        profile.primaryGoalRaw = validated(dto.primaryGoal, as: TrainingGoalPreference.self)
+        profile.experienceLevelRaw = validated(dto.experienceLevel, as: ProfileExperienceLevel.self)
+        profile.preferredDaysPerWeek = dto.preferredDaysPerWeek
+        profile.preferredWeekdays = (dto.preferredWeekdays ?? []).filter { (1...7).contains($0) }
+        profile.scheduleFlexibilityRaw = validated(dto.scheduleFlexibility, as: ScheduleFlexibility.self)
+        profile.rotationCadenceRaw = validated(dto.rotationCadence, as: RotationCadencePreference.self)
+        profile.sessionDurationRaw = validated(dto.sessionDuration, as: SessionDurationPreference.self)
+        profile.trainingLocationRaw = validated(dto.trainingLocation, as: TrainingLocationPreference.self)
+        profile.equipmentCapabilityIDs = (dto.equipmentCapabilityIDs ?? [])
+            .filter { EquipmentType(rawValue: $0) != nil }
+        // Specialized implements are deliberately *not* filtered against a
+        // known list: they are versioned capability identifiers, and an
+        // unrecognised one means this build is older than the backup, not that
+        // the value is wrong. Dropping it would quietly lose the answer on the
+        // round trip back to the newer build.
+        profile.specializedEquipmentCapabilityIDs = dto.specializedEquipmentCapabilityIDs ?? []
+        profile.focusAreaIDs = (dto.focusAreaIDs ?? []).filter { FocusArea(rawValue: $0) != nil }
+
+        let competition = CompetitionProfileDraft(
+            discipline: dto.competitionDiscipline.flatMap(CompetitionDiscipline.init(rawValue:)),
+            eventDate: dto.competitionEventDateTimestamp.map(Date.init(timeIntervalSince1970:)),
+            standards: dto.competitionStandards.flatMap(CompetitionStandards.init(rawValue:))
+        )
+        if !competition.isEmpty {
+            profile.competitionProfileData = try? JSONEncoder().encode(competition)
+        }
+
+        profile.completedCoreOnboardingAt = dto.completedCoreOnboardingAtTimestamp
+            .map(Date.init(timeIntervalSince1970:))
+        profile.createdAt = dto.createdAtTimestamp.map(Date.init(timeIntervalSince1970:)) ?? .now
+        profile.updatedAt = dto.updatedAtTimestamp.map(Date.init(timeIntervalSince1970:)) ?? .now
+
+        restoreCtx.context.insert(profile)
+#endif
+    }
+
+    /// Keeps a raw identifier only when this build understands it.
+    private func validated<T: RawRepresentable>(
+        _ raw: String?,
+        as type: T.Type
+    ) -> String? where T.RawValue == String {
+        guard let raw, T(rawValue: raw) != nil else { return nil }
+        return raw
     }
 
     private func restoreDailyContextAndPreferences(into restoreCtx: inout RestoreContext) throws {

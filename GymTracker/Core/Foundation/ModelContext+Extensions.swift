@@ -51,6 +51,15 @@ extension ModelContext {
         // explicitly so a UI-test reset cannot leave dangling identifiers in
         // the next backup fixture.
         for record in try fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()) { delete(record) }
+        // The training profile is a single preference record with no
+        // relationships. Cleared here so a restore replaces it rather than
+        // leaving the previous device's answers alongside the imported ones.
+        //
+        // Tolerant of a container that does not register the model — some test
+        // harnesses enumerate their own schema — because a preference record
+        // that cannot be enumerated is not a reason to fail a restore of
+        // someone's entire training history.
+        for profile in (try? fetch(FetchDescriptor<TrainingProfile>())) ?? [] { delete(profile) }
 #endif
         for run in try fetch(FetchDescriptor<RepeatingPlanRun>()) { delete(run) }
         for plan in try fetch(FetchDescriptor<RepeatingPlan>()) { delete(plan) }

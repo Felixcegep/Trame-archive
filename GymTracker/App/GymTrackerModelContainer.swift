@@ -102,6 +102,7 @@ enum GymTrackerModelContainer {
         types.append(SystemSeedRecord.self)
         types.append(ProgramDefinitionRecord.self)
         types.append(PlanProgressionRecommendationRecord.self)
+        types.append(TrainingProfile.self)
 #endif
         return Schema(types)
     }()

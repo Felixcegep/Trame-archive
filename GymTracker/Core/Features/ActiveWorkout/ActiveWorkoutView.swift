@@ -339,7 +339,7 @@ struct ActiveWorkoutView: View {
         } else if workout.exercises.isEmpty {
             Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
         } else {
-            Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets · ^[\(workout.exercises.count) exercise](inflect: true)")
+            Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets · \(CountPhrase.exercises(workout.exercises.count))")
         }
     }
 

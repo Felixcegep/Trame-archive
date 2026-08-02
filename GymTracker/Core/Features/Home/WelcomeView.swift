@@ -17,10 +17,25 @@ import SwiftUI
 ///
 /// Each option is phrased as something the lifter would say about themselves,
 /// not as the name of a model type.
+///
+/// The choice commits on tap. There is no select-then-Continue pair here,
+/// because on a routing screen the selection *is* the decision and a second
+/// confirming tap confirms nothing — it only asks the lifter to agree with
+/// themselves. What the brief pause before navigating buys is the one thing a
+/// bare push does not: seeing which card you hit.
 struct WelcomeView: View {
     let onChoosePlan: () -> Void
     let onChooseRotation: () -> Void
     let onSkip: () -> Void
+
+    /// The card that has been chosen, held only long enough for its selected
+    /// state to be visible before the screen changes underneath it.
+    @State private var committedIdentifier: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Long enough to register as a state change on a 120 Hz display, short
+    /// enough that no one experiences it as the app thinking.
+    private static let commitDelay: Duration = .milliseconds(150)
 
     var body: some View {
         ScrollView {
@@ -38,7 +53,13 @@ struct WelcomeView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, Spacing.s)
 
-                    Text("Choose how your next workout gets decided. You can switch at any time, and nothing you have already done ever changes.")
+                    Text("How do you want your next workout decided?")
+                        .font(AppFont.headlineSemibold)
+                        .foregroundStyle(Color.gymText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+
+                    Text("You can change this at any time. Nothing you have already trained changes when you do.")
                         .font(AppFont.body)
                         .foregroundStyle(Color.gymSubduedText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -76,6 +97,11 @@ struct WelcomeView: View {
                         action: onSkip
                     )
                 }
+
+                Text("Free workout asks you nothing. You can set up a plan whenever you want one.")
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.xxxl)
@@ -99,14 +125,22 @@ struct WelcomeView: View {
         isProminent: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        let isCommitted = committedIdentifier == identifier
+
+        return Button {
+            commit(identifier, then: action)
+        } label: {
             HStack(alignment: .top, spacing: Spacing.m) {
-                Image(systemName: icon)
+                // Becomes a checkmark on the chosen card. The glyph changes in
+                // place rather than the card growing or bouncing: this row is
+                // about to be replaced by the next screen, and a card that
+                // celebrates on its way out reads as a delay.
+                Image(systemName: isCommitted ? AppIcon.checkmark : icon)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(isProminent ? Color.gymPrimary : Color.gymSubduedText)
+                    .foregroundStyle(iconTint(isProminent: isProminent, isCommitted: isCommitted))
                     .frame(width: 34, height: 34)
                     .background(
-                        (isProminent ? Color.gymPrimary : Color.gymSubduedText).opacity(0.12),
+                        iconTint(isProminent: isProminent, isCommitted: isCommitted).opacity(0.12),
                         in: RoundedRectangle(cornerRadius: Radius.medium)
                     )
 
@@ -131,18 +165,45 @@ struct WelcomeView: View {
             }
             .padding(Spacing.l)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+            .background(
+                isCommitted ? Color.gymPrimarySurface : Color.gymCard,
+                in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+            )
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
                     .stroke(
-                        isProminent ? Color.gymPrimary.opacity(0.24) : Color.gymBorder,
-                        lineWidth: isProminent ? 1.5 : 1
+                        strokeTint(isProminent: isProminent, isCommitted: isCommitted),
+                        lineWidth: isCommitted || isProminent ? 1.5 : 1
                     )
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
+        .animation(reduceMotion ? .easeInOut(duration: 0.15) : AppMotion.compact, value: isCommitted)
         .accessibilityIdentifier(identifier)
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isCommitted ? .isSelected : [])
+        // A second tap on a screen that is already leaving would run the
+        // routing action twice.
+        .disabled(committedIdentifier != nil)
+    }
+
+    private func iconTint(isProminent: Bool, isCommitted: Bool) -> Color {
+        if isCommitted { return .gymPrimary }
+        return isProminent ? .gymPrimary : .gymSubduedText
+    }
+
+    private func strokeTint(isProminent: Bool, isCommitted: Bool) -> Color {
+        if isCommitted { return .gymPrimary }
+        return isProminent ? Color.gymPrimary.opacity(0.24) : .gymBorder
+    }
+
+    private func commit(_ identifier: String, then action: @escaping () -> Void) {
+        guard committedIdentifier == nil else { return }
+        committedIdentifier = identifier
+        Task {
+            try? await Task.sleep(for: Self.commitDelay)
+            action()
+        }
     }
 }

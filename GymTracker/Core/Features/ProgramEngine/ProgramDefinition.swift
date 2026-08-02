@@ -93,6 +93,33 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     var missedWorkoutPolicy: MissedWorkoutPolicy
     var completionPolicy: CompletionPolicy
     var requiredCapabilities: [String]
+
+    // MARK: Matching metadata
+    //
+    // Optional, and used only to rank and explain a program on the
+    // recommendation screen. None of it reaches compilation: a program with
+    // every field here `nil` compiles to exactly the same prescription as one
+    // that declares all of them, and simply earns fewer match bonuses.
+    //
+    // Stored as identifier strings rather than as the onboarding Swift enums so
+    // the payload format does not have to move every time the preference
+    // vocabulary gains a case.
+
+    /// `TrainingDisciplinePreference` raw values this program is written for.
+    var supportedDisciplineIDs: [String]?
+    /// `FocusArea` raw values this program emphasises.
+    var focusAreaIDs: [String]?
+    /// The usual length of one session. Advertised as a range because a
+    /// program's heaviest day and its lightest are not the same evening.
+    var estimatedSessionMinutesMinimum: Int?
+    var estimatedSessionMinutesMaximum: Int?
+    /// `CompetitionDiscipline` raw value, when this is contest preparation.
+    var competitionDisciplineID: String?
+    /// Equipment that unlocks more of the program but is not required to run
+    /// it. Kept separate from `requiredEquipment`, which gates nothing today
+    /// but is what a missing-equipment warning is written from.
+    var optionalEquipmentCapabilityIDs: [String]?
+
     var blocks: [ProgramBlockDefinition]
 
     init(
@@ -116,6 +143,12 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         missedWorkoutPolicy: MissedWorkoutPolicy = .shiftSequence,
         completionPolicy: CompletionPolicy = .end,
         requiredCapabilities: [String] = [],
+        supportedDisciplineIDs: [String]? = nil,
+        focusAreaIDs: [String]? = nil,
+        estimatedSessionMinutesMinimum: Int? = nil,
+        estimatedSessionMinutesMaximum: Int? = nil,
+        competitionDisciplineID: String? = nil,
+        optionalEquipmentCapabilityIDs: [String]? = nil,
         blocks: [ProgramBlockDefinition]
     ) {
         self.id = id
@@ -138,6 +171,12 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         self.missedWorkoutPolicy = missedWorkoutPolicy
         self.completionPolicy = completionPolicy
         self.requiredCapabilities = requiredCapabilities
+        self.supportedDisciplineIDs = supportedDisciplineIDs
+        self.focusAreaIDs = focusAreaIDs
+        self.estimatedSessionMinutesMinimum = estimatedSessionMinutesMinimum
+        self.estimatedSessionMinutesMaximum = estimatedSessionMinutesMaximum
+        self.competitionDisciplineID = competitionDisciplineID
+        self.optionalEquipmentCapabilityIDs = optionalEquipmentCapabilityIDs
         self.blocks = blocks
     }
 
@@ -146,7 +185,10 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
              experienceLevel, durationWeeks, supportedDaysPerWeek,
              scheduleMode, scheduleIntervalDays, requiredEquipment, prerequisites,
              warnings, isExperimental, intakeInputs, missedWorkoutPolicy,
-             completionPolicy, requiredCapabilities, blocks
+             completionPolicy, requiredCapabilities, supportedDisciplineIDs,
+             focusAreaIDs, estimatedSessionMinutesMinimum,
+             estimatedSessionMinutesMaximum, competitionDisciplineID,
+             optionalEquipmentCapabilityIDs, blocks
     }
 
     init(from decoder: Decoder) throws {
@@ -171,6 +213,16 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         missedWorkoutPolicy = try container.decodeIfPresent(MissedWorkoutPolicy.self, forKey: .missedWorkoutPolicy) ?? .shiftSequence
         completionPolicy = try container.decodeIfPresent(CompletionPolicy.self, forKey: .completionPolicy) ?? .end
         requiredCapabilities = try container.decodeIfPresent([String].self, forKey: .requiredCapabilities) ?? []
+        // Every matching field decodes as absent rather than as an empty
+        // collection. "This program never said" and "this program says none"
+        // rank differently, and collapsing them would silently penalise the
+        // entire pre-existing catalogue.
+        supportedDisciplineIDs = try container.decodeIfPresent([String].self, forKey: .supportedDisciplineIDs)
+        focusAreaIDs = try container.decodeIfPresent([String].self, forKey: .focusAreaIDs)
+        estimatedSessionMinutesMinimum = try container.decodeIfPresent(Int.self, forKey: .estimatedSessionMinutesMinimum)
+        estimatedSessionMinutesMaximum = try container.decodeIfPresent(Int.self, forKey: .estimatedSessionMinutesMaximum)
+        competitionDisciplineID = try container.decodeIfPresent(String.self, forKey: .competitionDisciplineID)
+        optionalEquipmentCapabilityIDs = try container.decodeIfPresent([String].self, forKey: .optionalEquipmentCapabilityIDs)
         blocks = try container.decode([ProgramBlockDefinition].self, forKey: .blocks)
     }
 }

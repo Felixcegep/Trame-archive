@@ -36,6 +36,13 @@ enum AppBootstrap {
         UserDefaults.standard.removeObject(forKey: DefaultsKey.darkMode)
         UserDefaults.standard.removeObject(forKey: DefaultsKey.lastBackupExportTimestamp)
         UserDefaults.standard.removeObject(forKey: DefaultsKey.lastBackupRestoreTimestamp)
+        // Onboarding state is preference-shaped, so clearing the store alone
+        // would leave a previous run's half-answered draft behind — and the
+        // welcome screenshot lane would open on question four instead of the
+        // routing choice it exists to capture.
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.onboardingDraft)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.hasDeclinedPersonalization)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.personalizationPromptDeferralCount)
 
         do {
             try context.clearAllGymData()

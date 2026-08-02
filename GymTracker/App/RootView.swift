@@ -62,6 +62,9 @@ struct RootView: View {
     @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .system
     @AppStorage(DefaultsKey.darkMode) private var legacyDarkMode: Bool = false
     @AppStorage(DefaultsKey.hasCompletedWelcome) private var hasCompletedWelcome: Bool = false
+    /// Set only by the personalization offer on Today, which re-presents the
+    /// same flow after first launch has long since completed.
+    @State private var isShowingOnboarding = false
     @State private var isPreparingApp = true
     @State private var hasFinishedLaunchAnimation = false
     @State private var appIntentRouteStore = AppIntentRouteStore.shared
@@ -169,27 +172,7 @@ struct RootView: View {
         }
         .animation(AppMotion.compact, value: isShowingLaunchExperience)
         .fullScreenCover(isPresented: shouldShowWelcome) {
-            WelcomeView(
-                onChoosePlan: {
-                    hasCompletedWelcome = true
-                    selectedTab = .train
-                    trainPath = [.plans]
-                },
-                // Both guided paths land in the same browser today: plans and
-                // rotations are listed side by side there, and it has no
-                // segment that filters to one kind. The callbacks stay
-                // separate so giving rotations their own destination later is
-                // a change at this call site rather than in the welcome copy.
-                onChooseRotation: {
-                    hasCompletedWelcome = true
-                    selectedTab = .train
-                    trainPath = [.plans]
-                },
-                onSkip: {
-                    hasCompletedWelcome = true
-                    selectedTab = .today
-                }
-            )
+            OnboardingFlowView(onFinish: handleOnboardingOutcome)
         }
         .fullScreenCover(isPresented: $isShowingActiveWorkout, onDismiss: {
             activeWorkoutPath.removeAll()
@@ -549,6 +532,11 @@ struct RootView: View {
     private var shouldShowWelcome: Binding<Bool> {
         Binding(
             get: {
+                // Re-entry from the personalization offer. Deliberately the
+                // whole flow, welcome question included: a lifter who skipped
+                // setup and is now asking for it is choosing how their next
+                // workout gets decided, which is the first question.
+                if isShowingOnboarding { return true }
                 if CommandLine.arguments.contains("-ui-testing-show-welcome") {
                     return !isPreparingApp
                 }
@@ -556,8 +544,54 @@ struct RootView: View {
                     && !isPreparingApp
                     && !CommandLine.arguments.contains("-ui-testing")
             },
-            set: { if !$0 { hasCompletedWelcome = true } }
+            set: {
+                if !$0 {
+                    hasCompletedWelcome = true
+                    isShowingOnboarding = false
+                }
+            }
         )
+    }
+
+    /// Applies whatever onboarding finished with.
+    ///
+    /// The flow reports an intent and nothing more; every navigation decision
+    /// stays here, beside the tab and path state that has to honour it. Marking
+    /// the welcome complete is what dismisses the cover — see
+    /// `shouldShowWelcome` — so it happens on every branch.
+    private func handleOnboardingOutcome(_ outcome: OnboardingOutcome) {
+        hasCompletedWelcome = true
+        isShowingOnboarding = false
+        switch outcome {
+        case .startFreeWorkout:
+            selectedTab = .today
+            todayPath.removeAll()
+            // Raised a runloop turn later: the cover dismissing and the active
+            // workout presenting in the same turn is the hand-off SwiftUI
+            // swallows. See `presentAfterDismissal`.
+            presentAfterDismissal(startFreeWorkout)
+        case .openToday:
+            selectedTab = .today
+            todayPath.removeAll()
+        case .browseAllPlans:
+            selectedTab = .train
+            trainPath = [.plans]
+        case .reviewActivePlan:
+            selectedTab = .train
+            trainPath = [activePlanRoute()]
+        }
+    }
+
+    /// The plan onboarding just activated, or the browser when the store says
+    /// nothing is active — never a detail screen for a plan that is not there.
+    private func activePlanRoute() -> LibraryRoute {
+        if let run = activeFixedPlanRuns().max(by: { $0.createdAt < $1.createdAt }) {
+            return .plan(run.sourcePlanID)
+        }
+        if let run = activeRepeatingPlanRuns().max(by: { $0.startedAt < $1.startedAt }) {
+            return .repeatingPlan(run.sourcePlanID)
+        }
+        return .plans
     }
 
     private func tabLabel(for tab: AppTab) -> some View {
@@ -581,6 +615,7 @@ struct RootView: View {
             onOpenPlan: openPlanFromToday,
             onOpenTrainingCalendar: { todayPath.append(.trainingCalendar) },
             onOpenSettings: { todayPath.append(.settings) },
+            onPersonalize: { isShowingOnboarding = true },
             requestedRescheduleProgressID: $requestedRescheduleProgressID,
             statusMessage: $todayStatusMessage
         )
@@ -593,7 +628,7 @@ struct RootView: View {
             return GymStatusMessage(String(localized: "Workout saved."))
         }
         return GymStatusMessage(
-            String(localized: "Workout saved · ^[\(summary.savedSetCount) set](inflect: true)")
+            String(localized: "Workout saved · \(CountPhrase.sets(summary.savedSetCount))")
         )
     }
 

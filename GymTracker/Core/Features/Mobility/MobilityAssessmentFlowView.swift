@@ -552,7 +552,7 @@ struct MobilityAssessmentFlowView: View {
     private var summaryCountText: String {
         String(
             localized: "mobility.assessment.summary.count",
-            defaultValue: "^[\(session.results.count) observation](inflect: true) saved · ^[\(session.skippedDefinitionKeys.count) assessment](inflect: true) skipped"
+            defaultValue: "\(CountPhrase.observations(session.results.count)) saved · \(CountPhrase.assessments(session.skippedDefinitionKeys.count)) skipped"
         )
     }
 

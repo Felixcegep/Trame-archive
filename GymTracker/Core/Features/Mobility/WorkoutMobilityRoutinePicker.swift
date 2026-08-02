@@ -29,7 +29,7 @@ enum WorkoutMobilityPresentation {
         [
             durationText(for: routine),
             purposeText(for: routine),
-            String(localized: "^[\(routine.items.count) movement](inflect: true)")
+            CountPhrase.movements(routine.items.count)
         ].joined(separator: separator)
     }
 
@@ -67,7 +67,7 @@ enum WorkoutMobilityPresentation {
 
     private static func minutesText(_ seconds: Int) -> String {
         let minutes = max(1, Int(ceil(Double(seconds) / 60)))
-        return String(localized: "^[\(minutes) min](inflect: true)")
+        return CountPhrase.minutes(minutes)
     }
 }
 

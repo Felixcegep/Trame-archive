@@ -80,7 +80,7 @@ struct ExerciseEntryCard: View {
             }
             .accessibilityIdentifier("confirm-remove-exercise-\(exerciseEntry.exercise.name)")
         } message: {
-            Text("^[\(completedSetCount) completed set](inflect: true) will be deleted and will not appear in History.")
+            Text("\(CountPhrase.completedSets(completedSetCount)) will be deleted and will not appear in History.")
         }
     }
 

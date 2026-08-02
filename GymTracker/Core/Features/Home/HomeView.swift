@@ -15,6 +15,10 @@ struct HomeView: View {
     let onOpenPlan: (UUID) -> Void
     let onOpenTrainingCalendar: () -> Void
     let onOpenSettings: () -> Void
+    /// Opens the training profile for a lifter who skipped setup. Offered from
+    /// a passive card here rather than from the workout-save confirmation,
+    /// which is a screen that is already leaving.
+    let onPersonalize: () -> Void
     @Binding var requestedRescheduleProgressID: UUID?
     /// Owned by the root so a confirmation raised elsewhere — saving a workout,
     /// which dismisses its own screen — can still land here, where the user
@@ -37,6 +41,10 @@ struct HomeView: View {
     /// Increments only on a schedule mutation that actually committed, so the
     /// error branches stay silent.
     @State private var scheduleChangeCount = 0
+    /// Resolved once per appearance rather than per render: the policy reads
+    /// the store and `UserDefaults`, and neither belongs in a body.
+    @State private var isShowingPersonalizationPrompt = false
+    @State private var completedWorkoutCount = 0
 
     private var activeFixedPlanRuns: [PlanRun] {
         planRuns
@@ -160,6 +168,25 @@ struct HomeView: View {
                     onStartMobility: onStartMobility,
                     onResumeMobility: onResumeMobility
                 )
+                // Last in the page, after everything the lifter came for.
+                if isShowingPersonalizationPrompt {
+                    PersonalizationPromptCard(
+                        onPersonalize: {
+                            isShowingPersonalizationPrompt = false
+                            onPersonalize()
+                        },
+                        onNotNow: {
+                            isShowingPersonalizationPrompt = false
+                            PersonalizationPromptPolicy.postpone(
+                                atCompletedWorkoutCount: completedWorkoutCount
+                            )
+                        },
+                        onNeverAsk: {
+                            isShowingPersonalizationPrompt = false
+                            PersonalizationPromptPolicy.declineForGood()
+                        }
+                    )
+                }
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.top, Spacing.s)
@@ -190,6 +217,7 @@ struct HomeView: View {
             }
         }
         .onAppear(perform: presentRequestedRescheduleIfNeeded)
+        .onAppear(perform: evaluatePersonalizationPrompt)
         .onChange(of: requestedRescheduleProgressID) { _, _ in
             presentRequestedRescheduleIfNeeded()
         }
@@ -288,6 +316,23 @@ private extension HomeView {
                 : String(localized: "Moved to \(movedTo).")
         )
     }
+    /// Decides whether the personalization offer belongs on the page.
+    ///
+    /// Never while a workout is in progress: an offer to answer questions is
+    /// not what someone mid-session came to Today for.
+    func evaluatePersonalizationPrompt() {
+        guard workoutVM.activeWorkout == nil else {
+            isShowingPersonalizationPrompt = false
+            return
+        }
+        let count = (try? modelContext.fetchCount(FetchDescriptor<Workout>())) ?? 0
+        completedWorkoutCount = count
+        isShowingPersonalizationPrompt = PersonalizationPromptPolicy.shouldPrompt(
+            completedWorkoutCount: count,
+            using: modelContext
+        )
+    }
+
     func presentRequestedRescheduleIfNeeded() {
         guard let progressID = requestedRescheduleProgressID else { return }
         defer { requestedRescheduleProgressID = nil }

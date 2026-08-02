@@ -173,10 +173,7 @@ struct MobilityAssessmentLandingView: View {
         guard recorded > 0 else {
             return String(localized: "No assessments recorded yet")
         }
-        return String(
-            localized: "mobility.assessment.history.count",
-            defaultValue: "^[\(recorded) assessment](inflect: true) recorded"
-        )
+        return CountPhrase.recordedAssessments(recorded)
     }
 
     private func dateText(for session: MobilityAssessmentSession) -> String {
@@ -184,10 +181,7 @@ struct MobilityAssessmentLandingView: View {
     }
 
     private func observationCountText(for session: MobilityAssessmentSession) -> String {
-        String(
-            localized: "mobility.assessment.observation.count",
-            defaultValue: "^[\(session.results.count) observation](inflect: true)"
-        )
+        CountPhrase.observations(session.results.count)
     }
 
     private func progressDetail(for session: MobilityAssessmentSession) -> String {
@@ -342,7 +336,7 @@ struct MobilityAssessmentSelectionView: View {
         }
         return String(
             localized: "mobility.assessment.selection.footer",
-            defaultValue: "^[\(selectedKeys.count) assessment](inflect: true) selected. You can skip any of them while recording, and stop at any point without losing what you saved."
+            defaultValue: "\(CountPhrase.assessments(selectedKeys.count)) selected. You can skip any of them while recording, and stop at any point without losing what you saved."
         )
     }
 

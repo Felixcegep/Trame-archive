@@ -209,12 +209,12 @@ struct WorkoutSaveView: View {
             VStack(spacing: Spacing.md) {
                 if workout.incompleteSetCount > 0 {
                     Label(
-                        "^[\(saveableSetCount(for: workout)) completed set](inflect: true) will be saved; ^[\(workout.incompleteSetCount) incomplete set](inflect: true) will be excluded",
+                        "\(CountPhrase.completedSets(saveableSetCount(for: workout))) will be saved; \(CountPhrase.incompleteSets(workout.incompleteSetCount)) will be excluded",
                         systemImage: AppIcon.warningCircle
                     )
                     .font(AppFont.footnote)
                     .foregroundStyle(Color.gymAccent)
-                    .accessibilityLabel("^[\(saveableSetCount(for: workout)) completed set](inflect: true) will be saved. ^[\(workout.incompleteSetCount) incomplete set](inflect: true) will be excluded from History.")
+                    .accessibilityLabel("\(CountPhrase.completedSets(saveableSetCount(for: workout))) will be saved. \(CountPhrase.incompleteSets(workout.incompleteSetCount)) will be excluded from History.")
                 }
 
                 Button(action: requestSave) {
@@ -285,7 +285,7 @@ struct WorkoutSaveView: View {
 
     @ViewBuilder
     private func partialSaveConfirmationMessage(for workout: Workout) -> some View {
-        Text("^[\(saveableSetCount(for: workout)) completed set](inflect: true) will be saved to History. ^[\(workout.incompleteSetCount) incomplete set](inflect: true) will be excluded. Your workout name and notes will be saved.")
+        Text("\(CountPhrase.completedSets(saveableSetCount(for: workout))) will be saved to History. \(CountPhrase.incompleteSets(workout.incompleteSetCount)) will be excluded. Your workout name and notes will be saved.")
         if let repeatingPlanName = repeatingPlanName(for: workout) {
             Text("When the save succeeds, \(repeatingPlanName) advances to the next workout.")
         }
@@ -479,7 +479,7 @@ struct WorkoutSaveView: View {
             return String(localized: "Workout saved.")
         }
         return String(
-            localized: "Workout saved. ^[\(summary.savedSetCount) set](inflect: true) added to History."
+            localized: "Workout saved. \(CountPhrase.sets(summary.savedSetCount)) added to History."
         )
     }
 

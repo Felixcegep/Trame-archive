@@ -4,6 +4,19 @@ struct DefaultsKey {
     static let darkMode = "darkMode"
     static let appearance = "appearance"
     static let hasCompletedWelcome = "hasCompletedWelcome"
+    /// The in-progress onboarding answers, so leaving the app mid-flow resumes
+    /// on the same question rather than restarting it. Cleared once the flow
+    /// finishes or is dismissed for good. See `OnboardingDraftStore`.
+    static let onboardingDraft = "onboardingDraft.v1"
+    /// Set when the personalization prompt has been answered for good — either
+    /// a profile was completed, or the lifter asked not to be asked again.
+    /// Separate from `hasCompletedWelcome`, which only records that the routing
+    /// choice was made: a Free Workout user has completed the welcome and has
+    /// deliberately not completed a profile.
+    static let hasDeclinedPersonalization = "hasDeclinedPersonalization"
+    /// The number of workouts saved since the personalization prompt was last
+    /// deferred, so "Not now" means later rather than never.
+    static let personalizationPromptDeferralCount = "personalizationPromptDeferralCount"
     static let restTimer = "restTimer"
     static let useMetric = "useMetric"
     static let orphanCleanupVersion = "orphanCleanupVersion"

@@ -56,10 +56,7 @@ struct MobilityAssessmentHistoryView: View {
     }
 
     private func detail(for session: MobilityAssessmentSession) -> String {
-        let count = String(
-            localized: "mobility.assessment.observation.count",
-            defaultValue: "^[\(session.results.count) observation](inflect: true)"
-        )
+        let count = CountPhrase.observations(session.results.count)
         switch session.status {
         case .completed:
             return count
@@ -139,10 +136,7 @@ struct MobilityAssessmentSessionDetailView: View {
                 .font(AppFont.titleSmall)
                 .foregroundStyle(Color.gymText)
             Text(
-                String(
-                    localized: "mobility.assessment.observation.count",
-                    defaultValue: "^[\(session.results.count) observation](inflect: true)"
-                )
+                CountPhrase.observations(session.results.count)
             )
             .font(AppFont.subheadline)
             .foregroundStyle(Color.gymSubduedText)

@@ -8,6 +8,38 @@ nonisolated struct PreferencesDTO: Codable {
     var birthdateTimestamp: Double? = nil
 }
 
+/// The lifter's stated training preferences.
+///
+/// Every field is optional, including on the way out: a profile that never
+/// answered a question exports that fact rather than a default. Enumerated
+/// values travel as their raw identifiers and are decoded leniently on restore,
+/// so a profile written by a newer build lands in an older one with the
+/// unrecognised fields simply absent instead of failing the whole restore.
+nonisolated struct TrainingProfileDTO: Codable {
+    var schemaVersion: Int? = nil
+    var onboardingVersion: Int? = nil
+    var preferredTrainingStructure: String? = nil
+    var primaryDiscipline: String? = nil
+    var secondaryDisciplineIDs: [String]? = nil
+    var primaryGoal: String? = nil
+    var experienceLevel: String? = nil
+    var preferredDaysPerWeek: Int? = nil
+    var preferredWeekdays: [Int]? = nil
+    var scheduleFlexibility: String? = nil
+    var rotationCadence: String? = nil
+    var sessionDuration: String? = nil
+    var trainingLocation: String? = nil
+    var equipmentCapabilityIDs: [String]? = nil
+    var specializedEquipmentCapabilityIDs: [String]? = nil
+    var focusAreaIDs: [String]? = nil
+    var competitionDiscipline: String? = nil
+    var competitionEventDateTimestamp: Double? = nil
+    var competitionStandards: String? = nil
+    var completedCoreOnboardingAtTimestamp: Double? = nil
+    var createdAtTimestamp: Double? = nil
+    var updatedAtTimestamp: Double? = nil
+}
+
 nonisolated struct ExerciseTemplateDTO: Codable {
     var id: String? = nil
     let name: String
@@ -1045,6 +1077,7 @@ nonisolated struct BackupDTO: Codable {
     let mealTemplates: [MealTemplateDTO]
     let loggedMeals: [LoggedMealDTO]
     let nutritionTargets: [NutritionTargetDTO]
+    let trainingProfile: TrainingProfileDTO?
 
     static let legacyVersion = 1
     static let planVersion = 2
@@ -1107,7 +1140,12 @@ nonisolated struct BackupDTO: Codable {
     /// sessions, condition-complete result snapshots, and optional bounded raw
     /// samples. v1-v23 restore with this domain absent.
     static let mobilityAssessmentVersion = 24
-    static let currentVersion = mobilityAssessmentVersion
+    /// Adds the onboarding training profile: the lifter's stated discipline,
+    /// goal, experience, schedule, equipment and emphasis. Preferences only —
+    /// nothing here participates in a prescription — so v1–v24 restore with no
+    /// profile and the app simply ranks plans without one.
+    static let trainingProfileVersion = 25
+    static let currentVersion = trainingProfileVersion
 
     init(
         version: Int,
@@ -1135,7 +1173,8 @@ nonisolated struct BackupDTO: Codable {
         foods: [FoodItemDTO] = [],
         mealTemplates: [MealTemplateDTO] = [],
         loggedMeals: [LoggedMealDTO] = [],
-        nutritionTargets: [NutritionTargetDTO] = []
+        nutritionTargets: [NutritionTargetDTO] = [],
+        trainingProfile: TrainingProfileDTO? = nil
     ) {
         self.version = version
         self.preferences = preferences
@@ -1163,10 +1202,11 @@ nonisolated struct BackupDTO: Codable {
         self.mealTemplates = mealTemplates
         self.loggedMeals = loggedMeals
         self.nutritionTargets = nutritionTargets
+        self.trainingProfile = trainingProfile
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets, trainingProfile
     }
 
     init(from decoder: Decoder) throws {
@@ -1197,5 +1237,6 @@ nonisolated struct BackupDTO: Codable {
         mealTemplates = try container.decodeIfPresent([MealTemplateDTO].self, forKey: .mealTemplates) ?? []
         loggedMeals = try container.decodeIfPresent([LoggedMealDTO].self, forKey: .loggedMeals) ?? []
         nutritionTargets = try container.decodeIfPresent([NutritionTargetDTO].self, forKey: .nutritionTargets) ?? []
+        trainingProfile = try container.decodeIfPresent(TrainingProfileDTO.self, forKey: .trainingProfile)
     }
 }

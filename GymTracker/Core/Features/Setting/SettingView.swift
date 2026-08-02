@@ -75,6 +75,17 @@ struct SettingView: View {
                 .accessibilityValue(selectedAppearance.title)
             }
 
+            Section {
+                NavigationLink {
+                    TrainingProfileSettingsView()
+                } label: {
+                    Label("Training profile", systemImage: AppIcon.muscles)
+                }
+                .accessibilityIdentifier("settings-training-profile")
+            } footer: {
+                Text("What you told us about how you train. Used to rank plans — never to change a plan you are following.")
+            }
+
             Section("Units") {
                 Picker("Units", selection: $unitSystem) {
                     ForEach(UnitSystem.allCases, id: \.self) { system in

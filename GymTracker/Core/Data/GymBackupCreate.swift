@@ -979,6 +979,38 @@ extension BackupDTO {
             )
         }
 
+        // A profile the lifter never created exports as absent rather than as
+        // an empty record, so a restore cannot resurrect "answered nothing" as
+        // if it were a set of answers.
+        let trainingProfileDTO = ((try? context.fetch(FetchDescriptor<TrainingProfile>())) ?? []).first.map { profile in
+            TrainingProfileDTO(
+                schemaVersion: profile.schemaVersion,
+                onboardingVersion: profile.onboardingVersion,
+                preferredTrainingStructure: profile.preferredTrainingStructureRaw,
+                primaryDiscipline: profile.primaryDisciplineRaw,
+                secondaryDisciplineIDs: profile.secondaryDisciplineIDs.isEmpty ? nil : profile.secondaryDisciplineIDs,
+                primaryGoal: profile.primaryGoalRaw,
+                experienceLevel: profile.experienceLevelRaw,
+                preferredDaysPerWeek: profile.preferredDaysPerWeek,
+                preferredWeekdays: profile.preferredWeekdays.isEmpty ? nil : profile.preferredWeekdays,
+                scheduleFlexibility: profile.scheduleFlexibilityRaw,
+                rotationCadence: profile.rotationCadenceRaw,
+                sessionDuration: profile.sessionDurationRaw,
+                trainingLocation: profile.trainingLocationRaw,
+                equipmentCapabilityIDs: profile.equipmentCapabilityIDs.isEmpty ? nil : profile.equipmentCapabilityIDs,
+                specializedEquipmentCapabilityIDs: profile.specializedEquipmentCapabilityIDs.isEmpty
+                    ? nil
+                    : profile.specializedEquipmentCapabilityIDs,
+                focusAreaIDs: profile.focusAreaIDs.isEmpty ? nil : profile.focusAreaIDs,
+                competitionDiscipline: profile.competition?.discipline?.rawValue,
+                competitionEventDateTimestamp: profile.competition?.eventDate?.timeIntervalSince1970,
+                competitionStandards: profile.competition?.standards?.rawValue,
+                completedCoreOnboardingAtTimestamp: profile.completedCoreOnboardingAt?.timeIntervalSince1970,
+                createdAtTimestamp: profile.createdAt.timeIntervalSince1970,
+                updatedAtTimestamp: profile.updatedAt.timeIntervalSince1970
+            )
+        }
+
         return BackupDTO(
             version: currentVersion,
             preferences: PreferencesDTO(
@@ -1011,7 +1043,8 @@ extension BackupDTO {
             foods: foodDTOs,
             mealTemplates: mealTemplateDTOs,
             loggedMeals: loggedMealDTOs,
-            nutritionTargets: nutritionTargetDTOs
+            nutritionTargets: nutritionTargetDTOs,
+            trainingProfile: trainingProfileDTO
         )
     }
 }
