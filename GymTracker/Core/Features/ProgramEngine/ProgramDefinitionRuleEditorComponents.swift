@@ -261,6 +261,8 @@ struct RuleActionEditor: View {
         case .resetFailureCount: return .resetFailureCount
         case .resetProgressionOffsets: return .resetProgressionOffsets
         case .endExercise: return .endExercise
+        case .endActiveDailyMaximumAndGenerateBackOffs:
+            return .endActiveDailyMaximumAndGenerateBackOffs
         case .endProgram: return .endProgram
         case .generateRecommendation: return .generateRecommendation
         case .noChange: return .noChange
@@ -303,6 +305,12 @@ struct RuleActionEditor: View {
         case .resetFailureCount: return .resetFailureCount
         case .resetProgressionOffsets: return .resetProgressionOffsets
         case .endExercise: return .endExercise
+        case .endActiveDailyMaximumAndGenerateBackOffs:
+            return .endActiveDailyMaximumAndGenerateBackOffs(
+                setCount: 3,
+                repetitions: 1,
+                percentage: 0.9
+            )
         case .endProgram: return .endProgram
         case .generateRecommendation: return .generateRecommendation
         case .noChange: return .noChange

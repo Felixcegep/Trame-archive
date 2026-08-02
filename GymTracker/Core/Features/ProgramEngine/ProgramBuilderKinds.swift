@@ -101,6 +101,7 @@ enum ProgramBuilderActionKind: String, CaseIterable, Identifiable {
     case resetFailureCount
     case resetProgressionOffsets
     case endExercise
+    case endActiveDailyMaximumAndGenerateBackOffs
     case endProgram
     case generateRecommendation
     case noChange
@@ -143,6 +144,8 @@ enum ProgramBuilderActionKind: String, CaseIterable, Identifiable {
         case .resetFailureCount: return "Reset failure count"
         case .resetProgressionOffsets: return "Reset progression offsets"
         case .endExercise: return "End exercise"
+        case .endActiveDailyMaximumAndGenerateBackOffs:
+            return "End daily maximum and generate back-offs"
         case .endProgram: return "End program"
         case .generateRecommendation: return "Generate recommendation"
         case .noChange: return "No change"

@@ -10,8 +10,18 @@ enum PlanProgressionRecommendationService {
         context: ModelContext
     ) throws {
         guard !recommendation.isResolved else { return }
-        guard let state = state(for: recommendation, in: run) else { return }
         do {
+            if try ActiveWorkoutRecommendationMutationService.applyIfSupported(
+                recommendation,
+                in: context
+            ) {
+                recommendation.isResolved = true
+                recommendation.resolvedAt = .now
+                recommendation.decisionOutcome = .accepted
+                try context.save()
+                return
+            }
+            guard let state = state(for: recommendation, in: run) else { return }
             try accept(recommendation, using: state, overridingLoadWith: nil, in: run)
             recommendation.isResolved = true
             recommendation.resolvedAt = .now
@@ -33,6 +43,12 @@ enum PlanProgressionRecommendationService {
         context: ModelContext
     ) throws {
         guard !recommendation.isResolved else { return }
+        if case .endActiveDailyMaximumAndGenerateBackOffs = try recommendation.action() {
+            // This structural action has an authored percentage, not an
+            // editable absolute load. Preserve the proposal rather than
+            // accepting an unrelated override value.
+            throw ActiveWorkoutRecommendationMutationService.MutationError.invalidActionParameters
+        }
         guard let state = state(for: recommendation, in: run) else { return }
         do {
             try accept(recommendation, using: state, overridingLoadWith: load, in: run)

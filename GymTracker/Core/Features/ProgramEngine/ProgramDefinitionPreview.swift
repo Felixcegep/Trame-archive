@@ -275,6 +275,8 @@ nonisolated enum ProgramDefinitionPreview {
         case .resetFailureCount: return "Reset failure count"
         case .resetProgressionOffsets: return "Reset progression offsets"
         case .endExercise: return "End exercise"
+        case .endActiveDailyMaximumAndGenerateBackOffs(let sets, let repetitions, let percentage):
+            return "End daily maximum; generate \(sets)×\(repetitions) at \(percentage * 100)%"
         case .endProgram: return "End program"
         case .generateRecommendation: return "Generate recommendation"
         case .noChange: return "No change"

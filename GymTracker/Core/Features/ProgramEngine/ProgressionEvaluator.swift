@@ -403,7 +403,8 @@ nonisolated enum ProgramProgressionEvaluator {
                 return
             }
             state.currentVariationExerciseID = variationLadder[max(index - 1, 0)]
-        case .advanceWeek, .repeatWeek, .endExercise, .endProgram:
+        case .advanceWeek, .repeatWeek, .endExercise,
+                .endActiveDailyMaximumAndGenerateBackOffs, .endProgram:
             break
         case .advanceWave:
             state.currentWaveIndex += 1

@@ -92,11 +92,14 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
     var value: Double?
     var formula: AuthoringFormulaDefinition?
     var next: String?
+    var setCount: Int?
+    var repetitions: Int?
+    var percentage: Double?
     var advancesToNextStage: Bool
     var andChangeStage: String?
 
     private enum CodingKeys: String, CodingKey {
-        case type, value, formula, next, andChangeStage
+        case type, value, formula, next, setCount, repetitions, percentage, andChangeStage
     }
 
     init(
@@ -104,6 +107,9 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         value: Double? = nil,
         formula: AuthoringFormulaDefinition? = nil,
         next: String? = nil,
+        setCount: Int? = nil,
+        repetitions: Int? = nil,
+        percentage: Double? = nil,
         advancesToNextStage: Bool = false,
         andChangeStage: String? = nil
     ) {
@@ -111,6 +117,9 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         self.value = value
         self.formula = formula
         self.next = next
+        self.setCount = setCount
+        self.repetitions = repetitions
+        self.percentage = percentage
         self.advancesToNextStage = advancesToNextStage
         self.andChangeStage = andChangeStage
     }
@@ -121,6 +130,9 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         value = try container.decodeIfPresent(Double.self, forKey: .value)
         formula = try container.decodeIfPresent(AuthoringFormulaDefinition.self, forKey: .formula)
         next = try? container.decode(String.self, forKey: .next)
+        setCount = try container.decodeIfPresent(Int.self, forKey: .setCount)
+        repetitions = try container.decodeIfPresent(Int.self, forKey: .repetitions)
+        percentage = try container.decodeIfPresent(Double.self, forKey: .percentage)
         advancesToNextStage = (try? container.decode(Bool.self, forKey: .next)) ?? false
         andChangeStage = try container.decodeIfPresent(String.self, forKey: .andChangeStage)
     }
@@ -130,6 +142,9 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         try container.encode(type, forKey: .type)
         try container.encodeIfPresent(value, forKey: .value)
         try container.encodeIfPresent(formula, forKey: .formula)
+        try container.encodeIfPresent(setCount, forKey: .setCount)
+        try container.encodeIfPresent(repetitions, forKey: .repetitions)
+        try container.encodeIfPresent(percentage, forKey: .percentage)
         if let next {
             try container.encode(next, forKey: .next)
         } else if advancesToNextStage {
@@ -175,6 +190,12 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
             guard let formula else { throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type).formula") }
             return .updateVelocityBaseline(try formula.expand(exposureKey: exposureKey))
         case "noChange": return .noChange
+        case "endActiveDailyMaximumAndGenerateBackOffs":
+            return .endActiveDailyMaximumAndGenerateBackOffs(
+                setCount: setCount ?? 0,
+                repetitions: repetitions ?? 0,
+                percentage: percentage ?? 0
+            )
         default: throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type)")
         }
     }

@@ -288,6 +288,35 @@ class ActiveWorkoutViewModel {
         }
         persistChanges()
     }
+
+    /// Resolves an active program recommendation through the same persisted
+    /// receipt service used after workout completion. The service owns the one
+    /// save; Live Activity is reconciled only after that commit succeeds.
+    func acceptActiveRecommendation(
+        _ recommendation: PlanProgressionRecommendationRecord
+    ) throws {
+        guard let run = (try? modelContext.fetch(FetchDescriptor<PlanRun>()))?.first(where: {
+            $0.id == recommendation.planRunID
+        }) else {
+            throw ActiveWorkoutRecommendationMutationService.MutationError.activeWorkoutNotFound
+        }
+        try PlanProgressionRecommendationService.accept(
+            recommendation,
+            in: run,
+            context: modelContext
+        )
+        workoutVM.reconcileLiveActivity()
+    }
+
+    func declineActiveRecommendation(
+        _ recommendation: PlanProgressionRecommendationRecord
+    ) throws {
+        try PlanProgressionRecommendationService.decline(
+            recommendation,
+            context: modelContext
+        )
+        workoutVM.reconcileLiveActivity()
+    }
     
     /// The single write path for keypad entry. Empty or partial text ("", ".")
     /// clears the value back to "not entered" instead of writing a zero, so an

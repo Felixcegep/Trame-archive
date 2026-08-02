@@ -12739,6 +12739,63 @@
         }
       }
     },
+    "A successful maximum attempt is required to calculate the back-off load. Continue attempts or record a successful result." : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Une tentative maximale réussie est requise pour calculer la charge allégée. Continuez les tentatives ou enregistrez un résultat réussi." } } }
+    },
+    "active.dailyMaximum.proposal" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Stop maximum attempts and add %1$lld × %2$lld back-off sets at %3$@ of your best successful attempt?" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Arrêter les tentatives maximales et ajouter %1$lld × %2$lld séries allégées à %3$@ de votre meilleure tentative réussie?" } }
+      }
+    },
+    "active.dailyMaximum.summary" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%1$@ — %2$lld attempts missed in a row." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "%1$@ — %2$lld tentatives ratées de suite." } }
+      }
+    },
+    "active.dailyMaximum.why.accept" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Completed attempts stay unchanged. Only unperformed maximum attempts are removed, and the back-off prescriptions are added to this active workout." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Les tentatives terminées restent inchangées. Seules les tentatives maximales non effectuées sont retirées, et les prescriptions allégées sont ajoutées à cette séance active." } }
+      }
+    },
+    "active.dailyMaximum.why.bestAttempt" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The best successful attempt in this exercise sets the back-off load." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "La meilleure tentative réussie de cet exercice détermine la charge allégée." } }
+      }
+    },
+    "active.dailyMaximum.why.change" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Stop further maximum attempts and add %1$lld × %2$lld back-off sets at %3$@." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Arrêter les autres tentatives maximales et ajouter %1$lld × %2$lld séries allégées à %3$@." } }
+      }
+    },
+    "active.dailyMaximum.why.decline" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Your maximum-attempt sequence remains available and no back-off sets are generated from this decision." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Votre séquence de tentatives maximales reste disponible et aucune série allégée n’est générée par cette décision." } }
+      }
+    },
+    "active.dailyMaximum.why.misses" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld consecutive parent attempts were recorded as missed." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "%lld tentatives parentes consécutives ont été enregistrées comme ratées." } }
+      }
+    },
+    "Continue maximum attempts" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Continuer les tentatives maximales" } } }
+    },
+    "Choose whether to stop or continue maximum attempts before finishing." : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Choisissez d’arrêter ou de continuer les tentatives maximales avant de terminer." } } }
+    },
+    "Daily maximum decision" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Décision de maximum du jour" } } }
+    },
+    "Stop and add back-offs" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Arrêter et ajouter les séries allégées" } } }
+    },
     "progression.receipt.action.apply.generic" : {
       "localizations" : {
         "en" : {

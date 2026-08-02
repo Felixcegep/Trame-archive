@@ -132,7 +132,11 @@ enum ProgramPolicyPreset: String, CaseIterable, Identifiable, Codable, Hashable 
             return [ProgressionRuleDefinition(
                 metric: .successfulAttempts,
                 trigger: .consecutiveMissedAttemptsReached(3),
-                successAction: .generateRecommendation,
+                successAction: .endActiveDailyMaximumAndGenerateBackOffs(
+                    setCount: 3,
+                    repetitions: 1,
+                    percentage: 0.9
+                ),
                 cadence: .nextSet,
                 scope: .exerciseExposure,
                 applicationMode: .recommendation

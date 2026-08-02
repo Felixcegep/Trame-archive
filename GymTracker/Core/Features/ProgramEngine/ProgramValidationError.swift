@@ -301,7 +301,24 @@ nonisolated enum ProgramDefinitionValidator {
                             }
                         }
                         for (ruleIndex, rule) in exercise.progressionRules.enumerated() {
-                            validateTrigger(rule.trigger, "\(exercisePath).rules[\(ruleIndex)].trigger", add)
+                            let rulePath = "\(exercisePath).rules[\(ruleIndex)]"
+                            validateTrigger(rule.trigger, "\(rulePath).trigger", add)
+                            validateActiveWorkoutAction(
+                                rule,
+                                hasDailyMaximumPrescription: exercise.plannedSets.contains { $0.role == .dailyMaximum }
+                                    || exercise.waves.flatMap(\.plannedSets).contains { $0.role == .dailyMaximum }
+                                    || exercise.stages.flatMap(\.plannedSets).contains { $0.role == .dailyMaximum },
+                                path: rulePath,
+                                add
+                            )
+                            if let failureAction = rule.failureAction,
+                               case .endActiveDailyMaximumAndGenerateBackOffs = failureAction {
+                                add(
+                                    "\(rulePath).failureAction",
+                                    .invalidPrescriptionValue,
+                                    "Ending an active daily maximum cannot be a failure action."
+                                )
+                            }
                             if let formula = rule.formula {
                                 var sources = Set<String>()
                                 collectSources(formula, into: &sources)
@@ -511,6 +528,38 @@ nonisolated enum ProgramDefinitionValidator {
         actions.compactMap { action in
             guard case .changeStage(let stageID) = action else { return nil }
             return stageID
+        }
+    }
+
+    private static func validateActiveWorkoutAction(
+        _ rule: ProgressionRuleDefinition,
+        hasDailyMaximumPrescription: Bool,
+        path: String,
+        _ add: (String, ProgramValidationIssue.Code, String) -> Void
+    ) {
+        guard case let .endActiveDailyMaximumAndGenerateBackOffs(
+            setCount,
+            repetitions,
+            percentage
+        ) = rule.successAction else { return }
+        guard setCount > 0, repetitions > 0, percentage > 0, percentage <= 1 else {
+            add(
+                "\(path).successAction",
+                .invalidPrescriptionValue,
+                "Generated back-offs need positive sets and repetitions and a percentage in 0…1."
+            )
+            return
+        }
+        guard case .consecutiveMissedAttemptsReached = rule.trigger,
+              rule.cadence == .nextSet,
+              rule.applicationMode == .recommendation,
+              hasDailyMaximumPrescription else {
+            add(
+                "\(path).successAction",
+                .invalidPrescriptionValue,
+                "Ending an active daily maximum requires a daily-maximum prescription, a consecutive-miss trigger, next-set cadence, and recommendation mode."
+            )
+            return
         }
     }
 
