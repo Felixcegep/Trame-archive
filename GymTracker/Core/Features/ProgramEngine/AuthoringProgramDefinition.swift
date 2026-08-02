@@ -83,6 +83,10 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
             )
         }
     }
+    /// Repeats this complete parent prescription, including ordered complex
+    /// components and Olympic-attempt metadata. Each expansion receives its
+    /// own deterministic set identity and remains one shared-load attempt.
+    var count: Int?
     var reps: Int?
     var repRange: [Int]?
     var amrap: [Int?]?
@@ -327,13 +331,21 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                     )
                                 }
                                 for (setIndex, set) in (exercise.sets ?? []).enumerated() {
-                                    sets.append(try set.expand(
-                                        path: "\(exercisePath)/direct/\(setIndex)",
-                                        orderIndex: sets.count,
-                                        defaultRestSeconds: exercise.restSeconds,
-                                        exposureKey: exercise.exposureKey,
-                                        exerciseIDsByName: exerciseIDsByName
-                                    ))
+                                    let repetitionCount = set.count ?? 1
+                                    guard repetitionCount > 0 else {
+                                        throw ProgramLibraryImportError.invalidSetGroup(
+                                            "\(exercisePath)/direct/\(setIndex)/count"
+                                        )
+                                    }
+                                    for repetitionIndex in 0..<repetitionCount {
+                                        sets.append(try set.expand(
+                                            path: "\(exercisePath)/direct/\(setIndex)/repeat/\(repetitionIndex)",
+                                            orderIndex: sets.count,
+                                            defaultRestSeconds: exercise.restSeconds,
+                                            exposureKey: exercise.exposureKey,
+                                            exerciseIDsByName: exerciseIDsByName
+                                        ))
+                                    }
                                 }
                                 for (groupIndex, group) in (exercise.extraSetGroups ?? []).enumerated() {
                                     sets += try group.expand(
