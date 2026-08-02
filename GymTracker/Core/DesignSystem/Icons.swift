@@ -93,6 +93,13 @@ struct AppIcon {
     static let recipePhotoReplace = "arrow.triangle.2.circlepath"
     static let recipeGenerate = "wand.and.stars"
     static let search = "magnifyingglass"
+
+    // Workout focus. Reinforcement only — the focus name always accompanies
+    // these in filters and rows, so meaning never rests on the glyph.
+    static let focusFullBody = "figure.strengthtraining.functional"
+    static let focusUpperBody = "figure.strengthtraining.traditional"
+    static let focusLowerBody = "figure.step.training"
+    static let focusCore = "figure.core.training"
     static let fastForward = "forward.fill"
     static let warningFill = "exclamationmark.triangle.fill"
 
