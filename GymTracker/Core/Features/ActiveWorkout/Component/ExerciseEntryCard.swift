@@ -162,7 +162,7 @@ struct ExerciseEntryCard: View {
                         .foregroundStyle(Color.gymPrimary)
                 }
 
-                Text(exerciseEntry.exercise.name)
+                Text(exerciseEntry.occurrenceDisplayName)
                     .font(isCurrentExercise ? AppFont.titleSmall : AppFont.headlineSemibold)
                     .foregroundStyle(Color.gymText)
                     .accessibilityIdentifier("active-exercise-\(exerciseEntry.exercise.name)")

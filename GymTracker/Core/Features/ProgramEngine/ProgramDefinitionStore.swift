@@ -259,6 +259,7 @@ enum ProgramDefinitionCompiler {
         return PlannedExercise(
             exercise: exercise,
             orderIndex: definition.orderIndex,
+            role: definition.role ?? .main,
             isOptional: definition.isOptional,
             targetSets: max(1, plannedSets.count),
             repRangeMinimum: firstLegacy.minimum,

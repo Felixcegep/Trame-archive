@@ -64,7 +64,7 @@ struct WorkoutExecutionBlockCard: View {
 
     private var summary: String {
         let components = WorkoutExecutionBlockService.entries(in: block, workout: workout)
-            .map(\.nameSnapshot)
+            .map(\.occurrenceDisplayName)
             .joined(separator: " · ")
         let rounds = block.targetRounds.map { "\($0) rounds" }
         let scheme: String?

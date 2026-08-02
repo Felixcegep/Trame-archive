@@ -64,7 +64,7 @@ enum PlanWorkoutStatus: String, Codable {
     case skipped
 }
 
-enum ExerciseRole: String, Codable, CaseIterable {
+nonisolated enum ExerciseRole: String, Codable, CaseIterable, Sendable {
     case preparation
     case main
     case secondary

@@ -102,7 +102,14 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
         }
         let index = exercises.count
         definition.blocks[blockIndex].weeks[weekIndex].workouts[workoutIndex].plannedExercises.append(
-            ProgramExerciseDefinition(exerciseID: exerciseID, exposureKey: exposureKey, orderIndex: index, isOptional: isOptional, plannedSets: [])
+            ProgramExerciseDefinition(
+                exerciseID: exerciseID,
+                exposureKey: exposureKey,
+                orderIndex: index,
+                role: role,
+                isOptional: isOptional,
+                plannedSets: []
+            )
         )
         return index
     }

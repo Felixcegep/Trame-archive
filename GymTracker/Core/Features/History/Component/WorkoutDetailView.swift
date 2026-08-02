@@ -134,7 +134,7 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(Color.gymPrimary)
                     .accessibilityLabel("Superset exercise")
             }
-            Text(exercise.nameSnapshot)
+            Text(exercise.occurrenceDisplayName)
                 .font(AppFont.titleSmallSemibold)
                 .foregroundStyle(Color.gymText)
 

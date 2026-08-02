@@ -12,6 +12,7 @@ nonisolated struct AuthoringWarmupStep: Codable, Hashable {
 nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
     var exercise: String
     var exposureKey: String
+    var role: ExerciseRole?
     var optional: Bool?
     var restSeconds: Int?
     var setGroups: [AuthoringSetGroupDefinition]?
@@ -397,6 +398,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                     id: ProgramLibraryDeterministicID.uuid(for: exercisePath),
                                     exerciseID: exerciseID,
                                     exposureKey: exercise.exposureKey,
+                                    role: exercise.role,
                                     orderIndex: exerciseIndex,
                                     isOptional: exercise.optional ?? false,
                                     plannedSets: sets,

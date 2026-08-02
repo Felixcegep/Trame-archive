@@ -16,6 +16,11 @@ struct ProgramDefinitionExerciseEditor: View {
                 }
             }
             TextField("Exposure key", text: $exercise.exposureKey)
+            Picker("Prescription role", selection: exerciseRoleBinding) {
+                ForEach(ExerciseRole.allCases, id: \.self) { role in
+                    Text(role.rawValue.capitalized).tag(role)
+                }
+            }
             Toggle("Optional", isOn: $exercise.isOptional)
             TextField("Initial load", text: initialLoadBinding)
                 .keyboardType(.decimalPad)
@@ -195,6 +200,13 @@ struct ProgramDefinitionExerciseEditor: View {
                     .foregroundStyle(Color.gymSubduedText)
             }
         }
+    }
+
+    private var exerciseRoleBinding: Binding<ExerciseRole> {
+        Binding(
+            get: { exercise.role ?? .main },
+            set: { exercise.role = $0 }
+        )
     }
 
     private var exerciseTitle: String {

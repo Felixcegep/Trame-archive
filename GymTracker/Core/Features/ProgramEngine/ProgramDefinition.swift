@@ -377,6 +377,7 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
     var id: UUID
     var exerciseID: UUID
     var exposureKey: String
+    var role: ExerciseRole?
     var orderIndex: Int
     var isOptional: Bool
     var plannedSets: [SetPrescriptionDefinition]
@@ -399,6 +400,7 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         id: UUID = UUID(),
         exerciseID: UUID,
         exposureKey: String,
+        role: ExerciseRole? = nil,
         orderIndex: Int,
         isOptional: Bool = false,
         plannedSets: [SetPrescriptionDefinition],
@@ -420,6 +422,7 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         self.id = id
         self.exerciseID = exerciseID
         self.exposureKey = exposureKey
+        self.role = role
         self.orderIndex = orderIndex
         self.isOptional = isOptional
         self.plannedSets = plannedSets
@@ -437,6 +440,18 @@ nonisolated struct ProgramExerciseDefinition: Codable, Hashable, Identifiable {
         self.initialActualOneRepMax = initialActualOneRepMax
         self.automaticDeload = automaticDeload
         self.warmupScheme = warmupScheme
+    }
+}
+
+extension ProgramExerciseDefinition {
+    /// Human-readable presentation derived from the authored stable exposure
+    /// key. It is computed so Codable payloads remain backward compatible.
+    var occurrenceLabel: String? {
+        WorkoutOccurrenceSnapshotPolicy.occurrenceLabel(
+            catalogueName: "",
+            progressionKey: exposureKey,
+            role: role
+        )
     }
 }
 
