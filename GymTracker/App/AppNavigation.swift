@@ -36,6 +36,10 @@ enum AppTab: String, CaseIterable, Hashable, Identifiable {
 enum TodayRoute: Hashable {
     case trainingCalendar
     case settings
+    /// The backup group inside Settings. A route of its own because export and
+    /// import are the one part of Settings something outside it needs to reach
+    /// directly — a restore prompt, or a test driving an import.
+    case settingsData
     /// The plan Today says you are following. Reachable from the header chip so
     /// pausing or stopping a plan does not require hunting through the Train tab.
     case plan(UUID)

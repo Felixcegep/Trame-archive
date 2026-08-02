@@ -404,7 +404,7 @@ struct RootView: View {
     private var currentAppScreen: AppScreen {
         AppScreen.current(
             selectedTab: selectedTab,
-            isSettingsPresented: todayPath.last == .settings,
+            isSettingsPresented: todayPath.last == .settings || todayPath.last == .settingsData,
             isShowingActiveWorkout: isShowingActiveWorkout,
             isShowingWorkoutSave: activeWorkoutPath.last == .saveWorkout,
             isShowingActiveMobility: activeMobilitySession != nil
@@ -675,6 +675,8 @@ struct RootView: View {
                 currentScreen: currentAppScreen,
                 activeLoggingMetrics: activeLoggingMetrics
             )
+        case .settingsData:
+            DataSettingsView()
         case .plan(let planID):
             if let plan = plan(id: planID) {
                 PlanDetailView(

@@ -95,4 +95,15 @@ struct AppIcon {
     static let search = "magnifyingglass"
     static let fastForward = "forward.fill"
     static let warningFill = "exclamationmark.triangle.fill"
+
+    // Settings Groups
+    // One glyph per settings destination, so the hub can be scanned by shape
+    // before it is read. Deliberately literal — the icon repeats the label
+    // rather than replacing it, since none of these rows is icon-only.
+    static let appearance = "circle.lefthalf.filled"
+    static let units = "ruler"
+    static let bodyWeight = "scalemass"
+    static let reminders = "bell.badge"
+    static let siri = "sparkles"
+    static let backup = "externaldrive"
 }

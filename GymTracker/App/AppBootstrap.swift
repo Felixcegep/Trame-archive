@@ -235,7 +235,11 @@ enum UITestLaunch {
         }
         if arguments.contains("-ui-testing-open-settings") {
             destination.tab = .today
-            destination.todayPath = [.settings]
+            // The import fixtures act on the backup group, which is now its own
+            // screen. Landing on Settings and stopping short would present the
+            // importer's alert against a screen that does not own it.
+            let opensImporter = arguments.contains { $0.hasPrefix("-ui-testing-import-") }
+            destination.todayPath = opensImporter ? [.settings, .settingsData] : [.settings]
         }
         return destination
     }
