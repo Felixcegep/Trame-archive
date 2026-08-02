@@ -2,7 +2,6 @@ import SwiftData
 import SwiftUI
 
 struct MobilityLibraryView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let onStart: (MobilityRoutine, MobilitySessionContext, UUID?) -> Void
     /// Assessment presentation is root-owned, so this screen forwards the
@@ -50,20 +49,44 @@ struct MobilityLibraryView: View {
                         description: Text("Create a short routine to begin mobility work.")
                     )
                 } else {
+                    // On the page background rather than inside a card: a filter
+                    // is chrome for the list below it, and boxing it made the
+                    // controls read as the section's content.
                     purposeFilterChips
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(
+                            top: Spacing.xs,
+                            leading: Spacing.l,
+                            bottom: Spacing.xs,
+                            trailing: Spacing.l
+                        ))
                 }
 
-                // The context belongs to starting a routine, not to the screen.
-                // At the top it read as a global setting for a hub that also
-                // holds assessments, which it never applied to.
-                Picker("Session context", selection: $sessionContext) {
-                    ForEach(MobilitySessionContext.allCases, id: \.self) { context in
-                        Text(context.displayName).tag(context)
+                // The context belongs to starting a routine, not to the screen,
+                // and it has exactly one possible value with no workout running.
+                // Offering a locked control there was a row that could only ever
+                // say "Standalone".
+                if activeWorkout != nil {
+                    Picker("Session context", selection: $sessionContext) {
+                        ForEach(MobilitySessionContext.allCases, id: \.self) { context in
+                            Text(context.displayName).tag(context)
+                        }
                     }
+                    .accessibilityIdentifier("mobility-session-context")
                 }
-                .disabled(sessionContext != .standalone && activeWorkout == nil)
             } header: {
-                Text("Routines")
+                sectionHeader(String(localized: "Routines")) {
+                    Button {
+                        selectedRoutine = createRoutine()
+                    } label: {
+                        Label("New routine", systemImage: AppIcon.plus)
+                            .font(AppFont.captionBold)
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityIdentifier("create-mobility-routine")
+                }
             } footer: {
                 Text("Starting a routine snapshots its movement targets and instructions into a separate mobility session.")
             }
@@ -74,8 +97,12 @@ struct MobilityLibraryView: View {
                         routineRow(routine)
                     }
                 } header: {
-                    Text(groupTitle(for: group))
-                        .accessibilityIdentifier("mobility-purpose-section-\(group.id)")
+                    sectionHeader(groupTitle(for: group)) {
+                        Text(CountPhrase.routines(group.routines.count))
+                            .font(AppFont.captionSemiboldMonospaced)
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
+                    .accessibilityIdentifier("mobility-purpose-section-\(group.id)")
                 }
             }
 
@@ -94,15 +121,6 @@ struct MobilityLibraryView: View {
 
             Section {
                 Button {
-                    selectedRoutine = createRoutine()
-                } label: {
-                    Label("New routine", systemImage: AppIcon.plus)
-                }
-                .accessibilityIdentifier("create-mobility-routine")
-            }
-
-            Section {
-                Button {
                     isShowingDefinitions = true
                 } label: {
                     Label("Manage movements", systemImage: AppIcon.mobility)
@@ -117,7 +135,7 @@ struct MobilityLibraryView: View {
                         .foregroundStyle(Color.gymSubduedText)
                 }
             } header: {
-                Text("Movements")
+                sectionHeader(String(localized: "Movements"))
             } footer: {
                 if recentMovementNames.isEmpty == false {
                     Text("Movements listed here are the ones your recent sessions recorded.")
@@ -145,7 +163,7 @@ struct MobilityLibraryView: View {
                     }
                 }
             } header: {
-                Text("History")
+                sectionHeader(String(localized: "History"))
             } footer: {
                 // Two different kinds of record. Naming both is what keeps a
                 // performed routine from being read as an observation. With
@@ -164,11 +182,9 @@ struct MobilityLibraryView: View {
         .navigationDestination(isPresented: $isShowingAssessmentLanding) {
             MobilityAssessmentLandingView(onStart: onStartAssessment)
         }
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Close") { dismiss() }
-            }
-        }
+        // No Close button: this screen is only ever pushed inside Train, where a
+        // dismissal control sat beside the back chevron and offered the same
+        // exit twice. The same rule the Nutrition targets screen already follows.
         .sheet(item: $selectedRoutine) { routine in
             NavigationStack {
                 MobilityRoutineEditorView(routine: routine)
@@ -366,33 +382,50 @@ struct MobilityLibraryView: View {
         Button {
             onStart(routine, sessionContext, sessionContext == .standalone ? nil : activeWorkout?.id)
         } label: {
-            // The button combines these into one accessibility element, which
-            // reads "<name>, <n> movements, <purpose>" — the purpose clause
-            // simply absent when unclassified. No manual label needed, so the
-            // count keeps its inflection and both stay localized.
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(routine.name)
-                    .font(AppFont.subheadlineSemibold)
-                Text(CountPhrase.movements(routine.items.count))
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-                if let purpose = routine.purpose {
-                    // Icon plus text, never the glyph or a color alone.
-                    // Unclassified routines show nothing here: the section
-                    // header already says "Not specified", and repeating it on
-                    // every card is noise.
-                    HStack(spacing: Spacing.xs) {
-                        Image(systemName: purposeIcon(purpose))
-                            .font(AppFont.caption2)
-                            .accessibilityHidden(true)
-                        Text(purpose.displayName)
-                            .font(AppFont.caption)
-                    }
-                    .foregroundStyle(Color.gymSubduedText)
+            // The button combines the two text views into one accessibility
+            // element, which reads "<name>, <n> movements · <purpose>" — the
+            // purpose clause simply absent when unclassified. No manual label
+            // needed, so the count keeps its localization.
+            HStack(spacing: Spacing.m) {
+                // Icon plus text, never the glyph alone: the purpose is named in
+                // the detail line beside it, and an unclassified routine falls
+                // back to the generic mobility glyph.
+                Image(systemName: routine.purpose.map(purposeIcon) ?? AppIcon.mobility)
+                    .font(AppFont.footnoteMedium)
+                    .foregroundStyle(Color.gymAccent)
+                    .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
+                    .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(routine.name)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.gymText)
+                        .lineLimit(2)
+                    Text(routineDetail(routine))
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .lineLimit(2)
                 }
+
+                Spacer(minLength: Spacing.s)
+
+                Image(systemName: AppIcon.play)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymAccent)
+                    .frame(width: 32, height: 32)
+                    .background(Color.gymAccentSurface, in: Circle())
+                    .accessibilityHidden(true)
             }
+            .padding(.vertical, Spacing.xxs)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .contentShape(Rectangle())
         }
+        // Plain, not the List default: a button label inside a row is tinted
+        // wholesale, which rendered every routine name as blue link text.
+        .buttonStyle(.plain)
         .accessibilityIdentifier("start-mobility-routine-\(routine.id)")
+        .accessibilityHint("Starts this routine as a mobility session.")
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button {
                 selectedRoutine = routine
@@ -401,6 +434,40 @@ struct MobilityLibraryView: View {
             }
             .tint(Color.gymAccent)
         }
+    }
+
+    /// A section header with something on its trailing edge — a count, or the
+    /// action that adds to the section — so every header on this screen reads as
+    /// one family instead of alternating with the system's own styling.
+    ///
+    /// Takes an already-localized `String` rather than a `LocalizedStringKey`:
+    /// the group titles arriving here are resolved display names, and passing a
+    /// resolved string back through a key looks it up a second time.
+    private func sectionHeader<Trailing: View>(
+        _ title: String,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        HStack {
+            Text(title)
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(Color.gymSubduedText)
+            Spacer(minLength: Spacing.s)
+            trailing()
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        sectionHeader(title) { EmptyView() }
+    }
+
+    /// "4 movements · Preparation", one line rather than three stacked ones.
+    /// Unclassified routines simply stop after the count; the section header
+    /// already says "Not specified", and repeating it on every row is noise.
+    private func routineDetail(_ routine: MobilityRoutine) -> String {
+        let movements = CountPhrase.movements(routine.items.count)
+        guard let purpose = routine.purpose else { return movements }
+        return "\(movements) · \(purpose.displayName)"
     }
 
     private var filterOptions: [MobilityPurposeFilter] {

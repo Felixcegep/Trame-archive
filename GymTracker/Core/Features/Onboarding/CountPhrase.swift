@@ -98,6 +98,12 @@ enum CountPhrase {
             : String(localized: "\(count) recorded assessments")
     }
 
+    static func routines(_ count: Int) -> String {
+        count == 1
+            ? String(localized: "1 routine")
+            : String(localized: "\(count) routines")
+    }
+
     static func movements(_ count: Int) -> String {
         count == 1
             ? String(localized: "1 movement")
