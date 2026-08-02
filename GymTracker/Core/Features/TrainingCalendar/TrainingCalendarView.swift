@@ -318,6 +318,7 @@ private struct TrainingCalendarDayButton: View {
 }
 
 private struct TrainingCalendarDayAgenda: View {
+    private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
     let day: TrainingCalendarDay
     let workout: (UUID) -> Workout?
     let onStart: (TrainingCalendarPlannedWorkout) -> Void
@@ -442,7 +443,7 @@ private struct TrainingCalendarDayAgenda: View {
 
     @ViewBuilder
     private var contextSection: some View {
-        if let nutrition = day.nutrition {
+        if featureFlags.isEnabled(.nutrition), let nutrition = day.nutrition {
             agendaSection("Daily context", icon: AppIcon.nutrition) {
                 Button(action: onOpenNutrition) {
                     HStack(spacing: Spacing.m) {

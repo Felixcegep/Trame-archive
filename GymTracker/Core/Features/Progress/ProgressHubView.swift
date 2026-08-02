@@ -60,12 +60,14 @@ struct ProgressHubView: View {
                         icon: AppIcon.mobilityAssessment
                     )
                 }
-                progressLink(
-                    route: .nutritionHistory,
-                    title: "Nutrition history",
-                    detail: countDescription(loggedMeals.count, singular: "logged meal"),
-                    icon: AppIcon.nutrition
-                )
+                if featureFlags.isEnabled(.nutrition) {
+                    progressLink(
+                        route: .nutritionHistory,
+                        title: "Nutrition history",
+                        detail: countDescription(loggedMeals.count, singular: "logged meal"),
+                        icon: AppIcon.nutrition
+                    )
+                }
                 progressLink(
                     route: .journalHistory,
                     title: "Journal history",

@@ -116,21 +116,16 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     static func defaultMatrix(for buildChannel: FeatureFlagBuildChannel) -> Set<FeatureFlag> {
         switch buildChannel {
         case .internalDevelopment, .release:
-            return Set(FeatureFlag.allCases)
+            return Set(FeatureFlag.allCases).subtracting([.nutrition])
         case .beta:
             return currentWave
         }
     }
 
-    /// What a TestFlight tester sees: everything already shipped, minus the two
-    /// surfaces whose UI is unfinished. This is the freeze the product audit
-    /// asks for — hide what is incomplete, not what is merely secondary.
-    ///
-    /// Written as a subtraction so a flag added later is exposed by default and
-    /// has to be argued out of the wave, rather than silently omitted from a
-    /// hand-maintained list.
+    /// What a TestFlight tester sees: everything already shipped, minus the
+    /// surfaces whose UI is unfinished or temporarily hidden.
     static let currentWave: Set<FeatureFlag> = Set(FeatureFlag.allCases)
-        .subtracting([.mobilityAssessment, .recipeGeneration, .workoutGeneration])
+        .subtracting([.mobilityAssessment, .recipeGeneration, .workoutGeneration, .nutrition])
 
     /// The narrower RoadMap.md §4 "Beta 1 — core workout reliability" wave, kept
     /// because it is a real staged option and selectable by launch argument. It
