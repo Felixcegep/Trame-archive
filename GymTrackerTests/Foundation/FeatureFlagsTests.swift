@@ -71,10 +71,11 @@ final class FeatureFlagsTests: XCTestCase {
         let configuration = DefaultFeatureFlagConfiguration(buildChannel: .beta)
         XCTAssertEqual(
             Set(configuration.enabledFlags),
-            Set(FeatureFlag.allCases).subtracting([.mobilityAssessment, .recipeGeneration])
+            Set(FeatureFlag.allCases).subtracting([.mobilityAssessment, .recipeGeneration, .workoutGeneration])
         )
         XCTAssertFalse(configuration.isEnabled(.mobilityAssessment))
         XCTAssertFalse(configuration.isEnabled(.recipeGeneration))
+        XCTAssertFalse(configuration.isEnabled(.workoutGeneration))
     }
 
     func testCaffeineQuickLoggingRequiresNutrition() {

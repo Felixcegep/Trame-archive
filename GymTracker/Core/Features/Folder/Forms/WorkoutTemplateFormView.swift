@@ -21,6 +21,13 @@ struct WorkoutTemplateFormView: View {
         let id = UUID()
         let exercise: Exercise
         var supersetGroupID: UUID?
+        var targetSets = 3
+        var repRangeMinimum = 8
+        var repRangeMaximum = 12
+        var restSeconds = 90
+        var targetRIR: Int?
+        var targetRPE: Double?
+        var notes: String?
 
         static func == (lhs: Selection, rhs: Selection) -> Bool {
             lhs.id == rhs.id && lhs.supersetGroupID == rhs.supersetGroupID
@@ -39,12 +46,25 @@ struct WorkoutTemplateFormView: View {
     @State private var searchText = ""
     @State private var filter = ExerciseFilterState()
     @State private var isCreatingExercise = false
+    @State private var isShowingPersonalizedBuilder = false
 
     var body: some View {
         Form {
             Section {
                 TextField("Name", text: $name)
                     .accessibilityIdentifier("template-name-field")
+
+                if FeatureFlags.current.isEnabled(.workoutGeneration) {
+                    Button {
+                        isShowingPersonalizedBuilder = true
+                    } label: {
+                        Label("Draft a personalized workout", systemImage: AppIcon.recipeGenerate)
+                    }
+                    .accessibilityIdentifier("template-personalized-workout-entry")
+                    Text("Use your goals, equipment, and available time to draft an editable workout.")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
             }
 
             if !selection.isEmpty {
@@ -82,6 +102,12 @@ struct WorkoutTemplateFormView: View {
                     _ = LibraryService.createCustomExercise(exercise, using: modelContext)
                 }
             }
+        }
+        .sheet(isPresented: $isShowingPersonalizedBuilder) {
+            PersonalizedWorkoutBuilderView(
+                availableExercises: availableExercises,
+                onApply: applyGeneratedDraft
+            )
         }
     }
 }
@@ -226,6 +252,24 @@ private extension WorkoutTemplateFormView {
         }
     }
 
+    func applyGeneratedDraft(_ draft: ValidatedWorkoutDraft) {
+        name = draft.name
+        selection = draft.exercises.map { item in
+            Selection(
+                exercise: item.exercise,
+                supersetGroupID: item.supersetGroupID,
+                targetSets: item.targetSets,
+                repRangeMinimum: item.repRangeMinimum,
+                repRangeMaximum: item.repRangeMaximum,
+                restSeconds: item.restSeconds,
+                targetRIR: item.targetRIR,
+                targetRPE: item.targetRPE,
+                notes: item.notes
+            )
+        }
+        normalizeSupersets()
+    }
+
     func remove(at index: Int) {
         guard selection.indices.contains(index) else { return }
         selection.remove(at: index)
@@ -301,6 +345,13 @@ private extension WorkoutTemplateFormView {
             TemplateExercise(
                 exercise: item.exercise,
                 order: index,
+                targetSets: item.targetSets,
+                repRangeMinimum: item.repRangeMinimum,
+                repRangeMaximum: item.repRangeMaximum,
+                restSeconds: item.restSeconds,
+                targetRPE: item.targetRPE,
+                targetRIR: item.targetRIR,
+                notes: item.notes,
                 supersetGroupID: item.supersetGroupID
             )
         }

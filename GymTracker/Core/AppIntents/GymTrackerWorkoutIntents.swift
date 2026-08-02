@@ -159,6 +159,53 @@ struct StartFreeWorkoutIntent: AppIntent {
     }
 }
 
+/// Opens Trame's editable personalized-workout builder. This intentionally
+/// routes only to request entry: Apple Intelligence must never create, save,
+/// or start a workout without the person's in-app review and confirmation.
+struct CreatePersonalizedWorkoutIntent: AppIntent {
+    static let title: LocalizedStringResource = "Build a personalized workout"
+    static let description = IntentDescription("Opens Trame to draft a workout you can review and edit before saving or starting.")
+    static let openAppWhenRun = true
+
+    @Parameter(title: "Workout request") var request: String?
+    @Parameter(title: "Duration in minutes") var durationMinutes: Int?
+    @Parameter(title: "Focus") var focus: String?
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Build a personalized workout") {
+            \.$request
+            \.$durationMinutes
+            \.$focus
+        }
+    }
+
+    init() {}
+
+    init(request: String? = nil, durationMinutes: Int? = nil, focus: String? = nil) {
+        self.request = request
+        self.durationMinutes = durationMinutes
+        self.focus = focus
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard FeatureFlags.current.isEnabled(.workoutGeneration) else {
+            return .result(dialog: "Personalized workout drafting is not available in this build.")
+        }
+
+        AppIntentRouteStore.shared.submit(
+            .personalizedWorkout(
+                WorkoutGenerationLaunchRequest(
+                    request: request,
+                    durationMinutes: durationMinutes,
+                    focus: focus
+                )
+            )
+        )
+        return .result(dialog: "Open Trame to review your personalized workout request.")
+    }
+}
+
 struct ShowWeeklyVolumeIntent: AppIntent {
     static let title: LocalizedStringResource = "Show weekly volume"
     static let description = IntentDescription("Summarizes eligible completed strength work from the current local week.")

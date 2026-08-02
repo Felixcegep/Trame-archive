@@ -13,6 +13,10 @@ enum FeatureFlag: String, CaseIterable, Codable, Sendable {
     case advancedExecution
     case betaFeedback
     case recipeGeneration
+    /// On-device, user-confirmable workout drafting. Kept separate from the
+    /// core workout paths so unavailable Apple Intelligence never blocks
+    /// starting an empty, saved, planned, or rotating workout.
+    case workoutGeneration
     /// The assessment surface inside Mobility. Separate from `mobility` because
     /// its data model shipped well before its UI, localization, accessibility,
     /// and screenshots did — and a ready model is not a reason to expose a
@@ -26,7 +30,8 @@ enum FeatureFlag: String, CaseIterable, Codable, Sendable {
         case .mobilityAssessment: .mobility
         case .recipeGeneration: .nutrition
         case .today, .mobility, .nutrition, .bodyWeight, .dailyCheckIn,
-             .programBuilder, .advancedExecution, .betaFeedback: nil
+             .programBuilder, .advancedExecution, .betaFeedback,
+             .workoutGeneration: nil
         }
     }
 }
@@ -125,7 +130,7 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     /// has to be argued out of the wave, rather than silently omitted from a
     /// hand-maintained list.
     static let currentWave: Set<FeatureFlag> = Set(FeatureFlag.allCases)
-        .subtracting([.mobilityAssessment, .recipeGeneration])
+        .subtracting([.mobilityAssessment, .recipeGeneration, .workoutGeneration])
 
     /// The narrower RoadMap.md §4 "Beta 1 — core workout reliability" wave, kept
     /// because it is a real staged option and selectable by launch argument. It
