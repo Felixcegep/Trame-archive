@@ -9,6 +9,16 @@ import SwiftData
 import SwiftUI
 import Combine
 
+private extension AppAppearance {
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .dark: .dark
+        case .light: .light
+        }
+    }
+}
+
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
@@ -49,7 +59,8 @@ struct RootView: View {
     @State private var todayStatusMessage: GymStatusMessage?
     /// Increments only when a plan or rotation action actually committed.
     @State private var planStateChangeCount = 0
-    @AppStorage(DefaultsKey.darkMode) private var darkMode: Bool = false
+    @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .system
+    @AppStorage(DefaultsKey.darkMode) private var legacyDarkMode: Bool = false
     @AppStorage(DefaultsKey.hasCompletedWelcome) private var hasCompletedWelcome: Bool = false
     @State private var isPreparingApp = true
     @State private var hasFinishedLaunchAnimation = false
@@ -135,7 +146,7 @@ struct RootView: View {
             }
             .tag(AppTab.progress)
         }
-        .preferredColorScheme(darkMode ? .dark : nil)
+        .preferredColorScheme(effectiveAppearance.colorScheme)
         .gymFeedback(.planStateChanged, trigger: planStateChangeCount)
         // A Today confirmation belongs to the screen where the user saw the
         // result. Do not resurrect it when returning from another tab.
@@ -395,6 +406,13 @@ struct RootView: View {
                 guidedSourceUndoBanner
             }
         }
+    }
+
+    private var effectiveAppearance: AppAppearance {
+        guard UserDefaults.standard.object(forKey: DefaultsKey.appearance) != nil else {
+            return legacyDarkMode ? .dark : .system
+        }
+        return appearance
     }
 
     /// The coarse product destination currently visible, derived from

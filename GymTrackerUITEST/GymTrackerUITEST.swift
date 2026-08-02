@@ -45,6 +45,28 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(shortcuts.waitForExistence(timeout: 5))
     }
 
+    func testAppearanceMenuSupportsSystemDarkAndLightModes() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
+        app.launch()
+
+        let picker = app.buttons["settings-appearance-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 45))
+        XCTAssertTrue((picker.value as? String)?.contains("System Default") == true)
+
+        picker.tap()
+        app.buttons["Dark"].tap()
+        XCTAssertTrue((picker.value as? String)?.contains("Dark") == true)
+
+        picker.tap()
+        app.buttons["Light"].tap()
+        XCTAssertTrue((picker.value as? String)?.contains("Light") == true)
+
+        picker.tap()
+        app.buttons["System Default"].tap()
+        XCTAssertTrue((picker.value as? String)?.contains("System Default") == true)
+    }
+
     func testNutritionTargetsEmptyStateOffersCreationWithoutDuplicateDismissal() {
         let app = launchFreshApp()
         selectTab(.nutrition, in: app)

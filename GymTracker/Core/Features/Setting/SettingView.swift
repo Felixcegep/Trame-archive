@@ -17,7 +17,8 @@ struct SettingView: View {
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
     @State private var isShowingBetaFeedback = false
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(DefaultsKey.darkMode) private var darkMode: Bool = false
+    @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .system
+    @AppStorage(DefaultsKey.darkMode) private var legacyDarkMode: Bool = false
     /// Zero means automatic: rest is derived from the exercise. A positive
     /// value is an explicit override that applies everywhere.
     ///
@@ -64,8 +65,14 @@ struct SettingView: View {
     var body: some View {
         Form {
             Section("Appearance") {
-                Toggle("Dark Mode", isOn: $darkMode)
-                    .accessibilityIdentifier("settings-dark-mode-toggle")
+                Picker("Appearance", selection: appearanceBinding) {
+                    ForEach(AppAppearance.allCases, id: \.self) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("settings-appearance-picker")
+                .accessibilityValue(selectedAppearance.title)
             }
 
             Section("Units") {
@@ -504,7 +511,12 @@ struct SettingView: View {
         guard isPreparingExport == false else { return }
         isPreparingExport = true
         do {
-            let backup = try BackupDTO.create(from: modelContext, restTimer: restTimer, darkMode: darkMode, unitSystem: unitSystem)
+            let backup = try BackupDTO.create(
+                from: modelContext,
+                restTimer: restTimer,
+                darkMode: selectedAppearance == .dark,
+                unitSystem: unitSystem
+            )
             Task {
                 do {
                     let fileURL = try await Task.detached(priority: .utility) {
@@ -560,7 +572,8 @@ struct SettingView: View {
     private func restoreBackup(_ backup: BackupDTO) {
         do {
             let preferences = try BackupImportService.restore(backup, to: modelContext)
-            self.darkMode = preferences.darkMode
+            self.appearance = preferences.darkMode ? .dark : .system
+            self.legacyDarkMode = preferences.darkMode
             self.restTimer = preferences.restTimer
             self.unitSystem = UnitSystem(rawValue: preferences.unitSystem) ?? .metric
             self.bodyWeightPromptCadence = preferences.bodyWeightPromptCadence.flatMap(BodyWeightPromptCadence.init(rawValue:)) ?? .off
@@ -574,6 +587,26 @@ struct SettingView: View {
         } catch {
             showImportError("Failed to restore backup: \(error.localizedDescription)")
         }
+    }
+
+    private var selectedAppearance: AppAppearance {
+        guard UserDefaults.standard.object(forKey: DefaultsKey.appearance) != nil else {
+            return legacyDarkMode ? .dark : .system
+        }
+        return appearance
+    }
+
+    private var appearanceBinding: Binding<AppAppearance> {
+        Binding(
+            get: { selectedAppearance },
+            set: { newValue in
+                appearance = newValue
+                // Backup v24 stores the former Boolean preference. Keep it
+                // synchronized until the backup format can add all three
+                // appearance states without breaking older imports.
+                legacyDarkMode = newValue == .dark
+            }
+        )
     }
 }
 

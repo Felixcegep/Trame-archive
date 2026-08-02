@@ -32,6 +32,8 @@ enum AppBootstrap {
     /// this at all.
     static func resetPersistedDataForUITesting(using context: ModelContext) {
         UserDefaults.standard.set(true, forKey: DefaultsKey.useMetric)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.appearance)
+        UserDefaults.standard.removeObject(forKey: DefaultsKey.darkMode)
         UserDefaults.standard.removeObject(forKey: DefaultsKey.lastBackupExportTimestamp)
         UserDefaults.standard.removeObject(forKey: DefaultsKey.lastBackupRestoreTimestamp)
 

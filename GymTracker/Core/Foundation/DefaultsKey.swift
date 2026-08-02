@@ -2,6 +2,7 @@ import Foundation
 
 struct DefaultsKey {
     static let darkMode = "darkMode"
+    static let appearance = "appearance"
     static let hasCompletedWelcome = "hasCompletedWelcome"
     static let restTimer = "restTimer"
     static let useMetric = "useMetric"
@@ -27,6 +28,21 @@ struct DefaultsKey {
     /// safety state, so a restored backup must not carry another device's dates in.
     static let lastBackupExportTimestamp = "lastBackupExportTimestamp"
     static let lastBackupRestoreTimestamp = "lastBackupRestoreTimestamp"
+}
+
+enum AppAppearance: String, CaseIterable {
+    case system
+    case dark
+    case light
+
+    var title: String {
+        switch self {
+        case .system: String(localized: "System Default")
+        case .dark: String(localized: "Dark")
+        case .light: String(localized: "Light")
+        }
+    }
+
 }
 
 enum EffortMeasure: String, CaseIterable {
