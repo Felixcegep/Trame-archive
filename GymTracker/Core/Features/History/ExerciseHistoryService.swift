@@ -64,26 +64,31 @@ struct ExerciseHistoryService {
         let completedWorkouts = try modelContext.fetch(descriptor)
 
         for workout in completedWorkouts where workout.status == .completed && workout.startTime < date {
-            guard let entry = HistoricalExerciseIdentityPolicy.entry(
+            let entries = HistoricalExerciseIdentityPolicy.entries(
                 for: exercise,
                 in: workout
-            ) else {
-                continue
-            }
+            )
 
-            let sets = entry.orderedSets
+            // This API intentionally represents the most recent *workout* for
+            // a catalogue exercise. When that workout prescribed repeated
+            // occurrences, preserve all of their evidence in performed order
+            // and assign contiguous hint indices so duplicate per-entry set
+            // indices cannot collapse `set(at:)` lookups.
+            let sets = entries
+                .flatMap { $0.orderedSets }
                 .filter(\.done)
-                .map {
+                .enumerated()
+                .map { index, set in
                     PreviousSetPerformance(
-                        orderIndex: $0.orderIndex,
-                        repetitions: $0.repetitions,
-                        weight: $0.weight,
-                        weightType: $0.weightType,
-                        duration: $0.duration,
-                        distance: $0.distance,
-                        distanceType: $0.distanceType,
-                        calories: $0.calories,
-                        setType: $0.setType
+                        orderIndex: index,
+                        repetitions: set.repetitions,
+                        weight: set.weight,
+                        weightType: set.weightType,
+                        duration: set.duration,
+                        distance: set.distance,
+                        distanceType: set.distanceType,
+                        calories: set.calories,
+                        setType: set.setType
                     )
                 }
 

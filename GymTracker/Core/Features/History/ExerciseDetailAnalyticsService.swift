@@ -205,44 +205,45 @@ struct ExerciseDetailAnalyticsService {
 
     /// Chronological (oldest first) sessions so the latest is always `.last`.
     private func sessions(from workouts: [Workout], for exercise: Exercise) -> [ExerciseSession] {
-        workouts.compactMap { workout -> ExerciseSession? in
-            guard let entry = HistoricalExerciseIdentityPolicy.entry(
+        workouts.flatMap { workout in
+            HistoricalExerciseIdentityPolicy.entries(
                 for: exercise,
                 in: workout
-            ) else { return nil }
-
-            let sets = entry.orderedSets
-                .filter(\.done)
-                .map {
-                    ExerciseSessionSet(
-                        orderIndex: $0.orderIndex,
-                        repetitions: $0.repetitions,
-                        weight: $0.weight,
-                        weightType: $0.weightType,
-                        setType: $0.setType,
-                        setMethod: $0.resolvedSetMethod,
-                        hasSegments: !$0.segments.isEmpty
-                    )
-                }
-            guard !sets.isEmpty else { return nil }
-            return ExerciseSession(
-                workoutID: workout.id,
-                workoutDate: workout.startTime,
-                sets: sets,
-                semantics: entry.loggingSemanticsSnapshot
-            )
+            ).compactMap { entry -> ExerciseSession? in
+                let sets = entry.orderedSets
+                    .filter(\.done)
+                    .map {
+                        ExerciseSessionSet(
+                            orderIndex: $0.orderIndex,
+                            repetitions: $0.repetitions,
+                            weight: $0.weight,
+                            weightType: $0.weightType,
+                            setType: $0.setType,
+                            setMethod: $0.resolvedSetMethod,
+                            hasSegments: !$0.segments.isEmpty
+                        )
+                    }
+                guard !sets.isEmpty else { return nil }
+                return ExerciseSession(
+                    workoutID: workout.id,
+                    workoutDate: workout.startTime,
+                    sets: sets,
+                    semantics: entry.loggingSemanticsSnapshot
+                )
+            }
         }
     }
 
     private func notes(from workouts: [Workout], for exercise: Exercise) -> [ExerciseNote] {
-        workouts.compactMap { workout -> ExerciseNote? in
-            guard let entry = HistoricalExerciseIdentityPolicy.entry(
+        workouts.flatMap { workout in
+            HistoricalExerciseIdentityPolicy.entries(
                 for: exercise,
                 in: workout
-            ) else { return nil }
-            let text = entry.comment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            guard !text.isEmpty else { return nil }
-            return ExerciseNote(workoutDate: workout.startTime, text: text)
+            ).compactMap { entry -> ExerciseNote? in
+                let text = entry.comment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                guard !text.isEmpty else { return nil }
+                return ExerciseNote(workoutDate: workout.startTime, text: text)
+            }
         }
     }
 

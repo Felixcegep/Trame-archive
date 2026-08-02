@@ -128,7 +128,7 @@ enum ExerciseDetailInsightsBuilder {
             // question is the same one, and the snapshot is written at entry
             // creation, so this uses the one matcher rather than reintroducing
             // a second idiom for the same comparison.
-            let entry = HistoricalExerciseIdentityPolicy.entry(for: exercise, in: workout),
+            let entry = HistoricalExerciseIdentityPolicy.firstEntry(for: exercise, in: workout),
             let decision = entry.recommendedDecision,
             let recommendedLoad = entry.recommendedLoad,
             let unit = entry.recommendedUnit

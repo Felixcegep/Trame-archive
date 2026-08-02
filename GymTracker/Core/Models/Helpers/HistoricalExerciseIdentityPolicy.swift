@@ -40,13 +40,25 @@ enum HistoricalExerciseIdentityPolicy {
         identity(of: entry) == exercise.id
     }
 
-    /// The entry in a workout that is history for `exercise`, if any.
+    /// Every occurrence in a workout that is history for `exercise`, in
+    /// performed order.
     ///
-    /// A workout holds at most one entry per exercise in practice; the first
-    /// match is returned so behaviour is identical to the `first(where:)`
-    /// lookups this replaced.
-    static func entry(for exercise: Exercise, in workout: Workout) -> ExerciseEntry? {
-        workout.orderedExercises.first { matches($0, exercise) }
+    /// Repeated catalogue exercises are valid prescription occurrences. A
+    /// completed-history consumer must not silently discard later occurrences
+    /// merely because they share one catalogue identity.
+    static func entries(for exercise: Exercise, in workout: Workout) -> [ExerciseEntry] {
+        workout.orderedExercises.filter { matches($0, exercise) }
+    }
+
+    /// The first matching occurrence for a caller whose UI genuinely models a
+    /// single catalogue exercise rather than performed occurrences.
+    ///
+    /// Do not use this adapter for completed-history grouping, analytics,
+    /// records, notes, or previous-performance evidence. It exists for the
+    /// catalog-level active-progression summary until that UI has an occurrence
+    /// selector.
+    static func firstEntry(for exercise: Exercise, in workout: Workout) -> ExerciseEntry? {
+        entries(for: exercise, in: workout).first
     }
 
     /// A stable string key for grouping or comparing entries across sessions.

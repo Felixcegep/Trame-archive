@@ -152,7 +152,9 @@ enum WorkoutIntentProjectionService {
                 case .total:
                     return (workout, entry)
                 case .exercise:
-                    return entry.exercise.id == exerciseID ? (workout, entry) : nil
+                    return HistoricalExerciseIdentityPolicy.identity(of: entry) == exerciseID
+                        ? (workout, entry)
+                        : nil
                 case .muscleGroup:
                     guard let group = muscleGroup else { return nil }
                     return group.contains(where: entry.exercise.primaryMuscles.contains)
