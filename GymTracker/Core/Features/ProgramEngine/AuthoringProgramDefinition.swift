@@ -70,6 +70,19 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
             )
         }
     }
+    struct OlympicAttempt: Codable, Hashable {
+        var technicalPurpose: OlympicTechnicalPurpose?
+        var startPosition: OlympicStartPosition?
+        var targetQuality: LiftQuality?
+
+        var expanded: OlympicAttemptPrescription {
+            .init(
+                technicalPurpose: technicalPurpose,
+                startPosition: startPosition,
+                targetQuality: targetQuality
+            )
+        }
+    }
     var reps: Int?
     var repRange: [Int]?
     var amrap: [Int?]?
@@ -86,6 +99,7 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
     var deferred: Bool?
     var velocity: Velocity?
     var complex: [ComplexComponent]?
+    var olympicAttempt: OlympicAttempt?
 
     func expand(
         path: String,
@@ -132,6 +146,7 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
                 )
             })
         }
+        result.olympicAttempt = olympicAttempt?.expanded
         return result
     }
 }
@@ -515,6 +530,10 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
         if allExercises.flatMap({ $0.plannedSets + $0.waves.flatMap(\.plannedSets) + $0.stages.flatMap(\.plannedSets) })
             .contains(where: { if case .distance = $0.repetitions { return true }; return false }) {
             detectedCapabilities.insert(EngineCapabilities.distancePrescription)
+        }
+        if allExercises.flatMap({ $0.plannedSets + $0.waves.flatMap(\.plannedSets) + $0.stages.flatMap(\.plannedSets) })
+            .contains(where: { $0.olympicAttempt != nil }) {
+            detectedCapabilities.insert(EngineCapabilities.olympicAttempts)
         }
 
         return ProgramDefinitionPayload(

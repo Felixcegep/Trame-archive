@@ -91,6 +91,11 @@ struct ProgramDefinitionPayloadPreviewView: View {
         if let completionRule = set.completionRule {
             text += " · \(completionText(completionRule))"
         }
+        if let attempt = set.olympicAttempt {
+            text += " · shared attempt"
+            if let purpose = attempt.technicalPurpose { text += " · \(purpose.title)" }
+            if let position = attempt.startPosition { text += " · from \(position.title.lowercased())" }
+        }
         return text
     }
 

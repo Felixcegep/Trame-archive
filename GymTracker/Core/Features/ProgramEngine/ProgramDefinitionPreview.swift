@@ -18,6 +18,7 @@ nonisolated struct ProgramDefinitionPreviewSet: Hashable, Identifiable {
     let restSeconds: Int?
     let isOptional: Bool
     let completionRule: MetricCompletionRule?
+    let olympicAttempt: OlympicAttemptPrescription?
     /// A source-based back-off is a future conditional row, not a set shown
     /// at workout start. The preview must make that timing explicit.
     let generatesAfterSourceCompletion: Bool
@@ -118,6 +119,7 @@ nonisolated enum ProgramDefinitionPreview {
                                     restSeconds: definition.restSeconds,
                                     isOptional: definition.isOptional,
                                     completionRule: definition.completionRule,
+                                    olympicAttempt: definition.olympicAttempt,
                                     generatesAfterSourceCompletion: definition.generatesAfterSourceCompletion
                                 )
                             }
@@ -218,6 +220,8 @@ nonisolated enum ProgramDefinitionPreview {
         case .actualRPEAboveTarget(let tolerance): return "Actual RPE above target (\(tolerance))"
         case .targetRIRMatched(let tolerance): return "Target RIR matched (±\(tolerance))"
         case .failureCountReached(let value): return "Failure count reaches \(value)"
+        case .consecutiveMissedAttemptsReached(let value):
+            return "Consecutive missed attempts reach \(value)"
         case .successfulAttemptRatioReached(let value): return "Successful attempts reach \(value)"
         case .technicalQualityReached: return "Technical quality reached"
         case .workoutCompleted: return "Workout completed"

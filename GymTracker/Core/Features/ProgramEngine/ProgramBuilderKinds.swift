@@ -20,6 +20,7 @@ enum ProgramBuilderTriggerKind: String, CaseIterable, Identifiable {
     case actualRPEAboveTarget
     case targetRIRMatched
     case failureCountReached
+    case consecutiveMissedAttemptsReached
     case technicalQualityReached
     case workoutCompleted
     case weekCompleted
@@ -51,6 +52,7 @@ enum ProgramBuilderTriggerKind: String, CaseIterable, Identifiable {
         case .actualRPEAboveTarget: return "RPE above target"
         case .targetRIRMatched: return "Target RIR matched"
         case .failureCountReached: return "Failure count"
+        case .consecutiveMissedAttemptsReached: return "Consecutive missed attempts"
         case .technicalQualityReached: return "Technical quality"
         case .workoutCompleted: return "Workout completed"
         case .weekCompleted: return "Week completed"

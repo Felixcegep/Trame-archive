@@ -38,6 +38,7 @@ struct RuleTriggerEditor: View {
         case .actualRPEAboveTarget: return .actualRPEAboveTarget
         case .targetRIRMatched: return .targetRIRMatched
         case .failureCountReached: return .failureCountReached
+        case .consecutiveMissedAttemptsReached: return .consecutiveMissedAttemptsReached
         case .technicalQualityReached: return .technicalQualityReached
         case .workoutCompleted: return .workoutCompleted
         case .weekCompleted: return .weekCompleted
@@ -74,6 +75,7 @@ struct RuleTriggerEditor: View {
                 case .actualRPEAboveTarget: trigger = .actualRPEAboveTarget(tolerance: 1)
                 case .targetRIRMatched: trigger = .targetRIRMatched(tolerance: 1)
                 case .failureCountReached: trigger = .failureCountReached(3)
+                case .consecutiveMissedAttemptsReached: trigger = .consecutiveMissedAttemptsReached(3)
                 case .technicalQualityReached: trigger = .technicalQualityReached
                 case .workoutCompleted: trigger = .workoutCompleted
                 case .weekCompleted: trigger = .weekCompleted
@@ -93,7 +95,8 @@ struct RuleTriggerEditor: View {
         case .totalRepetitionsReached, .totalCaloriesReached, .totalVolumeReached,
                 .amrapResultReached, .extraRepetitionsCompleted, .targetRPEMatched,
                 .actualRPEBelowTarget, .actualRPEAboveTarget, .targetRIRMatched,
-                .failureCountReached, .successfulAttemptRatioReached:
+                .failureCountReached, .consecutiveMissedAttemptsReached,
+                .successfulAttemptRatioReached:
             return true
         default:
             return false
@@ -106,6 +109,7 @@ struct RuleTriggerEditor: View {
                 switch trigger {
                 case .totalRepetitionsReached(let value), .amrapResultReached(let value),
                         .extraRepetitionsCompleted(let value), .failureCountReached(let value),
+                        .consecutiveMissedAttemptsReached(let value),
                         .targetRIRMatched(let value): return String(value)
                 case .totalCaloriesReached(let value), .totalVolumeReached(let value),
                         .targetRPEMatched(let value), .actualRPEBelowTarget(let value),
@@ -125,6 +129,8 @@ struct RuleTriggerEditor: View {
                 case .actualRPEAboveTarget: trigger = .actualRPEAboveTarget(tolerance: max(0, Double(value) ?? 0))
                 case .targetRIRMatched: trigger = .targetRIRMatched(tolerance: max(0, Int(value) ?? 0))
                 case .failureCountReached: trigger = .failureCountReached(max(1, Int(value) ?? 1))
+                case .consecutiveMissedAttemptsReached:
+                    trigger = .consecutiveMissedAttemptsReached(max(1, Int(value) ?? 1))
                 case .successfulAttemptRatioReached: trigger = .successfulAttemptRatioReached(min(1, max(0, Double(value) ?? 0.9)))
                 default: break
                 }

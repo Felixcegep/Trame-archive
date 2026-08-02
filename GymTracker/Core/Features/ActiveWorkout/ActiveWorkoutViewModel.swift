@@ -365,9 +365,9 @@ class ActiveWorkoutViewModel {
         }
 
         set.done = false
-        // Segments are internal evidence for this one performed set, not
-        // independently counted top-level work. Their completion follows the
-        // parent attempt so an undo restores a coherent in-progress state.
+        // Segments follow the parent completion flag. Complex outcomes remain
+        // explicit evidence and survive reopening so Undo cannot erase a
+        // partially or fully recorded Olympic sequence.
         set.synchronizeSegmentCompletion()
         set.synchronizeComplexCompletion()
         // A selected source must remain a completed performed attempt.

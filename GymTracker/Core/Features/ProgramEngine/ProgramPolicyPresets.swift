@@ -14,6 +14,7 @@ enum ProgramPolicyPreset: String, CaseIterable, Identifiable, Codable, Hashable 
     case durationProgression
     case distanceProgression
     case technicalQuality
+    case threeMissAdvisory
 
     var id: String { rawValue }
 
@@ -27,6 +28,7 @@ enum ProgramPolicyPreset: String, CaseIterable, Identifiable, Codable, Hashable 
         case .durationProgression: return "Duration progression"
         case .distanceProgression: return "Distance progression"
         case .technicalQuality: return "Technical quality"
+        case .threeMissAdvisory: return "Three-miss advisory"
         }
     }
 
@@ -123,6 +125,15 @@ enum ProgramPolicyPreset: String, CaseIterable, Identifiable, Codable, Hashable 
                 successAction: .addLoad(2.5),
                 failureAction: .repeatPrescription,
                 cadence: .nextWorkout,
+                scope: .exerciseExposure,
+                applicationMode: .recommendation
+            )]
+        case .threeMissAdvisory:
+            return [ProgressionRuleDefinition(
+                metric: .successfulAttempts,
+                trigger: .consecutiveMissedAttemptsReached(3),
+                successAction: .generateRecommendation,
+                cadence: .nextSet,
                 scope: .exerciseExposure,
                 applicationMode: .recommendation
             )]

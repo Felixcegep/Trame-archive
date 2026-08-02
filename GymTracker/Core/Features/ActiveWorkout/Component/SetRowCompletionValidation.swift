@@ -10,6 +10,9 @@ enum SetRowCompletionValidation {
             set: exerciseSet,
             trackingType: trackingType
         )
+        if result.firstInvalidReason == .unresolvedComplexComponents {
+            return "Record an outcome for every complex component before completing this attempt."
+        }
         if case .invalid(let reasons) = result,
            case .any = WorkoutSetCompletionValidator.resolvedRule(for: input) {
             let choices = reasons.map { $0.metric.title.lowercased() }
@@ -30,6 +33,8 @@ enum SetRowCompletionValidation {
             return "Enter a distance before completing this set."
         case .missingCalories:
             return "Enter calories before completing this set."
+        case .unresolvedComplexComponents:
+            return "Record every complex component outcome before completing this attempt."
         case nil:
             return "Enter a value before completing this set."
         }

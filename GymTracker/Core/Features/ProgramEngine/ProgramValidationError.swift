@@ -234,6 +234,7 @@ nonisolated enum ProgramDefinitionValidator {
                             if set.orderIndex < 0 { add("\(setPath).orderIndex", .invalidSetOrder, "Set order must not be negative.") }
                             if !setOrders.insert(set.orderIndex).inserted { add("\(setPath).orderIndex", .invalidSetOrder, "Set order indices must be unique within an exercise.") }
                             validateRep(set.repetitions, setPath, add)
+                            validateOlympicAttempt(set, setPath, add)
                             validateCompletionRule(set, setPath, add)
                             if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
                             if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
@@ -272,6 +273,7 @@ nonisolated enum ProgramDefinitionValidator {
                                     if set.orderIndex < 0 { add("\(setPath).orderIndex", .invalidSetOrder, "Set order must not be negative.") }
                                     if !waveSetOrders.insert(set.orderIndex).inserted { add("\(setPath).orderIndex", .invalidSetOrder, "Set order indices must be unique within a wave.") }
                                     validateRep(set.repetitions, setPath, add)
+                                    validateOlympicAttempt(set, setPath, add)
                                     validateCompletionRule(set, setPath, add)
                                     if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
                                     if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
@@ -470,8 +472,38 @@ nonisolated enum ProgramDefinitionValidator {
             if stageID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 add(path, .invalidPrescriptionValue, "A stage trigger requires a stage identifier.")
             }
+        case .failureCountReached(let count), .consecutiveMissedAttemptsReached(let count),
+                .velocityBelowZoneCount(let count):
+            if count < 1 {
+                add(path, .invalidPrescriptionValue, "A count trigger requires a positive threshold.")
+            }
         default:
             break
+        }
+    }
+
+    private static func validateOlympicAttempt(
+        _ set: SetPrescriptionDefinition,
+        _ path: String,
+        _ add: (String, ProgramValidationIssue.Code, String) -> Void
+    ) {
+        guard set.olympicAttempt != nil else { return }
+        guard case .sequence(let components) = set.repetitions, !components.isEmpty else {
+            add(
+                "\(path).olympicAttempt",
+                .invalidPrescriptionValue,
+                "An Olympic attempt requires an ordered component sequence."
+            )
+            return
+        }
+        if let target = set.olympicAttempt?.targetQuality,
+           target != .excellent,
+           target != .acceptable {
+            add(
+                "\(path).olympicAttempt.targetQuality",
+                .invalidPrescriptionValue,
+                "An Olympic target quality must be excellent or acceptable."
+            )
         }
     }
 
@@ -496,6 +528,7 @@ nonisolated enum ProgramDefinitionValidator {
                 add("\(setPath).orderIndex", .invalidSetOrder, "Stage set order indices must be non-negative and unique.")
             }
             validateRep(set.repetitions, setPath, add)
+            validateOlympicAttempt(set, setPath, add)
             validateCompletionRule(set, setPath, add)
             if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
             if let rpe = set.targetRPE, !(0...10).contains(rpe) { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }

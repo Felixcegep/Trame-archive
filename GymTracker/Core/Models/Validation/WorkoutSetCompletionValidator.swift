@@ -4,9 +4,9 @@ import Foundation
 /// complete one top-level workout set.
 ///
 /// Nested segments and complex components remain evidence owned by the parent
-/// set. Their presence is captured in `evidenceShape` for conformance tests,
-/// but it does not add a second completion gate: existing mutation paths
-/// synchronize that evidence when the parent transitions.
+/// set. An Olympic parent attempt cannot complete until every prescribed
+/// component has an explicit outcome; completing the parent never fabricates
+/// component evidence.
 nonisolated enum WorkoutSetCompletionValidator {
     nonisolated struct Input: Equatable, Sendable {
         let trackingType: TrackingType
@@ -18,6 +18,7 @@ nonisolated enum WorkoutSetCompletionValidator {
         let completionRule: MetricCompletionRule?
         let prescribedMetrics: Set<TrackingMetric>
         let evidenceShape: EvidenceShape
+        let hasUnresolvedComplexComponents: Bool
 
         nonisolated init(
             trackingType: TrackingType,
@@ -28,7 +29,8 @@ nonisolated enum WorkoutSetCompletionValidator {
             calories: Double?,
             completionRule: MetricCompletionRule? = nil,
             prescribedMetrics: Set<TrackingMetric> = [],
-            evidenceShape: EvidenceShape = .plain
+            evidenceShape: EvidenceShape = .plain,
+            hasUnresolvedComplexComponents: Bool = false
         ) {
             self.trackingType = trackingType
             self.repetitions = repetitions
@@ -39,6 +41,7 @@ nonisolated enum WorkoutSetCompletionValidator {
             self.completionRule = completionRule
             self.prescribedMetrics = prescribedMetrics
             self.evidenceShape = evidenceShape
+            self.hasUnresolvedComplexComponents = hasUnresolvedComplexComponents
         }
     }
 
@@ -55,6 +58,7 @@ nonisolated enum WorkoutSetCompletionValidator {
         case missingDuration
         case missingDistance
         case missingCalories
+        case unresolvedComplexComponents
 
         nonisolated var metric: TrackingMetric {
             switch self {
@@ -63,6 +67,7 @@ nonisolated enum WorkoutSetCompletionValidator {
             case .missingDuration: .duration
             case .missingDistance: .distance
             case .missingCalories: .calories
+            case .unresolvedComplexComponents: .repetitions
             }
         }
     }
@@ -83,6 +88,9 @@ nonisolated enum WorkoutSetCompletionValidator {
     }
 
     nonisolated static func validate(_ input: Input) -> Result {
+        if input.hasUnresolvedComplexComponents {
+            return .invalid([.unresolvedComplexComponents])
+        }
         switch resolvedRule(for: input) {
         case .all(let metrics):
             let reasons = orderedMetrics(in: metrics).compactMap { missingReason(for: $0, input: input) }
@@ -178,7 +186,10 @@ extension WorkoutSetCompletionValidator.Input {
             calories: set.calories,
             completionRule: snapshot?.completionRule,
             prescribedMetrics: snapshot?.completionTargetMetrics ?? [],
-            evidenceShape: evidenceShape
+            evidenceShape: evidenceShape,
+            hasUnresolvedComplexComponents: set.complexComponents.contains {
+                $0.outcome == .notStarted
+            }
         )
     }
 }

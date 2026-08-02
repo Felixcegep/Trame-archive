@@ -70,6 +70,9 @@ nonisolated indirect enum ProgressionTrigger: Codable, Hashable {
     case actualRPEAboveTarget(tolerance: Double)
     case targetRIRMatched(tolerance: Int)
     case failureCountReached(Int)
+    /// Consecutive missed parent attempts inside the current exercise
+    /// occurrence. Unlike `failureCountReached`, this does not span workouts.
+    case consecutiveMissedAttemptsReached(Int)
     case successfulAttemptRatioReached(Double)
     case technicalQualityReached
     case workoutCompleted

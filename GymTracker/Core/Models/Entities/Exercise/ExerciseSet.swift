@@ -412,20 +412,39 @@ final class ExerciseSet {
 
     func synchronizeComplexCompletion() {
         guard !complexComponents.isEmpty else { return }
-        if done {
-            for component in complexComponents where component.outcome == .notStarted {
-                component.outcome = .completed
-                component.performedRepetitions = component.prescribedRepetitions
-                component.liftQuality = component.liftQuality ?? .acceptable
-            }
-        } else {
-            for component in complexComponents {
-                component.outcome = .notStarted
-                component.performedRepetitions = 0
-                component.liftQuality = nil
-            }
+        guard done else {
+            // Reopening the parent returns the attempt to an editable state but
+            // retains its component evidence. The lifter can amend an outcome
+            // explicitly; Undo must not erase a partially recorded sequence.
+            return
         }
+        // Component outcomes must be recorded explicitly before parent
+        // completion. Never turn an untouched lift into performed truth.
         repetitions = Float(complexComponents.reduce(0) { $0 + $1.performedRepetitions })
-        liftQuality = complexComponents.contains(where: { $0.outcome == .missed }) ? .missed : nil
+        switch olympicAttemptOutcome {
+        case .made:
+            liftQuality = complexComponents.allSatisfy { $0.liftQuality == .excellent }
+                ? .excellent
+                : .acceptable
+        case .partial:
+            liftQuality = .technicallyPoor
+        case .missed:
+            liftQuality = .missed
+        case .notStarted, .skipped, nil:
+            liftQuality = nil
+        }
+    }
+
+    /// One result for the parent attempt, deterministically derived from its
+    /// ordered component evidence. A shared attempt has one load (`weight`),
+    /// not one independently editable load per component.
+    var olympicAttemptOutcome: OlympicAttemptOutcome? {
+        let components = orderedComplexComponents
+        guard !components.isEmpty else { return nil }
+        if components.allSatisfy({ $0.outcome == .notStarted }) { return .notStarted }
+        if components.allSatisfy({ $0.outcome == .skipped }) { return .skipped }
+        if components.contains(where: { $0.outcome == .missed }) { return .missed }
+        if components.allSatisfy({ $0.outcome == .completed }) { return .made }
+        return .partial
     }
 }

@@ -246,9 +246,11 @@ struct WorkoutDetailView: View {
     }
 
     private func complexComponentText(for set: ExerciseSet) -> String {
-        set.orderedComplexComponents
+        let components = set.orderedComplexComponents
             .map { "\($0.exerciseNameSnapshot) ×\($0.performedRepetitions)/\($0.prescribedRepetitions): \($0.outcome.title)" }
             .joined(separator: " · ")
+        guard let outcome = set.olympicAttemptOutcome else { return components }
+        return "Attempt: \(outcome.title) · \(components)"
     }
 
     private func weightText(for set: ExerciseSet) -> String {

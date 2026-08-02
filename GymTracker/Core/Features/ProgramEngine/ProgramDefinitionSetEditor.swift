@@ -74,6 +74,10 @@ struct ProgramDefinitionSetEditor: View {
 
             repFields
 
+            if case .sequence = set.repetitions {
+                olympicAttemptSection
+            }
+
             completionSection
 
             TextField("Fixed load", text: fixedLoadBinding)
@@ -130,6 +134,70 @@ struct ProgramDefinitionSetEditor: View {
             Toggle("Optional", isOn: $set.isOptional)
         }
         .padding(.vertical, Spacing.xxs)
+    }
+
+    @ViewBuilder
+    private var olympicAttemptSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Toggle("Shared Olympic attempt", isOn: olympicAttemptEnabledBinding)
+                .accessibilityHint("Uses one parent load and records each ordered component outcome.")
+            if set.olympicAttempt != nil {
+                Picker("Technical purpose", selection: olympicTechnicalPurposeBinding) {
+                    ForEach(OlympicTechnicalPurpose.allCases, id: \.self) { purpose in
+                        Text(purpose.title).tag(purpose)
+                    }
+                }
+                Picker("Start position", selection: olympicStartPositionBinding) {
+                    ForEach(OlympicStartPosition.allCases, id: \.self) { position in
+                        Text(position.title).tag(position)
+                    }
+                }
+                Picker("Target quality", selection: olympicTargetQualityBinding) {
+                    Text("Excellent").tag(LiftQuality.excellent)
+                    Text("Acceptable").tag(LiftQuality.acceptable)
+                }
+                Text("The set is one attempt: one load, ordered component outcomes, then one rest period.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var olympicAttemptEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { set.olympicAttempt != nil },
+            set: { enabled in
+                set.olympicAttempt = enabled
+                    ? OlympicAttemptPrescription(
+                        technicalPurpose: .technicalAssessment,
+                        startPosition: .floor,
+                        targetQuality: .acceptable
+                    )
+                    : nil
+            }
+        )
+    }
+
+    private var olympicTechnicalPurposeBinding: Binding<OlympicTechnicalPurpose> {
+        Binding(
+            get: { set.olympicAttempt?.technicalPurpose ?? .technicalAssessment },
+            set: { set.olympicAttempt?.technicalPurpose = $0 }
+        )
+    }
+
+    private var olympicStartPositionBinding: Binding<OlympicStartPosition> {
+        Binding(
+            get: { set.olympicAttempt?.startPosition ?? .floor },
+            set: { set.olympicAttempt?.startPosition = $0 }
+        )
+    }
+
+    private var olympicTargetQualityBinding: Binding<LiftQuality> {
+        Binding(
+            get: { set.olympicAttempt?.targetQuality ?? .acceptable },
+            set: { set.olympicAttempt?.targetQuality = $0 }
+        )
     }
 
     @ViewBuilder
@@ -254,6 +322,9 @@ struct ProgramDefinitionSetEditor: View {
         Binding(
             get: { repKind },
             set: { kind in
+                if kind != .sequence {
+                    set.olympicAttempt = nil
+                }
                 switch kind {
                 case .fixed: set.repetitions = .fixed(8)
                 case .range: set.repetitions = .range(minimum: 8, maximum: 12)

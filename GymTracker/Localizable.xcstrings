@@ -12848,6 +12848,22 @@
         }
       }
     },
+    "progression.receipt.evidence.consecutiveMisses" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld consecutive attempts were recorded as missed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld tentatives consécutives ont été enregistrées comme ratées."
+          }
+        }
+      }
+    },
     "progression.receipt.evidence.didNotMeetPrescription" : {
       "localizations" : {
         "en" : {
@@ -21361,6 +21377,66 @@
           }
         }
       }
+    },
+    "Above knee" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Au-dessus du genou" } } }
+    },
+    "Attempt: %@" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Tentative : %@" } } }
+    },
+    "Below knee" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Sous le genou" } } }
+    },
+    "Competition practice" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Pratique de compétition" } } }
+    },
+    "Floor" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Sol" } } }
+    },
+    "Hang" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Suspension" } } }
+    },
+    "Jerk timing" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Synchronisation du jeté" } } }
+    },
+    "Knee" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Genou" } } }
+    },
+    "Positional strength" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Force positionnelle" } } }
+    },
+    "Pull under" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Passage sous la barre" } } }
+    },
+    "Receiving position" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Position de réception" } } }
+    },
+    "Record an outcome for every complex component before completing this attempt." : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Enregistrez un résultat pour chaque composante du complexe avant de terminer cette tentative." } } }
+    },
+    "Shared Olympic attempt" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Tentative olympique partagée" } } }
+    },
+    "Start position" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Position de départ" } } }
+    },
+    "Target quality" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Qualité cible" } } }
+    },
+    "Technical assessment" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Évaluation technique" } } }
+    },
+    "Technical purpose" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Objectif technique" } } }
+    },
+    "The set is one attempt: one load, ordered component outcomes, then one rest period." : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "La série constitue une tentative : une charge, des résultats ordonnés par composante, puis une période de repos." } } }
+    },
+    "Turnover" : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Retournement" } } }
+    },
+    "Uses one parent load and records each ordered component outcome." : {
+      "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Utilise une seule charge parente et enregistre le résultat de chaque composante ordonnée." } } }
     },
     "YOUR WORKOUTS" : {
       "localizations" : {

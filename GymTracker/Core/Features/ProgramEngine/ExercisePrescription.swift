@@ -40,6 +40,67 @@ nonisolated indirect enum RepPrescription: Codable, Hashable {
     case open
 }
 
+/// Optional technical context for one Olympic-lifting parent attempt. The
+/// performed load and result remain on the parent `ExerciseSet`; ordered lift
+/// evidence remains in its `ComplexComponentResult` children.
+nonisolated struct OlympicAttemptPrescription: Codable, Hashable {
+    var technicalPurpose: OlympicTechnicalPurpose?
+    var startPosition: OlympicStartPosition?
+    var targetQuality: LiftQuality?
+
+    init(
+        technicalPurpose: OlympicTechnicalPurpose? = nil,
+        startPosition: OlympicStartPosition? = nil,
+        targetQuality: LiftQuality? = nil
+    ) {
+        self.technicalPurpose = technicalPurpose
+        self.startPosition = startPosition
+        self.targetQuality = targetQuality
+    }
+}
+
+nonisolated enum OlympicTechnicalPurpose: String, Codable, CaseIterable, Hashable {
+    case positionalStrength
+    case turnover
+    case receivingPosition
+    case pullUnder
+    case jerkTiming
+    case competitionPractice
+    case technicalAssessment
+
+    var title: String {
+        switch self {
+        case .positionalStrength: "Positional strength"
+        case .turnover: "Turnover"
+        case .receivingPosition: "Receiving position"
+        case .pullUnder: "Pull under"
+        case .jerkTiming: "Jerk timing"
+        case .competitionPractice: "Competition practice"
+        case .technicalAssessment: "Technical assessment"
+        }
+    }
+}
+
+nonisolated enum OlympicStartPosition: String, Codable, CaseIterable, Hashable {
+    case floor
+    case belowKnee
+    case knee
+    case aboveKnee
+    case hang
+    case blocks
+
+    var title: String {
+        switch self {
+        case .floor: "Floor"
+        case .belowKnee: "Below knee"
+        case .knee: "Knee"
+        case .aboveKnee: "Above knee"
+        case .hang: "Hang"
+        case .blocks: "Blocks"
+        }
+    }
+}
+
 nonisolated enum LoadReferenceKind: String, Codable, CaseIterable, Hashable {
     case manual
     case fixedLoad
@@ -140,6 +201,9 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
     /// Optional authored completion semantics. `nil` preserves the exact
     /// legacy `TrackingType` rule at execution time.
     var completionRule: MetricCompletionRule?
+    /// Present only when this set is one shared Olympic attempt. Older
+    /// definitions decode it as `nil` and preserve their existing behavior.
+    var olympicAttempt: OlympicAttemptPrescription?
     /// New program prescriptions keep targets in this immutable definition
     /// snapshot and leave performed duration/distance/calories empty. Legacy
     /// decoded definitions default to `false` to preserve their prior active
@@ -165,6 +229,7 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         notes: String? = nil,
         velocity: VelocityPrescription? = nil,
         completionRule: MetricCompletionRule? = nil,
+        olympicAttempt: OlympicAttemptPrescription? = nil,
         separatesPerformedEvidence: Bool = true,
         generatesAfterSourceCompletion: Bool = false
     ) {
@@ -182,6 +247,7 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         self.notes = notes
         self.velocity = velocity
         self.completionRule = completionRule
+        self.olympicAttempt = olympicAttempt
         self.separatesPerformedEvidence = separatesPerformedEvidence
         self.generatesAfterSourceCompletion = generatesAfterSourceCompletion
     }
@@ -189,7 +255,7 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
     private enum CodingKeys: String, CodingKey {
         case id, orderIndex, role, repetitions, load, targetRPE, targetRIR
         case restSeconds, tempo, isOptional, progressionEligible, notes
-        case generatesAfterSourceCompletion, velocity, completionRule
+        case generatesAfterSourceCompletion, velocity, completionRule, olympicAttempt
         case separatesPerformedEvidence, completionTargetMetrics
     }
 
@@ -212,6 +278,7 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         notes = try values.decodeIfPresent(String.self, forKey: .notes)
         velocity = try values.decodeIfPresent(VelocityPrescription.self, forKey: .velocity)
         completionRule = try values.decodeIfPresent(MetricCompletionRule.self, forKey: .completionRule)
+        olympicAttempt = try values.decodeIfPresent(OlympicAttemptPrescription.self, forKey: .olympicAttempt)
         separatesPerformedEvidence = try values.decodeIfPresent(
             Bool.self,
             forKey: .separatesPerformedEvidence
@@ -238,6 +305,7 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         try values.encodeIfPresent(notes, forKey: .notes)
         try values.encodeIfPresent(velocity, forKey: .velocity)
         try values.encodeIfPresent(completionRule, forKey: .completionRule)
+        try values.encodeIfPresent(olympicAttempt, forKey: .olympicAttempt)
         try values.encode(separatesPerformedEvidence, forKey: .separatesPerformedEvidence)
         try values.encode(prescribedCompletionMetrics, forKey: .completionTargetMetrics)
         try values.encode(generatesAfterSourceCompletion, forKey: .generatesAfterSourceCompletion)

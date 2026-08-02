@@ -177,6 +177,14 @@ struct ProgressionReceiptPresentation: WhyExplainable {
             lines.append(String(format: format, Formatters.formatFloat(Float(ratio * 100))))
         }
 
+        if let misses = performance.consecutiveMissedAttempts, misses > 0 {
+            let format = String(
+                localized: "progression.receipt.evidence.consecutiveMisses",
+                defaultValue: "%lld consecutive attempts were recorded as missed."
+            )
+            lines.append(String(format: format, Int64(misses)))
+        }
+
         if performance.didFail {
             lines.append(
                 String(

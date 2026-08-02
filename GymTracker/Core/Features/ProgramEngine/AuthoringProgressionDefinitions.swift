@@ -64,6 +64,8 @@ nonisolated struct AuthoringTriggerDefinition: Codable, Hashable {
         case "blockCompleted": return .blockCompleted
         case "cycleCompleted": return .cycleCompleted
         case "failureCountReached": return .failureCountReached(count ?? 1)
+        case "consecutiveMissedAttemptsReached":
+            return .consecutiveMissedAttemptsReached(count ?? 3)
         case "totalRepetitionsReached": return .totalRepetitionsReached(count ?? 0)
         case "amrapResultReached": return .amrapResultReached(count ?? 0)
         case "targetRPEMatched": return .targetRPEMatched(tolerance: tolerance ?? 0)

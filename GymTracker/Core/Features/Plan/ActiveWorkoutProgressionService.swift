@@ -81,6 +81,16 @@ enum ActiveWorkoutProgressionService {
             state.lastAppliedSetID = set.id
 
             for recommendation in result.recommendations where recommendation.applicationMode == .recommendation {
+                // A threshold may remain true after it first fires (for
+                // example, a fourth attempt after the three-miss advisory).
+                // Preserve one decision receipt per rule/scope/workout instead
+                // of producing duplicate recommendations for the same event.
+                guard !hasRecommendation(
+                    ruleID: recommendation.ruleID,
+                    workoutID: workout.id,
+                    scopeOwnerKey: state.scopeOwnerKey,
+                    in: modelContext
+                ) else { continue }
                 guard let record = try? PlanProgressionRecommendationRecord(
                     recommendation: recommendation,
                     planRunID: run.id,
@@ -105,6 +115,22 @@ enum ActiveWorkoutProgressionService {
 
     private static func planRun(id: UUID, in modelContext: ModelContext) -> PlanRun? {
         try? modelContext.fetch(FetchDescriptor<PlanRun>()).first { $0.id == id }
+    }
+
+    private static func hasRecommendation(
+        ruleID: UUID,
+        workoutID: UUID,
+        scopeOwnerKey: String,
+        in modelContext: ModelContext
+    ) -> Bool {
+        let descriptor = FetchDescriptor<PlanProgressionRecommendationRecord>(
+            predicate: #Predicate {
+                $0.ruleID == ruleID && $0.workoutID == workoutID
+            }
+        )
+        return (try? modelContext.fetch(descriptor))?.contains {
+            $0.scopeOwnerKey == scopeOwnerKey
+        } == true
     }
 }
 #endif

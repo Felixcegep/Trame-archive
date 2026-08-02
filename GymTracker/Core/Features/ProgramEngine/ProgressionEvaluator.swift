@@ -17,6 +17,9 @@ nonisolated struct ProgressionPerformance: Codable, Hashable {
     var targetRIR: Int?
     var actualRIR: Int?
     var successfulAttemptRatio: Double?
+    /// Optional for compatibility with recommendation evidence encoded before
+    /// attempt-aware progression existed.
+    var consecutiveMissedAttempts: Int?
     var technicalQualityReached: Bool = false
     var workoutCompleted: Bool = false
     var weekCompleted: Bool = false
@@ -317,6 +320,8 @@ nonisolated enum ProgramProgressionEvaluator {
             guard let target = performance.targetRIR, let actual = performance.actualRIR else { return false }
             return abs(actual - target) <= tolerance
         case .failureCountReached(let target): return state.failureCount >= target
+        case .consecutiveMissedAttemptsReached(let target):
+            return (performance.consecutiveMissedAttempts ?? 0) >= target
         case .successfulAttemptRatioReached(let target): return (performance.successfulAttemptRatio ?? 0) >= target
         case .technicalQualityReached: return performance.technicalQualityReached
         case .workoutCompleted: return performance.workoutCompleted
@@ -454,6 +459,8 @@ nonisolated enum ProgramProgressionEvaluator {
         case .actualRPEAboveTarget: return "Actual RPE was above the target."
         case .targetRIRMatched: return "Actual RIR matched the target."
         case .failureCountReached(let target): return "Failure count reached \(target)."
+        case .consecutiveMissedAttemptsReached(let target):
+            return "Consecutive missed attempts reached \(target)."
         case .totalVolumeReached(let target): return "Total volume reached \(target)."
         case .successfulAttemptRatioReached(let target): return "Successful attempt ratio reached \(target * 100)%."
         case .technicalQualityReached: return "Technical quality requirement was reached."
