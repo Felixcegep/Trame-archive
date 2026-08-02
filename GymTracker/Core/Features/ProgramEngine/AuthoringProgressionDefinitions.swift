@@ -350,6 +350,13 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
     var repRange: [Int]?
     var amrap: [Int?]?
     var durationSeconds: Double?
+    /// Canonical workout distance. Compact recipes never carry a display unit;
+    /// authoring, compilation, active snapshots, and backup all retain metres.
+    var distanceMeters: Double?
+    /// Optional group-local rest overrides the exercise default. This is needed
+    /// for wave prescriptions whose recovery changes while the exercise stays
+    /// the same occurrence.
+    var restSeconds: Int?
     var load: AuthoringLoadDefinition?
     var role: ProgramSetRole?
     var targetRPE: Double?
@@ -363,6 +370,8 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
         repRange: [Int]? = nil,
         amrap: [Int?]? = nil,
         durationSeconds: Double? = nil,
+        distanceMeters: Double? = nil,
+        restSeconds: Int? = nil,
         load: AuthoringLoadDefinition? = nil,
         role: ProgramSetRole? = nil,
         targetRPE: Double? = nil,
@@ -375,6 +384,8 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
         self.repRange = repRange
         self.amrap = amrap
         self.durationSeconds = durationSeconds
+        self.distanceMeters = distanceMeters
+        self.restSeconds = restSeconds
         self.load = load
         self.role = role
         self.targetRPE = targetRPE
@@ -390,7 +401,13 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
         exposureKey: String? = nil,
         mainReference: String? = nil
     ) throws -> [SetPrescriptionDefinition] {
-        let options = [reps != nil, repRange != nil, amrap != nil, durationSeconds != nil]
+        let options = [
+            reps != nil,
+            repRange != nil,
+            amrap != nil,
+            durationSeconds != nil,
+            distanceMeters != nil
+        ]
         guard options.filter({ $0 }).count == 1 else {
             throw ProgramLibraryImportError.invalidSetGroup(path)
         }
@@ -404,6 +421,8 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
             repetitionPrescription = .amrap(minimum: amrap[0], maximum: amrap[1])
         } else if let durationSeconds {
             repetitionPrescription = .duration(seconds: durationSeconds)
+        } else if let distanceMeters {
+            repetitionPrescription = .distance(meters: distanceMeters)
         } else {
             throw ProgramLibraryImportError.invalidSetGroup(path)
         }
@@ -418,7 +437,7 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
                 load: load?.expand(exposureKey: exposureKey, mainReference: mainReference) ?? LoadPrescription(),
                 targetRPE: targetRPE,
                 targetRIR: targetRIR,
-                restSeconds: restSeconds,
+                restSeconds: self.restSeconds ?? restSeconds,
                 tempo: tempo,
                 progressionEligible: progressionEligible ?? true
             )

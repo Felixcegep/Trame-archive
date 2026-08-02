@@ -87,10 +87,11 @@ nonisolated enum EngineCapabilities {
     static let amrapRepetitions = "amrapRepetitions"
     static let velocity = "velocity"
     static let executionBlocks = "executionBlocks"
+    static let distancePrescription = "distancePrescription"
 
     static let current: Set<String> = [
         compositeTriggers, stages, waves, variationLadders, amrapRepetitions, velocity,
-        executionBlocks
+        executionBlocks, distancePrescription
     ]
 
     static func missing(from requiredCapabilities: [String]) -> Set<String> {

@@ -74,6 +74,7 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
     var repRange: [Int]?
     var amrap: [Int?]?
     var durationSeconds: Double?
+    var distanceMeters: Double?
     var load: AuthoringLoadDefinition?
     var role: ProgramSetRole?
     var targetRPE: Double?
@@ -99,6 +100,7 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
             repRange: repRange,
             amrap: amrap,
             durationSeconds: durationSeconds,
+            distanceMeters: distanceMeters,
             load: load,
             role: role,
             targetRPE: targetRPE,
@@ -509,6 +511,10 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
         if expandedBlocks.flatMap(\.weeks).flatMap(\.workouts)
             .contains(where: { !$0.executionBlocks.isEmpty }) {
             detectedCapabilities.insert(EngineCapabilities.executionBlocks)
+        }
+        if allExercises.flatMap({ $0.plannedSets + $0.waves.flatMap(\.plannedSets) + $0.stages.flatMap(\.plannedSets) })
+            .contains(where: { if case .distance = $0.repetitions { return true }; return false }) {
+            detectedCapabilities.insert(EngineCapabilities.distancePrescription)
         }
 
         return ProgramDefinitionPayload(

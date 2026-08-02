@@ -5,7 +5,8 @@ Produced 2026-07-18 from a fresh code audit of `main` (e7657ad4).
 ## Implementation update — 2026-07-18
 
 The planned implementation is now in `main`: the typed authoring DSL, the original
-default library plus the synthetic Powerlifting Double-Exposure Practice recipe,
+default library plus the synthetic Powerlifting Double-Exposure Practice and
+source-backed SkiErg 1,000 m recipes,
 built-in JSON programs, strict idempotent seeding, stages and unequal waves,
 variation ladders, velocity prescriptions and capture, Program Library browse/detail/
 intake/activation UI, and all-program lifecycle coverage have landed. The runtime

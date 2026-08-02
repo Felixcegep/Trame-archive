@@ -11118,6 +11118,78 @@
           ]
         }]
       }]
+    },
+    {
+      "programKey": "skierg-1000m-progression",
+      "name": "SkiErg 1,000 m Progression",
+      "description": "Concept2's six-week, twice-weekly progression toward a 1,000 m SkiErg test. Complete a separate 500 m benchmark before starting and use that recorded pace to guide the intervals.",
+      "goal": "generalFitness",
+      "experienceLevel": "intermediate",
+      "durationWeeks": 6,
+      "supportedDaysPerWeek": [2],
+      "scheduleMode": "fixedWeekdays",
+      "requiredEquipment": ["Cardio Machine"],
+      "prerequisites": ["Complete a 500 m SkiErg time trial before starting and record the result as your benchmark pace."],
+      "warnings": ["Schedule the two SkiErg sessions on non-consecutive days and keep other training appropriate to your experience and recovery."],
+      "missedWorkoutPolicy": "shiftSequence",
+      "completionPolicy": {"type": "end"},
+      "requiredCapabilities": ["distancePrescription", "waves"],
+      "provenance": {
+        "kind": "sourceBackedExactFormat",
+        "statement": "The scheduled distances, set counts, rest intervals, frequency, benchmark instruction, and final 1,000 m test reproduce Concept2's publicly available 2017 SkiErg World Sprints training format. GymTracker supplies only execution and history mechanics."
+      },
+      "sourceReferences": [{
+        "organizationOrAuthors": "Concept2, Inc.",
+        "title": "SkiErg World Sprints Training Program",
+        "year": 2017,
+        "sourceIdentifier": "https://www.concept2.com/blog/skierg-world-sprints-training-program",
+        "supports": ["Six-week duration", "Two SkiErg workouts per week", "Pre-program 500 m benchmark", "Workout 1 distance and weekly rest progression", "Workout 2 weekly distance progression and three-minute rest", "Final 1,000 m time trial"],
+        "doesNotProvide": ["GymTracker data model", "GymTracker completion validation", "GymTracker scheduling, backup, or restart behavior"]
+      }],
+      "rulesLibrary": {
+        "advanceWaveAfterCompletion": [{
+          "metric": "distance",
+          "trigger": {"type": "waveCompleted"},
+          "success": {"type": "advanceWave"},
+          "cadence": "nextWave",
+          "scope": "exerciseExposure",
+          "mode": "automatic"
+        }]
+      },
+      "waveTemplates": {
+        "shortIntervalWave": [
+          {"name": "Week 1 — 60 s rest", "setGroups": [{"count": 5, "distanceMeters": 250, "restSeconds": 60}]},
+          {"name": "Week 2 — 50 s rest", "setGroups": [{"count": 5, "distanceMeters": 250, "restSeconds": 50}]},
+          {"name": "Week 3 — 40 s rest", "setGroups": [{"count": 5, "distanceMeters": 250, "restSeconds": 40}]},
+          {"name": "Week 4 — 30 s rest", "setGroups": [{"count": 5, "distanceMeters": 250, "restSeconds": 30}]},
+          {"name": "Week 5 — 20 s rest", "setGroups": [{"count": 5, "distanceMeters": 250, "restSeconds": 20}]},
+          {"name": "Week 6 — 10 s rest", "setGroups": [{"count": 5, "distanceMeters": 250, "restSeconds": 10}]}
+        ],
+        "distanceBuildWave": [
+          {"name": "Week 1 — 2 × 500 m", "setGroups": [{"count": 2, "distanceMeters": 500, "restSeconds": 180}]},
+          {"name": "Week 2 — 2 × 600 m", "setGroups": [{"count": 2, "distanceMeters": 600, "restSeconds": 180}]},
+          {"name": "Week 3 — 2 × 700 m", "setGroups": [{"count": 2, "distanceMeters": 700, "restSeconds": 180}]},
+          {"name": "Week 4 — 2 × 800 m", "setGroups": [{"count": 2, "distanceMeters": 800, "restSeconds": 180}]},
+          {"name": "Week 5 — 2 × 900 m", "setGroups": [{"count": 2, "distanceMeters": 900, "restSeconds": 180}]},
+          {"name": "Week 6 — 1,000 m test", "setGroups": [{"count": 1, "distanceMeters": 1000, "role": "test"}]}
+        ]
+      },
+      "blocks": [{
+        "name": "1,000 m Preparation",
+        "phaseType": "accumulation",
+        "weeks": [{
+          "weekIndex": 0,
+          "repeat": 6,
+          "workouts": [
+            {"name": "Short Intervals", "dayOffset": 0, "role": "intervals", "exercises": [
+              {"exercise": "SkiErg", "exposureKey": "skierg-short-intervals", "role": "main", "rules": "advanceWaveAfterCompletion", "waves": "shortIntervalWave"}
+            ]},
+            {"name": "Distance Build", "dayOffset": 3, "role": "test", "exercises": [
+              {"exercise": "SkiErg", "exposureKey": "skierg-distance-build", "role": "main", "rules": "advanceWaveAfterCompletion", "waves": "distanceBuildWave"}
+            ]}
+          ]
+        }]
+      }]
     }
   ]
 }
