@@ -34,23 +34,24 @@ extension BackupDTO {
         beforeCommit: (() throws -> Void)?
     ) throws {
         try validate()
+        let currentArchive = CurrentBackupArchive(adapting: self)
         do {
             try context.clearAllGymData(saveChanges: false)
 
             var restoreCtx = RestoreContext(context: context)
 
-            try restoreExerciseCatalog(into: &restoreCtx)
+            try restoreExerciseCatalog(from: currentArchive.workout.exercises, into: &restoreCtx)
             // Mobility definitions/routines must exist before templates and
             // repeating slots resolve their optional preparation/recovery
             // links. Mobility sessions remain an independent performed graph;
             // restoring them here does not create an ownership edge to Workout.
             try restoreMobility(into: &restoreCtx)
             try restoreMobilityAssessments(into: &restoreCtx)
-            try restoreFoldersAndTemplates(into: &restoreCtx)
+            try restoreFoldersAndTemplates(from: currentArchive.workout.templates, into: &restoreCtx)
             try restoreRepeatingPlansAndRuns(into: &restoreCtx)
             try restoreProgramDefinitions(into: &restoreCtx)
             try restorePlansAndRuns(into: &restoreCtx)
-            try restoreWorkoutHistory(into: &restoreCtx)
+            try restoreWorkoutHistory(from: currentArchive.workout.workouts, into: &restoreCtx)
             try restoreRepeatingPlanOccurrences(into: &restoreCtx)
             try restoreDailyContextAndPreferences(into: &restoreCtx)
             try restoreNutrition(into: &restoreCtx)
@@ -84,7 +85,10 @@ extension BackupDTO {
 
     // MARK: - Restore Sub-Handlers
 
-    private func restoreExerciseCatalog(into restoreCtx: inout RestoreContext) throws {
+    private func restoreExerciseCatalog(
+        from exercises: [CurrentExerciseArchive],
+        into restoreCtx: inout RestoreContext
+    ) throws {
         let builtInExercises = ExerciseSeedData.templates()
         for exercise in builtInExercises {
             restoreCtx.context.insert(exercise)
@@ -92,27 +96,13 @@ extension BackupDTO {
 
         restoreCtx.exerciseMap = Dictionary(builtInExercises.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
 
-        for exerciseDTO in self.exercises {
+        for normalizedExercise in exercises {
+            let exerciseDTO = normalizedExercise.dto
             let primaryMuscles = exerciseDTO.primaryMuscles.compactMap { Muscle(rawValue: $0) }
             let secondaryMuscles = exerciseDTO.secondaryMuscles?.compactMap { Muscle(rawValue: $0) }
-            let category = exerciseDTO.category.flatMap { ExerciseCategory(rawValue: $0) } ?? .strength
-            let trackingType = TrackingType(rawValue: exerciseDTO.trackingType) ?? .weightAndReps
-            let equipmentType = exerciseDTO.equipmentType.flatMap { EquipmentType(rawValue: $0) } ?? .other
-            let resistanceType = exerciseDTO.resistanceType.flatMap { ResistanceType(rawValue: $0) }
-            let movementPattern = exerciseDTO.movementPattern.flatMap { MovementPattern(rawValue: $0) }
-            let forceType = exerciseDTO.forceType.flatMap { ForceType(rawValue: $0) }
-            let mechanics = exerciseDTO.mechanics.flatMap { ExerciseMechanics(rawValue: $0) }
-            let laterality = exerciseDTO.laterality.flatMap { Laterality(rawValue: $0) } ?? .bilateral
-            let repCountingStyle = exerciseDTO.repCountingStyle.flatMap { RepCountingStyle(rawValue: $0) } ?? .total
-            let weightEntryStyle = exerciseDTO.weightEntryStyle.flatMap { WeightEntryStyle(rawValue: $0) } ?? .totalLoad
-            let loadUnitCount = exerciseDTO.loadUnitCount ?? 1
-            let gripStyle = exerciseDTO.gripStyle.flatMap { GripStyle(rawValue: $0) }
-            let stance = exerciseDTO.stance.flatMap { ExerciseStance(rawValue: $0) }
-            let rangeOfMotion = exerciseDTO.rangeOfMotion.flatMap { RangeOfMotion(rawValue: $0) }
-            let difficulty = exerciseDTO.difficulty.flatMap { Difficulty(rawValue: $0) } ?? .beginner
 
             if !exerciseDTO.isCustom, let existing = restoreCtx.exerciseMap[exerciseDTO.name] {
-                if let id = exerciseDTO.id.flatMap(UUID.init(uuidString:)) {
+                if let id = normalizedExercise.stableID {
                     existing.id = id
                 }
                 if let fr = exerciseDTO.frenchName { existing.frenchName = fr }
@@ -122,29 +112,29 @@ extension BackupDTO {
                     name: exerciseDTO.name,
                     primaryMuscles: primaryMuscles,
                     secondaryMuscles: secondaryMuscles,
-                    category: category,
-                    trackingType: trackingType,
-                    equipmentType: equipmentType,
-                    resistanceType: resistanceType,
-                    movementPattern: movementPattern,
-                    forceType: forceType,
-                    mechanics: mechanics,
-                    gripStyle: gripStyle,
-                    stance: stance,
-                    rangeOfMotion: rangeOfMotion,
+                    category: normalizedExercise.category,
+                    trackingType: normalizedExercise.trackingType,
+                    equipmentType: normalizedExercise.equipmentType,
+                    resistanceType: normalizedExercise.resistanceType,
+                    movementPattern: normalizedExercise.movementPattern,
+                    forceType: normalizedExercise.forceType,
+                    mechanics: normalizedExercise.mechanics,
+                    gripStyle: normalizedExercise.gripStyle,
+                    stance: normalizedExercise.stance,
+                    rangeOfMotion: normalizedExercise.rangeOfMotion,
                     setupAngleDegrees: exerciseDTO.setupAngleDegrees,
                     variationFamilyID: exerciseDTO.variationFamilyID,
-                    difficulty: difficulty,
+                    difficulty: normalizedExercise.difficulty,
                     tags: exerciseDTO.tags,
                     isFavorite: exerciseDTO.isFavorite,
                     isPlateLoaded: exerciseDTO.isPlateLoaded,
                     isCustom: exerciseDTO.isCustom,
                     isArchived: exerciseDTO.isArchived,
-                    laterality: laterality,
-                    repCountingStyle: repCountingStyle,
-                    weightEntryStyle: weightEntryStyle,
-                    loadUnitCount: loadUnitCount,
-                    id: exerciseDTO.id.flatMap(UUID.init(uuidString:)) ?? UUID()
+                    laterality: normalizedExercise.laterality,
+                    repCountingStyle: normalizedExercise.repCountingStyle,
+                    weightEntryStyle: normalizedExercise.weightEntryStyle,
+                    loadUnitCount: normalizedExercise.loadUnitCount,
+                    id: normalizedExercise.stableID ?? UUID()
                 )
                 newExercise.frenchName = exerciseDTO.frenchName
                 newExercise.searchAliases = exerciseDTO.searchAliases ?? []
@@ -179,11 +169,16 @@ extension BackupDTO {
         }
     }
 
-    private func restoreFoldersAndTemplates(into restoreCtx: inout RestoreContext) throws {
-        for templateDTO in self.templates {
+    private func restoreFoldersAndTemplates(
+        from templates: [CurrentWorkoutTemplateArchive],
+        into restoreCtx: inout RestoreContext
+    ) throws {
+        for normalizedTemplate in templates {
+            let templateDTO = normalizedTemplate.dto
             var templateExercises: [TemplateExercise] = []
 
-            for teDTO in templateDTO.templateExercises {
+            for normalizedTemplateExercise in normalizedTemplate.exercises {
+                let teDTO = normalizedTemplateExercise.dto
                 guard let exercise = restoreCtx.exerciseMap[teDTO.exerciseName] else { continue }
                 let te = TemplateExercise(
                     exercise: exercise,
@@ -195,14 +190,14 @@ extension BackupDTO {
                     targetRPE: teDTO.targetRPE,
                     targetRIR: teDTO.targetRIR,
                     notes: teDTO.notes,
-                    progressionRule: ProgressionRule(rawValue: teDTO.progressionRule ?? "") ?? .doubleProgression,
-                    supersetGroupID: teDTO.supersetGroupID.flatMap(UUID.init(uuidString:)),
+                    progressionRule: normalizedTemplateExercise.progressionRule,
+                    supersetGroupID: normalizedTemplateExercise.supersetGroupID,
                     progressionKey: teDTO.progressionKey
                 )
                 te.orderIndex = teDTO.orderIndex
-                te.executionBlockID = teDTO.executionBlockID.flatMap(UUID.init(uuidString:))
+                te.executionBlockID = normalizedTemplateExercise.executionBlockID
                 te.executionBlockComponentOrder = teDTO.executionBlockComponentOrder
-                te.stimulus = teDTO.stimulus.flatMap(TrainingStimulus.init(rawValue:))
+                te.stimulus = normalizedTemplateExercise.stimulus
                 templateExercises.append(te)
             }
 
@@ -543,20 +538,26 @@ extension BackupDTO {
     /// previous one's identity map: performed workouts first, then the plan-run
     /// progress that points at them, then the progression recommendations that
     /// reference both.
-    private func restoreWorkoutHistory(into restoreCtx: inout RestoreContext) throws {
-        try restoreWorkouts(into: &restoreCtx)
+    private func restoreWorkoutHistory(
+        from workouts: [CurrentWorkoutHistoryArchive],
+        into restoreCtx: inout RestoreContext
+    ) throws {
+        try restoreWorkouts(from: workouts, into: &restoreCtx)
         try restorePlanRunProgress(into: &restoreCtx)
         try restoreProgressionRecommendations(into: &restoreCtx)
     }
 
-    private func restoreWorkouts(into restoreCtx: inout RestoreContext) throws {
-        for workoutDTO in self.workouts {
-            let status = WorkoutStatus(rawValue: workoutDTO.status) ?? .completed
+    private func restoreWorkouts(
+        from workouts: [CurrentWorkoutHistoryArchive],
+        into restoreCtx: inout RestoreContext
+    ) throws {
+        for normalizedWorkout in workouts {
+            let workoutDTO = normalizedWorkout.dto
             let newWorkout = Workout(name: workoutDTO.name, endTime: workoutDTO.endTime)
             if let identifier = workoutDTO.id {
                 newWorkout.id = try requiredUUID(identifier, named: "workout")
             }
-            newWorkout.status = status
+            newWorkout.status = normalizedWorkout.status
             newWorkout.notes = workoutDTO.notes
             newWorkout.startTime = workoutDTO.startTime
             newWorkout.restEndDate = workoutDTO.restEndDate
@@ -591,7 +592,7 @@ extension BackupDTO {
             newWorkout.sourceRepeatingPlanName = workoutDTO.sourceRepeatingPlanName
 
             newWorkout.exercises = try restoreExerciseEntries(
-                from: workoutDTO,
+                from: normalizedWorkout.entries,
                 into: &restoreCtx
             )
             newWorkout.executionBlocks = (workoutDTO.executionBlocks ?? []).compactMap { blockDTO in
@@ -645,19 +646,19 @@ extension BackupDTO {
     /// `restoreWorkouts` for size only — it stays inside the same transaction
     /// and mutates the same identity maps.
     private func restoreExerciseEntries(
-        from workoutDTO: WorkoutDTO,
+        from normalizedEntries: [CurrentExerciseEntryArchive],
         into restoreCtx: inout RestoreContext
     ) throws -> [ExerciseEntry] {
         var exercises: [ExerciseEntry] = []
-        for entryDTO in workoutDTO.exercises {
+        for normalizedEntry in normalizedEntries {
+            let entryDTO = normalizedEntry.dto
             guard let exerciseTemplate = restoreCtx.exerciseMap[entryDTO.exerciseName] else { continue }
-            let usedMetric = UnitSystem(rawValue: entryDTO.usedMetric) ?? .metric
 
             let entry = ExerciseEntry(
                 comment: entryDTO.comment,
                 exercise: exerciseTemplate,
                 orderIndex: entryDTO.orderIndex,
-                usedMetric: usedMetric,
+                usedMetric: normalizedEntry.usedMetric,
                 supersetGroupID: entryDTO.supersetGroupID.flatMap(UUID.init(uuidString:))
             )
             entry.prescribedSets = entryDTO.prescribedSets
@@ -726,24 +727,23 @@ extension BackupDTO {
             entry.prescriptionRulesData = entryDTO.prescriptionRulesData
             entry.deferredBackOffDefinitionsData = entryDTO.deferredBackOffDefinitionsData
 
-            if let historicalName = entryDTO.nameSnapshot, !historicalName.isEmpty {
+            if let historicalName = normalizedEntry.historicalNameSnapshot {
                 entry.nameSnapshot = historicalName
             }
-            entry.exerciseIDSnapshot = entryDTO.exerciseIDSnapshot
-                .flatMap(UUID.init(uuidString:)) ?? exerciseTemplate.id
-            if let raw = entryDTO.trackingTypeSnapshot, let tracking = TrackingType(rawValue: raw) {
+            entry.exerciseIDSnapshot = normalizedEntry.explicitHistoricalExerciseID ?? exerciseTemplate.id
+            if let tracking = normalizedEntry.trackingTypeSnapshot {
                 entry.trackingTypeSnapshot = tracking
             }
-            if let raw = entryDTO.lateralitySnapshot, let laterality = Laterality(rawValue: raw) {
+            if let laterality = normalizedEntry.lateralitySnapshot {
                 entry.lateralitySnapshot = laterality
             }
-            if let raw = entryDTO.repCountingStyleSnapshot, let style = RepCountingStyle(rawValue: raw) {
+            if let style = normalizedEntry.repCountingStyleSnapshot {
                 entry.repCountingStyleSnapshot = style
             }
-            if let raw = entryDTO.weightEntryStyleSnapshot, let style = WeightEntryStyle(rawValue: raw) {
+            if let style = normalizedEntry.weightEntryStyleSnapshot {
                 entry.weightEntryStyleSnapshot = style
             }
-            if let count = entryDTO.loadUnitCountSnapshot {
+            if let count = normalizedEntry.loadUnitCountSnapshot {
                 entry.loadUnitCountSnapshot = count
             }
 

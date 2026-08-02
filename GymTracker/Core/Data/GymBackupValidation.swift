@@ -73,6 +73,8 @@ extension BackupDTO {
         guard version >= Self.legacyVersion && version <= Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
+        let currentArchive = CurrentBackupArchive(adapting: self)
+        let workoutArchive = currentArchive.workout
 
         // A duplicate display name is only genuinely ambiguous when nothing
         // else can tell the exercises apart. From `programVersion` onward,
@@ -81,7 +83,7 @@ extension BackupDTO {
         // one's name — its id remains its true, distinct identity. Older
         // backups never carry ids, so duplicate names there are unresolvable
         // and must still be rejected.
-        let exerciseNames = exercises.map(\.name)
+        let exerciseNames = workoutArchive.exercises.map { $0.dto.name }
         if version < Self.programVersion {
             guard Set(exerciseNames).count == exerciseNames.count else {
                 let duplicate: String = Dictionary(grouping: exerciseNames, by: \.self)
@@ -113,7 +115,8 @@ extension BackupDTO {
                 throw BackupValidationError.invalidIdentifier("mobility routine purpose")
             }
         }
-        for template in templates {
+        for normalizedTemplate in workoutArchive.templates {
+            let template = normalizedTemplate.dto
             try validateExecutionBlockGraph(
                 template.executionBlocks?.map {
                     ExecutionBlockValidationInput(
@@ -169,7 +172,8 @@ extension BackupDTO {
             }
         }
 
-        for workout in workouts {
+        for normalizedWorkout in workoutArchive.workouts {
+            let workout = normalizedWorkout.dto
             try validateExecutionBlockGraph(
                 workout.executionBlocks?.map {
                     ExecutionBlockValidationInput(
