@@ -9,9 +9,11 @@ struct HomeView: View {
     let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
     let onStartRepeatingWorkout: (RepeatingPlanRun) -> Void
     let onResolveGuidedSourceConflict: () -> Void
-    let onStartMobility: (MobilityRoutine, MobilitySessionContext, UUID?) -> Void
     let onResumeMobility: (MobilitySession) -> Void
-    let onOpenNutrition: () -> Void
+    /// Today navigates to Train's libraries; it never selects a routine or an
+    /// exercise itself.
+    let onOpenExercises: () -> Void
+    let onOpenMobility: () -> Void
     let onOpenPlan: (UUID) -> Void
     let onOpenTrainingCalendar: () -> Void
     let onOpenSettings: () -> Void
@@ -26,11 +28,10 @@ struct HomeView: View {
     @Binding var statusMessage: GymStatusMessage?
 
     @Query private var workoutTemplates: [WorkoutTemplate]
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
     @Query private var planRuns: [PlanRun]
     @Query private var repeatingPlanRuns: [RepeatingPlanRun]
     @State private var isShowingTemplatePicker = false
-    @State private var isShowingDailyCheckIn = false
-    @State private var isShowingCaffeineLog = false
     @State private var reschedulingProgress: PlanWorkoutProgress?
     @State private var rescheduleDate = Date.now
     /// Reset on every presentation. Carrying a shift decision from one
@@ -93,14 +94,6 @@ struct HomeView: View {
                 templatePicker
                     .presentationDetents([.large])
             }
-            .sheet(isPresented: $isShowingDailyCheckIn) {
-                DailyCheckInSheet(day: .today) {
-                    Task { await CheckInNotificationScheduler.shared.reconcile(using: modelContext) }
-                }
-            }
-            .sheet(isPresented: $isShowingCaffeineLog) {
-                CaffeineQuickLogSheet()
-            }
             .sheet(item: $reschedulingProgress) { progress in
                 rescheduleSheet(for: progress)
             }
@@ -161,13 +154,11 @@ struct HomeView: View {
                     onSkip: { progressToSkip = $0 }
                 )
                 HomeTodaySection(
-                    activeWorkout: workoutVM.activeWorkout,
-                    isShowingDailyCheckIn: $isShowingDailyCheckIn,
-                    isShowingCaffeineLog: $isShowingCaffeineLog,
-                    onOpenNutrition: onOpenNutrition,
-                    onStartMobility: onStartMobility,
+                    onOpenExercises: onOpenExercises,
+                    onOpenMobility: onOpenMobility,
                     onResumeMobility: onResumeMobility
                 )
+                HomeWeekSummaryCard()
                 // Last in the page, after everything the lifter came for.
                 if isShowingPersonalizationPrompt {
                     PersonalizationPromptCard(
@@ -225,7 +216,7 @@ struct HomeView: View {
 
     private var templatePicker: some View {
         NavigationStack {
-            SavedWorkoutTemplatePicker(templates: workoutTemplates) { template in
+            SavedWorkoutTemplatePicker(templates: workoutTemplates, availableExercises: exerciseTemplates) { template in
                 isShowingTemplatePicker = false
                 DispatchQueue.main.async {
                     onStartWorkout(template)
@@ -235,6 +226,8 @@ struct HomeView: View {
                 DispatchQueue.main.async {
                     startEmptyWorkout()
                 }
+            } onStartPersonalized: { draft in
+                startPersonalizedWorkout(draft)
             }
         }
     }
@@ -275,6 +268,31 @@ private extension HomeView {
         }
         workoutVM.startWorkout(using: modelContext)
         isShowingActiveWorkout = true
+    }
+
+    func startPersonalizedWorkout(_ draft: ValidatedWorkoutDraft) -> Bool {
+        guard !workoutVM.hasActiveWorkout else {
+            isShowingActiveWorkout = true
+            return false
+        }
+        do {
+            _ = try GeneratedWorkoutStartService.start(
+                draft,
+                using: modelContext,
+                unitSystem: UserDefaults.standard.unitSystem
+            )
+            _ = workoutVM.restoreActiveWorkout(using: modelContext)
+            isShowingActiveWorkout = workoutVM.hasActiveWorkout
+            guard isShowingActiveWorkout else { return false }
+            isShowingTemplatePicker = false
+            return true
+        } catch {
+            // The draft remains available in the presented builder until its
+            // explicit start action dismisses, so this branch only covers an
+            // unexpected persistence or active-workout race.
+            isShowingActiveWorkout = workoutVM.hasActiveWorkout
+            return false
+        }
     }
     func run(containing progress: PlanWorkoutProgress) -> PlanRun? {
         planRuns.first { $0.workoutProgress.contains { $0.id == progress.id } }

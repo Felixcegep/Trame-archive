@@ -65,9 +65,12 @@ struct RootView: View {
     /// Set only by the personalization offer on Today, which re-presents the
     /// same flow after first launch has long since completed.
     @State private var isShowingOnboarding = false
+    @State private var isShowingPersonalizedWorkoutBuilder = false
+    @State private var personalizedWorkoutLaunchRequest: WorkoutGenerationLaunchRequest?
     @State private var isPreparingApp = true
     @State private var hasFinishedLaunchAnimation = false
     @State private var appIntentRouteStore = AppIntentRouteStore.shared
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var availableExercises: [Exercise]
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     /// The root becomes interactive only after both the persisted state is
@@ -246,6 +249,15 @@ struct RootView: View {
         }
         .sheet(item: $progressionReceiptRequest) { request in
             ProgressionReceiptSheet(planRunID: request.planRunID, workoutID: request.workoutID)
+        }
+        .sheet(isPresented: $isShowingPersonalizedWorkoutBuilder, onDismiss: {
+            personalizedWorkoutLaunchRequest = nil
+        }) {
+            PersonalizedWorkoutBuilderView(
+                availableExercises: availableExercises,
+                launchRequest: personalizedWorkoutLaunchRequest,
+                onStart: startPersonalizedWorkout
+            )
         }
         .confirmationDialog(
             "An active workout is already in progress",
@@ -469,6 +481,39 @@ struct RootView: View {
             }
             selectedTab = .train
             activeMobilitySession = session
+        case .personalizedWorkout(let launchRequest):
+            guard featureFlags.isEnabled(.workoutGeneration) else {
+                selectedTab = .today
+                return
+            }
+            selectedTab = .today
+            todayPath.removeAll()
+            personalizedWorkoutLaunchRequest = launchRequest
+            isShowingPersonalizedWorkoutBuilder = true
+        }
+    }
+
+    private func startPersonalizedWorkout(_ draft: ValidatedWorkoutDraft) -> Bool {
+        guard workoutVM.hasActiveWorkout == false else {
+            isShowingActiveWorkout = true
+            return false
+        }
+        do {
+            _ = try GeneratedWorkoutStartService.start(
+                draft,
+                using: modelContext,
+                unitSystem: UserDefaults.standard.unitSystem
+            )
+            guard workoutVM.restoreActiveWorkout(using: modelContext) else { return false }
+            isShowingPersonalizedWorkoutBuilder = false
+            activeWorkoutPath.removeAll()
+            isShowingActiveWorkout = true
+            return true
+        } catch {
+            // Keep the review screen open, where the person can revise the
+            // draft or choose the normal manual flow. No partial workout is
+            // left behind by the transactional start service.
+            return false
         }
     }
 
@@ -609,9 +654,9 @@ struct RootView: View {
             onResolveGuidedSourceConflict: {
                 guidedSourceConflictRequest = .chooseFromToday
             },
-            onStartMobility: startMobility,
             onResumeMobility: resumeMobility,
-            onOpenNutrition: openNutrition,
+            onOpenExercises: openTrainExercises,
+            onOpenMobility: openTrainMobility,
             onOpenPlan: openPlanFromToday,
             onOpenTrainingCalendar: { todayPath.append(.trainingCalendar) },
             onOpenSettings: { todayPath.append(.settings) },
@@ -986,6 +1031,14 @@ struct RootView: View {
         guard featureFlags.isEnabled(.mobility) else { return }
         selectedTab = .train
         trainPath = [.mobility]
+    }
+
+    /// The exercise library, reached from Today's quick access. Replaces the
+    /// path rather than appending, so repeated taps cannot stack the browser on
+    /// top of itself.
+    private func openTrainExercises() {
+        selectedTab = .train
+        trainPath = [.exercises]
     }
 
     /// Central gate for every path that can navigate to the Nutrition tab.
