@@ -61,7 +61,7 @@ enum ExerciseCategory: String, Codable, CaseIterable {
     case other = "Other"
 }
 
-enum TrackingType: String, Codable, CaseIterable {
+nonisolated enum TrackingType: String, Codable, CaseIterable, Sendable {
     case weightAndReps = "Weight & Reps"
     case repsOnly = "Reps Only"
     case weightedBodyweight = "Weighted Bodyweight"

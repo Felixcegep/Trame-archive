@@ -208,21 +208,16 @@ struct ActiveWorkoutMutationService {
     }
 
     static func canComplete(_ set: ExerciseSet, for exercise: ExerciseEntry) -> Bool {
-        let trackingType = exercise.trackingTypeSnapshot
+        validationResult(for: set, exercise: exercise).isValid
+    }
 
-        if trackingType.usesReps, set.repetitions <= 0 {
-            return false
-        }
-        if trackingType.usesDuration, (set.duration ?? 0) <= 0 {
-            return false
-        }
-        if trackingType.usesDistance, (set.distance ?? 0) <= 0 {
-            return false
-        }
-        if trackingType.usesCalories, (set.calories ?? 0) <= 0 {
-            return false
-        }
-        return true
+    static func validationResult(
+        for set: ExerciseSet,
+        exercise: ExerciseEntry
+    ) -> WorkoutSetCompletionValidator.Result {
+        WorkoutSetCompletionValidator.validate(
+            .init(set: set, trackingType: exercise.trackingTypeSnapshot)
+        )
     }
 
     private func activeWorkout(id: UUID) -> Workout? {

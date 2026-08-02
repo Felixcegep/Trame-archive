@@ -172,8 +172,9 @@ final class SetInputCoordinator {
             ?? .repetitions
     }
 
-    /// Mirrors `ActiveWorkoutMutationService.canComplete`: load is never
-    /// required, because a bodyweight set legitimately carries no added weight.
+    /// Presentation-only mirror of `WorkoutSetCompletionValidator` used to
+    /// choose focus. Load is never required, because a bodyweight set
+    /// legitimately carries no added weight.
     private static func isRequiredForCompletion(_ field: SetInputFocus.Field) -> Bool {
         field != .weight
     }

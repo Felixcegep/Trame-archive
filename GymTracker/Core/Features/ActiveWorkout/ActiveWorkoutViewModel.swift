@@ -863,24 +863,9 @@ class ActiveWorkoutViewModel {
     }
 
     func validationMessage(for set: ExerciseSet, in exercise: ExerciseEntry) -> String {
-        let trackingType = exercise.trackingTypeSnapshot
-
-        if trackingType.usesReps, set.repetitions <= 0 {
-            return "Enter reps before completing this set."
-        }
-
-        if trackingType.usesDuration, (set.duration ?? 0) <= 0 {
-            return "Enter a duration before completing this set."
-        }
-
-        if trackingType.usesCalories, (set.calories ?? 0) <= 0 {
-            return "Enter calories before completing this set."
-        }
-
-        if trackingType.usesDistance, (set.distance ?? 0) <= 0 {
-            return "Enter a distance before completing this set."
-        }
-
-        return "Enter a value before completing this set."
+        SetRowCompletionValidation.message(
+            for: set,
+            trackingType: exercise.trackingTypeSnapshot
+        )
     }
 }

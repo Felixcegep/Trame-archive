@@ -3,18 +3,20 @@ enum SetRowCompletionValidation {
         for exerciseSet: ExerciseSet,
         trackingType: TrackingType
     ) -> String {
-        if trackingType.usesReps, exerciseSet.repetitions <= 0 {
+        let result = WorkoutSetCompletionValidator.validate(
+            .init(set: exerciseSet, trackingType: trackingType)
+        )
+        switch result.firstInvalidReason {
+        case .missingRepetitions:
             return "Enter reps before completing this set."
-        }
-        if trackingType.usesDuration, (exerciseSet.duration ?? 0) <= 0 {
+        case .missingDuration:
             return "Enter a duration before completing this set."
-        }
-        if trackingType.usesCalories, (exerciseSet.calories ?? 0) <= 0 {
-            return "Enter calories before completing this set."
-        }
-        if trackingType.usesDistance, (exerciseSet.distance ?? 0) <= 0 {
+        case .missingDistance:
             return "Enter a distance before completing this set."
+        case .missingCalories:
+            return "Enter calories before completing this set."
+        case nil:
+            return "Enter a value before completing this set."
         }
-        return "Enter a value before completing this set."
     }
 }
