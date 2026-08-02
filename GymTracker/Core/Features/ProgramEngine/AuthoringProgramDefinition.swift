@@ -262,6 +262,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var supportedDaysPerWeek: [Int]
     var scheduleMode: PlanScheduleMode
     var scheduleIntervalDays: Int?
+    var requiredEquipment: [EquipmentType]?
     var prerequisites: [String]?
     var warnings: [String]?
     var isExperimental: Bool?
@@ -547,6 +548,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             supportedDaysPerWeek: supportedDaysPerWeek,
             scheduleMode: scheduleMode,
             scheduleIntervalDays: scheduleIntervalDays ?? 1,
+            requiredEquipment: requiredEquipment ?? [],
             prerequisites: prerequisites ?? [],
             warnings: warnings ?? [],
             isExperimental: isExperimental ?? false,
