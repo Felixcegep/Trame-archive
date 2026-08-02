@@ -10744,6 +10744,103 @@
           ]
         }
       ]
+    },
+    {
+      "programKey": "powerlifting-double-exposure-practice",
+      "name": "Powerlifting Double-Exposure Practice",
+      "description": "A four-week synthetic conformance program with separately keyed competition, tempo, pause, and close-grip exposures. It is an original GymTracker engine fixture, not an official federation or coach program.",
+      "goal": "powerlifting",
+      "experienceLevel": "intermediate",
+      "durationWeeks": 4,
+      "supportedDaysPerWeek": [3],
+      "scheduleMode": "fixedWeekdays",
+      "prerequisites": ["Known one-repetition maximums for squat, bench press, and deadlift", "Consistent technique on the prescribed variations"],
+      "warnings": ["Percentages are prescriptions, not automatic readiness or safety decisions."],
+      "intakeInputs": [
+        {"exposureKey": "competition-squat", "kind": "oneRepMax"},
+        {"exposureKey": "competition-bench", "kind": "oneRepMax"},
+        {"exposureKey": "competition-deadlift", "kind": "oneRepMax"}
+      ],
+      "missedWorkoutPolicy": "shiftSequence",
+      "completionPolicy": {"type": "offerRestart", "carryState": true},
+      "requiredCapabilities": ["waves"],
+      "provenance": {
+        "kind": "engineConformanceSynthetic",
+        "statement": "Original GymTracker prescription created to prove repeated exercise occurrences, independent exposure keys, percentage prescriptions, and restart lifecycle behavior."
+      },
+      "sourceReferences": [],
+      "waveTemplates": {
+        "competitionSquatWave": [
+          {"name": "Week 1", "setGroups": [{"count": 1, "reps": 5, "role": "topSet", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.75, "round": 2.5}}, {"count": 3, "reps": 5, "role": "backOff", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.70, "round": 2.5}}]},
+          {"name": "Week 2", "setGroups": [{"count": 1, "reps": 4, "role": "topSet", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.80, "round": 2.5}}, {"count": 3, "reps": 4, "role": "backOff", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.75, "round": 2.5}}]},
+          {"name": "Week 3", "setGroups": [{"count": 1, "reps": 3, "role": "topSet", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.85, "round": 2.5}}, {"count": 3, "reps": 3, "role": "backOff", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.80, "round": 2.5}}]},
+          {"name": "Week 4", "setGroups": [{"count": 3, "reps": 3, "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.65, "round": 2.5}}]}
+        ],
+        "benchVolumeWave": [
+          {"name": "Week 1", "setGroups": [{"count": 4, "reps": 6, "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.70, "round": 2.5}}]},
+          {"name": "Week 2", "setGroups": [{"count": 4, "reps": 5, "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.75, "round": 2.5}}]},
+          {"name": "Week 3", "setGroups": [{"count": 4, "reps": 4, "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.80, "round": 2.5}}]},
+          {"name": "Week 4", "setGroups": [{"count": 3, "reps": 5, "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.60, "round": 2.5}}]}
+        ],
+        "tempoSquatWave": [
+          {"name": "Week 1", "setGroups": [{"count": 3, "reps": 6, "role": "technique", "tempo": "3-0-1-0", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.55, "round": 2.5}}]},
+          {"name": "Week 2", "setGroups": [{"count": 3, "reps": 5, "role": "technique", "tempo": "3-0-1-0", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.60, "round": 2.5}}]},
+          {"name": "Week 3", "setGroups": [{"count": 3, "reps": 4, "role": "technique", "tempo": "3-0-1-0", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.65, "round": 2.5}}]},
+          {"name": "Week 4", "setGroups": [{"count": 2, "reps": 5, "role": "technique", "tempo": "3-0-1-0", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.50, "round": 2.5}}]}
+        ],
+        "competitionBenchWave": [
+          {"name": "Week 1", "setGroups": [{"count": 1, "reps": 5, "role": "topSet", "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.775, "round": 2.5}}, {"count": 3, "reps": 5, "role": "backOff", "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.725, "round": 2.5}}]},
+          {"name": "Week 2", "setGroups": [{"count": 1, "reps": 4, "role": "topSet", "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.825, "round": 2.5}}, {"count": 3, "reps": 4, "role": "backOff", "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.775, "round": 2.5}}]},
+          {"name": "Week 3", "setGroups": [{"count": 1, "reps": 3, "role": "topSet", "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.875, "round": 2.5}}, {"count": 3, "reps": 3, "role": "backOff", "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.825, "round": 2.5}}]},
+          {"name": "Week 4", "setGroups": [{"count": 3, "reps": 3, "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.65, "round": 2.5}}]}
+        ],
+        "pauseBenchWave": [
+          {"name": "Week 1", "setGroups": [{"count": 3, "reps": 6, "role": "technique", "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.60, "round": 2.5}}]},
+          {"name": "Week 2", "setGroups": [{"count": 3, "reps": 5, "role": "technique", "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.65, "round": 2.5}}]},
+          {"name": "Week 3", "setGroups": [{"count": 3, "reps": 4, "role": "technique", "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.70, "round": 2.5}}]},
+          {"name": "Week 4", "setGroups": [{"count": 2, "reps": 5, "role": "technique", "load": {"reference": "exerciseOneRepMax", "of": "competition-bench", "percent": 0.55, "round": 2.5}}]}
+        ],
+        "competitionDeadliftWave": [
+          {"name": "Week 1", "setGroups": [{"count": 1, "reps": 5, "role": "topSet", "load": {"reference": "exerciseOneRepMax", "of": "competition-deadlift", "percent": 0.75, "round": 2.5}}, {"count": 2, "reps": 5, "role": "backOff", "load": {"reference": "exerciseOneRepMax", "of": "competition-deadlift", "percent": 0.70, "round": 2.5}}]},
+          {"name": "Week 2", "setGroups": [{"count": 1, "reps": 4, "role": "topSet", "load": {"reference": "exerciseOneRepMax", "of": "competition-deadlift", "percent": 0.80, "round": 2.5}}, {"count": 2, "reps": 4, "role": "backOff", "load": {"reference": "exerciseOneRepMax", "of": "competition-deadlift", "percent": 0.75, "round": 2.5}}]},
+          {"name": "Week 3", "setGroups": [{"count": 1, "reps": 3, "role": "topSet", "load": {"reference": "exerciseOneRepMax", "of": "competition-deadlift", "percent": 0.85, "round": 2.5}}, {"count": 2, "reps": 3, "role": "backOff", "load": {"reference": "exerciseOneRepMax", "of": "competition-deadlift", "percent": 0.80, "round": 2.5}}]},
+          {"name": "Week 4", "setGroups": [{"count": 3, "reps": 3, "load": {"reference": "exerciseOneRepMax", "of": "competition-deadlift", "percent": 0.60, "round": 2.5}}]}
+        ],
+        "pauseSquatWave": [
+          {"name": "Week 1", "setGroups": [{"count": 3, "reps": 5, "role": "technique", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.60, "round": 2.5}}]},
+          {"name": "Week 2", "setGroups": [{"count": 3, "reps": 4, "role": "technique", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.65, "round": 2.5}}]},
+          {"name": "Week 3", "setGroups": [{"count": 3, "reps": 3, "role": "technique", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.70, "round": 2.5}}]},
+          {"name": "Week 4", "setGroups": [{"count": 2, "reps": 5, "role": "technique", "load": {"reference": "exerciseOneRepMax", "of": "competition-squat", "percent": 0.50, "round": 2.5}}]}
+        ]
+      },
+      "blocks": [{
+        "name": "Double Exposure Practice",
+        "phaseType": "strength",
+        "weeks": [{
+          "weekIndex": 0,
+          "repeat": 4,
+          "workouts": [
+            {"name": "Day 1 — Squat and Bench", "dayOffset": 0, "role": "strength", "exercises": [
+              {"exercise": "Back Squat", "exposureKey": "competition-squat", "role": "main", "restSeconds": 180, "waves": "competitionSquatWave"},
+              {"exercise": "Bench Press", "exposureKey": "bench-volume", "role": "main", "restSeconds": 150, "waves": "benchVolumeWave"},
+              {"exercise": "Back Squat", "exposureKey": "tempo-squat", "role": "secondary", "restSeconds": 150, "waves": "tempoSquatWave"},
+              {"exercise": "Barbell Row", "exposureKey": "row", "role": "accessory", "restSeconds": 90, "setGroups": [{"count": 3, "repRange": [8, 12], "targetRIR": 2}]}
+            ]},
+            {"name": "Day 2 — Bench", "dayOffset": 2, "role": "strength", "exercises": [
+              {"exercise": "Bench Press", "exposureKey": "competition-bench", "role": "main", "restSeconds": 180, "waves": "competitionBenchWave"},
+              {"exercise": "Pause Bench Press", "exposureKey": "pause-bench", "role": "secondary", "restSeconds": 150, "waves": "pauseBenchWave"},
+              {"exercise": "Romanian Deadlift", "exposureKey": "romanian-deadlift", "role": "secondary", "restSeconds": 120, "setGroups": [{"count": 3, "repRange": [6, 8]}]},
+              {"exercise": "Lat Pulldown", "exposureKey": "lat-pulldown", "role": "accessory", "restSeconds": 90, "setGroups": [{"count": 3, "repRange": [8, 12]}]}
+            ]},
+            {"name": "Day 3 — Deadlift and Squat", "dayOffset": 4, "role": "strength", "exercises": [
+              {"exercise": "Deadlift", "exposureKey": "competition-deadlift", "role": "main", "restSeconds": 180, "waves": "competitionDeadliftWave"},
+              {"exercise": "Pause Squat", "exposureKey": "pause-squat", "role": "secondary", "restSeconds": 150, "waves": "pauseSquatWave"},
+              {"exercise": "Close-Grip Bench Press", "exposureKey": "close-grip-bench", "role": "secondary", "restSeconds": 120, "setGroups": [{"count": 3, "repRange": [6, 8]}]},
+              {"exercise": "Chest-Supported Row", "exposureKey": "chest-supported-row", "role": "accessory", "restSeconds": 90, "setGroups": [{"count": 3, "repRange": [8, 12]}]}
+            ]}
+          ]
+        }]
+      }]
     }
   ]
 }

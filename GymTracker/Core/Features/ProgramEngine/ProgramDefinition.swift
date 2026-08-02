@@ -52,6 +52,30 @@ nonisolated enum CompletionPolicy: Codable, Hashable {
     case offerTestDay
 }
 
+/// Declares how a bundled recipe relates to its cited material. This metadata
+/// is descriptive provenance only; it never changes compilation or execution.
+nonisolated enum ProgramProvenanceKind: String, Codable, Hashable {
+    case sourceBackedExactFormat
+    case sourceBackedOriginalAdaptation
+    case guidelineAnchoredOriginalProgram
+    case researchAnchoredOriginalProgram
+    case engineConformanceSynthetic
+}
+
+nonisolated struct ProgramProvenance: Codable, Hashable {
+    var kind: ProgramProvenanceKind
+    var statement: String?
+}
+
+nonisolated struct ProgramSourceReference: Codable, Hashable {
+    var organizationOrAuthors: String
+    var title: String
+    var year: Int?
+    var sourceIdentifier: String
+    var supports: [String]
+    var doesNotProvide: [String]
+}
+
 /// Capability identifiers are intentionally strings in persisted payloads so a
 /// newer library can describe requirements to an older app without decoding a
 /// newer Swift enum case.
@@ -160,6 +184,10 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     var missedWorkoutPolicy: MissedWorkoutPolicy
     var completionPolicy: CompletionPolicy
     var requiredCapabilities: [String]
+    /// `nil` means a legacy or user-authored definition made no provenance
+    /// claim. It must not be inferred as official, sourced, or synthetic.
+    var provenance: ProgramProvenance?
+    var sourceReferences: [ProgramSourceReference]?
 
     // MARK: Matching metadata
     //
@@ -210,6 +238,8 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         missedWorkoutPolicy: MissedWorkoutPolicy = .shiftSequence,
         completionPolicy: CompletionPolicy = .end,
         requiredCapabilities: [String] = [],
+        provenance: ProgramProvenance? = nil,
+        sourceReferences: [ProgramSourceReference]? = nil,
         supportedDisciplineIDs: [String]? = nil,
         focusAreaIDs: [String]? = nil,
         estimatedSessionMinutesMinimum: Int? = nil,
@@ -238,6 +268,8 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         self.missedWorkoutPolicy = missedWorkoutPolicy
         self.completionPolicy = completionPolicy
         self.requiredCapabilities = requiredCapabilities
+        self.provenance = provenance
+        self.sourceReferences = sourceReferences
         self.supportedDisciplineIDs = supportedDisciplineIDs
         self.focusAreaIDs = focusAreaIDs
         self.estimatedSessionMinutesMinimum = estimatedSessionMinutesMinimum
@@ -252,7 +284,8 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
              experienceLevel, durationWeeks, supportedDaysPerWeek,
              scheduleMode, scheduleIntervalDays, requiredEquipment, prerequisites,
              warnings, isExperimental, intakeInputs, missedWorkoutPolicy,
-             completionPolicy, requiredCapabilities, supportedDisciplineIDs,
+             completionPolicy, requiredCapabilities, provenance, sourceReferences,
+             supportedDisciplineIDs,
              focusAreaIDs, estimatedSessionMinutesMinimum,
              estimatedSessionMinutesMaximum, competitionDisciplineID,
              optionalEquipmentCapabilityIDs, blocks
@@ -280,6 +313,8 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         missedWorkoutPolicy = try container.decodeIfPresent(MissedWorkoutPolicy.self, forKey: .missedWorkoutPolicy) ?? .shiftSequence
         completionPolicy = try container.decodeIfPresent(CompletionPolicy.self, forKey: .completionPolicy) ?? .end
         requiredCapabilities = try container.decodeIfPresent([String].self, forKey: .requiredCapabilities) ?? []
+        provenance = try container.decodeIfPresent(ProgramProvenance.self, forKey: .provenance)
+        sourceReferences = try container.decodeIfPresent([ProgramSourceReference].self, forKey: .sourceReferences)
         // Every matching field decodes as absent rather than as an empty
         // collection. "This program never said" and "this program says none"
         // rank differently, and collapsing them would silently penalise the

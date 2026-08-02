@@ -43,6 +43,7 @@ nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case formulaCycle
         case referenceCycle
         case trackingProfileConflict
+        case invalidProvenance
     }
 
     var id: UUID = UUID()
@@ -80,6 +81,17 @@ nonisolated enum ProgramDefinitionValidator {
             add("scheduleIntervalDays", .invalidSchedule, "Schedule interval must be at least one day.")
         }
         if definition.blocks.isEmpty { add("blocks", .emptyBlocks, "A program must contain a block.") }
+        if definition.provenance == nil, definition.sourceReferences?.isEmpty == false {
+            add("sourceReferences", .invalidProvenance, "Source references require an explicit provenance classification.")
+        }
+        for (index, reference) in (definition.sourceReferences ?? []).enumerated() {
+            let path = "sourceReferences[\(index)]"
+            if reference.organizationOrAuthors.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || reference.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || reference.sourceIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                add(path, .invalidProvenance, "A source reference requires authorship, title, and a stable source identifier.")
+            }
+        }
 
         var identifiers = Set<UUID>()
         var formulaSources: [String: Set<String>] = [:]

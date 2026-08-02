@@ -4,7 +4,8 @@ Produced 2026-07-18 from a fresh code audit of `main` (e7657ad4).
 
 ## Implementation update — 2026-07-18
 
-The planned implementation is now in `main`: the typed authoring DSL, all thirteen
+The planned implementation is now in `main`: the typed authoring DSL, the original
+default library plus the synthetic Powerlifting Double-Exposure Practice recipe,
 built-in JSON programs, strict idempotent seeding, stages and unequal waves,
 variation ladders, velocity prescriptions and capture, Program Library browse/detail/
 intake/activation UI, and all-program lifecycle coverage have landed. The runtime
@@ -19,7 +20,8 @@ are green, the test plan's behavioural and screenshot acceptance rows remain ope
 The retained reference set contains only documents that still describe the shipped engine or an explicit parked gap:
 
 1. [02-ProgramSpecifications.md](02-ProgramSpecifications.md) — complete specs for
-   the 13 ship-safe default programs, incl. formulas, worked examples, failure/
+   the original ship-safe default programs plus the current catalogue supplement,
+   incl. formulas, worked examples, failure/
    deload/missed/completion behavior.
 2. [03-DomainModel.md](03-DomainModel.md) — engine-specific model, formula
    reference semantics, and state-ownership table.

@@ -252,6 +252,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var missedWorkoutPolicy: MissedWorkoutPolicy?
     var completionPolicy: AuthoringCompletionPolicyDefinition?
     var requiredCapabilities: [String]?
+    var provenance: ProgramProvenance?
+    var sourceReferences: [ProgramSourceReference]?
     var rulesLibrary: [String: AuthoringRuleSetDefinition]?
     var stageTemplates: [String: [AuthoringStageDefinition]]?
     var waveTemplates: [String: [AuthoringWaveDefinition]]?
@@ -527,6 +529,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             missedWorkoutPolicy: missedWorkoutPolicy ?? .shiftSequence,
             completionPolicy: try completionPolicy?.expand() ?? .end,
             requiredCapabilities: Set((requiredCapabilities ?? []) + detectedCapabilities).sorted(),
+            provenance: provenance,
+            sourceReferences: sourceReferences,
             blocks: expandedBlocks
         )
     }
