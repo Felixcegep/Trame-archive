@@ -149,6 +149,15 @@ struct WorkoutPerformanceComparison {
         if let rpe = exercise.prescribedRPE {
             components.append("RPE \(Formatters.formatFloat(Float(rpe)))")
         }
+        if let seconds = exercise.orderedSets.first?.prescribedDurationSecondsSnapshot {
+            components.append("\(Formatters.formatFloat(Float(seconds))) sec")
+        }
+        if let meters = exercise.orderedSets.first?.prescribedDistanceMetersSnapshot {
+            components.append("\(Formatters.formatFloat(Float(meters))) m")
+        }
+        if let calories = exercise.orderedSets.first?.prescribedCaloriesSnapshot {
+            components.append("\(Formatters.formatFloat(Float(calories))) cal")
+        }
         return components.isEmpty ? String(localized: "No prescription target") : components.joined(separator: " · ")
     }
 
@@ -174,6 +183,20 @@ struct WorkoutPerformanceComparison {
                 ? Formatters.formatFloat(minimum)
                 : "\(Formatters.formatFloat(minimum))–\(Formatters.formatFloat(maximum))"
             components.append("\(range) \(first.weightType.rawValue)")
+        }
+        if exercise.trackingTypeSnapshot.usesDuration {
+            let durations = completedSets.compactMap(\.duration)
+            if !durations.isEmpty {
+                components.append("\(Int(durations.reduce(0, +))) sec")
+            }
+        }
+        if exercise.trackingTypeSnapshot.usesDistance {
+            let meters = completedSets.reduce(Float(0)) { $0 + WorkoutDistancePolicy.meters(of: $1) }
+            if meters > 0 { components.append("\(Formatters.formatFloat(meters)) m") }
+        }
+        if exercise.trackingTypeSnapshot.usesCalories {
+            let calories = completedSets.compactMap(\.calories).reduce(0, +)
+            if calories > 0 { components.append("\(Formatters.formatFloat(Float(calories))) cal") }
         }
         return components.joined(separator: " · ")
     }

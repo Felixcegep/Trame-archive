@@ -166,13 +166,13 @@ extension ProgramPrescriptionSnapshotService {
             set.prescribedRepetitions = components.reduce(0) { $0 + $1.repetitions }
             set.prescriptionNotes = "Complex: \(components.map { String($0.repetitions) }.joined(separator: "+"))"
         case .duration(let seconds):
-            set.duration = seconds
+            set.duration = definition.separatesPerformedEvidence ? nil : seconds
         case .distance(let meters):
-            set.distance = meters.map { Float($0) }
+            set.distance = definition.separatesPerformedEvidence ? nil : meters.map(Float.init)
             set.distanceType = .meters
         case .calories(let calories):
-            set.calories = calories
-            set.prescribedCalories = calories
+            set.calories = definition.separatesPerformedEvidence ? nil : calories
+            set.prescribedCalories = definition.separatesPerformedEvidence ? nil : calories
         case .open:
             break
         }

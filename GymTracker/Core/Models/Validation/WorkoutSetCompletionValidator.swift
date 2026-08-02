@@ -11,24 +11,33 @@ nonisolated enum WorkoutSetCompletionValidator {
     nonisolated struct Input: Equatable, Sendable {
         let trackingType: TrackingType
         let repetitions: Float
+        let load: Float
         let duration: TimeInterval?
         let distance: Float?
         let calories: Double?
+        let completionRule: MetricCompletionRule?
+        let prescribedMetrics: Set<TrackingMetric>
         let evidenceShape: EvidenceShape
 
         nonisolated init(
             trackingType: TrackingType,
             repetitions: Float,
+            load: Float = 0,
             duration: TimeInterval?,
             distance: Float?,
             calories: Double?,
+            completionRule: MetricCompletionRule? = nil,
+            prescribedMetrics: Set<TrackingMetric> = [],
             evidenceShape: EvidenceShape = .plain
         ) {
             self.trackingType = trackingType
             self.repetitions = repetitions
+            self.load = load
             self.duration = duration
             self.distance = distance
             self.calories = calories
+            self.completionRule = completionRule
+            self.prescribedMetrics = prescribedMetrics
             self.evidenceShape = evidenceShape
         }
     }
@@ -42,9 +51,20 @@ nonisolated enum WorkoutSetCompletionValidator {
 
     nonisolated enum InvalidReason: Equatable, Sendable {
         case missingRepetitions
+        case missingLoad
         case missingDuration
         case missingDistance
         case missingCalories
+
+        nonisolated var metric: TrackingMetric {
+            switch self {
+            case .missingRepetitions: .repetitions
+            case .missingLoad: .load
+            case .missingDuration: .duration
+            case .missingDistance: .distance
+            case .missingCalories: .calories
+            }
+        }
     }
 
     nonisolated enum Result: Equatable, Sendable {
@@ -63,20 +83,77 @@ nonisolated enum WorkoutSetCompletionValidator {
     }
 
     nonisolated static func validate(_ input: Input) -> Result {
-        var reasons: [InvalidReason] = []
-        if input.trackingType.usesReps, input.repetitions <= 0 {
-            reasons.append(.missingRepetitions)
+        switch resolvedRule(for: input) {
+        case .all(let metrics):
+            let reasons = orderedMetrics(in: metrics).compactMap { missingReason(for: $0, input: input) }
+            return reasons.isEmpty ? .valid : .invalid(reasons)
+        case .any(let metrics):
+            let ordered = orderedMetrics(in: metrics)
+            if ordered.contains(where: { missingReason(for: $0, input: input) == nil }) {
+                return .valid
+            }
+            return .invalid(ordered.compactMap { missingReason(for: $0, input: input) })
+        case .prescribedTargets:
+            // `resolvedRule` always resolves this case to a concrete `.all`
+            // rule or the exact legacy default.
+            return validate(Input(
+                trackingType: input.trackingType,
+                repetitions: input.repetitions,
+                load: input.load,
+                duration: input.duration,
+                distance: input.distance,
+                calories: input.calories,
+                completionRule: input.trackingType.capabilityProfile.defaultCompletionRule,
+                evidenceShape: input.evidenceShape
+            ))
         }
-        if input.trackingType.usesDuration, (input.duration ?? 0) <= 0 {
-            reasons.append(.missingDuration)
+    }
+
+    nonisolated static func resolvedRule(for input: Input) -> MetricCompletionRule {
+        let profile = input.trackingType.capabilityProfile
+        guard let authored = input.completionRule else {
+            return profile.defaultCompletionRule
         }
-        if input.trackingType.usesDistance, (input.distance ?? 0) <= 0 {
-            reasons.append(.missingDistance)
+        switch authored {
+        case .all(let metrics):
+            guard !metrics.isEmpty, metrics.isSubset(of: profile.completionWritableMetrics) else {
+                return profile.defaultCompletionRule
+            }
+            return .all(metrics)
+        case .any(let metrics):
+            guard !metrics.isEmpty, metrics.isSubset(of: profile.completionWritableMetrics) else {
+                return profile.defaultCompletionRule
+            }
+            return .any(metrics)
+        case .prescribedTargets:
+            let targets = input.prescribedMetrics.intersection(profile.completionWritableMetrics)
+            guard !targets.isEmpty else { return profile.defaultCompletionRule }
+            return .all(targets)
         }
-        if input.trackingType.usesCalories, (input.calories ?? 0) <= 0 {
-            reasons.append(.missingCalories)
+    }
+
+    nonisolated private static func orderedMetrics(
+        in metrics: Set<TrackingMetric>
+    ) -> [TrackingMetric] {
+        TrackingMetric.allCases.filter(metrics.contains)
+    }
+
+    nonisolated private static func missingReason(
+        for metric: TrackingMetric,
+        input: Input
+    ) -> InvalidReason? {
+        switch metric {
+        case .repetitions: input.repetitions > 0 ? nil : .missingRepetitions
+        case .load: input.load > 0 ? nil : .missingLoad
+        case .duration: (input.duration ?? 0) > 0 ? nil : .missingDuration
+        case .distance: (input.distance ?? 0) > 0 ? nil : .missingDistance
+        case .calories: (input.calories ?? 0) > 0 ? nil : .missingCalories
+        case .meanVelocity, .peakVelocity, .jumpHeight, .contactTime,
+                .throwDistance, .cadence:
+            // Advanced evidence is intentionally not a completion metric until
+            // the active set UI can collect and focus it as a first-class value.
+            return nil
         }
-        return reasons.isEmpty ? .valid : .invalid(reasons)
     }
 }
 
@@ -89,12 +166,18 @@ extension WorkoutSetCompletionValidator.Input {
         case (true, false): evidenceShape = .complex
         case (false, false): evidenceShape = .segmentedComplex
         }
+        let snapshot = set.prescriptionDefinitionData.flatMap {
+            try? JSONDecoder().decode(WorkoutMetricCompletionSnapshot.self, from: $0)
+        }
         self.init(
             trackingType: trackingType,
             repetitions: set.repetitions,
+            load: set.weight,
             duration: set.duration,
             distance: set.distance,
             calories: set.calories,
+            completionRule: snapshot?.completionRule,
+            prescribedMetrics: snapshot?.completionTargetMetrics ?? [],
             evidenceShape: evidenceShape
         )
     }

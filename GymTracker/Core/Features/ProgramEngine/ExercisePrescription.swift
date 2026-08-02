@@ -137,6 +137,14 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
     var progressionEligible: Bool
     var notes: String?
     var velocity: VelocityPrescription?
+    /// Optional authored completion semantics. `nil` preserves the exact
+    /// legacy `TrackingType` rule at execution time.
+    var completionRule: MetricCompletionRule?
+    /// New program prescriptions keep targets in this immutable definition
+    /// snapshot and leave performed duration/distance/calories empty. Legacy
+    /// decoded definitions default to `false` to preserve their prior active
+    /// workout behavior byte-for-byte.
+    var separatesPerformedEvidence: Bool
     /// Defers a back-off set until its top-set or daily-maximum load reference
     /// exists in the active workout. Existing explicit back-off sets retain
     /// their current eager snapshot behavior.
@@ -156,6 +164,8 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         progressionEligible: Bool = true,
         notes: String? = nil,
         velocity: VelocityPrescription? = nil,
+        completionRule: MetricCompletionRule? = nil,
+        separatesPerformedEvidence: Bool = true,
         generatesAfterSourceCompletion: Bool = false
     ) {
         self.id = id
@@ -171,13 +181,16 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         self.progressionEligible = progressionEligible
         self.notes = notes
         self.velocity = velocity
+        self.completionRule = completionRule
+        self.separatesPerformedEvidence = separatesPerformedEvidence
         self.generatesAfterSourceCompletion = generatesAfterSourceCompletion
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, orderIndex, role, repetitions, load, targetRPE, targetRIR
         case restSeconds, tempo, isOptional, progressionEligible, notes
-        case generatesAfterSourceCompletion, velocity
+        case generatesAfterSourceCompletion, velocity, completionRule
+        case separatesPerformedEvidence, completionTargetMetrics
     }
 
     /// Program definitions predate deferred back-off generation. Decode its
@@ -198,10 +211,96 @@ nonisolated struct SetPrescriptionDefinition: Codable, Hashable, Identifiable {
         progressionEligible = try values.decode(Bool.self, forKey: .progressionEligible)
         notes = try values.decodeIfPresent(String.self, forKey: .notes)
         velocity = try values.decodeIfPresent(VelocityPrescription.self, forKey: .velocity)
+        completionRule = try values.decodeIfPresent(MetricCompletionRule.self, forKey: .completionRule)
+        separatesPerformedEvidence = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .separatesPerformedEvidence
+        ) ?? false
         generatesAfterSourceCompletion = try values.decodeIfPresent(
             Bool.self,
             forKey: .generatesAfterSourceCompletion
         ) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(id, forKey: .id)
+        try values.encode(orderIndex, forKey: .orderIndex)
+        try values.encode(role, forKey: .role)
+        try values.encode(repetitions, forKey: .repetitions)
+        try values.encode(load, forKey: .load)
+        try values.encodeIfPresent(targetRPE, forKey: .targetRPE)
+        try values.encodeIfPresent(targetRIR, forKey: .targetRIR)
+        try values.encodeIfPresent(restSeconds, forKey: .restSeconds)
+        try values.encodeIfPresent(tempo, forKey: .tempo)
+        try values.encode(isOptional, forKey: .isOptional)
+        try values.encode(progressionEligible, forKey: .progressionEligible)
+        try values.encodeIfPresent(notes, forKey: .notes)
+        try values.encodeIfPresent(velocity, forKey: .velocity)
+        try values.encodeIfPresent(completionRule, forKey: .completionRule)
+        try values.encode(separatesPerformedEvidence, forKey: .separatesPerformedEvidence)
+        try values.encode(prescribedCompletionMetrics, forKey: .completionTargetMetrics)
+        try values.encode(generatesAfterSourceCompletion, forKey: .generatesAfterSourceCompletion)
+    }
+
+    /// Metrics with an explicit target in this set recipe. This is encoded as
+    /// a small compatibility projection so the extension can resolve
+    /// `.prescribedTargets` without depending on the app-only program engine.
+    var prescribedCompletionMetrics: Set<TrackingMetric> {
+        var metrics: Set<TrackingMetric>
+        switch repetitions {
+        case .fixed, .range, .amrap, .sequence:
+            metrics = [.repetitions]
+        case .duration:
+            metrics = [.duration]
+        case .distance:
+            metrics = [.distance]
+        case .calories:
+            metrics = [.calories]
+        case .open:
+            metrics = []
+        }
+        if hasPrescribedLoadTarget {
+            metrics.insert(.load)
+        }
+        return metrics
+    }
+
+    private var hasPrescribedLoadTarget: Bool {
+        load.fixedValue != nil
+            || load.percentage != nil
+            || load.reference.kind != .manual
+    }
+}
+
+extension ExerciseSet {
+    /// The immutable effective program prescription carried by this performed
+    /// row. A missing or legacy payload stays absent rather than inventing a
+    /// target from performed evidence.
+    var programSetPrescription: SetPrescriptionDefinition? {
+        prescriptionDefinitionData.flatMap {
+            try? JSONDecoder().decode(SetPrescriptionDefinition.self, from: $0)
+        }
+    }
+
+    var prescribedDurationSecondsSnapshot: Double? {
+        guard case .duration(let seconds) = programSetPrescription?.repetitions else { return nil }
+        return seconds
+    }
+
+    var prescribedDistanceMetersSnapshot: Double? {
+        guard case .distance(let meters) = programSetPrescription?.repetitions else { return nil }
+        return meters
+    }
+
+    var prescribedCaloriesSnapshot: Double? {
+        if let prescribedCalories { return prescribedCalories }
+        guard case .calories(let calories) = programSetPrescription?.repetitions else { return nil }
+        return calories
+    }
+
+    var separatesProgramPerformedEvidence: Bool {
+        programSetPrescription?.separatesPerformedEvidence == true
     }
 }
 

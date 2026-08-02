@@ -24,6 +24,7 @@ enum SetRowPreparation {
         in exerciseEntry: ExerciseEntry
     ) -> Bool {
         guard !exerciseSet.done,
+              !exerciseSet.separatesProgramPerformedEvidence,
               exerciseEntry.trackingTypeSnapshot.usesDuration,
               (exerciseSet.duration ?? 0) <= 0 else { return false }
         let prescribedSeconds = exerciseEntry.prescribedRepRangeMaximum

@@ -106,6 +106,13 @@ enum ProgramDefinitionCompiler {
         guard trackingIssues.isEmpty else {
             throw ProgramDefinitionStoreError.invalid(trackingIssues.map(\.asProgramValidationIssue))
         }
+        let metricIssues = ProgramMetricCompletionValidator.validate(
+            payload: definition,
+            exercisesByID: exercisesByID
+        )
+        guard metricIssues.isEmpty else {
+            throw ProgramDefinitionStoreError.invalid(metricIssues)
+        }
 
         var blocks: [PlanBlock] = []
         for blockDefinition in definition.blocks.sorted(by: { $0.orderIndex < $1.orderIndex }) {

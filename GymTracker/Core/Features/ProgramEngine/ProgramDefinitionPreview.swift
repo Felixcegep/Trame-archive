@@ -17,6 +17,7 @@ nonisolated struct ProgramDefinitionPreviewSet: Hashable, Identifiable {
     let progressionEligible: Bool
     let restSeconds: Int?
     let isOptional: Bool
+    let completionRule: MetricCompletionRule?
     /// A source-based back-off is a future conditional row, not a set shown
     /// at workout start. The preview must make that timing explicit.
     let generatesAfterSourceCompletion: Bool
@@ -116,6 +117,7 @@ nonisolated enum ProgramDefinitionPreview {
                                     progressionEligible: definition.progressionEligible,
                                     restSeconds: definition.restSeconds,
                                     isOptional: definition.isOptional,
+                                    completionRule: definition.completionRule,
                                     generatesAfterSourceCompletion: definition.generatesAfterSourceCompletion
                                 )
                             }

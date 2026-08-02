@@ -468,8 +468,25 @@ struct ExerciseEntryCard: View {
     private var prescriptionSummary: String? {
         if trackingType.usesCalories,
            let setCount = exerciseEntry.prescribedSets,
-           let calories = exerciseEntry.orderedSets.first?.prescribedCalories ?? exerciseEntry.orderedSets.first?.calories {
+           let calories = exerciseEntry.orderedSets.first?.prescribedCaloriesSnapshot {
             return "\(setCount) × \(Formatters.formatFloat(Float(calories))) cal"
+        }
+
+        if trackingType.usesDuration,
+           let setCount = exerciseEntry.prescribedSets,
+           let seconds = exerciseEntry.orderedSets.first?.prescribedDurationSecondsSnapshot {
+            var summary = "\(setCount) × \(Int(seconds)) sec"
+            if trackingType.usesDistance,
+               let meters = exerciseEntry.orderedSets.first?.prescribedDistanceMetersSnapshot {
+                summary += " · \(Formatters.formatFloat(Float(meters))) m"
+            }
+            return summary
+        }
+
+        if trackingType.usesDistance,
+           let setCount = exerciseEntry.prescribedSets,
+           let meters = exerciseEntry.orderedSets.first?.prescribedDistanceMetersSnapshot {
+            return "\(setCount) × \(Formatters.formatFloat(Float(meters))) m"
         }
 
         guard let setCount = exerciseEntry.prescribedSets,

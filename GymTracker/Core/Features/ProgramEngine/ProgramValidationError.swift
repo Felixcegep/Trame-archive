@@ -32,6 +32,7 @@ nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case invalidRPE
         case invalidRIR
         case invalidPrescriptionValue
+        case invalidCompletionRule
         case invalidLoadReference
         case invalidPercentage
         case invalidFormula
@@ -221,6 +222,7 @@ nonisolated enum ProgramDefinitionValidator {
                             if set.orderIndex < 0 { add("\(setPath).orderIndex", .invalidSetOrder, "Set order must not be negative.") }
                             if !setOrders.insert(set.orderIndex).inserted { add("\(setPath).orderIndex", .invalidSetOrder, "Set order indices must be unique within an exercise.") }
                             validateRep(set.repetitions, setPath, add)
+                            validateCompletionRule(set, setPath, add)
                             if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
                             if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
                             if let rir = set.targetRIR, rir < 0 || rir > 10 { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
@@ -258,6 +260,7 @@ nonisolated enum ProgramDefinitionValidator {
                                     if set.orderIndex < 0 { add("\(setPath).orderIndex", .invalidSetOrder, "Set order must not be negative.") }
                                     if !waveSetOrders.insert(set.orderIndex).inserted { add("\(setPath).orderIndex", .invalidSetOrder, "Set order indices must be unique within a wave.") }
                                     validateRep(set.repetitions, setPath, add)
+                                    validateCompletionRule(set, setPath, add)
                                     if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
                                     if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
                                     if let rir = set.targetRIR, rir < 0 || rir > 10 { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
@@ -481,10 +484,48 @@ nonisolated enum ProgramDefinitionValidator {
                 add("\(setPath).orderIndex", .invalidSetOrder, "Stage set order indices must be non-negative and unique.")
             }
             validateRep(set.repetitions, setPath, add)
+            validateCompletionRule(set, setPath, add)
             if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
             if let rpe = set.targetRPE, !(0...10).contains(rpe) { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
             if let rir = set.targetRIR, !(0...10).contains(rir) { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
             validateLoad(set.load, "\(setPath).load", add)
+        }
+    }
+
+    private static func validateCompletionRule(
+        _ set: SetPrescriptionDefinition,
+        _ path: String,
+        _ add: (String, ProgramValidationIssue.Code, String) -> Void
+    ) {
+        guard let rule = set.completionRule else { return }
+        switch rule {
+        case .all(let metrics), .any(let metrics):
+            if metrics.isEmpty {
+                add(
+                    "\(path).completionRule",
+                    .invalidCompletionRule,
+                    "A metric completion rule must include at least one metric."
+                )
+            }
+            let unsupported = metrics.subtracting(TrackingMetric.completionWritable)
+            if !unsupported.isEmpty {
+                let names = unsupported.sorted { $0.rawValue < $1.rawValue }
+                    .map(\.title)
+                    .joined(separator: ", ")
+                add(
+                    "\(path).completionRule",
+                    .invalidCompletionRule,
+                    "These metrics cannot currently require set completion: \(names)."
+                )
+            }
+        case .prescribedTargets:
+            if set.prescribedCompletionMetrics.isEmpty {
+                add(
+                    "\(path).completionRule",
+                    .invalidCompletionRule,
+                    "Prescribed-target completion requires at least one explicit repetition, load, duration, distance, or calorie target."
+                )
+            }
         }
     }
 

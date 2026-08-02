@@ -88,7 +88,28 @@ struct ProgramDefinitionPayloadPreviewView: View {
         if let rpe = set.targetRPE { text += " · RPE \(rpe)" }
         if let rir = set.targetRIR { text += " · RIR \(rir)" }
         if let tempo = set.tempo { text += " · Tempo \(tempo)" }
+        if let completionRule = set.completionRule {
+            text += " · \(completionText(completionRule))"
+        }
         return text
+    }
+
+    private func completionText(_ rule: MetricCompletionRule) -> String {
+        switch rule {
+        case .all(let metrics):
+            return "requires " + metricNames(metrics, conjunction: "and")
+        case .any(let metrics):
+            return "requires " + metricNames(metrics, conjunction: "or")
+        case .prescribedTargets:
+            return "requires all prescribed targets"
+        }
+    }
+
+    private func metricNames(_ metrics: Set<TrackingMetric>, conjunction: String) -> String {
+        let names = TrackingMetric.allCases.filter(metrics.contains).map { $0.title.lowercased() }
+        guard let last = names.last else { return "a tracked value" }
+        guard names.count > 1 else { return last }
+        return "\(names.dropLast().joined(separator: ", ")) \(conjunction) \(last)"
     }
 
     private func transitionText(_ transition: ProgramDefinitionPreviewTransition) -> String {

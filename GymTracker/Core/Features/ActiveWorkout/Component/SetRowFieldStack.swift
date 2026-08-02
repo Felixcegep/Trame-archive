@@ -142,7 +142,7 @@ struct SetRowFieldStack: View {
     }
 
     private var distanceField: some View {
-        valueButton(.distance, unit: distanceMeasurement?.unit.symbol)
+        valueButton(.distance, unit: distanceMeasurement?.unit.symbol ?? preferredDistanceUnit.symbol)
     }
 
     private func storedText(for field: SetInputFocus.Field) -> String {
@@ -170,11 +170,16 @@ struct SetRowFieldStack: View {
         case .weight:
             return previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? prescribedWeightPrompt
         case .duration:
-            return previousSet?.duration.map { String(Int($0)) } ?? "\u{2014}"
+            return previousSet?.duration.map { String(Int($0)) }
+                ?? exerciseSet.prescribedDurationSecondsSnapshot.map { String(Int($0)) }
+                ?? "\u{2014}"
         case .distance:
-            return previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) } ?? "\u{2014}"
+            return previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) }
+                ?? prescribedDistancePrompt
         case .calories:
-            return previousSet?.calories.map { Formatters.formatFloat(Float($0)) } ?? "\u{2014}"
+            return previousSet?.calories.map { Formatters.formatFloat(Float($0)) }
+                ?? exerciseSet.prescribedCaloriesSnapshot.map { Formatters.formatFloat(Float($0)) }
+                ?? "\u{2014}"
         }
     }
 
@@ -276,7 +281,8 @@ struct SetRowFieldStack: View {
 
     private var preferredDistanceUnit: DistanceType {
         WorkoutDistancePolicy.preferredDisplayUnit(
-            forMeters: WorkoutDistancePolicy.meters(of: exerciseSet),
+            forMeters: exerciseSet.prescribedDistanceMetersSnapshot.map(Float.init)
+                ?? WorkoutDistancePolicy.meters(of: exerciseSet),
             system: UserDefaults.standard.unitSystem
         )
     }
@@ -294,5 +300,18 @@ struct SetRowFieldStack: View {
             for: exerciseEntry.exercise
         )
         return Formatters.formatFloat(converted)
+    }
+
+    private var prescribedDistancePrompt: String {
+        guard let meters = exerciseSet.prescribedDistanceMetersSnapshot else {
+            return "\u{2014}"
+        }
+        let unit = WorkoutDistancePolicy.preferredDisplayUnit(
+            forMeters: Float(meters),
+            system: UserDefaults.standard.unitSystem
+        )
+        return Formatters.formatFloat(
+            UnitConversion.distance(Float(meters), from: .meters, to: unit)
+        )
     }
 }

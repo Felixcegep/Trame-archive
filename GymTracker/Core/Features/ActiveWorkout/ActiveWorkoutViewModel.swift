@@ -832,7 +832,10 @@ class ActiveWorkoutViewModel {
     func completeSet(_ set: ExerciseSet, in exercise: ExerciseEntry) -> SetCompletionOutcome {
         let isCompleting = !set.done
         let fields = SetInputCoordinator.inputFields(for: exercise.trackingTypeSnapshot)
-        let firstField = fields.first ?? .repetitions
+        let firstField = SetInputCoordinator.firstMissingField(
+            in: set,
+            for: exercise.trackingTypeSnapshot
+        )
 
         if isCompleting, !canComplete(set, for: exercise) {
             activeLoggingMetrics?.setCompletionBlocked()
