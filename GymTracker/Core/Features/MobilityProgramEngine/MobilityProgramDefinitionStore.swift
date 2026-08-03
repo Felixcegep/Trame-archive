@@ -121,7 +121,7 @@ enum MobilityProgramCompiler {
         try validateCatalogReferences(in: session, mobilityDefinitionsByID: mobilityDefinitionsByID)
 
         let routine = MobilityRoutine(
-            name: uniqueCompiledRoutineName(program: program, session: session),
+            name: uniqueCompiledRoutineName(program: program, session: session, in: context),
             purpose: nil,
             id: UUID(),
             createdAt: now,
@@ -229,16 +229,30 @@ enum MobilityProgramCompiler {
         }
     }
 
-    /// `MobilityRoutine.name` is `@Attribute(.unique)` across every routine
-    /// in the store, including standalone user-authored ones. Two compiles of
-    /// the same session (a second run, a rescheduled week with an identical
-    /// session name) must never collide, so a fresh UUID fragment is folded
-    /// into the name rather than trusting authored names to be unique.
+    /// `MobilityRoutine.name` is `@Attribute(.unique)` across every routine in
+    /// the store, including standalone user-authored ones. Two compiles of the
+    /// same session (a second run, a rescheduled week with an identical session
+    /// name) must never collide.
+    ///
+    /// The name is user-visible in the routine library, so uniqueness is
+    /// resolved the way the rest of the platform resolves it — a readable base
+    /// name, disambiguated with a counted suffix only when that exact name is
+    /// already taken. A UUID fragment would guarantee uniqueness too, but it
+    /// would put opaque identifiers in front of the user on every compiled
+    /// session.
     private static func uniqueCompiledRoutineName(
         program: MobilityProgramDefinitionPayload,
-        session: MobilityPlannedSessionDefinition
+        session: MobilityPlannedSessionDefinition,
+        in context: ModelContext
     ) -> String {
-        "\(program.name) — \(session.name) (\(UUID().uuidString.prefix(8)))"
+        let base = "\(program.name) — \(session.name)"
+        let taken = Set(
+            ((try? context.fetch(FetchDescriptor<MobilityRoutine>())) ?? []).map(\.name)
+        )
+        guard taken.contains(base) else { return base }
+        var suffix = 2
+        while taken.contains("\(base) (\(suffix))") { suffix += 1 }
+        return "\(base) (\(suffix))"
     }
 
     private static func representativeInt(_ target: MobilityIntTarget?) -> Int? {
