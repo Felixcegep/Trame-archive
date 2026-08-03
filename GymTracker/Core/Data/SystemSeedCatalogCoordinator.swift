@@ -63,6 +63,18 @@ enum SystemSeedCatalogCoordinator {
             saveChanges: false
         )
         report += try registerPrograms(in: context, registry: registry)
+
+        // Mirrors the workout program library seeding immediately above. No
+        // mobility programs ship yet; `seedBundledCatalog` returns zero
+        // imports when `MobilityProgramLibrary.json` is absent, so this stays
+        // a no-op — but idempotent and ready — until a later slice adds the
+        // resource.
+        _ = try MobilityProgramLibrarySeedData.seedBundledCatalog(
+            in: context,
+            bundle: bundle,
+            saveChanges: false
+        )
+        report += try registerMobilityPrograms(in: context, registry: registry)
 #endif
 
         try MobilitySeedData.stage(using: context, registry: registry)
@@ -293,6 +305,31 @@ enum SystemSeedCatalogCoordinator {
             try registry.register(
                 key: key,
                 kind: .programDefinition,
+                entityID: definition.id,
+                seedVersion: seedVersion,
+                // Manifest content version tracks the bundled catalogue as a
+                // whole. The program's own template version remains on its
+                // definition record and is not a manifest version.
+                contentVersion: contentVersion,
+                sourceKind: existed ? .bundled : .migratedLegacy
+            )
+            if existed { report.updated += 1 } else { report.adopted += 1 }
+        }
+        return report
+    }
+
+    private static func registerMobilityPrograms(
+        in context: ModelContext,
+        registry: SystemSeedRegistry
+    ) throws -> SystemSeedInstallReport {
+        let records = try context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>()).filter(\.isBuiltIn)
+        var report = SystemSeedInstallReport()
+        for definition in records {
+            let key = "mobility-program.\(definition.programKey.lowercased())"
+            let existed = try registry.record(for: key, expectedKind: .mobilityProgramDefinition) != nil
+            try registry.register(
+                key: key,
+                kind: .mobilityProgramDefinition,
                 entityID: definition.id,
                 seedVersion: seedVersion,
                 // Manifest content version tracks the bundled catalogue as a
