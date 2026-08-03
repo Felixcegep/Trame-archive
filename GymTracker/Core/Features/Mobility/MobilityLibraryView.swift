@@ -891,6 +891,7 @@ private struct MobilityRoutineItemEditorRow: View {
     @State private var assistanceLevel: Int?
     @State private var assistanceEquipment = ""
     @State private var supportLevel: MobilitySupportLevel?
+    @State private var completionRuleSelection = "legacy"
     @State private var isLoadingEvidence = true
 
     init(item: MobilityRoutineItem) {
@@ -923,6 +924,52 @@ private struct MobilityRoutineItemEditorRow: View {
                     Text("Not specified").tag(MobilityTrainingPurpose?.none)
                     ForEach(MobilityTrainingPurpose.allCases) { purpose in
                         Text(purpose.displayName).tag(MobilityTrainingPurpose?.some(purpose))
+                    }
+                }
+
+                if item.orderedPhases.isEmpty {
+                    Picker("Completion requires", selection: $completionRuleSelection) {
+                        Text("Movement measure").tag("legacy")
+                        Text("All prescribed measures").tag("prescribed")
+                        if breathingTarget != nil {
+                            Text("Breathing cycles").tag("breathing")
+                        }
+                    }
+                }
+
+                Toggle("External load", isOn: Binding(
+                    get: { item.targetLoadValue != nil },
+                    set: { enabled in
+                        item.targetLoadValue = enabled ? 5 : nil
+                        item.targetLoadUnit = enabled ? (item.targetLoadUnit ?? .kilograms) : nil
+                        save()
+                        saveMetricEvidence()
+                    }
+                ))
+                if item.targetLoadValue != nil {
+                    Stepper(
+                        "Target load: \((item.targetLoadValue ?? 0).formatted(.number.precision(.fractionLength(0...2))))",
+                        value: Binding(
+                            get: { item.targetLoadValue ?? 0 },
+                            set: {
+                                item.targetLoadValue = $0
+                                save()
+                                saveMetricEvidence()
+                            }
+                        ),
+                        in: 0.5...1000,
+                        step: 0.5
+                    )
+                    Picker("Load unit", selection: Binding(
+                        get: { item.targetLoadUnit ?? .kilograms },
+                        set: {
+                            item.targetLoadUnit = $0
+                            save()
+                        }
+                    )) {
+                        ForEach(MobilityLoadUnit.allCases, id: \.self) { unit in
+                            Text(unit.abbreviation).tag(unit)
+                        }
                     }
                 }
 
@@ -971,6 +1018,7 @@ private struct MobilityRoutineItemEditorRow: View {
         .onChange(of: assistanceLevel) { _, _ in saveEvidence() }
         .onChange(of: assistanceEquipment) { _, _ in saveEvidence() }
         .onChange(of: supportLevel) { _, _ in saveEvidence() }
+        .onChange(of: completionRuleSelection) { _, _ in saveMetricEvidence() }
         .onAppear {
             let evidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)[item.id]
             method = evidence?.method
@@ -986,6 +1034,7 @@ private struct MobilityRoutineItemEditorRow: View {
             assistanceLevel = evidence?.assistancePrescription?.level
             assistanceEquipment = evidence?.assistancePrescription?.equipmentRaw ?? ""
             supportLevel = evidence?.supportLevel
+            completionRuleSelection = completionSelection(for: evidence?.metricProfile)
             Task { @MainActor in
                 await Task.yield()
                 isLoadingEvidence = false
@@ -994,11 +1043,25 @@ private struct MobilityRoutineItemEditorRow: View {
     }
 
     private var durationBinding: Binding<Int> {
-        Binding(get: { item.targetDurationSeconds ?? item.definition.defaultDurationSeconds ?? 30 }, set: { item.targetDurationSeconds = $0; save() })
+        Binding(
+            get: { item.targetDurationSeconds ?? item.definition.defaultDurationSeconds ?? 30 },
+            set: {
+                item.targetDurationSeconds = $0
+                save()
+                saveMetricEvidence()
+            }
+        )
     }
 
     private var repetitionsBinding: Binding<Int> {
-        Binding(get: { item.targetRepetitions ?? item.definition.defaultRepetitions ?? 8 }, set: { item.targetRepetitions = $0; save() })
+        Binding(
+            get: { item.targetRepetitions ?? item.definition.defaultRepetitions ?? 8 },
+            set: {
+                item.targetRepetitions = $0
+                save()
+                saveMetricEvidence()
+            }
+        )
     }
 
     private func save() { _ = modelContext.saveOrRollback() }
@@ -1053,6 +1116,64 @@ private struct MobilityRoutineItemEditorRow: View {
                 )
             },
             supportLevel: supportLevel,
+            using: modelContext
+        )
+        saveMetricEvidence()
+    }
+
+    private func completionSelection(for profile: MobilityMetricProfile?) -> String {
+        guard let profile else { return "legacy" }
+        switch profile.defaultCompletionRule {
+        case .prescribedTargets:
+            return "prescribed"
+        case .all(let metrics) where metrics == [.breathingCycles]:
+            return "breathing"
+        default:
+            return "legacy"
+        }
+    }
+
+    private func saveMetricEvidence() {
+        guard isLoadingEvidence == false else { return }
+        let baseMetric: MobilityMetric = item.definition.trackingType == .duration
+            ? .duration : .repetitions
+        var supported: Set<MobilityMetric> = [baseMetric]
+        if item.targetLoadValue != nil { supported.insert(.load) }
+        if breathingTarget != nil { supported.insert(.breathingCycles) }
+
+        let profile: MobilityMetricProfile?
+        switch completionRuleSelection {
+        case "prescribed":
+            profile = MobilityMetricProfile(
+                supportedMetrics: supported,
+                defaultCompletionRule: .prescribedTargets,
+                primaryProgressMetric: baseMetric
+            )
+        case "breathing" where breathingTarget != nil:
+            profile = MobilityMetricProfile(
+                supportedMetrics: supported,
+                defaultCompletionRule: .all([.breathingCycles]),
+                primaryProgressMetric: .breathingCycles
+            )
+        default:
+            profile = nil
+        }
+        let targets = MobilityMetricTargets(
+            durationSeconds: item.definition.trackingType == .duration
+                ? (item.targetDurationSeconds ?? item.definition.defaultDurationSeconds)
+                    .map(MobilityIntTarget.exact)
+                : nil,
+            repetitions: item.definition.trackingType == .repetitions
+                ? (item.targetRepetitions ?? item.definition.defaultRepetitions)
+                    .map(MobilityIntTarget.exact)
+                : nil,
+            load: item.targetLoadValue.map(MobilityDoubleTarget.exact),
+            breathingCycles: breathingTarget.map(MobilityIntTarget.exact)
+        )
+        _ = MobilityEvidenceService.upsertMetricPrescription(
+            for: item.id,
+            profile: profile,
+            targets: profile == nil ? nil : targets,
             using: modelContext
         )
     }

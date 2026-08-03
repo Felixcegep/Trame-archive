@@ -59,6 +59,8 @@ struct MobilitySessionView: View {
 
     @State private var durationsByResult: [UUID: Int] = [:]
     @State private var repetitionsByResult: [UUID: Int] = [:]
+    @State private var loadsByResult: [UUID: Double] = [:]
+    @State private var loadUnitsByResult: [UUID: String] = [:]
     @State private var intensitiesByResult: [UUID: Int] = [:]
     @State private var discomfortNotesByResult: [UUID: String] = [:]
     @State private var sensationsByResult: [UUID: String] = [:]
@@ -66,6 +68,7 @@ struct MobilitySessionView: View {
     @State private var compensationsByResult: [UUID: Set<MobilityCompensationKey>] = [:]
     @State private var breathingCyclesByResult: [UUID: Int] = [:]
     @State private var assistanceLevelsByResult: [UUID: Int] = [:]
+    @State private var editedAssistanceResultIDs: Set<UUID> = []
     @State private var supportLevelsByResult: [UUID: String] = [:]
     @State private var phaseDurationsByResult: [UUID: Int] = [:]
     @State private var phaseIntensityByResult: [UUID: String] = [:]
@@ -224,6 +227,12 @@ struct MobilitySessionView: View {
                 .font(AppFont.subheadlineSemibold)
                 .foregroundStyle(Color.gymPrimary)
             }
+            if let load = entry.prescribedLoadValue,
+               let unit = entry.prescribedLoadUnit {
+                Text("Target load: \(load.formatted(.number.precision(.fractionLength(0...2)))) \(unit.abbreviation)")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -313,6 +322,30 @@ struct MobilitySessionView: View {
                             in: 0...100
                         )
                         .accessibilityIdentifier("mobility-repetitions-\(result.side.rawValue)")
+                    }
+
+                    if requiresLoadInput(resultID: result.id, entry: entry) {
+                        Stepper(
+                            "Performed load: \(loadsByResult[result.id, default: 0].formatted(.number.precision(.fractionLength(0...2))))",
+                            value: Binding(
+                                get: { loadsByResult[result.id] ?? 0 },
+                                set: { loadsByResult[result.id] = $0 }
+                            ),
+                            in: 0...1000,
+                            step: 0.5
+                        )
+                        .accessibilityIdentifier("mobility-load-\(result.side.rawValue)")
+
+                        Picker("Load unit", selection: Binding(
+                            get: { loadUnitsByResult[result.id] ?? entry.prescribedLoadUnit?.rawValue ?? "" },
+                            set: { loadUnitsByResult[result.id] = $0 }
+                        )) {
+                            Text("Select unit").tag("")
+                            ForEach(MobilityLoadUnit.allCases, id: \.self) { unit in
+                                Text(unit.abbreviation).tag(unit.rawValue)
+                            }
+                        }
+                        .accessibilityIdentifier("mobility-load-unit-\(result.side.rawValue)")
                     }
 
                     Picker("Perceived intensity", selection: intensityBinding(for: result)) {
@@ -552,7 +585,12 @@ struct MobilitySessionView: View {
         case .repetitions:
             value = "\(result.performedRepetitions ?? 0) reps"
         }
-        return "\(prefix) \(value)"
+        let load = result.performedLoadValue.flatMap { performedLoad in
+            result.performedLoadUnit.map {
+                "\(performedLoad.formatted(.number.precision(.fractionLength(0...2)))) \($0.abbreviation)"
+            }
+        }
+        return ["\(prefix) \(value)", load].compactMap { $0 }.joined(separator: " · ")
     }
 
     private func entryAccessibilityLabel(_ entry: MobilityEntry) -> String {
@@ -584,7 +622,13 @@ struct MobilitySessionView: View {
             ($0.id, $0.performedDurationSeconds ?? elapsedSeconds(for: entry))
         })
         repetitionsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
-            ($0.id, $0.performedRepetitions ?? entry.targetRepetitions ?? 0)
+            ($0.id, $0.performedRepetitions ?? 0)
+        })
+        loadsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
+            ($0.id, $0.performedLoadValue ?? 0)
+        })
+        loadUnitsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
+            ($0.id, $0.performedLoadUnitRaw ?? entry.prescribedLoadUnitRaw ?? "")
         })
         intensitiesByResult = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.id, $0.perceivedIntensity ?? 0) })
         discomfortNotesByResult = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.id, $0.discomfortNote ?? "") })
@@ -600,15 +644,18 @@ struct MobilitySessionView: View {
         })
         breathingCyclesByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
             let record = evidence[$0.id]
-            return ($0.id, record?.performedBreathingCycles ?? record?.breathingPrescriptionSnapshot?.targetBreaths ?? 0)
+            return ($0.id, record?.performedBreathingCycles ?? 0)
         })
         assistanceLevelsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
             let record = evidence[$0.id]
-            return ($0.id, record?.performedAssistanceLevel ?? record?.assistancePrescriptionSnapshot?.level ?? 0)
+            return ($0.id, record?.performedAssistanceLevel ?? 0)
+        })
+        editedAssistanceResultIDs = Set(entry.results.compactMap {
+            evidence[$0.id]?.performedAssistanceLevel == nil ? nil : $0.id
         })
         supportLevelsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
             let record = evidence[$0.id]
-            return ($0.id, record?.performedSupportLevelRaw ?? record?.supportLevelSnapshotRaw ?? "")
+            return ($0.id, record?.performedSupportLevelRaw ?? "")
         })
         if let phase = entry.currentPhaseResult {
             phaseDurationsByResult = [
@@ -627,7 +674,10 @@ struct MobilitySessionView: View {
             resultInputs: currentResultInputs,
             using: modelContext
         ) else {
-            error = ValidationIssue(severity: .error, message: "The movement could not be saved. Try again.")
+            error = ValidationIssue(
+                severity: .error,
+                message: "Enter each required performed value before completing this movement."
+            )
             return
         }
         if session.status != .active { onFinished() }
@@ -780,8 +830,12 @@ struct MobilitySessionView: View {
             (
                 result.id,
                 MobilityResultInput(
-                    performedDurationSeconds: entry.trackingType == .duration ? durationsByResult[result.id] : nil,
-                    performedRepetitions: entry.trackingType == .repetitions ? repetitionsByResult[result.id] : nil,
+                    performedDurationSeconds: entry.trackingType == .duration
+                        ? positiveValue(durationsByResult[result.id]) : nil,
+                    performedRepetitions: entry.trackingType == .repetitions
+                        ? positiveValue(repetitionsByResult[result.id]) : nil,
+                    performedLoadValue: performedLoadValue(for: result.id),
+                    performedLoadUnit: performedLoadUnit(for: result.id),
                     perceivedIntensity: intensitiesByResult[result.id] == 0 ? nil : intensitiesByResult[result.id],
                     discomfortNote: discomfortNotesByResult[result.id],
                     sensation: sensationsByResult[result.id].flatMap(MobilitySensation.init(rawValue:)),
@@ -858,11 +912,11 @@ struct MobilitySessionView: View {
             || evidence?.supportLevelSnapshot != nil {
             DisclosureGroup("Setup and breathing") {
                 if let breathing = evidence?.breathingPrescriptionSnapshot {
-                    if let targetBreaths = breathing.targetBreaths {
+                    if breathing.targetBreaths != nil {
                         Stepper(
-                            "Breathing cycles: \(breathingCyclesByResult[resultID, default: targetBreaths])",
+                            "Breathing cycles: \(breathingCyclesByResult[resultID, default: 0])",
                             value: Binding(
-                                get: { breathingCyclesByResult[resultID] ?? targetBreaths },
+                                get: { breathingCyclesByResult[resultID] ?? 0 },
                                 set: { breathingCyclesByResult[resultID] = $0 }
                             ),
                             in: 0...100
@@ -877,12 +931,15 @@ struct MobilitySessionView: View {
                 if let assistance = evidence?.assistancePrescriptionSnapshot {
                     Text(assistance.assistanceType?.displayName ?? assistance.assistanceTypeRaw)
                         .font(AppFont.subheadlineSemibold)
-                    if let prescribedLevel = assistance.level {
+                    if assistance.level != nil {
                         Stepper(
-                            "Assistance level: \(assistanceLevelsByResult[resultID, default: prescribedLevel])",
+                            "Assistance level: \(assistanceLevelsByResult[resultID, default: 0])",
                             value: Binding(
-                                get: { assistanceLevelsByResult[resultID] ?? prescribedLevel },
-                                set: { assistanceLevelsByResult[resultID] = $0 }
+                                get: { assistanceLevelsByResult[resultID] ?? 0 },
+                                set: {
+                                    assistanceLevelsByResult[resultID] = $0
+                                    editedAssistanceResultIDs.insert(resultID)
+                                }
                             ),
                             in: 0...10
                         )
@@ -1015,11 +1072,33 @@ struct MobilitySessionView: View {
 
     private func breathingCyclesValue(for resultID: UUID) -> Int? {
         guard mobilityEvidenceByResultID[resultID]?.breathingPrescriptionSnapshot?.targetBreaths != nil else { return nil }
-        return breathingCyclesByResult[resultID]
+        return positiveValue(breathingCyclesByResult[resultID])
+    }
+
+    private func requiresLoadInput(resultID: UUID, entry: MobilityEntry) -> Bool {
+        entry.prescribedLoadValue != nil
+            || mobilityEvidenceByResultID[resultID]?.metricProfileSnapshot?
+                .supportedMetrics.contains(.load) == true
+    }
+
+    private func performedLoadValue(for resultID: UUID) -> Double? {
+        guard let value = loadsByResult[resultID], value > 0 else { return nil }
+        return value
+    }
+
+    private func performedLoadUnit(for resultID: UUID) -> MobilityLoadUnit? {
+        guard performedLoadValue(for: resultID) != nil else { return nil }
+        return loadUnitsByResult[resultID].flatMap(MobilityLoadUnit.init(rawValue:))
     }
 
     private func assistanceLevelValue(for resultID: UUID) -> Int? {
-        guard mobilityEvidenceByResultID[resultID]?.assistancePrescriptionSnapshot?.level != nil else { return nil }
+        guard mobilityEvidenceByResultID[resultID]?.assistancePrescriptionSnapshot?.level != nil,
+              editedAssistanceResultIDs.contains(resultID) else { return nil }
         return assistanceLevelsByResult[resultID]
+    }
+
+    private func positiveValue(_ value: Int?) -> Int? {
+        guard let value, value > 0 else { return nil }
+        return value
     }
 }

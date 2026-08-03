@@ -765,10 +765,14 @@ enum MobilitySessionService {
         evidence: MobilityRoutineItemEvidence?
     ) -> MobilityMetricTargets {
         var targets = MobilityMetricTargets(
-            durationSeconds: (item.targetDurationSeconds ?? item.definition.defaultDurationSeconds)
-                .map(MobilityIntTarget.exact),
-            repetitions: (item.targetRepetitions ?? item.definition.defaultRepetitions)
-                .map(MobilityIntTarget.exact),
+            durationSeconds: item.definition.trackingType == .duration
+                ? (item.targetDurationSeconds ?? item.definition.defaultDurationSeconds)
+                    .map(MobilityIntTarget.exact)
+                : nil,
+            repetitions: item.definition.trackingType == .repetitions
+                ? (item.targetRepetitions ?? item.definition.defaultRepetitions)
+                    .map(MobilityIntTarget.exact)
+                : nil,
             cycles: item.orderedPhases.isEmpty ? nil : .exact(item.cycleCount),
             load: item.targetLoadValue.map(MobilityDoubleTarget.exact),
             breathingCycles: evidence?.breathingPrescription?.targetBreaths

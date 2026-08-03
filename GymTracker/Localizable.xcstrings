@@ -21578,6 +21578,16 @@
     "Breathing cycles: %@" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Cycles respiratoires : %@" } } } },
     "Tempo: %@ sec" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Tempo : %@ s" } } } },
     "%@, level %lld" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "%@, niveau %lld" } } } },
+    "All prescribed measures" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Toutes les mesures prescrites" } } } },
+    "Breathing cycles" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Cycles respiratoires" } } } },
+    "Completion requires" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "La complétion exige" } } } },
+    "Enter each required performed value before completing this movement." : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Saisissez chaque valeur réalisée requise avant de terminer ce mouvement." } } } },
+    "External load" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Charge externe" } } } },
+    "Movement measure" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Mesure du mouvement" } } } },
+    "Performed load: %@" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Charge réalisée : %@" } } } },
+    "Select unit" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Sélectionner l’unité" } } } },
+    "Target load: %@" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Charge cible : %@" } } } },
+    "Target load: %@ %@" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Charge cible : %@ %@" } } } },
     "YOUR WORKOUTS" : {
       "localizations" : {
         "fr" : {
