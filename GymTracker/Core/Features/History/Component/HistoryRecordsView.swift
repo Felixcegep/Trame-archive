@@ -113,7 +113,13 @@ struct HistoryRecordsView: View {
         for workout in workouts {
             for exercise in workout.orderedExercises where exercise.trackingTypeSnapshot.usesWeight {
                 for set in exercise.orderedSets where StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(set) && set.weight > 0 {
-                    let key = exercise.occurrenceComparisonKey
+                    // A differing load convention (total vs. per-hand, etc.)
+                    // must never compete for the same record line — see
+                    // `StrongmanLoadComparability`. Every non-strongman set
+                    // resolves to the same fixed suffix, so this key is
+                    // identical to the pre-existing `occurrenceComparisonKey`
+                    // for the entire existing catalog.
+                    let key = exercise.occurrenceComparisonKey + "|" + StrengthAnalyticsPolicy.loadComparisonGroupKey(set)
                     let candidate = HistoryRecord(exercise: exercise.occurrenceDisplayName, value: set.weight, unit: set.weightType.rawValue, date: workout.startTime, kind: "load")
                     if candidate.value > (best[key]?.value ?? 0) { best[key] = candidate }
                 }

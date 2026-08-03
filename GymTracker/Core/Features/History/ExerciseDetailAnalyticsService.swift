@@ -11,6 +11,12 @@ struct ExerciseSessionSet: Equatable, Sendable {
     let setType: SetType
     let setMethod: SetMethod
     let hasSegments: Bool
+    /// Whether `SportAnalyticsPolicyResolver` allows this specific set to
+    /// feed the Epley e1RM estimate. Defaults to `true`, matching every
+    /// pre-existing session (which always resolves to
+    /// `StandardStrengthAnalyticsPolicy`, itself unconditionally `true` for a
+    /// set with no Olympic complex components).
+    let contributesToE1RM: Bool
 
     init(
         orderIndex: Int,
@@ -19,7 +25,8 @@ struct ExerciseSessionSet: Equatable, Sendable {
         weightType: WeightType,
         setType: SetType,
         setMethod: SetMethod = .standard,
-        hasSegments: Bool = false
+        hasSegments: Bool = false,
+        contributesToE1RM: Bool = true
     ) {
         self.orderIndex = orderIndex
         self.repetitions = repetitions
@@ -28,6 +35,7 @@ struct ExerciseSessionSet: Equatable, Sendable {
         self.setType = setType
         self.setMethod = setMethod
         self.hasSegments = hasSegments
+        self.contributesToE1RM = contributesToE1RM
     }
 }
 
@@ -210,6 +218,7 @@ struct ExerciseDetailAnalyticsService {
                 for: exercise,
                 in: workout
             ).compactMap { entry -> ExerciseSession? in
+                let policy = SportAnalyticsPolicyResolver.policy(for: entry)
                 let sets = entry.orderedSets
                     .filter(\.done)
                     .map {
@@ -220,7 +229,8 @@ struct ExerciseDetailAnalyticsService {
                             weightType: $0.weightType,
                             setType: $0.setType,
                             setMethod: $0.resolvedSetMethod,
-                            hasSegments: !$0.segments.isEmpty
+                            hasSegments: !$0.segments.isEmpty,
+                            contributesToE1RM: policy.contributesToE1RM(set: $0, entry: entry)
                         )
                     }
                 guard !sets.isEmpty else { return nil }
@@ -383,7 +393,7 @@ struct ExerciseDetailAnalyticsService {
     /// documented rule rather than switching formulas per exercise or rep count.
     private func estimatedOneRepMax(in sessions: [ExerciseSession], unit: WeightType) -> OneRepMaxEstimate? {
         workingSets(in: sessions)
-            .filter { $0.set.repetitions > 0 && $0.set.weight > 0 }
+            .filter { $0.set.repetitions > 0 && $0.set.weight > 0 && $0.set.contributesToE1RM }
             .map { entry -> OneRepMaxEstimate in
                 let convertedWeight = UnitConversion.weight(entry.set.weight, from: entry.set.weightType, to: unit)
                 let estimated = convertedWeight * (1 + entry.set.repetitions / 30)
