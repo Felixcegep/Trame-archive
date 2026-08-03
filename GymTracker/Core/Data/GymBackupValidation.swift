@@ -1164,7 +1164,7 @@ extension BackupDTO {
                     throw BackupValidationError.invalidIdentifier("active mobility result")
                 }
             } else {
-                // Mirrors `MobilityEntry.orderedPhaseResults(alternatingSides:)`
+                // Mirrors `MobilityEntry.executionOrderedPhaseResults(alternatingSides:)`
                 // and `MobilityFlowResolver`'s node ordering: an
                 // `.alternateEachRepetition` entry's active cursor is only
                 // valid against a cycle-major traversal, never the default
