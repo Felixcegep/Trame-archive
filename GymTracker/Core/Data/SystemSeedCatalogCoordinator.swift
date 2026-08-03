@@ -4,7 +4,7 @@ import SwiftData
 @MainActor
 enum SystemSeedCatalogCoordinator {
     static let seedVersion = 1
-    static let contentVersion = 10
+    static let contentVersion = 11
 
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.
@@ -63,12 +63,20 @@ enum SystemSeedCatalogCoordinator {
             saveChanges: false
         )
         report += try registerPrograms(in: context, registry: registry)
+#endif
 
-        // Mirrors the workout program library seeding immediately above. No
-        // mobility programs ship yet; `seedBundledCatalog` returns zero
-        // imports when `MobilityProgramLibrary.json` is absent, so this stays
-        // a no-op — but idempotent and ready — until a later slice adds the
-        // resource.
+        // The mobility movement catalog must exist before mobility programs
+        // are seeded: each program's occurrences resolve their
+        // `mobilityDefinitionID` by looking up the just-staged
+        // `MobilityDefinition` catalog by name (see
+        // `MobilityProgramLibrarySeedData.seedBundledCatalog`), exactly like
+        // `ProgramLibrarySeedData.seed` above resolves exercise references
+        // against `Exercise` staged earlier in this same transaction.
+        try MobilitySeedData.stage(using: context, registry: registry)
+
+#if !GYMTRACKER_EXTENSION
+        // Mirrors the workout program library seeding above, now that the
+        // first three mobility programs ship.
         _ = try MobilityProgramLibrarySeedData.seedBundledCatalog(
             in: context,
             bundle: bundle,
@@ -77,7 +85,6 @@ enum SystemSeedCatalogCoordinator {
         report += try registerMobilityPrograms(in: context, registry: registry)
 #endif
 
-        try MobilitySeedData.stage(using: context, registry: registry)
         report += try MobilityAssessmentSeedData.stage(using: context, registry: registry)
         report += try WorkoutTemplateMobilitySeedLinker.apply(in: context, registry: registry)
         try NutritionSeedData.stage(using: context, registry: registry)

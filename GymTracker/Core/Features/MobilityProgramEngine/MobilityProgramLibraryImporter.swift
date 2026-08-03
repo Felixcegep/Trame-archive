@@ -100,26 +100,51 @@ enum MobilityProgramLibraryImporter {
     }
 }
 
+nonisolated enum MobilityProgramLibrarySeedError: Error, Equatable {
+    /// A program in `MobilityProgramLibraryData` references a movement name
+    /// that does not (yet) exist in the live `MobilityDefinition` catalogue.
+    /// This can only mean the authored catalogue and the authored program
+    /// content have drifted apart; it must never be silently skipped.
+    case missingMovement(String)
+}
+
 @MainActor
 enum MobilityProgramLibrarySeedData {
-    /// Bundled mobility program catalogue, mirroring `ProgramLibrarySeedData`.
-    /// No mobility programs are authored yet — the bundled JSON resource is
-    /// intentionally absent until a later slice ships the first one. An
-    /// absent resource is not a failure: it seeds zero programs, exactly like
-    /// decoding an empty catalogue, which keeps this path idempotent from day
-    /// one and requires no change when the first program is added, only a
-    /// new bundled `MobilityProgramLibrary.json`.
+    /// Bundled mobility program catalogue, mirroring `ProgramLibrarySeedData`
+    /// — except a mobility program has no bundled-JSON authoring layer of its
+    /// own (unlike `AuthoringProgramDefinition.expand(exerciseIDsByName:)` on
+    /// the workout side). `MobilityMovementOccurrenceDefinition
+    /// .mobilityDefinitionID` is resolved by `MobilityProgramCompiler` with a
+    /// strict dictionary lookup against whatever UUID a device's own
+    /// `MobilityDefinition` rows actually carry — and those rows are
+    /// per-install (each first-ever seed on a device mints its own random
+    /// `id` unless a `SystemSeedRecord` already pins an older one). A static
+    /// bundled JSON with hand-written UUID literals can only ever match a
+    /// brand-new install; it would silently fail catalogue resolution for
+    /// any device that already has these movements seeded from an earlier
+    /// build. Building the payloads here in Swift and resolving
+    /// `mobilityDefinitionID` by movement *name* against the catalogue this
+    /// same transaction just staged (see the call ordering in
+    /// `SystemSeedCatalogCoordinator.stageBundledCatalog`) sidesteps that
+    /// entirely — exactly the same problem `ProgramLibrarySeedData.seed`
+    /// solves for exercises via `exerciseIDsByName`.
     static func seedBundledCatalog(
         in context: ModelContext,
         bundle: Bundle = .main,
         saveChanges: Bool = true
     ) throws -> MobilityProgramLibraryImportResult {
-        guard let url = bundle.url(forResource: "MobilityProgramLibrary", withExtension: "json") else {
-            return MobilityProgramLibraryImportResult(importedProgramKeys: [], skippedPrograms: [])
+        let definitions = try context.fetch(FetchDescriptor<MobilityDefinition>())
+        let movementIDsByName = Dictionary(
+            definitions.map { ($0.name, $0.id) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let payloads = try MobilityProgramLibraryData.payloads(movementIDsByName: movementIDsByName)
+        for payload in payloads {
+            let issues = MobilityProgramDefinitionValidator.validate(payload, isBuiltIn: true)
+            guard issues.isEmpty else { throw MobilityProgramDefinitionStoreError.invalid(issues) }
         }
-        let data = try Data(contentsOf: url)
         return try MobilityProgramLibraryImporter.importDocument(
-            try MobilityProgramLibraryImporter.decode(data),
+            MobilityProgramLibraryDocument(libraryVersion: 1, programDefinitions: payloads),
             into: context,
             saveChanges: saveChanges
         )
