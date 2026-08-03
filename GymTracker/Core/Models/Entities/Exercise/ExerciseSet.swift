@@ -53,6 +53,17 @@ final class ExerciseSet {
     /// Repetitions per minute for kettlebell and cyclical implement work.
     var kettlebellCadenceRPM: Double?
     var specializedMetricMeasurementSource: MeasurementSource?
+    /// Present only for a strongman event set; `nil` for every other set and
+    /// for every set logged before this field existed. Comparisons must
+    /// never treat two sets with a differing convention as equivalent — see
+    /// `StrongmanLoadComparability`.
+    var strongmanLoadConventionRaw: String?
+    /// Snapshot of the implement this set was performed on, captured at log
+    /// time. History must never re-derive this from the current catalog: a
+    /// gym's yoke can be re-measured, or an exercise's default implement can
+    /// change, without rewriting what already happened.
+    var strongmanImplementProfileData: Data?
+    var strongmanEventFamilyRaw: String?
     /// Independent from `setType`: describes how the work was performed.
     /// Optional for compatibility with workouts created before the strength
     /// expansion added persisted set methods. Missing legacy values are
@@ -163,6 +174,9 @@ final class ExerciseSet {
         self.throwDistanceMeters = throwDistanceMeters
         self.kettlebellCadenceRPM = kettlebellCadenceRPM
         self.specializedMetricMeasurementSource = specializedMetricMeasurementSource
+        self.strongmanLoadConventionRaw = nil
+        self.strongmanImplementProfileData = nil
+        self.strongmanEventFamilyRaw = nil
         self.setMethod = setMethod
         self.setType = setType
         self.isSelectedDailyMaximum = false
@@ -202,6 +216,36 @@ final class ExerciseSet {
         specializedMetricKind ?? .none
     }
 
+    var strongmanLoadConvention: LoadConvention? {
+        get { strongmanLoadConventionRaw.flatMap(LoadConvention.init(rawValue:)) }
+        set { strongmanLoadConventionRaw = newValue?.rawValue }
+    }
+
+    var strongmanImplementProfile: StrongmanImplementProfile? {
+        get {
+            strongmanImplementProfileData.flatMap {
+                try? JSONDecoder().decode(StrongmanImplementProfile.self, from: $0)
+            }
+        }
+        set {
+            strongmanImplementProfileData = newValue.flatMap { try? JSONEncoder().encode($0) }
+        }
+    }
+
+    var strongmanEventFamily: StrongmanEventFamily? {
+        get { strongmanEventFamilyRaw.flatMap(StrongmanEventFamily.init(rawValue:)) }
+        set { strongmanEventFamilyRaw = newValue?.rawValue }
+    }
+
+    /// The only supported way to attach strongman evidence to a set. Snapshots
+    /// both the full implement profile and its load convention together, so
+    /// the two can never drift apart on a single set.
+    func applyStrongmanEvidence(implementProfile: StrongmanImplementProfile, eventFamily: StrongmanEventFamily?) {
+        strongmanImplementProfile = implementProfile
+        strongmanLoadConvention = implementProfile.loadConvention
+        strongmanEventFamily = eventFamily
+    }
+
     func copy() -> ExerciseSet {
         let copy = ExerciseSet(
             repetitions: repetitions,
@@ -235,6 +279,12 @@ final class ExerciseSet {
         )
         copy.weightType = weightType
         copy.distanceType = .meters
+        // A new attempt at the same strongman event continues under the same
+        // implement and convention; the source snapshot is copied verbatim,
+        // never re-derived from the current catalog.
+        copy.strongmanLoadConventionRaw = strongmanLoadConventionRaw
+        copy.strongmanImplementProfileData = strongmanImplementProfileData
+        copy.strongmanEventFamilyRaw = strongmanEventFamilyRaw
         // A copied active set is a new performed effort, but it remains part
         // of the same active prescription. Retain immutable target evidence
         // so an appended daily-maximum attempt or working set can still feed
@@ -276,7 +326,8 @@ final class ExerciseSet {
                 done: false,
                 variationNote: segment.variationNote,
                 rpe: segment.rpe,
-                rir: segment.rir
+                rir: segment.rir,
+                splitKind: segment.splitKind
             )
         }
         copy.complexComponents = orderedComplexComponents.map { component in

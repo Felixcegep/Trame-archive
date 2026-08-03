@@ -39,6 +39,22 @@ final class Exercise {
     var loadUnitCount: Int = 1
     var searchAliases: [String] = []
     var frenchName: String?
+    /// Explicit sport discipline authored for this exercise. `nil` for every
+    /// exercise created before this field existed and for any exercise an
+    /// author has not classified — `resolvedSportDiscipline` (see
+    /// `SportCapabilityTypes.swift`) derives a default from `trackingType`/
+    /// `category` in that case, matching this exercise's pre-existing
+    /// behavior exactly.
+    var sportDisciplineRaw: String?
+    /// Present only when `sportDisciplineRaw == "strongman"`. Governs which
+    /// `SportAnalyticsPolicy` is resolved for this exercise (carry vs. hold
+    /// vs. other event families).
+    var strongmanEventFamilyRaw: String?
+    /// Catalog-level default `StrongmanImplementProfile`, encoded. Every
+    /// performed set keeps its own independent snapshot
+    /// (`ExerciseSet.strongmanImplementProfileData`) captured at log time, so
+    /// editing this later never rewrites completed history.
+    var strongmanImplementProfileData: Data?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseRelationship.sourceExercise)
     var outgoingRelationships: [ExerciseRelationship] = []
     @Relationship(deleteRule: .cascade, inverse: \ExerciseRelationship.targetExercise)

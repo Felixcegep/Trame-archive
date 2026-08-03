@@ -8,7 +8,7 @@ import SwiftData
 /// model's stored shape changes, so a beta feedback report can distinguish
 /// testers running different schema generations.
 enum GymTrackerAppSchema {
-    static let diagnosticVersion = "11"
+    static let diagnosticVersion = "12"
 }
 
 /// First additive schema after the verified baseline. The existing models are
