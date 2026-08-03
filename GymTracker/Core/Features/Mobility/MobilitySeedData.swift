@@ -56,12 +56,13 @@ enum MobilitySeedData {
         var existingDefs = try context.fetch(FetchDescriptor<MobilityDefinition>())
 
         let seedItems: [(name: String, instructions: String, tracking: MobilityTrackingType, duration: Int?, reps: Int?, familyName: String)] = [
-            // Hip mobility (19)
+            // Hip mobility (20)
             ("90/90 Hip Switch", "Move slowly between internal and external hip rotation positions.", .repetitions, nil, 8, "Hip mobility"),
             ("Couch Stretch", "Keep rear foot against wall, kneel on front leg, keep torso upright.", .duration, 45, nil, "Hip mobility"),
             ("Pigeon Stretch", "Front leg bent 90 degrees, back leg extended straight behind.", .duration, 45, nil, "Hip mobility"),
             ("Frog Stretch", "Place knees wide on mat, hips back toward heels to open adductors.", .duration, 45, nil, "Hip mobility"),
             ("Cossack Squat", "Side-to-side deep lunges keeping heel down on working leg.", .repetitions, nil, 10, "Hip mobility"),
+            ("Loaded Cossack Squat", "Hold a light kettlebell or dumbbell at chest height and perform a side-to-side deep lunge under control, keeping the working heel down and the load close to the body.", .repetitions, nil, 5, "Hip mobility"),
             ("Lizard Pose", "Step one foot outside hands, sink hips down into front leg flexor.", .duration, 45, nil, "Hip mobility"),
             ("Hip CARs", "Rotate hip joint through full controlled articular circle.", .repetitions, nil, 6, "Hip mobility"),
             ("Butterfly Stretch", "Soles of feet together, pull heels in, gently press knees down.", .duration, 45, nil, "Hip mobility"),
