@@ -33,8 +33,14 @@ enum MobilityProgressionRecommendationService {
         else { return [] }
 
         let grouped = groupedEvidence(for: session, using: modelContext)
-        let existingUnresolved = (try? modelContext.fetch(FetchDescriptor<MobilityProgressionRecommendationRecord>()))?
-            .filter { $0.sessionProgressID == progress.id && $0.isResolved == false } ?? []
+        // Split into explicit steps with a stated element type: the single
+        // chained `try?` + optional-chained `filter` + `??` expression is the
+        // shape that pushes Swift's type-checker into a timeout.
+        let allRecommendations: [MobilityProgressionRecommendationRecord] =
+            (try? modelContext.fetch(FetchDescriptor<MobilityProgressionRecommendationRecord>())) ?? []
+        let existingUnresolved = allRecommendations.filter { record in
+            record.sessionProgressID == progress.id && record.isResolved == false
+        }
         var created: [MobilityProgressionRecommendationRecord] = []
 
         for occurrence in sessionDefinition.recipe.occurrences {
