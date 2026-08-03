@@ -141,6 +141,7 @@ enum MobilitySessionService {
                         supportLevelSnapshot: prescription?.supportLevel,
                         metricProfileSnapshot: metricProfile,
                         metricTargetsSnapshot: metricTargets,
+                        progressionKeySnapshot: prescription?.progressionKeySnapshot,
                         recordedAt: now
                     )
                 )

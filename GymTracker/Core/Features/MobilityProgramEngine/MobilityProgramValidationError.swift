@@ -31,6 +31,7 @@ nonisolated struct MobilityProgramValidationIssue: Codable, Hashable, Identifiab
         case unknownBlockReference
         case duplicateIdentifier
         case invalidProvenance
+        case invalidProgressionRule
     }
 
     var id: UUID = UUID()
@@ -200,6 +201,35 @@ nonisolated enum MobilityProgramDefinitionValidator {
             }
             validatePhases(occurrence.phases, path: "\(occurrencePath).phases", checkID: checkID, add: add)
             validateCompletionAgainstProfile(occurrence, path: occurrencePath, add: add)
+            validateProgressionRules(occurrence, path: occurrencePath, add: add)
+        }
+    }
+
+    /// A rule with a non-positive session count can never fire, and a rule
+    /// authored on an occurrence with no `progressionKey` has nothing to key
+    /// its evidence to — both are almost certainly authoring mistakes rather
+    /// than a deliberately inert rule.
+    private static func validateProgressionRules(
+        _ occurrence: MobilityMovementOccurrenceDefinition,
+        path: String,
+        add: (String, MobilityProgramValidationIssue.Code, String) -> Void
+    ) {
+        guard occurrence.resolvedProgressionRules.isEmpty == false else { return }
+        if occurrence.progressionKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+            add(
+                "\(path).progressionRules",
+                .invalidProgressionRule,
+                "Progression rules require the occurrence to declare a progressionKey."
+            )
+        }
+        for (index, rule) in occurrence.resolvedProgressionRules.enumerated() {
+            if case .targetCompletedForSessions(let sessions) = rule.trigger, sessions <= 0 {
+                add(
+                    "\(path).progressionRules[\(index)]",
+                    .invalidProgressionRule,
+                    "A session-count trigger must require at least one session."
+                )
+            }
         }
     }
 

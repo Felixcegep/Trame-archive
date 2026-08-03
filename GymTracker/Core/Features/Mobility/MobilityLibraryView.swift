@@ -7,6 +7,10 @@ struct MobilityLibraryView: View {
     /// Assessment presentation is root-owned, so this screen forwards the
     /// request upward rather than presenting the flow itself.
     let onStartAssessment: (MobilityAssessmentSession) -> Void
+    /// Mirrors `onStart`: a mobility program session compiles and starts
+    /// through the same `MobilitySessionService` path, then bubbles the
+    /// resulting session up to the root's single centralized presentation.
+    let onStartProgramSession: (MobilitySession) -> Void
 
     @Query(sort: \MobilityRoutine.updatedAt, order: .reverse) private var routines: [MobilityRoutine]
     @Query(sort: \MobilityDefinition.name) private var definitions: [MobilityDefinition]
@@ -38,6 +42,27 @@ struct MobilityLibraryView: View {
                         .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
+                }
+            }
+
+            if featureFlags.isEnabled(.mobilityProgram) {
+                Section {
+                    NavigationLink {
+                        MobilityProgramCatalogView(onStartProgramSession: onStartProgramSession)
+                    } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text("Mobility plans")
+                                    .font(AppFont.subheadlineSemibold)
+                                Text("Multi-week mobility programs with built-in progression")
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.gymSubduedText)
+                            }
+                        } icon: {
+                            GymIconChip(systemImage: AppIcon.mobility)
+                        }
+                    }
+                    .accessibilityIdentifier("open-mobility-programs")
                 }
             }
 

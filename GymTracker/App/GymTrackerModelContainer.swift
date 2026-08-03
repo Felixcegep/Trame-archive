@@ -8,7 +8,7 @@ import SwiftData
 /// model's stored shape changes, so a beta feedback report can distinguish
 /// testers running different schema generations.
 enum GymTrackerAppSchema {
-    static let diagnosticVersion = "10"
+    static let diagnosticVersion = "11"
 }
 
 /// First additive schema after the verified baseline. The existing models are
@@ -31,6 +31,16 @@ enum GymTrackerAdvancedMobilityEvidenceSchema: VersionedSchema {
         // version. It is app-only, mirroring `ProgramDefinitionRecord`'s own
         // extension gate on the baseline schema below.
         types.append(MobilityProgramDefinitionRecord.self)
+        // The mobility program runtime (Release 8 part 2) extends the same
+        // V2 generation in place again: a run, its per-session progress,
+        // its per-(progressionKey, side) progression state, and its
+        // recommendation receipts. All four are new tables with no existing
+        // column changes, so this stays additive under the frozen
+        // `Schema.Version(2, 0, 0)` identifier — neither part has shipped.
+        types.append(MobilityProgramRun.self)
+        types.append(MobilityProgramSessionProgress.self)
+        types.append(MobilityProgressionState.self)
+        types.append(MobilityProgressionRecommendationRecord.self)
 #endif
         return types
     }

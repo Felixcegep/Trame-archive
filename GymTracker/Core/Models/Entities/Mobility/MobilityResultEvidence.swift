@@ -28,6 +28,14 @@ final class MobilityResultEvidence {
     var sensationRaw: String?
     var movementQualityRaw: String?
     var compensationKeysData: Data?
+    /// Snapshotted from `MobilityRoutineItemEvidence.progressionKeySnapshot`
+    /// at session-start time, alongside every other prescription snapshot
+    /// on this record. `nil` for a standalone routine item or an occurrence
+    /// with no progression key. This is the join key
+    /// `MobilityProgramRunCoordinator` reads to gather a completed program
+    /// session's performed evidence back into
+    /// `MobilityProgressionPerformance` per `(progressionKey, side)`.
+    var progressionKeySnapshot: String?
     var recordedAt: Date
 
     var side: MobilitySide {
@@ -126,6 +134,7 @@ final class MobilityResultEvidence {
         sensation: MobilitySensation? = nil,
         movementQuality: MobilityMovementQuality? = nil,
         compensationKeys: Set<MobilityCompensationKey> = [],
+        progressionKeySnapshot: String? = nil,
         id: UUID = UUID(),
         recordedAt: Date = .now
     ) {
@@ -148,6 +157,7 @@ final class MobilityResultEvidence {
         self.sensationRaw = sensation?.rawValue
         self.movementQualityRaw = movementQuality?.rawValue
         self.compensationKeysData = nil
+        self.progressionKeySnapshot = progressionKeySnapshot
         self.recordedAt = recordedAt
         self.compensationKeys = compensationKeys
     }

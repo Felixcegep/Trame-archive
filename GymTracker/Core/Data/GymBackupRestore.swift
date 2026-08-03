@@ -51,6 +51,8 @@ extension BackupDTO {
             try restoreRepeatingPlansAndRuns(into: &restoreCtx)
             try restoreProgramDefinitions(into: &restoreCtx)
             try restoreMobilityProgramDefinitions(into: &restoreCtx)
+            try restoreMobilityProgramRuns(into: &restoreCtx)
+            try restoreMobilityProgressionRecommendations(into: &restoreCtx)
             try restorePlansAndRuns(into: &restoreCtx)
             try restoreWorkoutHistory(from: currentArchive.workout.workouts, into: &restoreCtx)
             try restoreRepeatingPlanOccurrences(into: &restoreCtx)
@@ -407,6 +409,135 @@ extension BackupDTO {
             record.createdAt = definitionDTO.createdAt
             record.updatedAt = definitionDTO.updatedAt
             record.definitionData = definitionDTO.definitionData
+            restoreCtx.context.insert(record)
+        }
+    }
+
+    /// Restores the Release 8 part 2 runtime graph. Every run reconstructs
+    /// its frozen `programSnapshotData` blob byte-for-byte (never
+    /// re-derived from the live definition) and its full session-progress /
+    /// progression-state graphs, mirroring `restorePlanRunProgress`'s idiom.
+    /// `MobilitySession` ids are preserved verbatim by `restoreMobility`
+    /// (which always runs before this), so `mobilitySessionID` is restored
+    /// as the opaque ownership key it already is — no lookup map needed.
+    private func restoreMobilityProgramRuns(into restoreCtx: inout RestoreContext) throws {
+        for runDTO in mobilityProgramRuns {
+            let run = try MobilityProgramRun(
+                program: try decodeProgramSnapshot(runDTO.programSnapshotData),
+                sourceProgramID: try requiredUUID(runDTO.sourceProgramID, named: "mobility program run source program"),
+                startDate: runDTO.startDate,
+                id: try requiredUUID(runDTO.id, named: "mobility program run")
+            )
+            run.programSnapshotData = runDTO.programSnapshotData
+            run.sourceProgramName = runDTO.sourceProgramName
+            run.endDate = runDTO.endDate
+            run.status = MobilityProgramRunStatus(rawValue: runDTO.status) ?? .active
+            run.currentWeekIndex = runDTO.currentWeekIndex
+            run.currentSessionIndex = runDTO.currentSessionIndex
+            run.createdAt = runDTO.createdAt
+            run.updatedAt = runDTO.updatedAt
+
+            for progressDTO in runDTO.sessionProgress {
+                let progress = MobilityProgramSessionProgress(
+                    sessionKey: progressDTO.sessionKey,
+                    weekIndex: progressDTO.weekIndex,
+                    dayIndex: progressDTO.dayIndex,
+                    sameDayOrder: progressDTO.sameDayOrder,
+                    isOptional: progressDTO.isOptional,
+                    sessionNameSnapshot: progressDTO.sessionNameSnapshot,
+                    scheduledDate: progressDTO.scheduledDate,
+                    id: try requiredUUID(progressDTO.id, named: "mobility program session progress")
+                )
+                progress.originalScheduledDate = progressDTO.originalScheduledDate
+                progress.lastRescheduledAt = progressDTO.lastRescheduledAt
+                progress.status = MobilityProgramSessionStatus(rawValue: progressDTO.status) ?? .pending
+                progress.startedAt = progressDTO.startedAt
+                progress.completedAt = progressDTO.completedAt
+                progress.mobilitySessionID = try progressDTO.mobilitySessionID.map {
+                    try requiredUUID($0, named: "mobility program session progress mobility session")
+                }
+                run.sessionProgress.append(progress)
+            }
+            for stateDTO in runDTO.progressionStates {
+                let state = MobilityProgressionState(
+                    progressionKey: stateDTO.progressionKey,
+                    side: MobilitySide(rawValue: stateDTO.side) ?? .none,
+                    durationOffsetSeconds: stateDTO.durationOffsetSeconds,
+                    repetitionOffset: stateDTO.repetitionOffset,
+                    cycleOffset: stateDTO.cycleOffset,
+                    loadOffset: stateDTO.loadOffset,
+                    assistanceLevelOffset: stateDTO.assistanceLevelOffset,
+                    supportLevelStepOffset: stateDTO.supportLevelStepOffset,
+                    variationStepOffset: stateDTO.variationStepOffset,
+                    consecutiveTargetMetSessionCount: stateDTO.consecutiveTargetMetSessionCount,
+                    lastAppliedRecommendationID: try stateDTO.lastAppliedRecommendationID.map {
+                        try requiredUUID($0, named: "mobility progression state recommendation")
+                    },
+                    id: try requiredUUID(stateDTO.id, named: "mobility progression state"),
+                    updatedAt: stateDTO.updatedAt
+                )
+                run.progressionStates.append(state)
+            }
+            restoreCtx.context.insert(run)
+        }
+    }
+
+    private func decodeProgramSnapshot(_ data: Data) throws -> MobilityProgramDefinitionPayload {
+        guard let payload = try? JSONDecoder().decode(MobilityProgramDefinitionPayload.self, from: data) else {
+            throw BackupValidationError.invalidMobilityProgramDefinition("mobility program run snapshot")
+        }
+        return payload
+    }
+
+    /// Distinct from `restoreProgressionRecommendations` — see
+    /// `MobilityProgressionRecommendationRecord`'s doc comment for the
+    /// audited reason a shared table was not safe.
+    private func restoreMobilityProgressionRecommendations(into restoreCtx: inout RestoreContext) throws {
+        for recommendationDTO in mobilityProgressionRecommendations {
+            guard
+                let action = try? JSONDecoder().decode(MobilityProgressionAction.self, from: recommendationDTO.actionData),
+                let applicationMode = ProgressionApplicationMode(rawValue: recommendationDTO.applicationMode)
+            else {
+                throw BackupValidationError.invalidIdentifier("mobility progression recommendation")
+            }
+            let performance = recommendationDTO.performanceData.flatMap {
+                try? JSONDecoder().decode(MobilityProgressionPerformance.self, from: $0)
+            } ?? MobilityProgressionPerformance()
+            let proposal = MobilityProgressionProposal(
+                id: try requiredUUID(recommendationDTO.id, named: "mobility progression recommendation"),
+                ruleID: try requiredUUID(recommendationDTO.ruleID, named: "mobility progression recommendation rule"),
+                action: action,
+                reason: recommendationDTO.reason,
+                reasonKey: recommendationDTO.reasonKey ?? "",
+                applicationMode: applicationMode,
+                proposedState: MobilityProgressionProposedState(
+                    durationOffsetSeconds: recommendationDTO.proposedDurationOffsetSeconds,
+                    repetitionOffset: recommendationDTO.proposedRepetitionOffset,
+                    cycleOffset: recommendationDTO.proposedCycleOffset,
+                    loadOffset: recommendationDTO.proposedLoadOffset,
+                    assistanceLevelOffset: recommendationDTO.proposedAssistanceLevelOffset,
+                    supportLevelStepOffset: recommendationDTO.proposedSupportLevelStepOffset,
+                    variationStepOffset: recommendationDTO.proposedVariationStepOffset
+                ),
+                performance: performance
+            )
+            let record = try MobilityProgressionRecommendationRecord(
+                runID: try requiredUUID(recommendationDTO.runID, named: "mobility progression recommendation run"),
+                sessionProgressID: try requiredUUID(recommendationDTO.sessionProgressID, named: "mobility progression recommendation session progress"),
+                progressionKey: recommendationDTO.progressionKey,
+                side: MobilitySide(rawValue: recommendationDTO.side) ?? .none,
+                proposal: proposal
+            )
+            record.id = proposal.id
+            record.createdAt = recommendationDTO.createdAt
+            record.isResolved = recommendationDTO.isResolved
+            record.resolvedAt = recommendationDTO.resolvedAt
+            if let decisionOutcomeRawValue = recommendationDTO.decisionOutcome {
+                guard let decisionOutcome = ProgressionDecisionOutcome(rawValue: decisionOutcomeRawValue) else {
+                    throw BackupValidationError.invalidIdentifier("mobility progression recommendation decision outcome")
+                }
+                record.decisionOutcome = decisionOutcome
+            }
             restoreCtx.context.insert(record)
         }
     }

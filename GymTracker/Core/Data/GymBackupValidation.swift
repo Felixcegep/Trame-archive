@@ -297,6 +297,68 @@ extension BackupDTO {
                     }
                 }
             }
+
+            // The Release 8 part 2 mobility program runtime graph is new to
+            // this slice, added alongside `mobilityProgramDefinitions`
+            // within Backup v26 (no new version constant). Both arrays
+            // decode `[]` for every older payload, so this is a no-op there
+            // and needs no separate version gate, mirroring the definition
+            // validation immediately above.
+            try validateUniqueIdentifiers(mobilityProgramRuns.map(\.id), named: "mobility program run")
+            var mobilitySessionProgressIDs = Set<String>()
+            for runDTO in mobilityProgramRuns {
+                guard let payload = try? JSONDecoder().decode(MobilityProgramDefinitionPayload.self, from: runDTO.programSnapshotData) else {
+                    throw BackupValidationError.invalidMobilityProgramDefinition(runDTO.sourceProgramName)
+                }
+                let issues = MobilityProgramDefinitionValidator.validate(payload)
+                guard issues.isEmpty else {
+                    throw BackupValidationError.invalidMobilityProgramDefinition(issues.map(\.message).joined(separator: " "))
+                }
+                guard MobilityProgramRunStatus(rawValue: runDTO.status) != nil else {
+                    throw BackupValidationError.invalidIdentifier("mobility program run status")
+                }
+                let progressIDs = runDTO.sessionProgress.map(\.id)
+                guard Set(progressIDs).count == progressIDs.count else {
+                    throw BackupValidationError.duplicateIdentifier("mobility program session progress")
+                }
+                for progressDTO in runDTO.sessionProgress {
+                    guard mobilitySessionProgressIDs.insert(progressDTO.id).inserted else {
+                        throw BackupValidationError.duplicateIdentifier("mobility program session progress")
+                    }
+                    guard MobilityProgramSessionStatus(rawValue: progressDTO.status) != nil,
+                          progressDTO.dayIndex >= 0, progressDTO.dayIndex <= 6 else {
+                        throw BackupValidationError.invalidIdentifier("mobility program session progress")
+                    }
+                }
+                let stateIDs = runDTO.progressionStates.map(\.id)
+                guard Set(stateIDs).count == stateIDs.count else {
+                    throw BackupValidationError.duplicateIdentifier("mobility progression state")
+                }
+                for stateDTO in runDTO.progressionStates {
+                    guard MobilitySide(rawValue: stateDTO.side) != nil else {
+                        throw BackupValidationError.invalidIdentifier("mobility progression state side")
+                    }
+                }
+            }
+
+            try validateUniqueIdentifiers(mobilityProgressionRecommendations.map(\.id), named: "mobility progression recommendation")
+            let mobilityRunIDs = Set(mobilityProgramRuns.map(\.id))
+            for recommendation in mobilityProgressionRecommendations {
+                guard mobilityRunIDs.contains(recommendation.runID),
+                      mobilitySessionProgressIDs.contains(recommendation.sessionProgressID),
+                      UUID(uuidString: recommendation.ruleID) != nil,
+                      MobilitySide(rawValue: recommendation.side) != nil,
+                      ProgressionApplicationMode(rawValue: recommendation.applicationMode) != nil,
+                      (try? JSONDecoder().decode(MobilityProgressionAction.self, from: recommendation.actionData)) != nil
+                else {
+                    throw BackupValidationError.invalidIdentifier("mobility progression recommendation")
+                }
+                if let decisionOutcome = recommendation.decisionOutcome {
+                    guard ProgressionDecisionOutcome(rawValue: decisionOutcome) != nil else {
+                        throw BackupValidationError.invalidIdentifier("mobility progression recommendation decision outcome")
+                    }
+                }
+            }
         }
 
         if version >= Self.dailyContextVersion {

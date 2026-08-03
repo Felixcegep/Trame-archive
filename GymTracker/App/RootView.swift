@@ -236,6 +236,11 @@ struct RootView: View {
             NavigationStack {
                 MobilitySessionView(session: session) {
                     activeMobilitySession = nil
+                    // Closes the loop between this session ending and any
+                    // `MobilityProgramSessionProgress` it was started for —
+                    // cheap and a no-op whenever the session was not
+                    // program-linked, or nothing is active.
+                    MobilityProgramRunCoordinator.reconcileTerminalSessions(using: modelContext)
                     resumeWorkoutAfterWarmupIfNeeded(session)
                 }
             }
@@ -900,7 +905,8 @@ struct RootView: View {
         case .mobility:
             MobilityLibraryView(
                 onStart: startMobility,
-                onStartAssessment: { activeAssessmentSession = $0 }
+                onStartAssessment: { activeAssessmentSession = $0 },
+                onStartProgramSession: startMobilityProgramSession
             )
         case .programPath(let route):
             programPathDestination(route, onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) })
@@ -1023,6 +1029,15 @@ struct RootView: View {
     private func resumeMobility(_ session: MobilitySession) {
         guard let restored = reconciledActiveMobilitySession(), restored.id == session.id else { return }
         activeMobilitySession = restored
+    }
+
+    /// Mirrors `startMobility`: a mobility program session is compiled and
+    /// started by `MobilityProgramRunCoordinator` before this is called, so
+    /// this only takes ownership of presenting it — the one centralized
+    /// `activeMobilitySession` fullScreenCover every mobility session (
+    /// standalone or program) presents through.
+    private func startMobilityProgramSession(_ session: MobilitySession) {
+        activeMobilitySession = session
     }
 
     private func reconciledActiveMobilitySession() -> MobilitySession? {

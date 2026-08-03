@@ -640,6 +640,82 @@ extension BackupDTO {
                 definitionData: record.definitionData
             )
         }
+        let mobilityProgramRunDTOs = try context.fetch(FetchDescriptor<MobilityProgramRun>()).map { run in
+            MobilityProgramRunDTO(
+                id: run.id.uuidString,
+                sourceProgramID: run.sourceProgramID.uuidString,
+                sourceProgramName: run.sourceProgramName,
+                startDate: run.startDate,
+                endDate: run.endDate,
+                status: run.statusRaw,
+                currentWeekIndex: run.currentWeekIndex,
+                currentSessionIndex: run.currentSessionIndex,
+                programSnapshotData: run.programSnapshotData,
+                createdAt: run.createdAt,
+                updatedAt: run.updatedAt,
+                sessionProgress: run.orderedSessionProgress.map { progress in
+                    MobilityProgramSessionProgressDTO(
+                        id: progress.id.uuidString,
+                        sessionKey: progress.sessionKey,
+                        weekIndex: progress.weekIndex,
+                        dayIndex: progress.dayIndex,
+                        sameDayOrder: progress.sameDayOrder,
+                        isOptional: progress.isOptional,
+                        sessionNameSnapshot: progress.sessionNameSnapshot,
+                        status: progress.statusRaw,
+                        originalScheduledDate: progress.originalScheduledDate,
+                        scheduledDate: progress.scheduledDate,
+                        lastRescheduledAt: progress.lastRescheduledAt,
+                        startedAt: progress.startedAt,
+                        completedAt: progress.completedAt,
+                        mobilitySessionID: progress.mobilitySessionID?.uuidString
+                    )
+                },
+                progressionStates: run.orderedProgressionStates.map { state in
+                    MobilityProgressionStateDTO(
+                        id: state.id.uuidString,
+                        progressionKey: state.progressionKey,
+                        side: state.sideRaw,
+                        durationOffsetSeconds: state.durationOffsetSeconds,
+                        repetitionOffset: state.repetitionOffset,
+                        cycleOffset: state.cycleOffset,
+                        loadOffset: state.loadOffset,
+                        assistanceLevelOffset: state.assistanceLevelOffset,
+                        supportLevelStepOffset: state.supportLevelStepOffset,
+                        variationStepOffset: state.variationStepOffset,
+                        consecutiveTargetMetSessionCount: state.consecutiveTargetMetSessionCount,
+                        lastAppliedRecommendationID: state.lastAppliedRecommendationID?.uuidString,
+                        updatedAt: state.updatedAt
+                    )
+                }
+            )
+        }
+        let mobilityProgressionRecommendationDTOs = try context.fetch(FetchDescriptor<MobilityProgressionRecommendationRecord>()).map { record in
+            MobilityProgressionRecommendationDTO(
+                id: record.id.uuidString,
+                runID: record.runID.uuidString,
+                sessionProgressID: record.sessionProgressID.uuidString,
+                progressionKey: record.progressionKey,
+                side: record.sideRaw,
+                ruleID: record.ruleID.uuidString,
+                actionData: record.actionData,
+                reason: record.reason,
+                reasonKey: record.reasonKey,
+                applicationMode: record.applicationMode.rawValue,
+                performanceData: record.performanceData,
+                proposedDurationOffsetSeconds: record.proposedDurationOffsetSeconds,
+                proposedRepetitionOffset: record.proposedRepetitionOffset,
+                proposedCycleOffset: record.proposedCycleOffset,
+                proposedLoadOffset: record.proposedLoadOffset,
+                proposedAssistanceLevelOffset: record.proposedAssistanceLevelOffset,
+                proposedSupportLevelStepOffset: record.proposedSupportLevelStepOffset,
+                proposedVariationStepOffset: record.proposedVariationStepOffset,
+                createdAt: record.createdAt,
+                isResolved: record.isResolved,
+                resolvedAt: record.resolvedAt,
+                decisionOutcome: record.decisionOutcome?.rawValue
+            )
+        }
         let progressionRecommendationDTOs = try context.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()).map { record in
             ProgressionRecommendationDTO(
                 id: record.id.uuidString,
@@ -1185,6 +1261,8 @@ extension BackupDTO {
             exerciseRelationships: relationshipDTOs,
             programDefinitions: programDefinitionDTOs,
             mobilityProgramDefinitions: mobilityProgramDefinitionDTOs,
+            mobilityProgramRuns: mobilityProgramRunDTOs,
+            mobilityProgressionRecommendations: mobilityProgressionRecommendationDTOs,
             progressionRecommendations: progressionRecommendationDTOs,
             dailyLogEntries: dailyLogEntryDTOs,
             bodyWeightEntries: bodyWeightEntryDTOs,

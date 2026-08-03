@@ -22,12 +22,19 @@ enum FeatureFlag: String, CaseIterable, Codable, Sendable {
     /// and screenshots did — and a ready model is not a reason to expose a
     /// half-finished screen to a tester.
     case mobilityAssessment
+    /// The mobility program run surface (browse/activate/track a mobility
+    /// plan). Separate from `mobility` for the same reason
+    /// `mobilityAssessment` is: this ships without verified build/test/
+    /// screenshot evidence, and a ready runtime is not a reason to expose an
+    /// unverified screen to a tester.
+    case mobilityProgram
 
     /// The flag this one cannot be reachable without. Declared per case rather
     /// than as a lookup table so a new flag has to answer the question.
     var prerequisite: FeatureFlag? {
         switch self {
         case .mobilityAssessment: .mobility
+        case .mobilityProgram: .mobility
         case .recipeGeneration: .nutrition
         case .today, .mobility, .nutrition, .bodyWeight, .dailyCheckIn,
              .programBuilder, .advancedExecution, .betaFeedback,
@@ -125,7 +132,7 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     /// What a TestFlight tester sees: everything already shipped, minus the
     /// surfaces whose UI is unfinished or temporarily hidden.
     static let currentWave: Set<FeatureFlag> = Set(FeatureFlag.allCases)
-        .subtracting([.mobilityAssessment, .recipeGeneration, .workoutGeneration, .nutrition])
+        .subtracting([.mobilityAssessment, .mobilityProgram, .recipeGeneration, .workoutGeneration, .nutrition])
 
     /// The narrower RoadMap.md §4 "Beta 1 — core workout reliability" wave, kept
     /// because it is a real staged option and selectable by launch argument. It

@@ -125,6 +125,14 @@ nonisolated struct MobilityMovementOccurrenceDefinition: Codable, Hashable, Iden
     /// for an unblocked occurrence.
     var blockKey: String?
     var notes: String?
+    /// Progression rules that evaluate against performed evidence carrying
+    /// this occurrence's `progressionKey`. `nil` (not merely empty) is the
+    /// wire shape every payload authored before this slice decodes as —
+    /// Swift's synthesized `Decodable` treats an `Optional`-typed stored
+    /// property as `decodeIfPresent`, so an older `MobilityProgramLibrary`
+    /// payload with no `progressionRules` key at all still decodes without
+    /// a custom `init(from:)`. Read through `resolvedProgressionRules`.
+    var progressionRules: [MobilityProgressionRuleDefinition]?
 
     init(
         id: UUID = UUID(),
@@ -148,7 +156,8 @@ nonisolated struct MobilityMovementOccurrenceDefinition: Codable, Hashable, Iden
         supportLevel: MobilitySupportLevel? = nil,
         restPrescription: MobilityRestPrescription? = nil,
         blockKey: String? = nil,
-        notes: String? = nil
+        notes: String? = nil,
+        progressionRules: [MobilityProgressionRuleDefinition]? = nil
     ) {
         self.id = id
         self.occurrenceID = occurrenceID
@@ -172,6 +181,16 @@ nonisolated struct MobilityMovementOccurrenceDefinition: Codable, Hashable, Iden
         self.restPrescription = restPrescription
         self.blockKey = blockKey
         self.notes = notes
+        self.progressionRules = progressionRules
+    }
+}
+
+extension MobilityMovementOccurrenceDefinition {
+    /// `progressionRules ?? []` in one place, so every reader (validator,
+    /// coordinator, evaluator) treats an absent key and an authored-empty
+    /// array identically.
+    var resolvedProgressionRules: [MobilityProgressionRuleDefinition] {
+        progressionRules ?? []
     }
 }
 

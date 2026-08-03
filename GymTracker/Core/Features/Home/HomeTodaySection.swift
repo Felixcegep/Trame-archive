@@ -16,6 +16,7 @@ struct HomeTodaySection: View {
     let onResumeMobility: (MobilitySession) -> Void
 
     @Query(sort: \MobilitySession.updatedAt, order: .reverse) private var mobilitySessions: [MobilitySession]
+    @Query private var mobilityProgramRuns: [MobilityProgramRun]
 
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
@@ -23,6 +24,8 @@ struct HomeTodaySection: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             if let activeMobilitySession {
                 resumeMobilityCard(activeMobilitySession)
+            } else if let dueProgramSession {
+                dueMobilityProgramCard(dueProgramSession)
             }
 
             // Passed pre-localized: `LibrarySectionTitle` takes a `String`, so a
@@ -56,6 +59,65 @@ struct HomeTodaySection: View {
             }
             .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// The next pending session of any followed mobility plan, scheduled for
+    /// today or earlier (overdue). This only surfaces awareness — starting
+    /// it, rescheduling it, or skipping it stays in the dedicated mobility
+    /// plan screen, which owns the program's lifecycle rules; Today never
+    /// selects a prescription itself, matching `TodayMobilityRowPolicy`.
+    private var dueProgramSession: (run: MobilityProgramRun, progress: MobilityProgramSessionProgress)? {
+        guard featureFlags.isEnabled(.mobilityProgram) else { return nil }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        for run in mobilityProgramRuns where run.status == .active {
+            guard let next = MobilityProgramRunCoordinator.nextSessionProgress(in: run),
+                  let scheduledDate = next.scheduledDate,
+                  calendar.startOfDay(for: scheduledDate) <= today
+            else { continue }
+            return (run, next)
+        }
+        return nil
+    }
+
+    private func dueMobilityProgramCard(_ due: (run: MobilityProgramRun, progress: MobilityProgramSessionProgress)) -> some View {
+        Button(action: onOpenMobility) {
+            HStack(spacing: Spacing.m) {
+                Image(systemName: AppIcon.mobility)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymAccent)
+                    .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
+                    .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(due.progress.sessionNameSnapshot)
+                        .font(AppFont.subheadlineBold)
+                        .foregroundStyle(Color.gymText)
+                    Text(due.run.sourceProgramName)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+
+                Spacer(minLength: Spacing.s)
+
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubtleText)
+            }
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .background {
+                RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+                    .fill(Color.gymCard)
+                    .stroke(Color.gymAccent.opacity(0.24), lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityIdentifier("today-open-mobility-plan-session")
+        .accessibilityLabel("\(due.progress.sessionNameSnapshot), \(due.run.sourceProgramName)")
+        .accessibilityHint("Opens Mobility to start this plan session.")
     }
 
     private var activeMobilitySession: MobilitySession? {

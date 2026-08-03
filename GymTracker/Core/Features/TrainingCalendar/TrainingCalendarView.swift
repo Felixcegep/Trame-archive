@@ -14,6 +14,7 @@ struct TrainingCalendarView: View {
     @Query private var planRuns: [PlanRun]
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     @Query(sort: \MobilitySession.startTime, order: .reverse) private var mobilitySessions: [MobilitySession]
+    @Query private var mobilityProgramRuns: [MobilityProgramRun]
     @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var meals: [LoggedMeal]
     @Query(sort: \DailyLogEntry.createdAt, order: .reverse) private var checkIns: [DailyLogEntry]
     @Query(sort: \SupplementOccurrence.createdAt, order: .reverse) private var supplementOccurrences: [SupplementOccurrence]
@@ -30,6 +31,8 @@ struct TrainingCalendarView: View {
             planRuns: planRuns,
             workouts: workouts,
             mobilitySessions: mobilitySessions,
+            mobilityProgramRuns: mobilityProgramRuns,
+            activeMobilitySessionIDs: Set(mobilitySessions.filter { $0.status == .active }.map(\.id)),
             meals: meals,
             checkIns: checkIns,
             supplementOccurrences: supplementOccurrences
@@ -270,7 +273,7 @@ private struct TrainingCalendarDayButton: View {
                     if day.completedWorkoutCount > 0 {
                         Image(systemName: AppIcon.checkmarkCircle)
                     }
-                    if !day.mobilitySessions.isEmpty {
+                    if !day.mobilitySessions.isEmpty || !day.mobilityProgramSessions.isEmpty {
                         Image(systemName: AppIcon.mobility)
                     }
                 }
@@ -311,6 +314,7 @@ private struct TrainingCalendarDayButton: View {
         if !day.plannedWorkouts.isEmpty { parts.append("\(day.plannedWorkouts.count) planned workout\(day.plannedWorkouts.count == 1 ? "" : "s")") }
         if day.completedWorkoutCount > 0 { parts.append("\(day.completedWorkoutCount) completed workout\(day.completedWorkoutCount == 1 ? "" : "s")") }
         if !day.mobilitySessions.isEmpty { parts.append("\(day.mobilitySessions.count) mobility session\(day.mobilitySessions.count == 1 ? "" : "s")") }
+        if !day.mobilityProgramSessions.isEmpty { parts.append("\(day.mobilityProgramSessions.count) mobility plan session\(day.mobilityProgramSessions.count == 1 ? "" : "s")") }
         if day.nutrition != nil { parts.append("nutrition logged") }
         if day.checkIn != nil { parts.append("check-in recorded") }
         return parts.joined(separator: ", ")
@@ -337,6 +341,7 @@ private struct TrainingCalendarDayAgenda: View {
 
             if day.hasContent {
                 scheduledSection
+                scheduledMobilityProgramSection
                 performedSection
                 contextSection
             } else {
@@ -397,9 +402,51 @@ private struct TrainingCalendarDayAgenda: View {
         }
     }
 
+    /// Read-only: starting, rescheduling, skipping, and marking missed all
+    /// stay in the dedicated mobility plan screen, which owns the program's
+    /// lifecycle rules. This surface only projects them so a standalone
+    /// routine and a program session on the same day both stay visible.
+    @ViewBuilder
+    private var scheduledMobilityProgramSection: some View {
+        let pending = day.mobilityProgramSessions.filter { $0.status == .pending }
+        if !pending.isEmpty {
+            agendaSection("Scheduled mobility plan", icon: AppIcon.mobility) {
+                ForEach(pending) { item in
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text(item.sessionName).font(AppFont.subheadlineSemibold)
+                            Text(item.programName).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                        }
+                        Spacer()
+                        Text(mobilityProgramStatusLabel(item))
+                            .font(AppFont.caption2Bold)
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
+                    .accessibilityIdentifier("training-calendar-mobility-plan-\(item.id)")
+                    if item.id != pending.last?.id { Divider() }
+                }
+            }
+        }
+    }
+
+    private func mobilityProgramStatusLabel(_ item: TrainingCalendarProgramMobilitySession) -> String {
+        if item.isInProgress { return String(localized: "In progress") }
+        return item.isOptional ? String(localized: "Optional") : String(localized: "Planned")
+    }
+
+    private func mobilityProgramDetail(_ item: TrainingCalendarProgramMobilitySession) -> String {
+        switch item.status {
+        case .completed: String(localized: "Completed · \(item.programName)")
+        case .skipped: String(localized: "Skipped · \(item.programName)")
+        case .missed: String(localized: "Missed · \(item.programName)")
+        case .pending: item.programName
+        }
+    }
+
     @ViewBuilder
     private var performedSection: some View {
-        let hasPerformed = day.completedWorkoutCount > 0 || !day.freeWorkouts.isEmpty || !day.mobilitySessions.isEmpty
+        let terminalProgramSessions = day.mobilityProgramSessions.filter { $0.status != .pending }
+        let hasPerformed = day.completedWorkoutCount > 0 || !day.freeWorkouts.isEmpty || !day.mobilitySessions.isEmpty || !terminalProgramSessions.isEmpty
         if hasPerformed {
             agendaSection("Performed", icon: AppIcon.checkmarkCircle) {
                 ForEach(day.plannedWorkouts.compactMap { item in
@@ -436,6 +483,17 @@ private struct TrainingCalendarDayAgenda: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("training-calendar-mobility-\(item.id)")
+                }
+                ForEach(terminalProgramSessions) { item in
+                    Button(action: onOpenMobilityHistory) {
+                        performedRow(
+                            title: item.sessionName,
+                            detail: mobilityProgramDetail(item),
+                            icon: item.status == .completed ? AppIcon.checkmarkCircle : AppIcon.skip
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("training-calendar-mobility-plan-history-\(item.id)")
                 }
             }
         }

@@ -200,6 +200,7 @@ enum MobilityProgramCompiler {
                 blockKey: occurrence.blockKey.map { "\(routine.id.uuidString).\($0)" },
                 sideStrategy: occurrence.sideStrategy,
                 restPrescription: occurrence.restPrescription,
+                progressionKeySnapshot: occurrence.progressionKey,
                 id: UUID(),
                 createdAt: now,
                 updatedAt: now

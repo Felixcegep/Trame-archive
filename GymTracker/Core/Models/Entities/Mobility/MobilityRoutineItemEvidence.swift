@@ -23,6 +23,13 @@ final class MobilityRoutineItemEvidence {
     var blockKey: String?
     var sideStrategyRaw: String?
     var restPrescriptionData: Data?
+    /// The authoring `MobilityMovementOccurrenceDefinition.progressionKey`,
+    /// snapshotted at compile time by `MobilityProgramCompiler`. `nil` for
+    /// every item authored outside the mobility program engine (a
+    /// standalone routine item) and for any occurrence that declared no
+    /// progression key. This is an ownership key, not a live relationship,
+    /// matching `routineItemID` above.
+    var progressionKeySnapshot: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -91,6 +98,7 @@ final class MobilityRoutineItemEvidence {
         blockKey: String? = nil,
         sideStrategy: MobilitySideStrategy? = nil,
         restPrescription: MobilityRestPrescription? = nil,
+        progressionKeySnapshot: String? = nil,
         id: UUID = UUID(),
         createdAt: Date = .now,
         updatedAt: Date = .now
@@ -108,6 +116,7 @@ final class MobilityRoutineItemEvidence {
         self.blockKey = blockKey
         self.sideStrategyRaw = sideStrategy?.rawValue
         self.restPrescriptionData = Self.encode(restPrescription)
+        self.progressionKeySnapshot = progressionKeySnapshot
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.breathingPrescription = breathingPrescription
