@@ -1249,6 +1249,9 @@ extension BackupDTO {
                 competitionDiscipline: profile.competition?.discipline?.rawValue,
                 competitionEventDateTimestamp: profile.competition?.eventDate?.timeIntervalSince1970,
                 competitionStandards: profile.competition?.standards?.rawValue,
+                mobilityGoal: profile.mobilityGoalRaw,
+                mobilityExperience: profile.mobilityExperienceRaw,
+                mobilityFrequency: profile.mobilityFrequencyRaw,
                 completedCoreOnboardingAtTimestamp: profile.completedCoreOnboardingAt?.timeIntervalSince1970,
                 createdAtTimestamp: profile.createdAt.timeIntervalSince1970,
                 updatedAtTimestamp: profile.updatedAt.timeIntervalSince1970

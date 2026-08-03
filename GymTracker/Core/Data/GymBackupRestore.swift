@@ -1263,6 +1263,10 @@ extension BackupDTO {
             profile.competitionProfileData = try? JSONEncoder().encode(competition)
         }
 
+        profile.mobilityGoalRaw = validated(dto.mobilityGoal, as: MobilityGoalPreference.self)
+        profile.mobilityExperienceRaw = validated(dto.mobilityExperience, as: MobilityExperiencePreference.self)
+        profile.mobilityFrequencyRaw = validated(dto.mobilityFrequency, as: MobilityFrequencyPreference.self)
+
         profile.completedCoreOnboardingAt = dto.completedCoreOnboardingAtTimestamp
             .map(Date.init(timeIntervalSince1970:))
         profile.createdAt = dto.createdAtTimestamp.map(Date.init(timeIntervalSince1970:)) ?? .now

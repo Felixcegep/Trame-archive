@@ -35,6 +35,12 @@ nonisolated struct TrainingProfileDTO: Codable {
     var competitionDiscipline: String? = nil
     var competitionEventDateTimestamp: Double? = nil
     var competitionStandards: String? = nil
+    // Mobility intake, added without a `BackupDTO.currentVersion` bump — every
+    // field here decodes optionally and absent on an older backup means
+    // exactly what it means everywhere else in this DTO: never asked.
+    var mobilityGoal: String? = nil
+    var mobilityExperience: String? = nil
+    var mobilityFrequency: String? = nil
     var completedCoreOnboardingAtTimestamp: Double? = nil
     var createdAtTimestamp: Double? = nil
     var updatedAtTimestamp: Double? = nil
