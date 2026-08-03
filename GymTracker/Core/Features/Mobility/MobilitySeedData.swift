@@ -56,7 +56,7 @@ enum MobilitySeedData {
         var existingDefs = try context.fetch(FetchDescriptor<MobilityDefinition>())
 
         let seedItems: [(name: String, instructions: String, tracking: MobilityTrackingType, duration: Int?, reps: Int?, familyName: String)] = [
-            // Hip mobility (12)
+            // Hip mobility (15)
             ("90/90 Hip Switch", "Move slowly between internal and external hip rotation positions.", .repetitions, nil, 8, "Hip mobility"),
             ("Couch Stretch", "Keep rear foot against wall, kneel on front leg, keep torso upright.", .duration, 45, nil, "Hip mobility"),
             ("Pigeon Stretch", "Front leg bent 90 degrees, back leg extended straight behind.", .duration, 45, nil, "Hip mobility"),
@@ -69,8 +69,11 @@ enum MobilitySeedData {
             ("Fire Hydrants", "On hands and knees, lift knee out to side without shifting torso.", .repetitions, nil, 10, "Hip mobility"),
             ("Deep Squat Pry", "Sink into deep squat, use elbows to gently push knees outward.", .duration, 60, nil, "Hip mobility"),
             ("Tactical Frog", "Knees wide, rock hips back and forward into adductor stretch.", .repetitions, nil, 8, "Hip mobility"),
+            ("Half-Kneeling Hip-Flexor Stretch", "Kneel with the back knee down and front foot forward, tuck the pelvis under, and shift weight forward until a stretch is felt at the front of the rear hip.", .duration, 30, nil, "Hip mobility"),
+            ("90/90 Lift-Off", "From the 90/90 seated position, lift the front shin a few inches off the floor and hold, keeping the hips level and the lower back tall.", .repetitions, nil, 5, "Hip mobility"),
+            ("Controlled Hip Rotation", "From a seated or lying support position, slowly rotate the hip through a controlled arc from internal to external rotation without shifting the pelvis.", .repetitions, nil, 3, "Hip mobility"),
 
-            // Shoulder mobility (8)
+            // Shoulder mobility (9)
             ("Thoracic Rotation", "Rotate through the upper back without forcing range.", .repetitions, nil, 8, "Shoulder mobility"),
             ("Shoulder Pass-Throughs", "Hold PVC or band wide, pass overhead to back and return smoothly.", .repetitions, nil, 10, "Shoulder mobility"),
             ("Sleeper Stretch", "Lie on side, arm at 90 degrees, gently press wrist toward floor.", .duration, 30, nil, "Shoulder mobility"),
@@ -79,6 +82,7 @@ enum MobilitySeedData {
             ("Scapular Pull-Ups", "Hang from bar, depress and retract shoulder blades without bending elbows.", .repetitions, nil, 10, "Shoulder mobility"),
             ("Shoulder CARs", "Move shoulder slowly through max controlled articular circle.", .repetitions, nil, 6, "Shoulder mobility"),
             ("Doorway Chest & Shoulder Opener", "Forearms against doorway frame, step forward to open shoulders.", .duration, 45, nil, "Shoulder mobility"),
+            ("Wall Shoulder Flexion Lift-Off", "Support the arm overhead against a wall, lift the hand slightly off the wall and hold without shrugging the shoulder up.", .repetitions, nil, 5, "Shoulder mobility"),
 
             // Thoracic & Spine mobility (8)
             ("Cat-Cow", "Alternate between arching and rounding the spine slowly with breath.", .repetitions, nil, 10, "Thoracic & Spine mobility"),
@@ -98,20 +102,23 @@ enum MobilitySeedData {
             ("Elevated Toe Calf Raise Stretch", "Heels hanging off step, let body weight stretch ankles down.", .duration, 45, nil, "Ankle & Calf mobility"),
             ("Tibialis Raise", "Lean back against wall, flex toes up toward shins controlled.", .repetitions, nil, 15, "Ankle & Calf mobility"),
 
-            // Hamstrings & Posterior Chain (6)
+            // Hamstrings & Posterior Chain (7)
             ("World's Greatest Stretch", "Step into lunge, elbow to instep, reach arm up, extend front leg.", .repetitions, nil, 6, "Hamstrings & Posterior Chain"),
             ("Elephant Walks", "Hands toward floor, alternate straightening knees dynamically.", .repetitions, nil, 20, "Hamstrings & Posterior Chain"),
             ("Inchworms", "Walk hands out to plank, then walk feet up toward hands.", .repetitions, nil, 6, "Hamstrings & Posterior Chain"),
             ("Jefferson Curl", "Roll spine down segment-by-segment with bodyweight or light load.", .repetitions, nil, 5, "Hamstrings & Posterior Chain"),
             ("Standing Hamstring Fold", "Hinge at hips, reach for toes with relaxed neck and soft knees.", .duration, 45, nil, "Hamstrings & Posterior Chain"),
             ("Active Straight Leg Raise", "Lie flat, raise one straight leg up controlled while keeping hips down.", .repetitions, nil, 10, "Hamstrings & Posterior Chain"),
+            ("Hamstring Strap Stretch", "Loop a strap around the ball of one foot, extend the leg toward the ceiling with a soft knee, and draw the strap gently toward you.", .duration, 30, nil, "Hamstrings & Posterior Chain"),
 
-            // Chest & Lat mobility (5)
+            // Chest & Lat mobility (7)
             ("Banded Lat Distraction", "Hold band overhead, step back and sink hips away to stretch lat.", .duration, 45, nil, "Chest & Lat mobility"),
             ("Child's Pose with Side Reach", "Kneel, reach hands diagonally to side to stretch lats.", .duration, 45, nil, "Chest & Lat mobility"),
             ("Lying Pec Stretch", "Prone arm at 90 degrees, roll body away to stretch chest.", .duration, 45, nil, "Chest & Lat mobility"),
             ("Subscapularis Wall Slide", "Elbows against wall, slide upward keeping forearms flush.", .repetitions, nil, 8, "Chest & Lat mobility"),
             ("Overhead Triceps & Lat Stretch", "Pull elbow overhead behind head with opposite hand.", .duration, 30, nil, "Chest & Lat mobility"),
+            ("Doorway Chest Stretch", "Place a forearm on a door frame at shoulder height, step forward through the doorway, and turn gently away to open the chest.", .duration, 30, nil, "Chest & Lat mobility"),
+            ("Kneeling Lat Stretch", "Kneel in front of a low support, reach both arms forward onto it, and sink the hips back to lengthen the lats.", .duration, 30, nil, "Chest & Lat mobility"),
 
             // Wrist & Forearm mobility (5)
             ("Quadruped Wrist Rocks", "Hands on floor, gently rock forward and back over wrists.", .repetitions, nil, 10, "Wrist & Forearm mobility"),
