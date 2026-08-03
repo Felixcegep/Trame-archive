@@ -11357,6 +11357,4455 @@
           ]}]
         }
       ]
+    },
+    {
+      "programKey": "conjugate-rotation-wave",
+      "name": "Conjugate Rotation Wave",
+      "description": "A six-week original GymTracker adaptation of the max-effort / dynamic-effort conjugate method: a rotating max-effort exercise for squat and bench pattern each week, paired with fixed dynamic-effort speed work against compensatory-acceleration percentages. Each max-effort session is a ramp of three to five progressively heavier singles -- no more than three attempts above ninety percent -- stopping at a clean technical single, followed by three sets of three at eighty-five percent of that single.",
+      "goal": "powerlifting",
+      "experienceLevel": "advanced",
+      "durationWeeks": 6,
+      "supportedDaysPerWeek": [
+        4
+      ],
+      "scheduleMode": "fixedWeekdays",
+      "requiredEquipment": [
+        "Barbell"
+      ],
+      "prerequisites": [
+        "At least one year of consistent barbell squat, bench, and deadlift training",
+        "Comfortable performing a single-repetition max-effort attempt with a spotter or safety arms",
+        "Known one-repetition maximums for Box Squat, Back Squat, Deadlift, and Bench Press"
+      ],
+      "warnings": [
+        "Max-effort work is autoregulated -- stop the ramp at a clean technical single, not a grinding or form-breaking rep.",
+        "Percentages are prescriptions, not automatic readiness or safety decisions."
+      ],
+      "intakeInputs": [
+        {
+          "exposureKey": "de-box-squat",
+          "kind": "oneRepMax"
+        },
+        {
+          "exposureKey": "de-competition-squat",
+          "kind": "oneRepMax"
+        },
+        {
+          "exposureKey": "de-speed-deadlift",
+          "kind": "oneRepMax"
+        },
+        {
+          "exposureKey": "de-bench",
+          "kind": "oneRepMax"
+        }
+      ],
+      "missedWorkoutPolicy": "shiftSequence",
+      "completionPolicy": {
+        "type": "offerRestart",
+        "carryState": true
+      },
+      "provenance": {
+        "kind": "sourceBackedOriginalAdaptation",
+        "statement": "GymTracker authored every weekly exercise rotation, percentage, set, and repetition scheme in this six-week adaptation. Public strength-and-conditioning literature supports only the general max-effort/dynamic-effort conjugate method concept -- rotating near-maximal single-repetition work with submaximal speed work against compensatory-acceleration percentages -- not this program's specific schedule, exercise selection, or numbers. This is not presented as Westside Barbell's or any other organization's official program."
+      },
+      "sourceReferences": [
+        {
+          "organizationOrAuthors": "National Strength and Conditioning Association",
+          "title": "Essentials of Strength Training and Conditioning, 4th Edition",
+          "year": 2016,
+          "sourceIdentifier": "ISBN 978-1492501626",
+          "supports": [
+            "General max-effort method: near-maximal single-repetition training to a technical limit",
+            "General dynamic-effort method: submaximal loads moved at maximal intended velocity",
+            "General principle of rotating exercise variations to manage accommodation"
+          ],
+          "doesNotProvide": [
+            "This program's six-week schedule, exercise rotation, percentages, or set/repetition counts",
+            "GymTracker execution, progression, persistence, or backup behavior",
+            "Any specific coach's or organization's proprietary program"
+          ]
+        }
+      ],
+      "rulesLibrary": {
+        "threeMissAdvisory": [
+          {
+            "metric": "successfulAttempts",
+            "trigger": {
+              "type": "consecutiveMissedAttemptsReached",
+              "count": 3
+            },
+            "success": {
+              "type": "endActiveDailyMaximumAndGenerateBackOffs",
+              "setCount": 3,
+              "repetitions": 3,
+              "percentage": 0.85
+            },
+            "cadence": "nextSet",
+            "scope": "exerciseExposure",
+            "mode": "recommendation"
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "Conjugate Rotation",
+          "phaseType": "strength",
+          "weeks": [
+            {
+              "weekIndex": 0,
+              "name": "Week 1",
+              "workouts": [
+                {
+                  "name": "Max-Effort Lower -- Week 1",
+                  "dayOffset": 0,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Pause Squat",
+                      "exposureKey": "me-lower-pause-squat",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Max-Effort Upper -- Week 1",
+                  "dayOffset": 2,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Close-Grip Bench Press",
+                      "exposureKey": "me-upper-close-grip-bench",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Lower -- Week 1",
+                  "dayOffset": 4,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Box Squat",
+                      "exposureKey": "de-box-squat",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 10,
+                          "reps": 2,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.5,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "de-speed-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 8,
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.5,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Upper -- Week 1",
+                  "dayOffset": 6,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Bench Press",
+                      "exposureKey": "de-bench",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 9,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.45,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 1,
+              "name": "Week 2",
+              "workouts": [
+                {
+                  "name": "Max-Effort Lower -- Week 2",
+                  "dayOffset": 0,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Block Pull",
+                      "exposureKey": "me-lower-block-pull",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Max-Effort Upper -- Week 2",
+                  "dayOffset": 2,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Floor Press",
+                      "exposureKey": "me-upper-floor-press",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Lower -- Week 2",
+                  "dayOffset": 4,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Box Squat",
+                      "exposureKey": "de-box-squat",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 10,
+                          "reps": 2,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.55,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "de-speed-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 8,
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.55,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Upper -- Week 2",
+                  "dayOffset": 6,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Bench Press",
+                      "exposureKey": "de-bench",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 9,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.5,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 2,
+              "name": "Week 3",
+              "workouts": [
+                {
+                  "name": "Max-Effort Lower -- Week 3",
+                  "dayOffset": 0,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Box Squat",
+                      "exposureKey": "me-lower-box-squat",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Max-Effort Upper -- Week 3",
+                  "dayOffset": 2,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Bench Press",
+                      "exposureKey": "me-upper-competition-bench-w3",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Lower -- Week 3",
+                  "dayOffset": 4,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Box Squat",
+                      "exposureKey": "de-box-squat",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 10,
+                          "reps": 2,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "de-speed-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 8,
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Upper -- Week 3",
+                  "dayOffset": 6,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Bench Press",
+                      "exposureKey": "de-bench",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 9,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.55,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 3,
+              "name": "Week 4",
+              "workouts": [
+                {
+                  "name": "Max-Effort Lower -- Week 4",
+                  "dayOffset": 0,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Front Squat",
+                      "exposureKey": "me-lower-front-squat",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Max-Effort Upper -- Week 4",
+                  "dayOffset": 2,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Incline Bench Press",
+                      "exposureKey": "me-upper-incline-bench",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Lower -- Week 4",
+                  "dayOffset": 4,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "de-competition-squat",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 8,
+                          "reps": 2,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.55,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "de-speed-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 6,
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.55,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Upper -- Week 4",
+                  "dayOffset": 6,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Bench Press",
+                      "exposureKey": "de-bench",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 9,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.5,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 4,
+              "name": "Week 5",
+              "workouts": [
+                {
+                  "name": "Max-Effort Lower -- Week 5",
+                  "dayOffset": 0,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Deficit Deadlift",
+                      "exposureKey": "me-lower-deficit-deadlift",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Max-Effort Upper -- Week 5",
+                  "dayOffset": 2,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Spoto Press",
+                      "exposureKey": "me-upper-spoto-press",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Lower -- Week 5",
+                  "dayOffset": 4,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "de-competition-squat",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 8,
+                          "reps": 2,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "de-speed-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 6,
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Upper -- Week 5",
+                  "dayOffset": 6,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Bench Press",
+                      "exposureKey": "de-bench",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 9,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.55,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 5,
+              "name": "Week 6",
+              "workouts": [
+                {
+                  "name": "Max-Effort Lower -- Week 6",
+                  "dayOffset": 0,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "me-lower-competition-squat",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Max-Effort Upper -- Week 6",
+                  "dayOffset": 2,
+                  "role": "maxEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Bench Press",
+                      "exposureKey": "me-upper-competition-bench-w6",
+                      "role": "main",
+                      "restSeconds": 240,
+                      "rules": "threeMissAdvisory",
+                      "sets": [
+                        {
+                          "role": "dailyMaximum",
+                          "reps": 1,
+                          "targetRPE": 9
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Lower -- Week 6",
+                  "dayOffset": 4,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "de-competition-squat",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 8,
+                          "reps": 2,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "de-speed-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 6,
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic-Effort Upper -- Week 6",
+                  "dayOffset": 6,
+                  "role": "dynamicEffort",
+                  "exercises": [
+                    {
+                      "exercise": "Bench Press",
+                      "exposureKey": "de-bench",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 9,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "programKey": "strongman-contest-preparation",
+      "name": "Strongman Contest Preparation",
+      "description": "A six-week original GymTracker strongman contest-preparation adaptation. Two base weeks build load tolerance on log press, farmer's hold, deadlift, yoke, sandbag loading and farmer's carry; two build weeks raise intensity and add a deadlift ladder, a sandbag medley and bag-toss practice; a simulation week rehearses a contest-style event sequence; a final week cuts volume in half at sixty to seventy percent loads for a technical assessment.",
+      "goal": "generalStrength",
+      "experienceLevel": "intermediate",
+      "durationWeeks": 6,
+      "supportedDaysPerWeek": [
+        3
+      ],
+      "scheduleMode": "fixedWeekdays",
+      "requiredEquipment": [
+        "Other"
+      ],
+      "prerequisites": [
+        "Prior experience with strongman implements (log, yoke, farmer's handles, sandbag) under coached supervision",
+        "Known one-repetition or best-effort maximums for log press, farmer's hold, deadlift, yoke carry, and farmer's carry"
+      ],
+      "warnings": [
+        "Every farmer's-hold and farmer's-carry percentage is a per-hand load, never a combined total -- do not compare it to a total-load lift.",
+        "Strongman implements vary between gyms and competitions; treat the prescribed percentages as a starting point and adjust to the equipment actually available.",
+        "Percentages are prescriptions, not automatic readiness or safety decisions."
+      ],
+      "intakeInputs": [
+        {
+          "exposureKey": "log-press",
+          "kind": "oneRepMax"
+        },
+        {
+          "exposureKey": "farmers-hold",
+          "kind": "oneRepMax"
+        },
+        {
+          "exposureKey": "strongman-deadlift",
+          "kind": "oneRepMax"
+        },
+        {
+          "exposureKey": "yoke-carry",
+          "kind": "oneRepMax"
+        },
+        {
+          "exposureKey": "farmers-carry",
+          "kind": "oneRepMax"
+        }
+      ],
+      "missedWorkoutPolicy": "shiftSequence",
+      "completionPolicy": {
+        "type": "offerTestDay"
+      },
+      "provenance": {
+        "kind": "sourceBackedOriginalAdaptation",
+        "statement": "GymTracker authored every weekly load, set, repetition, distance, and duration in this six-week adaptation. Public strength-sport literature supports only the general contest-preparation shape -- base loading, an intensity build, a full event-simulation rehearsal, and a reduced-volume taper into a technical check -- not this program's specific numbers. This is not presented as any federation's, gym's, or coach's official program."
+      },
+      "sourceReferences": [
+        {
+          "organizationOrAuthors": "National Strength and Conditioning Association",
+          "title": "Essentials of Strength Training and Conditioning, 4th Edition",
+          "year": 2016,
+          "sourceIdentifier": "ISBN 978-1492501626",
+          "supports": [
+            "General strongman training principles: odd-object carries, loading, and pressing events trained across a base-build-peak arc",
+            "General taper principle: reduced volume with maintained intensity ahead of a test or competition"
+          ],
+          "doesNotProvide": [
+            "This program's six-week schedule, event selection, percentages, or set/repetition/distance counts",
+            "GymTracker execution, progression, persistence, or backup behavior",
+            "Any specific federation's, gym's, or coach's proprietary program"
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "Base",
+          "phaseType": "accumulation",
+          "weeks": [
+            {
+              "weekIndex": 0,
+              "name": "Week 1 -- Base",
+              "workouts": [
+                {
+                  "name": "Overhead and Grip -- Week 1",
+                  "dayOffset": 0,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Log Press",
+                      "exposureKey": "log-press",
+                      "role": "main",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 5,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Hold",
+                      "exposureKey": "farmers-hold",
+                      "role": "secondary",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "durationSeconds": 30,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Deadlift and Yoke -- Week 1",
+                  "dayOffset": 2,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "strongman-deadlift",
+                      "role": "main",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.7000000000000001,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Yoke Carry",
+                      "exposureKey": "yoke-carry",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "distanceMeters": 15,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Loading and Carry -- Week 1",
+                  "dayOffset": 4,
+                  "role": "technique",
+                  "exercises": [
+                    {
+                      "exercise": "Sandbag Load",
+                      "exposureKey": "sandbag-load",
+                      "role": "main",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "farmers-carry",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "distanceMeters": 20,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 1,
+              "name": "Week 2 -- Base",
+              "workouts": [
+                {
+                  "name": "Overhead and Grip -- Week 2",
+                  "dayOffset": 0,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Log Press",
+                      "exposureKey": "log-press",
+                      "role": "main",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 5,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.7,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Hold",
+                      "exposureKey": "farmers-hold",
+                      "role": "secondary",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "durationSeconds": 30,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.7,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Deadlift and Yoke -- Week 2",
+                  "dayOffset": 2,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "strongman-deadlift",
+                      "role": "main",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.75,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Yoke Carry",
+                      "exposureKey": "yoke-carry",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "distanceMeters": 15,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6499999999999999,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Loading and Carry -- Week 2",
+                  "dayOffset": 4,
+                  "role": "technique",
+                  "exercises": [
+                    {
+                      "exercise": "Sandbag Load",
+                      "exposureKey": "sandbag-load",
+                      "role": "main",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "farmers-carry",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "distanceMeters": 20,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6499999999999999,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Build",
+          "phaseType": "strength",
+          "weeks": [
+            {
+              "weekIndex": 2,
+              "name": "Week 3 -- Build",
+              "workouts": [
+                {
+                  "name": "Overhead and Grip -- Week 3",
+                  "dayOffset": 0,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Log Press",
+                      "exposureKey": "log-press",
+                      "role": "main",
+                      "restSeconds": 210,
+                      "setGroups": [
+                        {
+                          "count": 5,
+                          "reps": 2,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.775,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Hold",
+                      "exposureKey": "farmers-hold",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "durationSeconds": 25,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.775,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Deadlift Ladder and Yoke -- Week 3",
+                  "dayOffset": 2,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "strongman-deadlift",
+                      "role": "main",
+                      "restSeconds": 210,
+                      "sets": [
+                        {
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.7,
+                            "round": 2.5
+                          }
+                        },
+                        {
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.78,
+                            "round": 2.5
+                          }
+                        },
+                        {
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.85,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Yoke Carry",
+                      "exposureKey": "yoke-carry",
+                      "role": "secondary",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "distanceMeters": 20,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.775,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Medley and Carry -- Week 3",
+                  "dayOffset": 4,
+                  "role": "technique",
+                  "exercises": [
+                    {
+                      "exercise": "Sandbag Load",
+                      "exposureKey": "sandbag-load",
+                      "role": "main",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 6
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Bag Toss",
+                      "exposureKey": "bag-toss",
+                      "role": "secondary",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "farmers-carry",
+                      "role": "accessory",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "distanceMeters": 20,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.775,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 3,
+              "name": "Week 4 -- Build",
+              "workouts": [
+                {
+                  "name": "Overhead and Grip -- Week 4",
+                  "dayOffset": 0,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Log Press",
+                      "exposureKey": "log-press",
+                      "role": "main",
+                      "restSeconds": 210,
+                      "setGroups": [
+                        {
+                          "count": 5,
+                          "reps": 2,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.85,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Hold",
+                      "exposureKey": "farmers-hold",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "durationSeconds": 25,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.85,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Deadlift Ladder and Yoke -- Week 4",
+                  "dayOffset": 2,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "strongman-deadlift",
+                      "role": "main",
+                      "restSeconds": 210,
+                      "sets": [
+                        {
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.75,
+                            "round": 2.5
+                          }
+                        },
+                        {
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.83,
+                            "round": 2.5
+                          }
+                        },
+                        {
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.9,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Yoke Carry",
+                      "exposureKey": "yoke-carry",
+                      "role": "secondary",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "distanceMeters": 20,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.85,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Medley and Carry -- Week 4",
+                  "dayOffset": 4,
+                  "role": "technique",
+                  "exercises": [
+                    {
+                      "exercise": "Sandbag Load",
+                      "exposureKey": "sandbag-load",
+                      "role": "main",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 6
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Bag Toss",
+                      "exposureKey": "bag-toss",
+                      "role": "secondary",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "farmers-carry",
+                      "role": "accessory",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "distanceMeters": 20,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.85,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Simulation",
+          "phaseType": "peaking",
+          "weeks": [
+            {
+              "weekIndex": 4,
+              "name": "Week 5 -- Simulation",
+              "workouts": [
+                {
+                  "name": "Full Event Simulation",
+                  "dayOffset": 0,
+                  "role": "simulation",
+                  "exercises": [
+                    {
+                      "exercise": "Log Press",
+                      "exposureKey": "log-press",
+                      "role": "main",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "amrap": [
+                            null,
+                            null
+                          ],
+                          "role": "amrap",
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.7,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Yoke Carry",
+                      "exposureKey": "yoke-carry",
+                      "role": "secondary",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 20,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.75,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "farmers-carry",
+                      "role": "secondary",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 20,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.75,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "strongman-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 180,
+                      "sets": [
+                        {
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.7,
+                            "round": 2.5
+                          }
+                        },
+                        {
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.8,
+                            "round": 2.5
+                          }
+                        },
+                        {
+                          "reps": 1,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.87,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sandbag Load",
+                      "exposureKey": "sandbag-load",
+                      "role": "accessory",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 10
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Recovery Technique",
+                  "dayOffset": 2,
+                  "role": "recovery",
+                  "exercises": [
+                    {
+                      "exercise": "Log Press",
+                      "exposureKey": "log-press",
+                      "role": "main",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 2,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.55,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "strongman-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 2,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.55,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Event Technique Polish",
+                  "dayOffset": 4,
+                  "role": "technique",
+                  "exercises": [
+                    {
+                      "exercise": "Farmer's Hold",
+                      "exposureKey": "farmers-hold",
+                      "role": "main",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "durationSeconds": 20,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Yoke Carry",
+                      "exposureKey": "yoke-carry",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 15,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Bag Toss",
+                      "exposureKey": "bag-toss",
+                      "role": "accessory",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 5
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Deload and Assessment",
+          "phaseType": "deload",
+          "deloadVolumeReductionPercent": 50,
+          "deloadIntensityReductionPercent": 15,
+          "weeks": [
+            {
+              "weekIndex": 5,
+              "name": "Week 6 -- Deload and Assessment",
+              "workouts": [
+                {
+                  "name": "Overhead and Grip -- Reduced",
+                  "dayOffset": 0,
+                  "role": "deload",
+                  "exercises": [
+                    {
+                      "exercise": "Log Press",
+                      "exposureKey": "log-press",
+                      "role": "main",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Hold",
+                      "exposureKey": "farmers-hold",
+                      "role": "secondary",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 2,
+                          "durationSeconds": 20,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Deadlift and Yoke -- Reduced",
+                  "dayOffset": 2,
+                  "role": "deload",
+                  "exercises": [
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "strongman-deadlift",
+                      "role": "main",
+                      "restSeconds": 180,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Yoke Carry",
+                      "exposureKey": "yoke-carry",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 2,
+                          "distanceMeters": 10,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Technical Assessment",
+                  "dayOffset": 4,
+                  "role": "technicalAssessment",
+                  "exercises": [
+                    {
+                      "exercise": "Sandbag Load",
+                      "exposureKey": "sandbag-load",
+                      "role": "main",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 3
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Bag Toss",
+                      "exposureKey": "bag-toss",
+                      "role": "secondary",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 3
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "farmers-carry",
+                      "role": "accessory",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 2,
+                          "distanceMeters": 15,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "programKey": "fitness-racing-base-to-peak",
+      "name": "Fitness Racing Base to Peak",
+      "description": "An eight-week original GymTracker adaptation for hybrid fitness-racing events: an aerobic base run, strength work, running intervals, station skill paired with compromised running, and a weekly race simulation that scales from a short rehearsal through a three-quarter and a full-distance simulation to a final race-day test.",
+      "goal": "generalFitness",
+      "experienceLevel": "intermediate",
+      "durationWeeks": 8,
+      "supportedDaysPerWeek": [
+        5
+      ],
+      "scheduleMode": "fixedWeekdays",
+      "requiredEquipment": [
+        "Cardio Machine",
+        "Other"
+      ],
+      "prerequisites": [
+        "Comfortable running continuously for at least twenty minutes",
+        "Known one-repetition maximums for Back Squat and Deadlift",
+        "Basic technique on sled push/pull and wall ball"
+      ],
+      "warnings": [
+        "The weekly simulation session is performed as one ordered pass through every station with no automatic rest between them -- pace accordingly.",
+        "Compromised running (Day 4) is deliberately fatiguing; stop a run leg early if form breaks down.",
+        "Percentages and distances are prescriptions, not automatic readiness or safety decisions."
+      ],
+      "intakeInputs": [
+        {
+          "exposureKey": "fr-squat",
+          "kind": "oneRepMax"
+        },
+        {
+          "exposureKey": "fr-deadlift",
+          "kind": "oneRepMax"
+        }
+      ],
+      "missedWorkoutPolicy": "shiftSequence",
+      "completionPolicy": {
+        "type": "offerTestDay"
+      },
+      "provenance": {
+        "kind": "sourceBackedOriginalAdaptation",
+        "statement": "GymTracker authored every weekly distance, load, repetition, and station in this eight-week adaptation. Public endurance and hybrid-fitness training literature supports only the general base-build-peak-taper shape and the principle of race-pace simulation before a target event, not this program's specific numbers. This is not presented as any race organizer's, gym's, or coach's official program."
+      },
+      "sourceReferences": [
+        {
+          "organizationOrAuthors": "National Strength and Conditioning Association",
+          "title": "Essentials of Strength Training and Conditioning, 4th Edition",
+          "year": 2016,
+          "sourceIdentifier": "ISBN 978-1492501626",
+          "supports": [
+            "General base-to-peak periodization: rising aerobic and strength volume followed by a taper",
+            "General principle of race-pace or event simulation ahead of a target competition"
+          ],
+          "doesNotProvide": [
+            "This program's eight-week schedule, station selection, distances, or percentages",
+            "GymTracker execution, progression, persistence, or backup behavior",
+            "Any specific race organizer's, gym's, or coach's proprietary program"
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "Base",
+          "phaseType": "accumulation",
+          "weeks": [
+            {
+              "weekIndex": 0,
+              "name": "Week 1",
+              "workouts": [
+                {
+                  "name": "Aerobic Base Run -- Week 1",
+                  "dayOffset": 0,
+                  "role": "aerobicBase",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "aerobic-base-run",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 4000
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Strength -- Week 1",
+                  "dayOffset": 1,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "fr-squat",
+                      "role": "main",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "fr-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "fr-carry",
+                      "role": "accessory",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Running Intervals -- Week 1",
+                  "dayOffset": 2,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "run-intervals",
+                      "role": "main",
+                      "setGroups": [
+                        {
+                          "count": 6,
+                          "distanceMeters": 400,
+                          "restSeconds": 90
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Station Skill and Compromised Running -- Week 1",
+                  "dayOffset": 3,
+                  "role": "stationSkill",
+                  "exercises": [
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "day4-station-1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 12
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "day4-compromised-run",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 400
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "day4-station-2",
+                      "role": "accessory",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 10
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Simulation -- Week 1",
+                  "dayOffset": 4,
+                  "role": "simulation",
+                  "executionBlocks": [
+                    {
+                      "blockKey": "simulation",
+                      "name": "Race Simulation",
+                      "kind": "chipper",
+                      "clockMode": "countUp",
+                      "scoreKind": "duration",
+                      "repetitionScheme": "chipper"
+                    }
+                  ],
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "sim-run",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 400
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "sim-skierg",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 1,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 300
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "sim-sled-push",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 2,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 15
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "sim-wall-ball",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 3,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 15
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "sim-burpee",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 4,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 10
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 1,
+              "name": "Week 2",
+              "workouts": [
+                {
+                  "name": "Aerobic Base Run -- Week 2",
+                  "dayOffset": 0,
+                  "role": "aerobicBase",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "aerobic-base-run",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 4500
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Strength -- Week 2",
+                  "dayOffset": 1,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "fr-squat",
+                      "role": "main",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.675,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "fr-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.675,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "fr-carry",
+                      "role": "accessory",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Running Intervals -- Week 2",
+                  "dayOffset": 2,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "run-intervals",
+                      "role": "main",
+                      "setGroups": [
+                        {
+                          "count": 6,
+                          "distanceMeters": 400,
+                          "restSeconds": 75
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Station Skill and Compromised Running -- Week 2",
+                  "dayOffset": 3,
+                  "role": "stationSkill",
+                  "exercises": [
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "day4-station-1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 15
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "day4-compromised-run",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 500
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "day4-station-2",
+                      "role": "accessory",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 12
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Simulation -- Week 2",
+                  "dayOffset": 4,
+                  "role": "simulation",
+                  "executionBlocks": [
+                    {
+                      "blockKey": "simulation",
+                      "name": "Race Simulation",
+                      "kind": "chipper",
+                      "clockMode": "countUp",
+                      "scoreKind": "duration",
+                      "repetitionScheme": "chipper"
+                    }
+                  ],
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "sim-run",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 600
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "sim-skierg",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 1,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 400
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "sim-sled-push",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 2,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 15
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "sim-wall-ball",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 3,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 20
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "sim-burpee",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 4,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 12
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Threshold Build",
+          "phaseType": "strength",
+          "weeks": [
+            {
+              "weekIndex": 2,
+              "name": "Week 3",
+              "workouts": [
+                {
+                  "name": "Aerobic Base Run -- Week 3",
+                  "dayOffset": 0,
+                  "role": "aerobicBase",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "aerobic-base-run",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 5000
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Strength -- Week 3",
+                  "dayOffset": 1,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "fr-squat",
+                      "role": "main",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.7,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "fr-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.7,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "fr-carry",
+                      "role": "accessory",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Running Intervals -- Week 3",
+                  "dayOffset": 2,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "run-intervals",
+                      "role": "main",
+                      "setGroups": [
+                        {
+                          "count": 5,
+                          "distanceMeters": 800,
+                          "restSeconds": 120
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Station Skill and Compromised Running -- Week 3",
+                  "dayOffset": 3,
+                  "role": "stationSkill",
+                  "exercises": [
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "day4-station-1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 15
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "day4-compromised-run",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 600
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Pull",
+                      "exposureKey": "day4-station-2",
+                      "role": "accessory",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 15
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Simulation -- Week 3",
+                  "dayOffset": 4,
+                  "role": "simulation",
+                  "executionBlocks": [
+                    {
+                      "blockKey": "simulation",
+                      "name": "Race Simulation",
+                      "kind": "chipper",
+                      "clockMode": "countUp",
+                      "scoreKind": "duration",
+                      "repetitionScheme": "chipper"
+                    }
+                  ],
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "sim-run",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 800
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "sim-skierg",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 1,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 500
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "sim-sled-push",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 2,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "sim-wall-ball",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 3,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 25
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "sim-burpee",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 4,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 15
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 3,
+              "name": "Week 4",
+              "workouts": [
+                {
+                  "name": "Aerobic Base Run -- Week 4",
+                  "dayOffset": 0,
+                  "role": "aerobicBase",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "aerobic-base-run",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 5500
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Strength -- Week 4",
+                  "dayOffset": 1,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "fr-squat",
+                      "role": "main",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.725,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "fr-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.725,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "fr-carry",
+                      "role": "accessory",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Running Intervals -- Week 4",
+                  "dayOffset": 2,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "run-intervals",
+                      "role": "main",
+                      "setGroups": [
+                        {
+                          "count": 5,
+                          "distanceMeters": 800,
+                          "restSeconds": 100
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Station Skill and Compromised Running -- Week 4",
+                  "dayOffset": 3,
+                  "role": "stationSkill",
+                  "exercises": [
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "day4-station-1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "day4-compromised-run",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 700
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Pull",
+                      "exposureKey": "day4-station-2",
+                      "role": "accessory",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Simulation -- Week 4",
+                  "dayOffset": 4,
+                  "role": "simulation",
+                  "executionBlocks": [
+                    {
+                      "blockKey": "simulation",
+                      "name": "Race Simulation",
+                      "kind": "chipper",
+                      "clockMode": "countUp",
+                      "scoreKind": "duration",
+                      "repetitionScheme": "chipper"
+                    }
+                  ],
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "sim-run",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 1000
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "sim-skierg",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 1,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 600
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "sim-sled-push",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 2,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "sim-wall-ball",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 3,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 30
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "sim-burpee",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 4,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 18
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Specific Build",
+          "phaseType": "strength",
+          "weeks": [
+            {
+              "weekIndex": 4,
+              "name": "Week 5",
+              "workouts": [
+                {
+                  "name": "Aerobic Base Run -- Week 5",
+                  "dayOffset": 0,
+                  "role": "aerobicBase",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "aerobic-base-run",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 5000
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Strength -- Week 5",
+                  "dayOffset": 1,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "fr-squat",
+                      "role": "main",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.75,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "fr-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.75,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "fr-carry",
+                      "role": "accessory",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Running Intervals -- Week 5",
+                  "dayOffset": 2,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "run-intervals",
+                      "role": "main",
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "distanceMeters": 1000,
+                          "restSeconds": 150
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Station Skill and Compromised Running -- Week 5",
+                  "dayOffset": 3,
+                  "role": "stationSkill",
+                  "exercises": [
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "day4-station-1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 20
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "day4-compromised-run",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 800
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "day4-station-2",
+                      "role": "accessory",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 25
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Simulation -- Week 5",
+                  "dayOffset": 4,
+                  "role": "simulation",
+                  "executionBlocks": [
+                    {
+                      "blockKey": "simulation",
+                      "name": "Race Simulation",
+                      "kind": "chipper",
+                      "clockMode": "countUp",
+                      "scoreKind": "duration",
+                      "repetitionScheme": "chipper"
+                    }
+                  ],
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "sim-run",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 1500
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "sim-skierg",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 1,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 750
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "sim-sled-push",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 2,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 25
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "sim-wall-ball",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 3,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 40
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "sim-burpee",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 4,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 22
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Full Simulation",
+          "phaseType": "peaking",
+          "weeks": [
+            {
+              "weekIndex": 5,
+              "name": "Week 6",
+              "workouts": [
+                {
+                  "name": "Aerobic Base Run -- Week 6",
+                  "dayOffset": 0,
+                  "role": "aerobicBase",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "aerobic-base-run",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 4000
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Strength -- Week 6",
+                  "dayOffset": 1,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "fr-squat",
+                      "role": "main",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "fr-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.65,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "fr-carry",
+                      "role": "accessory",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Running Intervals -- Week 6",
+                  "dayOffset": 2,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "run-intervals",
+                      "role": "main",
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 1000,
+                          "restSeconds": 120
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Station Skill and Compromised Running -- Week 6",
+                  "dayOffset": 3,
+                  "role": "stationSkill",
+                  "exercises": [
+                    {
+                      "exercise": "Sled Pull",
+                      "exposureKey": "day4-station-1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 25
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "day4-compromised-run",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 800
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "day4-station-2",
+                      "role": "accessory",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 35
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Simulation -- Week 6",
+                  "dayOffset": 4,
+                  "role": "simulation",
+                  "executionBlocks": [
+                    {
+                      "blockKey": "simulation",
+                      "name": "Race Simulation",
+                      "kind": "chipper",
+                      "clockMode": "countUp",
+                      "scoreKind": "duration",
+                      "repetitionScheme": "chipper"
+                    }
+                  ],
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "sim-run",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 2000
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "sim-skierg",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 1,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 1000
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "sim-sled-push",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 2,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 30
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "sim-wall-ball",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 3,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 50
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "sim-burpee",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 4,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 25
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Peak",
+          "phaseType": "peaking",
+          "weeks": [
+            {
+              "weekIndex": 6,
+              "name": "Week 7",
+              "workouts": [
+                {
+                  "name": "Aerobic Base Run -- Week 7",
+                  "dayOffset": 0,
+                  "role": "aerobicBase",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "aerobic-base-run",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 3000
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Strength -- Week 7",
+                  "dayOffset": 1,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "fr-squat",
+                      "role": "main",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "fr-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 5,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.6,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "fr-carry",
+                      "role": "accessory",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Running Intervals -- Week 7",
+                  "dayOffset": 2,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "run-intervals",
+                      "role": "main",
+                      "setGroups": [
+                        {
+                          "count": 4,
+                          "distanceMeters": 400,
+                          "restSeconds": 90
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Station Skill and Compromised Running -- Week 7",
+                  "dayOffset": 3,
+                  "role": "stationSkill",
+                  "exercises": [
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "day4-station-1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 12
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "day4-compromised-run",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 400
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "day4-station-2",
+                      "role": "accessory",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 15
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Simulation -- Week 7",
+                  "dayOffset": 4,
+                  "role": "simulation",
+                  "executionBlocks": [
+                    {
+                      "blockKey": "simulation",
+                      "name": "Race Simulation",
+                      "kind": "chipper",
+                      "clockMode": "countUp",
+                      "scoreKind": "duration",
+                      "repetitionScheme": "chipper"
+                    }
+                  ],
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "sim-run",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 1000
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "sim-skierg",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 1,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 500
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "sim-sled-push",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 2,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "sim-wall-ball",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 3,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 25
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "sim-burpee",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 4,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 12
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Taper and Test",
+          "phaseType": "deload",
+          "deloadVolumeReductionPercent": 40,
+          "deloadIntensityReductionPercent": 10,
+          "weeks": [
+            {
+              "weekIndex": 7,
+              "name": "Week 8",
+              "workouts": [
+                {
+                  "name": "Aerobic Base Run -- Week 8",
+                  "dayOffset": 0,
+                  "role": "aerobicBase",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "aerobic-base-run",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 2000
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Strength -- Week 8",
+                  "dayOffset": 1,
+                  "role": "strength",
+                  "exercises": [
+                    {
+                      "exercise": "Back Squat",
+                      "exposureKey": "fr-squat",
+                      "role": "main",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 2,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.55,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Deadlift",
+                      "exposureKey": "fr-deadlift",
+                      "role": "secondary",
+                      "restSeconds": 150,
+                      "setGroups": [
+                        {
+                          "count": 2,
+                          "reps": 3,
+                          "load": {
+                            "reference": "exerciseOneRepMax",
+                            "of": "$self",
+                            "percent": 0.55,
+                            "round": 2.5
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Farmer's Handles Carry",
+                      "exposureKey": "fr-carry",
+                      "role": "accessory",
+                      "restSeconds": 120,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "distanceMeters": 20
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Running Intervals -- Week 8",
+                  "dayOffset": 2,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "run-intervals",
+                      "role": "main",
+                      "setGroups": [
+                        {
+                          "count": 2,
+                          "distanceMeters": 400,
+                          "restSeconds": 120
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Station Skill and Compromised Running -- Week 8",
+                  "dayOffset": 3,
+                  "role": "stationSkill",
+                  "exercises": [
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "day4-station-1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 10
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "day4-compromised-run",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 300
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "day4-station-2",
+                      "role": "accessory",
+                      "restSeconds": 90,
+                      "setGroups": [
+                        {
+                          "count": 3,
+                          "reps": 10
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Simulation -- Week 8",
+                  "dayOffset": 4,
+                  "role": "test",
+                  "executionBlocks": [
+                    {
+                      "blockKey": "simulation",
+                      "name": "Race Simulation",
+                      "kind": "chipper",
+                      "clockMode": "countUp",
+                      "scoreKind": "duration",
+                      "repetitionScheme": "chipper"
+                    }
+                  ],
+                  "exercises": [
+                    {
+                      "exercise": "Run",
+                      "exposureKey": "sim-run",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 2000
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "sim-skierg",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 1,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 1000
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Sled Push",
+                      "exposureKey": "sim-sled-push",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 2,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "distanceMeters": 30
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Wall Ball",
+                      "exposureKey": "sim-wall-ball",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 3,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 50
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "Burpee",
+                      "exposureKey": "sim-burpee",
+                      "role": "main",
+                      "executionBlockKey": "simulation",
+                      "executionBlockComponentOrder": 4,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "reps": 25
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "programKey": "multi-erg-interval-rotation",
+      "name": "Multi-Erg Interval Rotation",
+      "description": "A four-week original GymTracker rotation across SkiErg, RowErg, and BikeErg. Session A repeats a four-minute-per-machine rotation for two or three rounds; Session B is a fixed five-segment pyramid across the same three machines. Both sessions shorten their recovery and Session A adds a round as the weeks progress.",
+      "goal": "generalFitness",
+      "experienceLevel": "intermediate",
+      "durationWeeks": 4,
+      "supportedDaysPerWeek": [
+        2
+      ],
+      "scheduleMode": "fixedWeekdays",
+      "requiredEquipment": [
+        "Cardio Machine"
+      ],
+      "warnings": [
+        "Schedule the two sessions on non-consecutive days.",
+        "Pace every machine interval evenly rather than starting each one all-out."
+      ],
+      "missedWorkoutPolicy": "shiftSequence",
+      "completionPolicy": {
+        "type": "offerRestart",
+        "carryState": true
+      },
+      "provenance": {
+        "kind": "sourceBackedOriginalAdaptation",
+        "statement": "GymTracker authored every interval length, round count, rest period, and machine order in this four-week rotation. Public conditioning literature supports only the general principle of multi-modal ergometer intervals with progressively shorter recovery, not this program's specific schedule. This is not presented as any manufacturer's or coach's official program."
+      },
+      "sourceReferences": [
+        {
+          "organizationOrAuthors": "National Strength and Conditioning Association",
+          "title": "Essentials of Strength Training and Conditioning, 4th Edition",
+          "year": 2016,
+          "sourceIdentifier": "ISBN 978-1492501626",
+          "supports": [
+            "General interval-training principle: fixed work intervals with progressively shorter recovery drive a conditioning adaptation",
+            "General principle of cross-modal conditioning across multiple ergometers"
+          ],
+          "doesNotProvide": [
+            "This program's four-week schedule, interval lengths, round counts, or rest periods",
+            "GymTracker execution, progression, persistence, or backup behavior",
+            "Any specific manufacturer's or coach's proprietary program"
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "Multi-Erg Rotation",
+          "phaseType": "accumulation",
+          "weeks": [
+            {
+              "weekIndex": 0,
+              "name": "Week 1 -- 2 rounds, 60s rest",
+              "workouts": [
+                {
+                  "name": "Session A -- 2 Rounds -- Week 1",
+                  "dayOffset": 0,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-r1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-r1",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-r1",
+                      "role": "accessory",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-r2",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-r2",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-r2",
+                      "role": "accessory",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Session B -- Pyramid -- Week 1",
+                  "dayOffset": 3,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-b-1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 60
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-b-1",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 120
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-b-1",
+                      "role": "accessory",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 180
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-b-2",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 120
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-b-2",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 60
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 1,
+              "name": "Week 2 -- 2 rounds, 45s rest",
+              "workouts": [
+                {
+                  "name": "Session A -- 2 Rounds -- Week 2",
+                  "dayOffset": 0,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-r1",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-r1",
+                      "role": "secondary",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-r1",
+                      "role": "accessory",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-r2",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-r2",
+                      "role": "secondary",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-r2",
+                      "role": "accessory",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Session B -- Pyramid -- Week 2",
+                  "dayOffset": 3,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-b-1",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 60
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-b-1",
+                      "role": "secondary",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 120
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-b-1",
+                      "role": "accessory",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 180
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-b-2",
+                      "role": "secondary",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 120
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-b-2",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 60
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 2,
+              "name": "Week 3 -- 3 rounds, 60s rest",
+              "workouts": [
+                {
+                  "name": "Session A -- 3 Rounds -- Week 3",
+                  "dayOffset": 0,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-r1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-r1",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-r1",
+                      "role": "accessory",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-r2",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-r2",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-r2",
+                      "role": "accessory",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-r3",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-r3",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-r3",
+                      "role": "accessory",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Session B -- Pyramid -- Week 3",
+                  "dayOffset": 3,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-b-1",
+                      "role": "main",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 60
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-b-1",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 120
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-b-1",
+                      "role": "accessory",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 180
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-b-2",
+                      "role": "secondary",
+                      "restSeconds": 60,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 120
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-b-2",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 60
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "weekIndex": 3,
+              "name": "Week 4 -- 3 rounds, 45s rest",
+              "workouts": [
+                {
+                  "name": "Session A -- 3 Rounds -- Week 4",
+                  "dayOffset": 0,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-r1",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-r1",
+                      "role": "secondary",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-r1",
+                      "role": "accessory",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-r2",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-r2",
+                      "role": "secondary",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-r2",
+                      "role": "accessory",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-r3",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-r3",
+                      "role": "secondary",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-r3",
+                      "role": "accessory",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 240
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Session B -- Pyramid -- Week 4",
+                  "dayOffset": 3,
+                  "role": "intervals",
+                  "exercises": [
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-b-1",
+                      "role": "main",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 60
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-b-1",
+                      "role": "secondary",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 120
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "BikeErg",
+                      "exposureKey": "bike-b-1",
+                      "role": "accessory",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 180
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "RowErg",
+                      "exposureKey": "row-b-2",
+                      "role": "secondary",
+                      "restSeconds": 45,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 120
+                        }
+                      ]
+                    },
+                    {
+                      "exercise": "SkiErg",
+                      "exposureKey": "ski-b-2",
+                      "role": "main",
+                      "restSeconds": 0,
+                      "setGroups": [
+                        {
+                          "count": 1,
+                          "durationSeconds": 60
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ]
 }
