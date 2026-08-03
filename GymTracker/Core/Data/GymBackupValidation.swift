@@ -937,6 +937,7 @@ extension BackupDTO {
                       isValid(item.breathingPrescription),
                       isValid(item.tempoPrescription),
                       isValid(item.assistancePrescription),
+                      isValid(item.metricProfile, targets: item.metricTargets),
                       item.supportLevel.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true else {
                     throw BackupValidationError.invalidIdentifier("mobility routine item")
                 }
@@ -1017,6 +1018,7 @@ extension BackupDTO {
                           isValid(result.breathingPrescriptionSnapshot),
                           isValid(result.tempoPrescriptionSnapshot),
                           isValid(result.assistancePrescriptionSnapshot),
+                          isValid(result.metricProfileSnapshot, targets: result.metricTargetsSnapshot),
                           result.supportLevelSnapshot.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true,
                           result.performedBreathingCycles.map({ $0 >= 0 }) ?? true,
                           result.performedAssistanceLevel.map({ $0 >= 0 }) ?? true,
@@ -1484,5 +1486,28 @@ extension BackupDTO {
         guard let prescription else { return true }
         return MobilityAssistanceType(rawValue: prescription.assistanceType) != nil
             && (prescription.level.map({ $0 >= 0 }) ?? true)
+    }
+
+    private func isValid(
+        _ profile: MobilityMetricProfile?,
+        targets: MobilityMetricTargets?
+    ) -> Bool {
+        guard targets?.isValid ?? true else { return false }
+        guard let profile else { return true }
+        guard profile.supportedMetrics.isEmpty == false,
+              profile.primaryProgressMetric.map({ profile.supportedMetrics.contains($0) }) ?? true
+        else { return false }
+        switch profile.defaultCompletionRule {
+        case .all(let metrics), .any(let metrics):
+            return metrics.isEmpty == false
+                && metrics.isSubset(of: profile.completionWritableMetrics)
+        case .prescribedTargets:
+            guard let targets else { return false }
+            let metrics = targets.prescribedMetrics
+            return metrics.isEmpty == false
+                && metrics.isSubset(of: profile.completionWritableMetrics)
+        case .phaseSequenceCompleted:
+            return profile.supportedMetrics.contains(.cycles)
+        }
     }
 }

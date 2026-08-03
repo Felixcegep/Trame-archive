@@ -1236,7 +1236,9 @@ extension BackupDTO {
                     || itemDTO.breathingPrescription != nil
                     || itemDTO.tempoPrescription != nil
                     || itemDTO.assistancePrescription != nil
-                    || itemDTO.supportLevel != nil {
+                    || itemDTO.supportLevel != nil
+                    || itemDTO.metricProfile != nil
+                    || itemDTO.metricTargets != nil {
                     let evidence = MobilityRoutineItemEvidence(
                         routineItemID: item.id,
                         method: itemDTO.method.flatMap(MobilityMethod.init(rawValue:)),
@@ -1265,6 +1267,8 @@ extension BackupDTO {
                             )
                         },
                         supportLevel: itemDTO.supportLevel.flatMap(MobilitySupportLevel.init(rawValue:)),
+                        metricProfile: itemDTO.metricProfile,
+                        metricTargets: itemDTO.metricTargets,
                         createdAt: routineDTO.createdAt,
                         updatedAt: routineDTO.updatedAt
                     )
@@ -1371,6 +1375,8 @@ extension BackupDTO {
                                 )
                             },
                             supportLevelSnapshot: resultDTO.supportLevelSnapshot.flatMap(MobilitySupportLevel.init(rawValue:)),
+                            metricProfileSnapshot: resultDTO.metricProfileSnapshot,
+                            metricTargetsSnapshot: resultDTO.metricTargetsSnapshot,
                             performedBreathingCycles: resultDTO.performedBreathingCycles,
                             performedAssistanceLevel: resultDTO.performedAssistanceLevel,
                             performedSupportLevel: resultDTO.performedSupportLevel.flatMap(MobilitySupportLevel.init(rawValue:)),

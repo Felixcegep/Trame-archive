@@ -784,7 +784,9 @@ extension BackupDTO {
                                 equipment: $0.equipmentRaw
                             )
                         },
-                        supportLevel: mobilityPrescriptionEvidence[item.id]?.supportLevelRaw
+                        supportLevel: mobilityPrescriptionEvidence[item.id]?.supportLevelRaw,
+                        metricProfile: mobilityPrescriptionEvidence[item.id]?.metricProfile,
+                        metricTargets: mobilityPrescriptionEvidence[item.id]?.metricTargets
                     )
                 },
                 // Do not export an unrecognized raw value from a future build:
@@ -873,7 +875,9 @@ extension BackupDTO {
                                 supportLevelSnapshot: evidence?.supportLevelSnapshotRaw,
                                 performedBreathingCycles: evidence?.performedBreathingCycles,
                                 performedAssistanceLevel: evidence?.performedAssistanceLevel,
-                                performedSupportLevel: evidence?.performedSupportLevelRaw
+                                performedSupportLevel: evidence?.performedSupportLevelRaw,
+                                metricProfileSnapshot: evidence?.metricProfileSnapshot,
+                                metricTargetsSnapshot: evidence?.metricTargetsSnapshot
                             )
                         },
                         phaseResults: entry.orderedPhaseResults.map { phaseResult in

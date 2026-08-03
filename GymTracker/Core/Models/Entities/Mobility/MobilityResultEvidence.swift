@@ -15,6 +15,8 @@ final class MobilityResultEvidence {
     var tempoPrescriptionSnapshotData: Data?
     var assistancePrescriptionSnapshotData: Data?
     var supportLevelSnapshotRaw: String?
+    var metricProfileSnapshotData: Data?
+    var metricTargetsSnapshotData: Data?
     var performedBreathingCycles: Int?
     var performedAssistanceLevel: Int?
     var performedSupportLevelRaw: String?
@@ -49,6 +51,14 @@ final class MobilityResultEvidence {
 
     var supportLevelSnapshot: MobilitySupportLevel? {
         supportLevelSnapshotRaw.flatMap(MobilitySupportLevel.init(rawValue:))
+    }
+
+    var metricProfileSnapshot: MobilityMetricProfile? {
+        Self.decode(MobilityMetricProfile.self, from: metricProfileSnapshotData)
+    }
+
+    var metricTargetsSnapshot: MobilityMetricTargets? {
+        Self.decode(MobilityMetricTargets.self, from: metricTargetsSnapshotData)
     }
 
     var performedSupportLevel: MobilitySupportLevel? {
@@ -97,6 +107,8 @@ final class MobilityResultEvidence {
         tempoPrescriptionSnapshot: MobilityTempoPrescription? = nil,
         assistancePrescriptionSnapshot: MobilityAssistancePrescription? = nil,
         supportLevelSnapshot: MobilitySupportLevel? = nil,
+        metricProfileSnapshot: MobilityMetricProfile? = nil,
+        metricTargetsSnapshot: MobilityMetricTargets? = nil,
         performedBreathingCycles: Int? = nil,
         performedAssistanceLevel: Int? = nil,
         performedSupportLevel: MobilitySupportLevel? = nil,
@@ -116,6 +128,8 @@ final class MobilityResultEvidence {
         self.tempoPrescriptionSnapshotData = Self.encode(tempoPrescriptionSnapshot)
         self.assistancePrescriptionSnapshotData = Self.encode(assistancePrescriptionSnapshot)
         self.supportLevelSnapshotRaw = supportLevelSnapshot?.rawValue
+        self.metricProfileSnapshotData = Self.encode(metricProfileSnapshot)
+        self.metricTargetsSnapshotData = Self.encode(metricTargetsSnapshot)
         self.performedBreathingCycles = performedBreathingCycles
         self.performedAssistanceLevel = performedAssistanceLevel
         self.performedSupportLevelRaw = performedSupportLevel?.rawValue

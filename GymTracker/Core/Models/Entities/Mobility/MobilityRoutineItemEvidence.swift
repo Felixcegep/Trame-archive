@@ -15,6 +15,8 @@ final class MobilityRoutineItemEvidence {
     var tempoPrescriptionData: Data?
     var assistancePrescriptionData: Data?
     var supportLevelRaw: String?
+    var metricProfileData: Data?
+    var metricTargetsData: Data?
     var createdAt: Date
     var updatedAt: Date
 
@@ -48,6 +50,16 @@ final class MobilityRoutineItemEvidence {
         set { supportLevelRaw = newValue?.rawValue }
     }
 
+    var metricProfile: MobilityMetricProfile? {
+        get { Self.decode(MobilityMetricProfile.self, from: metricProfileData) }
+        set { metricProfileData = Self.encode(newValue) }
+    }
+
+    var metricTargets: MobilityMetricTargets? {
+        get { Self.decode(MobilityMetricTargets.self, from: metricTargetsData) }
+        set { metricTargetsData = Self.encode(newValue) }
+    }
+
     init(
         routineItemID: UUID,
         method: MobilityMethod? = nil,
@@ -56,6 +68,8 @@ final class MobilityRoutineItemEvidence {
         tempoPrescription: MobilityTempoPrescription? = nil,
         assistancePrescription: MobilityAssistancePrescription? = nil,
         supportLevel: MobilitySupportLevel? = nil,
+        metricProfile: MobilityMetricProfile? = nil,
+        metricTargets: MobilityMetricTargets? = nil,
         id: UUID = UUID(),
         createdAt: Date = .now,
         updatedAt: Date = .now
@@ -68,6 +82,8 @@ final class MobilityRoutineItemEvidence {
         self.tempoPrescriptionData = nil
         self.assistancePrescriptionData = nil
         self.supportLevelRaw = supportLevel?.rawValue
+        self.metricProfileData = Self.encode(metricProfile)
+        self.metricTargetsData = Self.encode(metricTargets)
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.breathingPrescription = breathingPrescription

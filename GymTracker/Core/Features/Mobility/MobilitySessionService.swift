@@ -100,6 +100,9 @@ enum MobilitySessionService {
             updatedAt: now
         )
         let prescriptionEvidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)
+        guard routine.orderedItems.allSatisfy({ item in
+            isValidMetricPrescription(for: item, evidence: prescriptionEvidence[item.id])
+        }) else { return nil }
         session.entries = routine.orderedItems.enumerated().map { index, item in
             let entry = MobilityEntry(routineItem: item, orderIndex: index)
             entry.results = item.side.resultSides.map {
@@ -111,6 +114,12 @@ enum MobilitySessionService {
             }
             entry.phaseResults = phaseSnapshots(for: item)
             let prescription = prescriptionEvidence[item.id]
+            let metricTargets = resolvedMetricTargets(for: item, evidence: prescription)
+            let metricProfile = resolvedMetricProfile(
+                for: item,
+                evidence: prescription,
+                targets: metricTargets
+            )
             for result in entry.results {
                 modelContext.insert(
                     MobilityResultEvidence(
@@ -123,6 +132,8 @@ enum MobilitySessionService {
                         tempoPrescriptionSnapshot: prescription?.tempoPrescription,
                         assistancePrescriptionSnapshot: prescription?.assistancePrescription,
                         supportLevelSnapshot: prescription?.supportLevel,
+                        metricProfileSnapshot: metricProfile,
+                        metricTargetsSnapshot: metricTargets,
                         recordedAt: now
                     )
                 )
@@ -385,6 +396,34 @@ enum MobilitySessionService {
         )
         guard transition.stale == false else { return .stale(transition) }
 
+        if status == .completed {
+            let performedDuration = performedDurationSeconds ?? elapsedSeconds(for: entry, now: now)
+            let phaseValidation = MobilityCompletionValidator.validate(
+                MobilityCompletionValidator.Input(
+                    profile: MobilityMetricProfile(
+                        supportedMetrics: [.contractionDuration],
+                        defaultCompletionRule: .all([.contractionDuration]),
+                        primaryProgressMetric: .contractionDuration
+                    ),
+                    completionRule: nil,
+                    targets: MobilityMetricTargets(
+                        durationSeconds: .exact(currentPhase.prescribedDurationSeconds)
+                    ),
+                    performedDurationSeconds: performedDuration,
+                    performedRepetitions: nil,
+                    performedLoadValue: nil,
+                    performedLoadUnit: nil,
+                    performedBreathingCycles: performedBreathingCycles,
+                    performedAssistanceLevel: performedAssistanceLevel,
+                    performedSupportLevel: performedSupportLevel,
+                    movementQuality: movementQuality,
+                    sensation: sensation,
+                    phaseSequenceCompleted: false
+                )
+            )
+            guard phaseValidation.isValid else { return .invalidPerformedDuration }
+        }
+
         let hasPerformedObservation = sensation != nil
             || movementQuality != nil
             || compensationKeys.isEmpty == false
@@ -568,6 +607,19 @@ enum MobilitySessionService {
         // whole-entry action. `completeCurrentPhase` owns one-node evidence
         // and side/cycle/phase advancement.
         guard entry.isPhaseDriven == false else { return false }
+        let elapsed = elapsedSeconds(for: entry)
+        if status == .completed {
+            for result in entry.results {
+                guard let input = resultInputs[result.id],
+                      validateCompletion(
+                        entry: entry,
+                        result: result,
+                        input: input,
+                        elapsedSeconds: elapsed,
+                        using: modelContext
+                      ) else { return false }
+            }
+        }
         let transition = MobilityFlowResolver.resolve(
             MobilityFlowContext(
                 session: flowSnapshot(for: session),
@@ -583,7 +635,7 @@ enum MobilitySessionService {
                 MobilityEvidenceService.apply(MobilityResultInput(), to: result, using: modelContext)
             }
         }
-        complete(entry: entry, status: status, resultInputs: resultInputs)
+        complete(entry: entry, status: status, resultInputs: resultInputs, elapsedSeconds: elapsed)
         apply(transition, afterCompletingPhaseIn: nil, session: session, now: .now)
         return save(session: session, using: modelContext)
     }
@@ -708,19 +760,153 @@ enum MobilitySessionService {
             && item.orderedPhases.allSatisfy { $0.orderIndex >= 0 && $0.durationSeconds > 0 }
     }
 
+    private static func resolvedMetricTargets(
+        for item: MobilityRoutineItem,
+        evidence: MobilityRoutineItemEvidence?
+    ) -> MobilityMetricTargets {
+        var targets = MobilityMetricTargets(
+            durationSeconds: (item.targetDurationSeconds ?? item.definition.defaultDurationSeconds)
+                .map(MobilityIntTarget.exact),
+            repetitions: (item.targetRepetitions ?? item.definition.defaultRepetitions)
+                .map(MobilityIntTarget.exact),
+            cycles: item.orderedPhases.isEmpty ? nil : .exact(item.cycleCount),
+            load: item.targetLoadValue.map(MobilityDoubleTarget.exact),
+            breathingCycles: evidence?.breathingPrescription?.targetBreaths
+                .map(MobilityIntTarget.exact)
+        )
+        if let authored = evidence?.metricTargets {
+            targets.durationSeconds = authored.durationSeconds ?? targets.durationSeconds
+            targets.repetitions = authored.repetitions ?? targets.repetitions
+            targets.cycles = authored.cycles ?? targets.cycles
+            targets.load = authored.load ?? targets.load
+            targets.breathingCycles = authored.breathingCycles ?? targets.breathingCycles
+        }
+        return targets
+    }
+
+    private static func resolvedMetricProfile(
+        for item: MobilityRoutineItem,
+        evidence: MobilityRoutineItemEvidence?,
+        targets: MobilityMetricTargets
+    ) -> MobilityMetricProfile {
+        if let authored = evidence?.metricProfile { return authored }
+        if item.orderedPhases.isEmpty == false {
+            return MobilityMetricProfile(
+                supportedMetrics: [.duration, .contractionDuration, .cycles],
+                defaultCompletionRule: .phaseSequenceCompleted,
+                primaryProgressMetric: .cycles
+            )
+        }
+        let base = item.definition.trackingType.legacyMetricProfile
+        var supported = base.supportedMetrics
+        if targets.load != nil { supported.insert(.load) }
+        if targets.breathingCycles != nil { supported.insert(.breathingCycles) }
+        var required: Set<MobilityMetric> = item.definition.trackingType == .duration
+            ? [.duration] : [.repetitions]
+        if targets.load != nil { required.insert(.load) }
+        return MobilityMetricProfile(
+            supportedMetrics: supported,
+            defaultCompletionRule: .all(required),
+            primaryProgressMetric: base.primaryProgressMetric
+        )
+    }
+
+    private static func isValidMetricPrescription(
+        for item: MobilityRoutineItem,
+        evidence: MobilityRoutineItemEvidence?
+    ) -> Bool {
+        let targets = resolvedMetricTargets(for: item, evidence: evidence)
+        let profile = resolvedMetricProfile(for: item, evidence: evidence, targets: targets)
+        guard targets.isValid,
+              profile.supportedMetrics.isEmpty == false,
+              profile.primaryProgressMetric.map({ profile.supportedMetrics.contains($0) }) ?? true
+        else { return false }
+        let probe = MobilityCompletionValidator.Input(
+            profile: profile,
+            completionRule: nil,
+            targets: targets,
+            performedDurationSeconds: 1,
+            performedRepetitions: 1,
+            performedLoadValue: 1,
+            performedLoadUnit: .kilograms,
+            performedBreathingCycles: 1,
+            performedAssistanceLevel: 0,
+            performedSupportLevel: .unsupported,
+            movementQuality: .unableToAssess,
+            sensation: .none,
+            phaseSequenceCompleted: true
+        )
+        return MobilityCompletionValidator.validate(probe).isValid
+    }
+
+    private static func validateCompletion(
+        entry: MobilityEntry,
+        result: MobilityResult,
+        input: MobilityResultInput,
+        elapsedSeconds: Int,
+        using modelContext: ModelContext
+    ) -> Bool {
+        let evidence = MobilityEvidenceService.resultEvidence(for: result.id, using: modelContext)
+        let fallbackTargets = MobilityMetricTargets(
+            durationSeconds: entry.targetDurationSeconds.map(MobilityIntTarget.exact),
+            repetitions: entry.targetRepetitions.map(MobilityIntTarget.exact),
+            cycles: entry.isPhaseDriven ? .exact(entry.cycleCount) : nil,
+            load: entry.prescribedLoadValue.map(MobilityDoubleTarget.exact),
+            breathingCycles: evidence?.breathingPrescriptionSnapshot?.targetBreaths
+                .map(MobilityIntTarget.exact)
+        )
+        let targets = evidence?.metricTargetsSnapshot ?? fallbackTargets
+        let profile: MobilityMetricProfile
+        if let snapshot = evidence?.metricProfileSnapshot {
+            profile = snapshot
+        } else {
+            var metrics = entry.trackingType.legacyMetricProfile.supportedMetrics
+            var required: Set<MobilityMetric> = entry.trackingType == .duration
+                ? [.duration] : [.repetitions]
+            if entry.prescribedLoadValue != nil {
+                metrics.insert(.load)
+                required.insert(.load)
+            }
+            profile = MobilityMetricProfile(
+                supportedMetrics: metrics,
+                defaultCompletionRule: .all(required),
+                primaryProgressMetric: entry.trackingType.legacyMetricProfile.primaryProgressMetric
+            )
+        }
+        return MobilityCompletionValidator.validate(
+            MobilityCompletionValidator.Input(
+                profile: profile,
+                completionRule: nil,
+                targets: targets,
+                performedDurationSeconds: input.performedDurationSeconds
+                    ?? (entry.trackingType == .duration ? elapsedSeconds : nil),
+                performedRepetitions: input.performedRepetitions,
+                performedLoadValue: input.performedLoadValue,
+                performedLoadUnit: input.performedLoadUnit,
+                performedBreathingCycles: input.performedBreathingCycles,
+                performedAssistanceLevel: input.performedAssistanceLevel,
+                performedSupportLevel: input.performedSupportLevel,
+                movementQuality: input.movementQuality,
+                sensation: input.sensation,
+                phaseSequenceCompleted: false
+            )
+        ).isValid
+    }
+
     private static func complete(
         entry: MobilityEntry,
         status: MobilityResultStatus,
-        resultInputs: [UUID: MobilityResultInput]
+        resultInputs: [UUID: MobilityResultInput],
+        elapsedSeconds: Int
     ) {
-        let elapsed = elapsedSeconds(for: entry)
         for result in entry.results {
             let input = resultInputs[result.id]
             result.status = status
-            result.performedDurationSeconds = input?.performedDurationSeconds ?? (entry.trackingType == .duration ? elapsed : nil)
+            result.performedDurationSeconds = input?.performedDurationSeconds
+                ?? (entry.trackingType == .duration && status != .skipped ? elapsedSeconds : nil)
             result.performedRepetitions = input?.performedRepetitions
-            result.performedLoadValue = input?.performedLoadValue ?? entry.prescribedLoadValue
-            result.performedLoadUnit = input?.performedLoadUnit ?? entry.prescribedLoadUnit
+            result.performedLoadValue = input?.performedLoadValue
+            result.performedLoadUnit = input?.performedLoadUnit
             result.perceivedIntensity = input?.perceivedIntensity
             result.discomfortNote = input?.discomfortNote?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
             result.completedAt = .now

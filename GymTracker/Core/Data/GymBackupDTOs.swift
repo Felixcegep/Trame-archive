@@ -727,6 +727,8 @@ nonisolated struct MobilityRoutineItemDTO: Codable {
     var tempoPrescription: MobilityTempoPrescriptionDTO? = nil
     var assistancePrescription: MobilityAssistancePrescriptionDTO? = nil
     var supportLevel: String? = nil
+    var metricProfile: MobilityMetricProfile? = nil
+    var metricTargets: MobilityMetricTargets? = nil
 }
 
 nonisolated struct MobilityRoutineDTO: Codable {
@@ -781,6 +783,8 @@ nonisolated struct MobilityResultDTO: Codable {
     var performedBreathingCycles: Int? = nil
     var performedAssistanceLevel: Int? = nil
     var performedSupportLevel: String? = nil
+    var metricProfileSnapshot: MobilityMetricProfile? = nil
+    var metricTargetsSnapshot: MobilityMetricTargets? = nil
 }
 
 nonisolated struct MobilityEntryDTO: Codable {

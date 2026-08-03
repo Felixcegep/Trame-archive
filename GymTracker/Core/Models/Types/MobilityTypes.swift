@@ -96,6 +96,145 @@ enum MobilityResistanceMode: String, Codable, CaseIterable, Hashable {
     case bandAssistance
 }
 
+/// Typed vocabulary for evidence recorded by a mobility result. Assessment
+/// measurements intentionally keep their separate measurement/unit domain.
+nonisolated enum MobilityMetric: String, Codable, CaseIterable, Hashable, Sendable {
+    case duration
+    case repetitions
+    case cycles
+    case load
+    case rangeDistance
+    case jointAngle
+    case reach
+    case breathingCycles
+    case contractionDuration
+    case assistanceLevel
+    case supportLevel
+    case movementQuality
+    case perceivedStretch
+
+    /// Metrics the current mobility execution surface can record directly.
+    static let completionWritable: Set<MobilityMetric> = [
+        .duration, .repetitions, .cycles, .load, .breathingCycles, .contractionDuration,
+        .assistanceLevel, .supportLevel, .movementQuality, .perceivedStretch
+    ]
+}
+
+nonisolated enum MobilityCompletionRule: Codable, Hashable, Sendable {
+    case all(Set<MobilityMetric>)
+    case any(Set<MobilityMetric>)
+    case prescribedTargets
+    case phaseSequenceCompleted
+}
+
+nonisolated struct MobilityMetricProfile: Codable, Hashable, Sendable {
+    var supportedMetrics: Set<MobilityMetric>
+    var defaultCompletionRule: MobilityCompletionRule
+    var primaryProgressMetric: MobilityMetric?
+
+    var completionWritableMetrics: Set<MobilityMetric> {
+        supportedMetrics.intersection(MobilityMetric.completionWritable)
+    }
+}
+
+/// Executable integer targets are deliberately bounded value types rather
+/// than stored formulas.
+nonisolated enum MobilityIntTarget: Codable, Hashable, Sendable {
+    case exact(Int)
+    case range(Int, Int)
+    case minimum(Int)
+    case maximum(Int)
+    case open
+
+    var isValid: Bool {
+        switch self {
+        case .exact(let value), .minimum(let value), .maximum(let value): value > 0
+        case .range(let minimum, let maximum): minimum > 0 && maximum >= minimum
+        case .open: true
+        }
+    }
+}
+
+nonisolated enum MobilityDoubleTarget: Codable, Hashable, Sendable {
+    case exact(Double)
+    case range(Double, Double)
+    case minimum(Double)
+    case maximum(Double)
+    case open
+
+    var isValid: Bool {
+        switch self {
+        case .exact(let value), .minimum(let value), .maximum(let value):
+            value.isFinite && value > 0
+        case .range(let minimum, let maximum):
+            minimum.isFinite && maximum.isFinite && minimum > 0 && maximum >= minimum
+        case .open: true
+        }
+    }
+}
+
+/// Targets currently executable by the mobility session domain. Range,
+/// angle, and reach remain assessment-owned until performed training evidence
+/// for those metrics has its own typed fields.
+nonisolated struct MobilityMetricTargets: Codable, Hashable, Sendable {
+    var durationSeconds: MobilityIntTarget?
+    var repetitions: MobilityIntTarget?
+    var cycles: MobilityIntTarget?
+    var load: MobilityDoubleTarget?
+    var breathingCycles: MobilityIntTarget?
+
+    init(
+        durationSeconds: MobilityIntTarget? = nil,
+        repetitions: MobilityIntTarget? = nil,
+        cycles: MobilityIntTarget? = nil,
+        load: MobilityDoubleTarget? = nil,
+        breathingCycles: MobilityIntTarget? = nil
+    ) {
+        self.durationSeconds = durationSeconds
+        self.repetitions = repetitions
+        self.cycles = cycles
+        self.load = load
+        self.breathingCycles = breathingCycles
+    }
+
+    var prescribedMetrics: Set<MobilityMetric> {
+        var metrics = Set<MobilityMetric>()
+        if durationSeconds != nil { metrics.insert(.duration) }
+        if repetitions != nil { metrics.insert(.repetitions) }
+        if cycles != nil { metrics.insert(.cycles) }
+        if load != nil { metrics.insert(.load) }
+        if breathingCycles != nil { metrics.insert(.breathingCycles) }
+        return metrics
+    }
+
+    var isValid: Bool {
+        (durationSeconds.map(\.isValid) ?? true)
+            && (repetitions.map(\.isValid) ?? true)
+            && (cycles.map(\.isValid) ?? true)
+            && (load.map(\.isValid) ?? true)
+            && (breathingCycles.map(\.isValid) ?? true)
+    }
+}
+
+extension MobilityTrackingType {
+    nonisolated var legacyMetricProfile: MobilityMetricProfile {
+        switch self {
+        case .duration:
+            MobilityMetricProfile(
+                supportedMetrics: [.duration],
+                defaultCompletionRule: .all([.duration]),
+                primaryProgressMetric: .duration
+            )
+        case .repetitions:
+            MobilityMetricProfile(
+                supportedMetrics: [.repetitions],
+                defaultCompletionRule: .all([.repetitions]),
+                primaryProgressMetric: .repetitions
+            )
+        }
+    }
+}
+
 /// A breath-led target remains part of the movement prescription. The
 /// performed result records only the breaths actually completed; it never
 /// turns an unperformed target into evidence.

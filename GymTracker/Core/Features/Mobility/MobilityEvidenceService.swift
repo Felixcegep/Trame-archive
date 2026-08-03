@@ -48,7 +48,16 @@ enum MobilityEvidenceService {
            tempoPrescription?.isEmpty != false,
            assistancePrescription == nil,
            supportLevel == nil {
-            if let existing { modelContext.delete(existing) }
+            if let existing {
+                existing.method = nil
+                existing.purpose = nil
+                existing.breathingPrescription = nil
+                existing.tempoPrescription = nil
+                existing.assistancePrescription = nil
+                existing.supportLevel = nil
+                existing.updatedAt = now
+                if isEmpty(existing) { modelContext.delete(existing) }
+            }
         } else if let existing {
             existing.method = method
             existing.purpose = purpose
@@ -79,6 +88,55 @@ enum MobilityEvidenceService {
             modelContext.rollback()
             return false
         }
+    }
+
+    /// Metric authoring has a separate mutation so an older advanced-details
+    /// editor cannot erase a profile it does not display.
+    static func upsertMetricPrescription(
+        for routineItemID: UUID,
+        profile: MobilityMetricProfile?,
+        targets: MobilityMetricTargets?,
+        now: Date = .now,
+        using modelContext: ModelContext
+    ) -> Bool {
+        let descriptor = FetchDescriptor<MobilityRoutineItemEvidence>(
+            predicate: #Predicate { $0.routineItemID == routineItemID }
+        )
+        let existing = (try? modelContext.fetch(descriptor))?.first
+        if let existing {
+            existing.metricProfile = profile
+            existing.metricTargets = targets
+            existing.updatedAt = now
+            if isEmpty(existing) { modelContext.delete(existing) }
+        } else if profile != nil || targets != nil {
+            modelContext.insert(
+                MobilityRoutineItemEvidence(
+                    routineItemID: routineItemID,
+                    metricProfile: profile,
+                    metricTargets: targets,
+                    createdAt: now,
+                    updatedAt: now
+                )
+            )
+        }
+        do {
+            try modelContext.save()
+            return true
+        } catch {
+            modelContext.rollback()
+            return false
+        }
+    }
+
+    private static func isEmpty(_ evidence: MobilityRoutineItemEvidence) -> Bool {
+        evidence.methodRaw == nil
+            && evidence.purposeRaw == nil
+            && evidence.breathingPrescriptionData == nil
+            && evidence.tempoPrescriptionData == nil
+            && evidence.assistancePrescriptionData == nil
+            && evidence.supportLevelRaw == nil
+            && evidence.metricProfileData == nil
+            && evidence.metricTargetsData == nil
     }
 
     static func apply(
