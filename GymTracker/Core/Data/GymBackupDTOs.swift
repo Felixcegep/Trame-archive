@@ -701,6 +701,8 @@ nonisolated struct MobilityRoutineItemDTO: Codable {
     let restSeconds: Int?
     let notes: String?
     var phases: [MobilityPhasePrescriptionDTO]? = nil
+    var method: String? = nil
+    var trainingPurpose: String? = nil
 }
 
 nonisolated struct MobilityRoutineDTO: Codable {
@@ -743,6 +745,11 @@ nonisolated struct MobilityResultDTO: Codable {
     let discomfortNote: String?
     let startedAt: Date?
     let completedAt: Date?
+    var methodSnapshot: String? = nil
+    var trainingPurposeSnapshot: String? = nil
+    var sensation: String? = nil
+    var movementQuality: String? = nil
+    var compensationKeys: [String]? = nil
 }
 
 nonisolated struct MobilityEntryDTO: Codable {
@@ -1145,7 +1152,11 @@ nonisolated struct BackupDTO: Codable {
     /// nothing here participates in a prescription — so v1–v24 restore with no
     /// profile and the app simply ranks plans without one.
     static let trainingProfileVersion = 25
-    static let currentVersion = trainingProfileVersion
+    /// Adds advanced mobility method/purpose prescriptions and immutable,
+    /// side-specific quality/sensation evidence. Older backups restore with
+    /// no advanced evidence and never infer it from free-text notes.
+    static let advancedMobilityEvidenceVersion = 26
+    static let currentVersion = advancedMobilityEvidenceVersion
 
     init(
         version: Int,

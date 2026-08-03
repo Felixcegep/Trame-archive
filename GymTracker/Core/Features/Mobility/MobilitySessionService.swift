@@ -8,12 +8,38 @@ struct MobilityResultInput {
     var performedLoadUnit: MobilityLoadUnit?
     var perceivedIntensity: Int?
     var discomfortNote: String?
+    var sensation: MobilitySensation?
+    var movementQuality: MobilityMovementQuality?
+    var compensationKeys: Set<MobilityCompensationKey>
+
+    init(
+        performedDurationSeconds: Int? = nil,
+        performedRepetitions: Int? = nil,
+        performedLoadValue: Double? = nil,
+        performedLoadUnit: MobilityLoadUnit? = nil,
+        perceivedIntensity: Int? = nil,
+        discomfortNote: String? = nil,
+        sensation: MobilitySensation? = nil,
+        movementQuality: MobilityMovementQuality? = nil,
+        compensationKeys: Set<MobilityCompensationKey> = []
+    ) {
+        self.performedDurationSeconds = performedDurationSeconds
+        self.performedRepetitions = performedRepetitions
+        self.performedLoadValue = performedLoadValue
+        self.performedLoadUnit = performedLoadUnit
+        self.perceivedIntensity = perceivedIntensity
+        self.discomfortNote = discomfortNote
+        self.sensation = sensation
+        self.movementQuality = movementQuality
+        self.compensationKeys = compensationKeys
+    }
 }
 
 enum MobilityPhaseCompletionOutcome: Equatable {
     case applied(MobilityTransition)
     case stale(MobilityTransition)
     case invalidPerformedDuration
+    case stopSignalRequiresStop
     case persistenceFailure
 }
 
@@ -64,6 +90,7 @@ enum MobilitySessionService {
             createdAt: now,
             updatedAt: now
         )
+        let prescriptionEvidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)
         session.entries = routine.orderedItems.enumerated().map { index, item in
             let entry = MobilityEntry(routineItem: item, orderIndex: index)
             entry.results = item.side.resultSides.map {
@@ -74,6 +101,19 @@ enum MobilitySessionService {
                 )
             }
             entry.phaseResults = phaseSnapshots(for: item)
+            let prescription = prescriptionEvidence[item.id]
+            for result in entry.results {
+                modelContext.insert(
+                    MobilityResultEvidence(
+                        resultID: result.id,
+                        entryIDSnapshot: entry.id,
+                        side: result.side,
+                        methodSnapshot: prescription?.method,
+                        purposeSnapshot: prescription?.purpose,
+                        recordedAt: now
+                    )
+                )
+            }
             return entry
         }
         begin(entry: session.currentEntry, now: now)
@@ -214,6 +254,9 @@ enum MobilitySessionService {
         in session: MobilitySession,
         performedDurationSeconds: Int? = nil,
         performedIntensity: ContractionIntensity? = nil,
+        sensation: MobilitySensation? = nil,
+        movementQuality: MobilityMovementQuality? = nil,
+        compensationKeys: Set<MobilityCompensationKey> = [],
         now: Date = .now,
         using modelContext: ModelContext
     ) -> MobilityPhaseCompletionOutcome {
@@ -222,6 +265,9 @@ enum MobilitySessionService {
             status: .completed,
             performedDurationSeconds: performedDurationSeconds,
             performedIntensity: performedIntensity,
+            sensation: sensation,
+            movementQuality: movementQuality,
+            compensationKeys: compensationKeys,
             now: now,
             using: modelContext
         )
@@ -232,6 +278,9 @@ enum MobilitySessionService {
         in session: MobilitySession,
         performedDurationSeconds: Int? = nil,
         performedIntensity: ContractionIntensity? = nil,
+        sensation: MobilitySensation? = nil,
+        movementQuality: MobilityMovementQuality? = nil,
+        compensationKeys: Set<MobilityCompensationKey> = [],
         now: Date = .now,
         using modelContext: ModelContext
     ) -> MobilityPhaseCompletionOutcome {
@@ -240,6 +289,9 @@ enum MobilitySessionService {
             status: .partial,
             performedDurationSeconds: performedDurationSeconds,
             performedIntensity: performedIntensity,
+            sensation: sensation,
+            movementQuality: movementQuality,
+            compensationKeys: compensationKeys,
             now: now,
             using: modelContext
         )
@@ -256,6 +308,9 @@ enum MobilitySessionService {
             status: .skipped,
             performedDurationSeconds: nil,
             performedIntensity: nil,
+            sensation: nil,
+            movementQuality: nil,
+            compensationKeys: [],
             now: now,
             using: modelContext
         )
@@ -266,9 +321,13 @@ enum MobilitySessionService {
         status: MobilityResultStatus,
         performedDurationSeconds: Int?,
         performedIntensity: ContractionIntensity?,
+        sensation: MobilitySensation?,
+        movementQuality: MobilityMovementQuality?,
+        compensationKeys: Set<MobilityCompensationKey>,
         now: Date,
         using modelContext: ModelContext
     ) -> MobilityPhaseCompletionOutcome {
+        guard sensation?.isStopSignal != true else { return .stopSignalRequiresStop }
         guard performedDurationSeconds.map({ $0 >= 0 }) ?? true else {
             return .invalidPerformedDuration
         }
@@ -290,6 +349,18 @@ enum MobilitySessionService {
             )
         )
         guard transition.stale == false else { return .stale(transition) }
+
+        if let sideResult = entry.results.first(where: { $0.side == currentPhase.side }) {
+            MobilityEvidenceService.apply(
+                MobilityResultInput(
+                    sensation: sensation,
+                    movementQuality: movementQuality,
+                    compensationKeys: compensationKeys
+                ),
+                to: sideResult,
+                using: modelContext
+            )
+        }
 
         currentPhase.performedDurationSeconds = status == .skipped
             ? nil
@@ -442,6 +513,7 @@ enum MobilitySessionService {
         resultInputs: [UUID: MobilityResultInput],
         using modelContext: ModelContext
     ) -> Bool {
+        guard resultInputs.values.allSatisfy({ $0.sensation?.isStopSignal != true }) else { return false }
         guard session.status == .active, let entry = session.currentEntry else { return false }
         // Phase-driven work is intentionally not collapsed into the legacy
         // whole-entry action. `completeCurrentPhase` owns one-node evidence
@@ -455,6 +527,11 @@ enum MobilitySessionService {
             )
         )
         guard transition.stale == false else { return false }
+        for result in entry.results {
+            if let input = resultInputs[result.id] {
+                MobilityEvidenceService.apply(input, to: result, using: modelContext)
+            }
+        }
         complete(entry: entry, status: status, resultInputs: resultInputs)
         apply(transition, afterCompletingPhaseIn: nil, session: session, now: .now)
         return save(session: session, using: modelContext)
@@ -489,6 +566,34 @@ enum MobilitySessionService {
         session.status = .stopped
         session.endTime = now
         return save(session: session, using: modelContext)
+    }
+
+    /// Records a user-observed stop signal and terminates the session in the
+    /// same persistence transaction. This is an observation, not a diagnosis,
+    /// and untouched later work remains stopped rather than falsely completed.
+    @discardableResult
+    static func stopDueToSensation(
+        _ sensation: MobilitySensation,
+        resultID: UUID,
+        movementQuality: MobilityMovementQuality? = nil,
+        compensationKeys: Set<MobilityCompensationKey> = [],
+        in session: MobilitySession,
+        using modelContext: ModelContext
+    ) -> Bool {
+        guard sensation.isStopSignal,
+              session.status == .active,
+              let result = session.currentEntry?.results.first(where: { $0.id == resultID })
+        else { return false }
+        MobilityEvidenceService.apply(
+            MobilityResultInput(
+                sensation: sensation,
+                movementQuality: movementQuality,
+                compensationKeys: compensationKeys
+            ),
+            to: result,
+            using: modelContext
+        )
+        return stop(session, using: modelContext)
     }
 
     static func elapsedSeconds(for entry: MobilityEntry, now: Date = .now) -> Int {

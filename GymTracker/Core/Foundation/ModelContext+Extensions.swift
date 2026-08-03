@@ -34,6 +34,8 @@ extension ModelContext {
         for session in try fetch(FetchDescriptor<MobilityAssessmentSession>()) { delete(session) }
         for definition in try fetch(FetchDescriptor<MobilityAssessmentDefinition>()) { delete(definition) }
         for session in try fetch(FetchDescriptor<MobilitySession>()) { delete(session) }
+        for evidence in (try? fetch(FetchDescriptor<MobilityResultEvidence>())) ?? [] { delete(evidence) }
+        for evidence in (try? fetch(FetchDescriptor<MobilityRoutineItemEvidence>())) ?? [] { delete(evidence) }
         for routine in try fetch(FetchDescriptor<MobilityRoutine>()) { delete(routine) }
         for definition in try fetch(FetchDescriptor<MobilityDefinition>()) { delete(definition) }
         for family in try fetch(FetchDescriptor<MobilityFamily>()) { delete(family) }

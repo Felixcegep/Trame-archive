@@ -931,7 +931,9 @@ extension BackupDTO {
                       MobilitySide(rawValue: item.side) != nil,
                       item.targetDurationSeconds.map({ $0 > 0 }) ?? true,
                       item.targetRepetitions.map({ $0 > 0 }) ?? true,
-                      item.restSeconds.map({ $0 >= 0 }) ?? true else {
+                      item.restSeconds.map({ $0 >= 0 }) ?? true,
+                      item.method.map({ MobilityMethod(rawValue: $0) != nil }) ?? true,
+                      item.trainingPurpose.map({ MobilityTrainingPurpose(rawValue: $0) != nil }) ?? true else {
                     throw BackupValidationError.invalidIdentifier("mobility routine item")
                 }
                 let phases = item.phases ?? []
@@ -995,14 +997,25 @@ extension BackupDTO {
                 }
                 for result in entry.results {
                     resultIDs.append(result.id)
-                    guard MobilitySide(rawValue: result.side) != nil,
-                          MobilityResultStatus(rawValue: result.status) != nil,
+                    guard let resultStatus = MobilityResultStatus(rawValue: result.status),
+                          MobilitySide(rawValue: result.side) != nil,
                           result.prescribedDurationSeconds.map({ $0 > 0 }) ?? true,
                           result.prescribedRepetitions.map({ $0 > 0 }) ?? true,
                           result.performedDurationSeconds.map({ $0 >= 0 }) ?? true,
                           result.performedRepetitions.map({ $0 >= 0 }) ?? true,
-                          result.perceivedIntensity.map({ (1...5).contains($0) }) ?? true else {
+                          result.perceivedIntensity.map({ (1...5).contains($0) }) ?? true,
+                          result.methodSnapshot.map({ MobilityMethod(rawValue: $0) != nil }) ?? true,
+                          result.trainingPurposeSnapshot.map({ MobilityTrainingPurpose(rawValue: $0) != nil }) ?? true,
+                          result.sensation.map({ MobilitySensation(rawValue: $0) != nil }) ?? true,
+                          result.movementQuality.map({ MobilityMovementQuality(rawValue: $0) != nil }) ?? true,
+                          (result.compensationKeys ?? []).allSatisfy({ MobilityCompensationKey(rawValue: $0) != nil }),
+                          Set(result.compensationKeys ?? []).count == (result.compensationKeys ?? []).count else {
                         throw BackupValidationError.invalidIdentifier("mobility result")
+                    }
+                    if let sensation = result.sensation.flatMap(MobilitySensation.init(rawValue:)),
+                       sensation.isStopSignal,
+                       resultStatus != .stopped {
+                        throw BackupValidationError.invalidIdentifier("mobility stop-signal result")
                     }
                 }
                 var phaseExecutionPositions = Set<String>()

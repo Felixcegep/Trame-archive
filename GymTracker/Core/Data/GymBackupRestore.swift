@@ -1230,6 +1230,17 @@ extension BackupDTO {
                         id: try requiredUUID(phaseDTO.id, named: "mobility phase prescription")
                     )
                 }
+                if version >= Self.advancedMobilityEvidenceVersion,
+                   itemDTO.method != nil || itemDTO.trainingPurpose != nil {
+                    let evidence = MobilityRoutineItemEvidence(
+                        routineItemID: item.id,
+                        method: itemDTO.method.flatMap(MobilityMethod.init(rawValue:)),
+                        purpose: itemDTO.trainingPurpose.flatMap(MobilityTrainingPurpose.init(rawValue:)),
+                        createdAt: routineDTO.createdAt,
+                        updatedAt: routineDTO.updatedAt
+                    )
+                    restoreCtx.context.insert(evidence)
+                }
                 return item
             }
             restoreCtx.mobilityRoutinesByName[routineDTO.name] = routine
@@ -1300,6 +1311,20 @@ extension BackupDTO {
                     result.discomfortNote = resultDTO.discomfortNote
                     result.startedAt = resultDTO.startedAt
                     result.completedAt = resultDTO.completedAt
+                    if version >= Self.advancedMobilityEvidenceVersion {
+                        let evidence = MobilityResultEvidence(
+                            resultID: result.id,
+                            entryIDSnapshot: entry.id,
+                            side: resultSide,
+                            methodSnapshot: resultDTO.methodSnapshot.flatMap(MobilityMethod.init(rawValue:)),
+                            purposeSnapshot: resultDTO.trainingPurposeSnapshot.flatMap(MobilityTrainingPurpose.init(rawValue:)),
+                            sensation: resultDTO.sensation.flatMap(MobilitySensation.init(rawValue:)),
+                            movementQuality: resultDTO.movementQuality.flatMap(MobilityMovementQuality.init(rawValue:)),
+                            compensationKeys: Set((resultDTO.compensationKeys ?? []).compactMap(MobilityCompensationKey.init(rawValue:))),
+                            recordedAt: resultDTO.completedAt ?? resultDTO.startedAt ?? sessionDTO.startTime
+                        )
+                        restoreCtx.context.insert(evidence)
+                    }
                     return result
                 }
                 entry.phaseResults = try (entryDTO.phaseResults ?? []).map { phaseResultDTO in

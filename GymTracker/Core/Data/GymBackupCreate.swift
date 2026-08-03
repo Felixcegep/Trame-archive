@@ -719,6 +719,14 @@ extension BackupDTO {
                 updatedAt: definition.updatedAt
             )
         }
+        let mobilityPrescriptionEvidence = Dictionary(
+            try context.fetch(FetchDescriptor<MobilityRoutineItemEvidence>()).map { ($0.routineItemID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let mobilityResultEvidence = Dictionary(
+            try context.fetch(FetchDescriptor<MobilityResultEvidence>()).map { ($0.resultID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let mobilityRoutineDTOs = try context.fetch(FetchDescriptor<MobilityRoutine>()).map { routine in
             MobilityRoutineDTO(
                 id: routine.id.uuidString,
@@ -750,7 +758,9 @@ extension BackupDTO {
                                 instructions: phase.instructions,
                                 side: phase.side.rawValue
                             )
-                        }
+                        },
+                        method: mobilityPrescriptionEvidence[item.id]?.methodRaw,
+                        trainingPurpose: mobilityPrescriptionEvidence[item.id]?.purposeRaw
                     )
                 },
                 // Do not export an unrecognized raw value from a future build:
@@ -793,7 +803,8 @@ extension BackupDTO {
                         timerStartedAt: entry.timerStartedAt,
                         pausedElapsedSeconds: entry.pausedElapsedSeconds,
                         results: entry.orderedResults.map { result in
-                            MobilityResultDTO(
+                            let evidence = mobilityResultEvidence[result.id]
+                            return MobilityResultDTO(
                                 id: result.id.uuidString,
                                 side: result.side.rawValue,
                                 status: result.status.rawValue,
@@ -806,7 +817,12 @@ extension BackupDTO {
                                 perceivedIntensity: result.perceivedIntensity,
                                 discomfortNote: result.discomfortNote,
                                 startedAt: result.startedAt,
-                                completedAt: result.completedAt
+                                completedAt: result.completedAt,
+                                methodSnapshot: evidence?.methodSnapshotRaw,
+                                trainingPurposeSnapshot: evidence?.purposeSnapshotRaw,
+                                sensation: evidence?.sensationRaw,
+                                movementQuality: evidence?.movementQualityRaw,
+                                compensationKeys: evidence?.compensationKeys.map(\.rawValue).sorted()
                             )
                         },
                         phaseResults: entry.orderedPhaseResults.map { phaseResult in

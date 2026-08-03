@@ -8,7 +8,21 @@ import SwiftData
 /// model's stored shape changes, so a beta feedback report can distinguish
 /// testers running different schema generations.
 enum GymTrackerAppSchema {
-    static let diagnosticVersion = "7"
+    static let diagnosticVersion = "8"
+}
+
+/// First additive schema after the verified baseline. The existing models are
+/// intentionally untouched; the transition only introduces mobility-owned
+/// prescription and performed-evidence records.
+enum GymTrackerAdvancedMobilityEvidenceSchema: VersionedSchema {
+    static let versionIdentifier = Schema.Version(2, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        GymTrackerCurrentBaselineSchema.models + [
+            MobilityRoutineItemEvidence.self,
+            MobilityResultEvidence.self
+        ]
+    }
 }
 
 /// The exact persisted model list used by the current shipping baseline.
@@ -98,10 +112,16 @@ enum GymTrackerCurrentBaselineSchema: VersionedSchema {
 /// transition is declared here.
 enum GymTrackerSchemaMigrationPlan: SchemaMigrationPlan {
     static let schemas: [any VersionedSchema.Type] = [
-        GymTrackerCurrentBaselineSchema.self
+        GymTrackerCurrentBaselineSchema.self,
+        GymTrackerAdvancedMobilityEvidenceSchema.self
     ]
 
-    static let stages: [MigrationStage] = []
+    static let stages: [MigrationStage] = [
+        .lightweight(
+            fromVersion: GymTrackerCurrentBaselineSchema.self,
+            toVersion: GymTrackerAdvancedMobilityEvidenceSchema.self
+        )
+    ]
 }
 
 /// The one persistent store used by both the SwiftUI scene and
@@ -147,5 +167,5 @@ enum GymTrackerModelContainer {
     /// Retained for existing callers and test helpers that consume a `Schema`
     /// value directly. The model list now has one owner: the named current
     /// baseline above.
-    static let schema = Schema(versionedSchema: GymTrackerCurrentBaselineSchema.self)
+    static let schema = Schema(versionedSchema: GymTrackerAdvancedMobilityEvidenceSchema.self)
 }
