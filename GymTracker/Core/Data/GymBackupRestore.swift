@@ -50,6 +50,7 @@ extension BackupDTO {
             try restoreFoldersAndTemplates(from: currentArchive.workout.templates, into: &restoreCtx)
             try restoreRepeatingPlansAndRuns(into: &restoreCtx)
             try restoreProgramDefinitions(into: &restoreCtx)
+            try restoreMobilityProgramDefinitions(into: &restoreCtx)
             try restorePlansAndRuns(into: &restoreCtx)
             try restoreWorkoutHistory(from: currentArchive.workout.workouts, into: &restoreCtx)
             try restoreRepeatingPlanOccurrences(into: &restoreCtx)
@@ -365,6 +366,41 @@ extension BackupDTO {
             record.summary = definitionDTO.summary
             record.goal = PlanGoal(rawValue: definitionDTO.goal) ?? payload.goal
             record.experienceLevel = PlanExperienceLevel(rawValue: definitionDTO.experienceLevel) ?? payload.experienceLevel
+            record.durationWeeks = definitionDTO.durationWeeks
+            record.supportedDaysPerWeek = definitionDTO.supportedDaysPerWeek
+            record.isArchived = definitionDTO.isArchived
+            record.createdAt = definitionDTO.createdAt
+            record.updatedAt = definitionDTO.updatedAt
+            record.definitionData = definitionDTO.definitionData
+            restoreCtx.context.insert(record)
+        }
+    }
+
+    /// Mirrors `restoreProgramDefinitions` exactly: decode the versioned
+    /// recipe blob, revalidate it structurally, and materialize the
+    /// queryable metadata columns. No `MobilityDefinition` catalog check
+    /// happens here — the structural validator is catalog-free, matching
+    /// `ProgramDefinitionValidator`'s own split, and a dangling movement
+    /// reference is a compile-time concern for a later slice, not a restore
+    /// blocker.
+    private func restoreMobilityProgramDefinitions(into restoreCtx: inout RestoreContext) throws {
+        for definitionDTO in mobilityProgramDefinitions {
+            let decoder = JSONDecoder()
+            guard let payload = try? decoder.decode(MobilityProgramDefinitionPayload.self, from: definitionDTO.definitionData) else {
+                throw BackupValidationError.invalidMobilityProgramDefinition(definitionDTO.name)
+            }
+            let record: MobilityProgramDefinitionRecord
+            do {
+                record = try MobilityProgramDefinitionRecord(payload: payload, isBuiltIn: definitionDTO.isBuiltIn)
+            } catch {
+                throw BackupValidationError.invalidMobilityProgramDefinition(definitionDTO.name)
+            }
+            record.id = try requiredUUID(definitionDTO.id, named: "mobility program definition")
+            record.programKey = definitionDTO.programKey
+            record.schemaVersion = definitionDTO.schemaVersion
+            record.templateVersion = definitionDTO.templateVersion
+            record.name = definitionDTO.name
+            record.summary = definitionDTO.summary
             record.durationWeeks = definitionDTO.durationWeeks
             record.supportedDaysPerWeek = definitionDTO.supportedDaysPerWeek
             record.isArchived = definitionDTO.isArchived

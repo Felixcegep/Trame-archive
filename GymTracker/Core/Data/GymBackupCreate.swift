@@ -623,6 +623,23 @@ extension BackupDTO {
                 definitionData: record.definitionData
             )
         }
+        let mobilityProgramDefinitionDTOs = try context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>()).map { record in
+            MobilityProgramDefinitionDTO(
+                id: record.id.uuidString,
+                programKey: record.programKey,
+                schemaVersion: record.schemaVersion,
+                templateVersion: record.templateVersion,
+                name: record.name,
+                summary: record.summary,
+                durationWeeks: record.durationWeeks,
+                supportedDaysPerWeek: record.supportedDaysPerWeek,
+                isBuiltIn: record.isBuiltIn,
+                isArchived: record.isArchived,
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt,
+                definitionData: record.definitionData
+            )
+        }
         let progressionRecommendationDTOs = try context.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()).map { record in
             ProgressionRecommendationDTO(
                 id: record.id.uuidString,
@@ -1167,6 +1184,7 @@ extension BackupDTO {
             repeatingPlanRuns: repeatingPlanRunDTOs,
             exerciseRelationships: relationshipDTOs,
             programDefinitions: programDefinitionDTOs,
+            mobilityProgramDefinitions: mobilityProgramDefinitionDTOs,
             progressionRecommendations: progressionRecommendationDTOs,
             dailyLogEntries: dailyLogEntryDTOs,
             bodyWeightEntries: bodyWeightEntryDTOs,

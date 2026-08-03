@@ -622,6 +622,29 @@ nonisolated struct ProgramDefinitionDTO: Codable {
     let definitionData: Data
 }
 
+/// Portable form of `MobilityProgramDefinitionRecord`. Follows
+/// `ProgramDefinitionDTO`'s exact shape: queryable metadata columns plus one
+/// opaque `definitionData` blob holding the versioned
+/// `MobilityProgramDefinitionPayload` recipe. Added within Backup v26 (no new
+/// version constant): the field decodes absent as `[]` for every payload that
+/// predates it, exactly like `MobilityRoutineBlockDTO` and
+/// `MobilityEntryEvidenceDTO` fields did when they were added within v26.
+nonisolated struct MobilityProgramDefinitionDTO: Codable {
+    let id: String
+    let programKey: String
+    let schemaVersion: Int
+    let templateVersion: Int
+    let name: String
+    let summary: String?
+    let durationWeeks: Int
+    let supportedDaysPerWeek: [Int]
+    let isBuiltIn: Bool
+    let isArchived: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    let definitionData: Data
+}
+
 nonisolated struct DailyLogEntryDTO: Codable {
     let id: String
     let dayKey: String
@@ -1128,6 +1151,7 @@ nonisolated struct BackupDTO: Codable {
     let repeatingPlanRuns: [RepeatingPlanRunDTO]
     let exerciseRelationships: [ExerciseRelationshipDTO]
     let programDefinitions: [ProgramDefinitionDTO]
+    var mobilityProgramDefinitions: [MobilityProgramDefinitionDTO] = []
     let progressionRecommendations: [ProgressionRecommendationDTO]
     let dailyLogEntries: [DailyLogEntryDTO]
     let bodyWeightEntries: [BodyWeightEntryDTO]
@@ -1229,6 +1253,7 @@ nonisolated struct BackupDTO: Codable {
         repeatingPlanRuns: [RepeatingPlanRunDTO] = [],
         exerciseRelationships: [ExerciseRelationshipDTO] = [],
         programDefinitions: [ProgramDefinitionDTO] = [],
+        mobilityProgramDefinitions: [MobilityProgramDefinitionDTO] = [],
         progressionRecommendations: [ProgressionRecommendationDTO] = [],
         dailyLogEntries: [DailyLogEntryDTO] = [],
         bodyWeightEntries: [BodyWeightEntryDTO] = [],
@@ -1257,6 +1282,7 @@ nonisolated struct BackupDTO: Codable {
         self.repeatingPlanRuns = repeatingPlanRuns
         self.exerciseRelationships = exerciseRelationships
         self.programDefinitions = programDefinitions
+        self.mobilityProgramDefinitions = mobilityProgramDefinitions
         self.progressionRecommendations = progressionRecommendations
         self.dailyLogEntries = dailyLogEntries
         self.bodyWeightEntries = bodyWeightEntries
@@ -1275,7 +1301,7 @@ nonisolated struct BackupDTO: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets, trainingProfile
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, mobilityProgramDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets, trainingProfile
     }
 
     init(from decoder: Decoder) throws {
@@ -1292,6 +1318,7 @@ nonisolated struct BackupDTO: Codable {
         repeatingPlanRuns = try container.decodeIfPresent([RepeatingPlanRunDTO].self, forKey: .repeatingPlanRuns) ?? []
         exerciseRelationships = try container.decodeIfPresent([ExerciseRelationshipDTO].self, forKey: .exerciseRelationships) ?? []
         programDefinitions = try container.decodeIfPresent([ProgramDefinitionDTO].self, forKey: .programDefinitions) ?? []
+        mobilityProgramDefinitions = try container.decodeIfPresent([MobilityProgramDefinitionDTO].self, forKey: .mobilityProgramDefinitions) ?? []
         progressionRecommendations = try container.decodeIfPresent([ProgressionRecommendationDTO].self, forKey: .progressionRecommendations) ?? []
         dailyLogEntries = try container.decodeIfPresent([DailyLogEntryDTO].self, forKey: .dailyLogEntries) ?? []
         bodyWeightEntries = try container.decodeIfPresent([BodyWeightEntryDTO].self, forKey: .bodyWeightEntries) ?? []

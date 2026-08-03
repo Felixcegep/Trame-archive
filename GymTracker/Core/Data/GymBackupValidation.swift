@@ -29,6 +29,7 @@ enum BackupValidationError: LocalizedError {
     case missingWorkout(String)
     case invalidExerciseRelationship
     case invalidProgramDefinition(String)
+    case invalidMobilityProgramDefinition(String)
     case invalidTrackingProfile(String)
 
     var errorDescription: String? {
@@ -57,6 +58,8 @@ enum BackupValidationError: LocalizedError {
             return "The backup contains an invalid exercise relationship."
         case .invalidProgramDefinition(let message):
             return "The backup contains an invalid program definition: \(message)"
+        case .invalidMobilityProgramDefinition(let message):
+            return "The backup contains an invalid mobility program definition: \(message)"
         case .invalidTrackingProfile(let message):
             return "The backup contains an invalid tracking profile: \(message)"
         }
@@ -243,6 +246,25 @@ extension BackupDTO {
                 let issues = ProgramDefinitionValidator.validate(payload)
                 guard issues.isEmpty else {
                     throw BackupValidationError.invalidProgramDefinition(issues.map(\.message).joined(separator: " "))
+                }
+            }
+            // The mobility program definition graph (Release 8 part 1) is a
+            // top-level array new to this slice; it decodes `[]` for every
+            // payload older than it, so this check is a no-op for those and
+            // does not need its own version gate. Mirrors the program
+            // definition validation immediately above: reject before the
+            // destination store is ever replaced.
+            try validateUniqueIdentifiers(mobilityProgramDefinitions.map(\.id), named: "mobility program definition")
+            for definition in mobilityProgramDefinitions {
+                guard definition.durationWeeks > 0, !definition.supportedDaysPerWeek.isEmpty else {
+                    throw BackupValidationError.invalidMobilityProgramDefinition(definition.name)
+                }
+                guard let payload = try? JSONDecoder().decode(MobilityProgramDefinitionPayload.self, from: definition.definitionData) else {
+                    throw BackupValidationError.invalidMobilityProgramDefinition(definition.name)
+                }
+                let mobilityIssues = MobilityProgramDefinitionValidator.validate(payload, isBuiltIn: definition.isBuiltIn)
+                guard mobilityIssues.isEmpty else {
+                    throw BackupValidationError.invalidMobilityProgramDefinition(mobilityIssues.map(\.message).joined(separator: " "))
                 }
             }
             try validateUniqueIdentifiers(progressionRecommendations.map(\.id), named: "progression recommendation")
