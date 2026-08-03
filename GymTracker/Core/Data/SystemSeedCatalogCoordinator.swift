@@ -4,7 +4,7 @@ import SwiftData
 @MainActor
 enum SystemSeedCatalogCoordinator {
     static let seedVersion = 1
-    static let contentVersion = 11
+    static let contentVersion = 12
 
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.

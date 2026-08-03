@@ -33,6 +33,13 @@ enum ExerciseCatalogSeedData {
         let repCountingStyle: RepCountingStyle
         let weightEntryStyle: WeightEntryStyle
         let loadUnitCount: Int
+        /// Release 10 sport-capability tagging. `nil` leaves the exercise on
+        /// its pre-Release-10 derived default (`resolvedSportDiscipline`),
+        /// matching every catalog entry seeded before this field existed.
+        let sportDiscipline: SportDiscipline?
+        /// Meaningful only when `sportDiscipline == .strongman`.
+        let strongmanEventFamily: StrongmanEventFamily?
+        let strongmanImplementProfile: StrongmanImplementProfile?
 
         init(
             name: String,
@@ -58,7 +65,10 @@ enum ExerciseCatalogSeedData {
             laterality: Laterality = .bilateral,
             repCountingStyle: RepCountingStyle = .total,
             weightEntryStyle: WeightEntryStyle = .totalLoad,
-            loadUnitCount: Int = 1
+            loadUnitCount: Int = 1,
+            sportDiscipline: SportDiscipline? = nil,
+            strongmanEventFamily: StrongmanEventFamily? = nil,
+            strongmanImplementProfile: StrongmanImplementProfile? = nil
         ) {
             self.name = name
             self.frenchName = frenchName
@@ -84,6 +94,9 @@ enum ExerciseCatalogSeedData {
             self.repCountingStyle = repCountingStyle
             self.weightEntryStyle = weightEntryStyle
             self.loadUnitCount = loadUnitCount
+            self.sportDiscipline = sportDiscipline
+            self.strongmanEventFamily = strongmanEventFamily
+            self.strongmanImplementProfile = strongmanImplementProfile
         }
 
         func makeExercise() -> Exercise {
@@ -113,6 +126,9 @@ enum ExerciseCatalogSeedData {
             )
             ex.frenchName = frenchName
             ex.searchAliases = searchAliases
+            ex.sportDiscipline = sportDiscipline
+            ex.strongmanEventFamily = strongmanEventFamily
+            ex.strongmanImplementProfile = strongmanImplementProfile
             return ex
         }
     }
@@ -286,6 +302,23 @@ enum ExerciseCatalogSeedData {
         .init(name: "Hang Snatch + Overhead Squat", primaryMuscles: [.gluteMaximus, .hamstrings, .quadriceps, .trapezius], secondaryMuscles: [.frontDeltoid, .erectorSpinae], equipmentType: .barbell, resistanceType: .externalWeight, movementPattern: .hinge, forceType: .mixed, mechanics: .compound, gripStyle: .pronated, stance: .standing, rangeOfMotion: .full, variationFamilyID: "snatch", difficulty: .advanced, tags: ["olympic-weightlifting", "snatch-complex", "barbell"], isPlateLoaded: true),
         .init(name: "Hang Clean + Front Squat + Jerk", primaryMuscles: [.quadriceps, .gluteMaximus, .hamstrings, .frontDeltoid], secondaryMuscles: [.trapezius, .tricepLateralHead, .erectorSpinae], equipmentType: .barbell, resistanceType: .externalWeight, movementPattern: .hinge, forceType: .mixed, mechanics: .compound, gripStyle: .pronated, stance: .standing, rangeOfMotion: .full, variationFamilyID: "clean", difficulty: .advanced, tags: ["olympic-weightlifting", "clean-jerk-complex", "barbell"], isPlateLoaded: true),
         .init(name: "Power Snatch + Snatch", primaryMuscles: [.gluteMaximus, .hamstrings, .quadriceps, .trapezius], secondaryMuscles: [.frontDeltoid, .erectorSpinae], equipmentType: .barbell, resistanceType: .externalWeight, movementPattern: .hinge, forceType: .mixed, mechanics: .compound, gripStyle: .pronated, stance: .standing, rangeOfMotion: .full, variationFamilyID: "snatch", difficulty: .advanced, tags: ["olympic-weightlifting", "snatch-complex", "barbell"], isPlateLoaded: true),
-        .init(name: "Power Clean + Jerk", primaryMuscles: [.quadriceps, .gluteMaximus, .hamstrings, .frontDeltoid], secondaryMuscles: [.trapezius, .tricepLateralHead, .erectorSpinae], equipmentType: .barbell, resistanceType: .externalWeight, movementPattern: .hinge, forceType: .mixed, mechanics: .compound, gripStyle: .pronated, stance: .standing, rangeOfMotion: .full, variationFamilyID: "clean", difficulty: .advanced, tags: ["olympic-weightlifting", "clean-jerk-complex", "barbell"], isPlateLoaded: true)
+        .init(name: "Power Clean + Jerk", primaryMuscles: [.quadriceps, .gluteMaximus, .hamstrings, .frontDeltoid], secondaryMuscles: [.trapezius, .tricepLateralHead, .erectorSpinae], equipmentType: .barbell, resistanceType: .externalWeight, movementPattern: .hinge, forceType: .mixed, mechanics: .compound, gripStyle: .pronated, stance: .standing, rangeOfMotion: .full, variationFamilyID: "clean", difficulty: .advanced, tags: ["olympic-weightlifting", "clean-jerk-complex", "barbell"], isPlateLoaded: true),
+
+        // MARK: - Release 10 sport programs (Conjugate Rotation Wave, Strongman Contest Preparation, Fitness Racing Base to Peak, Multi-Erg Interval Rotation)
+        .init(name: "Box Squat", primaryMuscles: [.quadriceps, .gluteMaximus], secondaryMuscles: [.hamstrings, .erectorSpinae], equipmentType: .barbell, resistanceType: .externalWeight, movementPattern: .squat, forceType: .push, mechanics: .compound, gripStyle: .pronated, stance: .standing, rangeOfMotion: .partial, variationFamilyID: "back-squat", difficulty: .advanced, tags: ["powerlifting", "box-squat", "barbell", "conjugate"], isPlateLoaded: true),
+        .init(name: "Block Pull", primaryMuscles: [.erectorSpinae, .trapezius, .gluteMaximus], secondaryMuscles: [.latissimusDorsi, .hamstrings, .forearms], equipmentType: .barbell, resistanceType: .externalWeight, movementPattern: .hinge, forceType: .pull, mechanics: .compound, stance: .standing, rangeOfMotion: .partial, variationFamilyID: "deadlift", difficulty: .advanced, tags: ["powerlifting", "block-pull", "barbell", "conjugate"], isPlateLoaded: true),
+        .init(name: "Log Press", primaryMuscles: [.frontDeltoid, .tricepLateralHead], secondaryMuscles: [.trapezius, .quadriceps, .rectusAbdominis], equipmentType: .other, resistanceType: .externalWeight, movementPattern: .verticalPush, forceType: .mixed, mechanics: .compound, gripStyle: .neutral, stance: .standing, rangeOfMotion: .full, difficulty: .advanced, tags: ["strongman", "log-press", "overhead"], sportDiscipline: .strongman, strongmanEventFamily: .overhead, strongmanImplementProfile: StrongmanImplementProfile(kind: .log, loadConvention: .systemTotal)),
+        .init(name: "Yoke Carry", primaryMuscles: [.quadriceps, .erectorSpinae, .trapezius], secondaryMuscles: [.gluteMaximus, .transverseAbdominis], trackingType: .durationAndDistance, equipmentType: .other, resistanceType: .externalWeight, movementPattern: .carry, forceType: .staticHold, mechanics: .compound, stance: .standing, rangeOfMotion: .full, difficulty: .advanced, tags: ["strongman", "yoke-carry", "carry"], sportDiscipline: .strongman, strongmanEventFamily: .carry, strongmanImplementProfile: StrongmanImplementProfile(kind: .yoke)),
+        .init(name: "Sandbag Load", primaryMuscles: [.erectorSpinae, .gluteMaximus, .hamstrings], secondaryMuscles: [.forearms, .rectusAbdominis], trackingType: .repsOnly, equipmentType: .other, resistanceType: .externalWeight, movementPattern: .hinge, forceType: .pull, mechanics: .compound, stance: .standing, rangeOfMotion: .full, difficulty: .intermediate, tags: ["strongman", "sandbag-load", "loading"], sportDiscipline: .strongman, strongmanEventFamily: .loading, strongmanImplementProfile: StrongmanImplementProfile(kind: .sandbag)),
+        .init(name: "Farmer's Hold", primaryMuscles: [.trapezius, .forearms, .transverseAbdominis], secondaryMuscles: [.obliques, .gluteMaximus], trackingType: .duration, equipmentType: .other, resistanceType: .externalWeight, movementPattern: .carry, forceType: .staticHold, mechanics: .compound, stance: .standing, rangeOfMotion: .full, difficulty: .intermediate, tags: ["strongman", "farmers-hold", "grip"], weightEntryStyle: .perLoadUnit, loadUnitCount: 2, sportDiscipline: .strongman, strongmanEventFamily: .hold, strongmanImplementProfile: StrongmanImplementProfile(kind: .farmersHandles, loadConvention: .perHand)),
+        .init(name: "Farmer's Handles Carry", primaryMuscles: [.trapezius, .forearms, .transverseAbdominis], secondaryMuscles: [.obliques, .calves, .gluteMaximus], trackingType: .durationAndDistance, equipmentType: .other, resistanceType: .externalWeight, movementPattern: .carry, forceType: .staticHold, mechanics: .compound, stance: .standing, rangeOfMotion: .full, difficulty: .intermediate, tags: ["strongman", "farmers-handles-carry", "grip", "carry"], weightEntryStyle: .perLoadUnit, loadUnitCount: 2, sportDiscipline: .strongman, strongmanEventFamily: .carry, strongmanImplementProfile: StrongmanImplementProfile(kind: .farmersHandles, loadConvention: .perHand)),
+        .init(name: "Bag Toss", primaryMuscles: [.gluteMaximus, .hamstrings, .frontDeltoid], secondaryMuscles: [.erectorSpinae, .rectusAbdominis], trackingType: .repsOnly, equipmentType: .other, resistanceType: .externalWeight, movementPattern: .hinge, forceType: .mixed, mechanics: .compound, stance: .standing, rangeOfMotion: .full, difficulty: .intermediate, tags: ["strongman", "bag-toss", "throwing"], sportDiscipline: .strongman, strongmanEventFamily: .throwing, strongmanImplementProfile: StrongmanImplementProfile(kind: .duffelBag)),
+        .init(name: "Run", frenchName: "Course à pied", searchAliases: ["running", "jog"], primaryMuscles: [.quadriceps, .gluteMaximus, .hamstrings], secondaryMuscles: [.calves], category: .cardio, trackingType: .durationAndDistance, equipmentType: .bodyweight, resistanceType: .bodyweight, movementPattern: .locomotion, forceType: .push, mechanics: .compound, stance: .standing, rangeOfMotion: .full, difficulty: .beginner, tags: ["cardio", "running", "fitness-racing"], sportDiscipline: .fitnessRacing),
+        .init(name: "Sled Push", primaryMuscles: [.quadriceps, .gluteMaximus], secondaryMuscles: [.calves, .hamstrings], trackingType: .durationAndDistance, equipmentType: .other, resistanceType: .externalWeight, movementPattern: .locomotion, forceType: .push, mechanics: .compound, stance: .standing, rangeOfMotion: .full, difficulty: .intermediate, tags: ["fitness-racing", "sled-push", "conditioning"], sportDiscipline: .fitnessRacing),
+        .init(name: "Sled Pull", primaryMuscles: [.latissimusDorsi, .hamstrings, .gluteMaximus], secondaryMuscles: [.forearms, .erectorSpinae], trackingType: .durationAndDistance, equipmentType: .other, resistanceType: .externalWeight, movementPattern: .locomotion, forceType: .pull, mechanics: .compound, stance: .standing, rangeOfMotion: .full, difficulty: .intermediate, tags: ["fitness-racing", "sled-pull", "conditioning"], sportDiscipline: .fitnessRacing),
+        .init(name: "Wall Ball", primaryMuscles: [.quadriceps, .gluteMaximus, .frontDeltoid], secondaryMuscles: [.tricepLateralHead, .rectusAbdominis], trackingType: .repsOnly, equipmentType: .medicineBall, resistanceType: .externalWeight, movementPattern: .squat, forceType: .mixed, mechanics: .compound, stance: .standing, rangeOfMotion: .full, difficulty: .intermediate, tags: ["fitness-racing", "wall-ball", "conditioning"], sportDiscipline: .fitnessRacing),
+        .init(name: "Burpee", primaryMuscles: [.middleChest, .quadriceps, .frontDeltoid], secondaryMuscles: [.rectusAbdominis, .tricepLateralHead, .gluteMaximus], trackingType: .repsOnly, equipmentType: .bodyweight, resistanceType: .bodyweight, movementPattern: .other, forceType: .mixed, mechanics: .compound, stance: .standing, rangeOfMotion: .full, difficulty: .intermediate, tags: ["fitness-racing", "burpee", "conditioning"], sportDiscipline: .fitnessRacing),
+        .init(name: "RowErg", frenchName: "RowErg", searchAliases: ["row erg", "rowing ergometer", "concept2 rower"], primaryMuscles: [.latissimusDorsi, .quadriceps], secondaryMuscles: [.hamstrings, .erectorSpinae, .bicep], category: .cardio, trackingType: .durationAndDistance, equipmentType: .cardioMachine, resistanceType: .machine, movementPattern: .locomotion, forceType: .pull, mechanics: .compound, stance: .seated, rangeOfMotion: .full, difficulty: .beginner, tags: ["cardio", "rowerg", "ergometer", "rowing"]),
+        .init(name: "BikeErg", frenchName: "BikeErg", searchAliases: ["bike erg", "assault bike", "echo bike"], primaryMuscles: [.quadriceps, .gluteMaximus], secondaryMuscles: [.hamstrings, .calves], category: .cardio, trackingType: .durationAndDistance, equipmentType: .cardioMachine, resistanceType: .machine, movementPattern: .locomotion, forceType: .push, mechanics: .compound, stance: .seated, rangeOfMotion: .full, difficulty: .beginner, tags: ["cardio", "bikeerg", "ergometer", "cycling"])
     ]
 }
