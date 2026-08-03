@@ -176,6 +176,13 @@ struct MobilityHistoryView: View {
         Dictionary(mobilityEvidenceRecords.map { ($0.resultID, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
+    /// Routes this existing history surface through the mobility analytics
+    /// policy rather than adding a parallel analytics screen — see
+    /// `MobilityAnalyticsPolicy.swift`.
+    private var analyticsPolicy: MobilityAnalyticsPolicy {
+        StandardMobilityAnalyticsPolicy(evidenceByResultID: mobilityEvidenceByResultID)
+    }
+
     private func evidenceDetail(for session: MobilitySession) -> String? {
         let records = session.orderedEntries
             .flatMap(\.orderedResults)
@@ -185,7 +192,15 @@ struct MobilityHistoryView: View {
         var labels: [String] = []
         let methods = uniqueStrings(records.compactMap(\.methodSnapshot).map(\.displayName))
         let purposes = uniqueStrings(records.compactMap(\.purposeSnapshot).map(\.displayName))
-        let sensations = uniqueStrings(records.compactMap(\.sensation).map(\.displayName))
+        // Stop signals (pain/numbness/tingling) are kept out of the general
+        // "Sensation" line and always surfaced under their own label — stop
+        // signals remain historical evidence even though they are excluded
+        // from progression evidence (`MobilityResultEvidence
+        // .isProgressionEligible`, `MobilityAnalyticsService
+        // .stopSignalHistory`).
+        let allSensations = records.compactMap(\.sensation)
+        let sensations = uniqueStrings(allSensations.filter { $0.isStopSignal == false }.map(\.displayName))
+        let stopSignals = uniqueStrings(allSensations.filter(\.isStopSignal).map(\.displayName))
         let qualities = uniqueStrings(records.compactMap(\.movementQuality).map(\.displayName))
         let supports = uniqueStrings(records.compactMap { ($0.performedSupportLevel ?? $0.supportLevelSnapshot)?.displayName })
         let assistances = uniqueStrings(records.compactMap { evidence in
@@ -204,12 +219,32 @@ struct MobilityHistoryView: View {
         if methods.isEmpty == false { labels.append(methods.joined(separator: ", ")) }
         if purposes.isEmpty == false { labels.append(purposes.joined(separator: ", ")) }
         if sensations.isEmpty == false { labels.append(String(localized: "Sensation: \(sensations.joined(separator: ", "))")) }
+        if stopSignals.isEmpty == false { labels.append(String(localized: "Stop signal: \(stopSignals.joined(separator: ", "))")) }
         if qualities.isEmpty == false { labels.append(String(localized: "Quality: \(qualities.joined(separator: ", "))")) }
         if supports.isEmpty == false { labels.append(String(localized: "Support: \(supports.joined(separator: ", "))")) }
         if assistances.isEmpty == false { labels.append(String(localized: "Assistance: \(assistances.joined(separator: ", "))")) }
         if breathing.isEmpty == false { labels.append(String(localized: "Breathing cycles: \(breathing.map(String.init).joined(separator: ", "))")) }
         if tempos.isEmpty == false { labels.append(String(localized: "Tempo: \(tempos.joined(separator: ", ")) sec")) }
+        if let developmentVolumeSummary = developmentVolumeSummary(for: session) {
+            labels.append(developmentVolumeSummary)
+        }
         return labels.isEmpty ? nil : labels.joined(separator: " · ")
+    }
+
+    /// Only shown when the session actually mixes preparation and
+    /// development purposes — the bundled plans deliberately author
+    /// preparation and development as separate sessions
+    /// (Squat/Overhead Mobility Integration), so this stays silent for
+    /// them; a session that does mix the two (a user-authored routine, or a
+    /// future plan) gets an explicit, policy-driven breakdown rather than a
+    /// silently inflated volume count.
+    private func developmentVolumeSummary(for session: MobilitySession) -> String? {
+        let entries = session.orderedEntries.filter { $0.orderedResults.isEmpty == false }
+        guard entries.isEmpty == false else { return nil }
+        let policy = analyticsPolicy
+        let developmentCount = entries.filter { policy.contributesToDevelopmentVolume(entry: $0) }.count
+        guard developmentCount > 0, developmentCount < entries.count else { return nil }
+        return String(localized: "Development volume: \(developmentCount) of \(entries.count) exercises")
     }
 
     private func uniqueStrings(_ values: [String]) -> [String] {
