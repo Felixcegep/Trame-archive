@@ -775,6 +775,10 @@ struct MobilityRoutineEditorView: View {
     /// Optional, and never required to save. "Not specified" is a legitimate
     /// resting state, not a prompt to complete.
     @State private var purpose: MobilityRoutinePurpose?
+    /// Blocks have no SwiftData relationship to `routine` (an ownership key,
+    /// like every other mobility sidecar), so they cannot be a `@Query` on a
+    /// static predicate here; they are loaded and reloaded explicitly.
+    @State private var blocks: [MobilityRoutineBlock] = []
 
     var body: some View {
         Form {
@@ -796,8 +800,26 @@ struct MobilityRoutineEditorView: View {
             }
 
             Section {
+                ForEach(blocks, id: \.blockKey) { block in
+                    MobilityRoutineBlockEditorRow(block: block, onChange: reloadBlocks, onDelete: {
+                        deleteBlock(block)
+                    })
+                }
+                Button {
+                    addBlock()
+                } label: {
+                    Label("Add block", systemImage: AppIcon.plus)
+                }
+                .accessibilityIdentifier("add-mobility-block")
+            } header: {
+                Text("Blocks")
+            } footer: {
+                Text("A block groups movements below and gives them a shared rest and, for circuits, a round count. A movement without a block runs on its own, exactly as before.")
+            }
+
+            Section {
                 ForEach(routine.orderedItems) { item in
-                    MobilityRoutineItemEditorRow(item: item)
+                    MobilityRoutineItemEditorRow(item: item, blocks: blocks)
                 }
                 .onDelete(perform: deleteItems)
 
@@ -826,6 +848,7 @@ struct MobilityRoutineEditorView: View {
             // only. Nothing is written back unless the lifter saves, so a
             // value from a future build survives being viewed here.
             purpose = routine.purpose
+            reloadBlocks()
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
@@ -835,6 +858,32 @@ struct MobilityRoutineEditorView: View {
                     .accessibilityIdentifier("save-mobility-routine")
             }
         }
+    }
+
+    private func reloadBlocks() {
+        blocks = MobilityEvidenceService.blocks(forRoutineID: routine.id, using: modelContext)
+    }
+
+    private func addBlock() {
+        _ = MobilityEvidenceService.upsertBlock(
+            routineID: routine.id,
+            orderIndex: blocks.count,
+            name: nil,
+            kind: .straightSequence,
+            targetRounds: nil,
+            restPrescription: nil,
+            using: modelContext
+        )
+        reloadBlocks()
+    }
+
+    private func deleteBlock(_ block: MobilityRoutineBlock) {
+        _ = MobilityEvidenceService.deleteBlock(
+            blockKey: block.blockKey,
+            routineItemIDs: routine.orderedItems.map(\.id),
+            using: modelContext
+        )
+        reloadBlocks()
     }
 
     private func add(_ definition: MobilityDefinition) {
@@ -875,9 +924,106 @@ struct MobilityRoutineEditorView: View {
     }
 }
 
+private struct MobilityRoutineBlockEditorRow: View {
+    @Environment(\.modelContext) private var modelContext
+    @Bindable var block: MobilityRoutineBlock
+    let onChange: () -> Void
+    let onDelete: () -> Void
+    @State private var name = ""
+    @State private var kind: MobilityBlockKind = .straightSequence
+    @State private var targetRounds: Int?
+    @State private var hasCustomRest = false
+    @State private var restScope: MobilityRestScope = .betweenRounds
+    @State private var restDirectiveKind: MobilityRestDirectiveKind = .none
+    @State private var restSeconds = 30
+    @State private var restMinimumSeconds = 20
+    @State private var restMaximumSeconds = 40
+    @State private var isLoading = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            TextField("Block name", text: $name)
+            Picker("Kind", selection: $kind) {
+                ForEach(MobilityBlockKind.allCases, id: \.self) { kind in
+                    Text(kind.displayName).tag(kind)
+                }
+            }
+            if kind.isRoundBased {
+                Stepper(
+                    "Rounds: \(targetRounds ?? 1)",
+                    value: Binding(get: { targetRounds ?? 1 }, set: { targetRounds = $0 }),
+                    in: 1...20
+                )
+            }
+            RestPrescriptionEditor(
+                title: kind.isRoundBased ? "Rest between rounds" : "Rest between movements in this block",
+                hasCustomRest: $hasCustomRest,
+                scope: $restScope,
+                directiveKind: $restDirectiveKind,
+                seconds: $restSeconds,
+                minimumSeconds: $restMinimumSeconds,
+                maximumSeconds: $restMaximumSeconds
+            )
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label("Delete block", systemImage: AppIcon.trash)
+            }
+        }
+        .onAppear {
+            name = block.name ?? ""
+            kind = block.kind
+            targetRounds = block.targetRounds
+            if let rest = block.restPrescription {
+                hasCustomRest = true
+                restScope = rest.scope
+                (restDirectiveKind, restSeconds, restMinimumSeconds, restMaximumSeconds) = rest.directive.editorValues
+            }
+            Task { @MainActor in
+                await Task.yield()
+                isLoading = false
+            }
+        }
+        .onChange(of: name) { _, _ in save() }
+        .onChange(of: kind) { _, _ in save() }
+        .onChange(of: targetRounds) { _, _ in save() }
+        .onChange(of: hasCustomRest) { _, _ in save() }
+        .onChange(of: restScope) { _, _ in save() }
+        .onChange(of: restDirectiveKind) { _, _ in save() }
+        .onChange(of: restSeconds) { _, _ in save() }
+        .onChange(of: restMinimumSeconds) { _, _ in save() }
+        .onChange(of: restMaximumSeconds) { _, _ in save() }
+    }
+
+    private func save() {
+        guard isLoading == false else { return }
+        _ = MobilityEvidenceService.upsertBlock(
+            blockKey: block.blockKey,
+            routineID: block.routineID,
+            orderIndex: block.orderIndex,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            kind: kind,
+            targetRounds: kind.isRoundBased ? (targetRounds ?? 1) : nil,
+            restPrescription: hasCustomRest
+                ? MobilityRestPrescription(
+                    scope: restScope,
+                    directive: restDirectiveKind.directive(
+                        seconds: restSeconds,
+                        minimum: restMinimumSeconds,
+                        maximum: restMaximumSeconds
+                    )
+                  )
+                : nil,
+            using: modelContext
+        )
+        onChange()
+    }
+}
+
 private struct MobilityRoutineItemEditorRow: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var item: MobilityRoutineItem
+    let blocks: [MobilityRoutineBlock]
     @State private var method: MobilityMethod?
     @State private var trainingPurpose: MobilityTrainingPurpose?
     @State private var breathingTarget: Int?
@@ -892,10 +1038,19 @@ private struct MobilityRoutineItemEditorRow: View {
     @State private var assistanceEquipment = ""
     @State private var supportLevel: MobilitySupportLevel?
     @State private var completionRuleSelection = "legacy"
+    @State private var blockKey: String?
+    @State private var sideStrategy: MobilitySideStrategy?
+    @State private var hasCustomRest = false
+    @State private var restScope: MobilityRestScope = .betweenMovements
+    @State private var restDirectiveKind: MobilityRestDirectiveKind = .none
+    @State private var restSeconds = 30
+    @State private var restMinimumSeconds = 20
+    @State private var restMaximumSeconds = 40
     @State private var isLoadingEvidence = true
 
-    init(item: MobilityRoutineItem) {
+    init(item: MobilityRoutineItem, blocks: [MobilityRoutineBlock]) {
         self.item = item
+        self.blocks = blocks
     }
 
     var body: some View {
@@ -1002,6 +1157,33 @@ private struct MobilityRoutineItemEditorRow: View {
                 Text("Support describes the setup used for comparison. It is not a score or diagnosis.")
                     .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
+
+                Picker("Block", selection: $blockKey) {
+                    Text("No block").tag(String?.none)
+                    ForEach(blocks, id: \.blockKey) { block in
+                        Text(block.name?.nilIfEmpty ?? block.kind.displayName).tag(String?.some(block.blockKey))
+                    }
+                }
+                .accessibilityIdentifier("mobility-item-block-picker")
+
+                if item.side == .bilateral || item.side == .alternating {
+                    Picker("Side strategy", selection: $sideStrategy) {
+                        Text("Default").tag(MobilitySideStrategy?.none)
+                        ForEach(MobilitySideStrategy.allCases, id: \.self) { strategy in
+                            Text(strategy.displayName).tag(MobilitySideStrategy?.some(strategy))
+                        }
+                    }
+                }
+
+                RestPrescriptionEditor(
+                    title: "Rest after this movement",
+                    hasCustomRest: $hasCustomRest,
+                    scope: $restScope,
+                    directiveKind: $restDirectiveKind,
+                    seconds: $restSeconds,
+                    minimumSeconds: $restMinimumSeconds,
+                    maximumSeconds: $restMaximumSeconds
+                )
             }
         }
         .onChange(of: item.sideRaw) { _, _ in save() }
@@ -1019,6 +1201,14 @@ private struct MobilityRoutineItemEditorRow: View {
         .onChange(of: assistanceEquipment) { _, _ in saveEvidence() }
         .onChange(of: supportLevel) { _, _ in saveEvidence() }
         .onChange(of: completionRuleSelection) { _, _ in saveMetricEvidence() }
+        .onChange(of: blockKey) { _, _ in saveStructure() }
+        .onChange(of: sideStrategy) { _, _ in saveStructure() }
+        .onChange(of: hasCustomRest) { _, _ in saveStructure() }
+        .onChange(of: restScope) { _, _ in saveStructure() }
+        .onChange(of: restDirectiveKind) { _, _ in saveStructure() }
+        .onChange(of: restSeconds) { _, _ in saveStructure() }
+        .onChange(of: restMinimumSeconds) { _, _ in saveStructure() }
+        .onChange(of: restMaximumSeconds) { _, _ in saveStructure() }
         .onAppear {
             let evidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)[item.id]
             method = evidence?.method
@@ -1035,11 +1225,38 @@ private struct MobilityRoutineItemEditorRow: View {
             assistanceEquipment = evidence?.assistancePrescription?.equipmentRaw ?? ""
             supportLevel = evidence?.supportLevel
             completionRuleSelection = completionSelection(for: evidence?.metricProfile)
+            blockKey = evidence?.blockKey
+            sideStrategy = evidence?.sideStrategy
+            if let rest = evidence?.restPrescription {
+                hasCustomRest = true
+                restScope = rest.scope
+                (restDirectiveKind, restSeconds, restMinimumSeconds, restMaximumSeconds) = rest.directive.editorValues
+            }
             Task { @MainActor in
                 await Task.yield()
                 isLoadingEvidence = false
             }
         }
+    }
+
+    private func saveStructure() {
+        guard isLoadingEvidence == false else { return }
+        _ = MobilityEvidenceService.upsertStructurePrescription(
+            for: item.id,
+            blockKey: blockKey,
+            sideStrategy: sideStrategy,
+            restPrescription: hasCustomRest
+                ? MobilityRestPrescription(
+                    scope: restScope,
+                    directive: restDirectiveKind.directive(
+                        seconds: restSeconds,
+                        minimum: restMinimumSeconds,
+                        maximum: restMaximumSeconds
+                    )
+                  )
+                : nil,
+            using: modelContext
+        )
     }
 
     private var durationBinding: Binding<Int> {
@@ -1177,4 +1394,93 @@ private struct MobilityRoutineItemEditorRow: View {
             using: modelContext
         )
     }
+}
+
+/// Shared authoring control for a `MobilityRestPrescription`: a toggle for
+/// "use the default rest" versus an explicit scope + directive. Used by both
+/// the block row and the item row so scoped rest is authored identically in
+/// either place.
+private struct RestPrescriptionEditor: View {
+    let title: LocalizedStringKey
+    @Binding var hasCustomRest: Bool
+    @Binding var scope: MobilityRestScope
+    @Binding var directiveKind: MobilityRestDirectiveKind
+    @Binding var seconds: Int
+    @Binding var minimumSeconds: Int
+    @Binding var maximumSeconds: Int
+
+    var body: some View {
+        Toggle(title, isOn: $hasCustomRest)
+        if hasCustomRest {
+            Picker("Rest applies", selection: $scope) {
+                ForEach(MobilityRestScope.allCases, id: \.self) { scope in
+                    Text(scope.displayName).tag(scope)
+                }
+            }
+            Picker("Rest type", selection: $directiveKind) {
+                ForEach(MobilityRestDirectiveKind.allCases, id: \.self) { kind in
+                    Text(kind.displayName).tag(kind)
+                }
+            }
+            switch directiveKind {
+            case .none, .userControlled, .breatheUntilReady:
+                EmptyView()
+            case .exact:
+                Stepper("Rest: \(seconds) sec", value: $seconds, in: 1...600, step: 5)
+            case .range:
+                Stepper("Minimum: \(minimumSeconds) sec", value: $minimumSeconds, in: 1...600, step: 5)
+                Stepper("Maximum: \(maximumSeconds) sec", value: $maximumSeconds, in: max(minimumSeconds, 1)...600, step: 5)
+            }
+        }
+    }
+}
+
+/// A UI-only mirror of `MobilityRestDirective`'s cases without its
+/// associated values, so a `Picker` can select a kind before the seconds
+/// steppers for that kind exist.
+private enum MobilityRestDirectiveKind: String, CaseIterable, Hashable {
+    case none
+    case exact
+    case range
+    case userControlled
+    case breatheUntilReady
+
+    var displayName: String {
+        switch self {
+        case .none: String(localized: "No rest")
+        case .exact: String(localized: "Exact")
+        case .range: String(localized: "Rest range")
+        case .userControlled: String(localized: "User controlled")
+        case .breatheUntilReady: String(localized: "Breathe until ready")
+        }
+    }
+
+    func directive(seconds: Int, minimum: Int, maximum: Int) -> MobilityRestDirective {
+        switch self {
+        case .none: .none
+        case .exact: .exact(seconds: max(1, seconds))
+        case .range: .range(minimum: max(1, minimum), maximum: max(max(1, minimum), maximum))
+        case .userControlled: .userControlled
+        case .breatheUntilReady: .breatheUntilReady
+        }
+    }
+}
+
+private extension MobilityRestDirective {
+    /// `(kind, exactSeconds, rangeMinimum, rangeMaximum)`. Unused seconds
+    /// fields keep the editor's last-shown value rather than resetting to a
+    /// default, matching the other optional-stepper controls in this file.
+    var editorValues: (MobilityRestDirectiveKind, Int, Int, Int) {
+        switch self {
+        case .none: (.none, 30, 20, 40)
+        case .exact(let seconds): (.exact, seconds, 20, 40)
+        case .range(let minimum, let maximum): (.range, 30, minimum, maximum)
+        case .userControlled: (.userControlled, 30, 20, 40)
+        case .breatheUntilReady: (.breatheUntilReady, 30, 20, 40)
+        }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

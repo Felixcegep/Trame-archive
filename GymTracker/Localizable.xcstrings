@@ -1,6 +1,466 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "A block groups movements below and gives them a shared rest and, for circuits, a round count. A movement without a block runs on its own, exactly as before." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un bloc regroupe les mouvements ci-dessous et leur donne un repos commun et, pour les circuits, un nombre de tours. Un mouvement sans bloc se déroule seul, exactement comme avant."
+          }
+        }
+      }
+    },
+    "Block name" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom du bloc"
+          }
+        }
+      }
+    },
+    "Delete block" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer le bloc"
+          }
+        }
+      }
+    },
+    "No block" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun bloc"
+          }
+        }
+      }
+    },
+    "Side strategy" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stratégie de côté"
+          }
+        }
+      }
+    },
+    "Rest between rounds" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repos entre les tours"
+          }
+        }
+      }
+    },
+    "Rest between movements in this block" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repos entre les mouvements de ce bloc"
+          }
+        }
+      }
+    },
+    "Rest after this movement" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repos après ce mouvement"
+          }
+        }
+      }
+    },
+    "Rest applies" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le repos s’applique"
+          }
+        }
+      }
+    },
+    "Rest type" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type de repos"
+          }
+        }
+      }
+    },
+    "No rest" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun repos"
+          }
+        }
+      }
+    },
+    "Rest range" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plage de repos"
+          }
+        }
+      }
+    },
+    "User controlled" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contrôlé par l’utilisateur"
+          }
+        }
+      }
+    },
+    "Breathe until ready" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respirer jusqu’à être prêt"
+          }
+        }
+      }
+    },
+    "Minimum: %lld sec" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimum : %lld s"
+          }
+        }
+      }
+    },
+    "Maximum: %lld sec" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximum : %lld s"
+          }
+        }
+      }
+    },
+    "Rounds: %lld" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tours : %lld"
+          }
+        }
+      }
+    },
+    "%@ · Round %lld of %lld" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · Tour %lld sur %lld"
+          }
+        }
+      }
+    },
+    "No side" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun côté"
+          }
+        }
+      }
+    },
+    "Left only" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gauche uniquement"
+          }
+        }
+      }
+    },
+    "Right only" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droite uniquement"
+          }
+        }
+      }
+    },
+    "Same target, both sides" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Même objectif, deux côtés"
+          }
+        }
+      }
+    },
+    "Independent targets per side" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objectifs indépendants par côté"
+          }
+        }
+      }
+    },
+    "Alternate each repetition" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alterner à chaque répétition"
+          }
+        }
+      }
+    },
+    "Complete side, then switch" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminer un côté, puis changer"
+          }
+        }
+      }
+    },
+    "One cycle contains both sides" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un cycle contient les deux côtés"
+          }
+        }
+      }
+    },
+    "User selects side" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’utilisateur choisit le côté"
+          }
+        }
+      }
+    },
+    "Straight sequence" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séquence directe"
+          }
+        }
+      }
+    },
+    "Alternating sides" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Côtés alternés"
+          }
+        }
+      }
+    },
+    "Dynamic warm-up" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échauffement dynamique"
+          }
+        }
+      }
+    },
+    "Mobility circuit" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Circuit de mobilité"
+          }
+        }
+      }
+    },
+    "Flexibility circuit" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Circuit de flexibilité"
+          }
+        }
+      }
+    },
+    "Continuous flow" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux continu"
+          }
+        }
+      }
+    },
+    "Joint preparation" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Préparation articulaire"
+          }
+        }
+      }
+    },
+    "Timed flow" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux chronométré"
+          }
+        }
+      }
+    },
+    "Between holds" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entre les maintiens"
+          }
+        }
+      }
+    },
+    "Between sides" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entre les côtés"
+          }
+        }
+      }
+    },
+    "Between repetitions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entre les répétitions"
+          }
+        }
+      }
+    },
+    "Between phases" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entre les phases"
+          }
+        }
+      }
+    },
+    "Between cycles" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entre les cycles"
+          }
+        }
+      }
+    },
+    "Between movements" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entre les mouvements"
+          }
+        }
+      }
+    },
+    "Between rounds" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entre les tours"
+          }
+        }
+      }
+    },
+    "Before assessment" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avant l’évaluation"
+          }
+        }
+      }
+    },
+    "Kind" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type"
+          }
+        }
+      }
+    },
+    "Exact" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exact"
+          }
+        }
+      }
+    },
+    "Default" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par défaut"
+          }
+        }
+      }
+    },
     "Enter a valid performed duration before continuing." : {
       "localizations" : {
         "fr" : {
@@ -2348,7 +2808,15 @@
     },
     "Add block" : {
       "comment" : "The title of a button that adds a new execution block.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un bloc"
+          }
+        }
+      }
     },
     "Add component" : {
 
@@ -3542,7 +4010,15 @@
     },
     "Block" : {
       "comment" : "A button that displays a sheet for adding a new execution block to a workout.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloc"
+          }
+        }
+      }
     },
     "Block %lld of %lld · %@" : {
       "localizations" : {
@@ -3573,7 +4049,14 @@
       }
     },
     "Blocks" : {
-
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blocs"
+          }
+        }
+      }
     },
     "Body weight" : {
       "comment" : "A label and value that displays the user's current body weight.",
@@ -14109,7 +14592,15 @@
     },
     "Recovery" : {
       "comment" : "Section of the plan form that allows the user to configure the delo",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récupération"
+          }
+        }
+      }
     },
     "Rectus Abdominis" : {
       "extractionState" : "stale",
@@ -14728,7 +15219,15 @@
     },
     "Rest: %lld sec" : {
       "comment" : "A stepper that lets the user set the rest period for a template exercise.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repos : %lld s"
+          }
+        }
+      }
     },
     "Restart Plan" : {
 

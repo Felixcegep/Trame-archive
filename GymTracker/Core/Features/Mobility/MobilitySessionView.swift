@@ -180,6 +180,13 @@ struct MobilitySessionView: View {
                     .foregroundStyle(Color.gymSubduedText)
             }
 
+            if let blockContext = blockContextLabel(for: entry) {
+                Label(blockContext, systemImage: AppIcon.mobility)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .accessibilityIdentifier("mobility-block-context")
+            }
+
             if let phase = entry.currentPhaseResult {
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Label(phase.phaseType.title, systemImage: AppIcon.timer)
@@ -454,7 +461,7 @@ struct MobilitySessionView: View {
 
                 Spacer(minLength: Spacing.s)
 
-                if MobilitySessionService.canUndo(in: session) {
+                if MobilitySessionService.canUndo(in: session, using: modelContext) {
                     Button {
                         undoLatestCompletion()
                     } label: {
@@ -478,7 +485,7 @@ struct MobilitySessionView: View {
 
             if session.status == .completed,
                session.orderedEntries.contains(where: { $0.isPhaseDriven }),
-               MobilitySessionService.canUndo(in: session) {
+               MobilitySessionService.canUndo(in: session, using: modelContext) {
                 Button {
                     undoLatestCompletion()
                 } label: {
@@ -594,11 +601,12 @@ struct MobilitySessionView: View {
     }
 
     private func entryAccessibilityLabel(_ entry: MobilityEntry) -> String {
+        let blockPrefix = blockContextLabel(for: entry).map { "\($0). " } ?? ""
         if let phase = entry.currentPhaseResult {
             let timerState = entry.isTimerPaused
                 ? String(localized: "Timer paused at \(elapsedSeconds(for: entry)) seconds.")
                 : String(localized: "Timer running.")
-            return String(
+            return blockPrefix + String(
                 localized: "Current movement. \(entry.definitionNameSnapshot). Current phase \(phase.phaseType.title), \(phase.side.displayName), cycle \(phase.cycleIndex + 1) of \(entry.cycleCount), target \(phase.prescribedDurationSeconds) seconds. \(timerState)"
             )
         }
@@ -613,7 +621,23 @@ struct MobilitySessionView: View {
         let timerState = entry.isTimerPaused
             ? String(localized: "Timer paused at \(elapsedSeconds(for: entry)) seconds.")
             : String(localized: "Timer running.")
-        return String(localized: "Current movement. \(entry.definitionNameSnapshot), \(entry.side.displayName), target \(target). \(timerState)")
+        return blockPrefix + String(localized: "Current movement. \(entry.definitionNameSnapshot), \(entry.side.displayName), target \(target). \(timerState)")
+    }
+
+    /// Reports the block a movement belongs to and, for a round-based block,
+    /// which repetition of the whole block this is — the round position the
+    /// spec requires stay visible during execution. `nil` for an unblocked
+    /// movement, which behaves exactly as it always has.
+    private func blockContextLabel(for entry: MobilityEntry) -> String? {
+        guard let evidence = MobilityEvidenceService.entryEvidence(for: entry.id, using: modelContext),
+              let blockKind = evidence.blockKindSnapshot else { return nil }
+        let name = evidence.blockNameSnapshot?.isEmpty == false
+            ? evidence.blockNameSnapshot ?? blockKind.displayName
+            : blockKind.displayName
+        if let rounds = evidence.blockTargetRoundsSnapshot, rounds > 1 {
+            return String(localized: "\(name) · Round \(evidence.roundIndexSnapshot + 1) of \(rounds)")
+        }
+        return name
     }
 
     private func loadCurrentEntry() {
