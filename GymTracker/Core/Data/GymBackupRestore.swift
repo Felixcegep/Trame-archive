@@ -110,6 +110,11 @@ extension BackupDTO {
                 }
                 if let fr = exerciseDTO.frenchName { existing.frenchName = fr }
                 if let aliases = exerciseDTO.searchAliases { existing.searchAliases = aliases }
+                if let sportDiscipline = exerciseDTO.sportDiscipline { existing.sportDisciplineRaw = sportDiscipline }
+                if let eventFamily = exerciseDTO.strongmanEventFamily { existing.strongmanEventFamilyRaw = eventFamily }
+                if let implementData = exerciseDTO.strongmanImplementProfileData {
+                    existing.strongmanImplementProfileData = implementData
+                }
             } else {
                 let newExercise = Exercise(
                     name: exerciseDTO.name,
@@ -141,6 +146,9 @@ extension BackupDTO {
                 )
                 newExercise.frenchName = exerciseDTO.frenchName
                 newExercise.searchAliases = exerciseDTO.searchAliases ?? []
+                newExercise.sportDisciplineRaw = exerciseDTO.sportDiscipline
+                newExercise.strongmanEventFamilyRaw = exerciseDTO.strongmanEventFamily
+                newExercise.strongmanImplementProfileData = exerciseDTO.strongmanImplementProfileData
                 restoreCtx.context.insert(newExercise)
                 if restoreCtx.exerciseMap[newExercise.name] == nil {
                     restoreCtx.exerciseMap[newExercise.name] = newExercise
@@ -913,6 +921,8 @@ extension BackupDTO {
             if let count = normalizedEntry.loadUnitCountSnapshot {
                 entry.loadUnitCountSnapshot = count
             }
+            entry.sportDisciplineSnapshotRaw = entryDTO.sportDisciplineSnapshot
+            entry.strongmanEventFamilySnapshotRaw = entryDTO.strongmanEventFamilySnapshot
 
             var sets: [ExerciseSet] = []
             for setDTO in entryDTO.sets {
@@ -976,6 +986,9 @@ extension BackupDTO {
                 setObj.descriptiveROM = setDTO.descriptiveROM
                 setObj.discomfortScore = setDTO.discomfortScore
                 setObj.liftQuality = setDTO.liftQuality.flatMap(LiftQuality.init(rawValue:))
+                setObj.strongmanLoadConventionRaw = setDTO.strongmanLoadConvention
+                setObj.strongmanImplementProfileData = setDTO.strongmanImplementProfileData
+                setObj.strongmanEventFamilyRaw = setDTO.strongmanEventFamily
                 setObj.segments = (setDTO.segments ?? []).compactMap { segmentDTO in
                     guard let segmentID = UUID(uuidString: segmentDTO.id) else { return nil }
                     let segment = ExerciseSetSegment(
@@ -988,7 +1001,13 @@ extension BackupDTO {
                         done: segmentDTO.done,
                         variationNote: segmentDTO.variationNote,
                         rpe: segmentDTO.rpe,
-                        rir: segmentDTO.rir
+                        rir: segmentDTO.rir,
+                        splitKind: segmentDTO.splitKind.flatMap(WorkoutSplitKind.init(rawValue:)),
+                        startedAt: segmentDTO.startedAt,
+                        endedAt: segmentDTO.endedAt,
+                        distanceMeters: segmentDTO.distanceMeters,
+                        heartRateBPM: segmentDTO.heartRateBPM,
+                        perceivedExertion: segmentDTO.perceivedExertion
                     )
                     segment.id = segmentID
                     return segment

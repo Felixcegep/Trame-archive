@@ -69,6 +69,9 @@ nonisolated struct ExerciseTemplateDTO: Codable {
     var variationFamilyID: String? = nil
     var frenchName: String? = nil
     var searchAliases: [String]? = nil
+    var sportDiscipline: String? = nil
+    var strongmanEventFamily: String? = nil
+    var strongmanImplementProfileData: Data? = nil
 }
 
 nonisolated struct ExerciseRelationshipDTO: Codable {
@@ -166,6 +169,9 @@ nonisolated struct ExerciseSetDTO: Codable {
     var throwDistanceMeters: Double? = nil
     var kettlebellCadenceRPM: Double? = nil
     var specializedMetricMeasurementSource: String? = nil
+    var strongmanLoadConvention: String? = nil
+    var strongmanImplementProfileData: Data? = nil
+    var strongmanEventFamily: String? = nil
     var setMethod: String? = nil
     var segments: [ExerciseSetSegmentDTO]? = nil
     var complexComponents: [ComplexComponentResultDTO]? = nil
@@ -210,6 +216,12 @@ nonisolated struct ExerciseSetSegmentDTO: Codable {
     let variationNote: String?
     let rpe: Double?
     let rir: Int?
+    var splitKind: String? = nil
+    var startedAt: Date? = nil
+    var endedAt: Date? = nil
+    var distanceMeters: Double? = nil
+    var heartRateBPM: Int? = nil
+    var perceivedExertion: Double? = nil
 }
 
 nonisolated struct ComplexComponentResultDTO: Codable {
@@ -293,6 +305,8 @@ nonisolated struct ExerciseEntryDTO: Codable {
     var repCountingStyleSnapshot: String? = nil
     var weightEntryStyleSnapshot: String? = nil
     var loadUnitCountSnapshot: Int? = nil
+    var sportDisciplineSnapshot: String? = nil
+    var strongmanEventFamilySnapshot: String? = nil
 }
 
 nonisolated struct WorkoutDTO: Codable {

@@ -34,7 +34,10 @@ extension BackupDTO {
                 setupAngleDegrees: exercise.setupAngleDegrees,
                 variationFamilyID: exercise.variationFamilyID,
                 frenchName: exercise.frenchName,
-                searchAliases: exercise.searchAliases
+                searchAliases: exercise.searchAliases,
+                sportDiscipline: exercise.sportDisciplineRaw,
+                strongmanEventFamily: exercise.strongmanEventFamilyRaw,
+                strongmanImplementProfileData: exercise.strongmanImplementProfileData
             )
         }
 
@@ -165,6 +168,9 @@ extension BackupDTO {
                             throwDistanceMeters: set.throwDistanceMeters,
                             kettlebellCadenceRPM: set.kettlebellCadenceRPM,
                             specializedMetricMeasurementSource: set.specializedMetricMeasurementSource?.rawValue,
+                            strongmanLoadConvention: set.strongmanLoadConventionRaw,
+                            strongmanImplementProfileData: set.strongmanImplementProfileData,
+                            strongmanEventFamily: set.strongmanEventFamilyRaw,
                             setMethod: set.resolvedSetMethod.rawValue,
                             segments: set.orderedSegments.map { segment in
                                 ExerciseSetSegmentDTO(
@@ -178,7 +184,13 @@ extension BackupDTO {
                                     done: segment.done,
                                     variationNote: segment.variationNote,
                                     rpe: segment.rpe,
-                                    rir: segment.rir
+                                    rir: segment.rir,
+                                    splitKind: segment.splitKindRaw,
+                                    startedAt: segment.startedAt,
+                                    endedAt: segment.endedAt,
+                                    distanceMeters: segment.distanceMeters,
+                                    heartRateBPM: segment.heartRateBPM,
+                                    perceivedExertion: segment.perceivedExertion
                                 )
                             },
                             complexComponents: set.orderedComplexComponents.map { component in
@@ -279,7 +291,9 @@ extension BackupDTO {
                         lateralitySnapshot: exercise.lateralitySnapshot.rawValue,
                         repCountingStyleSnapshot: exercise.repCountingStyleSnapshot.rawValue,
                         weightEntryStyleSnapshot: exercise.weightEntryStyleSnapshot.rawValue,
-                        loadUnitCountSnapshot: exercise.loadUnitCountSnapshot
+                        loadUnitCountSnapshot: exercise.loadUnitCountSnapshot,
+                        sportDisciplineSnapshot: exercise.sportDisciplineSnapshotRaw,
+                        strongmanEventFamilySnapshot: exercise.strongmanEventFamilySnapshotRaw
                     )
                 },
                 executionBlocks: workout.orderedExecutionBlocks.map { block in
