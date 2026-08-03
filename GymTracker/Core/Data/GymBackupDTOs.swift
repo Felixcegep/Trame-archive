@@ -729,6 +729,18 @@ nonisolated struct MobilityRoutineItemDTO: Codable {
     var supportLevel: String? = nil
     var metricProfile: MobilityMetricProfile? = nil
     var metricTargets: MobilityMetricTargets? = nil
+    var blockKey: String? = nil
+    var sideStrategy: String? = nil
+    var restPrescription: MobilityRestPrescription? = nil
+}
+
+nonisolated struct MobilityRoutineBlockDTO: Codable {
+    let blockKey: String
+    let orderIndex: Int
+    var name: String? = nil
+    let kind: String
+    var targetRounds: Int? = nil
+    var restPrescription: MobilityRestPrescription? = nil
 }
 
 nonisolated struct MobilityRoutineDTO: Codable {
@@ -740,6 +752,7 @@ nonisolated struct MobilityRoutineDTO: Codable {
     let updatedAt: Date
     let items: [MobilityRoutineItemDTO]
     var purpose: String? = nil
+    var blocks: [MobilityRoutineBlockDTO]? = nil
 }
 
 nonisolated struct MobilityPhaseResultDTO: Codable {
@@ -785,6 +798,7 @@ nonisolated struct MobilityResultDTO: Codable {
     var performedSupportLevel: String? = nil
     var metricProfileSnapshot: MobilityMetricProfile? = nil
     var metricTargetsSnapshot: MobilityMetricTargets? = nil
+    var restSnapshot: MobilityRestPrescription? = nil
 }
 
 nonisolated struct MobilityEntryDTO: Codable {
@@ -808,6 +822,15 @@ nonisolated struct MobilityEntryDTO: Codable {
     var pausedElapsedSeconds: Int? = 0
     let results: [MobilityResultDTO]
     var phaseResults: [MobilityPhaseResultDTO]? = nil
+    var blockKeySnapshot: String? = nil
+    var blockKindSnapshot: String? = nil
+    var blockNameSnapshot: String? = nil
+    var blockOrderIndexSnapshot: Int? = nil
+    var blockTargetRoundsSnapshot: Int? = nil
+    var blockRestSnapshot: MobilityRestPrescription? = nil
+    var roundIndexSnapshot: Int? = 0
+    var sideStrategySnapshot: String? = nil
+    var restPrescriptionSnapshot: MobilityRestPrescription? = nil
 }
 
 nonisolated struct MobilitySessionDTO: Codable {

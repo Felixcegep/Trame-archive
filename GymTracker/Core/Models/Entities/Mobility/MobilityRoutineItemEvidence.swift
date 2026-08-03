@@ -17,6 +17,12 @@ final class MobilityRoutineItemEvidence {
     var supportLevelRaw: String?
     var metricProfileData: Data?
     var metricTargetsData: Data?
+    /// Stable key of the `MobilityRoutineBlock` this item belongs to, or
+    /// `nil` for an unblocked item. This is an ownership key, not a live
+    /// relationship, matching `routineItemID` above.
+    var blockKey: String?
+    var sideStrategyRaw: String?
+    var restPrescriptionData: Data?
     var createdAt: Date
     var updatedAt: Date
 
@@ -60,6 +66,18 @@ final class MobilityRoutineItemEvidence {
         set { metricTargetsData = Self.encode(newValue) }
     }
 
+    var sideStrategy: MobilitySideStrategy? {
+        get { sideStrategyRaw.flatMap(MobilitySideStrategy.init(rawValue:)) }
+        set { sideStrategyRaw = newValue?.rawValue }
+    }
+
+    /// Authored scoped-rest override for this item. When absent, execution
+    /// falls back to the legacy numeric `restSeconds` mapping.
+    var restPrescription: MobilityRestPrescription? {
+        get { Self.decode(MobilityRestPrescription.self, from: restPrescriptionData) }
+        set { restPrescriptionData = Self.encode(newValue) }
+    }
+
     init(
         routineItemID: UUID,
         method: MobilityMethod? = nil,
@@ -70,6 +88,9 @@ final class MobilityRoutineItemEvidence {
         supportLevel: MobilitySupportLevel? = nil,
         metricProfile: MobilityMetricProfile? = nil,
         metricTargets: MobilityMetricTargets? = nil,
+        blockKey: String? = nil,
+        sideStrategy: MobilitySideStrategy? = nil,
+        restPrescription: MobilityRestPrescription? = nil,
         id: UUID = UUID(),
         createdAt: Date = .now,
         updatedAt: Date = .now
@@ -84,6 +105,9 @@ final class MobilityRoutineItemEvidence {
         self.supportLevelRaw = supportLevel?.rawValue
         self.metricProfileData = Self.encode(metricProfile)
         self.metricTargetsData = Self.encode(metricTargets)
+        self.blockKey = blockKey
+        self.sideStrategyRaw = sideStrategy?.rawValue
+        self.restPrescriptionData = Self.encode(restPrescription)
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.breathingPrescription = breathingPrescription

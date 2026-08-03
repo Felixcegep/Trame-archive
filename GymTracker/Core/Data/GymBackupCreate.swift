@@ -727,6 +727,14 @@ extension BackupDTO {
             try context.fetch(FetchDescriptor<MobilityResultEvidence>()).map { ($0.resultID, $0) },
             uniquingKeysWith: { first, _ in first }
         )
+        let mobilityEntryEvidence = Dictionary(
+            try context.fetch(FetchDescriptor<MobilityEntryEvidence>()).map { ($0.entryID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let mobilityBlocksByRoutineID = Dictionary(
+            grouping: try context.fetch(FetchDescriptor<MobilityRoutineBlock>()),
+            by: { $0.routineID }
+        )
         let mobilityRoutineDTOs = try context.fetch(FetchDescriptor<MobilityRoutine>()).map { routine in
             MobilityRoutineDTO(
                 id: routine.id.uuidString,
@@ -786,12 +794,27 @@ extension BackupDTO {
                         },
                         supportLevel: mobilityPrescriptionEvidence[item.id]?.supportLevelRaw,
                         metricProfile: mobilityPrescriptionEvidence[item.id]?.metricProfile,
-                        metricTargets: mobilityPrescriptionEvidence[item.id]?.metricTargets
+                        metricTargets: mobilityPrescriptionEvidence[item.id]?.metricTargets,
+                        blockKey: mobilityPrescriptionEvidence[item.id]?.blockKey,
+                        sideStrategy: mobilityPrescriptionEvidence[item.id]?.sideStrategyRaw,
+                        restPrescription: mobilityPrescriptionEvidence[item.id]?.restPrescription
                     )
                 },
                 // Do not export an unrecognized raw value from a future build:
                 // this build cannot validate it on a subsequent restore.
-                purpose: routine.purpose?.rawValue
+                purpose: routine.purpose?.rawValue,
+                blocks: (mobilityBlocksByRoutineID[routine.id] ?? [])
+                    .sorted { $0.orderIndex == $1.orderIndex ? $0.blockKey < $1.blockKey : $0.orderIndex < $1.orderIndex }
+                    .map { block in
+                        MobilityRoutineBlockDTO(
+                            blockKey: block.blockKey,
+                            orderIndex: block.orderIndex,
+                            name: block.name,
+                            kind: block.kindRaw,
+                            targetRounds: block.targetRounds,
+                            restPrescription: block.restPrescription
+                        )
+                    }
             )
         }
         let mobilitySessionDTOs = try context.fetch(FetchDescriptor<MobilitySession>()).map { session in
@@ -809,7 +832,8 @@ extension BackupDTO {
                 createdAt: session.createdAt,
                 updatedAt: session.updatedAt,
                 entries: session.orderedEntries.map { entry in
-                    MobilityEntryDTO(
+                    let entryEvidence = mobilityEntryEvidence[entry.id]
+                    return MobilityEntryDTO(
                         id: entry.id.uuidString,
                         orderIndex: entry.orderIndex,
                         definitionIDSnapshot: entry.definitionIDSnapshot.uuidString,
@@ -877,7 +901,8 @@ extension BackupDTO {
                                 performedAssistanceLevel: evidence?.performedAssistanceLevel,
                                 performedSupportLevel: evidence?.performedSupportLevelRaw,
                                 metricProfileSnapshot: evidence?.metricProfileSnapshot,
-                                metricTargetsSnapshot: evidence?.metricTargetsSnapshot
+                                metricTargetsSnapshot: evidence?.metricTargetsSnapshot,
+                                restSnapshot: evidence?.restSnapshot
                             )
                         },
                         phaseResults: entry.orderedPhaseResults.map { phaseResult in
@@ -895,7 +920,16 @@ extension BackupDTO {
                                 startedAt: phaseResult.startedAt,
                                 completedAt: phaseResult.completedAt
                             )
-                        }
+                        },
+                        blockKeySnapshot: entryEvidence?.blockKeySnapshot,
+                        blockKindSnapshot: entryEvidence?.blockKindSnapshotRaw,
+                        blockNameSnapshot: entryEvidence?.blockNameSnapshot,
+                        blockOrderIndexSnapshot: entryEvidence?.blockOrderIndexSnapshot,
+                        blockTargetRoundsSnapshot: entryEvidence?.blockTargetRoundsSnapshot,
+                        blockRestSnapshot: entryEvidence?.blockRestSnapshot,
+                        roundIndexSnapshot: entryEvidence?.roundIndexSnapshot ?? 0,
+                        sideStrategySnapshot: entryEvidence?.sideStrategySnapshotRaw,
+                        restPrescriptionSnapshot: entryEvidence?.restPrescriptionSnapshot
                     )
                 }
             )

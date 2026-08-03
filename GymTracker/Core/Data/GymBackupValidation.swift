@@ -922,7 +922,19 @@ extension BackupDTO {
 
         var routineItemIDs = [String]()
         var phasePrescriptionIDs = [String]()
+        var allBlockKeys = [String]()
         for routine in mobilityRoutines {
+            let blocks = routine.blocks ?? []
+            let blockKeys = Set(blocks.map(\.blockKey))
+            allBlockKeys.append(contentsOf: blocks.map(\.blockKey))
+            for block in blocks {
+                guard block.orderIndex >= 0,
+                      MobilityBlockKind(rawValue: block.kind) != nil,
+                      block.targetRounds.map({ $0 > 0 }) ?? true,
+                      isValid(block.restPrescription) else {
+                    throw BackupValidationError.invalidIdentifier("mobility routine block")
+                }
+            }
             for item in routine.items {
                 routineItemIDs.append(item.id)
                 guard definitionIDs.contains(item.definitionID),
@@ -938,7 +950,13 @@ extension BackupDTO {
                       isValid(item.tempoPrescription),
                       isValid(item.assistancePrescription),
                       isValid(item.metricProfile, targets: item.metricTargets),
-                      item.supportLevel.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true else {
+                      item.supportLevel.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true,
+                      // A block never contains a block: an item's block
+                      // membership must resolve to a block authored on this
+                      // same routine, never to another item.
+                      item.blockKey.map({ blockKeys.contains($0) }) ?? true,
+                      item.sideStrategy.map({ MobilitySideStrategy(rawValue: $0) != nil }) ?? true,
+                      isValid(item.restPrescription) else {
                     throw BackupValidationError.invalidIdentifier("mobility routine item")
                 }
                 let phases = item.phases ?? []
@@ -960,6 +978,7 @@ extension BackupDTO {
         }
         try validateUniqueIdentifiers(routineItemIDs, named: "mobility routine item")
         try validateUniqueIdentifiers(phasePrescriptionIDs, named: "mobility phase prescription")
+        try validateUniqueIdentifiers(allBlockKeys, named: "mobility routine block")
 
         var entryIDs = [String]()
         var resultIDs = [String]()
@@ -997,7 +1016,14 @@ extension BackupDTO {
                       (entry.pausedElapsedSeconds ?? 0) >= 0,
                       entry.targetDurationSeconds.map({ $0 > 0 }) ?? true,
                       entry.targetRepetitions.map({ $0 > 0 }) ?? true,
-                      entry.restSeconds.map({ $0 >= 0 }) ?? true else {
+                      entry.restSeconds.map({ $0 >= 0 }) ?? true,
+                      entry.blockKindSnapshot.map({ MobilityBlockKind(rawValue: $0) != nil }) ?? true,
+                      (entry.blockOrderIndexSnapshot ?? 0) >= 0,
+                      entry.blockTargetRoundsSnapshot.map({ $0 > 0 }) ?? true,
+                      isValid(entry.blockRestSnapshot),
+                      (entry.roundIndexSnapshot ?? 0) >= 0,
+                      entry.sideStrategySnapshot.map({ MobilitySideStrategy(rawValue: $0) != nil }) ?? true,
+                      isValid(entry.restPrescriptionSnapshot) else {
                     throw BackupValidationError.invalidIdentifier("mobility entry")
                 }
                 for result in entry.results {
@@ -1022,7 +1048,8 @@ extension BackupDTO {
                           result.supportLevelSnapshot.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true,
                           result.performedBreathingCycles.map({ $0 >= 0 }) ?? true,
                           result.performedAssistanceLevel.map({ $0 >= 0 }) ?? true,
-                          result.performedSupportLevel.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true else {
+                          result.performedSupportLevel.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true,
+                          isValid(result.restSnapshot) else {
                         throw BackupValidationError.invalidIdentifier("mobility result")
                     }
                     if let sensation = result.sensation.flatMap(MobilitySensation.init(rawValue:)),
@@ -1137,11 +1164,24 @@ extension BackupDTO {
                     throw BackupValidationError.invalidIdentifier("active mobility result")
                 }
             } else {
+                // Mirrors `MobilityEntry.orderedPhaseResults(alternatingSides:)`
+                // and `MobilityFlowResolver`'s node ordering: an
+                // `.alternateEachRepetition` entry's active cursor is only
+                // valid against a cycle-major traversal, never the default
+                // side-major one.
+                let alternatingSides = current.sideStrategySnapshot == MobilitySideStrategy.alternateEachRepetition.rawValue
                 let ordered = phaseResults.sorted {
-                    if mobilitySideOrder($0.side) != mobilitySideOrder($1.side) {
-                        return mobilitySideOrder($0.side) < mobilitySideOrder($1.side)
+                    if alternatingSides {
+                        if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
+                        if mobilitySideOrder($0.side) != mobilitySideOrder($1.side) {
+                            return mobilitySideOrder($0.side) < mobilitySideOrder($1.side)
+                        }
+                    } else {
+                        if mobilitySideOrder($0.side) != mobilitySideOrder($1.side) {
+                            return mobilitySideOrder($0.side) < mobilitySideOrder($1.side)
+                        }
+                        if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
                     }
-                    if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
                     if $0.orderIndex != $1.orderIndex { return $0.orderIndex < $1.orderIndex }
                     return $0.id < $1.id
                 }
@@ -1486,6 +1526,13 @@ extension BackupDTO {
         guard let prescription else { return true }
         return MobilityAssistanceType(rawValue: prescription.assistanceType) != nil
             && (prescription.level.map({ $0 >= 0 }) ?? true)
+    }
+
+    /// A `.none`/`.userControlled`/`.breatheUntilReady` directive has no
+    /// numeric bounds to reject; `.exact` and `.range` reject a non-positive
+    /// or inverted bound before the destination store is ever touched.
+    private func isValid(_ prescription: MobilityRestPrescription?) -> Bool {
+        prescription?.isValid ?? true
     }
 
     private func isValid(

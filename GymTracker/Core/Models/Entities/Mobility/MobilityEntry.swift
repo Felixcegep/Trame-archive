@@ -103,14 +103,31 @@ final class MobilityEntry {
     }
 
     /// Side-major, then cycle, then authored phase order. This is both the
-    /// immutable snapshot order and the execution order consumed by
-    /// `MobilityFlowResolver`.
+    /// default immutable snapshot order and the execution order consumed by
+    /// `MobilityFlowResolver` for every item that does not alternate sides.
     var orderedPhaseResults: [MobilityPhaseResult] {
+        executionOrderedPhaseResults(alternatingSides: false)
+    }
+
+    /// `alternatingSides: true` sorts cycle-major instead of side-major so a
+    /// `.alternateEachRepetition` item visits the same repetition's left and
+    /// right nodes together before advancing, matching
+    /// `MobilityFlowResolver`'s traversal for `MobilityFlowSemantics
+    /// .sideAlternating`. This is a query parameter, not stored state: side
+    /// strategy itself lives in the `MobilityRoutineItemEvidence`/
+    /// `MobilityEntryEvidence` sidecars, never as a new stored property on
+    /// this frozen baseline model.
+    func executionOrderedPhaseResults(alternatingSides: Bool) -> [MobilityPhaseResult] {
         phaseResults.sorted {
             let lhsSide = Self.sideOrder($0.side)
             let rhsSide = Self.sideOrder($1.side)
-            if lhsSide != rhsSide { return lhsSide < rhsSide }
-            if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
+            if alternatingSides {
+                if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
+                if lhsSide != rhsSide { return lhsSide < rhsSide }
+            } else {
+                if lhsSide != rhsSide { return lhsSide < rhsSide }
+                if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
+            }
             if $0.orderIndex != $1.orderIndex { return $0.orderIndex < $1.orderIndex }
             return $0.id.uuidString < $1.id.uuidString
         }

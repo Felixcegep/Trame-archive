@@ -1238,7 +1238,10 @@ extension BackupDTO {
                     || itemDTO.assistancePrescription != nil
                     || itemDTO.supportLevel != nil
                     || itemDTO.metricProfile != nil
-                    || itemDTO.metricTargets != nil {
+                    || itemDTO.metricTargets != nil
+                    || itemDTO.blockKey != nil
+                    || itemDTO.sideStrategy != nil
+                    || itemDTO.restPrescription != nil {
                     let evidence = MobilityRoutineItemEvidence(
                         routineItemID: item.id,
                         method: itemDTO.method.flatMap(MobilityMethod.init(rawValue:)),
@@ -1269,12 +1272,34 @@ extension BackupDTO {
                         supportLevel: itemDTO.supportLevel.flatMap(MobilitySupportLevel.init(rawValue:)),
                         metricProfile: itemDTO.metricProfile,
                         metricTargets: itemDTO.metricTargets,
+                        blockKey: itemDTO.blockKey,
+                        sideStrategy: itemDTO.sideStrategy.flatMap(MobilitySideStrategy.init(rawValue:)),
+                        restPrescription: itemDTO.restPrescription,
                         createdAt: routineDTO.createdAt,
                         updatedAt: routineDTO.updatedAt
                     )
                     restoreCtx.context.insert(evidence)
                 }
                 return item
+            }
+            if version >= Self.advancedMobilityEvidenceVersion {
+                for blockDTO in routineDTO.blocks ?? [] {
+                    guard let kind = MobilityBlockKind(rawValue: blockDTO.kind) else {
+                        throw BackupValidationError.invalidIdentifier("mobility routine block")
+                    }
+                    let block = MobilityRoutineBlock(
+                        blockKey: blockDTO.blockKey,
+                        routineID: routine.id,
+                        orderIndex: blockDTO.orderIndex,
+                        name: blockDTO.name,
+                        kind: kind,
+                        targetRounds: blockDTO.targetRounds,
+                        restPrescription: blockDTO.restPrescription,
+                        createdAt: routineDTO.createdAt,
+                        updatedAt: routineDTO.updatedAt
+                    )
+                    restoreCtx.context.insert(block)
+                }
             }
             restoreCtx.mobilityRoutinesByName[routineDTO.name] = routine
             restoreCtx.context.insert(routine)
@@ -1383,6 +1408,7 @@ extension BackupDTO {
                             sensation: resultDTO.sensation.flatMap(MobilitySensation.init(rawValue:)),
                             movementQuality: resultDTO.movementQuality.flatMap(MobilityMovementQuality.init(rawValue:)),
                             compensationKeys: Set((resultDTO.compensationKeys ?? []).compactMap(MobilityCompensationKey.init(rawValue:))),
+                            restSnapshot: resultDTO.restSnapshot,
                             recordedAt: resultDTO.completedAt ?? resultDTO.startedAt ?? sessionDTO.startTime
                         )
                         restoreCtx.context.insert(evidence)
@@ -1410,6 +1436,39 @@ extension BackupDTO {
                     phaseResult.startedAt = phaseResultDTO.startedAt
                     phaseResult.completedAt = phaseResultDTO.completedAt
                     return phaseResult
+                }
+                if version >= Self.advancedMobilityEvidenceVersion,
+                   entryDTO.blockKeySnapshot != nil
+                    || entryDTO.roundIndexSnapshot.map({ $0 != 0 }) ?? false
+                    || entryDTO.sideStrategySnapshot != nil
+                    || entryDTO.restPrescriptionSnapshot != nil {
+                    let blockKindSnapshot = try entryDTO.blockKindSnapshot.map { raw -> MobilityBlockKind in
+                        guard let kind = MobilityBlockKind(rawValue: raw) else {
+                            throw BackupValidationError.invalidIdentifier("mobility entry block snapshot")
+                        }
+                        return kind
+                    }
+                    let sideStrategySnapshot = try entryDTO.sideStrategySnapshot.map { raw -> MobilitySideStrategy in
+                        guard let strategy = MobilitySideStrategy(rawValue: raw) else {
+                            throw BackupValidationError.invalidIdentifier("mobility entry side strategy snapshot")
+                        }
+                        return strategy
+                    }
+                    restoreCtx.context.insert(
+                        MobilityEntryEvidence(
+                            entryID: entry.id,
+                            blockKeySnapshot: entryDTO.blockKeySnapshot,
+                            blockKindSnapshot: blockKindSnapshot,
+                            blockNameSnapshot: entryDTO.blockNameSnapshot,
+                            blockOrderIndexSnapshot: entryDTO.blockOrderIndexSnapshot,
+                            blockTargetRoundsSnapshot: entryDTO.blockTargetRoundsSnapshot,
+                            blockRestSnapshot: entryDTO.blockRestSnapshot,
+                            roundIndexSnapshot: entryDTO.roundIndexSnapshot ?? 0,
+                            sideStrategySnapshot: sideStrategySnapshot,
+                            restPrescriptionSnapshot: entryDTO.restPrescriptionSnapshot,
+                            createdAt: sessionDTO.startTime
+                        )
+                    )
                 }
                 return entry
             }

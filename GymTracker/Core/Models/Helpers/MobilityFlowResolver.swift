@@ -3,6 +3,9 @@ import Foundation
 nonisolated enum MobilityFlowSemantics: String, Sendable {
     case sequential
     case phaseDriven
+    case sideAlternating
+    case roundBased
+    case continuous
 }
 
 nonisolated struct MobilityFlowNodeSnapshot: Hashable, Sendable {
@@ -23,6 +26,20 @@ nonisolated struct MobilityFlowEntrySnapshot: Hashable, Sendable {
     let currentCycleIndex: Int
     let currentPhaseIndex: Int
     let restSeconds: Int?
+    /// Authored scoped-rest override for this item. When present it takes
+    /// priority over the legacy `restSeconds` mapping (outside a round-based
+    /// or continuous block, which govern their own rest independently).
+    let restPrescription: MobilityRestPrescription?
+    let sideStrategy: MobilitySideStrategy?
+    /// Stable authored block identity. `nil` means this entry behaves exactly
+    /// as an unblocked item always has: sequential, item-scoped rest.
+    let blockKey: String?
+    let blockKind: MobilityBlockKind?
+    let blockTargetRounds: Int?
+    let blockRest: MobilityRestPrescription?
+    /// Which pre-materialized repetition of a round-based block this entry
+    /// represents. Always `0` outside a round-based block.
+    let roundIndex: Int
     let resultStatuses: [MobilityResultStatus]
     let phaseNodes: [MobilityFlowNodeSnapshot]
 }
@@ -46,14 +63,61 @@ nonisolated struct MobilityUndoTransition: Hashable, Sendable {
     let stale: Bool
 }
 
-/// This slice only represents the two rest concepts already persisted by the
-/// mobility graph. A rest phase remains an executable phase; item rest remains
-/// a between-movement prescription. Broader scoped-rest policy is deliberately
-/// deferred until the domain owns those prescriptions.
-nonisolated enum MobilityRestDirective: Hashable, Sendable {
+/// Where a rest prescription or snapshot applies. This is orthogonal to the
+/// directive: a scope names the boundary in the movement graph, a directive
+/// names the timing policy at that boundary.
+nonisolated enum MobilityRestScope: String, Codable, CaseIterable, Hashable, Sendable {
+    case betweenHolds
+    case betweenSides
+    case betweenRepetitions
+    case betweenPhases
+    case betweenCycles
+    case betweenMovements
+    case betweenRounds
+    case beforeAssessment
+
+    var displayName: String {
+        switch self {
+        case .betweenHolds: String(localized: "Between holds")
+        case .betweenSides: String(localized: "Between sides")
+        case .betweenRepetitions: String(localized: "Between repetitions")
+        case .betweenPhases: String(localized: "Between phases")
+        case .betweenCycles: String(localized: "Between cycles")
+        case .betweenMovements: String(localized: "Between movements")
+        case .betweenRounds: String(localized: "Between rounds")
+        case .beforeAssessment: String(localized: "Before assessment")
+        }
+    }
+}
+
+/// The timing policy at a rest scope. `.none` remains a legitimate directive
+/// (no rest prescribed at that boundary), not the absence of a directive.
+nonisolated enum MobilityRestDirective: Codable, Hashable, Sendable {
     case none
-    case explicitPhase(seconds: Int)
-    case betweenMovements(seconds: Int)
+    case exact(seconds: Int)
+    case range(minimum: Int, maximum: Int)
+    case userControlled
+    case breatheUntilReady
+
+    var isValid: Bool {
+        switch self {
+        case .none, .userControlled, .breatheUntilReady: true
+        case .exact(let seconds): seconds > 0
+        case .range(let minimum, let maximum): minimum > 0 && maximum >= minimum
+        }
+    }
+}
+
+/// A resolved or authored rest prescription: always a scope paired with a
+/// directive. Authoring stores this on `MobilityRoutineItemEvidence`
+/// (optional, decode-absent-safe); execution snapshots the resolved value
+/// onto `MobilityResultEvidence` so later prescription edits cannot rewrite
+/// history.
+nonisolated struct MobilityRestPrescription: Codable, Hashable, Sendable {
+    var scope: MobilityRestScope
+    var directive: MobilityRestDirective
+
+    var isValid: Bool { directive.isValid }
 }
 
 nonisolated struct MobilityTransition: Hashable, Sendable {
@@ -63,7 +127,7 @@ nonisolated struct MobilityTransition: Hashable, Sendable {
     let nextSide: MobilitySide?
     let nextCycleIndex: Int?
     let nextPhaseIndex: Int?
-    let restDirective: MobilityRestDirective
+    let rest: MobilityRestPrescription
     let sessionCompleted: Bool
     let stale: Bool
 }
@@ -78,6 +142,8 @@ nonisolated struct MobilityFlowContext: Hashable, Sendable {
 /// The caller resolves this transition before mutating SwiftData, then applies
 /// exactly the identified node and commits once.
 nonisolated enum MobilityFlowResolver {
+    private static let noRest = MobilityRestPrescription(scope: .betweenMovements, directive: .none)
+
     nonisolated static func currentTarget(in session: MobilityFlowSnapshot) -> MobilityFlowTarget? {
         let entries = orderedEntries(session)
         guard let entry = entries.first(where: {
@@ -114,7 +180,11 @@ nonisolated enum MobilityFlowResolver {
             guard completedEntry.phaseNodes.isEmpty else {
                 return staleTransition(in: context.session)
             }
-            return transitionAfterEntry(completedEntry, entries: entries, semantics: .sequential)
+            return transitionAfterEntry(
+                completedEntry,
+                entries: entries,
+                semantics: flowSemantics(for: completedEntry, phaseDriven: false)
+            )
         }
 
         let nodes = orderedNodes(completedEntry)
@@ -130,22 +200,27 @@ nonisolated enum MobilityFlowResolver {
             return staleTransition(in: context.session)
         }
 
+        let semantics = flowSemantics(for: completedEntry, phaseDriven: true)
         if let nextNode = nodes.dropFirst(completedNodeIndex + 1).first(where: { !isTerminal($0.status) }) {
             return transition(
-                semantics: .phaseDriven,
+                semantics: semantics,
                 entryID: completedEntry.id,
                 node: nextNode,
-                rest: restDirective(for: nextNode),
+                rest: phaseRest(for: nextNode),
                 sessionCompleted: false,
                 stale: false
             )
         }
-        return transitionAfterEntry(completedEntry, entries: entries, semantics: .phaseDriven)
+        return transitionAfterEntry(completedEntry, entries: entries, semantics: semantics)
     }
 
     /// Selects the latest terminal execution node in durable execution order.
     /// The optional successor is the node that completion started and is the
-    /// only later node an Undo transaction may reset.
+    /// only later node an Undo transaction may reset. Round repetitions are
+    /// pre-materialized as ordered entries and side-alternating entries are
+    /// already traversed in their alternating order by `orderedNodes`, so no
+    /// semantics-specific branching is needed here: every semantics shares
+    /// one durable execution order.
     nonisolated static func resolveUndo(
         in session: MobilityFlowSnapshot
     ) -> MobilityUndoTransition {
@@ -201,29 +276,75 @@ nonisolated enum MobilityFlowResolver {
                 nextSide: nil,
                 nextCycleIndex: nil,
                 nextPhaseIndex: nil,
-                restDirective: .none,
+                rest: noRest,
                 sessionCompleted: true,
                 stale: false
             )
         }
 
         let nextNode = orderedNodes(nextEntry).first(where: { !isTerminal($0.status) })
-        let itemRest = max(0, completedEntry.restSeconds ?? 0)
-        let rest: MobilityRestDirective
-        if itemRest > 0 {
-            rest = .betweenMovements(seconds: itemRest)
-        } else if let nextNode {
-            rest = restDirective(for: nextNode)
-        } else {
-            rest = .none
-        }
+        let rest = restForTransition(from: completedEntry, to: nextEntry, nextNode: nextNode)
         return transition(
-            semantics: semantics,
+            semantics: flowSemantics(for: nextEntry, phaseDriven: nextEntry.phaseNodes.isEmpty == false),
             entryID: nextEntry.id,
             node: nextNode,
             rest: rest,
             sessionCompleted: false,
             stale: false
+        )
+    }
+
+    /// Resolves the rest that follows completing `completedEntry`, before
+    /// beginning `nextEntry`. Block containment governs first: a continuous
+    /// block never rests between its own members; a round-based block rests
+    /// only when the round advances, using its own scoped rest at
+    /// `.betweenRounds`. For any other block kind, the block's scoped rest is
+    /// the default between its own members — the same role the legacy
+    /// numeric mapping plays for an unblocked item — but an item's own
+    /// authored rest prescription always wins over its container's, and an
+    /// upcoming explicit rest phase is the last fallback.
+    private nonisolated static func restForTransition(
+        from completedEntry: MobilityFlowEntrySnapshot,
+        to nextEntry: MobilityFlowEntrySnapshot,
+        nextNode: MobilityFlowNodeSnapshot?
+    ) -> MobilityRestPrescription {
+        let sameBlock = completedEntry.blockKey != nil && completedEntry.blockKey == nextEntry.blockKey
+        if sameBlock, let kind = completedEntry.blockKind {
+            if kind.isContinuous {
+                return noRest
+            }
+            if kind.isRoundBased, nextEntry.roundIndex == completedEntry.roundIndex {
+                return noRest
+            }
+        }
+        if let authored = completedEntry.restPrescription {
+            return authored
+        }
+        if sameBlock, let kind = completedEntry.blockKind, kind.isRoundBased {
+            return completedEntry.blockRest
+                ?? legacyRest(seconds: completedEntry.restSeconds, scope: .betweenRounds)
+        }
+        if sameBlock, let blockRest = completedEntry.blockRest {
+            return blockRest
+        }
+        let itemRest = max(0, completedEntry.restSeconds ?? 0)
+        if itemRest > 0 {
+            return MobilityRestPrescription(scope: .betweenMovements, directive: .exact(seconds: itemRest))
+        }
+        if let nextNode {
+            return phaseRest(for: nextNode)
+        }
+        return noRest
+    }
+
+    private nonisolated static func legacyRest(
+        seconds: Int?,
+        scope: MobilityRestScope
+    ) -> MobilityRestPrescription {
+        let seconds = max(0, seconds ?? 0)
+        return MobilityRestPrescription(
+            scope: scope,
+            directive: seconds > 0 ? .exact(seconds: seconds) : .none
         )
     }
 
@@ -235,13 +356,14 @@ nonisolated enum MobilityFlowResolver {
             session.entries.first { $0.id == target.entryID }
         }
         return MobilityTransition(
-            semantics: currentEntry?.phaseNodes.isEmpty == false ? .phaseDriven : .sequential,
+            semantics: currentEntry.map { flowSemantics(for: $0, phaseDriven: $0.phaseNodes.isEmpty == false) }
+                ?? .sequential,
             nextEntryID: current?.entryID,
             nextPhaseResultID: current?.phaseResultID,
             nextSide: current?.side,
             nextCycleIndex: current?.cycleIndex,
             nextPhaseIndex: current?.phaseIndex,
-            restDirective: .none,
+            rest: noRest,
             sessionCompleted: false,
             stale: true
         )
@@ -251,7 +373,7 @@ nonisolated enum MobilityFlowResolver {
         semantics: MobilityFlowSemantics,
         entryID: UUID,
         node: MobilityFlowNodeSnapshot?,
-        rest: MobilityRestDirective,
+        rest: MobilityRestPrescription,
         sessionCompleted: Bool,
         stale: Bool
     ) -> MobilityTransition {
@@ -262,7 +384,7 @@ nonisolated enum MobilityFlowResolver {
             nextSide: node?.side,
             nextCycleIndex: node?.cycleIndex,
             nextPhaseIndex: node?.phaseIndex,
-            restDirective: rest,
+            rest: rest,
             sessionCompleted: sessionCompleted,
             stale: stale
         )
@@ -281,12 +403,34 @@ nonisolated enum MobilityFlowResolver {
         )
     }
 
-    private nonisolated static func restDirective(
+    private nonisolated static func phaseRest(
         for node: MobilityFlowNodeSnapshot
-    ) -> MobilityRestDirective {
+    ) -> MobilityRestPrescription {
         node.phaseType == .rest
-            ? .explicitPhase(seconds: max(0, node.prescribedDurationSeconds))
-            : .none
+            ? MobilityRestPrescription(
+                scope: .betweenPhases,
+                directive: .exact(seconds: max(0, node.prescribedDurationSeconds))
+              )
+            : MobilityRestPrescription(scope: .betweenPhases, directive: .none)
+    }
+
+    /// The reported semantics for a transition landing on or leaving `entry`.
+    /// Block containment is authoritative over side/phase driven-ness: a
+    /// round-based or continuous block always reports its block semantics,
+    /// even for an unphased member item, because the container — not the
+    /// item — determines how rest and repetition are sequenced.
+    private nonisolated static func flowSemantics(
+        for entry: MobilityFlowEntrySnapshot,
+        phaseDriven: Bool
+    ) -> MobilityFlowSemantics {
+        if let kind = entry.blockKind {
+            if kind.isRoundBased { return .roundBased }
+            if kind.isContinuous { return .continuous }
+        }
+        if phaseDriven, entry.sideStrategy == .alternateEachRepetition {
+            return .sideAlternating
+        }
+        return phaseDriven ? .phaseDriven : .sequential
     }
 
     private nonisolated static func isTerminal(_ status: MobilityResultStatus) -> Bool {
@@ -314,10 +458,23 @@ nonisolated enum MobilityFlowResolver {
         }
     }
 
+    /// Side-major, then cycle, then phase, except for an entry whose side
+    /// strategy is `.alternateEachRepetition`: that entry alternates sides
+    /// within each cycle before advancing, so the same repetition's left and
+    /// right nodes sit next to each other in execution order instead of one
+    /// side finishing before the other begins.
     private nonisolated static func orderedNodes(
         _ entry: MobilityFlowEntrySnapshot
     ) -> [MobilityFlowNodeSnapshot] {
-        entry.phaseNodes.sorted {
+        if entry.sideStrategy == .alternateEachRepetition {
+            return entry.phaseNodes.sorted {
+                if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
+                if $0.sideOrder != $1.sideOrder { return $0.sideOrder < $1.sideOrder }
+                if $0.phaseIndex != $1.phaseIndex { return $0.phaseIndex < $1.phaseIndex }
+                return $0.id.uuidString < $1.id.uuidString
+            }
+        }
+        return entry.phaseNodes.sorted {
             if $0.sideOrder != $1.sideOrder { return $0.sideOrder < $1.sideOrder }
             if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
             if $0.phaseIndex != $1.phaseIndex { return $0.phaseIndex < $1.phaseIndex }

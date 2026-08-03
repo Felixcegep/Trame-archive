@@ -17,6 +17,11 @@ final class MobilityResultEvidence {
     var supportLevelSnapshotRaw: String?
     var metricProfileSnapshotData: Data?
     var metricTargetsSnapshotData: Data?
+    /// The resolved scoped-rest prescription that followed completing this
+    /// side, captured at completion time so a later prescription edit cannot
+    /// rewrite what this session actually rested for. `nil` until this side
+    /// completes and a transition resolves a rest.
+    var restSnapshotData: Data?
     var performedBreathingCycles: Int?
     var performedAssistanceLevel: Int?
     var performedSupportLevelRaw: String?
@@ -59,6 +64,11 @@ final class MobilityResultEvidence {
 
     var metricTargetsSnapshot: MobilityMetricTargets? {
         Self.decode(MobilityMetricTargets.self, from: metricTargetsSnapshotData)
+    }
+
+    var restSnapshot: MobilityRestPrescription? {
+        get { Self.decode(MobilityRestPrescription.self, from: restSnapshotData) }
+        set { restSnapshotData = Self.encode(newValue) }
     }
 
     var performedSupportLevel: MobilitySupportLevel? {
@@ -109,6 +119,7 @@ final class MobilityResultEvidence {
         supportLevelSnapshot: MobilitySupportLevel? = nil,
         metricProfileSnapshot: MobilityMetricProfile? = nil,
         metricTargetsSnapshot: MobilityMetricTargets? = nil,
+        restSnapshot: MobilityRestPrescription? = nil,
         performedBreathingCycles: Int? = nil,
         performedAssistanceLevel: Int? = nil,
         performedSupportLevel: MobilitySupportLevel? = nil,
@@ -130,6 +141,7 @@ final class MobilityResultEvidence {
         self.supportLevelSnapshotRaw = supportLevelSnapshot?.rawValue
         self.metricProfileSnapshotData = Self.encode(metricProfileSnapshot)
         self.metricTargetsSnapshotData = Self.encode(metricTargetsSnapshot)
+        self.restSnapshotData = Self.encode(restSnapshot)
         self.performedBreathingCycles = performedBreathingCycles
         self.performedAssistanceLevel = performedAssistanceLevel
         self.performedSupportLevelRaw = performedSupportLevel?.rawValue

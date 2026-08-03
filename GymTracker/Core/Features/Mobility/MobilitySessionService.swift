@@ -103,7 +103,14 @@ enum MobilitySessionService {
         guard routine.orderedItems.allSatisfy({ item in
             isValidMetricPrescription(for: item, evidence: prescriptionEvidence[item.id])
         }) else { return nil }
-        session.entries = routine.orderedItems.enumerated().map { index, item in
+        let blocksByKey = Dictionary(
+            uniqueKeysWithValues: MobilityEvidenceService.blocks(forRoutineID: routine.id, using: modelContext)
+                .map { ($0.blockKey, $0) }
+        )
+        guard blocksByKey.values.allSatisfy(isValidBlock) else { return nil }
+        let units = materializedItems(for: routine, blocks: blocksByKey, evidence: prescriptionEvidence)
+        session.entries = units.enumerated().map { index, unit in
+            let (item, roundIndex, block) = unit
             let entry = MobilityEntry(routineItem: item, orderIndex: index)
             entry.results = item.side.resultSides.map {
                 MobilityResult(
@@ -138,6 +145,21 @@ enum MobilitySessionService {
                     )
                 )
             }
+            modelContext.insert(
+                MobilityEntryEvidence(
+                    entryID: entry.id,
+                    blockKeySnapshot: block?.blockKey,
+                    blockKindSnapshot: block?.kind,
+                    blockNameSnapshot: block?.name,
+                    blockOrderIndexSnapshot: block?.orderIndex,
+                    blockTargetRoundsSnapshot: block?.targetRounds,
+                    blockRestSnapshot: block?.restPrescription,
+                    roundIndexSnapshot: roundIndex,
+                    sideStrategySnapshot: prescription?.sideStrategy,
+                    restPrescriptionSnapshot: prescription?.restPrescription,
+                    createdAt: now
+                )
+            )
             return entry
         }
         begin(entry: session.currentEntry, now: now)
@@ -175,7 +197,7 @@ enum MobilitySessionService {
         guard activeSessions.isEmpty == false else { return .none }
         guard activeSessions.count == 1, let session = activeSessions.first else { return .invalid }
 
-        switch reconciliationPlan(for: session) {
+        switch reconciliationPlan(for: session, using: modelContext) {
         case .valid:
             return .restored(session)
         case .repair(let entry, let phase, let repairSideResult):
@@ -377,7 +399,7 @@ enum MobilitySessionService {
               performedAssistanceLevel.map({ $0 >= 0 }) ?? true else {
             return .invalidPerformedDuration
         }
-        let snapshot = flowSnapshot(for: session)
+        let snapshot = flowSnapshot(for: session, using: modelContext)
         guard session.status == .active,
               let entry = session.currentEntry,
               let currentPhase = entry.currentPhaseResult,
@@ -453,6 +475,10 @@ enum MobilitySessionService {
         currentPhase.status = status
         currentPhase.completedAt = now
         reconcileSideStatus(currentPhase.side, in: entry, now: now)
+        if let sideResult = entry.results.first(where: { $0.side == currentPhase.side }),
+           isTerminal(sideResult.status) {
+            MobilityEvidenceService.snapshotRest(transition.rest, resultID: sideResult.id, using: modelContext)
+        }
         apply(transition, afterCompletingPhaseIn: entry, session: session, now: now)
         session.updatedAt = now
 
@@ -521,11 +547,11 @@ enum MobilitySessionService {
     ) -> MobilityUndoOutcome {
         guard session.status == .active || session.status == .completed else { return .stale }
         if session.status == .active {
-            guard case .valid = reconciliationPlan(for: session) else { return .stale }
+            guard case .valid = reconciliationPlan(for: session, using: modelContext) else { return .stale }
         } else {
             guard isCompletedGraphValid(session) else { return .stale }
         }
-        let undo = MobilityFlowResolver.resolveUndo(in: flowSnapshot(for: session))
+        let undo = MobilityFlowResolver.resolveUndo(in: flowSnapshot(for: session, using: modelContext))
         guard undo.stale == false else { return .stale }
         guard let target = undo.target,
               let targetEntry = session.entries.first(where: { $0.id == target.entryID })
@@ -580,14 +606,14 @@ enum MobilitySessionService {
         }
     }
 
-    static func canUndo(in session: MobilitySession) -> Bool {
+    static func canUndo(in session: MobilitySession, using modelContext: ModelContext) -> Bool {
         guard session.status == .active || session.status == .completed else { return false }
         if session.status == .active {
-            guard case .valid = reconciliationPlan(for: session) else { return false }
+            guard case .valid = reconciliationPlan(for: session, using: modelContext) else { return false }
         } else if isCompletedGraphValid(session) == false {
             return false
         }
-        let transition = MobilityFlowResolver.resolveUndo(in: flowSnapshot(for: session))
+        let transition = MobilityFlowResolver.resolveUndo(in: flowSnapshot(for: session, using: modelContext))
         return transition.stale == false && transition.target != nil
     }
 
@@ -622,7 +648,7 @@ enum MobilitySessionService {
         }
         let transition = MobilityFlowResolver.resolve(
             MobilityFlowContext(
-                session: flowSnapshot(for: session),
+                session: flowSnapshot(for: session, using: modelContext),
                 completedEntryID: entry.id,
                 completedPhaseResultID: nil
             )
@@ -636,6 +662,9 @@ enum MobilitySessionService {
             }
         }
         complete(entry: entry, status: status, resultInputs: resultInputs, elapsedSeconds: elapsed)
+        for result in entry.results where isTerminal(result.status) {
+            MobilityEvidenceService.snapshotRest(transition.rest, resultID: result.id, using: modelContext)
+        }
         apply(transition, afterCompletingPhaseIn: nil, session: session, now: .now)
         return save(session: session, using: modelContext)
     }
@@ -750,6 +779,45 @@ enum MobilitySessionService {
         }
     }
 
+    /// Expands a routine's authored items into the flat sequence a session
+    /// executes. Every item defaults to one occurrence; a round-based block
+    /// (`MobilityBlockKind.isRoundBased`) instead contributes its full member
+    /// sequence once per round, so repetition is pre-materialized exactly
+    /// like `phaseSnapshots` already pre-materializes cycles rather than
+    /// re-visiting one stored node. A block's members are gathered from
+    /// wherever they sit in `routine.orderedItems`; the first member's
+    /// position in authored order is where the whole block's occurrences
+    /// land.
+    private static func materializedItems(
+        for routine: MobilityRoutine,
+        blocks: [String: MobilityRoutineBlock],
+        evidence: [UUID: MobilityRoutineItemEvidence]
+    ) -> [(item: MobilityRoutineItem, roundIndex: Int, block: MobilityRoutineBlock?)] {
+        var result: [(item: MobilityRoutineItem, roundIndex: Int, block: MobilityRoutineBlock?)] = []
+        var consumedBlockKeys: Set<String> = []
+        for item in routine.orderedItems {
+            guard let blockKey = evidence[item.id]?.blockKey, let block = blocks[blockKey] else {
+                result.append((item, 0, nil))
+                continue
+            }
+            guard consumedBlockKeys.insert(blockKey).inserted else { continue }
+            let members = routine.orderedItems.filter { evidence[$0.id]?.blockKey == blockKey }
+            let rounds = block.kind.isRoundBased ? max(1, block.targetRounds ?? 1) : 1
+            for roundIndex in 0..<rounds {
+                for member in members {
+                    result.append((member, roundIndex, block))
+                }
+            }
+        }
+        return result
+    }
+
+    private static func isValidBlock(_ block: MobilityRoutineBlock) -> Bool {
+        block.orderIndex >= 0
+            && (block.targetRounds.map { $0 > 0 } ?? true)
+            && (block.restPrescription?.isValid ?? true)
+    }
+
     private static func canSnapshot(_ item: MobilityRoutineItem) -> Bool {
         guard item.orderedPhases.isEmpty == false else { return true }
         let order = item.orderedPhases.map(\.orderIndex)
@@ -788,30 +856,20 @@ enum MobilitySessionService {
         return targets
     }
 
+    /// Routes through the single shared derivation (`MobilityTrackingType
+    /// .derivedMetricProfile`) so the authoring-time profile built here can
+    /// never disagree with the completion-time fallback in
+    /// `validateCompletion`.
     private static func resolvedMetricProfile(
         for item: MobilityRoutineItem,
         evidence: MobilityRoutineItemEvidence?,
         targets: MobilityMetricTargets
     ) -> MobilityMetricProfile {
-        if let authored = evidence?.metricProfile { return authored }
-        if item.orderedPhases.isEmpty == false {
-            return MobilityMetricProfile(
-                supportedMetrics: [.duration, .contractionDuration, .cycles],
-                defaultCompletionRule: .phaseSequenceCompleted,
-                primaryProgressMetric: .cycles
-            )
-        }
-        let base = item.definition.trackingType.legacyMetricProfile
-        var supported = base.supportedMetrics
-        if targets.load != nil { supported.insert(.load) }
-        if targets.breathingCycles != nil { supported.insert(.breathingCycles) }
-        var required: Set<MobilityMetric> = item.definition.trackingType == .duration
-            ? [.duration] : [.repetitions]
-        if targets.load != nil { required.insert(.load) }
-        return MobilityMetricProfile(
-            supportedMetrics: supported,
-            defaultCompletionRule: .all(required),
-            primaryProgressMetric: base.primaryProgressMetric
+        MobilityTrackingType.derivedMetricProfile(
+            trackingType: item.definition.trackingType,
+            hasPhases: item.orderedPhases.isEmpty == false,
+            targets: targets,
+            authored: evidence?.metricProfile
         )
     }
 
@@ -860,23 +918,15 @@ enum MobilitySessionService {
                 .map(MobilityIntTarget.exact)
         )
         let targets = evidence?.metricTargetsSnapshot ?? fallbackTargets
-        let profile: MobilityMetricProfile
-        if let snapshot = evidence?.metricProfileSnapshot {
-            profile = snapshot
-        } else {
-            var metrics = entry.trackingType.legacyMetricProfile.supportedMetrics
-            var required: Set<MobilityMetric> = entry.trackingType == .duration
-                ? [.duration] : [.repetitions]
-            if entry.prescribedLoadValue != nil {
-                metrics.insert(.load)
-                required.insert(.load)
-            }
-            profile = MobilityMetricProfile(
-                supportedMetrics: metrics,
-                defaultCompletionRule: .all(required),
-                primaryProgressMetric: entry.trackingType.legacyMetricProfile.primaryProgressMetric
-            )
-        }
+        // `finishCurrent` already rejects phase-driven entries above, so
+        // `hasPhases` is always false here; it is still threaded through so
+        // this call site can never re-diverge from the authoring-time one.
+        let profile = MobilityTrackingType.derivedMetricProfile(
+            trackingType: entry.trackingType,
+            hasPhases: entry.isPhaseDriven,
+            targets: targets,
+            authored: evidence?.metricProfileSnapshot
+        )
         return MobilityCompletionValidator.validate(
             MobilityCompletionValidator.Input(
                 profile: profile,
@@ -999,7 +1049,7 @@ enum MobilitySessionService {
                 nextSide: nil,
                 nextCycleIndex: nil,
                 nextPhaseIndex: nil,
-                restDirective: .none,
+                rest: MobilityRestPrescription(scope: .betweenMovements, directive: .none),
                 sessionCompleted: false,
                 stale: true
             )
@@ -1019,7 +1069,10 @@ enum MobilitySessionService {
         case invalid
     }
 
-    private static func reconciliationPlan(for session: MobilitySession) -> ReconciliationPlan {
+    private static func reconciliationPlan(
+        for session: MobilitySession,
+        using modelContext: ModelContext
+    ) -> ReconciliationPlan {
         guard session.status == .active,
               session.endTime == nil,
               session.entries.isEmpty == false,
@@ -1037,7 +1090,11 @@ enum MobilitySessionService {
                   entry.isPhaseDriven,
                   phase.performedDurationSeconds == nil,
                   phase.performedIntensity == nil,
-                  isOrderedPhaseGraphValid(entry, currentPhase: phase),
+                  isOrderedPhaseGraphValid(
+                    entry,
+                    currentPhase: phase,
+                    alternatingSides: alternatesSides(entry, using: modelContext)
+                  ),
                   isEntryOrderValid(orderedEntries, currentEntry: entry),
                   entry.results.filter({ $0.side == phase.side }).count == 1,
                   entry.results.filter({ $0.status == .inProgress }).count <= 1,
@@ -1078,15 +1135,24 @@ enum MobilitySessionService {
 
     private static func isOrderedPhaseGraphValid(
         _ entry: MobilityEntry,
-        currentPhase: MobilityPhaseResult
+        currentPhase: MobilityPhaseResult,
+        alternatingSides: Bool
     ) -> Bool {
-        let nodes = entry.orderedPhaseResults
+        let nodes = entry.executionOrderedPhaseResults(alternatingSides: alternatingSides)
         guard nodes.isEmpty == false,
               Set(nodes.map(\.id)).count == nodes.count,
               let index = nodes.firstIndex(where: { $0.id == currentPhase.id })
         else { return false }
         return nodes.prefix(index).allSatisfy { isTerminal($0.status) }
             && nodes.dropFirst(index + 1).allSatisfy { $0.status == .notStarted }
+    }
+
+    private static func alternatesSides(
+        _ entry: MobilityEntry,
+        using modelContext: ModelContext
+    ) -> Bool {
+        MobilityEvidenceService.entryEvidence(for: entry.id, using: modelContext)?.sideStrategySnapshot
+            == .alternateEachRepetition
     }
 
     private static func isEntryOrderValid(
@@ -1185,8 +1251,18 @@ enum MobilitySessionService {
         }
     }
 
-    private static func flowSnapshot(for session: MobilitySession) -> MobilityFlowSnapshot {
-        MobilityFlowSnapshot(
+    /// `entry.orderedPhaseResults` (side-major) is used to number
+    /// `phaseIndexByGroup`; that numbering is stable regardless of macro
+    /// traversal order because it only counts occurrences within a fixed
+    /// (side, cycle) group. The resolver re-sorts `phaseNodes` itself using
+    /// the entry's `sideStrategy`, so this enumeration order does not need to
+    /// match execution order.
+    private static func flowSnapshot(
+        for session: MobilitySession,
+        using modelContext: ModelContext
+    ) -> MobilityFlowSnapshot {
+        let entryEvidence = MobilityEvidenceService.entryEvidence(using: modelContext)
+        return MobilityFlowSnapshot(
             currentEntryIndex: session.currentEntryIndex,
             entries: session.orderedEntries.map { entry in
                 var phaseIndexByGroup: [String: Int] = [:]
@@ -1206,12 +1282,20 @@ enum MobilitySessionService {
                         status: phase.status
                     )
                 }
+                let evidence = entryEvidence[entry.id]
                 return MobilityFlowEntrySnapshot(
                     id: entry.id,
                     orderIndex: entry.orderIndex,
                     currentCycleIndex: entry.currentCycleIndex,
                     currentPhaseIndex: entry.currentPhaseIndex,
                     restSeconds: entry.restSeconds,
+                    restPrescription: evidence?.restPrescriptionSnapshot,
+                    sideStrategy: evidence?.sideStrategySnapshot,
+                    blockKey: evidence?.blockKeySnapshot,
+                    blockKind: evidence?.blockKindSnapshot,
+                    blockTargetRounds: evidence?.blockTargetRoundsSnapshot,
+                    blockRest: evidence?.blockRestSnapshot,
+                    roundIndex: evidence?.roundIndexSnapshot ?? 0,
                     resultStatuses: entry.orderedResults.map(\.status),
                     phaseNodes: nodes
                 )

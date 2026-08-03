@@ -8,7 +8,7 @@ import SwiftData
 /// model's stored shape changes, so a beta feedback report can distinguish
 /// testers running different schema generations.
 enum GymTrackerAppSchema {
-    static let diagnosticVersion = "8"
+    static let diagnosticVersion = "9"
 }
 
 /// First additive schema after the verified baseline. The existing models are
@@ -20,7 +20,9 @@ enum GymTrackerAdvancedMobilityEvidenceSchema: VersionedSchema {
     static var models: [any PersistentModel.Type] {
         GymTrackerCurrentBaselineSchema.models + [
             MobilityRoutineItemEvidence.self,
-            MobilityResultEvidence.self
+            MobilityResultEvidence.self,
+            MobilityRoutineBlock.self,
+            MobilityEntryEvidence.self
         ]
     }
 }

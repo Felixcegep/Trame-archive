@@ -233,6 +233,119 @@ extension MobilityTrackingType {
             )
         }
     }
+
+    /// The single source of truth for a metric profile fallback when no
+    /// authored profile exists. Both the session-start authoring path and the
+    /// legacy-entry completion path route through this function so a
+    /// breath-led item is never accepted at start and then silently
+    /// unrecognized (or the reverse) at completion. `hasPhases` mirrors
+    /// `MobilityRoutineItem.orderedPhases.isEmpty == false` /
+    /// `MobilityEntry.isPhaseDriven`.
+    nonisolated static func derivedMetricProfile(
+        trackingType: MobilityTrackingType,
+        hasPhases: Bool,
+        targets: MobilityMetricTargets,
+        authored: MobilityMetricProfile?
+    ) -> MobilityMetricProfile {
+        if let authored { return authored }
+        if hasPhases {
+            return MobilityMetricProfile(
+                supportedMetrics: [.duration, .contractionDuration, .cycles],
+                defaultCompletionRule: .phaseSequenceCompleted,
+                primaryProgressMetric: .cycles
+            )
+        }
+        let base = trackingType.legacyMetricProfile
+        var supported = base.supportedMetrics
+        if targets.load != nil { supported.insert(.load) }
+        if targets.breathingCycles != nil { supported.insert(.breathingCycles) }
+        var required: Set<MobilityMetric> = trackingType == .duration
+            ? [.duration] : [.repetitions]
+        if targets.load != nil { required.insert(.load) }
+        return MobilityMetricProfile(
+            supportedMetrics: supported,
+            defaultCompletionRule: .all(required),
+            primaryProgressMetric: base.primaryProgressMetric
+        )
+    }
+}
+
+/// How a movement's left/right execution is sequenced and targeted. This is
+/// distinct from `MobilitySide`, which names a single execution node's side;
+/// a strategy describes the policy across the whole prescription. Sides are
+/// never averaged before saving regardless of strategy.
+nonisolated enum MobilitySideStrategy: String, Codable, CaseIterable, Hashable, Sendable {
+    case noSide
+    case leftOnly
+    case rightOnly
+    case sameTargetBothSides
+    case independentTargets
+    case alternateEachRepetition
+    case completeSideThenSwitch
+    case oneCycleContainsBothSides
+    case userSelectedSide
+
+    var displayName: String {
+        switch self {
+        case .noSide: String(localized: "No side")
+        case .leftOnly: String(localized: "Left only")
+        case .rightOnly: String(localized: "Right only")
+        case .sameTargetBothSides: String(localized: "Same target, both sides")
+        case .independentTargets: String(localized: "Independent targets per side")
+        case .alternateEachRepetition: String(localized: "Alternate each repetition")
+        case .completeSideThenSwitch: String(localized: "Complete side, then switch")
+        case .oneCycleContainsBothSides: String(localized: "One cycle contains both sides")
+        case .userSelectedSide: String(localized: "User selects side")
+        }
+    }
+}
+
+/// Groups routine items under one authored container. Blocks are exactly one
+/// nesting level deep: a block contains items, and a block never contains
+/// another block. There is deliberately no block-of-blocks field anywhere in
+/// this vocabulary, so deeper nesting cannot be authored in-app; portable
+/// backup restore rejects any payload that tries to reference a block from
+/// another block's identity.
+nonisolated enum MobilityBlockKind: String, Codable, CaseIterable, Hashable, Sendable {
+    case straightSequence
+    case alternatingSides
+    case dynamicWarmup
+    case mobilityCircuit
+    case flexibilityCircuit
+    case continuousFlow
+    case contractRelax
+    case loadedFlexibility
+    case jointPreparation
+    case recovery
+    case timedFlow
+
+    var displayName: String {
+        switch self {
+        case .straightSequence: String(localized: "Straight sequence")
+        case .alternatingSides: String(localized: "Alternating sides")
+        case .dynamicWarmup: String(localized: "Dynamic warm-up")
+        case .mobilityCircuit: String(localized: "Mobility circuit")
+        case .flexibilityCircuit: String(localized: "Flexibility circuit")
+        case .continuousFlow: String(localized: "Continuous flow")
+        case .contractRelax: String(localized: "Contract-relax")
+        case .loadedFlexibility: String(localized: "Loaded flexibility")
+        case .jointPreparation: String(localized: "Joint preparation")
+        case .recovery: String(localized: "Recovery")
+        case .timedFlow: String(localized: "Timed flow")
+        }
+    }
+
+    /// Blocks of this kind repeat their full item sequence for
+    /// `targetRounds`, resting only at `.betweenRounds`.
+    var isRoundBased: Bool {
+        self == .mobilityCircuit || self == .flexibilityCircuit
+    }
+
+    /// Blocks of this kind never rest between member items; the whole block
+    /// runs as one uninterrupted flow.
+    var isContinuous: Bool {
+        self == .continuousFlow || self == .timedFlow
+    }
 }
 
 /// A breath-led target remains part of the movement prescription. The
