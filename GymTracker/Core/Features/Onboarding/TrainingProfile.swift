@@ -47,6 +47,17 @@ final class TrainingProfile {
     /// division and weight-class fields, and none of those are worth querying.
     var competitionProfileData: Data?
 
+    // MARK: Mobility
+    //
+    // Independent of the strength-training fields above — see
+    // `OnboardingDraft`'s mobility section for why. Optional and additive:
+    // an existing profile restores with these `nil` and simply contributes
+    // nothing to mobility matching until answered, either in onboarding or in
+    // Training profile settings.
+    var mobilityGoalRaw: String?
+    var mobilityExperienceRaw: String?
+    var mobilityFrequencyRaw: String?
+
     var completedCoreOnboardingAt: Date?
     var createdAt: Date = Date.now
     var updatedAt: Date = Date.now
@@ -102,6 +113,18 @@ final class TrainingProfile {
         return try? JSONDecoder().decode(CompetitionProfileDraft.self, from: competitionProfileData)
     }
 
+    var mobilityGoal: MobilityGoalPreference? {
+        mobilityGoalRaw.flatMap(MobilityGoalPreference.init(rawValue:))
+    }
+
+    var mobilityExperience: MobilityExperiencePreference? {
+        mobilityExperienceRaw.flatMap(MobilityExperiencePreference.init(rawValue:))
+    }
+
+    var mobilityFrequency: MobilityFrequencyPreference? {
+        mobilityFrequencyRaw.flatMap(MobilityFrequencyPreference.init(rawValue:))
+    }
+
     /// The matching input this profile represents. Extracted as a value type so
     /// ranking can be exercised without a store.
     var matchingCriteria: ProgramMatchCriteria {
@@ -117,6 +140,16 @@ final class TrainingProfile {
             focusAreas: focusAreas,
             competitionDiscipline: competition?.discipline,
             competitionDate: competition?.eventDate
+        )
+    }
+
+    /// The mobility matching input this profile represents, independent of
+    /// `matchingCriteria` — mirrors it existing for the workout side.
+    var mobilityMatchingCriteria: MobilityMatchCriteria {
+        MobilityMatchCriteria(
+            goal: mobilityGoal,
+            experience: mobilityExperience,
+            frequency: mobilityFrequency
         )
     }
 }
@@ -190,6 +223,15 @@ enum TrainingProfileService {
         }
         if let competition = draft.competition, !competition.isEmpty {
             profile.competitionProfileData = try? JSONEncoder().encode(competition)
+        }
+        if let mobilityGoal = draft.mobilityGoal {
+            profile.mobilityGoalRaw = mobilityGoal.rawValue
+        }
+        if let mobilityExperience = draft.mobilityExperience {
+            profile.mobilityExperienceRaw = mobilityExperience.rawValue
+        }
+        if let mobilityFrequency = draft.mobilityFrequency {
+            profile.mobilityFrequencyRaw = mobilityFrequency.rawValue
         }
 
         profile.completedCoreOnboardingAt = .now
