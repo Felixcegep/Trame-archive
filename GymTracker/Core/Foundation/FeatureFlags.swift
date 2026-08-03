@@ -28,6 +28,12 @@ enum FeatureFlag: String, CaseIterable, Codable, Sendable {
     /// screenshot evidence, and a ready runtime is not a reason to expose an
     /// unverified screen to a tester.
     case mobilityProgram
+    /// Sport discipline/strongman authoring on the exercise editor (Release
+    /// 10). Kept separate from every existing strength flag for the same
+    /// reason `mobilityProgram` is: this ships without verified build/test
+    /// evidence, and progressive disclosure alone is not a reason to expose
+    /// an unverified authoring surface to a tester.
+    case sportSpecializations
 
     /// The flag this one cannot be reachable without. Declared per case rather
     /// than as a lookup table so a new flag has to answer the question.
@@ -38,7 +44,7 @@ enum FeatureFlag: String, CaseIterable, Codable, Sendable {
         case .recipeGeneration: .nutrition
         case .today, .mobility, .nutrition, .bodyWeight, .dailyCheckIn,
              .programBuilder, .advancedExecution, .betaFeedback,
-             .workoutGeneration: nil
+             .workoutGeneration, .sportSpecializations: nil
         }
     }
 }
@@ -132,7 +138,10 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     /// What a TestFlight tester sees: everything already shipped, minus the
     /// surfaces whose UI is unfinished or temporarily hidden.
     static let currentWave: Set<FeatureFlag> = Set(FeatureFlag.allCases)
-        .subtracting([.mobilityAssessment, .mobilityProgram, .recipeGeneration, .workoutGeneration, .nutrition])
+        .subtracting([
+            .mobilityAssessment, .mobilityProgram, .recipeGeneration, .workoutGeneration,
+            .nutrition, .sportSpecializations
+        ])
 
     /// The narrower RoadMap.md §4 "Beta 1 — core workout reliability" wave, kept
     /// because it is a real staged option and selectable by launch argument. It

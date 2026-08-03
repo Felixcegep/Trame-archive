@@ -28,6 +28,10 @@ struct ExerciseAdvancedDetailsView: View {
     @Binding var loadUnitCount: Int
     @Binding var isPlateLoaded: Bool
     @Binding var tagsText: String
+    @Binding var sportDiscipline: SportDiscipline?
+    @Binding var strongmanImplementKind: StrongmanImplementKind?
+    @Binding var strongmanLoadConvention: LoadConvention?
+    @Binding var strongmanEventFamily: StrongmanEventFamily?
 
     var body: some View {
         Form {
@@ -76,6 +80,10 @@ struct ExerciseAdvancedDetailsView: View {
             }
 
             variationSection
+
+            if FeatureFlags.current.isEnabled(.sportSpecializations) {
+                sportSection
+            }
 
             Section("Logging") {
                 Picker("Laterality", selection: $laterality) {
@@ -181,4 +189,58 @@ struct ExerciseAdvancedDetailsView: View {
     }
 
     private static let setupAngles = Array(stride(from: 0, through: 90, by: 5))
+
+    /// Progressive disclosure (spec §14): the discipline picker is the only
+    /// row every exercise sees. Strongman-only authoring (implement, load
+    /// convention, event family) only appears once `.strongman` is actually
+    /// selected, and is cleared the moment the discipline moves away from it
+    /// so a hidden row can never leave stale evidence behind.
+    private var sportSection: some View {
+        Section {
+            Picker("Sport discipline", selection: $sportDiscipline) {
+                Text("None").tag(SportDiscipline?.none)
+                ForEach(SportDiscipline.allCases, id: \.self) { discipline in
+                    Text(discipline.title).tag(Optional(discipline))
+                }
+            }
+            .onChange(of: sportDiscipline) { _, discipline in
+                guard discipline != .strongman else { return }
+                strongmanImplementKind = nil
+                strongmanLoadConvention = nil
+                strongmanEventFamily = nil
+            }
+
+            if sportDiscipline == .strongman {
+                Picker("Event family", selection: $strongmanEventFamily) {
+                    Text("None").tag(StrongmanEventFamily?.none)
+                    ForEach(StrongmanEventFamily.allCases, id: \.self) { family in
+                        Text(family.title).tag(Optional(family))
+                    }
+                }
+
+                Picker("Implement", selection: $strongmanImplementKind) {
+                    Text("None").tag(StrongmanImplementKind?.none)
+                    ForEach(StrongmanImplementKind.allCases, id: \.self) { kind in
+                        Text(kind.title).tag(Optional(kind))
+                    }
+                }
+                .onChange(of: strongmanImplementKind) { _, kind in
+                    guard let kind, strongmanLoadConvention == nil else { return }
+                    strongmanLoadConvention = kind.defaultLoadConvention
+                }
+
+                if strongmanImplementKind != nil {
+                    Picker("Load convention", selection: $strongmanLoadConvention) {
+                        ForEach(LoadConvention.allCases, id: \.self) { convention in
+                            Text(convention.title).tag(Optional(convention))
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text("Sport")
+        } footer: {
+            Text("A strongman load convention (total vs. per hand, etc.) is never compared across a different convention — records and history stay separate.")
+        }
+    }
 }
