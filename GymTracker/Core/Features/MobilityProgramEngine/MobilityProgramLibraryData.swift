@@ -16,6 +16,17 @@ import Foundation
 /// with a strict dictionary lookup against whatever `id` a device's own
 /// catalogue rows actually carry, and that `id` is only stable *within* one
 /// device's install, never as a cross-device constant.
+///
+/// Release 11 will add four advanced-specialization plans alongside these
+/// three: "Loaded Flexibility Foundations", "Squat Mobility Integration",
+/// "Overhead Mobility Integration", and "Front-Split Assistance Ladder". The
+/// movements those plans need are already seeded by `MobilitySeedData`, but the
+/// plans themselves are not authored yet and are deliberately not registered
+/// here — registering a plan whose payload does not exist would break seeding
+/// for the three that do. They follow this file's existing idiom when added:
+/// movement-name resolution, per-week helper functions, week-indexed dosage
+/// arrays, and the same `.guidelineAnchoredOriginalProgram` provenance
+/// discipline.
 nonisolated enum MobilityProgramLibraryData {
     static func payloads(movementIDsByName: [String: UUID]) throws -> [MobilityProgramDefinitionPayload] {
         [

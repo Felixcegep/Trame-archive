@@ -56,7 +56,7 @@ enum MobilitySeedData {
         var existingDefs = try context.fetch(FetchDescriptor<MobilityDefinition>())
 
         let seedItems: [(name: String, instructions: String, tracking: MobilityTrackingType, duration: Int?, reps: Int?, familyName: String)] = [
-            // Hip mobility (15)
+            // Hip mobility (19)
             ("90/90 Hip Switch", "Move slowly between internal and external hip rotation positions.", .repetitions, nil, 8, "Hip mobility"),
             ("Couch Stretch", "Keep rear foot against wall, kneel on front leg, keep torso upright.", .duration, 45, nil, "Hip mobility"),
             ("Pigeon Stretch", "Front leg bent 90 degrees, back leg extended straight behind.", .duration, 45, nil, "Hip mobility"),
@@ -72,6 +72,10 @@ enum MobilitySeedData {
             ("Half-Kneeling Hip-Flexor Stretch", "Kneel with the back knee down and front foot forward, tuck the pelvis under, and shift weight forward until a stretch is felt at the front of the rear hip.", .duration, 30, nil, "Hip mobility"),
             ("90/90 Lift-Off", "From the 90/90 seated position, lift the front shin a few inches off the floor and hold, keeping the hips level and the lower back tall.", .repetitions, nil, 5, "Hip mobility"),
             ("Controlled Hip Rotation", "From a seated or lying support position, slowly rotate the hip through a controlled arc from internal to external rotation without shifting the pelvis.", .repetitions, nil, 3, "Hip mobility"),
+            ("Weighted Pancake Hold", "Sit in a wide straddle with a light plate or dumbbell across your thighs, hinge forward with a long spine, and hold the deepest comfortable position.", .duration, 25, nil, "Hip mobility"),
+            ("Goblet Deep-Squat Hold", "Hold a light kettlebell or dumbbell at chest height, sink into the bottom of a squat with elbows inside the knees, and hold the position upright.", .duration, 25, nil, "Hip mobility"),
+            ("Deep-Squat Transition", "Stand tall, then sit back and down into the bottom of a squat and return to standing, moving through the full range under control.", .repetitions, nil, 8, "Hip mobility"),
+            ("Supported Front-Split Hold", "From a front-split stance with the front leg extended forward and the back leg extended behind, lower toward the floor using the chosen support until a controlled stretch is felt, and hold.", .duration, 20, nil, "Hip mobility"),
 
             // Shoulder mobility (9)
             ("Thoracic Rotation", "Rotate through the upper back without forcing range.", .repetitions, nil, 8, "Shoulder mobility"),
@@ -94,15 +98,16 @@ enum MobilitySeedData {
             ("Prone Cobra", "Lie face down, lift chest and rotate thumbs up to ceiling.", .duration, 30, nil, "Thoracic & Spine mobility"),
             ("Standing Side Bends", "Reach overhead and bend laterally to stretch obliques and lower back.", .repetitions, nil, 10, "Thoracic & Spine mobility"),
 
-            // Ankle & Calf mobility (6)
+            // Ankle & Calf mobility (7)
             ("Knee-to-Wall Ankle Mobilization", "Foot near wall, drive knee forward past toes without lifting heel.", .repetitions, nil, 10, "Ankle & Calf mobility"),
             ("Standing Calf Stretch", "Back leg straight, heel pressed into floor to stretch gastrocnemius.", .duration, 45, nil, "Ankle & Calf mobility"),
             ("Soleus Wall Stretch", "Back leg slightly bent, press heel down to target lower calf.", .duration, 45, nil, "Ankle & Calf mobility"),
             ("Ankle Circles", "Rotate ankle through full slow circles in both directions.", .repetitions, nil, 12, "Ankle & Calf mobility"),
             ("Elevated Toe Calf Raise Stretch", "Heels hanging off step, let body weight stretch ankles down.", .duration, 45, nil, "Ankle & Calf mobility"),
             ("Tibialis Raise", "Lean back against wall, flex toes up toward shins controlled.", .repetitions, nil, 15, "Ankle & Calf mobility"),
+            ("Full-Range Calf Raise", "Stand on the edge of a step, lower the heels fully below the step, then rise onto the balls of the feet through the complete range.", .repetitions, nil, 7, "Ankle & Calf mobility"),
 
-            // Hamstrings & Posterior Chain (7)
+            // Hamstrings & Posterior Chain (8)
             ("World's Greatest Stretch", "Step into lunge, elbow to instep, reach arm up, extend front leg.", .repetitions, nil, 6, "Hamstrings & Posterior Chain"),
             ("Elephant Walks", "Hands toward floor, alternate straightening knees dynamically.", .repetitions, nil, 20, "Hamstrings & Posterior Chain"),
             ("Inchworms", "Walk hands out to plank, then walk feet up toward hands.", .repetitions, nil, 6, "Hamstrings & Posterior Chain"),
@@ -110,6 +115,7 @@ enum MobilitySeedData {
             ("Standing Hamstring Fold", "Hinge at hips, reach for toes with relaxed neck and soft knees.", .duration, 45, nil, "Hamstrings & Posterior Chain"),
             ("Active Straight Leg Raise", "Lie flat, raise one straight leg up controlled while keeping hips down.", .repetitions, nil, 10, "Hamstrings & Posterior Chain"),
             ("Hamstring Strap Stretch", "Loop a strap around the ball of one foot, extend the leg toward the ceiling with a soft knee, and draw the strap gently toward you.", .duration, 30, nil, "Hamstrings & Posterior Chain"),
+            ("Active Front-Leg Lift", "From a supported front-split stance, lift the front heel a few inches off the floor using the front leg alone, hold briefly, and lower with control.", .repetitions, nil, 6, "Hamstrings & Posterior Chain"),
 
             // Chest & Lat mobility (7)
             ("Banded Lat Distraction", "Hold band overhead, step back and sink hips away to stretch lat.", .duration, 45, nil, "Chest & Lat mobility"),
