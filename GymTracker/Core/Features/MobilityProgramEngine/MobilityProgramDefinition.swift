@@ -133,6 +133,18 @@ nonisolated struct MobilityMovementOccurrenceDefinition: Codable, Hashable, Iden
     /// payload with no `progressionRules` key at all still decodes without
     /// a custom `init(from:)`. Read through `resolvedProgressionRules`.
     var progressionRules: [MobilityProgressionRuleDefinition]?
+    /// `MobilityAssessmentDefinition.catalogueKey` this occurrence's
+    /// progress may be corroborated against, or `nil` (the default, and
+    /// what every payload authored before this slice decodes as — same
+    /// `Optional`-property `decodeIfPresent` synthesis as
+    /// `progressionRules`). This is a read-only reference used only by
+    /// `MobilityProgressionRecommendationService` to locate the right
+    /// assessment history for `.comparableAssessmentReached` — it never
+    /// makes an assessment observation into training evidence, and setting
+    /// it does not by itself enable a rule; a `.comparableAssessmentReached`
+    /// trigger must still be authored on `progressionRules` for this link to
+    /// matter.
+    var linkedAssessmentCatalogueKey: String?
 
     init(
         id: UUID = UUID(),
@@ -157,7 +169,8 @@ nonisolated struct MobilityMovementOccurrenceDefinition: Codable, Hashable, Iden
         restPrescription: MobilityRestPrescription? = nil,
         blockKey: String? = nil,
         notes: String? = nil,
-        progressionRules: [MobilityProgressionRuleDefinition]? = nil
+        progressionRules: [MobilityProgressionRuleDefinition]? = nil,
+        linkedAssessmentCatalogueKey: String? = nil
     ) {
         self.id = id
         self.occurrenceID = occurrenceID
@@ -182,6 +195,7 @@ nonisolated struct MobilityMovementOccurrenceDefinition: Codable, Hashable, Iden
         self.blockKey = blockKey
         self.notes = notes
         self.progressionRules = progressionRules
+        self.linkedAssessmentCatalogueKey = linkedAssessmentCatalogueKey
     }
 }
 

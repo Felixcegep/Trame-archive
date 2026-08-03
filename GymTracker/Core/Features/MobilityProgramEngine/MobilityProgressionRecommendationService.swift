@@ -60,7 +60,11 @@ enum MobilityProgressionRecommendationService {
                     movementQuality: sessionOutcome.movementQuality,
                     sensation: sessionOutcome.sensation,
                     isProgressionEligible: sessionOutcome.isProgressionEligible,
-                    comparableAssessmentReached: false,
+                    comparableAssessmentReached: comparableAssessmentReached(
+                        for: occurrence,
+                        side: side,
+                        using: modelContext
+                    ),
                     userApproved: userApproved
                 )
 
@@ -182,6 +186,63 @@ enum MobilityProgressionRecommendationService {
             sensation: entries.compactMap { $0.evidence.sensation }.last,
             isProgressionEligible: eligible
         )
+    }
+
+    // MARK: - Assessment evidence bridge (spec §9.19)
+
+    /// Whether this occurrence/side has reached a directly comparable
+    /// assessment measurement — the caller-vetted signal
+    /// `MobilityProgressionTrigger.comparableAssessmentReached` requires.
+    ///
+    /// This never re-derives the eligibility matrix: it locates the two
+    /// candidate `MobilityAssessmentResult` rows and hands them straight to
+    /// the existing `MobilityAssessmentComparisonService`/
+    /// `MobilityAssessmentHistoryQuery` (`MobilityAssessmentServices.swift`),
+    /// the same rules the assessment history screen itself uses to decide
+    /// whether two observations are comparable — definition, side, setup,
+    /// method, unit, active/passive, and warm/cold must all match, or the
+    /// comparison is `.notDirect` and this returns `false` with zero
+    /// exceptions. A single differing condition therefore blocks the whole
+    /// recommendation; there is no partial/degraded trend to fall back to,
+    /// because only this `Bool` ever leaves this function — the numeric
+    /// value and delta never reach `MobilityProgressionPerformance` or the
+    /// evaluator.
+    ///
+    /// Also requires the current observation's confidence to be "accepted":
+    /// `MobilityMeasurementConfidence.unknown` never supports a
+    /// recommendation, matching the spec's "plus confidence must be
+    /// accepted" clause on top of the condition-matching matrix.
+    ///
+    /// Returns `false` (never throws or crashes) whenever the occurrence has
+    /// no authored `linkedAssessmentCatalogueKey`, no assessment history
+    /// exists yet, or the fetch fails — an occurrence that never opted into
+    /// this bridge behaves exactly as it did before this slice.
+    @MainActor
+    private static func comparableAssessmentReached(
+        for occurrence: MobilityMovementOccurrenceDefinition,
+        side: MobilitySide,
+        using modelContext: ModelContext
+    ) -> Bool {
+        guard let catalogueKey = occurrence.linkedAssessmentCatalogueKey else { return false }
+        guard let history = try? MobilityAssessmentHistoryQuery.results(
+            definitionCatalogueKey: catalogueKey,
+            side: assessmentSide(for: side),
+            using: modelContext
+        ), let current = history.first else { return false }
+        guard current.confidence != .unknown else { return false }
+        let comparison = MobilityAssessmentComparisonService.latestComparison(for: current, among: history)
+        return comparison.comparability == .direct
+    }
+
+    /// Training `MobilitySide` has no `.combined` case; an assessment
+    /// recorded as combined/bilateral is the natural counterpart to a
+    /// training side that is not itself lateralized.
+    private static func assessmentSide(for side: MobilitySide) -> MobilityAssessmentSide {
+        switch side {
+        case .left: return .left
+        case .right: return .right
+        case .none, .bilateral, .alternating: return .combined
+        }
     }
 
     /// "Met" means reached at least the prescribed floor — the top of a
