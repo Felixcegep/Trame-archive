@@ -184,7 +184,9 @@ enum MobilityProgressionRecommendationService {
     ) -> EvidenceOutcome {
         let allCompleted = entries.allSatisfy { $0.result.status == .completed }
         let eligible = entries.allSatisfy { $0.evidence.isProgressionEligible }
-        let targetsMet = entries.allSatisfy { targetsMet(result: $0.result, evidence: $0.evidence) }
+        // `Self.` is required: the constant being declared shadows the static
+        // method of the same name inside its own initializer expression.
+        let targetsMet = entries.allSatisfy { Self.targetsMet(result: $0.result, evidence: $0.evidence) }
         return EvidenceOutcome(
             allRequiredWorkCompleted: allCompleted,
             sideTargetsCompleted: allCompleted && targetsMet,

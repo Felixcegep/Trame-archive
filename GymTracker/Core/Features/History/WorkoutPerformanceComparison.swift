@@ -191,7 +191,7 @@ struct WorkoutPerformanceComparison {
             }
         }
         if exercise.trackingTypeSnapshot.usesDistance {
-            let meters = completedSets.reduce(Float(0)) { $0 + WorkoutDistancePolicy.meters(of: $1) }
+            let meters = completedSets.reduce(Float(0)) { $0 + (WorkoutDistancePolicy.meters(of: $1) ?? 0) }
             if meters > 0 { components.append("\(Formatters.formatFloat(meters)) m") }
         }
         if exercise.trackingTypeSnapshot.usesCalories {

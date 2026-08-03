@@ -10,7 +10,8 @@ import Combine
 import SwiftData
 
 @Model
-final class ExerciseEntry{
+final class ExerciseEntry {
+    var id = UUID()
     var orderIndex: Int = 0
     /// Snapshot-local membership in a contiguous superset. It must never reuse
     /// a template or planned-workout identifier.

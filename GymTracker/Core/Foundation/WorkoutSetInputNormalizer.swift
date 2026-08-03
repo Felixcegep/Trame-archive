@@ -12,6 +12,7 @@ enum WorkoutSetInputNormalizer {
     ///   Program Engine. When it is `nil` the converted weight is left exactly
     ///   as the conversion produced it, which is the previous behaviour.
     @discardableResult
+    @MainActor
     static func synchronize(
         _ set: ExerciseSet,
         to preferredSystem: UnitSystem,

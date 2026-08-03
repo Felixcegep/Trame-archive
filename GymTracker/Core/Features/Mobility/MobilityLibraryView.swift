@@ -1002,7 +1002,15 @@ private struct MobilityRoutineBlockEditorRow: View {
             if let rest = block.restPrescription {
                 hasCustomRest = true
                 restScope = rest.scope
-                (restDirectiveKind, restSeconds, restMinimumSeconds, restMaximumSeconds) = rest.directive.editorValues
+                // Unpacked through a named local: assigning a four-element
+                // tuple straight into four separate @State properties is the
+                // shape that pushes this view body past the type-checker's
+                // time budget.
+                let editorValues = rest.directive.editorValues
+                restDirectiveKind = editorValues.kind
+                restSeconds = editorValues.seconds
+                restMinimumSeconds = editorValues.minimum
+                restMaximumSeconds = editorValues.maximum
             }
             Task { @MainActor in
                 await Task.yield()
@@ -1211,29 +1219,15 @@ private struct MobilityRoutineItemEditorRow: View {
                 )
             }
         }
+        // Each `.onChange` wraps the view in another generic layer, and this
+        // editor tracks enough fields that chaining one per field pushed the
+        // body past the type-checker's time budget. Watching one combined
+        // signature per save target keeps the behaviour identical with a flat
+        // modifier chain.
         .onChange(of: item.sideRaw) { _, _ in save() }
-        .onChange(of: method) { _, _ in saveEvidence() }
-        .onChange(of: trainingPurpose) { _, _ in saveEvidence() }
-        .onChange(of: breathingTarget) { _, _ in saveEvidence() }
-        .onChange(of: inhaleSeconds) { _, _ in saveEvidence() }
-        .onChange(of: exhaleSeconds) { _, _ in saveEvidence() }
-        .onChange(of: tempoIntoSeconds) { _, _ in saveEvidence() }
-        .onChange(of: tempoHoldSeconds) { _, _ in saveEvidence() }
-        .onChange(of: tempoReturnSeconds) { _, _ in saveEvidence() }
-        .onChange(of: tempoPauseSeconds) { _, _ in saveEvidence() }
-        .onChange(of: assistanceType) { _, _ in saveEvidence() }
-        .onChange(of: assistanceLevel) { _, _ in saveEvidence() }
-        .onChange(of: assistanceEquipment) { _, _ in saveEvidence() }
-        .onChange(of: supportLevel) { _, _ in saveEvidence() }
+        .onChange(of: evidenceSignature) { _, _ in saveEvidence() }
         .onChange(of: completionRuleSelection) { _, _ in saveMetricEvidence() }
-        .onChange(of: blockKey) { _, _ in saveStructure() }
-        .onChange(of: sideStrategy) { _, _ in saveStructure() }
-        .onChange(of: hasCustomRest) { _, _ in saveStructure() }
-        .onChange(of: restScope) { _, _ in saveStructure() }
-        .onChange(of: restDirectiveKind) { _, _ in saveStructure() }
-        .onChange(of: restSeconds) { _, _ in saveStructure() }
-        .onChange(of: restMinimumSeconds) { _, _ in saveStructure() }
-        .onChange(of: restMaximumSeconds) { _, _ in saveStructure() }
+        .onChange(of: structureSignature) { _, _ in saveStructure() }
         .onAppear {
             let evidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)[item.id]
             method = evidence?.method
@@ -1255,13 +1249,56 @@ private struct MobilityRoutineItemEditorRow: View {
             if let rest = evidence?.restPrescription {
                 hasCustomRest = true
                 restScope = rest.scope
-                (restDirectiveKind, restSeconds, restMinimumSeconds, restMaximumSeconds) = rest.directive.editorValues
+                // Unpacked through a named local: assigning a four-element
+                // tuple straight into four separate @State properties is the
+                // shape that pushes this view body past the type-checker's
+                // time budget.
+                let editorValues = rest.directive.editorValues
+                restDirectiveKind = editorValues.kind
+                restSeconds = editorValues.seconds
+                restMinimumSeconds = editorValues.minimum
+                restMaximumSeconds = editorValues.maximum
             }
             Task { @MainActor in
                 await Task.yield()
                 isLoadingEvidence = false
             }
         }
+    }
+
+    /// Every authored prescription field that `saveEvidence()` persists,
+    /// collapsed into one comparable value so the body needs a single
+    /// `.onChange` rather than one per field.
+    private var evidenceSignature: String {
+        var parts: [String] = []
+        parts.append(method?.rawValue ?? "-")
+        parts.append(trainingPurpose?.rawValue ?? "-")
+        parts.append(breathingTarget.map(String.init) ?? "-")
+        parts.append(inhaleSeconds.map(String.init) ?? "-")
+        parts.append(exhaleSeconds.map(String.init) ?? "-")
+        parts.append(tempoIntoSeconds.map(String.init) ?? "-")
+        parts.append(tempoHoldSeconds.map(String.init) ?? "-")
+        parts.append(tempoReturnSeconds.map(String.init) ?? "-")
+        parts.append(tempoPauseSeconds.map(String.init) ?? "-")
+        parts.append(assistanceType?.rawValue ?? "-")
+        parts.append(assistanceLevel.map(String.init) ?? "-")
+        parts.append(assistanceEquipment)
+        parts.append(supportLevel?.rawValue ?? "-")
+        return parts.joined(separator: "|")
+    }
+
+    /// The same collapse for everything `saveStructure()` persists.
+    private var structureSignature: String {
+        var parts: [String] = []
+        parts.append(blockKey ?? "-")
+        parts.append(sideStrategy?.rawValue ?? "-")
+        parts.append(String(hasCustomRest))
+        parts.append(restScope.rawValue)
+        parts.append(restDirectiveKind.rawValue)
+        parts.append(String(restSeconds))
+        parts.append(String(restMinimumSeconds))
+        parts.append(String(restMaximumSeconds))
+        return parts.joined(separator: "|")
     }
 
     private func saveStructure() {
@@ -1495,7 +1532,7 @@ private extension MobilityRestDirective {
     /// `(kind, exactSeconds, rangeMinimum, rangeMaximum)`. Unused seconds
     /// fields keep the editor's last-shown value rather than resetting to a
     /// default, matching the other optional-stepper controls in this file.
-    var editorValues: (MobilityRestDirectiveKind, Int, Int, Int) {
+    var editorValues: (kind: MobilityRestDirectiveKind, seconds: Int, minimum: Int, maximum: Int) {
         switch self {
         case .none: (.none, 30, 20, 40)
         case .exact(let seconds): (.exact, seconds, 20, 40)

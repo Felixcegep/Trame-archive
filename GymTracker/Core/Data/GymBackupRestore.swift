@@ -1560,46 +1560,77 @@ extension BackupDTO {
                     result.startedAt = resultDTO.startedAt
                     result.completedAt = resultDTO.completedAt
                     if version >= Self.advancedMobilityEvidenceVersion {
+                        // Hoisted out of the initializer call: inline `.map`
+                        // closures inside an argument list this wide push the
+                        // type-checker past its time budget.
+                        let breathingSnapshot: MobilityBreathingPrescription? = resultDTO
+                            .breathingPrescriptionSnapshot
+                            .map { dto in
+                                MobilityBreathingPrescription(
+                                    targetBreaths: dto.targetBreaths,
+                                    inhaleSeconds: dto.inhaleSeconds,
+                                    exhaleSeconds: dto.exhaleSeconds,
+                                    instructionKey: dto.instructionKey
+                                )
+                            }
+                        let tempoSnapshot: MobilityTempoPrescription? = resultDTO
+                            .tempoPrescriptionSnapshot
+                            .map { dto in
+                                MobilityTempoPrescription(
+                                    moveIntoRangeSeconds: dto.moveIntoRangeSeconds,
+                                    holdSeconds: dto.holdSeconds,
+                                    returnSeconds: dto.returnSeconds,
+                                    pauseSeconds: dto.pauseSeconds
+                                )
+                            }
+                        let assistanceSnapshot: MobilityAssistancePrescription? = resultDTO
+                            .assistancePrescriptionSnapshot
+                            .map { dto in
+                                MobilityAssistancePrescription(
+                                    assistanceTypeRaw: dto.assistanceType,
+                                    level: dto.level,
+                                    equipmentRaw: dto.equipment
+                                )
+                            }
+                        let compensationSnapshot: Set<MobilityCompensationKey> = Set(
+                            (resultDTO.compensationKeys ?? [])
+                                .compactMap(MobilityCompensationKey.init(rawValue:))
+                        )
+                        let methodSnapshot: MobilityMethod? = resultDTO.methodSnapshot
+                            .flatMap(MobilityMethod.init(rawValue:))
+                        let purposeSnapshot: MobilityTrainingPurpose? = resultDTO.trainingPurposeSnapshot
+                            .flatMap(MobilityTrainingPurpose.init(rawValue:))
+                        let supportSnapshot: MobilitySupportLevel? = resultDTO.supportLevelSnapshot
+                            .flatMap(MobilitySupportLevel.init(rawValue:))
+                        let performedSupport: MobilitySupportLevel? = resultDTO.performedSupportLevel
+                            .flatMap(MobilitySupportLevel.init(rawValue:))
+                        let sensationSnapshot: MobilitySensation? = resultDTO.sensation
+                            .flatMap(MobilitySensation.init(rawValue:))
+                        let qualitySnapshot: MobilityMovementQuality? = resultDTO.movementQuality
+                            .flatMap(MobilityMovementQuality.init(rawValue:))
+                        let recordedAt: Date = resultDTO.completedAt
+                            ?? resultDTO.startedAt
+                            ?? sessionDTO.startTime
                         let evidence = MobilityResultEvidence(
                             resultID: result.id,
                             entryIDSnapshot: entry.id,
                             side: resultSide,
-                            methodSnapshot: resultDTO.methodSnapshot.flatMap(MobilityMethod.init(rawValue:)),
-                            purposeSnapshot: resultDTO.trainingPurposeSnapshot.flatMap(MobilityTrainingPurpose.init(rawValue:)),
-                            breathingPrescriptionSnapshot: resultDTO.breathingPrescriptionSnapshot.map {
-                                MobilityBreathingPrescription(
-                                    targetBreaths: $0.targetBreaths,
-                                    inhaleSeconds: $0.inhaleSeconds,
-                                    exhaleSeconds: $0.exhaleSeconds,
-                                    instructionKey: $0.instructionKey
-                                )
-                            },
-                            tempoPrescriptionSnapshot: resultDTO.tempoPrescriptionSnapshot.map {
-                                MobilityTempoPrescription(
-                                    moveIntoRangeSeconds: $0.moveIntoRangeSeconds,
-                                    holdSeconds: $0.holdSeconds,
-                                    returnSeconds: $0.returnSeconds,
-                                    pauseSeconds: $0.pauseSeconds
-                                )
-                            },
-                            assistancePrescriptionSnapshot: resultDTO.assistancePrescriptionSnapshot.map {
-                                MobilityAssistancePrescription(
-                                    assistanceTypeRaw: $0.assistanceType,
-                                    level: $0.level,
-                                    equipmentRaw: $0.equipment
-                                )
-                            },
-                            supportLevelSnapshot: resultDTO.supportLevelSnapshot.flatMap(MobilitySupportLevel.init(rawValue:)),
+                            methodSnapshot: methodSnapshot,
+                            purposeSnapshot: purposeSnapshot,
+                            breathingPrescriptionSnapshot: breathingSnapshot,
+                            tempoPrescriptionSnapshot: tempoSnapshot,
+                            assistancePrescriptionSnapshot: assistanceSnapshot,
+                            supportLevelSnapshot: supportSnapshot,
                             metricProfileSnapshot: resultDTO.metricProfileSnapshot,
                             metricTargetsSnapshot: resultDTO.metricTargetsSnapshot,
+                            restSnapshot: resultDTO.restSnapshot,
                             performedBreathingCycles: resultDTO.performedBreathingCycles,
                             performedAssistanceLevel: resultDTO.performedAssistanceLevel,
-                            performedSupportLevel: resultDTO.performedSupportLevel.flatMap(MobilitySupportLevel.init(rawValue:)),
-                            sensation: resultDTO.sensation.flatMap(MobilitySensation.init(rawValue:)),
-                            movementQuality: resultDTO.movementQuality.flatMap(MobilityMovementQuality.init(rawValue:)),
-                            compensationKeys: Set((resultDTO.compensationKeys ?? []).compactMap(MobilityCompensationKey.init(rawValue:))),
-                            restSnapshot: resultDTO.restSnapshot,
-                            recordedAt: resultDTO.completedAt ?? resultDTO.startedAt ?? sessionDTO.startTime
+                            performedSupportLevel: performedSupport,
+                            sensation: sensationSnapshot,
+                            movementQuality: qualitySnapshot,
+                            compensationKeys: compensationSnapshot,
+                            recordedAt: recordedAt
                         )
                         restoreCtx.context.insert(evidence)
                     }

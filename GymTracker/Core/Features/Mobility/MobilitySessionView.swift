@@ -540,7 +540,12 @@ struct MobilitySessionView: View {
                     return false
                 }
                 let priorEvidence = mobilityEvidenceByResultID[$0.id]
-                return priorEvidence?.isComparable(to: currentEvidence) ?? currentEvidence == nil
+                // The parentheses are required, not stylistic: `??` binds
+                // tighter than `==`, so without them this coalesces a Bool
+                // with a MobilityResultEvidence. A prior result with no
+                // evidence is comparable only when the current one has none
+                // either.
+                return priorEvidence?.isComparable(to: currentEvidence) ?? (currentEvidence == nil)
             }) {
                 return priorResult
             }

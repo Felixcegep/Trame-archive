@@ -1,3 +1,5 @@
+import Foundation
+
 enum SetRowCompletionValidation {
     static func message(
         for exerciseSet: ExerciseSet,

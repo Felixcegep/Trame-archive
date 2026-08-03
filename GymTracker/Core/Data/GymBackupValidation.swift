@@ -1184,7 +1184,7 @@ extension BackupDTO {
 
         let terminal: (String) -> Bool = { raw in
             guard let status = MobilityResultStatus(rawValue: raw) else { return false }
-            switch status {
+            return switch status {
             case .notStarted, .inProgress: false
             case .completed, .partial, .skipped, .stopped: true
             }
@@ -1313,12 +1313,16 @@ extension BackupDTO {
     }
 
     private func mobilitySideOrder(_ rawValue: String) -> Int {
+        // `MobilitySide` has its own `.none` case, so over an optional the
+        // bare `.none` pattern binds to `Optional.none` and leaves
+        // `MobilitySide.none` unmatched. The explicit `.some(...)` patterns
+        // keep the two distinct.
         switch MobilitySide(rawValue: rawValue) {
-        case .none: 0
-        case .left: 1
-        case .right: 2
-        case .bilateral: 3
-        case .alternating: 4
+        case .some(.none): 0
+        case .some(.left): 1
+        case .some(.right): 2
+        case .some(.bilateral): 3
+        case .some(.alternating): 4
         case nil: Int.max
         }
     }

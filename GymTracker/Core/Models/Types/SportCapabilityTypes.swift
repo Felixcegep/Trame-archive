@@ -1,5 +1,20 @@
 import Foundation
 
+/// Stable identifiers stored on `SportCapabilityProfile.analyticsPolicyIdentifier`
+/// and used by `SportAnalyticsPolicyResolver` to pick a concrete policy. Kept
+/// as raw strings — not the policy type itself — so a persisted/snapshotted
+/// capability profile never holds a reference to unavailable code across an
+/// app/extension boundary.
+nonisolated enum SportAnalyticsPolicyIdentifier {
+    static let standardStrength = "standardStrength"
+    static let olympicAttempt = "olympicAttempt"
+    static let strongmanEvent = "strongmanEvent"
+    static let strongmanCarry = "strongmanCarry"
+    static let strongmanHold = "strongmanHold"
+    static let fitnessSimulation = "fitnessSimulation"
+    static let ergDistance = "ergDistance"
+}
+
 /// The broad training context an exercise or planned effort belongs to.
 /// Disciplines describe what evidence CAN be captured and how it is
 /// interpreted for records and completion surfaces — they never change how

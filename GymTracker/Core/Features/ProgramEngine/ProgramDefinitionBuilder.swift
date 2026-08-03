@@ -106,8 +106,8 @@ struct ProgramDefinitionBuilder: Codable, Hashable {
             ProgramExerciseDefinition(
                 exerciseID: exerciseID,
                 exposureKey: exposureKey,
-                orderIndex: index,
                 role: role,
+                orderIndex: index,
                 isOptional: isOptional,
                 plannedSets: []
             )

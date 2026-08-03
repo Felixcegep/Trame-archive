@@ -60,12 +60,18 @@ final class OnboardingCoordinator {
     /// never reads as lag.
     static let autoAdvanceDelay: Duration = .milliseconds(260)
 
+    /// `isMobilityMatchingEnabled` stays injectable, but it cannot default to
+    /// `FeatureFlags.current` directly: a default argument expression is
+    /// evaluated in a nonisolated context, and the flag store is main-actor
+    /// isolated. Resolving `nil` inside this already-isolated initializer keeps
+    /// both the live default and the explicit override available.
     init(
         store: OnboardingDraftStore = OnboardingDraftStore(),
-        isMobilityMatchingEnabled: Bool = FeatureFlags.current.isEnabled(.mobilityProgram)
+        isMobilityMatchingEnabled: Bool? = nil
     ) {
         self.store = store
         self.isMobilityMatchingEnabled = isMobilityMatchingEnabled
+            ?? FeatureFlags.current.isEnabled(.mobilityProgram)
         self.draft = store.load() ?? OnboardingDraft()
         restore()
     }
