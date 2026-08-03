@@ -1235,9 +1235,9 @@ nonisolated enum MobilityProgramLibraryData {
                     defaultCompletionRule: .all([.repetitions]),
                     primaryProgressMetric: .repetitions
                 ),
+                tempoPrescription: MobilityTempoPrescription(holdSeconds: endRangeHold),
                 assistancePrescription: assistance,
                 supportLevel: supportLevel,
-                tempoPrescription: MobilityTempoPrescription(holdSeconds: endRangeHold),
                 progressionRules: [
                     MobilityProgressionRuleDefinition(
                         trigger: .targetCompletedForSessions(3),
