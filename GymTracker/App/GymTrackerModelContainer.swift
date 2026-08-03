@@ -105,11 +105,9 @@ enum GymTrackerCurrentBaselineSchema: VersionedSchema {
     }
 }
 
-/// Migration infrastructure for the verified current baseline only.
-///
-/// There is no migration stage because there is no second verified schema yet.
-/// Historical shapes must be added from retained source/store evidence before a
-/// transition is declared here.
+/// Migration infrastructure from the verified baseline into the first
+/// additive post-baseline schema. Earlier historical shapes still require
+/// retained source/store evidence before they can be declared safely.
 enum GymTrackerSchemaMigrationPlan: SchemaMigrationPlan {
     static let schemas: [any VersionedSchema.Type] = [
         GymTrackerCurrentBaselineSchema.self,

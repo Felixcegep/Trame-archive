@@ -136,6 +136,7 @@ extension ProgressRoute {
 struct MobilityHistoryView: View {
     @Query(sort: \MobilitySession.startTime, order: .reverse) private var sessions: [MobilitySession]
     @Query private var workouts: [Workout]
+    @Query private var mobilityEvidenceRecords: [MobilityResultEvidence]
 
     var body: some View {
         // Resolved once per render rather than scanned per row.
@@ -155,6 +156,11 @@ struct MobilityHistoryView: View {
                         Text(historyDetail(for: session, workoutTitles: workoutTitles))
                             .font(AppFont.caption)
                             .foregroundStyle(Color.gymSubduedText)
+                        if let evidenceDetail = evidenceDetail(for: session) {
+                            Text(evidenceDetail)
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.gymSubduedText)
+                        }
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("mobility-history-context-\(session.id)")
@@ -164,6 +170,33 @@ struct MobilityHistoryView: View {
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
         .navigationTitle("Mobility history")
+    }
+
+    private var mobilityEvidenceByResultID: [UUID: MobilityResultEvidence] {
+        Dictionary(mobilityEvidenceRecords.map { ($0.resultID, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    private func evidenceDetail(for session: MobilitySession) -> String? {
+        let records = session.orderedEntries
+            .flatMap(\.orderedResults)
+            .compactMap { mobilityEvidenceByResultID[$0.id] }
+        guard records.isEmpty == false else { return nil }
+
+        var labels: [String] = []
+        let methods = uniqueStrings(records.compactMap(\.methodSnapshot).map(\.displayName))
+        let purposes = uniqueStrings(records.compactMap(\.purposeSnapshot).map(\.displayName))
+        let sensations = uniqueStrings(records.compactMap(\.sensation).map(\.displayName))
+        let qualities = uniqueStrings(records.compactMap(\.movementQuality).map(\.displayName))
+        if methods.isEmpty == false { labels.append(methods.joined(separator: ", ")) }
+        if purposes.isEmpty == false { labels.append(purposes.joined(separator: ", ")) }
+        if sensations.isEmpty == false { labels.append(String(localized: "Sensation: \(sensations.joined(separator: ", "))")) }
+        if qualities.isEmpty == false { labels.append(String(localized: "Quality: \(qualities.joined(separator: ", "))")) }
+        return labels.isEmpty ? nil : labels.joined(separator: " · ")
+    }
+
+    private func uniqueStrings(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.filter { seen.insert($0).inserted }
     }
 
     private var completedSessions: [MobilitySession] { sessions.filter { $0.status == .completed } }

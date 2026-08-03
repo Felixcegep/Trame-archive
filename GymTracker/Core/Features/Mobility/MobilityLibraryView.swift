@@ -855,7 +855,11 @@ struct MobilityRoutineEditorView: View {
     private func deleteItems(at offsets: IndexSet) {
         let ordered = routine.orderedItems
         for index in offsets {
-            modelContext.delete(ordered[index])
+            let item = ordered[index]
+            if let evidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)[item.id] {
+                modelContext.delete(evidence)
+            }
+            modelContext.delete(item)
         }
         routine.normalizeItemOrder()
         _ = modelContext.saveOrRollback()
@@ -874,6 +878,12 @@ struct MobilityRoutineEditorView: View {
 private struct MobilityRoutineItemEditorRow: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var item: MobilityRoutineItem
+    @State private var method: MobilityMethod?
+    @State private var trainingPurpose: MobilityTrainingPurpose?
+
+    init(item: MobilityRoutineItem) {
+        self.item = item
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
@@ -884,6 +894,18 @@ private struct MobilityRoutineItemEditorRow: View {
                     Text(side.displayName).tag(side.rawValue)
                 }
             }
+            Picker("Method", selection: $method) {
+                Text("Not specified").tag(MobilityMethod?.none)
+                ForEach(MobilityMethod.allCases) { method in
+                    Text(method.displayName).tag(MobilityMethod?.some(method))
+                }
+            }
+            Picker("Training purpose", selection: $trainingPurpose) {
+                Text("Not specified").tag(MobilityTrainingPurpose?.none)
+                ForEach(MobilityTrainingPurpose.allCases) { purpose in
+                    Text(purpose.displayName).tag(MobilityTrainingPurpose?.some(purpose))
+                }
+            }
             if item.definition.trackingType == .duration {
                 Stepper("Target: \(item.targetDurationSeconds ?? item.definition.defaultDurationSeconds ?? 30) sec", value: durationBinding, in: 5...600, step: 5)
             } else {
@@ -891,6 +913,13 @@ private struct MobilityRoutineItemEditorRow: View {
             }
         }
         .onChange(of: item.sideRaw) { _, _ in save() }
+        .onChange(of: method) { _, _ in saveEvidence() }
+        .onChange(of: trainingPurpose) { _, _ in saveEvidence() }
+        .onAppear {
+            let evidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)[item.id]
+            method = evidence?.method
+            trainingPurpose = evidence?.purpose
+        }
     }
 
     private var durationBinding: Binding<Int> {
@@ -902,4 +931,13 @@ private struct MobilityRoutineItemEditorRow: View {
     }
 
     private func save() { _ = modelContext.saveOrRollback() }
+
+    private func saveEvidence() {
+        _ = MobilityEvidenceService.upsertPrescription(
+            for: item.id,
+            method: method,
+            purpose: trainingPurpose,
+            using: modelContext
+        )
+    }
 }

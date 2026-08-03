@@ -17,7 +17,7 @@ enum MobilityEvidenceService {
         let descriptor = FetchDescriptor<MobilityResultEvidence>(
             predicate: #Predicate { $0.resultID == resultID }
         )
-        return try? modelContext.fetch(descriptor).first
+        return (try? modelContext.fetch(descriptor))?.first
     }
 
     static func resultEvidence(
@@ -37,7 +37,7 @@ enum MobilityEvidenceService {
         let descriptor = FetchDescriptor<MobilityRoutineItemEvidence>(
             predicate: #Predicate { $0.routineItemID == routineItemID }
         )
-        let existing = try? modelContext.fetch(descriptor).first
+        let existing = (try? modelContext.fetch(descriptor))?.first
         if method == nil, purpose == nil {
             if let existing { modelContext.delete(existing) }
         } else if let existing {

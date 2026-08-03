@@ -530,6 +530,8 @@ enum MobilitySessionService {
         for result in entry.results {
             if let input = resultInputs[result.id] {
                 MobilityEvidenceService.apply(input, to: result, using: modelContext)
+            } else if status == .skipped {
+                MobilityEvidenceService.apply(MobilityResultInput(), to: result, using: modelContext)
             }
         }
         complete(entry: entry, status: status, resultInputs: resultInputs)

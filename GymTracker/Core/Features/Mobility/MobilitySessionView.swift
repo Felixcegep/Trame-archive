@@ -55,11 +55,15 @@ struct MobilitySessionView: View {
     let session: MobilitySession
     let onFinished: () -> Void
     @Query(sort: \MobilitySession.startTime, order: .reverse) private var mobilitySessions: [MobilitySession]
+    @Query private var mobilityEvidenceRecords: [MobilityResultEvidence]
 
     @State private var durationsByResult: [UUID: Int] = [:]
     @State private var repetitionsByResult: [UUID: Int] = [:]
     @State private var intensitiesByResult: [UUID: Int] = [:]
     @State private var discomfortNotesByResult: [UUID: String] = [:]
+    @State private var sensationsByResult: [UUID: String] = [:]
+    @State private var qualitiesByResult: [UUID: String] = [:]
+    @State private var compensationsByResult: [UUID: Set<MobilityCompensationKey>] = [:]
     @State private var phaseDurationsByResult: [UUID: Int] = [:]
     @State private var phaseIntensityByResult: [UUID: String] = [:]
     @State private var isShowingStopConfirmation = false
@@ -164,6 +168,12 @@ struct MobilitySessionView: View {
                     .foregroundStyle(Color.gymSubduedText)
             }
 
+            if let context = prescriptionContext(for: entry) {
+                Text(context)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+
             if let phase = entry.currentPhaseResult {
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Label(phase.phaseType.title, systemImage: AppIcon.timer)
@@ -264,6 +274,10 @@ struct MobilitySessionView: View {
                     }
                     .accessibilityIdentifier("mobility-phase-intensity")
                 }
+
+                if let resultID = session.currentEntry?.results.first(where: { $0.side == phase.side })?.id {
+                    mobilityEvidenceInputs(resultID: resultID)
+                }
             }
             .padding(Spacing.m)
             .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
@@ -306,6 +320,8 @@ struct MobilitySessionView: View {
                     TextField("Optional discomfort note", text: discomfortNoteBinding(for: result), axis: .vertical)
                         .lineLimit(2...4)
                         .accessibilityIdentifier("mobility-discomfort-note-\(result.side.rawValue)")
+
+                    mobilityEvidenceInputs(resultID: result.id)
                 }
                 .padding(Spacing.m)
                 .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
@@ -316,7 +332,20 @@ struct MobilitySessionView: View {
     private var actions: some View {
         VStack(spacing: Spacing.m) {
             executionControls
-            if session.currentEntry?.isPhaseDriven == true {
+            if let stop = currentStopSignal {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    Text("Stop and pay attention to what you feel. This records your observation; it is not a diagnosis.")
+                        .font(AppFont.subheadline)
+                        .foregroundStyle(Color.gymSubduedText)
+                    Button(role: .destructive) {
+                        stopForSensation(stop.sensation, resultID: stop.resultID)
+                    } label: {
+                        Label("Stop session now", systemImage: AppIcon.stop)
+                    }
+                    .buttonStyle(.gymPrimary)
+                    .accessibilityIdentifier("stop-mobility-for-sensation")
+                }
+            } else if session.currentEntry?.isPhaseDriven == true {
                 Button {
                     completeCurrentPhase()
                 } label: {
@@ -458,17 +487,36 @@ struct MobilitySessionView: View {
     }
 
     private func previousResult(for result: MobilityResult, matching entry: MobilityEntry) -> MobilityResult? {
+        let currentEvidence = mobilityEvidenceByResultID[result.id]
         for priorSession in mobilitySessions where priorSession.id != session.id {
             guard let priorEntry = priorSession.orderedEntries.first(where: {
                 $0.definitionIDSnapshot == entry.definitionIDSnapshot && $0.trackingType == entry.trackingType
             }) else { continue }
             if let priorResult = priorEntry.orderedResults.first(where: {
-                $0.side == result.side && ($0.status == .completed || $0.status == .partial)
+                guard $0.side == result.side && ($0.status == .completed || $0.status == .partial) else {
+                    return false
+                }
+                let priorEvidence = mobilityEvidenceByResultID[$0.id]
+                return priorEvidence?.methodSnapshotRaw == currentEvidence?.methodSnapshotRaw
+                    && priorEvidence?.purposeSnapshotRaw == currentEvidence?.purposeSnapshotRaw
             }) {
                 return priorResult
             }
         }
         return nil
+    }
+
+    private var mobilityEvidenceByResultID: [UUID: MobilityResultEvidence] {
+        Dictionary(mobilityEvidenceRecords.map { ($0.resultID, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    private func prescriptionContext(for entry: MobilityEntry) -> String? {
+        guard let evidence = entry.orderedResults.compactMap({ mobilityEvidenceByResultID[$0.id] }).first else {
+            return nil
+        }
+        let labels = [evidence.methodSnapshot?.displayName, evidence.purposeSnapshot?.displayName]
+            .compactMap { $0 }
+        return labels.isEmpty ? nil : labels.joined(separator: " · ")
     }
 
     private func previousResultLabel(
@@ -520,6 +568,16 @@ struct MobilitySessionView: View {
         })
         intensitiesByResult = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.id, $0.perceivedIntensity ?? 0) })
         discomfortNotesByResult = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.id, $0.discomfortNote ?? "") })
+        let evidence = MobilityEvidenceService.resultEvidence(using: modelContext)
+        sensationsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
+            ($0.id, evidence[$0.id]?.sensationRaw ?? "")
+        })
+        qualitiesByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
+            ($0.id, evidence[$0.id]?.movementQualityRaw ?? "")
+        })
+        compensationsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
+            ($0.id, evidence[$0.id]?.compensationKeys ?? [])
+        })
         if let phase = entry.currentPhaseResult {
             phaseDurationsByResult = [
                 phase.id: phase.performedDurationSeconds ?? elapsedSeconds(for: entry)
@@ -553,6 +611,9 @@ struct MobilitySessionView: View {
             in: session,
             performedDurationSeconds: phaseDurationsByResult[phase.id] ?? elapsedSeconds(for: entry),
             performedIntensity: phaseIntensityByResult[phase.id].flatMap(ContractionIntensity.init(rawValue:)),
+            sensation: sensation(for: phase.side),
+            movementQuality: movementQuality(for: phase.side),
+            compensationKeys: compensationKeys(for: phase.side),
             using: modelContext
         )
         switch outcome {
@@ -563,6 +624,8 @@ struct MobilitySessionView: View {
             error = ValidationIssue(severity: .error, message: "The current phase changed. Review it and try again.")
         case .invalidPerformedDuration:
             error = ValidationIssue(severity: .error, message: "Enter a valid performed duration before continuing.")
+        case .stopSignalRequiresStop:
+            error = ValidationIssue(severity: .error, message: "Use Stop session now to save this observation without completing later work.")
         case .persistenceFailure:
             error = ValidationIssue(severity: .error, message: "The phase could not be saved. Try again.")
         }
@@ -579,6 +642,9 @@ struct MobilitySessionView: View {
                 in: session,
                 performedDurationSeconds: phaseDurationsByResult[phase.id] ?? elapsedSeconds(for: entry),
                 performedIntensity: phaseIntensityByResult[phase.id].flatMap(ContractionIntensity.init(rawValue:)),
+                sensation: sensation(for: phase.side),
+                movementQuality: movementQuality(for: phase.side),
+                compensationKeys: compensationKeys(for: phase.side),
                 using: modelContext
             ),
             failureMessage: "The partial phase could not be saved. Try again."
@@ -604,6 +670,8 @@ struct MobilitySessionView: View {
             error = ValidationIssue(severity: .error, message: "The current phase changed. Review it and try again.")
         case .invalidPerformedDuration:
             error = ValidationIssue(severity: .error, message: "Enter a valid performed duration before continuing.")
+        case .stopSignalRequiresStop:
+            error = ValidationIssue(severity: .error, message: "Use Stop session now to save this observation without completing later work.")
         case .persistenceFailure:
             error = ValidationIssue(severity: .error, message: failureMessage)
         }
@@ -677,7 +745,10 @@ struct MobilitySessionView: View {
                     performedDurationSeconds: entry.trackingType == .duration ? durationsByResult[result.id] : nil,
                     performedRepetitions: entry.trackingType == .repetitions ? repetitionsByResult[result.id] : nil,
                     perceivedIntensity: intensitiesByResult[result.id] == 0 ? nil : intensitiesByResult[result.id],
-                    discomfortNote: discomfortNotesByResult[result.id]
+                    discomfortNote: discomfortNotesByResult[result.id],
+                    sensation: sensationsByResult[result.id].flatMap(MobilitySensation.init(rawValue:)),
+                    movementQuality: qualitiesByResult[result.id].flatMap(MobilityMovementQuality.init(rawValue:)),
+                    compensationKeys: compensationsByResult[result.id] ?? []
                 )
             )
         })
@@ -736,5 +807,93 @@ struct MobilitySessionView: View {
 
     private func discomfortNoteBinding(for result: MobilityResult) -> Binding<String> {
         Binding(get: { discomfortNotesByResult[result.id] ?? "" }, set: { discomfortNotesByResult[result.id] = $0 })
+    }
+
+    @ViewBuilder
+    private func mobilityEvidenceInputs(resultID: UUID) -> some View {
+        Picker("Sensation", selection: Binding(
+            get: { sensationsByResult[resultID] ?? "" },
+            set: { sensationsByResult[resultID] = $0 }
+        )) {
+            Text("Not recorded").tag("")
+            ForEach(MobilitySensation.allCases) { sensation in
+                Text(sensation.displayName).tag(sensation.rawValue)
+            }
+        }
+        .accessibilityIdentifier("mobility-sensation-\(resultID.uuidString)")
+
+        Picker("Movement quality", selection: Binding(
+            get: { qualitiesByResult[resultID] ?? "" },
+            set: { qualitiesByResult[resultID] = $0 }
+        )) {
+            Text("Not recorded").tag("")
+            ForEach(MobilityMovementQuality.allCases) { quality in
+                Text(quality.displayName).tag(quality.rawValue)
+            }
+        }
+
+        if qualitiesByResult[resultID] == MobilityMovementQuality.compensationObserved.rawValue {
+            DisclosureGroup("Neutral observations") {
+                ForEach(MobilityCompensationKey.allCases) { key in
+                    Button {
+                        var selected = compensationsByResult[resultID] ?? []
+                        if selected.contains(key) { selected.remove(key) } else { selected.insert(key) }
+                        compensationsByResult[resultID] = selected
+                    } label: {
+                        Label(
+                            key.displayName,
+                            systemImage: (compensationsByResult[resultID] ?? []).contains(key)
+                                ? AppIcon.checkmarkCircle
+                                : AppIcon.circle
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+                }
+            }
+        }
+    }
+
+    private var currentStopSignal: (resultID: UUID, sensation: MobilitySensation)? {
+        guard let entry = session.currentEntry else { return nil }
+        for result in entry.orderedResults {
+            if let sensation = sensationsByResult[result.id].flatMap(MobilitySensation.init(rawValue:)),
+               sensation.isStopSignal {
+                return (result.id, sensation)
+            }
+        }
+        return nil
+    }
+
+    private func stopForSensation(_ sensation: MobilitySensation, resultID: UUID) {
+        let quality = qualitiesByResult[resultID].flatMap(MobilityMovementQuality.init(rawValue:))
+        guard MobilitySessionService.stopDueToSensation(
+            sensation,
+            resultID: resultID,
+            movementQuality: quality,
+            compensationKeys: compensationsByResult[resultID] ?? [],
+            in: session,
+            using: modelContext
+        ) else {
+            error = ValidationIssue(severity: .error, message: "The observation could not be saved. Try again.")
+            return
+        }
+        onFinished()
+    }
+
+    private func resultID(for side: MobilitySide) -> UUID? {
+        session.currentEntry?.results.first(where: { $0.side == side })?.id
+    }
+
+    private func sensation(for side: MobilitySide) -> MobilitySensation? {
+        resultID(for: side).flatMap { sensationsByResult[$0] }.flatMap(MobilitySensation.init(rawValue:))
+    }
+
+    private func movementQuality(for side: MobilitySide) -> MobilityMovementQuality? {
+        resultID(for: side).flatMap { qualitiesByResult[$0] }.flatMap(MobilityMovementQuality.init(rawValue:))
+    }
+
+    private func compensationKeys(for side: MobilitySide) -> Set<MobilityCompensationKey> {
+        resultID(for: side).flatMap { compensationsByResult[$0] } ?? []
     }
 }
