@@ -12,14 +12,24 @@ import SwiftUI
 struct OnboardingRecommendationsView: View {
     @Bindable var coordinator: OnboardingCoordinator
     let onOpenProgram: (UUID) -> Void
+    let onOpenMobilityProgram: (UUID) -> Void
     let onBrowseAll: () -> Void
     let onStartFreeWorkout: () -> Void
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var results: [ProgramMatchResult] = []
+    @State private var mobilityResults: [MobilityMatchResult] = []
     @State private var hasLoaded = false
     @AccessibilityFocusState private var isHeadingFocused: Bool
+
+    /// Mobility plans are a separate, independent recommendation track (see
+    /// `MobilityMatchService`), shown only when they are actually reachable —
+    /// asking about or recommending a mobility plan a beta build cannot open
+    /// would be worse than not asking.
+    private var isMobilityMatchingEnabled: Bool {
+        FeatureFlags.current.isEnabled(.mobilityProgram)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,6 +44,8 @@ struct OnboardingRecommendationsView: View {
                     } else {
                         resultsList
                     }
+
+                    mobilitySection
 
                     alternatives
                 }
@@ -53,6 +65,12 @@ struct OnboardingRecommendationsView: View {
                 programs: ProgramMatchCandidate.candidates(using: modelContext),
                 criteria: ProgramMatchCriteria(draft: coordinator.draft)
             )
+            if isMobilityMatchingEnabled {
+                mobilityResults = MobilityMatchService.rank(
+                    programs: MobilityMatchCandidate.candidates(using: modelContext),
+                    criteria: MobilityMatchCriteria(draft: coordinator.draft)
+                )
+            }
             if UIAccessibility.isVoiceOverRunning {
                 isHeadingFocused = true
             }
@@ -218,6 +236,51 @@ struct OnboardingRecommendationsView: View {
                 }
             }
         }
+    }
+
+    // MARK: Mobility
+    //
+    // A wholly separate track from the workout results above: a lifter can
+    // want either, both, or neither, and this section never implies the other
+    // one's answers. Shown only when there is something to show — no bundled
+    // mobility plans installed yet is not worth a second empty state on a
+    // screen that already has one.
+    @ViewBuilder
+    private var mobilitySection: some View {
+        if isMobilityMatchingEnabled, !mobilityResults.isEmpty {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                Text("Mobility plans")
+                    .font(AppFont.captionBold)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .accessibilityAddTraits(.isHeader)
+
+                Text(mobilitySectionSubtitle)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                ForEach(Array(mobilityResults.enumerated()), id: \.element.id) { index, result in
+                    MobilityRecommendationCard(
+                        result: result,
+                        isLeading: index == 0 && result.isRunnable && !result.reasons.isEmpty && hasMobilityRankingSignal,
+                        action: { onOpenMobilityProgram(result.programID) }
+                    )
+                }
+            }
+            .accessibilityIdentifier("onboarding-mobility-recommendations")
+        }
+    }
+
+    private var hasMobilityRankingSignal: Bool {
+        mobilityResults.contains { !$0.reasons.isEmpty }
+    }
+
+    private var mobilitySectionSubtitle: String {
+        guard hasMobilityRankingSignal else {
+            return String(localized: "You skipped the mobility questions, so this is every mobility plan in its default order.")
+        }
+        return String(localized: "Ranked from your mobility answers. Every mobility plan is still available to browse.")
     }
 
     private var emptyState: some View {
@@ -487,6 +550,181 @@ struct OnboardingRecommendationCard: View {
         let days = result.supportedDaysPerWeek.map(String.init).joined(separator: "/")
         return [
             result.experienceLevel.onboardingTitle,
+            String(localized: "\(days) days/week"),
+            String(localized: "\(result.durationWeeks) weeks")
+        ]
+    }
+}
+
+/// One ranked mobility plan. Deliberately a near-twin of
+/// `OnboardingRecommendationCard` rather than a shared generic: the two
+/// result types come from independent matching services with different
+/// vocabularies (`PlanExperienceLevel` vs. `MobilityMatchExperienceLevel`,
+/// `compatibility` vs. a plain `isRunnable`), and forcing them through one
+/// generic view would either leak one domain's types into the other's card or
+/// erase the "why it matches" wording that is this whole screen's point.
+struct MobilityRecommendationCard: View {
+    let result: MobilityMatchResult
+    let isLeading: Bool
+    let action: () -> Void
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(result.name)
+                    .font(AppFont.headlineSemibold)
+                    .foregroundStyle(Color.gymText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+
+                if let compatibilityTitle = result.compatibilityTitle {
+                    GymTagChip(
+                        title: compatibilityTitle,
+                        systemImage: AppIcon.warningCircle,
+                        tint: .gymDestructive
+                    )
+                    .padding(.top, Spacing.xxs)
+                }
+
+                metaLine
+
+                if let summary = result.summary {
+                    Text(summary)
+                        .font(AppFont.subheadline)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, Spacing.xxs)
+                }
+            }
+
+            if !result.reasons.isEmpty {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Why it matches")
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.gymSubduedText)
+                    ForEach(result.reasons) { reason in
+                        Label {
+                            Text(reason.text)
+                                .font(AppFont.footnote)
+                                .foregroundStyle(Color.gymText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } icon: {
+                            Image(systemName: AppIcon.checkmark)
+                                .font(AppFont.caption2Bold)
+                                .foregroundStyle(Color.gymSecondary)
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(reasonsAccessibilityLabel)
+            }
+
+            if !result.warnings.isEmpty {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Before you start")
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.gymSubduedText)
+                    ForEach(result.warnings) { warning in
+                        Label {
+                            Text(warning.text)
+                                .font(AppFont.footnote)
+                                .foregroundStyle(Color.gymText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } icon: {
+                            Image(systemName: AppIcon.warningCircle)
+                                .font(AppFont.caption2Bold)
+                                .foregroundStyle(Color.gymDestructive)
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(warningsAccessibilityLabel)
+            }
+
+            planAction
+        }
+        .padding(Spacing.l)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            isLeading ? Color.gymPrimarySurface : Color.gymCard,
+            in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+                .stroke(isLeading ? Color.gymPrimary : Color.gymBorder, lineWidth: isLeading ? 1.5 : 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("onboarding-mobility-recommendation-\(result.programID.uuidString)")
+    }
+
+    @ViewBuilder
+    private var planAction: some View {
+        if !result.isRunnable {
+            Text("Update Trame to use this plan")
+                .font(AppFont.footnote)
+                .foregroundStyle(Color.gymSubduedText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier(actionIdentifier)
+        } else if isLeading {
+            Button("Set up this plan", action: action)
+                .buttonStyle(.gymPrimary)
+                .accessibilityIdentifier(actionIdentifier)
+        } else {
+            Button(action: action) {
+                Text("View plan")
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.gymText)
+                    .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                            .stroke(Color.gymBorder, lineWidth: 1)
+                    }
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.gymPress)
+            .accessibilityIdentifier(actionIdentifier)
+        }
+    }
+
+    private var reasonsAccessibilityLabel: String {
+        let joined = result.reasons.map(\.text).joined(separator: ", ")
+        return String(localized: "Why it matches: \(joined)")
+    }
+
+    private var warningsAccessibilityLabel: String {
+        let joined = result.warnings.map(\.text).joined(separator: ", ")
+        return String(localized: "Before you start: \(joined)")
+    }
+
+    private var actionIdentifier: String {
+        "onboarding-open-mobility-plan-\(result.programID.uuidString)"
+    }
+
+    @ViewBuilder
+    private var metaLine: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                ForEach(metaComponents, id: \.self) { component in
+                    Text(component)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .font(AppFont.footnote)
+            .foregroundStyle(Color.gymSubduedText)
+            .accessibilityElement(children: .combine)
+        } else {
+            Text(metaComponents.joined(separator: " · "))
+                .font(AppFont.footnote)
+                .foregroundStyle(Color.gymSubduedText)
+        }
+    }
+
+    private var metaComponents: [String] {
+        let days = result.supportedDaysPerWeek.map(String.init).joined(separator: "/")
+        return [
+            result.experienceLevel.title,
             String(localized: "\(days) days/week"),
             String(localized: "\(result.durationWeeks) weeks")
         ]
