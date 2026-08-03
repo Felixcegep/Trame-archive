@@ -187,10 +187,28 @@ struct MobilityHistoryView: View {
         let purposes = uniqueStrings(records.compactMap(\.purposeSnapshot).map(\.displayName))
         let sensations = uniqueStrings(records.compactMap(\.sensation).map(\.displayName))
         let qualities = uniqueStrings(records.compactMap(\.movementQuality).map(\.displayName))
+        let supports = uniqueStrings(records.compactMap { ($0.performedSupportLevel ?? $0.supportLevelSnapshot)?.displayName })
+        let assistances = uniqueStrings(records.compactMap { evidence in
+            guard let prescription = evidence.assistancePrescriptionSnapshot else { return nil }
+            let name = prescription.assistanceType?.displayName ?? prescription.assistanceTypeRaw
+            let level = evidence.performedAssistanceLevel ?? prescription.level
+            return level.map { String(localized: "\(name), level \($0)") } ?? name
+        })
+        let breathing = records.compactMap(\.performedBreathingCycles)
+        let tempos = uniqueStrings(records.compactMap { evidence -> String? in
+            guard let tempo = evidence.tempoPrescriptionSnapshot else { return nil }
+            return [tempo.moveIntoRangeSeconds, tempo.holdSeconds, tempo.returnSeconds, tempo.pauseSeconds]
+                .map { $0.map(String.init) ?? "–" }
+                .joined(separator: "–")
+        })
         if methods.isEmpty == false { labels.append(methods.joined(separator: ", ")) }
         if purposes.isEmpty == false { labels.append(purposes.joined(separator: ", ")) }
         if sensations.isEmpty == false { labels.append(String(localized: "Sensation: \(sensations.joined(separator: ", "))")) }
         if qualities.isEmpty == false { labels.append(String(localized: "Quality: \(qualities.joined(separator: ", "))")) }
+        if supports.isEmpty == false { labels.append(String(localized: "Support: \(supports.joined(separator: ", "))")) }
+        if assistances.isEmpty == false { labels.append(String(localized: "Assistance: \(assistances.joined(separator: ", "))")) }
+        if breathing.isEmpty == false { labels.append(String(localized: "Breathing cycles: \(breathing.map(String.init).joined(separator: ", "))")) }
+        if tempos.isEmpty == false { labels.append(String(localized: "Tempo: \(tempos.joined(separator: ", ")) sec")) }
         return labels.isEmpty ? nil : labels.joined(separator: " · ")
     }
 

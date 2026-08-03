@@ -385,7 +385,14 @@ enum MobilitySessionService {
         )
         guard transition.stale == false else { return .stale(transition) }
 
-        if let sideResult = entry.results.first(where: { $0.side == currentPhase.side }) {
+        let hasPerformedObservation = sensation != nil
+            || movementQuality != nil
+            || compensationKeys.isEmpty == false
+            || performedBreathingCycles != nil
+            || performedAssistanceLevel != nil
+            || performedSupportLevel != nil
+        if (status != .skipped || hasPerformedObservation),
+           let sideResult = entry.results.first(where: { $0.side == currentPhase.side }) {
             MobilityEvidenceService.apply(
                 MobilityResultInput(
                     sensation: sensation,
@@ -552,6 +559,10 @@ enum MobilitySessionService {
         using modelContext: ModelContext
     ) -> Bool {
         guard resultInputs.values.allSatisfy({ $0.sensation?.isStopSignal != true }) else { return false }
+        guard resultInputs.values.allSatisfy({ input in
+            (input.performedBreathingCycles.map { $0 >= 0 } ?? true)
+                && (input.performedAssistanceLevel.map { $0 >= 0 } ?? true)
+        }) else { return false }
         guard session.status == .active, let entry = session.currentEntry else { return false }
         // Phase-driven work is intentionally not collapsed into the legacy
         // whole-entry action. `completeCurrentPhase` owns one-node evidence

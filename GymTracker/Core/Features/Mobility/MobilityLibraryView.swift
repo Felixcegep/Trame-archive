@@ -880,6 +880,18 @@ private struct MobilityRoutineItemEditorRow: View {
     @Bindable var item: MobilityRoutineItem
     @State private var method: MobilityMethod?
     @State private var trainingPurpose: MobilityTrainingPurpose?
+    @State private var breathingTarget: Int?
+    @State private var inhaleSeconds: Int?
+    @State private var exhaleSeconds: Int?
+    @State private var tempoIntoSeconds: Int?
+    @State private var tempoHoldSeconds: Int?
+    @State private var tempoReturnSeconds: Int?
+    @State private var tempoPauseSeconds: Int?
+    @State private var assistanceType: MobilityAssistanceType?
+    @State private var assistanceLevel: Int?
+    @State private var assistanceEquipment = ""
+    @State private var supportLevel: MobilitySupportLevel?
+    @State private var isLoadingEvidence = true
 
     init(item: MobilityRoutineItem) {
         self.item = item
@@ -894,31 +906,90 @@ private struct MobilityRoutineItemEditorRow: View {
                     Text(side.displayName).tag(side.rawValue)
                 }
             }
-            Picker("Method", selection: $method) {
-                Text("Not specified").tag(MobilityMethod?.none)
-                ForEach(MobilityMethod.allCases) { method in
-                    Text(method.displayName).tag(MobilityMethod?.some(method))
-                }
-            }
-            Picker("Training purpose", selection: $trainingPurpose) {
-                Text("Not specified").tag(MobilityTrainingPurpose?.none)
-                ForEach(MobilityTrainingPurpose.allCases) { purpose in
-                    Text(purpose.displayName).tag(MobilityTrainingPurpose?.some(purpose))
-                }
-            }
             if item.definition.trackingType == .duration {
                 Stepper("Target: \(item.targetDurationSeconds ?? item.definition.defaultDurationSeconds ?? 30) sec", value: durationBinding, in: 5...600, step: 5)
             } else {
                 Stepper("Target: \(item.targetRepetitions ?? item.definition.defaultRepetitions ?? 8) reps", value: repetitionsBinding, in: 1...100)
             }
+
+            DisclosureGroup("Advanced prescription") {
+                Picker("Method", selection: $method) {
+                    Text("Not specified").tag(MobilityMethod?.none)
+                    ForEach(MobilityMethod.allCases) { method in
+                        Text(method.displayName).tag(MobilityMethod?.some(method))
+                    }
+                }
+                Picker("Training purpose", selection: $trainingPurpose) {
+                    Text("Not specified").tag(MobilityTrainingPurpose?.none)
+                    ForEach(MobilityTrainingPurpose.allCases) { purpose in
+                        Text(purpose.displayName).tag(MobilityTrainingPurpose?.some(purpose))
+                    }
+                }
+
+                optionalStepper("Target breaths", value: $breathingTarget, range: 1...30)
+                optionalStepper("Inhale seconds", value: $inhaleSeconds, range: 1...20)
+                optionalStepper("Exhale seconds", value: $exhaleSeconds, range: 1...30)
+
+                optionalStepper("Move into range", value: $tempoIntoSeconds, range: 1...60)
+                optionalStepper("Tempo hold", value: $tempoHoldSeconds, range: 1...600)
+                optionalStepper("Return", value: $tempoReturnSeconds, range: 1...60)
+                optionalStepper("Pause", value: $tempoPauseSeconds, range: 1...60)
+
+                Picker("Assistance", selection: $assistanceType) {
+                    Text("Not specified").tag(MobilityAssistanceType?.none)
+                    ForEach(MobilityAssistanceType.allCases) { type in
+                        Text(type.displayName).tag(MobilityAssistanceType?.some(type))
+                    }
+                }
+                if assistanceType != nil {
+                    optionalStepper("Assistance level", value: $assistanceLevel, range: 0...10)
+                    TextField("Equipment detail", text: $assistanceEquipment)
+                }
+
+                Picker("Support", selection: $supportLevel) {
+                    Text("Not specified").tag(MobilitySupportLevel?.none)
+                    ForEach(MobilitySupportLevel.allCases) { support in
+                        Text(support.displayName).tag(MobilitySupportLevel?.some(support))
+                    }
+                }
+                Text("Support describes the setup used for comparison. It is not a score or diagnosis.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
         }
         .onChange(of: item.sideRaw) { _, _ in save() }
         .onChange(of: method) { _, _ in saveEvidence() }
         .onChange(of: trainingPurpose) { _, _ in saveEvidence() }
+        .onChange(of: breathingTarget) { _, _ in saveEvidence() }
+        .onChange(of: inhaleSeconds) { _, _ in saveEvidence() }
+        .onChange(of: exhaleSeconds) { _, _ in saveEvidence() }
+        .onChange(of: tempoIntoSeconds) { _, _ in saveEvidence() }
+        .onChange(of: tempoHoldSeconds) { _, _ in saveEvidence() }
+        .onChange(of: tempoReturnSeconds) { _, _ in saveEvidence() }
+        .onChange(of: tempoPauseSeconds) { _, _ in saveEvidence() }
+        .onChange(of: assistanceType) { _, _ in saveEvidence() }
+        .onChange(of: assistanceLevel) { _, _ in saveEvidence() }
+        .onChange(of: assistanceEquipment) { _, _ in saveEvidence() }
+        .onChange(of: supportLevel) { _, _ in saveEvidence() }
         .onAppear {
             let evidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)[item.id]
             method = evidence?.method
             trainingPurpose = evidence?.purpose
+            breathingTarget = evidence?.breathingPrescription?.targetBreaths
+            inhaleSeconds = evidence?.breathingPrescription?.inhaleSeconds
+            exhaleSeconds = evidence?.breathingPrescription?.exhaleSeconds
+            tempoIntoSeconds = evidence?.tempoPrescription?.moveIntoRangeSeconds
+            tempoHoldSeconds = evidence?.tempoPrescription?.holdSeconds
+            tempoReturnSeconds = evidence?.tempoPrescription?.returnSeconds
+            tempoPauseSeconds = evidence?.tempoPrescription?.pauseSeconds
+            assistanceType = evidence?.assistancePrescription?.assistanceType
+            assistanceLevel = evidence?.assistancePrescription?.level
+            assistanceEquipment = evidence?.assistancePrescription?.equipmentRaw ?? ""
+            supportLevel = evidence?.supportLevel
+            Task { @MainActor in
+                await Task.yield()
+                isLoadingEvidence = false
+            }
         }
     }
 
@@ -932,11 +1003,56 @@ private struct MobilityRoutineItemEditorRow: View {
 
     private func save() { _ = modelContext.saveOrRollback() }
 
+    private func optionalStepper(
+        _ title: LocalizedStringKey,
+        value: Binding<Int?>,
+        range: ClosedRange<Int>
+    ) -> some View {
+        HStack {
+            Toggle(title, isOn: Binding(
+                get: { value.wrappedValue != nil },
+                set: { enabled in value.wrappedValue = enabled ? range.lowerBound : nil }
+            ))
+            if value.wrappedValue != nil {
+                Stepper(
+                    "\(value.wrappedValue ?? range.lowerBound)",
+                    value: Binding(
+                        get: { value.wrappedValue ?? range.lowerBound },
+                        set: { value.wrappedValue = $0 }
+                    ),
+                    in: range
+                )
+                .labelsHidden()
+            }
+        }
+    }
+
     private func saveEvidence() {
+        guard isLoadingEvidence == false else { return }
         _ = MobilityEvidenceService.upsertPrescription(
             for: item.id,
             method: method,
             purpose: trainingPurpose,
+            breathingPrescription: MobilityBreathingPrescription(
+                targetBreaths: breathingTarget,
+                inhaleSeconds: inhaleSeconds,
+                exhaleSeconds: exhaleSeconds,
+                instructionKey: nil
+            ),
+            tempoPrescription: MobilityTempoPrescription(
+                moveIntoRangeSeconds: tempoIntoSeconds,
+                holdSeconds: tempoHoldSeconds,
+                returnSeconds: tempoReturnSeconds,
+                pauseSeconds: tempoPauseSeconds
+            ),
+            assistancePrescription: assistanceType.map {
+                MobilityAssistancePrescription(
+                    assistanceTypeRaw: $0.rawValue,
+                    level: assistanceLevel,
+                    equipmentRaw: assistanceEquipment.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                )
+            },
+            supportLevel: supportLevel,
             using: modelContext
         )
     }

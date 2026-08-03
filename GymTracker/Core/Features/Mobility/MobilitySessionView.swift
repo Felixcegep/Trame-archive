@@ -64,6 +64,9 @@ struct MobilitySessionView: View {
     @State private var sensationsByResult: [UUID: String] = [:]
     @State private var qualitiesByResult: [UUID: String] = [:]
     @State private var compensationsByResult: [UUID: Set<MobilityCompensationKey>] = [:]
+    @State private var breathingCyclesByResult: [UUID: Int] = [:]
+    @State private var assistanceLevelsByResult: [UUID: Int] = [:]
+    @State private var supportLevelsByResult: [UUID: String] = [:]
     @State private var phaseDurationsByResult: [UUID: Int] = [:]
     @State private var phaseIntensityByResult: [UUID: String] = [:]
     @State private var isShowingStopConfirmation = false
@@ -497,8 +500,7 @@ struct MobilitySessionView: View {
                     return false
                 }
                 let priorEvidence = mobilityEvidenceByResultID[$0.id]
-                return priorEvidence?.methodSnapshotRaw == currentEvidence?.methodSnapshotRaw
-                    && priorEvidence?.purposeSnapshotRaw == currentEvidence?.purposeSnapshotRaw
+                return priorEvidence?.isComparable(to: currentEvidence) ?? currentEvidence == nil
             }) {
                 return priorResult
             }
@@ -514,8 +516,26 @@ struct MobilitySessionView: View {
         guard let evidence = entry.orderedResults.compactMap({ mobilityEvidenceByResultID[$0.id] }).first else {
             return nil
         }
-        let labels = [evidence.methodSnapshot?.displayName, evidence.purposeSnapshot?.displayName]
+        var labels = [evidence.methodSnapshot?.displayName, evidence.purposeSnapshot?.displayName]
             .compactMap { $0 }
+        if let breathing = evidence.breathingPrescriptionSnapshot?.targetBreaths {
+            labels.append(String(localized: "\(breathing) breathing cycles"))
+        }
+        if let tempo = evidence.tempoPrescriptionSnapshot {
+            let components = [
+                tempo.moveIntoRangeSeconds,
+                tempo.holdSeconds,
+                tempo.returnSeconds,
+                tempo.pauseSeconds
+            ].map { $0.map(String.init) ?? "–" }
+            labels.append(String(localized: "Tempo \(components.joined(separator: "–")) sec"))
+        }
+        if let assistance = evidence.assistancePrescriptionSnapshot {
+            labels.append(assistance.assistanceType?.displayName ?? assistance.assistanceTypeRaw)
+        }
+        if let support = evidence.supportLevelSnapshot {
+            labels.append(support.displayName)
+        }
         return labels.isEmpty ? nil : labels.joined(separator: " · ")
     }
 
@@ -578,6 +598,18 @@ struct MobilitySessionView: View {
         compensationsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
             ($0.id, evidence[$0.id]?.compensationKeys ?? [])
         })
+        breathingCyclesByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
+            let record = evidence[$0.id]
+            return ($0.id, record?.performedBreathingCycles ?? record?.breathingPrescriptionSnapshot?.targetBreaths ?? 0)
+        })
+        assistanceLevelsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
+            let record = evidence[$0.id]
+            return ($0.id, record?.performedAssistanceLevel ?? record?.assistancePrescriptionSnapshot?.level ?? 0)
+        })
+        supportLevelsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
+            let record = evidence[$0.id]
+            return ($0.id, record?.performedSupportLevelRaw ?? record?.supportLevelSnapshotRaw ?? "")
+        })
         if let phase = entry.currentPhaseResult {
             phaseDurationsByResult = [
                 phase.id: phase.performedDurationSeconds ?? elapsedSeconds(for: entry)
@@ -614,6 +646,9 @@ struct MobilitySessionView: View {
             sensation: sensation(for: phase.side),
             movementQuality: movementQuality(for: phase.side),
             compensationKeys: compensationKeys(for: phase.side),
+            performedBreathingCycles: breathingCycles(for: phase.side),
+            performedAssistanceLevel: assistanceLevel(for: phase.side),
+            performedSupportLevel: supportLevel(for: phase.side),
             using: modelContext
         )
         switch outcome {
@@ -645,6 +680,9 @@ struct MobilitySessionView: View {
                 sensation: sensation(for: phase.side),
                 movementQuality: movementQuality(for: phase.side),
                 compensationKeys: compensationKeys(for: phase.side),
+                performedBreathingCycles: breathingCycles(for: phase.side),
+                performedAssistanceLevel: assistanceLevel(for: phase.side),
+                performedSupportLevel: supportLevel(for: phase.side),
                 using: modelContext
             ),
             failureMessage: "The partial phase could not be saved. Try again."
@@ -748,7 +786,10 @@ struct MobilitySessionView: View {
                     discomfortNote: discomfortNotesByResult[result.id],
                     sensation: sensationsByResult[result.id].flatMap(MobilitySensation.init(rawValue:)),
                     movementQuality: qualitiesByResult[result.id].flatMap(MobilityMovementQuality.init(rawValue:)),
-                    compensationKeys: compensationsByResult[result.id] ?? []
+                    compensationKeys: compensationsByResult[result.id] ?? [],
+                    performedBreathingCycles: breathingCyclesValue(for: result.id),
+                    performedAssistanceLevel: assistanceLevelValue(for: result.id),
+                    performedSupportLevel: supportLevelsByResult[result.id].flatMap(MobilitySupportLevel.init(rawValue:))
                 )
             )
         })
@@ -811,6 +852,64 @@ struct MobilitySessionView: View {
 
     @ViewBuilder
     private func mobilityEvidenceInputs(resultID: UUID) -> some View {
+        let evidence = mobilityEvidenceByResultID[resultID]
+        if evidence?.breathingPrescriptionSnapshot != nil
+            || evidence?.assistancePrescriptionSnapshot != nil
+            || evidence?.supportLevelSnapshot != nil {
+            DisclosureGroup("Setup and breathing") {
+                if let breathing = evidence?.breathingPrescriptionSnapshot {
+                    if let targetBreaths = breathing.targetBreaths {
+                        Stepper(
+                            "Breathing cycles: \(breathingCyclesByResult[resultID, default: targetBreaths])",
+                            value: Binding(
+                                get: { breathingCyclesByResult[resultID] ?? targetBreaths },
+                                set: { breathingCyclesByResult[resultID] = $0 }
+                            ),
+                            in: 0...100
+                        )
+                    }
+                    if let inhale = breathing.inhaleSeconds, let exhale = breathing.exhaleSeconds {
+                        Text("Breathing pace: \(inhale) sec in · \(exhale) sec out")
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
+                }
+                if let assistance = evidence?.assistancePrescriptionSnapshot {
+                    Text(assistance.assistanceType?.displayName ?? assistance.assistanceTypeRaw)
+                        .font(AppFont.subheadlineSemibold)
+                    if let prescribedLevel = assistance.level {
+                        Stepper(
+                            "Assistance level: \(assistanceLevelsByResult[resultID, default: prescribedLevel])",
+                            value: Binding(
+                                get: { assistanceLevelsByResult[resultID] ?? prescribedLevel },
+                                set: { assistanceLevelsByResult[resultID] = $0 }
+                            ),
+                            in: 0...10
+                        )
+                    }
+                    if let equipment = assistance.equipmentRaw, equipment.isEmpty == false {
+                        Text(equipment)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
+                }
+                if evidence?.supportLevelSnapshot != nil {
+                    Picker("Support used", selection: Binding(
+                        get: { supportLevelsByResult[resultID] ?? "" },
+                        set: { supportLevelsByResult[resultID] = $0 }
+                    )) {
+                        Text("Not recorded").tag("")
+                        ForEach(MobilitySupportLevel.allCases) { support in
+                            Text(support.displayName).tag(support.rawValue)
+                        }
+                    }
+                    Text("Support is saved as comparison context, not as a score.")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+            }
+        }
+
         Picker("Sensation", selection: Binding(
             get: { sensationsByResult[resultID] ?? "" },
             set: { sensationsByResult[resultID] = $0 }
@@ -872,6 +971,9 @@ struct MobilitySessionView: View {
             resultID: resultID,
             movementQuality: quality,
             compensationKeys: compensationsByResult[resultID] ?? [],
+            performedBreathingCycles: breathingCyclesValue(for: resultID),
+            performedAssistanceLevel: assistanceLevelValue(for: resultID),
+            performedSupportLevel: supportLevelsByResult[resultID].flatMap(MobilitySupportLevel.init(rawValue:)),
             in: session,
             using: modelContext
         ) else {
@@ -895,5 +997,29 @@ struct MobilitySessionView: View {
 
     private func compensationKeys(for side: MobilitySide) -> Set<MobilityCompensationKey> {
         resultID(for: side).flatMap { compensationsByResult[$0] } ?? []
+    }
+
+    private func breathingCycles(for side: MobilitySide) -> Int? {
+        resultID(for: side).flatMap { breathingCyclesValue(for: $0) }
+    }
+
+    private func assistanceLevel(for side: MobilitySide) -> Int? {
+        resultID(for: side).flatMap { assistanceLevelValue(for: $0) }
+    }
+
+    private func supportLevel(for side: MobilitySide) -> MobilitySupportLevel? {
+        resultID(for: side)
+            .flatMap { supportLevelsByResult[$0] }
+            .flatMap(MobilitySupportLevel.init(rawValue:))
+    }
+
+    private func breathingCyclesValue(for resultID: UUID) -> Int? {
+        guard mobilityEvidenceByResultID[resultID]?.breathingPrescriptionSnapshot?.targetBreaths != nil else { return nil }
+        return breathingCyclesByResult[resultID]
+    }
+
+    private func assistanceLevelValue(for resultID: UUID) -> Int? {
+        guard mobilityEvidenceByResultID[resultID]?.assistancePrescriptionSnapshot?.level != nil else { return nil }
+        return assistanceLevelsByResult[resultID]
     }
 }
