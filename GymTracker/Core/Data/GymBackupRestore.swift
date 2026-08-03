@@ -1231,11 +1231,40 @@ extension BackupDTO {
                     )
                 }
                 if version >= Self.advancedMobilityEvidenceVersion,
-                   itemDTO.method != nil || itemDTO.trainingPurpose != nil {
+                   itemDTO.method != nil
+                    || itemDTO.trainingPurpose != nil
+                    || itemDTO.breathingPrescription != nil
+                    || itemDTO.tempoPrescription != nil
+                    || itemDTO.assistancePrescription != nil
+                    || itemDTO.supportLevel != nil {
                     let evidence = MobilityRoutineItemEvidence(
                         routineItemID: item.id,
                         method: itemDTO.method.flatMap(MobilityMethod.init(rawValue:)),
                         purpose: itemDTO.trainingPurpose.flatMap(MobilityTrainingPurpose.init(rawValue:)),
+                        breathingPrescription: itemDTO.breathingPrescription.map {
+                            MobilityBreathingPrescription(
+                                targetBreaths: $0.targetBreaths,
+                                inhaleSeconds: $0.inhaleSeconds,
+                                exhaleSeconds: $0.exhaleSeconds,
+                                instructionKey: $0.instructionKey
+                            )
+                        },
+                        tempoPrescription: itemDTO.tempoPrescription.map {
+                            MobilityTempoPrescription(
+                                moveIntoRangeSeconds: $0.moveIntoRangeSeconds,
+                                holdSeconds: $0.holdSeconds,
+                                returnSeconds: $0.returnSeconds,
+                                pauseSeconds: $0.pauseSeconds
+                            )
+                        },
+                        assistancePrescription: itemDTO.assistancePrescription.map {
+                            MobilityAssistancePrescription(
+                                assistanceTypeRaw: $0.assistanceType,
+                                level: $0.level,
+                                equipmentRaw: $0.equipment
+                            )
+                        },
+                        supportLevel: itemDTO.supportLevel.flatMap(MobilitySupportLevel.init(rawValue:)),
                         createdAt: routineDTO.createdAt,
                         updatedAt: routineDTO.updatedAt
                     )
@@ -1318,6 +1347,33 @@ extension BackupDTO {
                             side: resultSide,
                             methodSnapshot: resultDTO.methodSnapshot.flatMap(MobilityMethod.init(rawValue:)),
                             purposeSnapshot: resultDTO.trainingPurposeSnapshot.flatMap(MobilityTrainingPurpose.init(rawValue:)),
+                            breathingPrescriptionSnapshot: resultDTO.breathingPrescriptionSnapshot.map {
+                                MobilityBreathingPrescription(
+                                    targetBreaths: $0.targetBreaths,
+                                    inhaleSeconds: $0.inhaleSeconds,
+                                    exhaleSeconds: $0.exhaleSeconds,
+                                    instructionKey: $0.instructionKey
+                                )
+                            },
+                            tempoPrescriptionSnapshot: resultDTO.tempoPrescriptionSnapshot.map {
+                                MobilityTempoPrescription(
+                                    moveIntoRangeSeconds: $0.moveIntoRangeSeconds,
+                                    holdSeconds: $0.holdSeconds,
+                                    returnSeconds: $0.returnSeconds,
+                                    pauseSeconds: $0.pauseSeconds
+                                )
+                            },
+                            assistancePrescriptionSnapshot: resultDTO.assistancePrescriptionSnapshot.map {
+                                MobilityAssistancePrescription(
+                                    assistanceTypeRaw: $0.assistanceType,
+                                    level: $0.level,
+                                    equipmentRaw: $0.equipment
+                                )
+                            },
+                            supportLevelSnapshot: resultDTO.supportLevelSnapshot.flatMap(MobilitySupportLevel.init(rawValue:)),
+                            performedBreathingCycles: resultDTO.performedBreathingCycles,
+                            performedAssistanceLevel: resultDTO.performedAssistanceLevel,
+                            performedSupportLevel: resultDTO.performedSupportLevel.flatMap(MobilitySupportLevel.init(rawValue:)),
                             sensation: resultDTO.sensation.flatMap(MobilitySensation.init(rawValue:)),
                             movementQuality: resultDTO.movementQuality.flatMap(MobilityMovementQuality.init(rawValue:)),
                             compensationKeys: Set((resultDTO.compensationKeys ?? []).compactMap(MobilityCompensationKey.init(rawValue:))),

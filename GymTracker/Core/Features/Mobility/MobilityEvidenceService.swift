@@ -31,6 +31,10 @@ enum MobilityEvidenceService {
         for routineItemID: UUID,
         method: MobilityMethod?,
         purpose: MobilityTrainingPurpose?,
+        breathingPrescription: MobilityBreathingPrescription? = nil,
+        tempoPrescription: MobilityTempoPrescription? = nil,
+        assistancePrescription: MobilityAssistancePrescription? = nil,
+        supportLevel: MobilitySupportLevel? = nil,
         now: Date = .now,
         using modelContext: ModelContext
     ) -> Bool {
@@ -38,11 +42,20 @@ enum MobilityEvidenceService {
             predicate: #Predicate { $0.routineItemID == routineItemID }
         )
         let existing = (try? modelContext.fetch(descriptor))?.first
-        if method == nil, purpose == nil {
+        if method == nil,
+           purpose == nil,
+           breathingPrescription?.isEmpty != false,
+           tempoPrescription?.isEmpty != false,
+           assistancePrescription == nil,
+           supportLevel == nil {
             if let existing { modelContext.delete(existing) }
         } else if let existing {
             existing.method = method
             existing.purpose = purpose
+            existing.breathingPrescription = breathingPrescription
+            existing.tempoPrescription = tempoPrescription
+            existing.assistancePrescription = assistancePrescription
+            existing.supportLevel = supportLevel
             existing.updatedAt = now
         } else {
             modelContext.insert(
@@ -50,6 +63,10 @@ enum MobilityEvidenceService {
                     routineItemID: routineItemID,
                     method: method,
                     purpose: purpose,
+                    breathingPrescription: breathingPrescription,
+                    tempoPrescription: tempoPrescription,
+                    assistancePrescription: assistancePrescription,
+                    supportLevel: supportLevel,
                     createdAt: now,
                     updatedAt: now
                 )
@@ -73,6 +90,9 @@ enum MobilityEvidenceService {
         evidence.sensation = input.sensation
         evidence.movementQuality = input.movementQuality
         evidence.compensationKeys = input.compensationKeys
+        evidence.performedBreathingCycles = input.performedBreathingCycles
+        evidence.performedAssistanceLevel = input.performedAssistanceLevel
+        evidence.performedSupportLevel = input.performedSupportLevel
         evidence.recordedAt = .now
     }
 

@@ -933,7 +933,11 @@ extension BackupDTO {
                       item.targetRepetitions.map({ $0 > 0 }) ?? true,
                       item.restSeconds.map({ $0 >= 0 }) ?? true,
                       item.method.map({ MobilityMethod(rawValue: $0) != nil }) ?? true,
-                      item.trainingPurpose.map({ MobilityTrainingPurpose(rawValue: $0) != nil }) ?? true else {
+                      item.trainingPurpose.map({ MobilityTrainingPurpose(rawValue: $0) != nil }) ?? true,
+                      isValid(item.breathingPrescription),
+                      isValid(item.tempoPrescription),
+                      isValid(item.assistancePrescription),
+                      item.supportLevel.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true else {
                     throw BackupValidationError.invalidIdentifier("mobility routine item")
                 }
                 let phases = item.phases ?? []
@@ -1009,7 +1013,14 @@ extension BackupDTO {
                           result.sensation.map({ MobilitySensation(rawValue: $0) != nil }) ?? true,
                           result.movementQuality.map({ MobilityMovementQuality(rawValue: $0) != nil }) ?? true,
                           (result.compensationKeys ?? []).allSatisfy({ MobilityCompensationKey(rawValue: $0) != nil }),
-                          Set(result.compensationKeys ?? []).count == (result.compensationKeys ?? []).count else {
+                          Set(result.compensationKeys ?? []).count == (result.compensationKeys ?? []).count,
+                          isValid(result.breathingPrescriptionSnapshot),
+                          isValid(result.tempoPrescriptionSnapshot),
+                          isValid(result.assistancePrescriptionSnapshot),
+                          result.supportLevelSnapshot.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true,
+                          result.performedBreathingCycles.map({ $0 >= 0 }) ?? true,
+                          result.performedAssistanceLevel.map({ $0 >= 0 }) ?? true,
+                          result.performedSupportLevel.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true else {
                         throw BackupValidationError.invalidIdentifier("mobility result")
                     }
                     if let sensation = result.sensation.flatMap(MobilitySensation.init(rawValue:)),
@@ -1446,5 +1457,32 @@ extension BackupDTO {
                 throw BackupValidationError.duplicateIdentifier(name)
             }
         }
+    }
+
+    private func isValid(_ prescription: MobilityBreathingPrescriptionDTO?) -> Bool {
+        guard let prescription else { return true }
+        let values = [prescription.targetBreaths, prescription.inhaleSeconds, prescription.exhaleSeconds]
+        let hasInstruction = prescription.instructionKey?
+            .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        let hasContent = values.contains(where: { $0 != nil }) || hasInstruction
+        return hasContent && values.allSatisfy { $0.map({ $0 > 0 }) ?? true }
+    }
+
+    private func isValid(_ prescription: MobilityTempoPrescriptionDTO?) -> Bool {
+        guard let prescription else { return true }
+        let values = [
+            prescription.moveIntoRangeSeconds,
+            prescription.holdSeconds,
+            prescription.returnSeconds,
+            prescription.pauseSeconds
+        ]
+        return values.contains(where: { $0 != nil })
+            && values.allSatisfy { $0.map({ $0 > 0 }) ?? true }
+    }
+
+    private func isValid(_ prescription: MobilityAssistancePrescriptionDTO?) -> Bool {
+        guard let prescription else { return true }
+        return MobilityAssistanceType(rawValue: prescription.assistanceType) != nil
+            && (prescription.level.map({ $0 >= 0 }) ?? true)
     }
 }

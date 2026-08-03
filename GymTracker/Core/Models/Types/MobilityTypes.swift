@@ -96,6 +96,88 @@ enum MobilityResistanceMode: String, Codable, CaseIterable, Hashable {
     case bandAssistance
 }
 
+/// A breath-led target remains part of the movement prescription. The
+/// performed result records only the breaths actually completed; it never
+/// turns an unperformed target into evidence.
+struct MobilityBreathingPrescription: Codable, Hashable {
+    var targetBreaths: Int?
+    var inhaleSeconds: Int?
+    var exhaleSeconds: Int?
+    var instructionKey: String?
+
+    var isEmpty: Bool {
+        targetBreaths == nil && inhaleSeconds == nil && exhaleSeconds == nil
+            && instructionKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
+    }
+}
+
+struct MobilityTempoPrescription: Codable, Hashable {
+    var moveIntoRangeSeconds: Int?
+    var holdSeconds: Int?
+    var returnSeconds: Int?
+    var pauseSeconds: Int?
+
+    var isEmpty: Bool {
+        moveIntoRangeSeconds == nil && holdSeconds == nil
+            && returnSeconds == nil && pauseSeconds == nil
+    }
+}
+
+enum MobilityAssistanceType: String, Codable, CaseIterable, Hashable, Identifiable {
+    case blocks
+    case strap
+    case band
+    case wall
+    case partner
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .blocks: String(localized: "Blocks")
+        case .strap: String(localized: "Strap")
+        case .band: String(localized: "Band")
+        case .wall: String(localized: "Wall")
+        case .partner: String(localized: "Partner")
+        }
+    }
+}
+
+/// Optional external help used to perform a mobility prescription. `level`
+/// is an authored ordinal within the named assistance type, not a score that
+/// can be compared across equipment or movements.
+struct MobilityAssistancePrescription: Codable, Hashable {
+    var assistanceTypeRaw: String
+    var level: Int?
+    var equipmentRaw: String?
+
+    var assistanceType: MobilityAssistanceType? {
+        MobilityAssistanceType(rawValue: assistanceTypeRaw)
+    }
+}
+
+/// Concrete setup context used by support ladders. These cases are deliberately
+/// descriptive rather than clinical and are never averaged into a score.
+enum MobilitySupportLevel: String, Codable, CaseIterable, Hashable, Identifiable {
+    case highBlocks
+    case mediumBlocks
+    case lowBlocks
+    case fingertipSupport
+    case unsupported
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .highBlocks: String(localized: "High blocks")
+        case .mediumBlocks: String(localized: "Medium blocks")
+        case .lowBlocks: String(localized: "Low blocks")
+        case .fingertipSupport: String(localized: "Fingertip support")
+        case .unsupported: String(localized: "Unsupported")
+        }
+    }
+}
+
 /// How a mobility prescription is intended to create or control range.
 /// Unknown future raw values remain stored by evidence records and resolve to
 /// `nil` rather than being silently reinterpreted by an older build.

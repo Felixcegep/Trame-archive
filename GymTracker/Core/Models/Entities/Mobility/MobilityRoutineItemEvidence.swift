@@ -11,6 +11,10 @@ final class MobilityRoutineItemEvidence {
     @Attribute(.unique) var routineItemID: UUID
     var methodRaw: String?
     var purposeRaw: String?
+    var breathingPrescriptionData: Data?
+    var tempoPrescriptionData: Data?
+    var assistancePrescriptionData: Data?
+    var supportLevelRaw: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -24,10 +28,34 @@ final class MobilityRoutineItemEvidence {
         set { purposeRaw = newValue?.rawValue }
     }
 
+    var breathingPrescription: MobilityBreathingPrescription? {
+        get { Self.decode(MobilityBreathingPrescription.self, from: breathingPrescriptionData) }
+        set { breathingPrescriptionData = Self.encode(newValue?.isEmpty == false ? newValue : nil) }
+    }
+
+    var tempoPrescription: MobilityTempoPrescription? {
+        get { Self.decode(MobilityTempoPrescription.self, from: tempoPrescriptionData) }
+        set { tempoPrescriptionData = Self.encode(newValue?.isEmpty == false ? newValue : nil) }
+    }
+
+    var assistancePrescription: MobilityAssistancePrescription? {
+        get { Self.decode(MobilityAssistancePrescription.self, from: assistancePrescriptionData) }
+        set { assistancePrescriptionData = Self.encode(newValue) }
+    }
+
+    var supportLevel: MobilitySupportLevel? {
+        get { supportLevelRaw.flatMap(MobilitySupportLevel.init(rawValue:)) }
+        set { supportLevelRaw = newValue?.rawValue }
+    }
+
     init(
         routineItemID: UUID,
         method: MobilityMethod? = nil,
         purpose: MobilityTrainingPurpose? = nil,
+        breathingPrescription: MobilityBreathingPrescription? = nil,
+        tempoPrescription: MobilityTempoPrescription? = nil,
+        assistancePrescription: MobilityAssistancePrescription? = nil,
+        supportLevel: MobilitySupportLevel? = nil,
         id: UUID = UUID(),
         createdAt: Date = .now,
         updatedAt: Date = .now
@@ -36,7 +64,23 @@ final class MobilityRoutineItemEvidence {
         self.routineItemID = routineItemID
         self.methodRaw = method?.rawValue
         self.purposeRaw = purpose?.rawValue
+        self.breathingPrescriptionData = nil
+        self.tempoPrescriptionData = nil
+        self.assistancePrescriptionData = nil
+        self.supportLevelRaw = supportLevel?.rawValue
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.breathingPrescription = breathingPrescription
+        self.tempoPrescription = tempoPrescription
+        self.assistancePrescription = assistancePrescription
+    }
+
+    private static func encode<Value: Encodable>(_ value: Value?) -> Data? {
+        value.flatMap { try? JSONEncoder().encode($0) }
+    }
+
+    private static func decode<Value: Decodable>(_ type: Value.Type, from data: Data?) -> Value? {
+        guard let data else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
     }
 }

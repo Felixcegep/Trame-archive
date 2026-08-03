@@ -760,7 +760,31 @@ extension BackupDTO {
                             )
                         },
                         method: mobilityPrescriptionEvidence[item.id]?.methodRaw,
-                        trainingPurpose: mobilityPrescriptionEvidence[item.id]?.purposeRaw
+                        trainingPurpose: mobilityPrescriptionEvidence[item.id]?.purposeRaw,
+                        breathingPrescription: mobilityPrescriptionEvidence[item.id]?.breathingPrescription.map {
+                            MobilityBreathingPrescriptionDTO(
+                                targetBreaths: $0.targetBreaths,
+                                inhaleSeconds: $0.inhaleSeconds,
+                                exhaleSeconds: $0.exhaleSeconds,
+                                instructionKey: $0.instructionKey
+                            )
+                        },
+                        tempoPrescription: mobilityPrescriptionEvidence[item.id]?.tempoPrescription.map {
+                            MobilityTempoPrescriptionDTO(
+                                moveIntoRangeSeconds: $0.moveIntoRangeSeconds,
+                                holdSeconds: $0.holdSeconds,
+                                returnSeconds: $0.returnSeconds,
+                                pauseSeconds: $0.pauseSeconds
+                            )
+                        },
+                        assistancePrescription: mobilityPrescriptionEvidence[item.id]?.assistancePrescription.map {
+                            MobilityAssistancePrescriptionDTO(
+                                assistanceType: $0.assistanceTypeRaw,
+                                level: $0.level,
+                                equipment: $0.equipmentRaw
+                            )
+                        },
+                        supportLevel: mobilityPrescriptionEvidence[item.id]?.supportLevelRaw
                     )
                 },
                 // Do not export an unrecognized raw value from a future build:
@@ -822,7 +846,34 @@ extension BackupDTO {
                                 trainingPurposeSnapshot: evidence?.purposeSnapshotRaw,
                                 sensation: evidence?.sensationRaw,
                                 movementQuality: evidence?.movementQualityRaw,
-                                compensationKeys: evidence?.compensationKeys.map(\.rawValue).sorted()
+                                compensationKeys: evidence?.compensationKeys.map(\.rawValue).sorted(),
+                                breathingPrescriptionSnapshot: evidence?.breathingPrescriptionSnapshot.map {
+                                    MobilityBreathingPrescriptionDTO(
+                                        targetBreaths: $0.targetBreaths,
+                                        inhaleSeconds: $0.inhaleSeconds,
+                                        exhaleSeconds: $0.exhaleSeconds,
+                                        instructionKey: $0.instructionKey
+                                    )
+                                },
+                                tempoPrescriptionSnapshot: evidence?.tempoPrescriptionSnapshot.map {
+                                    MobilityTempoPrescriptionDTO(
+                                        moveIntoRangeSeconds: $0.moveIntoRangeSeconds,
+                                        holdSeconds: $0.holdSeconds,
+                                        returnSeconds: $0.returnSeconds,
+                                        pauseSeconds: $0.pauseSeconds
+                                    )
+                                },
+                                assistancePrescriptionSnapshot: evidence?.assistancePrescriptionSnapshot.map {
+                                    MobilityAssistancePrescriptionDTO(
+                                        assistanceType: $0.assistanceTypeRaw,
+                                        level: $0.level,
+                                        equipment: $0.equipmentRaw
+                                    )
+                                },
+                                supportLevelSnapshot: evidence?.supportLevelSnapshotRaw,
+                                performedBreathingCycles: evidence?.performedBreathingCycles,
+                                performedAssistanceLevel: evidence?.performedAssistanceLevel,
+                                performedSupportLevel: evidence?.performedSupportLevelRaw
                             )
                         },
                         phaseResults: entry.orderedPhaseResults.map { phaseResult in

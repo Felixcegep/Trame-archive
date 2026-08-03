@@ -688,6 +688,26 @@ nonisolated struct MobilityPhasePrescriptionDTO: Codable {
     let side: String
 }
 
+nonisolated struct MobilityBreathingPrescriptionDTO: Codable {
+    let targetBreaths: Int?
+    let inhaleSeconds: Int?
+    let exhaleSeconds: Int?
+    let instructionKey: String?
+}
+
+nonisolated struct MobilityTempoPrescriptionDTO: Codable {
+    let moveIntoRangeSeconds: Int?
+    let holdSeconds: Int?
+    let returnSeconds: Int?
+    let pauseSeconds: Int?
+}
+
+nonisolated struct MobilityAssistancePrescriptionDTO: Codable {
+    let assistanceType: String
+    let level: Int?
+    let equipment: String?
+}
+
 nonisolated struct MobilityRoutineItemDTO: Codable {
     let id: String
     let definitionID: String
@@ -703,6 +723,10 @@ nonisolated struct MobilityRoutineItemDTO: Codable {
     var phases: [MobilityPhasePrescriptionDTO]? = nil
     var method: String? = nil
     var trainingPurpose: String? = nil
+    var breathingPrescription: MobilityBreathingPrescriptionDTO? = nil
+    var tempoPrescription: MobilityTempoPrescriptionDTO? = nil
+    var assistancePrescription: MobilityAssistancePrescriptionDTO? = nil
+    var supportLevel: String? = nil
 }
 
 nonisolated struct MobilityRoutineDTO: Codable {
@@ -750,6 +774,13 @@ nonisolated struct MobilityResultDTO: Codable {
     var sensation: String? = nil
     var movementQuality: String? = nil
     var compensationKeys: [String]? = nil
+    var breathingPrescriptionSnapshot: MobilityBreathingPrescriptionDTO? = nil
+    var tempoPrescriptionSnapshot: MobilityTempoPrescriptionDTO? = nil
+    var assistancePrescriptionSnapshot: MobilityAssistancePrescriptionDTO? = nil
+    var supportLevelSnapshot: String? = nil
+    var performedBreathingCycles: Int? = nil
+    var performedAssistanceLevel: Int? = nil
+    var performedSupportLevel: String? = nil
 }
 
 nonisolated struct MobilityEntryDTO: Codable {

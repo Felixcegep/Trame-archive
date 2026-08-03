@@ -11,6 +11,13 @@ final class MobilityResultEvidence {
     var sideRaw: String
     var methodSnapshotRaw: String?
     var purposeSnapshotRaw: String?
+    var breathingPrescriptionSnapshotData: Data?
+    var tempoPrescriptionSnapshotData: Data?
+    var assistancePrescriptionSnapshotData: Data?
+    var supportLevelSnapshotRaw: String?
+    var performedBreathingCycles: Int?
+    var performedAssistanceLevel: Int?
+    var performedSupportLevelRaw: String?
     var sensationRaw: String?
     var movementQualityRaw: String?
     var compensationKeysData: Data?
@@ -26,6 +33,27 @@ final class MobilityResultEvidence {
 
     var purposeSnapshot: MobilityTrainingPurpose? {
         purposeSnapshotRaw.flatMap(MobilityTrainingPurpose.init(rawValue:))
+    }
+
+    var breathingPrescriptionSnapshot: MobilityBreathingPrescription? {
+        Self.decode(MobilityBreathingPrescription.self, from: breathingPrescriptionSnapshotData)
+    }
+
+    var tempoPrescriptionSnapshot: MobilityTempoPrescription? {
+        Self.decode(MobilityTempoPrescription.self, from: tempoPrescriptionSnapshotData)
+    }
+
+    var assistancePrescriptionSnapshot: MobilityAssistancePrescription? {
+        Self.decode(MobilityAssistancePrescription.self, from: assistancePrescriptionSnapshotData)
+    }
+
+    var supportLevelSnapshot: MobilitySupportLevel? {
+        supportLevelSnapshotRaw.flatMap(MobilitySupportLevel.init(rawValue:))
+    }
+
+    var performedSupportLevel: MobilitySupportLevel? {
+        get { performedSupportLevelRaw.flatMap(MobilitySupportLevel.init(rawValue:)) }
+        set { performedSupportLevelRaw = newValue?.rawValue }
     }
 
     var sensation: MobilitySensation? {
@@ -65,6 +93,13 @@ final class MobilityResultEvidence {
         side: MobilitySide,
         methodSnapshot: MobilityMethod?,
         purposeSnapshot: MobilityTrainingPurpose?,
+        breathingPrescriptionSnapshot: MobilityBreathingPrescription? = nil,
+        tempoPrescriptionSnapshot: MobilityTempoPrescription? = nil,
+        assistancePrescriptionSnapshot: MobilityAssistancePrescription? = nil,
+        supportLevelSnapshot: MobilitySupportLevel? = nil,
+        performedBreathingCycles: Int? = nil,
+        performedAssistanceLevel: Int? = nil,
+        performedSupportLevel: MobilitySupportLevel? = nil,
         sensation: MobilitySensation? = nil,
         movementQuality: MobilityMovementQuality? = nil,
         compensationKeys: Set<MobilityCompensationKey> = [],
@@ -77,10 +112,45 @@ final class MobilityResultEvidence {
         self.sideRaw = side.rawValue
         self.methodSnapshotRaw = methodSnapshot?.rawValue
         self.purposeSnapshotRaw = purposeSnapshot?.rawValue
+        self.breathingPrescriptionSnapshotData = Self.encode(breathingPrescriptionSnapshot)
+        self.tempoPrescriptionSnapshotData = Self.encode(tempoPrescriptionSnapshot)
+        self.assistancePrescriptionSnapshotData = Self.encode(assistancePrescriptionSnapshot)
+        self.supportLevelSnapshotRaw = supportLevelSnapshot?.rawValue
+        self.performedBreathingCycles = performedBreathingCycles
+        self.performedAssistanceLevel = performedAssistanceLevel
+        self.performedSupportLevelRaw = performedSupportLevel?.rawValue
         self.sensationRaw = sensation?.rawValue
         self.movementQualityRaw = movementQuality?.rawValue
         self.compensationKeysData = nil
         self.recordedAt = recordedAt
         self.compensationKeys = compensationKeys
+    }
+
+    /// Support and assistance are comparison conditions, not outcomes.
+    func isComparable(to currentPrescription: MobilityResultEvidence?) -> Bool {
+        guard let currentPrescription else {
+            return methodSnapshotRaw == nil
+                && purposeSnapshotRaw == nil
+                && supportLevelSnapshotRaw == nil
+                && assistancePrescriptionSnapshot == nil
+        }
+        let priorSupport = performedSupportLevelRaw ?? supportLevelSnapshotRaw
+        var priorAssistance = assistancePrescriptionSnapshot
+        if performedAssistanceLevel != nil {
+            priorAssistance?.level = performedAssistanceLevel
+        }
+        return methodSnapshotRaw == currentPrescription.methodSnapshotRaw
+            && purposeSnapshotRaw == currentPrescription.purposeSnapshotRaw
+            && priorSupport == currentPrescription.supportLevelSnapshotRaw
+            && priorAssistance == currentPrescription.assistancePrescriptionSnapshot
+    }
+
+    private static func encode<Value: Encodable>(_ value: Value?) -> Data? {
+        value.flatMap { try? JSONEncoder().encode($0) }
+    }
+
+    private static func decode<Value: Decodable>(_ type: Value.Type, from data: Data?) -> Value? {
+        guard let data else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
     }
 }

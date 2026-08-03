@@ -11,6 +11,9 @@ struct MobilityResultInput {
     var sensation: MobilitySensation?
     var movementQuality: MobilityMovementQuality?
     var compensationKeys: Set<MobilityCompensationKey>
+    var performedBreathingCycles: Int?
+    var performedAssistanceLevel: Int?
+    var performedSupportLevel: MobilitySupportLevel?
 
     init(
         performedDurationSeconds: Int? = nil,
@@ -21,7 +24,10 @@ struct MobilityResultInput {
         discomfortNote: String? = nil,
         sensation: MobilitySensation? = nil,
         movementQuality: MobilityMovementQuality? = nil,
-        compensationKeys: Set<MobilityCompensationKey> = []
+        compensationKeys: Set<MobilityCompensationKey> = [],
+        performedBreathingCycles: Int? = nil,
+        performedAssistanceLevel: Int? = nil,
+        performedSupportLevel: MobilitySupportLevel? = nil
     ) {
         self.performedDurationSeconds = performedDurationSeconds
         self.performedRepetitions = performedRepetitions
@@ -32,6 +38,9 @@ struct MobilityResultInput {
         self.sensation = sensation
         self.movementQuality = movementQuality
         self.compensationKeys = compensationKeys
+        self.performedBreathingCycles = performedBreathingCycles
+        self.performedAssistanceLevel = performedAssistanceLevel
+        self.performedSupportLevel = performedSupportLevel
     }
 }
 
@@ -110,6 +119,10 @@ enum MobilitySessionService {
                         side: result.side,
                         methodSnapshot: prescription?.method,
                         purposeSnapshot: prescription?.purpose,
+                        breathingPrescriptionSnapshot: prescription?.breathingPrescription,
+                        tempoPrescriptionSnapshot: prescription?.tempoPrescription,
+                        assistancePrescriptionSnapshot: prescription?.assistancePrescription,
+                        supportLevelSnapshot: prescription?.supportLevel,
                         recordedAt: now
                     )
                 )
@@ -257,6 +270,9 @@ enum MobilitySessionService {
         sensation: MobilitySensation? = nil,
         movementQuality: MobilityMovementQuality? = nil,
         compensationKeys: Set<MobilityCompensationKey> = [],
+        performedBreathingCycles: Int? = nil,
+        performedAssistanceLevel: Int? = nil,
+        performedSupportLevel: MobilitySupportLevel? = nil,
         now: Date = .now,
         using modelContext: ModelContext
     ) -> MobilityPhaseCompletionOutcome {
@@ -268,6 +284,9 @@ enum MobilitySessionService {
             sensation: sensation,
             movementQuality: movementQuality,
             compensationKeys: compensationKeys,
+            performedBreathingCycles: performedBreathingCycles,
+            performedAssistanceLevel: performedAssistanceLevel,
+            performedSupportLevel: performedSupportLevel,
             now: now,
             using: modelContext
         )
@@ -281,6 +300,9 @@ enum MobilitySessionService {
         sensation: MobilitySensation? = nil,
         movementQuality: MobilityMovementQuality? = nil,
         compensationKeys: Set<MobilityCompensationKey> = [],
+        performedBreathingCycles: Int? = nil,
+        performedAssistanceLevel: Int? = nil,
+        performedSupportLevel: MobilitySupportLevel? = nil,
         now: Date = .now,
         using modelContext: ModelContext
     ) -> MobilityPhaseCompletionOutcome {
@@ -292,6 +314,9 @@ enum MobilitySessionService {
             sensation: sensation,
             movementQuality: movementQuality,
             compensationKeys: compensationKeys,
+            performedBreathingCycles: performedBreathingCycles,
+            performedAssistanceLevel: performedAssistanceLevel,
+            performedSupportLevel: performedSupportLevel,
             now: now,
             using: modelContext
         )
@@ -311,6 +336,9 @@ enum MobilitySessionService {
             sensation: nil,
             movementQuality: nil,
             compensationKeys: [],
+            performedBreathingCycles: nil,
+            performedAssistanceLevel: nil,
+            performedSupportLevel: nil,
             now: now,
             using: modelContext
         )
@@ -324,11 +352,18 @@ enum MobilitySessionService {
         sensation: MobilitySensation?,
         movementQuality: MobilityMovementQuality?,
         compensationKeys: Set<MobilityCompensationKey>,
+        performedBreathingCycles: Int?,
+        performedAssistanceLevel: Int?,
+        performedSupportLevel: MobilitySupportLevel?,
         now: Date,
         using modelContext: ModelContext
     ) -> MobilityPhaseCompletionOutcome {
         guard sensation?.isStopSignal != true else { return .stopSignalRequiresStop }
         guard performedDurationSeconds.map({ $0 >= 0 }) ?? true else {
+            return .invalidPerformedDuration
+        }
+        guard performedBreathingCycles.map({ $0 >= 0 }) ?? true,
+              performedAssistanceLevel.map({ $0 >= 0 }) ?? true else {
             return .invalidPerformedDuration
         }
         let snapshot = flowSnapshot(for: session)
@@ -355,7 +390,10 @@ enum MobilitySessionService {
                 MobilityResultInput(
                     sensation: sensation,
                     movementQuality: movementQuality,
-                    compensationKeys: compensationKeys
+                    compensationKeys: compensationKeys,
+                    performedBreathingCycles: performedBreathingCycles,
+                    performedAssistanceLevel: performedAssistanceLevel,
+                    performedSupportLevel: performedSupportLevel
                 ),
                 to: sideResult,
                 using: modelContext
@@ -579,6 +617,9 @@ enum MobilitySessionService {
         resultID: UUID,
         movementQuality: MobilityMovementQuality? = nil,
         compensationKeys: Set<MobilityCompensationKey> = [],
+        performedBreathingCycles: Int? = nil,
+        performedAssistanceLevel: Int? = nil,
+        performedSupportLevel: MobilitySupportLevel? = nil,
         in session: MobilitySession,
         using modelContext: ModelContext
     ) -> Bool {
@@ -590,7 +631,10 @@ enum MobilitySessionService {
             MobilityResultInput(
                 sensation: sensation,
                 movementQuality: movementQuality,
-                compensationKeys: compensationKeys
+                compensationKeys: compensationKeys,
+                performedBreathingCycles: performedBreathingCycles,
+                performedAssistanceLevel: performedAssistanceLevel,
+                performedSupportLevel: performedSupportLevel
             ),
             to: result,
             using: modelContext
