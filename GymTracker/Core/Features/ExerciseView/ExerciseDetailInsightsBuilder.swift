@@ -78,6 +78,14 @@ enum ExerciseDetailInsightsBuilder {
                     context: "From \(Formatters.formatFloat($0.sourceWeight)) \($0.unit.rawValue) × \(Formatters.formatFloat($0.sourceRepetitions)) on \($0.workoutDate.formatted(date: .abbreviated, time: .omitted))"
                 )
             },
+            // `bestLoadSet` has no rep ceiling, so its presence with no e1RM
+            // estimate means every logged working set exceeded the estimate's
+            // rep ceiling (or was otherwise excluded) — never that the
+            // exercise has no load history at all. Name that reason instead
+            // of letting the section silently vanish.
+            estimatedOneRepMaxUnavailableReason: (analytics.estimatedOneRepMax == nil && analytics.bestLoadSet != nil)
+                ? "No estimate yet — needs a completed set of \(Int(ExerciseDetailAnalyticsService.e1RMMaxRepetitions)) reps or fewer."
+                : nil,
             volumePoints: volumePoints,
             changeSummary: StrengthInsightPresentationPolicy.changeSummary(for: analytics),
             volumeTakeaway: StrengthInsightPresentationPolicy.volumeTakeaway(

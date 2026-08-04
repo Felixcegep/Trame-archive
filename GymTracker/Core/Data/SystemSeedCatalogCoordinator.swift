@@ -4,7 +4,16 @@ import SwiftData
 @MainActor
 enum SystemSeedCatalogCoordinator {
     static let seedVersion = 1
-    static let contentVersion = 15
+    // 16: fixed the ExerciseSeedData/ExerciseCatalogSeedData dedupe filter
+    // (exact-string match let "Pull Up" and "Pull-Up" both ship as separate
+    // exercises) and retired the resulting shipped duplicates; corrected
+    // Tibialis Raise, Assisted Push-Up, Assisted Dip, and Scapular Pull-Up
+    // off `.weightAndReps` onto `.repsOnly` to match their bodyweight
+    // resistanceType. Existing installs below this version still have the
+    // stale duplicate/misclassified records and need `needsInstallation`
+    // to trigger a reinstall so `ExerciseSystemSeedInstaller` can apply
+    // both the corrected fields and the duplicate retirement.
+    static let contentVersion = 16
 
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.

@@ -70,6 +70,8 @@ struct ExerciseDetailInsightsView: View {
 
                 if let estimatedOneRepMax = model.estimatedOneRepMax {
                     EstimatedOneRepMaxSection(metric: estimatedOneRepMax)
+                } else if let reason = model.estimatedOneRepMaxUnavailableReason {
+                    EstimatedOneRepMaxUnavailableSection(reason: reason)
                 }
 
                 if !model.notes.isEmpty {
@@ -318,7 +320,11 @@ private struct EstimatedOneRepMaxSection: View {
                         .font(AppFont.titleSmall)
                         .foregroundStyle(Color.gymPrimary)
                 }
-                Text("Estimate from completed historical sets, not a tested maximum.")
+                // Names this a calculated estimate, not a measured max, and
+                // does not compare it against an earlier estimate — a change
+                // here reflects a change in the formula's input set, not a
+                // confirmed change in maximal strength.
+                Text("Estimate from your best qualifying working set, not a tested maximum.")
                     .font(AppFont.subheadline)
                 if let context = metric.context {
                     Text(context)
@@ -326,6 +332,21 @@ private struct EstimatedOneRepMaxSection: View {
                         .foregroundStyle(Color.gymSubduedText)
                 }
             }
+        }
+    }
+}
+
+private struct EstimatedOneRepMaxUnavailableSection: View {
+    let reason: String
+
+    var body: some View {
+        InsightSection(title: "Estimated 1RM", identifier: "exercise-insights-estimated-1rm") {
+            GymCard {
+                Text(reason)
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+            .accessibilityIdentifier("exercise-insights-estimated-1rm-unavailable")
         }
     }
 }

@@ -55,11 +55,17 @@ enum ExerciseRelationshipSeedData {
         "\(sourceID.uuidString)|\(targetID.uuidString)|\(type.rawValue)"
     }
 
+    // "Assisted Pull Up" / "Pull Up" below (unpunctuated) are deliberate:
+    // they're the legacy seed spelling ExerciseSeedData.templates() keeps
+    // after deduping against ExerciseCatalogSeedData's hyphenated
+    // "Assisted Pull-Up"/"Pull-Up", which no longer exist as seeded
+    // Exercise names. "Neutral-Grip Pull-Up" and "Weighted Pull-Up" have no
+    // legacy counterpart, so they keep their catalog spelling unchanged.
     static let definitions: [Definition] = [
-        .init(source: "Assisted Pull-Up", target: "Neutral-Grip Pull-Up", type: .progression),
-        .init(source: "Neutral-Grip Pull-Up", target: "Pull-Up", type: .progression),
-        .init(source: "Pull-Up", target: "Weighted Pull-Up", type: .progression),
-        .init(source: "Pull-Up", target: "Neutral-Grip Pull-Up", type: .regression),
+        .init(source: "Assisted Pull Up", target: "Neutral-Grip Pull-Up", type: .progression),
+        .init(source: "Neutral-Grip Pull-Up", target: "Pull Up", type: .progression),
+        .init(source: "Pull Up", target: "Weighted Pull-Up", type: .progression),
+        .init(source: "Pull Up", target: "Neutral-Grip Pull-Up", type: .regression),
         .init(source: "Incline Push-Up", target: "Push-Up", type: .progression),
         .init(source: "Push-Up", target: "Decline Push-Up", type: .progression),
         .init(source: "Decline Push-Up", target: "Pseudo Planche Push-Up", type: .progression),
@@ -80,6 +86,6 @@ enum ExerciseRelationshipSeedData {
         .init(source: "Dip", target: "Weighted Dip", type: .progression),
         .init(source: "Bench Press", target: "Close-Grip Bench Press", type: .substitution),
         .init(source: "Back Squat", target: "Front Squat", type: .substitution),
-        .init(source: "Lat Pulldown", target: "Assisted Pull-Up", type: .substitution)
+        .init(source: "Lat Pulldown", target: "Assisted Pull Up", type: .substitution)
     ]
 }

@@ -59,12 +59,31 @@ enum AppBootstrap {
         }
     }
 
+    /// Also the retry entry point. `installBundledCatalog` stages everything
+    /// in one transaction and rolls back the whole thing on any throw (see
+    /// `SystemSeedCatalogCoordinator`), so a failed attempt leaves no partial
+    /// rows behind for the next one to trip over — calling this again after a
+    /// recorded failure is a clean re-attempt, not a second, different code
+    /// path. The empty states that show the failure call this exact function.
     static func seedSystemCatalog(using context: ModelContext) {
         do {
-            guard try SystemSeedCatalogCoordinator.needsInstallation(in: context) else { return }
+            guard try SystemSeedCatalogCoordinator.needsInstallation(in: context) else {
+                SystemCatalogInstallState.shared.clearFailure()
+                return
+            }
             _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
+            SystemCatalogInstallState.shared.clearFailure()
         } catch {
-            print("Failed to install bundled system catalogue: \(error)")
+            // Printed nowhere: a console line here does not reach anyone. The
+            // bundled catalogue seeds exercises, templates, programs and
+            // mobility content, so a throw here means every one of those is
+            // either missing or stale, and every empty state downstream would
+            // otherwise tell the person to create their first item instead of
+            // naming what actually happened. The app still finishes launching
+            // — refusing to open over a seed failure would strand the
+            // person's own logged data behind a screen for a problem that is
+            // not theirs.
+            SystemCatalogInstallState.shared.recordFailure(error)
         }
     }
 

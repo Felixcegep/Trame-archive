@@ -634,7 +634,12 @@ enum UITestFixture: String {
             "Bench Press",       // weightAndReps
             "Push-Up",           // repsOnly
             "Weighted Pull-Up",  // weightedBodyweight
-            "Assisted Pull-Up",  // assistedBodyweight
+            // "Assisted Pull Up" (unpunctuated): the legacy seed spelling.
+            // ExerciseSeedData.templates() no longer seeds the catalog's
+            // hyphenated "Assisted Pull-Up" as a separate exercise (see its
+            // dedupe comment), and the legacy entry already carries the
+            // same .assistedBodyweight tracking type this fixture needs.
+            "Assisted Pull Up",  // assistedBodyweight
             "Plank",             // duration
             "Treadmill Run",     // durationAndDistance
             "Stationary Bike"    // calories

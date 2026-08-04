@@ -116,7 +116,12 @@ enum WorkoutPlanSeedData {
         ]
         let day4Ex: [(String, Int, Int, Int, Double, Int)] = [
             ("Overhead Press", 3, 6, 8, 8.0, 120),
-            ("Pull-Up", 3, 6, 8, 8.0, 120),
+            // "Pull Up" (unpunctuated): the legacy seed spelling that
+            // ExerciseSeedData.templates() keeps after deduping it against
+            // ExerciseCatalogSeedData's "Pull-Up". "Pull-Up" no longer
+            // resolves against `byName` and would silently drop out of this
+            // day's exercises.
+            ("Pull Up", 3, 6, 8, 8.0, 120),
             ("Dumbbell Bench Press", 3, 10, 10, 8.0, 90),
             ("Chest-Supported Row", 3, 10, 10, 8.0, 90),
             ("Lateral Raise", 3, 12, 15, 8.5, 60)

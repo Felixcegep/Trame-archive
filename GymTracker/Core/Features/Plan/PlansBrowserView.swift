@@ -40,6 +40,10 @@ struct PlansBrowserView: View {
     /// The empty states here offer creation, so this screen owns the form rather
     /// than asking the tab root to present it on its behalf.
     @State private var isShowingPlanForm = false
+    /// Every ready-made record and seeded plan comes from the bundled
+    /// catalogue, so an empty "Ready-made" scope is not automatically "the
+    /// app ships nothing" — see `SystemCatalogInstallState`.
+    @State private var catalogInstallState = SystemCatalogInstallState.shared
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var body: some View {
@@ -276,11 +280,21 @@ private extension PlansBrowserView {
     var readyMadeSection: some View {
         if !hasReadyMadeContent {
             Section {
-                ContentUnavailableView(
-                    "No plans available",
-                    systemImage: AppIcon.plan,
-                    description: Text("The built-in plans could not be loaded.")
-                )
+                if catalogInstallState.failure != nil {
+                    SystemCatalogUnavailableView {
+                        AppBootstrap.seedSystemCatalog(using: modelContext)
+                    }
+                } else {
+                    // Reachable without a recorded failure the first frame or
+                    // two after launch, before `AppBootstrap.seedSystemCatalog`
+                    // has run at all — the launch overlay covers this screen
+                    // for that entire window, so nobody actually sees it.
+                    ContentUnavailableView(
+                        "No plans available",
+                        systemImage: AppIcon.plan,
+                        description: Text("The built-in plans could not be loaded.")
+                    )
+                }
             }
             .listRowBackground(Color.clear)
         } else {

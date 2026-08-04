@@ -40,6 +40,13 @@ struct ExerciseBrowserView: View {
     @State private var filter = ExerciseFilterState()
     @State private var sortOrder: ExerciseSortOrder = .nameAscending
     @State private var rows: [ExerciseRowSnapshot] = []
+    /// Every seeded exercise lives in `exercises`, so an empty row list on a
+    /// fresh, unfiltered library is not "you haven't added one yet" whenever
+    /// the bundled catalogue failed to install — it is every one of the 253
+    /// bundled exercises missing at once. Reading this here is what tells the
+    /// two apart instead of inviting the person to build their first exercise
+    /// by hand.
+    @State private var catalogInstallState = SystemCatalogInstallState.shared
 
     var body: some View {
         LibraryBrowserList(title: "Exercises", searchText: $searchText) {
@@ -71,6 +78,18 @@ struct ExerciseBrowserView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("hidden-exercises")
+
+            // Scoped to the unfiltered case on purpose: a search or filter
+            // that simply matches nothing is a different, ordinary empty
+            // result, not evidence the catalogue is missing.
+            if rows.isEmpty,
+               searchText.isEmpty,
+               filter == ExerciseFilterState(),
+               catalogInstallState.failure != nil {
+                SystemCatalogUnavailableView {
+                    AppBootstrap.seedSystemCatalog(using: modelContext)
+                }
+            }
 
             ForEach(rows) { row in
                 NavigationLink {

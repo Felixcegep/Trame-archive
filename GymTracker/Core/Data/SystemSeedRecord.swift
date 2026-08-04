@@ -105,4 +105,25 @@ enum SystemSeedKey {
         while slug.hasSuffix("-") { slug.removeLast() }
         return "\(namespace).\(slug)"
     }
+
+    /// Folds a name down to a punctuation- and whitespace-insensitive
+    /// identity for detecting "same movement, different spelling" -- e.g.
+    /// "Pull Up" and "Pull-Up" both fold to "pullup".
+    ///
+    /// `make(namespace:legacyName:)` cannot double as this check: it turns
+    /// a space into "-" and escapes a literal "-" as "--", so those two
+    /// names still produce distinct keys ("exercise.pull-up" vs
+    /// "exercise.pull--up") even though they name the same exercise. That
+    /// gap is exactly how the legacy and imported catalogues both shipped a
+    /// pull-up record. This normalization strips separators entirely
+    /// instead of re-encoding them, so callers that need to ask "is this
+    /// the same exercise as that one" (like `ExerciseSeedData.templates()`
+    /// deduping its two source catalogues) get a real equality check
+    /// instead of a key comparison that punctuation can slip through.
+    static func normalizedComparisonKey(_ name: String) -> String {
+        let folded = name
+            .folding(options: [.diacriticInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .lowercased()
+        return String(folded.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.map(Character.init))
+    }
 }

@@ -1,0 +1,137 @@
+name: CI
+
+# Manual by default, deliberately.
+#
+# GitHub-hosted macOS runners bill private repositories at a 10x minute
+# multiplier, and this project's suite includes a screenshot pass that has
+# historically hung on CoreSimulator. Turning that on automatically for every
+# push would be a standing charge nobody agreed to.
+#
+# To make it automatic once you have decided the cost is worth it, uncomment
+# the `pull_request` trigger below. Start there rather than with `push`: the
+# point is to know whether a change is safe to merge, and running the same
+# suite twice for every merged branch buys nothing.
+on:
+  workflow_dispatch:
+  # pull_request:
+  #   branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and unit test
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # Uses the image's default Xcode. This project targets iOS 26, so the
+      # runner image must ship a matching Xcode — if the build fails resolving
+      # the destination, pin the version here (`/Applications/Xcode_26.app`)
+      # and bump `runs-on` to the image that carries it. Unverified: this
+      # workflow has never been executed.
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # Built before the test run so a compile failure is reported as a compile
+      # failure, rather than surfacing as a confusing "scheme not found" or a
+      # test-runner error several minutes later.
+      - name: Build app
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -scheme GymTracker \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      # The widget extension is a separate target with its own membership
+      # exceptions, and a file added to the app can break it without the app
+      # build noticing. It is cheap to compile and expensive to discover broken
+      # at archive time.
+      - name: Build widget extension
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -scheme GymTrackerExtensionExtension \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme GymTracker \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -resultBundlePath UnitTests.xcresult \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      # Uploaded on failure as well as success: the failure reason lives inside
+      # the result bundle, and a red run whose evidence was discarded sends the
+      # next person straight back to reproducing it locally.
+      - name: Upload result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: UnitTests.xcresult
+          retention-days: 14
+          if-no-files-found: warn
+
+  # Kept out of the job above on purpose.
+  #
+  # The UI and screenshot suites are the flakiest part of this project's
+  # verification — the repository's own notes record simulator hangs and
+  # CoreSimulator instability. Running them in the same job would let an
+  # infrastructure hang mask a genuine unit-test regression, which is the
+  # failure mode that makes teams stop trusting CI altogether.
+  ui-tests:
+    name: UI smoke tests
+    runs-on: macos-15
+    timeout-minutes: 60
+    # Only on request. Remove this line once the suite is reliable enough that a
+    # red run means the app is broken rather than the simulator is.
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # Uses the image's default Xcode. This project targets iOS 26, so the
+      # runner image must ship a matching Xcode — if the build fails resolving
+      # the destination, pin the version here (`/Applications/Xcode_26.app`)
+      # and bump `runs-on` to the image that carries it. Unverified: this
+      # workflow has never been executed.
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app
+
+      - name: UI tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme GymTrackerUITEST \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -resultBundlePath UITests.xcresult \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: UITests.xcresult
+          retention-days: 14
+          if-no-files-found: warn

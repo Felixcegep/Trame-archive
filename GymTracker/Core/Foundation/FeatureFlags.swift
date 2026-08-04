@@ -62,6 +62,21 @@ enum FeatureFlagBuildChannel: String, CaseIterable, Sendable {
 extension FeatureFlagBuildChannel {
     /// The Info.plist key an archive uses to declare which matrix it was built
     /// for. Set it per build configuration (`INFOPLIST_KEY_GTFeatureFlagChannel`).
+    ///
+    /// How the project sets it today:
+    ///
+    /// - `Debug` declares nothing and resolves to `internalDevelopment`.
+    /// - `Release` declares `beta`, because every build distributed so far has
+    ///   gone to TestFlight. It previously declared `release`, which handed
+    ///   testers every unfinished surface the beta wave exists to withhold —
+    ///   the exact failure `resolve(infoDictionary:isDebugBuild:)` defaults
+    ///   against, defeated by declaring the channel explicitly.
+    ///
+    /// Before the first App Store submission, add a third build configuration
+    /// that declares `release` and archive general availability from *that*,
+    /// leaving `Release` as the TestFlight configuration. One configuration
+    /// cannot serve both: the channel is a property of who receives the build,
+    /// and TestFlight and the App Store are different audiences.
     static let infoDictionaryKey = "GTFeatureFlagChannel"
 
     /// Resolves the matrix a build was produced for.
@@ -128,10 +143,12 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     /// about what is available.
     static func defaultMatrix(for buildChannel: FeatureFlagBuildChannel) -> Set<FeatureFlag> {
         switch buildChannel {
-        case .internalDevelopment, .release:
+        case .internalDevelopment:
             return Set(FeatureFlag.allCases).subtracting([.nutrition])
         case .beta:
             return currentWave
+        case .release:
+            return generalAvailability
         }
     }
 
@@ -143,11 +160,31 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
             .nutrition, .sportSpecializations
         ])
 
+    /// What general availability ships. Today: exactly what beta ships.
+    ///
+    /// This used to share `internalDevelopment`'s matrix — everything except
+    /// Nutrition — which made `release` the *widest* matrix in the app rather
+    /// than the most conservative one. A build declaring `release` would have
+    /// exposed mobility assessment, mobility programs, workout generation and
+    /// sport specializations: precisely the six surfaces `currentWave` withholds
+    /// from testers for being unfinished, handed instead to the general public.
+    ///
+    /// Defined as "whatever beta ships" so that promoting a surface to general
+    /// availability is a deliberate edit here, made once that surface has
+    /// actually cleared its beta phase. A flag can never reach the public by
+    /// being forgotten; only by being named.
+    static let generalAvailability: Set<FeatureFlag> = currentWave
+
     /// The narrower RoadMap.md §4 "Beta 1 — core workout reliability" wave, kept
     /// because it is a real staged option and selectable by launch argument. It
-    /// is no longer the default: the live TestFlight build already ships Today,
-    /// Mobility, and Nutrition, so applying this set to it would withdraw
-    /// working features from testers who have them.
+    /// is not the default: `currentWave` is, and it is wider than this.
+    ///
+    /// (An earlier version of this comment claimed the live TestFlight build
+    /// ships Mobility and Nutrition. It does not, and did not: `currentWave`
+    /// subtracts `.mobilityAssessment`, `.mobilityProgram` and `.nutrition`.
+    /// The claim is removed rather than corrected in place because a comment
+    /// asserting what testers can see, sitting next to the set that decides it,
+    /// is a second source of truth that will drift again.)
     static let coreReliabilityOnly: Set<FeatureFlag> = [.today, .betaFeedback]
 
     /// Fails a dependent flag closed whenever its prerequisite is disabled,

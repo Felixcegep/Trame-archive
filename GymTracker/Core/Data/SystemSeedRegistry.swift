@@ -240,7 +240,53 @@ enum ExerciseSystemSeedInstaller {
                 }
             }
         }
+
+        try retireDuplicateExercises(in: context, registry: registry, existing: existing, report: &report)
+
         return report
+    }
+
+    /// Exercises seeded before the punctuation-insensitive dedupe fix in
+    /// `ExerciseSeedData.templates()` (see its comment): the legacy
+    /// catalogue's unpunctuated name and ExerciseCatalogSeedData's
+    /// hyphenated spelling of the same movement produced two distinct
+    /// `SystemSeedKey.make` keys ("exercise.pull-up" vs
+    /// "exercise.pull--up"), so a store that installed before the fix can
+    /// already have both Exercise records, each with its own logged
+    /// history. `ExerciseSeedData.templates()` no longer emits the losing
+    /// spelling, so it drops out of `desired` on every install from here
+    /// on -- but simply no longer seeding it would leave that record's
+    /// SystemSeedRecord dangling and its history unreachable from any seed
+    /// key. Retire it in place instead: archive the Exercise (it survives,
+    /// keeps its history, and `!isArchived` picker/browser queries stop
+    /// surfacing it) and mark its SystemSeedRecord deprecated with a
+    /// pointer at the surviving key, using the
+    /// deprecate/replacementSeedKey mechanism `SystemSeedRegistry` already
+    /// exposes for exactly this.
+    private static let retiredDuplicateExerciseSeedKeys: [(retired: String, survivor: String)] = [
+        ("exercise.pull--up", "exercise.pull-up"),
+        ("exercise.assisted-pull--up", "exercise.assisted-pull-up"),
+    ]
+
+    private static func retireDuplicateExercises(
+        in context: ModelContext,
+        registry: SystemSeedRegistry,
+        existing: [Exercise],
+        report: inout SystemSeedInstallReport
+    ) throws {
+        for pair in retiredDuplicateExerciseSeedKeys {
+            // nil on any store that never installed the losing spelling in
+            // the first place -- every fresh install post-fix, and every
+            // store that's already been through this retirement once.
+            guard let record = try registry.record(for: pair.retired, expectedKind: .exercise) else { continue }
+            guard !record.isDeprecated else { continue }
+            guard let entity = existing.first(where: { $0.id == record.entityID }) else {
+                throw SystemSeedError.danglingEntity(key: pair.retired, entityID: record.entityID)
+            }
+            entity.isArchived = true
+            try registry.deprecate(key: pair.retired, replacementSeedKey: pair.survivor)
+            report.deprecated += 1
+        }
     }
 
     private static func applySystemFields(from source: Exercise, to destination: Exercise) {

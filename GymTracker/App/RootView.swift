@@ -535,6 +535,20 @@ struct RootView: View {
             } catch {
                 modelContext.rollback()
                 print("Failed to save modelContext on backgrounding: \(error)")
+                // Recorded, not just printed: whatever the active workout
+                // logged this session may not have reached disk, and a
+                // console line nobody reads is indistinguishable from losing
+                // it silently. No UI reads this today, deliberately — the app
+                // is backgrounding, so there is no safe moment to present
+                // anything: an alert now is dismissed before anyone sees it,
+                // and surfacing it on next foreground would ambush the person
+                // with a stale error about a session they may not even
+                // remember. A real treatment needs to decide whether this is
+                // even actionable (a full disk clears on its own; a
+                // programmer error does not) and whether re-surfacing a
+                // background failure at next launch is worth the ambush,
+                // before it becomes something the user sees.
+                BackgroundSaveFailureState.shared.recordFailure(error)
             }
             WidgetSnapshotService.refresh(using: modelContext)
             // Rest is the interval the phone spends in a pocket. The deadline

@@ -16,6 +16,10 @@ struct WorkoutsBrowserView: View {
     /// The empty state offers creation, so this screen owns the form rather than
     /// asking the tab root to present it on its behalf.
     @State private var isShowingWorkoutForm = false
+    /// Every bundled workout template comes from the seeded catalogue, so an
+    /// empty list on first launch is not automatically "nobody has built one
+    /// yet" — see `SystemCatalogInstallState`.
+    @State private var catalogInstallState = SystemCatalogInstallState.shared
 
     let onStartWorkout: (WorkoutTemplate) -> Void
 
@@ -23,7 +27,15 @@ struct WorkoutsBrowserView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xxl) {
                 if sortedCollections.isEmpty && sortedTemplates.isEmpty {
-                    emptyState
+                    if catalogInstallState.failure != nil {
+                        SystemCatalogUnavailableView {
+                            AppBootstrap.seedSystemCatalog(using: modelContext)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 56)
+                    } else {
+                        emptyState
+                    }
                 } else {
                     if !sortedCollections.isEmpty {
                         foldersSection

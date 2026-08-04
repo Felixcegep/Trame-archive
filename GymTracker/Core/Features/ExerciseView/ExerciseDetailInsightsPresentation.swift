@@ -7,6 +7,11 @@ struct ExerciseDetailInsightsModel: Equatable {
     let previousSession: ExerciseDetailSession?
     let bestResults: [ExerciseDetailBestResult]
     let estimatedOneRepMax: ExerciseDetailMetric?
+    /// Set when the exercise has a qualifying logged load but no set at or
+    /// under the e1RM rep ceiling, so the section names why the estimate is
+    /// missing instead of just disappearing — an empty state must always
+    /// name the next step, not leave a blank.
+    let estimatedOneRepMaxUnavailableReason: String?
     let volumePoints: [ExerciseDetailVolumePoint]
     let changeSummary: String?
     let volumeTakeaway: String?
@@ -118,6 +123,7 @@ extension ExerciseDetailInsightsModel {
             ExerciseDetailBestResult(id: "range", title: "Best 8–12 rep set", value: "100 lb × 10", detail: nil)
         ],
         estimatedOneRepMax: ExerciseDetailMetric(value: "128", unit: "lb", context: "Estimate from your best recent set"),
+        estimatedOneRepMaxUnavailableReason: nil,
         volumePoints: [
             ExerciseDetailVolumePoint(id: "w1", date: .now.addingTimeInterval(-42 * 86_400), label: "Jun 3", value: 4_800, unit: "lb", workingSetCount: 3, sessionCount: 1, accessibilityValue: "4,800 pounds, 3 working sets, 1 session"),
             ExerciseDetailVolumePoint(id: "w2", date: .now.addingTimeInterval(-35 * 86_400), label: "Jun 10", value: 5_100, unit: "lb", workingSetCount: 3, sessionCount: 1, accessibilityValue: "5,100 pounds, 3 working sets, 1 session"),
@@ -157,6 +163,7 @@ extension ExerciseDetailInsightsModel {
         previousSession: nil,
         bestResults: [],
         estimatedOneRepMax: nil,
+        estimatedOneRepMaxUnavailableReason: nil,
         volumePoints: [],
         changeSummary: nil,
         volumeTakeaway: "Early pattern — complete more sessions before treating this as a trend.",
@@ -172,6 +179,7 @@ extension ExerciseDetailInsightsModel {
         previousSession: nil,
         bestResults: [],
         estimatedOneRepMax: nil,
+        estimatedOneRepMaxUnavailableReason: nil,
         volumePoints: [],
         changeSummary: nil,
         volumeTakeaway: nil,

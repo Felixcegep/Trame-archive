@@ -181,22 +181,22 @@
   ],
   "exerciseRelationships": [
     {
-      "source": "Assisted Pull-Up",
+      "source": "Assisted Pull Up",
       "target": "Neutral-Grip Pull-Up",
       "type": "progression"
     },
     {
       "source": "Neutral-Grip Pull-Up",
-      "target": "Pull-Up",
+      "target": "Pull Up",
       "type": "progression"
     },
     {
-      "source": "Pull-Up",
+      "source": "Pull Up",
       "target": "Weighted Pull-Up",
       "type": "progression"
     },
     {
-      "source": "Pull-Up",
+      "source": "Pull Up",
       "target": "Neutral-Grip Pull-Up",
       "type": "regression"
     },
@@ -302,7 +302,7 @@
     },
     {
       "source": "Lat Pulldown",
-      "target": "Assisted Pull-Up",
+      "target": "Assisted Pull Up",
       "type": "substitution"
     }
   ],
@@ -9013,12 +9013,12 @@
                   "dayOffset": 0,
                   "exercises": [
                     {
-                      "exercise": "Assisted Pull-Up",
+                      "exercise": "Assisted Pull Up",
                       "exposureKey": "pull",
                       "variationLadder": [
-                        "Assisted Pull-Up",
+                        "Assisted Pull Up",
                         "Neutral-Grip Pull-Up",
-                        "Pull-Up",
+                        "Pull Up",
                         "Weighted Pull-Up"
                       ],
                       "rules": "ladder",
@@ -9182,12 +9182,12 @@
                   "dayOffset": 4,
                   "exercises": [
                     {
-                      "exercise": "Assisted Pull-Up",
+                      "exercise": "Assisted Pull Up",
                       "exposureKey": "pull",
                       "variationLadder": [
-                        "Assisted Pull-Up",
+                        "Assisted Pull Up",
                         "Neutral-Grip Pull-Up",
-                        "Pull-Up",
+                        "Pull Up",
                         "Weighted Pull-Up"
                       ],
                       "rules": "ladder",

@@ -388,12 +388,29 @@ struct ExerciseDetailAnalyticsService {
         }
     }
 
+    /// Epley's prediction error grows with rep count: extrapolating from a
+    /// high-rep set overstates 1RM far more than extrapolating from a low-rep
+    /// one. Sports-science guidance for linear 1RM formulas (Epley included)
+    /// caps the input at roughly 10 reps; beyond that, a set's estimate is no
+    /// longer trustworthy enough to headline. Concretely, without this cap a
+    /// 20-rep set at 100 kg produces 100 × (1 + 20/30) ≈ 166.7, outranking a
+    /// genuine heavy triple at 150 kg (150 × 1.1 = 165) — the estimate would
+    /// be driven by the highest-rep set logged, not the strongest one.
+    static let e1RMMaxRepetitions: Float = 10
+
     /// Estimated 1RM uses the Epley formula — `weight × (1 + reps ÷ 30)` —
-    /// applied to every working set so results stay explainable from one
-    /// documented rule rather than switching formulas per exercise or rep count.
+    /// applied to every qualifying working set at or below
+    /// `e1RMMaxRepetitions`, so results stay explainable from one documented
+    /// rule and one documented bound rather than switching formulas per
+    /// exercise or rep count.
     private func estimatedOneRepMax(in sessions: [ExerciseSession], unit: WeightType) -> OneRepMaxEstimate? {
         workingSets(in: sessions)
-            .filter { $0.set.repetitions > 0 && $0.set.weight > 0 && $0.set.contributesToE1RM }
+            .filter {
+                $0.set.repetitions > 0
+                    && $0.set.repetitions <= Self.e1RMMaxRepetitions
+                    && $0.set.weight > 0
+                    && $0.set.contributesToE1RM
+            }
             .map { entry -> OneRepMaxEstimate in
                 let convertedWeight = UnitConversion.weight(entry.set.weight, from: entry.set.weightType, to: unit)
                 let estimated = convertedWeight * (1 + entry.set.repetitions / 30)

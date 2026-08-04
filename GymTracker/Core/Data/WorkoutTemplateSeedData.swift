@@ -310,7 +310,15 @@ enum WorkoutTemplateSeedData {
             prescriptions: [
                 Prescription(exerciseName: "B-Stance RDL", sets: 3, minimum: 8, maximum: 10, rpe: 8, restSeconds: 120, notes: "Hinge at hips, kickstand back foot."),
                 Prescription(exerciseName: "Overhead Press", sets: 3, minimum: 8, maximum: 10, rpe: 8, restSeconds: 120, notes: "Standing barbell press."),
-                Prescription(exerciseName: "Pull-Up", sets: 3, minimum: 6, maximum: 8, rpe: 8, restSeconds: 120, notes: "Full range of motion."),
+                // "Pull Up" (unpunctuated), not "Pull-Up": that's the legacy
+                // spelling ExerciseSeedData.templates() keeps as the seeded
+                // Exercise.name after deduping it against
+                // ExerciseCatalogSeedData's "Pull-Up" -- see
+                // ExerciseSeedData.templates()'s comment. The catalog
+                // spelling no longer exists as a seeded exercise, so a
+                // Prescription naming it here would silently drop this
+                // exercise from the template.
+                Prescription(exerciseName: "Pull Up", sets: 3, minimum: 6, maximum: 8, rpe: 8, restSeconds: 120, notes: "Full range of motion."),
                 Prescription(exerciseName: "Hanging Knee Raise", sets: 3, minimum: 10, maximum: 12, rpe: 8, restSeconds: 60, notes: "Control the descent.")
             ]
         ),
@@ -534,7 +542,9 @@ enum WorkoutTemplateSeedData {
             prescriptions: [
                 Prescription(exerciseName: "Bodyweight Squat", sets: 3, minimum: 10, maximum: 15, rpe: 6, restSeconds: 60, notes: "Use a chair or box target if needed."),
                 Prescription(exerciseName: "Push-Up", sets: 3, minimum: 6, maximum: 12, rpe: 6, restSeconds: 60, notes: "Elevate the hands to make the movement easier."),
-                Prescription(exerciseName: "Assisted Pull-Up", sets: 3, minimum: 6, maximum: 10, rpe: 6, restSeconds: 90, notes: "Use assistance that allows smooth, controlled reps."),
+                // "Assisted Pull Up" (unpunctuated) -- see the "Pull Up" note
+                // above; same legacy-vs-catalog spelling split applies here.
+                Prescription(exerciseName: "Assisted Pull Up", sets: 3, minimum: 6, maximum: 10, rpe: 6, restSeconds: 90, notes: "Use assistance that allows smooth, controlled reps."),
                 Prescription(exerciseName: "Single-Leg Glute Bridge", sets: 3, minimum: 10, maximum: 15, rpe: 6, restSeconds: 60, notes: "Pause briefly at the top."),
                 Prescription(exerciseName: "Plank", sets: 3, minimum: 20, maximum: 30, rpe: 6, restSeconds: 60, notes: "Stop before form breaks down.")
             ]
