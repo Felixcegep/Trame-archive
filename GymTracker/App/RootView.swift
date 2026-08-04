@@ -42,11 +42,7 @@ struct RootView: View {
     @State private var requestedRescheduleProgressID: UUID?
     @State private var pendingWorkoutStart: PendingWorkoutStart?
     @State private var workoutPreparationRequest: WorkoutPreparationRequest?
-    @State private var warmupWorkoutID: UUID?
-    @State private var pendingCooldownAfterWorkoutDismissal: MobilityRoutineLaunchRequest?
-    @State private var cooldownRequest: MobilityRoutineLaunchRequest?
-    @State private var pendingProgressionReceiptWorkoutID: UUID?
-    @State private var progressionReceiptRequest: ProgressionReceiptRequest?
+    @State private var postWorkoutCoordinator = PostWorkoutRoutingCoordinator()
     @State private var mobilityLinkError: String?
     @State private var guidedSourceCoordinator = GuidedSourceConflictCoordinator()
     @State private var isShowingActiveWorkoutConflictAlert = false
@@ -179,23 +175,12 @@ struct RootView: View {
             if shouldDiscardActiveWorkout {
                 workoutVM.discardActiveWorkout(using: modelContext)
                 shouldDiscardActiveWorkout = false
-                pendingCooldownAfterWorkoutDismissal = nil
-                pendingProgressionReceiptWorkoutID = nil
+                postWorkoutCoordinator.clearPendingAfterDiscard()
             } else {
-                if let pendingCooldownAfterWorkoutDismissal {
-                    self.pendingCooldownAfterWorkoutDismissal = nil
-                    presentAfterDismissal {
-                        cooldownRequest = pendingCooldownAfterWorkoutDismissal
-                    }
-                }
-                if let pendingProgressionReceiptWorkoutID,
-                   let receipt = ProgressionReceiptPolicy.receipt(
-                    forWorkoutID: pendingProgressionReceiptWorkoutID,
-                    using: modelContext
-                   ) {
-                    self.pendingProgressionReceiptWorkoutID = nil
-                    presentAfterDismissal { progressionReceiptRequest = receipt }
-                }
+                postWorkoutCoordinator.processPostWorkoutDismissal(
+                    using: modelContext,
+                    presentAfterDismissal: presentAfterDismissal
+                )
             }
         }) {
             NavigationStack(path: $activeWorkoutPath) {
@@ -249,7 +234,7 @@ struct RootView: View {
                 }
             }
         }
-        .sheet(item: $progressionReceiptRequest) { request in
+        .sheet(item: $postWorkoutCoordinator.progressionReceiptRequest) { request in
             ProgressionReceiptSheet(planRunID: request.planRunID, workoutID: request.workoutID)
         }
         .sheet(isPresented: $isShowingPersonalizedWorkoutBuilder, onDismiss: {
@@ -330,10 +315,10 @@ struct RootView: View {
             }
         }
         .confirmationDialog(
-            "Add a cooldown?",
+            "Linked Cooldown",
             isPresented: Binding(
-                get: { cooldownRequest != nil },
-                set: { if !$0 { cooldownRequest = nil } }
+                get: { postWorkoutCoordinator.cooldownRequest != nil },
+                set: { if !$0 { postWorkoutCoordinator.cooldownRequest = nil } }
             ),
             titleVisibility: .visible
         ) {
@@ -1269,23 +1254,23 @@ struct RootView: View {
             isShowingActiveWorkout = true
             return true
         }
-        warmupWorkoutID = workout.id
+        postWorkoutCoordinator.warmupWorkoutID = workout.id
         activeMobilitySession = session
         return true
     }
 
     @ViewBuilder
     private var cooldownActions: some View {
-        if let request = cooldownRequest {
+        if let request = postWorkoutCoordinator.cooldownRequest {
             if let activeSession = MobilitySessionService.activeSession(using: modelContext) {
                 Button("Resume Active Mobility") {
-                    cooldownRequest = nil
+                    postWorkoutCoordinator.cooldownRequest = nil
                     activeMobilitySession = activeSession
                 }
                 .accessibilityIdentifier("resume-active-mobility-before-cooldown")
             } else {
                 Button("Start Cooldown") {
-                    cooldownRequest = nil
+                    postWorkoutCoordinator.cooldownRequest = nil
                     startLinkedMobility(request)
                 }
                 .accessibilityIdentifier("start-linked-cooldown")
@@ -1293,7 +1278,7 @@ struct RootView: View {
             }
         }
         Button("Done", role: .cancel) {
-            cooldownRequest = nil
+            postWorkoutCoordinator.cooldownRequest = nil
         }
     }
 
@@ -1301,7 +1286,7 @@ struct RootView: View {
         if MobilitySessionService.activeSession(using: modelContext) != nil {
             return String(localized: "Finish or stop the active mobility session before starting this linked cooldown.")
         }
-        guard let routineName = cooldownRequest?.routine.name else {
+        guard let routineName = postWorkoutCoordinator.cooldownRequest?.routine.name else {
             return String(localized: "This workout has an optional linked cooldown.")
         }
         return String(localized: "Start \(routineName) after this workout? It is recorded as a separate mobility session.")
@@ -1321,7 +1306,7 @@ struct RootView: View {
     }
 
     private func resumeWorkoutAfterWarmupIfNeeded(_ session: MobilitySession) {
-        guard let warmupWorkoutID,
+        guard let warmupWorkoutID = postWorkoutCoordinator.warmupWorkoutID,
               WorkoutMobilityContinuationPolicy.shouldResumeWorkout(
                 sessionContext: session.context,
                 sessionWorkoutID: session.workoutID,
@@ -1329,7 +1314,7 @@ struct RootView: View {
                 activeWorkoutID: workoutVM.activeWorkout?.id
               )
         else { return }
-        self.warmupWorkoutID = nil
+        postWorkoutCoordinator.clearWarmupWorkoutID()
         presentAfterDismissal { isShowingActiveWorkout = true }
     }
 
@@ -1350,18 +1335,7 @@ struct RootView: View {
     }
 
     private func prepareCooldown(for workoutID: UUID) {
-        guard let workout = workout(id: workoutID),
-              let routine = WorkoutMobilityLinkResolver.linkedRoutine(
-                for: workout,
-                phase: .cooldown,
-                using: modelContext
-              )
-        else { return }
-        pendingCooldownAfterWorkoutDismissal = MobilityRoutineLaunchRequest(
-            routine: routine,
-            context: .cooldown,
-            workoutID: workoutID
-        )
+        postWorkoutCoordinator.prepareCooldown(for: workoutID, using: modelContext)
     }
 
     private func workout(id: UUID) -> Workout? {
@@ -1372,10 +1346,7 @@ struct RootView: View {
     /// itself cannot be raised here: the save screen is dismissing, so the
     /// request is held until the cover is gone.
     private func preparePendingProgressionReceipts(for workoutID: UUID) {
-        guard ProgressionReceiptPolicy.owesReceipt(forWorkoutID: workoutID, using: modelContext) else {
-            return
-        }
-        pendingProgressionReceiptWorkoutID = workoutID
+        postWorkoutCoordinator.preparePendingProgressionReceipts(for: workoutID, using: modelContext)
     }
 
     private func activateRepeatingPlan(_ plan: RepeatingPlan) {
@@ -1636,6 +1607,7 @@ struct RootView: View {
         activeWorkoutPath.removeAll()
         pendingWorkoutStart = nil
         guidedSourceCoordinator.reset()
+        postWorkoutCoordinator.reset()
         workoutVM.workout = nil
         workoutVM.activeWorkout = nil
         activeLoggingMetrics.reset()
