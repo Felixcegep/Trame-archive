@@ -53,6 +53,17 @@ final class ExerciseSet {
     /// Repetitions per minute for kettlebell and cyclical implement work.
     var kettlebellCadenceRPM: Double?
     var specializedMetricMeasurementSource: MeasurementSource?
+    /// Present only for a strongman event set; `nil` for every other set and
+    /// for every set logged before this field existed. Comparisons must
+    /// never treat two sets with a differing convention as equivalent — see
+    /// `StrongmanLoadComparability`.
+    var strongmanLoadConventionRaw: String?
+    /// Snapshot of the implement this set was performed on, captured at log
+    /// time. History must never re-derive this from the current catalog: a
+    /// gym's yoke can be re-measured, or an exercise's default implement can
+    /// change, without rewriting what already happened.
+    var strongmanImplementProfileData: Data?
+    var strongmanEventFamilyRaw: String?
     /// Independent from `setType`: describes how the work was performed.
     /// Optional for compatibility with workouts created before the strength
     /// expansion added persisted set methods. Missing legacy values are
@@ -135,7 +146,9 @@ final class ExerciseSet {
     ) {
         self.orderIndex = orderIndex
         self.weightType = usedMetric == .metric ? .kg : .lbs
-        self.distanceType = usedMetric == .metric ? .kilometers : .miles
+        // New performed/prescribed distance is canonical metres. Restored
+        // legacy rows overwrite this with their portable semantic unit.
+        self.distanceType = .meters
         self.repetitions = repetitions
         self.weight = weight
         self.duration = duration
@@ -161,6 +174,9 @@ final class ExerciseSet {
         self.throwDistanceMeters = throwDistanceMeters
         self.kettlebellCadenceRPM = kettlebellCadenceRPM
         self.specializedMetricMeasurementSource = specializedMetricMeasurementSource
+        self.strongmanLoadConventionRaw = nil
+        self.strongmanImplementProfileData = nil
+        self.strongmanEventFamilyRaw = nil
         self.setMethod = setMethod
         self.setType = setType
         self.isSelectedDailyMaximum = false
@@ -200,12 +216,42 @@ final class ExerciseSet {
         specializedMetricKind ?? .none
     }
 
+    var strongmanLoadConvention: LoadConvention? {
+        get { strongmanLoadConventionRaw.flatMap(LoadConvention.init(rawValue:)) }
+        set { strongmanLoadConventionRaw = newValue?.rawValue }
+    }
+
+    var strongmanImplementProfile: StrongmanImplementProfile? {
+        get {
+            strongmanImplementProfileData.flatMap {
+                try? JSONDecoder().decode(StrongmanImplementProfile.self, from: $0)
+            }
+        }
+        set {
+            strongmanImplementProfileData = newValue.flatMap { try? JSONEncoder().encode($0) }
+        }
+    }
+
+    var strongmanEventFamily: StrongmanEventFamily? {
+        get { strongmanEventFamilyRaw.flatMap(StrongmanEventFamily.init(rawValue:)) }
+        set { strongmanEventFamilyRaw = newValue?.rawValue }
+    }
+
+    /// The only supported way to attach strongman evidence to a set. Snapshots
+    /// both the full implement profile and its load convention together, so
+    /// the two can never drift apart on a single set.
+    func applyStrongmanEvidence(implementProfile: StrongmanImplementProfile, eventFamily: StrongmanEventFamily?) {
+        strongmanImplementProfile = implementProfile
+        strongmanLoadConvention = implementProfile.loadConvention
+        strongmanEventFamily = eventFamily
+    }
+
     func copy() -> ExerciseSet {
         let copy = ExerciseSet(
             repetitions: repetitions,
             weight: weight,
             duration: duration,
-            distance: distance,
+            distance: distance.map { WorkoutDistancePolicy.meters(storedValue: $0, storedUnit: distanceType) },
             calories: calories,
             
             
@@ -232,7 +278,13 @@ final class ExerciseSet {
             usedMetric: usedMetric
         )
         copy.weightType = weightType
-        copy.distanceType = distanceType
+        copy.distanceType = .meters
+        // A new attempt at the same strongman event continues under the same
+        // implement and convention; the source snapshot is copied verbatim,
+        // never re-derived from the current catalog.
+        copy.strongmanLoadConventionRaw = strongmanLoadConventionRaw
+        copy.strongmanImplementProfileData = strongmanImplementProfileData
+        copy.strongmanEventFamilyRaw = strongmanEventFamilyRaw
         // A copied active set is a new performed effort, but it remains part
         // of the same active prescription. Retain immutable target evidence
         // so an appended daily-maximum attempt or working set can still feed
@@ -274,7 +326,8 @@ final class ExerciseSet {
                 done: false,
                 variationNote: segment.variationNote,
                 rpe: segment.rpe,
-                rir: segment.rir
+                rir: segment.rir,
+                splitKind: segment.splitKind
             )
         }
         copy.complexComponents = orderedComplexComponents.map { component in
@@ -350,7 +403,17 @@ final class ExerciseSet {
         }
         if let duration = duration, duration > 0 {
             if let distance = distance, distance > 0 {
-                return String(format: "%ds @ %.2f %@", Int(duration), distance, distanceType.rawValue)
+                let measurement = WorkoutDistancePolicy.displayMeasurement(
+                    storedValue: distance,
+                    storedUnit: distanceType,
+                    system: usedMetric
+                )
+                return String(
+                    format: "%ds @ %.2f %@",
+                    Int(duration),
+                    measurement.value,
+                    measurement.unit.symbol
+                )
             }
             return "\(Int(duration))s"
         }
@@ -404,20 +467,39 @@ final class ExerciseSet {
 
     func synchronizeComplexCompletion() {
         guard !complexComponents.isEmpty else { return }
-        if done {
-            for component in complexComponents where component.outcome == .notStarted {
-                component.outcome = .completed
-                component.performedRepetitions = component.prescribedRepetitions
-                component.liftQuality = component.liftQuality ?? .acceptable
-            }
-        } else {
-            for component in complexComponents {
-                component.outcome = .notStarted
-                component.performedRepetitions = 0
-                component.liftQuality = nil
-            }
+        guard done else {
+            // Reopening the parent returns the attempt to an editable state but
+            // retains its component evidence. The lifter can amend an outcome
+            // explicitly; Undo must not erase a partially recorded sequence.
+            return
         }
+        // Component outcomes must be recorded explicitly before parent
+        // completion. Never turn an untouched lift into performed truth.
         repetitions = Float(complexComponents.reduce(0) { $0 + $1.performedRepetitions })
-        liftQuality = complexComponents.contains(where: { $0.outcome == .missed }) ? .missed : nil
+        switch olympicAttemptOutcome {
+        case .made:
+            liftQuality = complexComponents.allSatisfy { $0.liftQuality == .excellent }
+                ? .excellent
+                : .acceptable
+        case .partial:
+            liftQuality = .technicallyPoor
+        case .missed:
+            liftQuality = .missed
+        case .notStarted, .skipped, nil:
+            liftQuality = nil
+        }
+    }
+
+    /// One result for the parent attempt, deterministically derived from its
+    /// ordered component evidence. A shared attempt has one load (`weight`),
+    /// not one independently editable load per component.
+    var olympicAttemptOutcome: OlympicAttemptOutcome? {
+        let components = orderedComplexComponents
+        guard !components.isEmpty else { return nil }
+        if components.allSatisfy({ $0.outcome == .notStarted }) { return .notStarted }
+        if components.allSatisfy({ $0.outcome == .skipped }) { return .skipped }
+        if components.contains(where: { $0.outcome == .missed }) { return .missed }
+        if components.allSatisfy({ $0.outcome == .completed }) { return .made }
+        return .partial
     }
 }

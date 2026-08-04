@@ -70,6 +70,9 @@ nonisolated indirect enum ProgressionTrigger: Codable, Hashable {
     case actualRPEAboveTarget(tolerance: Double)
     case targetRIRMatched(tolerance: Int)
     case failureCountReached(Int)
+    /// Consecutive missed parent attempts inside the current exercise
+    /// occurrence. Unlike `failureCountReached`, this does not span workouts.
+    case consecutiveMissedAttemptsReached(Int)
     case successfulAttemptRatioReached(Double)
     case technicalQualityReached
     case workoutCompleted
@@ -121,6 +124,15 @@ nonisolated enum ProgressionAction: Codable, Hashable {
     case resetFailureCount
     case resetProgressionOffsets
     case endExercise
+    /// Ends only the still-unperformed daily-maximum attempts in the active
+    /// exercise occurrence, then creates the authored number of back-off
+    /// prescriptions from the best successful parent attempt. This action is
+    /// recommendation-only and has meaning only while that workout is active.
+    case endActiveDailyMaximumAndGenerateBackOffs(
+        setCount: Int,
+        repetitions: Int,
+        percentage: Double
+    )
     case endProgram
     case generateRecommendation
     case noChange

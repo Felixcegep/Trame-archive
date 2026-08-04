@@ -34,6 +34,10 @@ extension ModelContext {
         for session in try fetch(FetchDescriptor<MobilityAssessmentSession>()) { delete(session) }
         for definition in try fetch(FetchDescriptor<MobilityAssessmentDefinition>()) { delete(definition) }
         for session in try fetch(FetchDescriptor<MobilitySession>()) { delete(session) }
+        for evidence in (try? fetch(FetchDescriptor<MobilityResultEvidence>())) ?? [] { delete(evidence) }
+        for evidence in (try? fetch(FetchDescriptor<MobilityEntryEvidence>())) ?? [] { delete(evidence) }
+        for evidence in (try? fetch(FetchDescriptor<MobilityRoutineItemEvidence>())) ?? [] { delete(evidence) }
+        for block in (try? fetch(FetchDescriptor<MobilityRoutineBlock>())) ?? [] { delete(block) }
         for routine in try fetch(FetchDescriptor<MobilityRoutine>()) { delete(routine) }
         for definition in try fetch(FetchDescriptor<MobilityDefinition>()) { delete(definition) }
         for family in try fetch(FetchDescriptor<MobilityFamily>()) { delete(family) }
@@ -46,6 +50,7 @@ extension ModelContext {
         for occurrence in try fetch(FetchDescriptor<SupplementOccurrence>()) { delete(occurrence) }
 #if !GYMTRACKER_EXTENSION
         for definition in try fetch(FetchDescriptor<ProgramDefinitionRecord>()) { delete(definition) }
+        for definition in try fetch(FetchDescriptor<MobilityProgramDefinitionRecord>()) { delete(definition) }
         // Recommendation records have no relationship to a graph root; they
         // are scalar-only receipts keyed by plan/workout UUIDs. Delete them
         // explicitly so a UI-test reset cannot leave dangling identifiers in

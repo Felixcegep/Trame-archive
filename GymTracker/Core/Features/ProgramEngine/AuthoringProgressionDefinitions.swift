@@ -64,6 +64,8 @@ nonisolated struct AuthoringTriggerDefinition: Codable, Hashable {
         case "blockCompleted": return .blockCompleted
         case "cycleCompleted": return .cycleCompleted
         case "failureCountReached": return .failureCountReached(count ?? 1)
+        case "consecutiveMissedAttemptsReached":
+            return .consecutiveMissedAttemptsReached(count ?? 3)
         case "totalRepetitionsReached": return .totalRepetitionsReached(count ?? 0)
         case "amrapResultReached": return .amrapResultReached(count ?? 0)
         case "targetRPEMatched": return .targetRPEMatched(tolerance: tolerance ?? 0)
@@ -90,11 +92,14 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
     var value: Double?
     var formula: AuthoringFormulaDefinition?
     var next: String?
+    var setCount: Int?
+    var repetitions: Int?
+    var percentage: Double?
     var advancesToNextStage: Bool
     var andChangeStage: String?
 
     private enum CodingKeys: String, CodingKey {
-        case type, value, formula, next, andChangeStage
+        case type, value, formula, next, setCount, repetitions, percentage, andChangeStage
     }
 
     init(
@@ -102,6 +107,9 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         value: Double? = nil,
         formula: AuthoringFormulaDefinition? = nil,
         next: String? = nil,
+        setCount: Int? = nil,
+        repetitions: Int? = nil,
+        percentage: Double? = nil,
         advancesToNextStage: Bool = false,
         andChangeStage: String? = nil
     ) {
@@ -109,6 +117,9 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         self.value = value
         self.formula = formula
         self.next = next
+        self.setCount = setCount
+        self.repetitions = repetitions
+        self.percentage = percentage
         self.advancesToNextStage = advancesToNextStage
         self.andChangeStage = andChangeStage
     }
@@ -119,6 +130,9 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         value = try container.decodeIfPresent(Double.self, forKey: .value)
         formula = try container.decodeIfPresent(AuthoringFormulaDefinition.self, forKey: .formula)
         next = try? container.decode(String.self, forKey: .next)
+        setCount = try container.decodeIfPresent(Int.self, forKey: .setCount)
+        repetitions = try container.decodeIfPresent(Int.self, forKey: .repetitions)
+        percentage = try container.decodeIfPresent(Double.self, forKey: .percentage)
         advancesToNextStage = (try? container.decode(Bool.self, forKey: .next)) ?? false
         andChangeStage = try container.decodeIfPresent(String.self, forKey: .andChangeStage)
     }
@@ -128,6 +142,9 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
         try container.encode(type, forKey: .type)
         try container.encodeIfPresent(value, forKey: .value)
         try container.encodeIfPresent(formula, forKey: .formula)
+        try container.encodeIfPresent(setCount, forKey: .setCount)
+        try container.encodeIfPresent(repetitions, forKey: .repetitions)
+        try container.encodeIfPresent(percentage, forKey: .percentage)
         if let next {
             try container.encode(next, forKey: .next)
         } else if advancesToNextStage {
@@ -173,6 +190,12 @@ nonisolated struct AuthoringActionDefinition: Codable, Hashable {
             guard let formula else { throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type).formula") }
             return .updateVelocityBaseline(try formula.expand(exposureKey: exposureKey))
         case "noChange": return .noChange
+        case "endActiveDailyMaximumAndGenerateBackOffs":
+            return .endActiveDailyMaximumAndGenerateBackOffs(
+                setCount: setCount ?? 0,
+                repetitions: repetitions ?? 0,
+                percentage: percentage ?? 0
+            )
         default: throw ProgramLibraryImportError.unsupportedRuleConstruct("action.\(type)")
         }
     }
@@ -350,6 +373,13 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
     var repRange: [Int]?
     var amrap: [Int?]?
     var durationSeconds: Double?
+    /// Canonical workout distance. Compact recipes never carry a display unit;
+    /// authoring, compilation, active snapshots, and backup all retain metres.
+    var distanceMeters: Double?
+    /// Optional group-local rest overrides the exercise default. This is needed
+    /// for wave prescriptions whose recovery changes while the exercise stays
+    /// the same occurrence.
+    var restSeconds: Int?
     var load: AuthoringLoadDefinition?
     var role: ProgramSetRole?
     var targetRPE: Double?
@@ -363,6 +393,8 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
         repRange: [Int]? = nil,
         amrap: [Int?]? = nil,
         durationSeconds: Double? = nil,
+        distanceMeters: Double? = nil,
+        restSeconds: Int? = nil,
         load: AuthoringLoadDefinition? = nil,
         role: ProgramSetRole? = nil,
         targetRPE: Double? = nil,
@@ -375,6 +407,8 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
         self.repRange = repRange
         self.amrap = amrap
         self.durationSeconds = durationSeconds
+        self.distanceMeters = distanceMeters
+        self.restSeconds = restSeconds
         self.load = load
         self.role = role
         self.targetRPE = targetRPE
@@ -390,7 +424,13 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
         exposureKey: String? = nil,
         mainReference: String? = nil
     ) throws -> [SetPrescriptionDefinition] {
-        let options = [reps != nil, repRange != nil, amrap != nil, durationSeconds != nil]
+        let options = [
+            reps != nil,
+            repRange != nil,
+            amrap != nil,
+            durationSeconds != nil,
+            distanceMeters != nil
+        ]
         guard options.filter({ $0 }).count == 1 else {
             throw ProgramLibraryImportError.invalidSetGroup(path)
         }
@@ -404,6 +444,8 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
             repetitionPrescription = .amrap(minimum: amrap[0], maximum: amrap[1])
         } else if let durationSeconds {
             repetitionPrescription = .duration(seconds: durationSeconds)
+        } else if let distanceMeters {
+            repetitionPrescription = .distance(meters: distanceMeters)
         } else {
             throw ProgramLibraryImportError.invalidSetGroup(path)
         }
@@ -418,7 +460,7 @@ nonisolated struct AuthoringSetGroupDefinition: Codable, Hashable {
                 load: load?.expand(exposureKey: exposureKey, mainReference: mainReference) ?? LoadPrescription(),
                 targetRPE: targetRPE,
                 targetRIR: targetRIR,
-                restSeconds: restSeconds,
+                restSeconds: self.restSeconds ?? restSeconds,
                 tempo: tempo,
                 progressionEligible: progressionEligible ?? true
             )

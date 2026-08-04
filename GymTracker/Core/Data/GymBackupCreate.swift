@@ -34,7 +34,10 @@ extension BackupDTO {
                 setupAngleDegrees: exercise.setupAngleDegrees,
                 variationFamilyID: exercise.variationFamilyID,
                 frenchName: exercise.frenchName,
-                searchAliases: exercise.searchAliases
+                searchAliases: exercise.searchAliases,
+                sportDiscipline: exercise.sportDisciplineRaw,
+                strongmanEventFamily: exercise.strongmanEventFamilyRaw,
+                strongmanImplementProfileData: exercise.strongmanImplementProfileData
             )
         }
 
@@ -165,6 +168,9 @@ extension BackupDTO {
                             throwDistanceMeters: set.throwDistanceMeters,
                             kettlebellCadenceRPM: set.kettlebellCadenceRPM,
                             specializedMetricMeasurementSource: set.specializedMetricMeasurementSource?.rawValue,
+                            strongmanLoadConvention: set.strongmanLoadConventionRaw,
+                            strongmanImplementProfileData: set.strongmanImplementProfileData,
+                            strongmanEventFamily: set.strongmanEventFamilyRaw,
                             setMethod: set.resolvedSetMethod.rawValue,
                             segments: set.orderedSegments.map { segment in
                                 ExerciseSetSegmentDTO(
@@ -178,7 +184,13 @@ extension BackupDTO {
                                     done: segment.done,
                                     variationNote: segment.variationNote,
                                     rpe: segment.rpe,
-                                    rir: segment.rir
+                                    rir: segment.rir,
+                                    splitKind: segment.splitKindRaw,
+                                    startedAt: segment.startedAt,
+                                    endedAt: segment.endedAt,
+                                    distanceMeters: segment.distanceMeters,
+                                    heartRateBPM: segment.heartRateBPM,
+                                    perceivedExertion: segment.perceivedExertion
                                 )
                             },
                             complexComponents: set.orderedComplexComponents.map { component in
@@ -279,7 +291,9 @@ extension BackupDTO {
                         lateralitySnapshot: exercise.lateralitySnapshot.rawValue,
                         repCountingStyleSnapshot: exercise.repCountingStyleSnapshot.rawValue,
                         weightEntryStyleSnapshot: exercise.weightEntryStyleSnapshot.rawValue,
-                        loadUnitCountSnapshot: exercise.loadUnitCountSnapshot
+                        loadUnitCountSnapshot: exercise.loadUnitCountSnapshot,
+                        sportDisciplineSnapshot: exercise.sportDisciplineSnapshotRaw,
+                        strongmanEventFamilySnapshot: exercise.strongmanEventFamilySnapshotRaw
                     )
                 },
                 executionBlocks: workout.orderedExecutionBlocks.map { block in
@@ -623,6 +637,99 @@ extension BackupDTO {
                 definitionData: record.definitionData
             )
         }
+        let mobilityProgramDefinitionDTOs = try context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>()).map { record in
+            MobilityProgramDefinitionDTO(
+                id: record.id.uuidString,
+                programKey: record.programKey,
+                schemaVersion: record.schemaVersion,
+                templateVersion: record.templateVersion,
+                name: record.name,
+                summary: record.summary,
+                durationWeeks: record.durationWeeks,
+                supportedDaysPerWeek: record.supportedDaysPerWeek,
+                isBuiltIn: record.isBuiltIn,
+                isArchived: record.isArchived,
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt,
+                definitionData: record.definitionData
+            )
+        }
+        let mobilityProgramRunDTOs = try context.fetch(FetchDescriptor<MobilityProgramRun>()).map { run in
+            MobilityProgramRunDTO(
+                id: run.id.uuidString,
+                sourceProgramID: run.sourceProgramID.uuidString,
+                sourceProgramName: run.sourceProgramName,
+                startDate: run.startDate,
+                endDate: run.endDate,
+                status: run.statusRaw,
+                currentWeekIndex: run.currentWeekIndex,
+                currentSessionIndex: run.currentSessionIndex,
+                programSnapshotData: run.programSnapshotData,
+                createdAt: run.createdAt,
+                updatedAt: run.updatedAt,
+                sessionProgress: run.orderedSessionProgress.map { progress in
+                    MobilityProgramSessionProgressDTO(
+                        id: progress.id.uuidString,
+                        sessionKey: progress.sessionKey,
+                        weekIndex: progress.weekIndex,
+                        dayIndex: progress.dayIndex,
+                        sameDayOrder: progress.sameDayOrder,
+                        isOptional: progress.isOptional,
+                        sessionNameSnapshot: progress.sessionNameSnapshot,
+                        status: progress.statusRaw,
+                        originalScheduledDate: progress.originalScheduledDate,
+                        scheduledDate: progress.scheduledDate,
+                        lastRescheduledAt: progress.lastRescheduledAt,
+                        startedAt: progress.startedAt,
+                        completedAt: progress.completedAt,
+                        mobilitySessionID: progress.mobilitySessionID?.uuidString
+                    )
+                },
+                progressionStates: run.orderedProgressionStates.map { state in
+                    MobilityProgressionStateDTO(
+                        id: state.id.uuidString,
+                        progressionKey: state.progressionKey,
+                        side: state.sideRaw,
+                        durationOffsetSeconds: state.durationOffsetSeconds,
+                        repetitionOffset: state.repetitionOffset,
+                        cycleOffset: state.cycleOffset,
+                        loadOffset: state.loadOffset,
+                        assistanceLevelOffset: state.assistanceLevelOffset,
+                        supportLevelStepOffset: state.supportLevelStepOffset,
+                        variationStepOffset: state.variationStepOffset,
+                        consecutiveTargetMetSessionCount: state.consecutiveTargetMetSessionCount,
+                        lastAppliedRecommendationID: state.lastAppliedRecommendationID?.uuidString,
+                        updatedAt: state.updatedAt
+                    )
+                }
+            )
+        }
+        let mobilityProgressionRecommendationDTOs = try context.fetch(FetchDescriptor<MobilityProgressionRecommendationRecord>()).map { record in
+            MobilityProgressionRecommendationDTO(
+                id: record.id.uuidString,
+                runID: record.runID.uuidString,
+                sessionProgressID: record.sessionProgressID.uuidString,
+                progressionKey: record.progressionKey,
+                side: record.sideRaw,
+                ruleID: record.ruleID.uuidString,
+                actionData: record.actionData,
+                reason: record.reason,
+                reasonKey: record.reasonKey,
+                applicationMode: record.applicationMode.rawValue,
+                performanceData: record.performanceData,
+                proposedDurationOffsetSeconds: record.proposedDurationOffsetSeconds,
+                proposedRepetitionOffset: record.proposedRepetitionOffset,
+                proposedCycleOffset: record.proposedCycleOffset,
+                proposedLoadOffset: record.proposedLoadOffset,
+                proposedAssistanceLevelOffset: record.proposedAssistanceLevelOffset,
+                proposedSupportLevelStepOffset: record.proposedSupportLevelStepOffset,
+                proposedVariationStepOffset: record.proposedVariationStepOffset,
+                createdAt: record.createdAt,
+                isResolved: record.isResolved,
+                resolvedAt: record.resolvedAt,
+                decisionOutcome: record.decisionOutcome?.rawValue
+            )
+        }
         let progressionRecommendationDTOs = try context.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()).map { record in
             ProgressionRecommendationDTO(
                 id: record.id.uuidString,
@@ -719,6 +826,22 @@ extension BackupDTO {
                 updatedAt: definition.updatedAt
             )
         }
+        let mobilityPrescriptionEvidence = Dictionary(
+            try context.fetch(FetchDescriptor<MobilityRoutineItemEvidence>()).map { ($0.routineItemID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let mobilityResultEvidence = Dictionary(
+            try context.fetch(FetchDescriptor<MobilityResultEvidence>()).map { ($0.resultID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let mobilityEntryEvidence = Dictionary(
+            try context.fetch(FetchDescriptor<MobilityEntryEvidence>()).map { ($0.entryID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let mobilityBlocksByRoutineID = Dictionary(
+            grouping: try context.fetch(FetchDescriptor<MobilityRoutineBlock>()),
+            by: { $0.routineID }
+        )
         let mobilityRoutineDTOs = try context.fetch(FetchDescriptor<MobilityRoutine>()).map { routine in
             MobilityRoutineDTO(
                 id: routine.id.uuidString,
@@ -736,14 +859,69 @@ extension BackupDTO {
                         targetRepetitions: item.targetRepetitions,
                         targetLoadValue: item.targetLoadValue,
                         targetLoadUnit: item.targetLoadUnit?.rawValue,
+                        cycleCount: item.cycleCount,
                         side: item.side.rawValue,
                         restSeconds: item.restSeconds,
-                        notes: item.notes
+                        notes: item.notes,
+                        phases: item.orderedPhases.map { phase in
+                            MobilityPhasePrescriptionDTO(
+                                id: phase.id.uuidString,
+                                orderIndex: phase.orderIndex,
+                                phaseType: phase.phaseType.rawValue,
+                                durationSeconds: phase.durationSeconds,
+                                contractionIntensity: phase.contractionIntensity?.rawValue,
+                                instructions: phase.instructions,
+                                side: phase.side.rawValue
+                            )
+                        },
+                        method: mobilityPrescriptionEvidence[item.id]?.methodRaw,
+                        trainingPurpose: mobilityPrescriptionEvidence[item.id]?.purposeRaw,
+                        breathingPrescription: mobilityPrescriptionEvidence[item.id]?.breathingPrescription.map {
+                            MobilityBreathingPrescriptionDTO(
+                                targetBreaths: $0.targetBreaths,
+                                inhaleSeconds: $0.inhaleSeconds,
+                                exhaleSeconds: $0.exhaleSeconds,
+                                instructionKey: $0.instructionKey
+                            )
+                        },
+                        tempoPrescription: mobilityPrescriptionEvidence[item.id]?.tempoPrescription.map {
+                            MobilityTempoPrescriptionDTO(
+                                moveIntoRangeSeconds: $0.moveIntoRangeSeconds,
+                                holdSeconds: $0.holdSeconds,
+                                returnSeconds: $0.returnSeconds,
+                                pauseSeconds: $0.pauseSeconds
+                            )
+                        },
+                        assistancePrescription: mobilityPrescriptionEvidence[item.id]?.assistancePrescription.map {
+                            MobilityAssistancePrescriptionDTO(
+                                assistanceType: $0.assistanceTypeRaw,
+                                level: $0.level,
+                                equipment: $0.equipmentRaw
+                            )
+                        },
+                        supportLevel: mobilityPrescriptionEvidence[item.id]?.supportLevelRaw,
+                        metricProfile: mobilityPrescriptionEvidence[item.id]?.metricProfile,
+                        metricTargets: mobilityPrescriptionEvidence[item.id]?.metricTargets,
+                        blockKey: mobilityPrescriptionEvidence[item.id]?.blockKey,
+                        sideStrategy: mobilityPrescriptionEvidence[item.id]?.sideStrategyRaw,
+                        restPrescription: mobilityPrescriptionEvidence[item.id]?.restPrescription
                     )
                 },
                 // Do not export an unrecognized raw value from a future build:
                 // this build cannot validate it on a subsequent restore.
-                purpose: routine.purpose?.rawValue
+                purpose: routine.purpose?.rawValue,
+                blocks: (mobilityBlocksByRoutineID[routine.id] ?? [])
+                    .sorted { $0.orderIndex == $1.orderIndex ? $0.blockKey < $1.blockKey : $0.orderIndex < $1.orderIndex }
+                    .map { block in
+                        MobilityRoutineBlockDTO(
+                            blockKey: block.blockKey,
+                            orderIndex: block.orderIndex,
+                            name: block.name,
+                            kind: block.kindRaw,
+                            targetRounds: block.targetRounds,
+                            restPrescription: block.restPrescription
+                        )
+                    }
             )
         }
         let mobilitySessionDTOs = try context.fetch(FetchDescriptor<MobilitySession>()).map { session in
@@ -761,7 +939,8 @@ extension BackupDTO {
                 createdAt: session.createdAt,
                 updatedAt: session.updatedAt,
                 entries: session.orderedEntries.map { entry in
-                    MobilityEntryDTO(
+                    let entryEvidence = mobilityEntryEvidence[entry.id]
+                    return MobilityEntryDTO(
                         id: entry.id.uuidString,
                         orderIndex: entry.orderIndex,
                         definitionIDSnapshot: entry.definitionIDSnapshot.uuidString,
@@ -772,12 +951,17 @@ extension BackupDTO {
                         targetRepetitions: entry.targetRepetitions,
                         prescribedLoadValue: entry.prescribedLoadValue,
                         prescribedLoadUnit: entry.prescribedLoadUnit?.rawValue,
+                        cycleCount: entry.cycleCount,
+                        currentCycleIndex: entry.currentCycleIndex,
+                        currentPhaseIndex: entry.currentPhaseIndex,
                         side: entry.side.rawValue,
                         restSeconds: entry.restSeconds,
                         notesSnapshot: entry.notesSnapshot,
                         timerStartedAt: entry.timerStartedAt,
+                        pausedElapsedSeconds: entry.pausedElapsedSeconds,
                         results: entry.orderedResults.map { result in
-                            MobilityResultDTO(
+                            let evidence = mobilityResultEvidence[result.id]
+                            return MobilityResultDTO(
                                 id: result.id.uuidString,
                                 side: result.side.rawValue,
                                 status: result.status.rawValue,
@@ -790,9 +974,69 @@ extension BackupDTO {
                                 perceivedIntensity: result.perceivedIntensity,
                                 discomfortNote: result.discomfortNote,
                                 startedAt: result.startedAt,
-                                completedAt: result.completedAt
+                                completedAt: result.completedAt,
+                                methodSnapshot: evidence?.methodSnapshotRaw,
+                                trainingPurposeSnapshot: evidence?.purposeSnapshotRaw,
+                                sensation: evidence?.sensationRaw,
+                                movementQuality: evidence?.movementQualityRaw,
+                                compensationKeys: evidence?.compensationKeys.map(\.rawValue).sorted(),
+                                breathingPrescriptionSnapshot: evidence?.breathingPrescriptionSnapshot.map {
+                                    MobilityBreathingPrescriptionDTO(
+                                        targetBreaths: $0.targetBreaths,
+                                        inhaleSeconds: $0.inhaleSeconds,
+                                        exhaleSeconds: $0.exhaleSeconds,
+                                        instructionKey: $0.instructionKey
+                                    )
+                                },
+                                tempoPrescriptionSnapshot: evidence?.tempoPrescriptionSnapshot.map {
+                                    MobilityTempoPrescriptionDTO(
+                                        moveIntoRangeSeconds: $0.moveIntoRangeSeconds,
+                                        holdSeconds: $0.holdSeconds,
+                                        returnSeconds: $0.returnSeconds,
+                                        pauseSeconds: $0.pauseSeconds
+                                    )
+                                },
+                                assistancePrescriptionSnapshot: evidence?.assistancePrescriptionSnapshot.map {
+                                    MobilityAssistancePrescriptionDTO(
+                                        assistanceType: $0.assistanceTypeRaw,
+                                        level: $0.level,
+                                        equipment: $0.equipmentRaw
+                                    )
+                                },
+                                supportLevelSnapshot: evidence?.supportLevelSnapshotRaw,
+                                performedBreathingCycles: evidence?.performedBreathingCycles,
+                                performedAssistanceLevel: evidence?.performedAssistanceLevel,
+                                performedSupportLevel: evidence?.performedSupportLevelRaw,
+                                metricProfileSnapshot: evidence?.metricProfileSnapshot,
+                                metricTargetsSnapshot: evidence?.metricTargetsSnapshot,
+                                restSnapshot: evidence?.restSnapshot
                             )
-                        }
+                        },
+                        phaseResults: entry.orderedPhaseResults.map { phaseResult in
+                            MobilityPhaseResultDTO(
+                                id: phaseResult.id.uuidString,
+                                orderIndex: phaseResult.orderIndex,
+                                phaseType: phaseResult.phaseType.rawValue,
+                                prescribedDurationSeconds: phaseResult.prescribedDurationSeconds,
+                                performedDurationSeconds: phaseResult.performedDurationSeconds,
+                                cycleIndex: phaseResult.cycleIndex,
+                                side: phaseResult.side.rawValue,
+                                prescribedIntensity: phaseResult.prescribedIntensity?.rawValue,
+                                performedIntensity: phaseResult.performedIntensity?.rawValue,
+                                status: phaseResult.status.rawValue,
+                                startedAt: phaseResult.startedAt,
+                                completedAt: phaseResult.completedAt
+                            )
+                        },
+                        blockKeySnapshot: entryEvidence?.blockKeySnapshot,
+                        blockKindSnapshot: entryEvidence?.blockKindSnapshotRaw,
+                        blockNameSnapshot: entryEvidence?.blockNameSnapshot,
+                        blockOrderIndexSnapshot: entryEvidence?.blockOrderIndexSnapshot,
+                        blockTargetRoundsSnapshot: entryEvidence?.blockTargetRoundsSnapshot,
+                        blockRestSnapshot: entryEvidence?.blockRestSnapshot,
+                        roundIndexSnapshot: entryEvidence?.roundIndexSnapshot ?? 0,
+                        sideStrategySnapshot: entryEvidence?.sideStrategySnapshotRaw,
+                        restPrescriptionSnapshot: entryEvidence?.restPrescriptionSnapshot
                     )
                 }
             )
@@ -1005,6 +1249,9 @@ extension BackupDTO {
                 competitionDiscipline: profile.competition?.discipline?.rawValue,
                 competitionEventDateTimestamp: profile.competition?.eventDate?.timeIntervalSince1970,
                 competitionStandards: profile.competition?.standards?.rawValue,
+                mobilityGoal: profile.mobilityGoalRaw,
+                mobilityExperience: profile.mobilityExperienceRaw,
+                mobilityFrequency: profile.mobilityFrequencyRaw,
                 completedCoreOnboardingAtTimestamp: profile.completedCoreOnboardingAt?.timeIntervalSince1970,
                 createdAtTimestamp: profile.createdAt.timeIntervalSince1970,
                 updatedAtTimestamp: profile.updatedAt.timeIntervalSince1970
@@ -1030,6 +1277,9 @@ extension BackupDTO {
             repeatingPlanRuns: repeatingPlanRunDTOs,
             exerciseRelationships: relationshipDTOs,
             programDefinitions: programDefinitionDTOs,
+            mobilityProgramDefinitions: mobilityProgramDefinitionDTOs,
+            mobilityProgramRuns: mobilityProgramRunDTOs,
+            mobilityProgressionRecommendations: mobilityProgressionRecommendationDTOs,
             progressionRecommendations: progressionRecommendationDTOs,
             dailyLogEntries: dailyLogEntryDTOs,
             bodyWeightEntries: bodyWeightEntryDTOs,

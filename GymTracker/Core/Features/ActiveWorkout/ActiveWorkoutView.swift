@@ -4,6 +4,8 @@ import UniformTypeIdentifiers
 
 struct ActiveWorkoutView: View {
     @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
+    @Query(filter: #Predicate<PlanProgressionRecommendationRecord> { !$0.isResolved })
+    private var unresolvedProgramRecommendations: [PlanProgressionRecommendationRecord]
 
     let workoutVM: WorkoutViewModel
     @Binding var navigationPath: [ActiveWorkoutRoute]
@@ -25,6 +27,7 @@ struct ActiveWorkoutView: View {
     @State private var exerciseToSwap: ExerciseEntry?
     @State private var isShowingExecutionBlockBuilder = false
     @State private var executionBlockToEdit: WorkoutExecutionBlock?
+    @State private var activeRecommendationErrorMessage: String?
 
     private var unitSystem: UnitSystem {
         UserDefaults.standard.unitSystem
@@ -109,6 +112,17 @@ struct ActiveWorkoutView: View {
         } message: {
             Text(discardConfirmationMessage)
         }
+        .alert(
+            "Couldn’t save your decision",
+            isPresented: Binding(
+                get: { activeRecommendationErrorMessage != nil },
+                set: { if !$0 { activeRecommendationErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { activeRecommendationErrorMessage = nil }
+        } message: {
+            Text(activeRecommendationErrorMessage ?? "")
+        }
         .sheet(isPresented: $isShowingExercisePicker) {
             NavigationStack {
                 ExerciseLibraryView(
@@ -177,6 +191,22 @@ struct ActiveWorkoutView: View {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     sessionHeader(for: workout)
 
+                    if let recommendation = activeDailyMaximumRecommendation(for: workout),
+                       let entry = workout.orderedExercises.first(where: {
+                           $0.progressionKey == recommendation.progressionKey
+                       }) {
+                        ActiveDailyMaximumRecommendationCard(
+                            recommendation: recommendation,
+                            exerciseName: entry.nameSnapshot,
+                            onAccept: {
+                                resolveActiveRecommendation(recommendation, accepting: true)
+                            },
+                            onDecline: {
+                                resolveActiveRecommendation(recommendation, accepting: false)
+                            }
+                        )
+                    }
+
                     if !workout.orderedExecutionBlocks.isEmpty {
                         executionBlocks(for: workout)
                     }
@@ -229,7 +259,6 @@ struct ActiveWorkoutView: View {
                         coordinator: coordinator,
                         unitSystem: unitSystem,
                         onSetCompleted: { exercise in
-                            viewModel.startTime(after: exercise)
                             advanceDisclosure(after: exercise, in: workout)
                         }
                     )
@@ -268,6 +297,39 @@ struct ActiveWorkoutView: View {
 
     private func inputFields(for exercise: ExerciseEntry) -> [SetInputFocus.Field] {
         SetInputCoordinator.inputFields(for: exercise.trackingTypeSnapshot)
+    }
+
+    private func activeDailyMaximumRecommendation(
+        for workout: Workout
+    ) -> PlanProgressionRecommendationRecord? {
+        unresolvedProgramRecommendations
+            .filter { $0.workoutID == workout.id }
+            .sorted { $0.createdAt < $1.createdAt }
+            .first { recommendation in
+                guard let action = try? recommendation.action() else { return false }
+                if case .endActiveDailyMaximumAndGenerateBackOffs = action { return true }
+                return false
+            }
+    }
+
+    private func resolveActiveRecommendation(
+        _ recommendation: PlanProgressionRecommendationRecord,
+        accepting: Bool
+    ) {
+        do {
+            if accepting {
+                coordinator.focus = nil
+                try viewModel.acceptActiveRecommendation(recommendation)
+            } else {
+                try viewModel.declineActiveRecommendation(recommendation)
+            }
+        } catch ActiveWorkoutRecommendationMutationService.MutationError.successfulDailyMaximumNotFound {
+            activeRecommendationErrorMessage = String(
+                localized: "A successful maximum attempt is required to calculate the back-off load. Continue attempts or record a successful result."
+            )
+        } catch {
+            activeRecommendationErrorMessage = String(localized: "Try again.")
+        }
     }
 
     private func hasEnteredValue(for field: SetInputFocus.Field, in set: ExerciseSet) -> Bool {
@@ -535,7 +597,6 @@ struct ActiveWorkoutView: View {
                 exerciseEntry: exercise,
                 executionBlock: workout.orderedExecutionBlocks.first { $0.id == exercise.executionBlockID },
                 viewModel: viewModel,
-                onButtonPress: { viewModel.startTime(after: exercise) },
                 unitSystem: unitSystem,
                 coordinator: coordinator,
                 expandedExerciseID: $expandedExerciseID,
@@ -643,6 +704,7 @@ struct ActiveWorkoutView: View {
         if workout.exercises.isEmpty {
             EmptyView()
         } else {
+            let owesActiveDecision = activeDailyMaximumRecommendation(for: workout) != nil
             VStack {
                 Button {
                     viewModel.cancelTimer()
@@ -658,14 +720,26 @@ struct ActiveWorkoutView: View {
                     Label("Finish workout", systemImage: AppIcon.checkmark)
                 }
                 .buttonStyle(.gymPrimaryProminent)
-                .disabled(workout.completedSetCount == 0)
-                .accessibilityHint(workout.completedSetCount == 0 ? "Complete at least one set before finishing." : "Review and save your workout.")
+                .disabled(workout.completedSetCount == 0 || owesActiveDecision)
+                .accessibilityHint(
+                    workout.completedSetCount == 0
+                        ? "Complete at least one set before finishing."
+                        : owesActiveDecision
+                            ? "Choose whether to stop or continue maximum attempts before finishing."
+                            : "Review and save your workout."
+                )
 
                 // A disabled control has to say why. This was previously
                 // carried only by an accessibility hint, which a sighted user
                 // never receives.
                 if workout.completedSetCount == 0 {
                     Text("Complete at least one set to finish.")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityHidden(true)
+                } else if owesActiveDecision {
+                    Text("Choose whether to stop or continue maximum attempts before finishing.")
                         .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
                         .frame(maxWidth: .infinity)

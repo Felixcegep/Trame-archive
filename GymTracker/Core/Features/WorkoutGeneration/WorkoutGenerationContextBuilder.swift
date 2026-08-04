@@ -61,7 +61,7 @@ enum WorkoutGenerationContextBuilder {
 
         for workout in workouts where workout.status == .completed && workout.startTime >= since {
             for entry in workout.orderedExercises {
-                let exerciseID = entry.exerciseIDSnapshot ?? entry.exercise.id
+                let exerciseID = HistoricalExerciseIdentityPolicy.identity(of: entry)
                 guard allowedExerciseIDs.contains(exerciseID) else { continue }
                 let existing = exposures[exerciseID]
                 exposures[exerciseID] = (

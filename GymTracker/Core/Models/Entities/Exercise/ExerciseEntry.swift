@@ -10,7 +10,8 @@ import Combine
 import SwiftData
 
 @Model
-final class ExerciseEntry{
+final class ExerciseEntry {
+    var id = UUID()
     var orderIndex: Int = 0
     /// Snapshot-local membership in a contiguous superset. It must never reuse
     /// a template or planned-workout identifier.
@@ -108,6 +109,15 @@ final class ExerciseEntry{
     var repCountingStyleSnapshot: RepCountingStyle = RepCountingStyle.total
     var weightEntryStyleSnapshot: WeightEntryStyle = WeightEntryStyle.totalLoad
     var loadUnitCountSnapshot: Int = 1
+    /// Captured from `exercise.resolvedSportDiscipline` at entry-creation
+    /// time. Analytics (`SportAnalyticsPolicyResolver`) must read this, never
+    /// `exercise.sportDiscipline` live: a later catalog reclassification
+    /// (an exercise gets tagged strongman/Olympic after the fact) must never
+    /// retroactively change what an already-completed set counted toward.
+    /// `nil` only for entries persisted before this field existed; those
+    /// resolve through the live exercise exactly as they always have.
+    var sportDisciplineSnapshotRaw: String?
+    var strongmanEventFamilySnapshotRaw: String?
     var workout: Workout?
 
     var stimulusSnapshot: TrainingStimulus? {
@@ -117,6 +127,20 @@ final class ExerciseEntry{
         set {
             stimulusSnapshotRaw = newValue?.rawValue
         }
+    }
+
+    /// The sport discipline this entry was performed under, frozen at the
+    /// moment it was created (or last re-snapshotted by
+    /// `updateExerciseSnapshot`). Falls back to the live exercise's derived
+    /// default only for entries persisted before this field existed — never
+    /// for a normal read, so a later catalog reclassification cannot
+    /// retroactively change what history already recorded.
+    var sportDisciplineSnapshot: SportDiscipline {
+        sportDisciplineSnapshotRaw.flatMap(SportDiscipline.init(rawValue:)) ?? exercise.resolvedSportDiscipline
+    }
+
+    var strongmanEventFamilySnapshot: StrongmanEventFamily? {
+        strongmanEventFamilySnapshotRaw.flatMap(StrongmanEventFamily.init(rawValue:))
     }
     @Relationship(deleteRule: .cascade, inverse: \ExerciseSet.exerciseEntry)
     var sets: [ExerciseSet]
@@ -144,6 +168,8 @@ final class ExerciseEntry{
         self.repCountingStyleSnapshot = exercise.repCountingStyle
         self.weightEntryStyleSnapshot = exercise.weightEntryStyle
         self.loadUnitCountSnapshot = exercise.loadUnitCount
+        self.sportDisciplineSnapshotRaw = exercise.resolvedSportDiscipline.rawValue
+        self.strongmanEventFamilySnapshotRaw = exercise.strongmanEventFamilyRaw
         self.prescribedSets = nil
         self.prescribedRepRangeMinimum = nil
         self.prescribedRepRangeMaximum = nil
@@ -325,6 +351,8 @@ final class ExerciseEntry{
         repCountingStyleSnapshot = exercise.repCountingStyle
         weightEntryStyleSnapshot = exercise.weightEntryStyle
         loadUnitCountSnapshot = exercise.loadUnitCount
+        sportDisciplineSnapshotRaw = exercise.resolvedSportDiscipline.rawValue
+        strongmanEventFamilySnapshotRaw = exercise.strongmanEventFamilyRaw
         recommendedDecision = nil
         recommendedLoad = nil
         recommendedUnit = nil

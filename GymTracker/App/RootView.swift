@@ -236,6 +236,11 @@ struct RootView: View {
             NavigationStack {
                 MobilitySessionView(session: session) {
                     activeMobilitySession = nil
+                    // Closes the loop between this session ending and any
+                    // `MobilityProgramSessionProgress` it was started for —
+                    // cheap and a no-op whenever the session was not
+                    // program-linked, or nothing is active.
+                    MobilityProgramRunCoordinator.reconcileTerminalSessions(using: modelContext)
                     resumeWorkoutAfterWarmupIfNeeded(session)
                 }
             }
@@ -372,6 +377,7 @@ struct RootView: View {
             // here would be a second, non-atomic transaction whose failure
             // could not roll back the already-committed restore.
             workoutVM.restoreActiveWorkout(using: modelContext)
+            activeMobilitySession = reconciledActiveMobilitySession()
             Task {
                 await PlanNotificationScheduler.shared.reconcile(using: modelContext)
                 await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
@@ -473,8 +479,8 @@ struct RootView: View {
             isShowingActiveWorkout = true
         case .activeMobility(let sessionID):
             guard featureFlags.isEnabled(.mobility),
-                  let session = (try? modelContext.fetch(FetchDescriptor<MobilitySession>()))?
-                    .first(where: { $0.id == sessionID && $0.status == .active })
+                  let session = reconciledActiveMobilitySession(),
+                  session.id == sessionID
             else {
                 selectedTab = .today
                 return
@@ -899,8 +905,13 @@ struct RootView: View {
         case .mobility:
             MobilityLibraryView(
                 onStart: startMobility,
-                onStartAssessment: { activeAssessmentSession = $0 }
+                onStartAssessment: { activeAssessmentSession = $0 },
+                onStartProgramSession: startMobilityProgramSession
             )
+        case .mobilityPlans:
+            MobilityProgramCatalogView(onStartProgramSession: startMobilityProgramSession)
+        case .mobilityAssessments:
+            MobilityAssessmentLandingView(onStart: { activeAssessmentSession = $0 })
         case .programPath(let route):
             programPathDestination(route, onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) })
         case .weeklyReview(let route):
@@ -964,7 +975,7 @@ struct RootView: View {
             workoutVM.restoreActiveWorkout(using: modelContext)
         }
 
-        activeMobilitySession = MobilitySessionService.activeSession(using: modelContext)
+        activeMobilitySession = reconciledActiveMobilitySession()
         apply(UITestLaunch.seededDestination(using: modelContext))
         consumePendingPlanNotificationDestination()
         consumePendingAppIntentDestination()
@@ -1020,7 +1031,26 @@ struct RootView: View {
     }
 
     private func resumeMobility(_ session: MobilitySession) {
+        guard let restored = reconciledActiveMobilitySession(), restored.id == session.id else { return }
+        activeMobilitySession = restored
+    }
+
+    /// Mirrors `startMobility`: a mobility program session is compiled and
+    /// started by `MobilityProgramRunCoordinator` before this is called, so
+    /// this only takes ownership of presenting it — the one centralized
+    /// `activeMobilitySession` fullScreenCover every mobility session (
+    /// standalone or program) presents through.
+    private func startMobilityProgramSession(_ session: MobilitySession) {
         activeMobilitySession = session
+    }
+
+    private func reconciledActiveMobilitySession() -> MobilitySession? {
+        switch MobilitySessionService.restoreActiveSession(using: modelContext) {
+        case .restored(let session), .repaired(let session):
+            return session
+        case .none, .invalid, .persistenceFailure:
+            return nil
+        }
     }
 
     /// Central gate for every path that can navigate to Mobility. An

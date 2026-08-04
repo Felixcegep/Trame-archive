@@ -113,8 +113,15 @@ struct HistoryRecordsView: View {
         for workout in workouts {
             for exercise in workout.orderedExercises where exercise.trackingTypeSnapshot.usesWeight {
                 for set in exercise.orderedSets where StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(set) && set.weight > 0 {
-                    let candidate = HistoryRecord(exercise: exercise.nameSnapshot, value: set.weight, unit: set.weightType.rawValue, date: workout.startTime, kind: "load")
-                    if candidate.value > (best[exercise.nameSnapshot]?.value ?? 0) { best[exercise.nameSnapshot] = candidate }
+                    // A differing load convention (total vs. per-hand, etc.)
+                    // must never compete for the same record line — see
+                    // `StrongmanLoadComparability`. Every non-strongman set
+                    // resolves to the same fixed suffix, so this key is
+                    // identical to the pre-existing `occurrenceComparisonKey`
+                    // for the entire existing catalog.
+                    let key = exercise.occurrenceComparisonKey + "|" + StrengthAnalyticsPolicy.loadComparisonGroupKey(set)
+                    let candidate = HistoryRecord(exercise: exercise.occurrenceDisplayName, value: set.weight, unit: set.weightType.rawValue, date: workout.startTime, kind: "load")
+                    if candidate.value > (best[key]?.value ?? 0) { best[key] = candidate }
                 }
             }
         }
@@ -126,8 +133,9 @@ struct HistoryRecordsView: View {
         for workout in workouts {
             for exercise in workout.orderedExercises where exercise.trackingTypeSnapshot.usesReps {
                 for set in exercise.orderedSets where StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(set) && set.repetitions > 0 {
-                    let candidate = HistoryRecord(exercise: exercise.nameSnapshot, value: set.repetitions, unit: "reps", date: workout.startTime, kind: "reps")
-                    if candidate.value > (best[exercise.nameSnapshot]?.value ?? 0) { best[exercise.nameSnapshot] = candidate }
+                    let key = exercise.occurrenceComparisonKey
+                    let candidate = HistoryRecord(exercise: exercise.occurrenceDisplayName, value: set.repetitions, unit: "reps", date: workout.startTime, kind: "reps")
+                    if candidate.value > (best[key]?.value ?? 0) { best[key] = candidate }
                 }
             }
         }
@@ -141,14 +149,15 @@ struct HistoryRecordsView: View {
                 for set in exercise.orderedSets where StrengthAnalyticsPolicy.isEligibleForVelocityRecord(set) {
                     let velocity = max(set.meanVelocity ?? 0, set.peakVelocity ?? 0)
                     let candidate = HistoryRecord(
-                        exercise: exercise.nameSnapshot,
+                        exercise: exercise.occurrenceDisplayName,
                         value: Float(velocity),
                         unit: "m/s",
                         date: workout.startTime,
                         kind: "velocity"
                     )
-                    if candidate.value > (best[exercise.nameSnapshot]?.value ?? 0) {
-                        best[exercise.nameSnapshot] = candidate
+                    let key = exercise.occurrenceComparisonKey
+                    if candidate.value > (best[key]?.value ?? 0) {
+                        best[key] = candidate
                     }
                 }
             }
@@ -163,9 +172,9 @@ struct HistoryRecordsView: View {
                 for set in exercise.orderedSets where StrengthAnalyticsPolicy.isEligibleForSpecializedMetricRecord(set) {
                     guard let metric = StrengthAnalyticsPolicy.specializedMetricValue(for: set) else { continue }
                     let kind = set.resolvedSpecializedMetricKind
-                    let key = "\(exercise.nameSnapshot)|\(kind.rawValue)"
+                    let key = "\(exercise.occurrenceComparisonKey)|\(kind.rawValue)"
                     let candidate = HistoryRecord(
-                        exercise: "\(exercise.nameSnapshot) · \(kind.title)",
+                        exercise: "\(exercise.occurrenceDisplayName) · \(kind.title)",
                         value: Float(metric.value),
                         unit: metric.unit,
                         date: workout.startTime,

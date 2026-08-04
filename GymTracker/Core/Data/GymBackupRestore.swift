@@ -34,23 +34,27 @@ extension BackupDTO {
         beforeCommit: (() throws -> Void)?
     ) throws {
         try validate()
+        let currentArchive = CurrentBackupArchive(adapting: self)
         do {
             try context.clearAllGymData(saveChanges: false)
 
             var restoreCtx = RestoreContext(context: context)
 
-            try restoreExerciseCatalog(into: &restoreCtx)
+            try restoreExerciseCatalog(from: currentArchive.workout.exercises, into: &restoreCtx)
             // Mobility definitions/routines must exist before templates and
             // repeating slots resolve their optional preparation/recovery
             // links. Mobility sessions remain an independent performed graph;
             // restoring them here does not create an ownership edge to Workout.
             try restoreMobility(into: &restoreCtx)
             try restoreMobilityAssessments(into: &restoreCtx)
-            try restoreFoldersAndTemplates(into: &restoreCtx)
+            try restoreFoldersAndTemplates(from: currentArchive.workout.templates, into: &restoreCtx)
             try restoreRepeatingPlansAndRuns(into: &restoreCtx)
             try restoreProgramDefinitions(into: &restoreCtx)
+            try restoreMobilityProgramDefinitions(into: &restoreCtx)
+            try restoreMobilityProgramRuns(into: &restoreCtx)
+            try restoreMobilityProgressionRecommendations(into: &restoreCtx)
             try restorePlansAndRuns(into: &restoreCtx)
-            try restoreWorkoutHistory(into: &restoreCtx)
+            try restoreWorkoutHistory(from: currentArchive.workout.workouts, into: &restoreCtx)
             try restoreRepeatingPlanOccurrences(into: &restoreCtx)
             try restoreDailyContextAndPreferences(into: &restoreCtx)
             try restoreNutrition(into: &restoreCtx)
@@ -84,7 +88,10 @@ extension BackupDTO {
 
     // MARK: - Restore Sub-Handlers
 
-    private func restoreExerciseCatalog(into restoreCtx: inout RestoreContext) throws {
+    private func restoreExerciseCatalog(
+        from exercises: [CurrentExerciseArchive],
+        into restoreCtx: inout RestoreContext
+    ) throws {
         let builtInExercises = ExerciseSeedData.templates()
         for exercise in builtInExercises {
             restoreCtx.context.insert(exercise)
@@ -92,62 +99,56 @@ extension BackupDTO {
 
         restoreCtx.exerciseMap = Dictionary(builtInExercises.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
 
-        for exerciseDTO in self.exercises {
+        for normalizedExercise in exercises {
+            let exerciseDTO = normalizedExercise.dto
             let primaryMuscles = exerciseDTO.primaryMuscles.compactMap { Muscle(rawValue: $0) }
             let secondaryMuscles = exerciseDTO.secondaryMuscles?.compactMap { Muscle(rawValue: $0) }
-            let category = exerciseDTO.category.flatMap { ExerciseCategory(rawValue: $0) } ?? .strength
-            let trackingType = TrackingType(rawValue: exerciseDTO.trackingType) ?? .weightAndReps
-            let equipmentType = exerciseDTO.equipmentType.flatMap { EquipmentType(rawValue: $0) } ?? .other
-            let resistanceType = exerciseDTO.resistanceType.flatMap { ResistanceType(rawValue: $0) }
-            let movementPattern = exerciseDTO.movementPattern.flatMap { MovementPattern(rawValue: $0) }
-            let forceType = exerciseDTO.forceType.flatMap { ForceType(rawValue: $0) }
-            let mechanics = exerciseDTO.mechanics.flatMap { ExerciseMechanics(rawValue: $0) }
-            let laterality = exerciseDTO.laterality.flatMap { Laterality(rawValue: $0) } ?? .bilateral
-            let repCountingStyle = exerciseDTO.repCountingStyle.flatMap { RepCountingStyle(rawValue: $0) } ?? .total
-            let weightEntryStyle = exerciseDTO.weightEntryStyle.flatMap { WeightEntryStyle(rawValue: $0) } ?? .totalLoad
-            let loadUnitCount = exerciseDTO.loadUnitCount ?? 1
-            let gripStyle = exerciseDTO.gripStyle.flatMap { GripStyle(rawValue: $0) }
-            let stance = exerciseDTO.stance.flatMap { ExerciseStance(rawValue: $0) }
-            let rangeOfMotion = exerciseDTO.rangeOfMotion.flatMap { RangeOfMotion(rawValue: $0) }
-            let difficulty = exerciseDTO.difficulty.flatMap { Difficulty(rawValue: $0) } ?? .beginner
 
             if !exerciseDTO.isCustom, let existing = restoreCtx.exerciseMap[exerciseDTO.name] {
-                if let id = exerciseDTO.id.flatMap(UUID.init(uuidString:)) {
+                if let id = normalizedExercise.stableID {
                     existing.id = id
                 }
                 if let fr = exerciseDTO.frenchName { existing.frenchName = fr }
                 if let aliases = exerciseDTO.searchAliases { existing.searchAliases = aliases }
+                if let sportDiscipline = exerciseDTO.sportDiscipline { existing.sportDisciplineRaw = sportDiscipline }
+                if let eventFamily = exerciseDTO.strongmanEventFamily { existing.strongmanEventFamilyRaw = eventFamily }
+                if let implementData = exerciseDTO.strongmanImplementProfileData {
+                    existing.strongmanImplementProfileData = implementData
+                }
             } else {
                 let newExercise = Exercise(
                     name: exerciseDTO.name,
                     primaryMuscles: primaryMuscles,
                     secondaryMuscles: secondaryMuscles,
-                    category: category,
-                    trackingType: trackingType,
-                    equipmentType: equipmentType,
-                    resistanceType: resistanceType,
-                    movementPattern: movementPattern,
-                    forceType: forceType,
-                    mechanics: mechanics,
-                    gripStyle: gripStyle,
-                    stance: stance,
-                    rangeOfMotion: rangeOfMotion,
+                    category: normalizedExercise.category,
+                    trackingType: normalizedExercise.trackingType,
+                    equipmentType: normalizedExercise.equipmentType,
+                    resistanceType: normalizedExercise.resistanceType,
+                    movementPattern: normalizedExercise.movementPattern,
+                    forceType: normalizedExercise.forceType,
+                    mechanics: normalizedExercise.mechanics,
+                    gripStyle: normalizedExercise.gripStyle,
+                    stance: normalizedExercise.stance,
+                    rangeOfMotion: normalizedExercise.rangeOfMotion,
                     setupAngleDegrees: exerciseDTO.setupAngleDegrees,
                     variationFamilyID: exerciseDTO.variationFamilyID,
-                    difficulty: difficulty,
+                    difficulty: normalizedExercise.difficulty,
                     tags: exerciseDTO.tags,
                     isFavorite: exerciseDTO.isFavorite,
                     isPlateLoaded: exerciseDTO.isPlateLoaded,
                     isCustom: exerciseDTO.isCustom,
                     isArchived: exerciseDTO.isArchived,
-                    laterality: laterality,
-                    repCountingStyle: repCountingStyle,
-                    weightEntryStyle: weightEntryStyle,
-                    loadUnitCount: loadUnitCount,
-                    id: exerciseDTO.id.flatMap(UUID.init(uuidString:)) ?? UUID()
+                    laterality: normalizedExercise.laterality,
+                    repCountingStyle: normalizedExercise.repCountingStyle,
+                    weightEntryStyle: normalizedExercise.weightEntryStyle,
+                    loadUnitCount: normalizedExercise.loadUnitCount,
+                    id: normalizedExercise.stableID ?? UUID()
                 )
                 newExercise.frenchName = exerciseDTO.frenchName
                 newExercise.searchAliases = exerciseDTO.searchAliases ?? []
+                newExercise.sportDisciplineRaw = exerciseDTO.sportDiscipline
+                newExercise.strongmanEventFamilyRaw = exerciseDTO.strongmanEventFamily
+                newExercise.strongmanImplementProfileData = exerciseDTO.strongmanImplementProfileData
                 restoreCtx.context.insert(newExercise)
                 if restoreCtx.exerciseMap[newExercise.name] == nil {
                     restoreCtx.exerciseMap[newExercise.name] = newExercise
@@ -179,11 +180,16 @@ extension BackupDTO {
         }
     }
 
-    private func restoreFoldersAndTemplates(into restoreCtx: inout RestoreContext) throws {
-        for templateDTO in self.templates {
+    private func restoreFoldersAndTemplates(
+        from templates: [CurrentWorkoutTemplateArchive],
+        into restoreCtx: inout RestoreContext
+    ) throws {
+        for normalizedTemplate in templates {
+            let templateDTO = normalizedTemplate.dto
             var templateExercises: [TemplateExercise] = []
 
-            for teDTO in templateDTO.templateExercises {
+            for normalizedTemplateExercise in normalizedTemplate.exercises {
+                let teDTO = normalizedTemplateExercise.dto
                 guard let exercise = restoreCtx.exerciseMap[teDTO.exerciseName] else { continue }
                 let te = TemplateExercise(
                     exercise: exercise,
@@ -195,14 +201,14 @@ extension BackupDTO {
                     targetRPE: teDTO.targetRPE,
                     targetRIR: teDTO.targetRIR,
                     notes: teDTO.notes,
-                    progressionRule: ProgressionRule(rawValue: teDTO.progressionRule ?? "") ?? .doubleProgression,
-                    supersetGroupID: teDTO.supersetGroupID.flatMap(UUID.init(uuidString:)),
+                    progressionRule: normalizedTemplateExercise.progressionRule,
+                    supersetGroupID: normalizedTemplateExercise.supersetGroupID,
                     progressionKey: teDTO.progressionKey
                 )
                 te.orderIndex = teDTO.orderIndex
-                te.executionBlockID = teDTO.executionBlockID.flatMap(UUID.init(uuidString:))
+                te.executionBlockID = normalizedTemplateExercise.executionBlockID
                 te.executionBlockComponentOrder = teDTO.executionBlockComponentOrder
-                te.stimulus = teDTO.stimulus.flatMap(TrainingStimulus.init(rawValue:))
+                te.stimulus = normalizedTemplateExercise.stimulus
                 templateExercises.append(te)
             }
 
@@ -380,6 +386,170 @@ extension BackupDTO {
         }
     }
 
+    /// Mirrors `restoreProgramDefinitions` exactly: decode the versioned
+    /// recipe blob, revalidate it structurally, and materialize the
+    /// queryable metadata columns. No `MobilityDefinition` catalog check
+    /// happens here — the structural validator is catalog-free, matching
+    /// `ProgramDefinitionValidator`'s own split, and a dangling movement
+    /// reference is a compile-time concern for a later slice, not a restore
+    /// blocker.
+    private func restoreMobilityProgramDefinitions(into restoreCtx: inout RestoreContext) throws {
+        for definitionDTO in mobilityProgramDefinitions {
+            let decoder = JSONDecoder()
+            guard let payload = try? decoder.decode(MobilityProgramDefinitionPayload.self, from: definitionDTO.definitionData) else {
+                throw BackupValidationError.invalidMobilityProgramDefinition(definitionDTO.name)
+            }
+            let record: MobilityProgramDefinitionRecord
+            do {
+                record = try MobilityProgramDefinitionRecord(payload: payload, isBuiltIn: definitionDTO.isBuiltIn)
+            } catch {
+                throw BackupValidationError.invalidMobilityProgramDefinition(definitionDTO.name)
+            }
+            record.id = try requiredUUID(definitionDTO.id, named: "mobility program definition")
+            record.programKey = definitionDTO.programKey
+            record.schemaVersion = definitionDTO.schemaVersion
+            record.templateVersion = definitionDTO.templateVersion
+            record.name = definitionDTO.name
+            record.summary = definitionDTO.summary
+            record.durationWeeks = definitionDTO.durationWeeks
+            record.supportedDaysPerWeek = definitionDTO.supportedDaysPerWeek
+            record.isArchived = definitionDTO.isArchived
+            record.createdAt = definitionDTO.createdAt
+            record.updatedAt = definitionDTO.updatedAt
+            record.definitionData = definitionDTO.definitionData
+            restoreCtx.context.insert(record)
+        }
+    }
+
+    /// Restores the Release 8 part 2 runtime graph. Every run reconstructs
+    /// its frozen `programSnapshotData` blob byte-for-byte (never
+    /// re-derived from the live definition) and its full session-progress /
+    /// progression-state graphs, mirroring `restorePlanRunProgress`'s idiom.
+    /// `MobilitySession` ids are preserved verbatim by `restoreMobility`
+    /// (which always runs before this), so `mobilitySessionID` is restored
+    /// as the opaque ownership key it already is — no lookup map needed.
+    private func restoreMobilityProgramRuns(into restoreCtx: inout RestoreContext) throws {
+        for runDTO in mobilityProgramRuns {
+            let run = try MobilityProgramRun(
+                program: try decodeProgramSnapshot(runDTO.programSnapshotData),
+                sourceProgramID: try requiredUUID(runDTO.sourceProgramID, named: "mobility program run source program"),
+                startDate: runDTO.startDate,
+                id: try requiredUUID(runDTO.id, named: "mobility program run")
+            )
+            run.programSnapshotData = runDTO.programSnapshotData
+            run.sourceProgramName = runDTO.sourceProgramName
+            run.endDate = runDTO.endDate
+            run.status = MobilityProgramRunStatus(rawValue: runDTO.status) ?? .active
+            run.currentWeekIndex = runDTO.currentWeekIndex
+            run.currentSessionIndex = runDTO.currentSessionIndex
+            run.createdAt = runDTO.createdAt
+            run.updatedAt = runDTO.updatedAt
+
+            for progressDTO in runDTO.sessionProgress {
+                let progress = MobilityProgramSessionProgress(
+                    sessionKey: progressDTO.sessionKey,
+                    weekIndex: progressDTO.weekIndex,
+                    dayIndex: progressDTO.dayIndex,
+                    sameDayOrder: progressDTO.sameDayOrder,
+                    isOptional: progressDTO.isOptional,
+                    sessionNameSnapshot: progressDTO.sessionNameSnapshot,
+                    scheduledDate: progressDTO.scheduledDate,
+                    id: try requiredUUID(progressDTO.id, named: "mobility program session progress")
+                )
+                progress.originalScheduledDate = progressDTO.originalScheduledDate
+                progress.lastRescheduledAt = progressDTO.lastRescheduledAt
+                progress.status = MobilityProgramSessionStatus(rawValue: progressDTO.status) ?? .pending
+                progress.startedAt = progressDTO.startedAt
+                progress.completedAt = progressDTO.completedAt
+                progress.mobilitySessionID = try progressDTO.mobilitySessionID.map {
+                    try requiredUUID($0, named: "mobility program session progress mobility session")
+                }
+                run.sessionProgress.append(progress)
+            }
+            for stateDTO in runDTO.progressionStates {
+                let state = MobilityProgressionState(
+                    progressionKey: stateDTO.progressionKey,
+                    side: MobilitySide(rawValue: stateDTO.side) ?? .none,
+                    durationOffsetSeconds: stateDTO.durationOffsetSeconds,
+                    repetitionOffset: stateDTO.repetitionOffset,
+                    cycleOffset: stateDTO.cycleOffset,
+                    loadOffset: stateDTO.loadOffset,
+                    assistanceLevelOffset: stateDTO.assistanceLevelOffset,
+                    supportLevelStepOffset: stateDTO.supportLevelStepOffset,
+                    variationStepOffset: stateDTO.variationStepOffset,
+                    consecutiveTargetMetSessionCount: stateDTO.consecutiveTargetMetSessionCount,
+                    lastAppliedRecommendationID: try stateDTO.lastAppliedRecommendationID.map {
+                        try requiredUUID($0, named: "mobility progression state recommendation")
+                    },
+                    id: try requiredUUID(stateDTO.id, named: "mobility progression state"),
+                    updatedAt: stateDTO.updatedAt
+                )
+                run.progressionStates.append(state)
+            }
+            restoreCtx.context.insert(run)
+        }
+    }
+
+    private func decodeProgramSnapshot(_ data: Data) throws -> MobilityProgramDefinitionPayload {
+        guard let payload = try? JSONDecoder().decode(MobilityProgramDefinitionPayload.self, from: data) else {
+            throw BackupValidationError.invalidMobilityProgramDefinition("mobility program run snapshot")
+        }
+        return payload
+    }
+
+    /// Distinct from `restoreProgressionRecommendations` — see
+    /// `MobilityProgressionRecommendationRecord`'s doc comment for the
+    /// audited reason a shared table was not safe.
+    private func restoreMobilityProgressionRecommendations(into restoreCtx: inout RestoreContext) throws {
+        for recommendationDTO in mobilityProgressionRecommendations {
+            guard
+                let action = try? JSONDecoder().decode(MobilityProgressionAction.self, from: recommendationDTO.actionData),
+                let applicationMode = ProgressionApplicationMode(rawValue: recommendationDTO.applicationMode)
+            else {
+                throw BackupValidationError.invalidIdentifier("mobility progression recommendation")
+            }
+            let performance = recommendationDTO.performanceData.flatMap {
+                try? JSONDecoder().decode(MobilityProgressionPerformance.self, from: $0)
+            } ?? MobilityProgressionPerformance()
+            let proposal = MobilityProgressionProposal(
+                id: try requiredUUID(recommendationDTO.id, named: "mobility progression recommendation"),
+                ruleID: try requiredUUID(recommendationDTO.ruleID, named: "mobility progression recommendation rule"),
+                action: action,
+                reason: recommendationDTO.reason,
+                reasonKey: recommendationDTO.reasonKey ?? "",
+                applicationMode: applicationMode,
+                proposedState: MobilityProgressionProposedState(
+                    durationOffsetSeconds: recommendationDTO.proposedDurationOffsetSeconds,
+                    repetitionOffset: recommendationDTO.proposedRepetitionOffset,
+                    cycleOffset: recommendationDTO.proposedCycleOffset,
+                    loadOffset: recommendationDTO.proposedLoadOffset,
+                    assistanceLevelOffset: recommendationDTO.proposedAssistanceLevelOffset,
+                    supportLevelStepOffset: recommendationDTO.proposedSupportLevelStepOffset,
+                    variationStepOffset: recommendationDTO.proposedVariationStepOffset
+                ),
+                performance: performance
+            )
+            let record = try MobilityProgressionRecommendationRecord(
+                runID: try requiredUUID(recommendationDTO.runID, named: "mobility progression recommendation run"),
+                sessionProgressID: try requiredUUID(recommendationDTO.sessionProgressID, named: "mobility progression recommendation session progress"),
+                progressionKey: recommendationDTO.progressionKey,
+                side: MobilitySide(rawValue: recommendationDTO.side) ?? .none,
+                proposal: proposal
+            )
+            record.id = proposal.id
+            record.createdAt = recommendationDTO.createdAt
+            record.isResolved = recommendationDTO.isResolved
+            record.resolvedAt = recommendationDTO.resolvedAt
+            if let decisionOutcomeRawValue = recommendationDTO.decisionOutcome {
+                guard let decisionOutcome = ProgressionDecisionOutcome(rawValue: decisionOutcomeRawValue) else {
+                    throw BackupValidationError.invalidIdentifier("mobility progression recommendation decision outcome")
+                }
+                record.decisionOutcome = decisionOutcome
+            }
+            restoreCtx.context.insert(record)
+        }
+    }
+
     private func restorePlansAndRuns(into restoreCtx: inout RestoreContext) throws {
         for planDTO in plans {
             let blocks = try planDTO.blocks.map { blockDTO in
@@ -543,20 +713,26 @@ extension BackupDTO {
     /// previous one's identity map: performed workouts first, then the plan-run
     /// progress that points at them, then the progression recommendations that
     /// reference both.
-    private func restoreWorkoutHistory(into restoreCtx: inout RestoreContext) throws {
-        try restoreWorkouts(into: &restoreCtx)
+    private func restoreWorkoutHistory(
+        from workouts: [CurrentWorkoutHistoryArchive],
+        into restoreCtx: inout RestoreContext
+    ) throws {
+        try restoreWorkouts(from: workouts, into: &restoreCtx)
         try restorePlanRunProgress(into: &restoreCtx)
         try restoreProgressionRecommendations(into: &restoreCtx)
     }
 
-    private func restoreWorkouts(into restoreCtx: inout RestoreContext) throws {
-        for workoutDTO in self.workouts {
-            let status = WorkoutStatus(rawValue: workoutDTO.status) ?? .completed
+    private func restoreWorkouts(
+        from workouts: [CurrentWorkoutHistoryArchive],
+        into restoreCtx: inout RestoreContext
+    ) throws {
+        for normalizedWorkout in workouts {
+            let workoutDTO = normalizedWorkout.dto
             let newWorkout = Workout(name: workoutDTO.name, endTime: workoutDTO.endTime)
             if let identifier = workoutDTO.id {
                 newWorkout.id = try requiredUUID(identifier, named: "workout")
             }
-            newWorkout.status = status
+            newWorkout.status = normalizedWorkout.status
             newWorkout.notes = workoutDTO.notes
             newWorkout.startTime = workoutDTO.startTime
             newWorkout.restEndDate = workoutDTO.restEndDate
@@ -591,7 +767,7 @@ extension BackupDTO {
             newWorkout.sourceRepeatingPlanName = workoutDTO.sourceRepeatingPlanName
 
             newWorkout.exercises = try restoreExerciseEntries(
-                from: workoutDTO,
+                from: normalizedWorkout.entries,
                 into: &restoreCtx
             )
             newWorkout.executionBlocks = (workoutDTO.executionBlocks ?? []).compactMap { blockDTO in
@@ -645,19 +821,19 @@ extension BackupDTO {
     /// `restoreWorkouts` for size only — it stays inside the same transaction
     /// and mutates the same identity maps.
     private func restoreExerciseEntries(
-        from workoutDTO: WorkoutDTO,
+        from normalizedEntries: [CurrentExerciseEntryArchive],
         into restoreCtx: inout RestoreContext
     ) throws -> [ExerciseEntry] {
         var exercises: [ExerciseEntry] = []
-        for entryDTO in workoutDTO.exercises {
+        for normalizedEntry in normalizedEntries {
+            let entryDTO = normalizedEntry.dto
             guard let exerciseTemplate = restoreCtx.exerciseMap[entryDTO.exerciseName] else { continue }
-            let usedMetric = UnitSystem(rawValue: entryDTO.usedMetric) ?? .metric
 
             let entry = ExerciseEntry(
                 comment: entryDTO.comment,
                 exercise: exerciseTemplate,
                 orderIndex: entryDTO.orderIndex,
-                usedMetric: usedMetric,
+                usedMetric: normalizedEntry.usedMetric,
                 supersetGroupID: entryDTO.supersetGroupID.flatMap(UUID.init(uuidString:))
             )
             entry.prescribedSets = entryDTO.prescribedSets
@@ -726,26 +902,27 @@ extension BackupDTO {
             entry.prescriptionRulesData = entryDTO.prescriptionRulesData
             entry.deferredBackOffDefinitionsData = entryDTO.deferredBackOffDefinitionsData
 
-            if let historicalName = entryDTO.nameSnapshot, !historicalName.isEmpty {
+            if let historicalName = normalizedEntry.historicalNameSnapshot {
                 entry.nameSnapshot = historicalName
             }
-            entry.exerciseIDSnapshot = entryDTO.exerciseIDSnapshot
-                .flatMap(UUID.init(uuidString:)) ?? exerciseTemplate.id
-            if let raw = entryDTO.trackingTypeSnapshot, let tracking = TrackingType(rawValue: raw) {
+            entry.exerciseIDSnapshot = normalizedEntry.explicitHistoricalExerciseID ?? exerciseTemplate.id
+            if let tracking = normalizedEntry.trackingTypeSnapshot {
                 entry.trackingTypeSnapshot = tracking
             }
-            if let raw = entryDTO.lateralitySnapshot, let laterality = Laterality(rawValue: raw) {
+            if let laterality = normalizedEntry.lateralitySnapshot {
                 entry.lateralitySnapshot = laterality
             }
-            if let raw = entryDTO.repCountingStyleSnapshot, let style = RepCountingStyle(rawValue: raw) {
+            if let style = normalizedEntry.repCountingStyleSnapshot {
                 entry.repCountingStyleSnapshot = style
             }
-            if let raw = entryDTO.weightEntryStyleSnapshot, let style = WeightEntryStyle(rawValue: raw) {
+            if let style = normalizedEntry.weightEntryStyleSnapshot {
                 entry.weightEntryStyleSnapshot = style
             }
-            if let count = entryDTO.loadUnitCountSnapshot {
+            if let count = normalizedEntry.loadUnitCountSnapshot {
                 entry.loadUnitCountSnapshot = count
             }
+            entry.sportDisciplineSnapshotRaw = entryDTO.sportDisciplineSnapshot
+            entry.strongmanEventFamilySnapshotRaw = entryDTO.strongmanEventFamilySnapshot
 
             var sets: [ExerciseSet] = []
             for setDTO in entryDTO.sets {
@@ -809,6 +986,9 @@ extension BackupDTO {
                 setObj.descriptiveROM = setDTO.descriptiveROM
                 setObj.discomfortScore = setDTO.discomfortScore
                 setObj.liftQuality = setDTO.liftQuality.flatMap(LiftQuality.init(rawValue:))
+                setObj.strongmanLoadConventionRaw = setDTO.strongmanLoadConvention
+                setObj.strongmanImplementProfileData = setDTO.strongmanImplementProfileData
+                setObj.strongmanEventFamilyRaw = setDTO.strongmanEventFamily
                 setObj.segments = (setDTO.segments ?? []).compactMap { segmentDTO in
                     guard let segmentID = UUID(uuidString: segmentDTO.id) else { return nil }
                     let segment = ExerciseSetSegment(
@@ -821,7 +1001,13 @@ extension BackupDTO {
                         done: segmentDTO.done,
                         variationNote: segmentDTO.variationNote,
                         rpe: segmentDTO.rpe,
-                        rir: segmentDTO.rir
+                        rir: segmentDTO.rir,
+                        splitKind: segmentDTO.splitKind.flatMap(WorkoutSplitKind.init(rawValue:)),
+                        startedAt: segmentDTO.startedAt,
+                        endedAt: segmentDTO.endedAt,
+                        distanceMeters: segmentDTO.distanceMeters,
+                        heartRateBPM: segmentDTO.heartRateBPM,
+                        perceivedExertion: segmentDTO.perceivedExertion
                     )
                     segment.id = segmentID
                     return segment
@@ -1077,6 +1263,10 @@ extension BackupDTO {
             profile.competitionProfileData = try? JSONEncoder().encode(competition)
         }
 
+        profile.mobilityGoalRaw = validated(dto.mobilityGoal, as: MobilityGoalPreference.self)
+        profile.mobilityExperienceRaw = validated(dto.mobilityExperience, as: MobilityExperiencePreference.self)
+        profile.mobilityFrequencyRaw = validated(dto.mobilityFrequency, as: MobilityFrequencyPreference.self)
+
         profile.completedCoreOnboardingAt = dto.completedCoreOnboardingAtTimestamp
             .map(Date.init(timeIntervalSince1970:))
         profile.createdAt = dto.createdAtTimestamp.map(Date.init(timeIntervalSince1970:)) ?? .now
@@ -1230,7 +1420,76 @@ extension BackupDTO {
                         id: try requiredUUID(phaseDTO.id, named: "mobility phase prescription")
                     )
                 }
+                if version >= Self.advancedMobilityEvidenceVersion,
+                   itemDTO.method != nil
+                    || itemDTO.trainingPurpose != nil
+                    || itemDTO.breathingPrescription != nil
+                    || itemDTO.tempoPrescription != nil
+                    || itemDTO.assistancePrescription != nil
+                    || itemDTO.supportLevel != nil
+                    || itemDTO.metricProfile != nil
+                    || itemDTO.metricTargets != nil
+                    || itemDTO.blockKey != nil
+                    || itemDTO.sideStrategy != nil
+                    || itemDTO.restPrescription != nil {
+                    let evidence = MobilityRoutineItemEvidence(
+                        routineItemID: item.id,
+                        method: itemDTO.method.flatMap(MobilityMethod.init(rawValue:)),
+                        purpose: itemDTO.trainingPurpose.flatMap(MobilityTrainingPurpose.init(rawValue:)),
+                        breathingPrescription: itemDTO.breathingPrescription.map {
+                            MobilityBreathingPrescription(
+                                targetBreaths: $0.targetBreaths,
+                                inhaleSeconds: $0.inhaleSeconds,
+                                exhaleSeconds: $0.exhaleSeconds,
+                                instructionKey: $0.instructionKey
+                            )
+                        },
+                        tempoPrescription: itemDTO.tempoPrescription.map {
+                            MobilityTempoPrescription(
+                                moveIntoRangeSeconds: $0.moveIntoRangeSeconds,
+                                holdSeconds: $0.holdSeconds,
+                                returnSeconds: $0.returnSeconds,
+                                pauseSeconds: $0.pauseSeconds
+                            )
+                        },
+                        assistancePrescription: itemDTO.assistancePrescription.map {
+                            MobilityAssistancePrescription(
+                                assistanceTypeRaw: $0.assistanceType,
+                                level: $0.level,
+                                equipmentRaw: $0.equipment
+                            )
+                        },
+                        supportLevel: itemDTO.supportLevel.flatMap(MobilitySupportLevel.init(rawValue:)),
+                        metricProfile: itemDTO.metricProfile,
+                        metricTargets: itemDTO.metricTargets,
+                        blockKey: itemDTO.blockKey,
+                        sideStrategy: itemDTO.sideStrategy.flatMap(MobilitySideStrategy.init(rawValue:)),
+                        restPrescription: itemDTO.restPrescription,
+                        createdAt: routineDTO.createdAt,
+                        updatedAt: routineDTO.updatedAt
+                    )
+                    restoreCtx.context.insert(evidence)
+                }
                 return item
+            }
+            if version >= Self.advancedMobilityEvidenceVersion {
+                for blockDTO in routineDTO.blocks ?? [] {
+                    guard let kind = MobilityBlockKind(rawValue: blockDTO.kind) else {
+                        throw BackupValidationError.invalidIdentifier("mobility routine block")
+                    }
+                    let block = MobilityRoutineBlock(
+                        blockKey: blockDTO.blockKey,
+                        routineID: routine.id,
+                        orderIndex: blockDTO.orderIndex,
+                        name: blockDTO.name,
+                        kind: kind,
+                        targetRounds: blockDTO.targetRounds,
+                        restPrescription: blockDTO.restPrescription,
+                        createdAt: routineDTO.createdAt,
+                        updatedAt: routineDTO.updatedAt
+                    )
+                    restoreCtx.context.insert(block)
+                }
             }
             restoreCtx.mobilityRoutinesByName[routineDTO.name] = routine
             restoreCtx.context.insert(routine)
@@ -1300,6 +1559,81 @@ extension BackupDTO {
                     result.discomfortNote = resultDTO.discomfortNote
                     result.startedAt = resultDTO.startedAt
                     result.completedAt = resultDTO.completedAt
+                    if version >= Self.advancedMobilityEvidenceVersion {
+                        // Hoisted out of the initializer call: inline `.map`
+                        // closures inside an argument list this wide push the
+                        // type-checker past its time budget.
+                        let breathingSnapshot: MobilityBreathingPrescription? = resultDTO
+                            .breathingPrescriptionSnapshot
+                            .map { dto in
+                                MobilityBreathingPrescription(
+                                    targetBreaths: dto.targetBreaths,
+                                    inhaleSeconds: dto.inhaleSeconds,
+                                    exhaleSeconds: dto.exhaleSeconds,
+                                    instructionKey: dto.instructionKey
+                                )
+                            }
+                        let tempoSnapshot: MobilityTempoPrescription? = resultDTO
+                            .tempoPrescriptionSnapshot
+                            .map { dto in
+                                MobilityTempoPrescription(
+                                    moveIntoRangeSeconds: dto.moveIntoRangeSeconds,
+                                    holdSeconds: dto.holdSeconds,
+                                    returnSeconds: dto.returnSeconds,
+                                    pauseSeconds: dto.pauseSeconds
+                                )
+                            }
+                        let assistanceSnapshot: MobilityAssistancePrescription? = resultDTO
+                            .assistancePrescriptionSnapshot
+                            .map { dto in
+                                MobilityAssistancePrescription(
+                                    assistanceTypeRaw: dto.assistanceType,
+                                    level: dto.level,
+                                    equipmentRaw: dto.equipment
+                                )
+                            }
+                        let compensationSnapshot: Set<MobilityCompensationKey> = Set(
+                            (resultDTO.compensationKeys ?? [])
+                                .compactMap(MobilityCompensationKey.init(rawValue:))
+                        )
+                        let methodSnapshot: MobilityMethod? = resultDTO.methodSnapshot
+                            .flatMap(MobilityMethod.init(rawValue:))
+                        let purposeSnapshot: MobilityTrainingPurpose? = resultDTO.trainingPurposeSnapshot
+                            .flatMap(MobilityTrainingPurpose.init(rawValue:))
+                        let supportSnapshot: MobilitySupportLevel? = resultDTO.supportLevelSnapshot
+                            .flatMap(MobilitySupportLevel.init(rawValue:))
+                        let performedSupport: MobilitySupportLevel? = resultDTO.performedSupportLevel
+                            .flatMap(MobilitySupportLevel.init(rawValue:))
+                        let sensationSnapshot: MobilitySensation? = resultDTO.sensation
+                            .flatMap(MobilitySensation.init(rawValue:))
+                        let qualitySnapshot: MobilityMovementQuality? = resultDTO.movementQuality
+                            .flatMap(MobilityMovementQuality.init(rawValue:))
+                        let recordedAt: Date = resultDTO.completedAt
+                            ?? resultDTO.startedAt
+                            ?? sessionDTO.startTime
+                        let evidence = MobilityResultEvidence(
+                            resultID: result.id,
+                            entryIDSnapshot: entry.id,
+                            side: resultSide,
+                            methodSnapshot: methodSnapshot,
+                            purposeSnapshot: purposeSnapshot,
+                            breathingPrescriptionSnapshot: breathingSnapshot,
+                            tempoPrescriptionSnapshot: tempoSnapshot,
+                            assistancePrescriptionSnapshot: assistanceSnapshot,
+                            supportLevelSnapshot: supportSnapshot,
+                            metricProfileSnapshot: resultDTO.metricProfileSnapshot,
+                            metricTargetsSnapshot: resultDTO.metricTargetsSnapshot,
+                            restSnapshot: resultDTO.restSnapshot,
+                            performedBreathingCycles: resultDTO.performedBreathingCycles,
+                            performedAssistanceLevel: resultDTO.performedAssistanceLevel,
+                            performedSupportLevel: performedSupport,
+                            sensation: sensationSnapshot,
+                            movementQuality: qualitySnapshot,
+                            compensationKeys: compensationSnapshot,
+                            recordedAt: recordedAt
+                        )
+                        restoreCtx.context.insert(evidence)
+                    }
                     return result
                 }
                 entry.phaseResults = try (entryDTO.phaseResults ?? []).map { phaseResultDTO in
@@ -1323,6 +1657,39 @@ extension BackupDTO {
                     phaseResult.startedAt = phaseResultDTO.startedAt
                     phaseResult.completedAt = phaseResultDTO.completedAt
                     return phaseResult
+                }
+                if version >= Self.advancedMobilityEvidenceVersion,
+                   entryDTO.blockKeySnapshot != nil
+                    || entryDTO.roundIndexSnapshot.map({ $0 != 0 }) ?? false
+                    || entryDTO.sideStrategySnapshot != nil
+                    || entryDTO.restPrescriptionSnapshot != nil {
+                    let blockKindSnapshot = try entryDTO.blockKindSnapshot.map { raw -> MobilityBlockKind in
+                        guard let kind = MobilityBlockKind(rawValue: raw) else {
+                            throw BackupValidationError.invalidIdentifier("mobility entry block snapshot")
+                        }
+                        return kind
+                    }
+                    let sideStrategySnapshot = try entryDTO.sideStrategySnapshot.map { raw -> MobilitySideStrategy in
+                        guard let strategy = MobilitySideStrategy(rawValue: raw) else {
+                            throw BackupValidationError.invalidIdentifier("mobility entry side strategy snapshot")
+                        }
+                        return strategy
+                    }
+                    restoreCtx.context.insert(
+                        MobilityEntryEvidence(
+                            entryID: entry.id,
+                            blockKeySnapshot: entryDTO.blockKeySnapshot,
+                            blockKindSnapshot: blockKindSnapshot,
+                            blockNameSnapshot: entryDTO.blockNameSnapshot,
+                            blockOrderIndexSnapshot: entryDTO.blockOrderIndexSnapshot,
+                            blockTargetRoundsSnapshot: entryDTO.blockTargetRoundsSnapshot,
+                            blockRestSnapshot: entryDTO.blockRestSnapshot,
+                            roundIndexSnapshot: entryDTO.roundIndexSnapshot ?? 0,
+                            sideStrategySnapshot: sideStrategySnapshot,
+                            restPrescriptionSnapshot: entryDTO.restPrescriptionSnapshot,
+                            createdAt: sessionDTO.startTime
+                        )
+                    )
                 }
                 return entry
             }

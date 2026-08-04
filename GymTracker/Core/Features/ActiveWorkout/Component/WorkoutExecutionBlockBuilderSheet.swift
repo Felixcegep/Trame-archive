@@ -259,7 +259,7 @@ struct WorkoutExecutionBlockBuilderSheet: View {
                         HStack(spacing: Spacing.m) {
                             Image(systemName: selectedEntryIDs.contains(entry.persistentModelID) ? AppIcon.checkmarkCircle : AppIcon.circle)
                                 .foregroundStyle(selectedEntryIDs.contains(entry.persistentModelID) ? Color.gymPrimary : Color.gymSubduedText)
-                            Text(entry.nameSnapshot)
+                            Text(entry.occurrenceDisplayName)
                                 .font(AppFont.body)
                                 .foregroundStyle(Color.gymText)
                             Spacer(minLength: 0)
@@ -269,7 +269,7 @@ struct WorkoutExecutionBlockBuilderSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("\(selectedEntryIDs.contains(entry.persistentModelID) ? "Remove" : "Add") \(entry.nameSnapshot)")
+                    .accessibilityLabel("\(selectedEntryIDs.contains(entry.persistentModelID) ? "Remove" : "Add") \(entry.occurrenceDisplayName)")
                 }
             }
         }

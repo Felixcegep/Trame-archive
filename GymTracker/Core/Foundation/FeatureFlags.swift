@@ -22,16 +22,29 @@ enum FeatureFlag: String, CaseIterable, Codable, Sendable {
     /// and screenshots did — and a ready model is not a reason to expose a
     /// half-finished screen to a tester.
     case mobilityAssessment
+    /// The mobility program run surface (browse/activate/track a mobility
+    /// plan). Separate from `mobility` for the same reason
+    /// `mobilityAssessment` is: this ships without verified build/test/
+    /// screenshot evidence, and a ready runtime is not a reason to expose an
+    /// unverified screen to a tester.
+    case mobilityProgram
+    /// Sport discipline/strongman authoring on the exercise editor (Release
+    /// 10). Kept separate from every existing strength flag for the same
+    /// reason `mobilityProgram` is: this ships without verified build/test
+    /// evidence, and progressive disclosure alone is not a reason to expose
+    /// an unverified authoring surface to a tester.
+    case sportSpecializations
 
     /// The flag this one cannot be reachable without. Declared per case rather
     /// than as a lookup table so a new flag has to answer the question.
     var prerequisite: FeatureFlag? {
         switch self {
         case .mobilityAssessment: .mobility
+        case .mobilityProgram: .mobility
         case .recipeGeneration: .nutrition
         case .today, .mobility, .nutrition, .bodyWeight, .dailyCheckIn,
              .programBuilder, .advancedExecution, .betaFeedback,
-             .workoutGeneration: nil
+             .workoutGeneration, .sportSpecializations: nil
         }
     }
 }
@@ -116,21 +129,19 @@ struct DefaultFeatureFlagConfiguration: FeatureFlagConfiguration {
     static func defaultMatrix(for buildChannel: FeatureFlagBuildChannel) -> Set<FeatureFlag> {
         switch buildChannel {
         case .internalDevelopment, .release:
-            return Set(FeatureFlag.allCases)
+            return Set(FeatureFlag.allCases).subtracting([.nutrition])
         case .beta:
             return currentWave
         }
     }
 
-    /// What a TestFlight tester sees: everything already shipped, minus the two
-    /// surfaces whose UI is unfinished. This is the freeze the product audit
-    /// asks for — hide what is incomplete, not what is merely secondary.
-    ///
-    /// Written as a subtraction so a flag added later is exposed by default and
-    /// has to be argued out of the wave, rather than silently omitted from a
-    /// hand-maintained list.
+    /// What a TestFlight tester sees: everything already shipped, minus the
+    /// surfaces whose UI is unfinished or temporarily hidden.
     static let currentWave: Set<FeatureFlag> = Set(FeatureFlag.allCases)
-        .subtracting([.mobilityAssessment, .recipeGeneration, .workoutGeneration])
+        .subtracting([
+            .mobilityAssessment, .mobilityProgram, .recipeGeneration, .workoutGeneration,
+            .nutrition, .sportSpecializations
+        ])
 
     /// The narrower RoadMap.md §4 "Beta 1 — core workout reliability" wave, kept
     /// because it is a real staged option and selectable by launch argument. It

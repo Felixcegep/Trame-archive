@@ -57,6 +57,18 @@ struct OnboardingDraft: Codable, Equatable, Sendable {
     var focusAreas: [FocusArea] = []
     var competition: CompetitionProfileDraft?
 
+    // MARK: Mobility
+    //
+    // Independent of everything above: answering these says nothing about
+    // `discipline`/`goal`, and leaving them nil says nothing negative about
+    // mobility either — it means "never asked" or "asked and skipped", the
+    // same as any other question here. Only asked behind the `mobilityProgram`
+    // feature flag (see `OnboardingStep.steps(for:mobilityEnabled:)`), so a
+    // build where mobility plans are not reachable never asks about them.
+    var mobilityGoal: MobilityGoalPreference?
+    var mobilityExperience: MobilityExperiencePreference?
+    var mobilityFrequency: MobilityFrequencyPreference?
+
     // MARK: Derived
 
     var equipment: Set<EquipmentType> {
@@ -87,6 +99,7 @@ struct OnboardingDraft: Codable, Equatable, Sendable {
             || !equipmentIDs.isEmpty
             || !focusAreas.isEmpty
             || competition?.isEmpty == false
+            || mobilityGoal != nil
     }
 
     /// Applies a location's equipment suggestion.

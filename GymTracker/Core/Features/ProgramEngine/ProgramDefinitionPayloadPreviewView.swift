@@ -25,6 +25,17 @@ struct ProgramDefinitionPayloadPreviewView: View {
                             Text("\(row.exposureKey) · \(row.setCount) sets · \(row.progressionRuleCount) progression rules")
                                 .font(AppFont.caption)
                                 .foregroundStyle(Color.gymSubduedText)
+                            if let executionBlock = row.executionBlock {
+                                Label(
+                                    executionBlockText(
+                                        executionBlock,
+                                        componentOrder: row.executionBlockComponentOrder
+                                    ),
+                                    systemImage: AppIcon.relationship
+                                )
+                                .font(AppFont.captionBold)
+                                .foregroundStyle(Color.gymPrimary)
+                            }
                             if !row.stageNames.isEmpty {
                                 Text("Stages: \(row.stageNames.joined(separator: " → "))")
                                     .font(AppFont.caption)
@@ -77,7 +88,33 @@ struct ProgramDefinitionPayloadPreviewView: View {
         if let rpe = set.targetRPE { text += " · RPE \(rpe)" }
         if let rir = set.targetRIR { text += " · RIR \(rir)" }
         if let tempo = set.tempo { text += " · Tempo \(tempo)" }
+        if let completionRule = set.completionRule {
+            text += " · \(completionText(completionRule))"
+        }
+        if let attempt = set.olympicAttempt {
+            text += " · shared attempt"
+            if let purpose = attempt.technicalPurpose { text += " · \(purpose.title)" }
+            if let position = attempt.startPosition { text += " · from \(position.title.lowercased())" }
+        }
         return text
+    }
+
+    private func completionText(_ rule: MetricCompletionRule) -> String {
+        switch rule {
+        case .all(let metrics):
+            return "requires " + metricNames(metrics, conjunction: "and")
+        case .any(let metrics):
+            return "requires " + metricNames(metrics, conjunction: "or")
+        case .prescribedTargets:
+            return "requires all prescribed targets"
+        }
+    }
+
+    private func metricNames(_ metrics: Set<TrackingMetric>, conjunction: String) -> String {
+        let names = TrackingMetric.allCases.filter(metrics.contains).map { $0.title.lowercased() }
+        guard let last = names.last else { return "a tracked value" }
+        guard names.count > 1 else { return last }
+        return "\(names.dropLast().joined(separator: ", ")) \(conjunction) \(last)"
     }
 
     private func transitionText(_ transition: ProgramDefinitionPreviewTransition) -> String {
@@ -90,6 +127,23 @@ struct ProgramDefinitionPayloadPreviewView: View {
             text += " · recommendation"
         }
         return text
+    }
+
+    private func executionBlockText(
+        _ block: ProgramDefinitionPreviewExecutionBlock,
+        componentOrder: Int?
+    ) -> String {
+        let trimmedName = block.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        var components = [trimmedName.flatMap { $0.isEmpty ? nil : $0 } ?? block.kind.title]
+        if let componentOrder {
+            components.append("component \(componentOrder + 1) of \(block.componentCount)")
+        }
+        if let rounds = block.targetRounds { components.append("\(rounds) rounds") }
+        if block.clockMode != .none { components.append(block.clockMode.title) }
+        if let cap = block.timeCapSeconds { components.append("\(cap)s cap") }
+        if let interval = block.intervalSeconds { components.append("\(interval)s interval") }
+        if block.scoreKind != .none { components.append(block.scoreKind.title) }
+        return components.joined(separator: " · ")
     }
 
     private func repText(_ repetitions: RepPrescription) -> String {

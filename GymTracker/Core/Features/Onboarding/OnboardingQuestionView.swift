@@ -72,6 +72,9 @@ struct OnboardingQuestionView: View {
         case .units: unitsContent
         case .focusAreas: focusAreasContent
         case .competition: competitionContent
+        case .mobilityGoal: mobilityGoalContent
+        case .mobilityExperience: mobilityExperienceContent
+        case .mobilityFrequency: mobilityFrequencyContent
         }
     }
 
@@ -576,5 +579,60 @@ struct OnboardingQuestionView: View {
                 }
             }
         )
+    }
+
+    // MARK: Mobility
+
+    private var mobilityGoalContent: some View {
+        VStack(spacing: Spacing.s) {
+            ForEach(MobilityGoalPreference.allCases, id: \.self) { goal in
+                OnboardingChoiceCard(
+                    title: goal.title,
+                    isSelected: coordinator.draft.mobilityGoal == goal
+                ) {
+                    choose { $0.mobilityGoal = goal }
+                }
+                .accessibilityIdentifier("onboarding-mobility-goal-\(goal.rawValue)")
+            }
+
+            // Stated rather than only implied by the Skip button, because
+            // skipping a question that looks like every other one reads as
+            // "answer later", not "no thank you" — and this one really does
+            // mean the latter until the lifter comes back to it in Settings.
+            Text("Skip if you’d rather not follow a mobility plan right now.")
+                .font(AppFont.footnote)
+                .foregroundStyle(Color.gymSubduedText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, Spacing.xs)
+        }
+    }
+
+    private var mobilityExperienceContent: some View {
+        VStack(spacing: Spacing.s) {
+            ForEach(MobilityExperiencePreference.allCases, id: \.self) { level in
+                OnboardingChoiceCard(
+                    title: level.title,
+                    detail: level.detail,
+                    isSelected: coordinator.draft.mobilityExperience == level
+                ) {
+                    choose { $0.mobilityExperience = level }
+                }
+                .accessibilityIdentifier("onboarding-mobility-experience-\(level.rawValue)")
+            }
+        }
+    }
+
+    private var mobilityFrequencyContent: some View {
+        VStack(spacing: Spacing.s) {
+            ForEach(MobilityFrequencyPreference.allCases, id: \.self) { frequency in
+                OnboardingChoiceCard(
+                    title: frequency.title,
+                    isSelected: coordinator.draft.mobilityFrequency == frequency
+                ) {
+                    choose { $0.mobilityFrequency = frequency }
+                }
+                .accessibilityIdentifier("onboarding-mobility-frequency-\(frequency.rawValue)")
+            }
+        }
     }
 }

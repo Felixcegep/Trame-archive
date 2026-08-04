@@ -20,6 +20,14 @@ struct TrainingProfileSettingsView: View {
 
     private var profile: TrainingProfile? { profiles.first }
 
+    /// Independent of every other section on this screen: a mobility answer
+    /// changed here only ever affects mobility matching, never the workout
+    /// plan currently ranked or running. Only shown when a mobility plan is
+    /// actually reachable — see `OnboardingRecommendationsView`'s own gate.
+    private var isMobilityMatchingEnabled: Bool {
+        FeatureFlags.current.isEnabled(.mobilityProgram)
+    }
+
     var body: some View {
         Form {
             Section {
@@ -33,6 +41,9 @@ struct TrainingProfileSettingsView: View {
                 scheduleSection(profile)
                 equipmentSection(profile)
                 emphasisSection(profile)
+                if isMobilityMatchingEnabled {
+                    mobilitySection(profile)
+                }
             }
         }
         .navigationTitle("Training profile")
@@ -171,6 +182,38 @@ struct TrainingProfileSettingsView: View {
             Text("Emphasis")
         } footer: {
             Text("Up to two. Emphasis ranks plans and suggests accessories — it never adds sets to a plan you are following.")
+        }
+    }
+
+    private func mobilitySection(_ profile: TrainingProfile) -> some View {
+        Section {
+            optionalPicker(
+                label: String(localized: "Mobility goal"),
+                identifier: "training-profile-mobility-goal",
+                selection: rawBinding(profile, \.mobilityGoalRaw),
+                options: MobilityGoalPreference.allCases,
+                titleKeyPath: \.title
+            )
+
+            optionalPicker(
+                label: String(localized: "Mobility experience"),
+                identifier: "training-profile-mobility-experience",
+                selection: rawBinding(profile, \.mobilityExperienceRaw),
+                options: MobilityExperiencePreference.allCases,
+                titleKeyPath: \.title
+            )
+
+            optionalPicker(
+                label: String(localized: "Mobility frequency"),
+                identifier: "training-profile-mobility-frequency",
+                selection: rawBinding(profile, \.mobilityFrequencyRaw),
+                options: MobilityFrequencyPreference.allCases,
+                titleKeyPath: \.title
+            )
+        } header: {
+            Text("Mobility")
+        } footer: {
+            Text("Ranks mobility plans separately from your training plan. You can want either, both, or neither.")
         }
     }
 

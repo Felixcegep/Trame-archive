@@ -573,3 +573,100 @@ struct CompetitionProfileDraft: Codable, Equatable, Hashable, Sendable {
         discipline == nil && eventDate == nil && standards == nil
     }
 }
+
+// MARK: - Mobility intake
+//
+// Kept independent of the strength-training questions above: a lifter can
+// want a mobility plan alongside a strength plan, instead of one, or neither.
+// Answering here never implies anything about `primaryDiscipline`/`primaryGoal`
+// even when someone picks `.mobilityFlexibility`/`.mobility` there — the two
+// tracks are ranked separately by `ProgramMatchService` and `MobilityMatchService`.
+
+/// What the lifter wants a mobility plan to do for them, in plain language —
+/// never "PNF", "end-range control" or any other engine vocabulary.
+enum MobilityGoalPreference: String, Codable, CaseIterable, Hashable, Sendable {
+    case generalFlexibility
+    case recovery
+    case targetedPosition
+
+    var title: String {
+        switch self {
+        case .generalFlexibility: String(localized: "Move and stretch more freely overall")
+        case .recovery: String(localized: "Recover and reduce stiffness between workouts")
+        case .targetedPosition: String(localized: "Improve a specific position — like squat depth or overhead reach")
+        }
+    }
+}
+
+/// Separate from `ProfileExperienceLevel`: a lifter can be advanced in the
+/// weight room and brand new to structured mobility work, or the reverse.
+enum MobilityExperiencePreference: String, Codable, CaseIterable, Hashable, Sendable {
+    case new
+    case someExperience
+    case experienced
+    case unsure
+
+    var title: String {
+        switch self {
+        case .new: String(localized: "New to mobility work")
+        case .someExperience: String(localized: "Some experience")
+        case .experienced: String(localized: "Very experienced")
+        case .unsure: String(localized: "Not sure")
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .new:
+            String(localized: "I’m just starting to stretch and mobilize on purpose.")
+        case .someExperience:
+            String(localized: "I stretch regularly and know the basics.")
+        case .experienced:
+            String(localized: "I’m comfortable with loaded or advanced mobility work.")
+        case .unsure:
+            String(localized: "Help me choose.")
+        }
+    }
+
+    /// The plan-facing level, or `nil` when the lifter declined to claim one.
+    /// Mirrors `ProfileExperienceLevel.planExperienceLevel`: experience ranks
+    /// mobility plans, it never hides one.
+    var mobilityMatchLevel: MobilityMatchExperienceLevel? {
+        switch self {
+        case .new: .beginner
+        case .someExperience: .intermediate
+        case .experienced: .advanced
+        case .unsure: nil
+        }
+    }
+}
+
+/// How often the lifter wants to do mobility work, asked the same plain way
+/// as the strength-training frequency question.
+enum MobilityFrequencyPreference: String, Codable, CaseIterable, Hashable, Sendable {
+    case onceOrTwice
+    case twoToThree
+    case threeOrMore
+    case varies
+
+    var title: String {
+        switch self {
+        case .onceOrTwice: String(localized: "Once or twice a week")
+        case .twoToThree: String(localized: "2–3 times a week")
+        case .threeOrMore: String(localized: "3 or more times a week")
+        case .varies: String(localized: "It changes")
+        }
+    }
+
+    /// The weekly frequency this bucket implies, for ranking against a
+    /// mobility plan's `supportedDaysPerWeek`. `nil` where no honest number
+    /// exists — "it changes" contributes nothing rather than a guess.
+    var impliedDaysPerWeek: ClosedRange<Int>? {
+        switch self {
+        case .onceOrTwice: 1...2
+        case .twoToThree: 2...3
+        case .threeOrMore: 3...5
+        case .varies: nil
+        }
+    }
+}

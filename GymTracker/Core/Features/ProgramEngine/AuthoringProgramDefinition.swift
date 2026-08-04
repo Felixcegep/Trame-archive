@@ -12,7 +12,10 @@ nonisolated struct AuthoringWarmupStep: Codable, Hashable {
 nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
     var exercise: String
     var exposureKey: String
+    var role: ExerciseRole?
     var optional: Bool?
+    var executionBlockKey: String?
+    var executionBlockComponentOrder: Int?
     var restSeconds: Int?
     var setGroups: [AuthoringSetGroupDefinition]?
     var extraSetGroups: [AuthoringSetGroupDefinition]?
@@ -24,6 +27,27 @@ nonisolated struct AuthoringExerciseDefinition: Codable, Hashable {
     var variationLadder: [String]?
     var waves: String?
     var mainReference: String?
+}
+
+/// Compact JSON authoring shape for the existing within-workout execution
+/// block domain. All fields use the same typed enums and units as the runtime;
+/// unsupported nested blocks cannot be expressed by this graph.
+nonisolated struct AuthoringExecutionBlockDefinition: Codable, Hashable {
+    var blockKey: String
+    var name: String?
+    var kind: ExerciseBlockKind
+    var targetRounds: Int?
+    var sharedLoad: Bool?
+    var restSeconds: Int?
+    var clockMode: BlockClockMode?
+    var prescribedDurationSeconds: Int?
+    var timeCapSeconds: Int?
+    var intervalSeconds: Int?
+    var scoreKind: BlockScoreKind?
+    var repetitionScheme: BlockRepetitionScheme?
+    var repetitionStart: Int?
+    var repetitionEnd: Int?
+    var repetitionStep: Int?
 }
 
 nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
@@ -46,10 +70,28 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
             )
         }
     }
+    struct OlympicAttempt: Codable, Hashable {
+        var technicalPurpose: OlympicTechnicalPurpose?
+        var startPosition: OlympicStartPosition?
+        var targetQuality: LiftQuality?
+
+        var expanded: OlympicAttemptPrescription {
+            .init(
+                technicalPurpose: technicalPurpose,
+                startPosition: startPosition,
+                targetQuality: targetQuality
+            )
+        }
+    }
+    /// Repeats this complete parent prescription, including ordered complex
+    /// components and Olympic-attempt metadata. Each expansion receives its
+    /// own deterministic set identity and remains one shared-load attempt.
+    var count: Int?
     var reps: Int?
     var repRange: [Int]?
     var amrap: [Int?]?
     var durationSeconds: Double?
+    var distanceMeters: Double?
     var load: AuthoringLoadDefinition?
     var role: ProgramSetRole?
     var targetRPE: Double?
@@ -61,6 +103,7 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
     var deferred: Bool?
     var velocity: Velocity?
     var complex: [ComplexComponent]?
+    var olympicAttempt: OlympicAttempt?
 
     func expand(
         path: String,
@@ -75,6 +118,7 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
             repRange: repRange,
             amrap: amrap,
             durationSeconds: durationSeconds,
+            distanceMeters: distanceMeters,
             load: load,
             role: role,
             targetRPE: targetRPE,
@@ -106,6 +150,7 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
                 )
             })
         }
+        result.olympicAttempt = olympicAttempt?.expanded
         return result
     }
 }
@@ -141,6 +186,7 @@ nonisolated struct AuthoringWorkoutDefinition: Codable, Hashable {
     var dayOffset: Int
     var role: String?
     var optional: Bool?
+    var executionBlocks: [AuthoringExecutionBlockDefinition]?
     var exercises: [AuthoringExerciseDefinition]
 }
 
@@ -220,6 +266,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var supportedDaysPerWeek: [Int]
     var scheduleMode: PlanScheduleMode
     var scheduleIntervalDays: Int?
+    var requiredEquipment: [EquipmentType]?
     var prerequisites: [String]?
     var warnings: [String]?
     var isExperimental: Bool?
@@ -227,6 +274,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var missedWorkoutPolicy: MissedWorkoutPolicy?
     var completionPolicy: AuthoringCompletionPolicyDefinition?
     var requiredCapabilities: [String]?
+    var provenance: ProgramProvenance?
+    var sourceReferences: [ProgramSourceReference]?
     var rulesLibrary: [String: AuthoringRuleSetDefinition]?
     var stageTemplates: [String: [AuthoringStageDefinition]]?
     var waveTemplates: [String: [AuthoringWaveDefinition]]?
@@ -245,6 +294,27 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                         let weekPath = "\(blockPath)/w\(sourceWeekIndex)/r\(weekRepeatIndex)"
                         let workouts = try sourceWeek.workouts.enumerated().map { workoutIndex, workout in
                             let workoutPath = "\(weekPath)/wk\(workoutIndex)"
+                            let executionBlocks = (workout.executionBlocks ?? []).enumerated().map { blockIndex, block in
+                                ProgramExecutionBlockDefinition(
+                                    id: ProgramLibraryDeterministicID.uuid(for: "\(workoutPath)/executionBlock/\(blockIndex)"),
+                                    blockKey: block.blockKey,
+                                    orderIndex: blockIndex,
+                                    name: block.name,
+                                    kind: block.kind,
+                                    targetRounds: block.targetRounds,
+                                    isSharedLoad: block.sharedLoad ?? false,
+                                    restSeconds: block.restSeconds,
+                                    clockMode: block.clockMode ?? .none,
+                                    prescribedDurationSeconds: block.prescribedDurationSeconds,
+                                    timeCapSeconds: block.timeCapSeconds,
+                                    intervalSeconds: block.intervalSeconds,
+                                    scoreKind: block.scoreKind ?? .none,
+                                    repetitionScheme: block.repetitionScheme ?? .fixed,
+                                    repetitionStart: block.repetitionStart,
+                                    repetitionEnd: block.repetitionEnd,
+                                    repetitionStep: block.repetitionStep
+                                )
+                            }
                             let exercises = try workout.exercises.enumerated().map { exerciseIndex, exercise in
                                 guard let exerciseID = exerciseIDsByName[exercise.exercise] else {
                                     throw ProgramLibraryImportError.missingExercise(exercise.exercise)
@@ -261,13 +331,21 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                     )
                                 }
                                 for (setIndex, set) in (exercise.sets ?? []).enumerated() {
-                                    sets.append(try set.expand(
-                                        path: "\(exercisePath)/direct/\(setIndex)",
-                                        orderIndex: sets.count,
-                                        defaultRestSeconds: exercise.restSeconds,
-                                        exposureKey: exercise.exposureKey,
-                                        exerciseIDsByName: exerciseIDsByName
-                                    ))
+                                    let repetitionCount = set.count ?? 1
+                                    guard repetitionCount > 0 else {
+                                        throw ProgramLibraryImportError.invalidSetGroup(
+                                            "\(exercisePath)/direct/\(setIndex)/count"
+                                        )
+                                    }
+                                    for repetitionIndex in 0..<repetitionCount {
+                                        sets.append(try set.expand(
+                                            path: "\(exercisePath)/direct/\(setIndex)/repeat/\(repetitionIndex)",
+                                            orderIndex: sets.count,
+                                            defaultRestSeconds: exercise.restSeconds,
+                                            exposureKey: exercise.exposureKey,
+                                            exerciseIDsByName: exerciseIDsByName
+                                        ))
+                                    }
                                 }
                                 for (groupIndex, group) in (exercise.extraSetGroups ?? []).enumerated() {
                                     sets += try group.expand(
@@ -397,8 +475,11 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                     id: ProgramLibraryDeterministicID.uuid(for: exercisePath),
                                     exerciseID: exerciseID,
                                     exposureKey: exercise.exposureKey,
+                                    role: exercise.role,
                                     orderIndex: exerciseIndex,
                                     isOptional: exercise.optional ?? false,
+                                    executionBlockKey: exercise.executionBlockKey,
+                                    executionBlockComponentOrder: exercise.executionBlockComponentOrder,
                                     plannedSets: sets,
                                     waves: waves,
                                     stages: stages,
@@ -415,6 +496,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
                                 dayOffset: workout.dayOffset,
                                 role: workout.role ?? "strength",
                                 isOptional: workout.optional ?? false,
+                                executionBlocks: executionBlocks,
                                 plannedExercises: exercises
                             )
                         }
@@ -454,6 +536,18 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             .contains(where: { $0.velocity != nil }) {
             detectedCapabilities.insert(EngineCapabilities.velocity)
         }
+        if expandedBlocks.flatMap(\.weeks).flatMap(\.workouts)
+            .contains(where: { !$0.executionBlocks.isEmpty }) {
+            detectedCapabilities.insert(EngineCapabilities.executionBlocks)
+        }
+        if allExercises.flatMap({ $0.plannedSets + $0.waves.flatMap(\.plannedSets) + $0.stages.flatMap(\.plannedSets) })
+            .contains(where: { if case .distance = $0.repetitions { return true }; return false }) {
+            detectedCapabilities.insert(EngineCapabilities.distancePrescription)
+        }
+        if allExercises.flatMap({ $0.plannedSets + $0.waves.flatMap(\.plannedSets) + $0.stages.flatMap(\.plannedSets) })
+            .contains(where: { $0.olympicAttempt != nil }) {
+            detectedCapabilities.insert(EngineCapabilities.olympicAttempts)
+        }
 
         return ProgramDefinitionPayload(
             id: ProgramLibraryDeterministicID.uuid(for: programKey),
@@ -466,6 +560,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             supportedDaysPerWeek: supportedDaysPerWeek,
             scheduleMode: scheduleMode,
             scheduleIntervalDays: scheduleIntervalDays ?? 1,
+            requiredEquipment: requiredEquipment ?? [],
             prerequisites: prerequisites ?? [],
             warnings: warnings ?? [],
             isExperimental: isExperimental ?? false,
@@ -473,6 +568,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             missedWorkoutPolicy: missedWorkoutPolicy ?? .shiftSequence,
             completionPolicy: try completionPolicy?.expand() ?? .end,
             requiredCapabilities: Set((requiredCapabilities ?? []) + detectedCapabilities).sorted(),
+            provenance: provenance,
+            sourceReferences: sourceReferences,
             blocks: expandedBlocks
         )
     }

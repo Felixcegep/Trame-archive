@@ -12,8 +12,9 @@ struct SetInputAccessoryPanel: View {
     let viewModel: ActiveWorkoutViewModel
     let coordinator: SetInputCoordinator
     let unitSystem: UnitSystem
-    /// Invoked after a set is completed so the owner can start rest and advance
-    /// the disclosure, exactly as the row's own completion button does.
+    /// Invoked after the transactional completion has committed so the owner
+    /// can advance disclosure. Rest presentation is already reconciled by the
+    /// view model from the post-commit receipt.
     let onSetCompleted: (ExerciseEntry) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -866,7 +867,19 @@ struct SetInputAccessoryPanel: View {
         case .duration:
             set.duration = max(0, (set.duration ?? 0) + step)
         case .distance:
-            set.distance = max(0, (set.distance ?? 0) + Float(step))
+            let measurement = WorkoutDistancePolicy.displayMeasurement(
+                for: set,
+                system: UserDefaults.standard.unitSystem
+            )
+            let unit = measurement?.unit ?? WorkoutDistancePolicy.preferredDisplayUnit(
+                forMeters: nil,
+                system: UserDefaults.standard.unitSystem
+            )
+            WorkoutDistancePolicy.storeDisplayValue(
+                max(0, (measurement?.value ?? 0) + Float(step)),
+                displayUnit: unit,
+                on: set
+            )
         case .calories:
             set.calories = max(0, (set.calories ?? 0) + step)
         }
@@ -917,7 +930,13 @@ struct SetInputAccessoryPanel: View {
         case .duration:
             return (set.duration ?? 0) == 0 ? "—" : String(Int(set.duration ?? 0))
         case .distance:
-            return (set.distance ?? 0) == 0 ? "—" : Formatters.formatFloat(set.distance ?? 0)
+            guard let measurement = WorkoutDistancePolicy.displayMeasurement(
+                for: set,
+                system: UserDefaults.standard.unitSystem
+            ), measurement.value > 0 else {
+                return "—"
+            }
+            return Formatters.formatFloat(measurement.value)
         case .calories:
             return (set.calories ?? 0) == 0 ? "—" : Formatters.formatFloat(Float(set.calories ?? 0))
         }
@@ -937,7 +956,14 @@ struct SetInputAccessoryPanel: View {
         case .duration:
             return "sec"
         case .distance:
-            return set.distanceType.rawValue
+            return WorkoutDistancePolicy.displayMeasurement(
+                for: set,
+                system: UserDefaults.standard.unitSystem
+            )?.unit.symbol
+                ?? WorkoutDistancePolicy.preferredDisplayUnit(
+                    forMeters: nil,
+                    system: UserDefaults.standard.unitSystem
+                ).symbol
         case .calories:
             return "cal"
         }

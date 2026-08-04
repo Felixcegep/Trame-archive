@@ -20,6 +20,15 @@ enum OnboardingStep: String, CaseIterable, Hashable, Sendable {
     case units
     case focusAreas
     case competition
+    /// Whether the lifter wants a mobility plan too, asked once, in plain
+    /// language. Independent of `discipline`/`goal` — this never implies the
+    /// other, and neither implies this. Only ever asked when the
+    /// `mobilityProgram` feature flag is on; see `steps(for:mobilityEnabled:)`.
+    case mobilityGoal
+    /// Only asked once `mobilityGoal` has an answer — someone who skipped
+    /// past mobility entirely is never asked two more questions about it.
+    case mobilityExperience
+    case mobilityFrequency
 
     /// The question itself, and the one sentence that explains why it is being
     /// asked. Every screen answers "why do you need this?" without the lifter
@@ -39,6 +48,9 @@ enum OnboardingStep: String, CaseIterable, Hashable, Sendable {
         case .units: String(localized: "Which units do you use?")
         case .focusAreas: String(localized: "Would you like to emphasise anything?")
         case .competition: String(localized: "Tell us about the competition")
+        case .mobilityGoal: String(localized: "Would a mobility plan help too?")
+        case .mobilityExperience: String(localized: "How experienced are you with mobility work?")
+        case .mobilityFrequency: String(localized: "How often would you like to do mobility work?")
         }
     }
 
@@ -70,6 +82,12 @@ enum OnboardingStep: String, CaseIterable, Hashable, Sendable {
             String(localized: "Used to rank plans and suggest accessories. It never adds volume to a plan on its own.")
         case .competition:
             String(localized: "Used to rank competition plans and to show the right standards.")
+        case .mobilityGoal:
+            String(localized: "Mobility plans are recommended separately from your training plan. Skip this if you’d rather not.")
+        case .mobilityExperience:
+            String(localized: "Ranks mobility plans by how much they assume. Nothing is hidden from you.")
+        case .mobilityFrequency:
+            String(localized: "Used to find a mobility plan that fits your week, not to hold you to a number.")
         }
     }
 
@@ -100,7 +118,8 @@ enum OnboardingStep: String, CaseIterable, Hashable, Sendable {
     /// which is what turns a preselection into an answer.
     var advancesOnSelection: Bool {
         switch self {
-        case .discipline, .goal, .experience, .frequency, .cadence, .sessionDuration, .location:
+        case .discipline, .goal, .experience, .frequency, .cadence, .sessionDuration, .location,
+             .mobilityGoal, .mobilityExperience, .mobilityFrequency:
             true
         case .units, .weekdays, .equipment, .specializedEquipment, .focusAreas, .competition:
             false
@@ -123,7 +142,15 @@ extension OnboardingStep {
     /// earlier answer immediately adds or removes the questions that depend on
     /// it — and so the progress indicator can never promise a step the lifter
     /// will not be shown.
-    static func steps(for draft: OnboardingDraft) -> [OnboardingStep] {
+    ///
+    /// - Parameter mobilityEnabled: Whether the `mobilityProgram` feature flag
+    ///   is on. Resolved once by the caller rather than read here, matching
+    ///   `FeatureFlags`' own "resolved once at composition time" rule, and
+    ///   keeping this function a pure fold over its arguments — the property
+    ///   every existing test in this file relies on. When `false`, mobility
+    ///   questions never appear: a build where mobility plans are not
+    ///   reachable must ask nothing about them.
+    static func steps(for draft: OnboardingDraft, mobilityEnabled: Bool) -> [OnboardingStep] {
         guard let path = draft.selectedPath, path.asksProfileQuestions else {
             // Free Workout gets at most the one question whose wrong default is
             // visible on every screen afterwards.
@@ -159,6 +186,17 @@ extension OnboardingStep {
         }
         if draft.goal == .prepareForCompetition {
             steps.append(.competition)
+        }
+
+        // Asked last, and only behind the flag: a bonus question about a
+        // separate plan track, not a tax on every lifter who only cares about
+        // the one they came here for.
+        if mobilityEnabled {
+            steps.append(.mobilityGoal)
+            if draft.mobilityGoal != nil {
+                steps.append(.mobilityExperience)
+                steps.append(.mobilityFrequency)
+            }
         }
 
         return steps

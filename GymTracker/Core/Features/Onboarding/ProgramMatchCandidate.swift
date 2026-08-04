@@ -17,6 +17,11 @@ struct ProgramMatchCandidate: Identifiable, Equatable, Sendable {
     let durationWeeks: Int
     let scheduleMode: PlanScheduleMode
     let requiredEquipment: [EquipmentType]
+    /// Free-text, author-written conditions ("Known one-repetition maximums
+    /// for squat, bench press, and deadlift"). Nothing in the intake can
+    /// verify these, so `ProgramMatchService` always discloses them rather
+    /// than assuming they are met.
+    let prerequisites: [String]
     let requiredCapabilities: [String]
     let authorWarnings: [String]
     let isExperimental: Bool
@@ -65,6 +70,7 @@ extension ProgramMatchCandidate {
             durationWeeks: payload.durationWeeks,
             scheduleMode: payload.scheduleMode,
             requiredEquipment: payload.requiredEquipment,
+            prerequisites: payload.prerequisites,
             requiredCapabilities: payload.requiredCapabilities,
             authorWarnings: payload.warnings,
             isExperimental: payload.isExperimental,

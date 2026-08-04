@@ -134,7 +134,7 @@ struct WorkoutDetailView: View {
                     .foregroundStyle(Color.gymPrimary)
                     .accessibilityLabel("Superset exercise")
             }
-            Text(exercise.nameSnapshot)
+            Text(exercise.occurrenceDisplayName)
                 .font(AppFont.titleSmallSemibold)
                 .foregroundStyle(Color.gymText)
 
@@ -246,9 +246,11 @@ struct WorkoutDetailView: View {
     }
 
     private func complexComponentText(for set: ExerciseSet) -> String {
-        set.orderedComplexComponents
+        let components = set.orderedComplexComponents
             .map { "\($0.exerciseNameSnapshot) ×\($0.performedRepetitions)/\($0.prescribedRepetitions): \($0.outcome.title)" }
             .joined(separator: " · ")
+        guard let outcome = set.olympicAttemptOutcome else { return components }
+        return "Attempt: \(outcome.title) · \(components)"
     }
 
     private func weightText(for set: ExerciseSet) -> String {
@@ -261,8 +263,11 @@ struct WorkoutDetailView: View {
     }
 
     private func distanceText(for set: ExerciseSet) -> String {
-        guard let distance = set.distance else { return "—" }
-        return "\(Formatters.formatFloat(distance)) \(set.distanceType.rawValue)"
+        guard let measurement = WorkoutDistancePolicy.displayMeasurement(
+            for: set,
+            system: UserDefaults.standard.unitSystem
+        ) else { return "—" }
+        return "\(Formatters.formatFloat(measurement.value)) \(measurement.unit.symbol)"
     }
 
     private func caloriesText(for set: ExerciseSet) -> String {

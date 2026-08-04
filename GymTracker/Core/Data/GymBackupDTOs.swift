@@ -35,6 +35,12 @@ nonisolated struct TrainingProfileDTO: Codable {
     var competitionDiscipline: String? = nil
     var competitionEventDateTimestamp: Double? = nil
     var competitionStandards: String? = nil
+    // Mobility intake, added without a `BackupDTO.currentVersion` bump — every
+    // field here decodes optionally and absent on an older backup means
+    // exactly what it means everywhere else in this DTO: never asked.
+    var mobilityGoal: String? = nil
+    var mobilityExperience: String? = nil
+    var mobilityFrequency: String? = nil
     var completedCoreOnboardingAtTimestamp: Double? = nil
     var createdAtTimestamp: Double? = nil
     var updatedAtTimestamp: Double? = nil
@@ -69,6 +75,9 @@ nonisolated struct ExerciseTemplateDTO: Codable {
     var variationFamilyID: String? = nil
     var frenchName: String? = nil
     var searchAliases: [String]? = nil
+    var sportDiscipline: String? = nil
+    var strongmanEventFamily: String? = nil
+    var strongmanImplementProfileData: Data? = nil
 }
 
 nonisolated struct ExerciseRelationshipDTO: Codable {
@@ -166,6 +175,9 @@ nonisolated struct ExerciseSetDTO: Codable {
     var throwDistanceMeters: Double? = nil
     var kettlebellCadenceRPM: Double? = nil
     var specializedMetricMeasurementSource: String? = nil
+    var strongmanLoadConvention: String? = nil
+    var strongmanImplementProfileData: Data? = nil
+    var strongmanEventFamily: String? = nil
     var setMethod: String? = nil
     var segments: [ExerciseSetSegmentDTO]? = nil
     var complexComponents: [ComplexComponentResultDTO]? = nil
@@ -210,6 +222,12 @@ nonisolated struct ExerciseSetSegmentDTO: Codable {
     let variationNote: String?
     let rpe: Double?
     let rir: Int?
+    var splitKind: String? = nil
+    var startedAt: Date? = nil
+    var endedAt: Date? = nil
+    var distanceMeters: Double? = nil
+    var heartRateBPM: Int? = nil
+    var perceivedExertion: Double? = nil
 }
 
 nonisolated struct ComplexComponentResultDTO: Codable {
@@ -293,6 +311,8 @@ nonisolated struct ExerciseEntryDTO: Codable {
     var repCountingStyleSnapshot: String? = nil
     var weightEntryStyleSnapshot: String? = nil
     var loadUnitCountSnapshot: Int? = nil
+    var sportDisciplineSnapshot: String? = nil
+    var strongmanEventFamilySnapshot: String? = nil
 }
 
 nonisolated struct WorkoutDTO: Codable {
@@ -622,6 +642,117 @@ nonisolated struct ProgramDefinitionDTO: Codable {
     let definitionData: Data
 }
 
+/// Portable form of `MobilityProgramDefinitionRecord`. Follows
+/// `ProgramDefinitionDTO`'s exact shape: queryable metadata columns plus one
+/// opaque `definitionData` blob holding the versioned
+/// `MobilityProgramDefinitionPayload` recipe. Added within Backup v26 (no new
+/// version constant): the field decodes absent as `[]` for every payload that
+/// predates it, exactly like `MobilityRoutineBlockDTO` and
+/// `MobilityEntryEvidenceDTO` fields did when they were added within v26.
+nonisolated struct MobilityProgramDefinitionDTO: Codable {
+    let id: String
+    let programKey: String
+    let schemaVersion: Int
+    let templateVersion: Int
+    let name: String
+    let summary: String?
+    let durationWeeks: Int
+    let supportedDaysPerWeek: [Int]
+    let isBuiltIn: Bool
+    let isArchived: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    let definitionData: Data
+}
+
+/// Portable form of one `MobilityProgramSessionProgress`, nested inside
+/// `MobilityProgramRunDTO` exactly like `PlanWorkoutProgressDTO` nests
+/// inside `PlanRunDTO`.
+nonisolated struct MobilityProgramSessionProgressDTO: Codable {
+    let id: String
+    let sessionKey: String
+    let weekIndex: Int
+    let dayIndex: Int
+    let sameDayOrder: Int
+    let isOptional: Bool
+    let sessionNameSnapshot: String
+    let status: String
+    let originalScheduledDate: Date?
+    let scheduledDate: Date?
+    let lastRescheduledAt: Date?
+    let startedAt: Date?
+    let completedAt: Date?
+    let mobilitySessionID: String?
+}
+
+/// Portable form of one `MobilityProgressionState`, keyed by
+/// `(progressionKey, side)` — see that model's doc comment for why side is
+/// part of the key.
+nonisolated struct MobilityProgressionStateDTO: Codable {
+    let id: String
+    let progressionKey: String
+    let side: String
+    let durationOffsetSeconds: Int
+    let repetitionOffset: Int
+    let cycleOffset: Int
+    let loadOffset: Double
+    let assistanceLevelOffset: Int
+    let supportLevelStepOffset: Int
+    let variationStepOffset: Int
+    let consecutiveTargetMetSessionCount: Int
+    let lastAppliedRecommendationID: String?
+    let updatedAt: Date
+}
+
+/// Portable form of `MobilityProgramRun`, mirroring `PlanRunDTO`'s nested
+/// shape: run metadata plus its full session-progress and progression-state
+/// graphs. `programSnapshotData` is the frozen
+/// `MobilityProgramDefinitionPayload` this run activated with — restoring
+/// it never re-reads the live `MobilityProgramDefinitionRecord`.
+nonisolated struct MobilityProgramRunDTO: Codable {
+    let id: String
+    let sourceProgramID: String
+    let sourceProgramName: String
+    let startDate: Date
+    let endDate: Date?
+    let status: String
+    let currentWeekIndex: Int
+    let currentSessionIndex: Int
+    let programSnapshotData: Data
+    let createdAt: Date
+    let updatedAt: Date
+    let sessionProgress: [MobilityProgramSessionProgressDTO]
+    let progressionStates: [MobilityProgressionStateDTO]
+}
+
+/// Portable form of `MobilityProgressionRecommendationRecord`. Distinct from
+/// `ProgressionRecommendationDTO` — see that model's doc comment for the
+/// audited reason a shared table was not safe.
+nonisolated struct MobilityProgressionRecommendationDTO: Codable {
+    let id: String
+    let runID: String
+    let sessionProgressID: String
+    let progressionKey: String
+    let side: String
+    let ruleID: String
+    let actionData: Data
+    let reason: String
+    let reasonKey: String?
+    let applicationMode: String
+    let performanceData: Data?
+    let proposedDurationOffsetSeconds: Int
+    let proposedRepetitionOffset: Int
+    let proposedCycleOffset: Int
+    let proposedLoadOffset: Double
+    let proposedAssistanceLevelOffset: Int
+    let proposedSupportLevelStepOffset: Int
+    let proposedVariationStepOffset: Int
+    let createdAt: Date
+    let isResolved: Bool
+    let resolvedAt: Date?
+    let decisionOutcome: String?
+}
+
 nonisolated struct DailyLogEntryDTO: Codable {
     let id: String
     let dayKey: String
@@ -688,6 +819,26 @@ nonisolated struct MobilityPhasePrescriptionDTO: Codable {
     let side: String
 }
 
+nonisolated struct MobilityBreathingPrescriptionDTO: Codable {
+    let targetBreaths: Int?
+    let inhaleSeconds: Int?
+    let exhaleSeconds: Int?
+    let instructionKey: String?
+}
+
+nonisolated struct MobilityTempoPrescriptionDTO: Codable {
+    let moveIntoRangeSeconds: Int?
+    let holdSeconds: Int?
+    let returnSeconds: Int?
+    let pauseSeconds: Int?
+}
+
+nonisolated struct MobilityAssistancePrescriptionDTO: Codable {
+    let assistanceType: String
+    let level: Int?
+    let equipment: String?
+}
+
 nonisolated struct MobilityRoutineItemDTO: Codable {
     let id: String
     let definitionID: String
@@ -701,6 +852,26 @@ nonisolated struct MobilityRoutineItemDTO: Codable {
     let restSeconds: Int?
     let notes: String?
     var phases: [MobilityPhasePrescriptionDTO]? = nil
+    var method: String? = nil
+    var trainingPurpose: String? = nil
+    var breathingPrescription: MobilityBreathingPrescriptionDTO? = nil
+    var tempoPrescription: MobilityTempoPrescriptionDTO? = nil
+    var assistancePrescription: MobilityAssistancePrescriptionDTO? = nil
+    var supportLevel: String? = nil
+    var metricProfile: MobilityMetricProfile? = nil
+    var metricTargets: MobilityMetricTargets? = nil
+    var blockKey: String? = nil
+    var sideStrategy: String? = nil
+    var restPrescription: MobilityRestPrescription? = nil
+}
+
+nonisolated struct MobilityRoutineBlockDTO: Codable {
+    let blockKey: String
+    let orderIndex: Int
+    var name: String? = nil
+    let kind: String
+    var targetRounds: Int? = nil
+    var restPrescription: MobilityRestPrescription? = nil
 }
 
 nonisolated struct MobilityRoutineDTO: Codable {
@@ -712,6 +883,7 @@ nonisolated struct MobilityRoutineDTO: Codable {
     let updatedAt: Date
     let items: [MobilityRoutineItemDTO]
     var purpose: String? = nil
+    var blocks: [MobilityRoutineBlockDTO]? = nil
 }
 
 nonisolated struct MobilityPhaseResultDTO: Codable {
@@ -743,6 +915,21 @@ nonisolated struct MobilityResultDTO: Codable {
     let discomfortNote: String?
     let startedAt: Date?
     let completedAt: Date?
+    var methodSnapshot: String? = nil
+    var trainingPurposeSnapshot: String? = nil
+    var sensation: String? = nil
+    var movementQuality: String? = nil
+    var compensationKeys: [String]? = nil
+    var breathingPrescriptionSnapshot: MobilityBreathingPrescriptionDTO? = nil
+    var tempoPrescriptionSnapshot: MobilityTempoPrescriptionDTO? = nil
+    var assistancePrescriptionSnapshot: MobilityAssistancePrescriptionDTO? = nil
+    var supportLevelSnapshot: String? = nil
+    var performedBreathingCycles: Int? = nil
+    var performedAssistanceLevel: Int? = nil
+    var performedSupportLevel: String? = nil
+    var metricProfileSnapshot: MobilityMetricProfile? = nil
+    var metricTargetsSnapshot: MobilityMetricTargets? = nil
+    var restSnapshot: MobilityRestPrescription? = nil
 }
 
 nonisolated struct MobilityEntryDTO: Codable {
@@ -766,6 +953,15 @@ nonisolated struct MobilityEntryDTO: Codable {
     var pausedElapsedSeconds: Int? = 0
     let results: [MobilityResultDTO]
     var phaseResults: [MobilityPhaseResultDTO]? = nil
+    var blockKeySnapshot: String? = nil
+    var blockKindSnapshot: String? = nil
+    var blockNameSnapshot: String? = nil
+    var blockOrderIndexSnapshot: Int? = nil
+    var blockTargetRoundsSnapshot: Int? = nil
+    var blockRestSnapshot: MobilityRestPrescription? = nil
+    var roundIndexSnapshot: Int? = 0
+    var sideStrategySnapshot: String? = nil
+    var restPrescriptionSnapshot: MobilityRestPrescription? = nil
 }
 
 nonisolated struct MobilitySessionDTO: Codable {
@@ -1063,6 +1259,12 @@ nonisolated struct BackupDTO: Codable {
     let repeatingPlanRuns: [RepeatingPlanRunDTO]
     let exerciseRelationships: [ExerciseRelationshipDTO]
     let programDefinitions: [ProgramDefinitionDTO]
+    var mobilityProgramDefinitions: [MobilityProgramDefinitionDTO] = []
+    /// Release 8 part 2's runtime graph, added within Backup v26 alongside
+    /// `mobilityProgramDefinitions` (no new version constant): both decode
+    /// absent as `[]` for every payload that predates them.
+    var mobilityProgramRuns: [MobilityProgramRunDTO] = []
+    var mobilityProgressionRecommendations: [MobilityProgressionRecommendationDTO] = []
     let progressionRecommendations: [ProgressionRecommendationDTO]
     let dailyLogEntries: [DailyLogEntryDTO]
     let bodyWeightEntries: [BodyWeightEntryDTO]
@@ -1145,7 +1347,11 @@ nonisolated struct BackupDTO: Codable {
     /// nothing here participates in a prescription — so v1–v24 restore with no
     /// profile and the app simply ranks plans without one.
     static let trainingProfileVersion = 25
-    static let currentVersion = trainingProfileVersion
+    /// Adds advanced mobility method/purpose prescriptions and immutable,
+    /// side-specific quality/sensation evidence. Older backups restore with
+    /// no advanced evidence and never infer it from free-text notes.
+    static let advancedMobilityEvidenceVersion = 26
+    static let currentVersion = advancedMobilityEvidenceVersion
 
     init(
         version: Int,
@@ -1160,6 +1366,9 @@ nonisolated struct BackupDTO: Codable {
         repeatingPlanRuns: [RepeatingPlanRunDTO] = [],
         exerciseRelationships: [ExerciseRelationshipDTO] = [],
         programDefinitions: [ProgramDefinitionDTO] = [],
+        mobilityProgramDefinitions: [MobilityProgramDefinitionDTO] = [],
+        mobilityProgramRuns: [MobilityProgramRunDTO] = [],
+        mobilityProgressionRecommendations: [MobilityProgressionRecommendationDTO] = [],
         progressionRecommendations: [ProgressionRecommendationDTO] = [],
         dailyLogEntries: [DailyLogEntryDTO] = [],
         bodyWeightEntries: [BodyWeightEntryDTO] = [],
@@ -1188,6 +1397,9 @@ nonisolated struct BackupDTO: Codable {
         self.repeatingPlanRuns = repeatingPlanRuns
         self.exerciseRelationships = exerciseRelationships
         self.programDefinitions = programDefinitions
+        self.mobilityProgramDefinitions = mobilityProgramDefinitions
+        self.mobilityProgramRuns = mobilityProgramRuns
+        self.mobilityProgressionRecommendations = mobilityProgressionRecommendations
         self.progressionRecommendations = progressionRecommendations
         self.dailyLogEntries = dailyLogEntries
         self.bodyWeightEntries = bodyWeightEntries
@@ -1206,7 +1418,7 @@ nonisolated struct BackupDTO: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets, trainingProfile
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, mobilityProgramDefinitions, mobilityProgramRuns, mobilityProgressionRecommendations, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets, trainingProfile
     }
 
     init(from decoder: Decoder) throws {
@@ -1223,6 +1435,9 @@ nonisolated struct BackupDTO: Codable {
         repeatingPlanRuns = try container.decodeIfPresent([RepeatingPlanRunDTO].self, forKey: .repeatingPlanRuns) ?? []
         exerciseRelationships = try container.decodeIfPresent([ExerciseRelationshipDTO].self, forKey: .exerciseRelationships) ?? []
         programDefinitions = try container.decodeIfPresent([ProgramDefinitionDTO].self, forKey: .programDefinitions) ?? []
+        mobilityProgramDefinitions = try container.decodeIfPresent([MobilityProgramDefinitionDTO].self, forKey: .mobilityProgramDefinitions) ?? []
+        mobilityProgramRuns = try container.decodeIfPresent([MobilityProgramRunDTO].self, forKey: .mobilityProgramRuns) ?? []
+        mobilityProgressionRecommendations = try container.decodeIfPresent([MobilityProgressionRecommendationDTO].self, forKey: .mobilityProgressionRecommendations) ?? []
         progressionRecommendations = try container.decodeIfPresent([ProgressionRecommendationDTO].self, forKey: .progressionRecommendations) ?? []
         dailyLogEntries = try container.decodeIfPresent([DailyLogEntryDTO].self, forKey: .dailyLogEntries) ?? []
         bodyWeightEntries = try container.decodeIfPresent([BodyWeightEntryDTO].self, forKey: .bodyWeightEntries) ?? []

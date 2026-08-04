@@ -241,12 +241,41 @@ enum ProgramPrescriptionSnapshotService {
                 set.prescribedRepRangeMinimum = minimum.map { max(0, $0 + offset) }
                 set.prescribedRepRangeMaximum = maximum.map { max(set.prescribedRepRangeMinimum ?? 0, $0 + offset) }
             case .duration(let seconds):
-                set.duration = seconds.map { max(1, $0 + (state?.durationOffset ?? 0)) }
+                let target = seconds.map { max(1, $0 + (state?.durationOffset ?? 0)) }
+                if definition.separatesPerformedEvidence {
+                    set.duration = nil
+                    set.prescriptionDefinitionData = encodedEffectiveDefinition(
+                        definition,
+                        repetitions: .duration(seconds: target)
+                    ) ?? data
+                } else {
+                    set.duration = target
+                }
             case .distance(let meters):
-                set.distance = meters.map { Float(max(0.01, $0 + (state?.distanceOffset ?? 0))) }
+                let target = meters.map { max(0.01, $0 + (state?.distanceOffset ?? 0)) }
+                if definition.separatesPerformedEvidence {
+                    set.distance = nil
+                    set.prescriptionDefinitionData = encodedEffectiveDefinition(
+                        definition,
+                        repetitions: .distance(meters: target)
+                    ) ?? data
+                } else {
+                    set.distance = target.map(Float.init)
+                }
+                set.distanceType = .meters
             case .calories(let calories):
-                set.calories = calories.map { max(0, $0 + (state?.caloriesOffset ?? 0)) }
-            set.prescribedCalories = set.calories
+                let target = calories.map { max(0.01, $0 + (state?.caloriesOffset ?? 0)) }
+                if definition.separatesPerformedEvidence {
+                    set.calories = nil
+                    set.prescribedCalories = nil
+                    set.prescriptionDefinitionData = encodedEffectiveDefinition(
+                        definition,
+                        repetitions: .calories(target)
+                    ) ?? data
+                } else {
+                    set.calories = target
+                    set.prescribedCalories = target
+                }
             case .sequence(let components):
                 let repetitions = components.reduce(0) { $0 + $1.repetitions }
                 set.prescribedRepetitions = max(1, repetitions + (state?.repetitionOffset ?? 0))
@@ -363,6 +392,15 @@ enum ProgramPrescriptionSnapshotService {
             plannedExercise: plannedExercise,
             decoder: decoder
         )
+    }
+
+    private static func encodedEffectiveDefinition(
+        _ definition: SetPrescriptionDefinition,
+        repetitions: RepPrescription
+    ) -> Data? {
+        var effective = definition
+        effective.repetitions = repetitions
+        return try? JSONEncoder().encode(effective)
     }
 
 }

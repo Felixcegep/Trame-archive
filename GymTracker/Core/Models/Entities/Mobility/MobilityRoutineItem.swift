@@ -51,4 +51,15 @@ final class MobilityRoutineItem {
         self.restSeconds = restSeconds
         self.notes = notes
     }
+
+    /// Prescription order is stable even when malformed legacy data contains
+    /// duplicate indices. Validation rejects that shape at portable boundaries,
+    /// while the UUID tiebreak keeps an already-open local graph deterministic.
+    var orderedPhases: [MobilityPhasePrescription] {
+        phases.sorted {
+            $0.orderIndex == $1.orderIndex
+                ? $0.id.uuidString < $1.id.uuidString
+                : $0.orderIndex < $1.orderIndex
+        }
+    }
 }

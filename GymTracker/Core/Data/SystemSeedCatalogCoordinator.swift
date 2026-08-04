@@ -4,7 +4,7 @@ import SwiftData
 @MainActor
 enum SystemSeedCatalogCoordinator {
     static let seedVersion = 1
-    static let contentVersion = 8
+    static let contentVersion = 14
 
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.
@@ -65,7 +65,26 @@ enum SystemSeedCatalogCoordinator {
         report += try registerPrograms(in: context, registry: registry)
 #endif
 
+        // The mobility movement catalog must exist before mobility programs
+        // are seeded: each program's occurrences resolve their
+        // `mobilityDefinitionID` by looking up the just-staged
+        // `MobilityDefinition` catalog by name (see
+        // `MobilityProgramLibrarySeedData.seedBundledCatalog`), exactly like
+        // `ProgramLibrarySeedData.seed` above resolves exercise references
+        // against `Exercise` staged earlier in this same transaction.
         try MobilitySeedData.stage(using: context, registry: registry)
+
+#if !GYMTRACKER_EXTENSION
+        // Mirrors the workout program library seeding above, now that the
+        // first three mobility programs ship.
+        _ = try MobilityProgramLibrarySeedData.seedBundledCatalog(
+            in: context,
+            bundle: bundle,
+            saveChanges: false
+        )
+        report += try registerMobilityPrograms(in: context, registry: registry)
+#endif
+
         report += try MobilityAssessmentSeedData.stage(using: context, registry: registry)
         report += try WorkoutTemplateMobilitySeedLinker.apply(in: context, registry: registry)
         try NutritionSeedData.stage(using: context, registry: registry)
@@ -293,6 +312,31 @@ enum SystemSeedCatalogCoordinator {
             try registry.register(
                 key: key,
                 kind: .programDefinition,
+                entityID: definition.id,
+                seedVersion: seedVersion,
+                // Manifest content version tracks the bundled catalogue as a
+                // whole. The program's own template version remains on its
+                // definition record and is not a manifest version.
+                contentVersion: contentVersion,
+                sourceKind: existed ? .bundled : .migratedLegacy
+            )
+            if existed { report.updated += 1 } else { report.adopted += 1 }
+        }
+        return report
+    }
+
+    private static func registerMobilityPrograms(
+        in context: ModelContext,
+        registry: SystemSeedRegistry
+    ) throws -> SystemSeedInstallReport {
+        let records = try context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>()).filter(\.isBuiltIn)
+        var report = SystemSeedInstallReport()
+        for definition in records {
+            let key = "mobility-program.\(definition.programKey.lowercased())"
+            let existed = try registry.record(for: key, expectedKind: .mobilityProgramDefinition) != nil
+            try registry.register(
+                key: key,
+                kind: .mobilityProgramDefinition,
                 entityID: definition.id,
                 seedVersion: seedVersion,
                 // Manifest content version tracks the bundled catalogue as a

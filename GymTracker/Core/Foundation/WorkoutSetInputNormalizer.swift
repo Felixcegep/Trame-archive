@@ -12,6 +12,7 @@ enum WorkoutSetInputNormalizer {
     ///   Program Engine. When it is `nil` the converted weight is left exactly
     ///   as the conversion produced it, which is the previous behaviour.
     @discardableResult
+    @MainActor
     static func synchronize(
         _ set: ExerciseSet,
         to preferredSystem: UnitSystem,
@@ -20,7 +21,6 @@ enum WorkoutSetInputNormalizer {
         guard !set.done else { return false }
 
         let preferredWeightType: WeightType = preferredSystem == .metric ? .kg : .lbs
-        let preferredDistanceType: DistanceType = preferredSystem == .metric ? .kilometers : .miles
         var didChange = false
 
         if set.weightType != preferredWeightType {
@@ -36,15 +36,7 @@ enum WorkoutSetInputNormalizer {
             didChange = true
         }
 
-        if set.distanceType != preferredDistanceType {
-            if let distance = set.distance {
-                set.distance = UnitConversion.distance(
-                    distance,
-                    from: set.distanceType,
-                    to: preferredDistanceType
-                )
-            }
-            set.distanceType = preferredDistanceType
+        if WorkoutDistancePolicy.canonicalizeEditable(set) {
             didChange = true
         }
 

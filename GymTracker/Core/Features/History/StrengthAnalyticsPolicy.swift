@@ -5,14 +5,33 @@ import Foundation
 /// policy prevents format-specific evidence from being misread as a normal
 /// load, rep, or e1RM record.
 enum StrengthAnalyticsPolicy {
+    /// The `entry`/`policy` gate below is additive: every set that satisfied
+    /// this check before `SportAnalyticsPolicy` existed still does, because
+    /// `StandardStrengthAnalyticsPolicy.contributesToStrengthVolume` always
+    /// returns `true` and every pre-existing entry resolves to that policy
+    /// (no exercise has an authored `sportDiscipline` yet). A set whose
+    /// `exerciseEntry` was already released (nil) also passes unconditionally
+    /// rather than being silently excluded.
     static func isEligibleForTraditionalSetRecord(_ set: ExerciseSet) -> Bool {
-        set.done
+        guard set.done
             && set.setType != .warmup
             && set.resolvedSetMethod == .standard
             && set.segments.isEmpty
             && set.complexComponents.isEmpty
             && set.resolvedSpecializedMetricKind == .none
             && !set.isVelocityProbe
+        else { return false }
+        guard let entry = set.exerciseEntry else { return true }
+        return SportAnalyticsPolicyResolver.policy(for: entry).contributesToStrengthVolume(set: set, entry: entry)
+    }
+
+    /// The grouping key a load/record comparison must use so a strongman
+    /// load never competes against a differently-conventioned load logged
+    /// for the same exercise. Every non-strongman set (the entire existing
+    /// catalog) resolves to the same fixed suffix, so the composed key is
+    /// still unique per exercise exactly as before.
+    static func loadComparisonGroupKey(_ set: ExerciseSet) -> String {
+        StrongmanLoadComparability.comparisonGroupKey(set.strongmanLoadConvention)
     }
 
     static func isEligibleForVelocityRecord(_ set: ExerciseSet) -> Bool {

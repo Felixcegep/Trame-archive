@@ -7,24 +7,7 @@ import SwiftData
 /// truth and callers rebuild their presentation from the returned projection.
 @MainActor
 struct ActiveWorkoutMutationService {
-    struct CurrentSetLog {
-        var repetitions: Int?
-        var weight: Double?
-        var rpe: Double?
-        var rir: Int?
-
-        init(
-            repetitions: Int? = nil,
-            weight: Double? = nil,
-            rpe: Double? = nil,
-            rir: Int? = nil
-        ) {
-            self.repetitions = repetitions
-            self.weight = weight
-            self.rpe = rpe
-            self.rir = rir
-        }
-    }
+    typealias CurrentSetLog = WorkoutSetCompletionWorkflow.Log
 
     enum Result: Equatable {
         case applied(LiveActivityProjection)
@@ -52,40 +35,17 @@ struct ActiveWorkoutMutationService {
         expectedSetOrderIndex: Int,
         now: Date = .now
     ) -> Result {
-        guard let workout = activeWorkout(id: workoutID) else {
-            return .unavailable
-        }
-
-        guard let current = currentSet(in: workout) else {
-            return .stale(LiveActivityProjection(workout: workout, now: now))
-        }
-
-        guard
-            current.exercise.orderIndex == expectedExerciseOrderIndex,
-            current.set.orderIndex == expectedSetOrderIndex
-        else {
-            return .stale(LiveActivityProjection(workout: workout, now: now))
-        }
-
-        guard Self.canComplete(current.set, for: current.exercise) else {
-            return .invalid(LiveActivityProjection(workout: workout, now: now))
-        }
-
-        current.set.done = true
-        #if !GYMTRACKER_EXTENSION
-        ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
-        #endif
-        let restSeconds = WorkoutSetSelector.restSeconds(
-            afterCompleting: current.exercise,
-            in: workout,
-            defaultSeconds: defaultRestSeconds
-        )
-        workout.restEndDate = restSeconds.map {
-            now.addingTimeInterval(TimeInterval($0))
-        }
-        workout.pausedRemainingTime = nil
-
-        return saveAndProject(workout, now: now)
+        completionResult(WorkoutSetCompletionWorkflow(modelContext: modelContext).execute(
+            .init(
+                workoutID: workoutID,
+                target: .expectedCurrent(
+                    exerciseOrderIndex: expectedExerciseOrderIndex,
+                    setOrderIndex: expectedSetOrderIndex
+                ),
+                fallbackRestSeconds: defaultRestSeconds,
+                now: now
+            )
+        ))
     }
 
     /// Logs the next incomplete strength set and completes it in one durable
@@ -96,52 +56,15 @@ struct ActiveWorkoutMutationService {
         log: CurrentSetLog,
         now: Date = .now
     ) -> Result {
-        guard let workout = activeWorkout(id: workoutID) else {
-            return .unavailable
-        }
-        guard let current = currentSet(in: workout) else {
-            return .stale(LiveActivityProjection(workout: workout, now: now))
-        }
-        guard log.rpe == nil || log.rir == nil else {
-            return .invalid(LiveActivityProjection(workout: workout, now: now))
-        }
-        guard log.repetitions.map({ $0 > 0 }) ?? true,
-              log.weight.map({ $0 >= 0 }) ?? true,
-              log.rpe.map({ (1.0...10.0).contains($0) }) ?? true,
-              log.rir.map({ (0...6).contains($0) }) ?? true
-        else {
-            return .invalid(LiveActivityProjection(workout: workout, now: now))
-        }
-
-        if let repetitions = log.repetitions {
-            current.set.repetitions = Float(repetitions)
-        }
-        if let weight = log.weight {
-            current.set.weight = Float(weight)
-        }
-        if let rpe = log.rpe {
-            current.set.recordRPE(rpe)
-        }
-        if let rir = log.rir {
-            current.set.recordRIR(rir)
-        }
-        guard Self.canComplete(current.set, for: current.exercise) else {
-            return .invalid(LiveActivityProjection(workout: workout, now: now))
-        }
-
-        current.set.done = true
-        current.set.synchronizeSegmentCompletion()
-        #if !GYMTRACKER_EXTENSION
-        ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
-        #endif
-        let restSeconds = WorkoutSetSelector.restSeconds(
-            afterCompleting: current.exercise,
-            in: workout,
-            defaultSeconds: defaultRestSeconds
-        )
-        workout.restEndDate = restSeconds.map { now.addingTimeInterval(TimeInterval($0)) }
-        workout.pausedRemainingTime = nil
-        return saveAndProject(workout, now: now)
+        completionResult(WorkoutSetCompletionWorkflow(modelContext: modelContext).execute(
+            .init(
+                workoutID: workoutID,
+                target: .current,
+                log: log,
+                fallbackRestSeconds: defaultRestSeconds,
+                now: now
+            )
+        ))
     }
 
     func pauseRest(workoutID: UUID, now: Date = .now) -> Result {
@@ -208,21 +131,16 @@ struct ActiveWorkoutMutationService {
     }
 
     static func canComplete(_ set: ExerciseSet, for exercise: ExerciseEntry) -> Bool {
-        let trackingType = exercise.trackingTypeSnapshot
+        validationResult(for: set, exercise: exercise).isValid
+    }
 
-        if trackingType.usesReps, set.repetitions <= 0 {
-            return false
-        }
-        if trackingType.usesDuration, (set.duration ?? 0) <= 0 {
-            return false
-        }
-        if trackingType.usesDistance, (set.distance ?? 0) <= 0 {
-            return false
-        }
-        if trackingType.usesCalories, (set.calories ?? 0) <= 0 {
-            return false
-        }
-        return true
+    static func validationResult(
+        for set: ExerciseSet,
+        exercise: ExerciseEntry
+    ) -> WorkoutSetCompletionValidator.Result {
+        WorkoutSetCompletionValidator.validate(
+            .init(set: set, trackingType: exercise.trackingTypeSnapshot)
+        )
     }
 
     private func activeWorkout(id: UUID) -> Workout? {
@@ -230,9 +148,23 @@ struct ActiveWorkoutMutationService {
             .first { $0.id == id && $0.status == .active }
     }
 
-    private func currentSet(in workout: Workout) -> (exercise: ExerciseEntry, set: ExerciseSet)? {
-        WorkoutSetSelector.nextIncompleteSet(in: workout).map {
-            (exercise: $0.entry, set: $0.set)
+    private func completionResult(_ outcome: WorkoutSetCompletionWorkflow.Outcome) -> Result {
+        switch outcome {
+        case .applied(let receipt):
+            NotificationCenter.default.post(name: .activeWorkoutMutated, object: receipt.workoutID)
+            return .applied(receipt.projection)
+        case .stale(let projection):
+            return .stale(projection)
+        case .invalid(_, let projection):
+            return .invalid(projection)
+        case .unavailable:
+            return .unavailable
+        case .persistenceFailure(let failure):
+            // Preserve the existing external-surface contract: save failures
+            // reconcile the rolled-back projection and behave as a stale
+            // action. The shared workflow retains the typed failure for direct
+            // foreground handling and conformance tests.
+            return .stale(failure.projectionAfterRollback)
         }
     }
 

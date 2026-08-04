@@ -8,16 +8,12 @@ enum WorkoutSetSelector {
     static func nextIncompleteSet(
         in workout: Workout
     ) -> (entry: ExerciseEntry, set: ExerciseSet)? {
-        for entry in workout.orderedExercises {
-            guard let set = entry.orderedSets.first(where: { !$0.done }) else { continue }
-
-            guard entry.supersetGroupID != nil else {
-                return (entry, set)
-            }
-
-            return nextIncompleteSet(in: groupMembers(of: entry, in: workout))
-        }
-        return nil
+        let adapter = Adapter(workout: workout)
+        guard let target = WorkoutFlowResolver.currentTarget(in: adapter.snapshot),
+              let entry = adapter.entries[target.entryID],
+              let set = entry.orderedSets.first(where: { $0.id == target.setID })
+        else { return nil }
+        return (entry, set)
     }
 
     /// Call after the set has been marked complete. The result is the entry
@@ -34,26 +30,43 @@ enum WorkoutSetSelector {
         in workout: Workout,
         defaultSeconds: Int
     ) -> Int? {
-        guard nextIncompleteSet(in: workout) != nil else { return nil }
+        let adapter = Adapter(workout: workout)
+        guard let entryID = adapter.ids[ObjectIdentifier(entry)] else { return nil }
+        let result = WorkoutFlowResolver.resolve(
+            WorkoutFlowContext(
+                workout: adapter.snapshot,
+                completedEntryID: entryID,
+                completedSetID: nil,
+                defaultRestSeconds: defaultSeconds
+            )
+        )
+        guard case let .transition(transition) = result else { return nil }
+        guard case let .rest(seconds) = transition.restDirective else { return nil }
+        return seconds
+    }
 
-        guard entry.supersetGroupID != nil else {
-            return max(0, entry.prescribedRestSeconds ?? defaultSeconds)
-        }
-
-        let members = groupMembers(of: entry, in: workout)
-        let completedCount = entry.orderedSets.filter(\.done).count
-        let nextRoundCount = members
-            .filter { $0.orderedSets.contains(where: { !$0.done }) }
-            .map { $0.orderedSets.filter(\.done).count }
-            .min()
-
-        // A member still behind the completed entry is due before rest.
-        if let nextRoundCount, nextRoundCount < completedCount {
-            return nil
-        }
-
-        let groupRest = members.compactMap(\.prescribedRestSeconds).max()
-        return max(0, groupRest ?? defaultSeconds)
+    /// Resolves the full post-completion transition for a concrete performed
+    /// set. This is the mutation workflow's bridge into the pure resolver;
+    /// presentation callers that only need a duration keep using
+    /// `restSeconds(afterCompleting:in:defaultSeconds:)`.
+    static func transition(
+        afterCompleting set: ExerciseSet,
+        in entry: ExerciseEntry,
+        workout: Workout,
+        defaultSeconds: Int
+    ) -> WorkoutTransition? {
+        let adapter = Adapter(workout: workout)
+        guard let entryID = adapter.ids[ObjectIdentifier(entry)] else { return nil }
+        let result = WorkoutFlowResolver.resolve(
+            WorkoutFlowContext(
+                workout: adapter.snapshot,
+                completedEntryID: entryID,
+                completedSetID: set.id,
+                defaultRestSeconds: defaultSeconds
+            )
+        )
+        guard case .transition(let transition) = result else { return nil }
+        return transition
     }
 
     static func groupMembers(of entry: ExerciseEntry, in workout: Workout) -> [ExerciseEntry] {
@@ -61,20 +74,32 @@ enum WorkoutSetSelector {
         return workout.orderedExercises.filter { $0.supersetGroupID == groupID }
     }
 
-    private static func nextIncompleteSet(
-        in members: [ExerciseEntry]
-    ) -> (entry: ExerciseEntry, set: ExerciseSet)? {
-        members
-            .compactMap { entry -> (entry: ExerciseEntry, set: ExerciseSet, completed: Int)? in
-                guard let set = entry.orderedSets.first(where: { !$0.done }) else { return nil }
-                return (entry, set, entry.orderedSets.filter(\.done).count)
+    private struct Adapter {
+        let snapshot: WorkoutFlowSnapshot
+        let entries: [WorkoutFlowEntryID: ExerciseEntry]
+        let ids: [ObjectIdentifier: WorkoutFlowEntryID]
+
+        init(workout: Workout) {
+            let ordered = workout.orderedExercises
+            var mappedEntries: [WorkoutFlowEntryID: ExerciseEntry] = [:]
+            var mappedIDs: [ObjectIdentifier: WorkoutFlowEntryID] = [:]
+            let snapshots = ordered.enumerated().map { occurrence, entry in
+                let id = WorkoutFlowEntryID(orderIndex: entry.orderIndex, orderedOccurrence: occurrence)
+                mappedEntries[id] = entry
+                mappedIDs[ObjectIdentifier(entry)] = id
+                return WorkoutFlowEntrySnapshot(
+                    id: id,
+                    orderIndex: entry.orderIndex,
+                    supersetGroupID: entry.supersetGroupID,
+                    prescribedRestSeconds: entry.prescribedRestSeconds,
+                    sets: entry.orderedSets.map {
+                        WorkoutFlowSetSnapshot(id: $0.id, orderIndex: $0.orderIndex, isCompleted: $0.done)
+                    }
+                )
             }
-            .sorted {
-                $0.completed == $1.completed
-                    ? $0.entry.orderIndex < $1.entry.orderIndex
-                    : $0.completed < $1.completed
-            }
-            .first
-            .map { ($0.entry, $0.set) }
+            snapshot = WorkoutFlowSnapshot(entries: snapshots)
+            entries = mappedEntries
+            ids = mappedIDs
+        }
     }
 }

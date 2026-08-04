@@ -161,7 +161,8 @@ class ActiveWorkoutViewModel {
         currentSet.repetitions = previousSet.repetitions
         currentSet.weight = previousSet.weight
         currentSet.duration = previousSet.duration
-        currentSet.distance = previousSet.distance
+        currentSet.distance = WorkoutDistancePolicy.meters(of: previousSet)
+        currentSet.distanceType = .meters
         currentSet.calories = previousSet.calories
         // Performed effort is intentionally exclusive for a new logged set.
         // Legacy history may contain both values, but copying it forward must
@@ -220,11 +221,11 @@ class ActiveWorkoutViewModel {
             set.duration = previousSet.duration
         }
         if exercise.trackingTypeSnapshot.usesDistance, let distance = previousSet.distance {
-            set.distance = UnitConversion.distance(
-                distance,
-                from: previousSet.distanceType,
-                to: set.distanceType
+            set.distance = WorkoutDistancePolicy.meters(
+                storedValue: distance,
+                storedUnit: previousSet.distanceType
             )
+            set.distanceType = .meters
         }
         if exercise.trackingTypeSnapshot.usesCalories {
             set.calories = previousSet.calories
@@ -287,6 +288,35 @@ class ActiveWorkoutViewModel {
         }
         persistChanges()
     }
+
+    /// Resolves an active program recommendation through the same persisted
+    /// receipt service used after workout completion. The service owns the one
+    /// save; Live Activity is reconciled only after that commit succeeds.
+    func acceptActiveRecommendation(
+        _ recommendation: PlanProgressionRecommendationRecord
+    ) throws {
+        guard let run = (try? modelContext.fetch(FetchDescriptor<PlanRun>()))?.first(where: {
+            $0.id == recommendation.planRunID
+        }) else {
+            throw ActiveWorkoutRecommendationMutationService.MutationError.activeWorkoutNotFound
+        }
+        try PlanProgressionRecommendationService.accept(
+            recommendation,
+            in: run,
+            context: modelContext
+        )
+        workoutVM.reconcileLiveActivity()
+    }
+
+    func declineActiveRecommendation(
+        _ recommendation: PlanProgressionRecommendationRecord
+    ) throws {
+        try PlanProgressionRecommendationService.decline(
+            recommendation,
+            context: modelContext
+        )
+        workoutVM.reconcileLiveActivity()
+    }
     
     /// The single write path for keypad entry. Empty or partial text ("", ".")
     /// clears the value back to "not entered" instead of writing a zero, so an
@@ -307,7 +337,16 @@ class ActiveWorkoutViewModel {
         case .duration:
             set.duration = parsed
         case .distance:
-            set.distance = parsed.map(Float.init)
+            let meters = WorkoutDistancePolicy.meters(of: set)
+            let displayUnit = WorkoutDistancePolicy.preferredDisplayUnit(
+                forMeters: meters,
+                system: UserDefaults.standard.unitSystem
+            )
+            WorkoutDistancePolicy.storeDisplayValue(
+                parsed.map(Float.init),
+                displayUnit: displayUnit,
+                on: set
+            )
         case .calories:
             set.calories = parsed
         }
@@ -348,31 +387,23 @@ class ActiveWorkoutViewModel {
             return false
         }
 
-        guard set.done || canComplete(set, for: exercise) else {
-            return false
+        if !set.done {
+            guard canComplete(set, for: exercise) else { return false }
+            guard case .applied = completeSetTransaction(set, in: exercise) else { return false }
+            return true
         }
 
-        set.done.toggle()
-        // Segments are internal evidence for this one performed set, not
-        // independently counted top-level work. Their completion follows the
-        // parent attempt so an undo restores a coherent in-progress state.
+        set.done = false
+        // Segments follow the parent completion flag. Complex outcomes remain
+        // explicit evidence and survive reopening so Undo cannot erase a
+        // partially or fully recorded Olympic sequence.
         set.synchronizeSegmentCompletion()
         set.synchronizeComplexCompletion()
-        if !set.done {
-            // A selected source must remain a completed performed attempt.
-            // Derived work falls back to the latest remaining completed
-            // maximum until the lifter makes another explicit selection.
-            set.isSelectedDailyMaximum = false
-        }
+        // A selected source must remain a completed performed attempt.
+        // Derived work falls back to the latest remaining completed maximum
+        // until the lifter makes another explicit selection.
+        set.isSelectedDailyMaximum = false
         #if !GYMTRACKER_EXTENSION
-        if set.done {
-            ActiveWorkoutProgressionService.applyAfterCompleting(
-                set: set,
-                in: exercise,
-                workout: workout,
-                modelContext: modelContext
-            )
-        }
         ProgramPrescriptionSnapshotService.refreshDerivedLoads(for: workout)
         #endif
         persistChanges()
@@ -830,7 +861,10 @@ class ActiveWorkoutViewModel {
     func completeSet(_ set: ExerciseSet, in exercise: ExerciseEntry) -> SetCompletionOutcome {
         let isCompleting = !set.done
         let fields = SetInputCoordinator.inputFields(for: exercise.trackingTypeSnapshot)
-        let firstField = fields.first ?? .repetitions
+        let firstField = SetInputCoordinator.firstMissingField(
+            in: set,
+            for: exercise.trackingTypeSnapshot
+        )
 
         if isCompleting, !canComplete(set, for: exercise) {
             activeLoggingMetrics?.setCompletionBlocked()
@@ -844,10 +878,26 @@ class ActiveWorkoutViewModel {
             )
         }
 
-        guard switchStateDoneSet(exercise, set) else { return .failed }
         guard isCompleting else {
+            guard switchStateDoneSet(exercise, set) else { return .failed }
             activeLoggingMetrics?.completedSetReopened()
             return .reopened
+        }
+
+        let outcome = completeSetTransaction(set, in: exercise)
+        guard case .applied = outcome else {
+            if case .invalid = outcome {
+                activeLoggingMetrics?.setCompletionBlocked()
+                return .blocked(
+                    message: validationMessage(for: set, in: exercise),
+                    focus: SetInputFocus(
+                        exerciseID: exercise.persistentModelID,
+                        setID: set.persistentModelID,
+                        field: firstField
+                    )
+                )
+            }
+            return .failed
         }
 
         activeLoggingMetrics?.setCompleted(id: set.id)
@@ -863,24 +913,46 @@ class ActiveWorkoutViewModel {
     }
 
     func validationMessage(for set: ExerciseSet, in exercise: ExerciseEntry) -> String {
-        let trackingType = exercise.trackingTypeSnapshot
+        SetRowCompletionValidation.message(
+            for: set,
+            trackingType: exercise.trackingTypeSnapshot
+        )
+    }
 
-        if trackingType.usesReps, set.repetitions <= 0 {
-            return "Enter reps before completing this set."
+    private func completeSetTransaction(
+        _ set: ExerciseSet,
+        in exercise: ExerciseEntry,
+        now: Date = .now
+    ) -> WorkoutSetCompletionWorkflow.Outcome {
+        guard let workout = workoutVM.activeWorkout else { return .unavailable }
+        let outcome = WorkoutSetCompletionWorkflow(modelContext: modelContext).execute(
+            .init(
+                workoutID: workout.id,
+                target: .identified(entryID: exercise.id, setID: set.id),
+                fallbackRestSeconds: restDefaultSeconds(for: exercise),
+                now: now
+            )
+        )
+        if case .applied(let receipt) = outcome {
+            applyCompletionPostCommit(receipt)
+        }
+        return outcome
+    }
+
+    /// Mirrors durable rest state into the foreground countdown only after the
+    /// workflow's save succeeds. No model mutation or second save happens here.
+    private func applyCompletionPostCommit(_ receipt: WorkoutSetCompletionWorkflow.Receipt) {
+        guard let endDate = receipt.restEndDate, endDate > .now else {
+            timerTask?.cancel()
+            timerTask = nil
+            restTimer.cancel()
+            cancelPendingRestNotification()
+            workoutVM.reconcileLiveActivity()
+            return
         }
 
-        if trackingType.usesDuration, (set.duration ?? 0) <= 0 {
-            return "Enter a duration before completing this set."
-        }
-
-        if trackingType.usesCalories, (set.calories ?? 0) <= 0 {
-            return "Enter calories before completing this set."
-        }
-
-        if trackingType.usesDistance, (set.distance ?? 0) <= 0 {
-            return "Enter a distance before completing this set."
-        }
-
-        return "Enter a value before completing this set."
+        activeLoggingMetrics?.restExpected()
+        runRestCountdown(until: endDate)
+        activeLoggingMetrics?.restStarted()
     }
 }

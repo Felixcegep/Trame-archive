@@ -258,6 +258,26 @@ struct ComplexComponentSnapshot: Hashable {
     let prescribedRepetitions: Int
 }
 
+/// Parent-level result of one Olympic attempt. This is derived from the
+/// ordered component evidence and therefore cannot disagree with it.
+enum OlympicAttemptOutcome: String, Codable, CaseIterable, Hashable {
+    case notStarted
+    case made
+    case partial
+    case missed
+    case skipped
+
+    var title: String {
+        switch self {
+        case .notStarted: "Not logged"
+        case .made: "Made"
+        case .partial: "Partial"
+        case .missed: "Missed"
+        case .skipped: "Skipped"
+        }
+    }
+}
+
 enum MeasurementSource: String, Codable, CaseIterable {
     case manual
     case imported

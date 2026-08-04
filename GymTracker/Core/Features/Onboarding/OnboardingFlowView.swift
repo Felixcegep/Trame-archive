@@ -45,6 +45,8 @@ struct OnboardingFlowView: View {
                     switch route {
                     case .program(let programID):
                         programDestination(programID)
+                    case .mobilityProgram(let programID):
+                        mobilityProgramDestination(programID)
                     }
                 }
         }
@@ -72,6 +74,7 @@ struct OnboardingFlowView: View {
                 OnboardingRecommendationsView(
                     coordinator: coordinator,
                     onOpenProgram: { path.append(.program($0)) },
+                    onOpenMobilityProgram: { path.append(.mobilityProgram($0)) },
                     onBrowseAll: { finish(.browseAllPlans) },
                     onStartFreeWorkout: { finish(.startFreeWorkout) }
                 )
@@ -175,6 +178,34 @@ struct OnboardingFlowView: View {
         try? modelContext.fetch(FetchDescriptor<ProgramDefinitionRecord>()).first { $0.id == id }
     }
 
+    /// Mobility's own detail screen, unchanged, mirroring `programDestination`.
+    ///
+    /// It has no completion closure — activating a mobility plan calls the
+    /// screen's own `dismiss()`, which simply pops back to the recommendations
+    /// list here, same as it pops back to `MobilityProgramCatalogView`
+    /// everywhere else it is pushed. Onboarding does not reimplement
+    /// activation or route the lifter to its own completion screen for a
+    /// mobility plan: the flow's one completion screen is reserved for the
+    /// training-structure choice this whole flow exists to make (see
+    /// `OnboardingActivationSummary`), and a mobility plan can be started
+    /// alongside any of its three outcomes, not only as an alternative to them.
+    @ViewBuilder
+    private func mobilityProgramDestination(_ programID: UUID) -> some View {
+        if let record = mobilityProgramRecord(programID) {
+            MobilityProgramDetailView(record: record)
+        } else {
+            ContentUnavailableView(
+                "Plan unavailable",
+                systemImage: AppIcon.warning,
+                description: Text("This plan may have been removed or replaced.")
+            )
+        }
+    }
+
+    private func mobilityProgramRecord(_ id: UUID) -> MobilityProgramDefinitionRecord? {
+        try? modelContext.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>()).first { $0.id == id }
+    }
+
     /// Commits the answers to the profile and to the unit preference.
     ///
     /// Preferences only. Nothing here can reach a workout, a plan run, or a
@@ -198,4 +229,5 @@ struct OnboardingFlowView: View {
 
 enum OnboardingRoute: Hashable {
     case program(UUID)
+    case mobilityProgram(UUID)
 }

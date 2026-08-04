@@ -14,6 +14,11 @@ struct TrainingCalendarDay: Identifiable {
     let plannedWorkouts: [TrainingCalendarPlannedWorkout]
     let freeWorkouts: [TrainingCalendarWorkout]
     let mobilitySessions: [TrainingCalendarMobilitySession]
+    /// Program-scheduled mobility sessions, projected independently of
+    /// `mobilitySessions` (performed evidence). A standalone routine and a
+    /// program session can both land on the same day; neither hides the
+    /// other.
+    let mobilityProgramSessions: [TrainingCalendarProgramMobilitySession]
     let nutrition: TrainingCalendarNutritionSummary?
     let checkIn: TrainingCalendarCheckInSummary?
     let creatine: SupplementOccurrenceStatus?
@@ -24,6 +29,7 @@ struct TrainingCalendarDay: Identifiable {
         !plannedWorkouts.isEmpty
             || !freeWorkouts.isEmpty
             || !mobilitySessions.isEmpty
+            || !mobilityProgramSessions.isEmpty
             || nutrition != nil
             || checkIn != nil
             || creatine != nil
@@ -69,6 +75,22 @@ struct TrainingCalendarMobilitySession: Identifiable {
     let startedAt: Date
 }
 
+/// A read-only projection of one `MobilityProgramSessionProgress`, built
+/// through its `ScheduledTrainingOccurrence` conformance so the calendar
+/// never has to know the mobility-program run graph's shape directly.
+struct TrainingCalendarProgramMobilitySession: Identifiable {
+    let id: UUID
+    let runID: UUID
+    let programName: String
+    let sessionName: String
+    let status: MobilityProgramSessionStatus
+    let isOptional: Bool
+    /// `true` when this occurrence's linked session is currently active —
+    /// derived, never persisted, mirroring `MobilityProgramSessionProgress
+    /// .isInProgress(activeMobilitySessionIDs:)`.
+    let isInProgress: Bool
+}
+
 struct TrainingCalendarNutritionSummary {
     let totals: NutritionMacroTotals
     let mealCount: Int
@@ -98,11 +120,25 @@ enum TrainingCalendarBuilder {
         }
     }
 
+    /// Mirrors `schedulableProgress(in:)` for a `MobilityProgramRun`: an
+    /// open run contributes its whole schedule, a terminal one contributes
+    /// only what actually happened.
+    static func schedulableSessionProgress(in run: MobilityProgramRun) -> [MobilityProgramSessionProgress] {
+        switch run.status {
+        case .active, .paused:
+            return run.orderedSessionProgress
+        case .completed, .archived:
+            return run.orderedSessionProgress.filter { $0.status == .completed || $0.status == .skipped || $0.status == .missed }
+        }
+    }
+
     static func month(
         containing month: Date,
         planRuns: [PlanRun],
         workouts: [Workout],
         mobilitySessions: [MobilitySession],
+        mobilityProgramRuns: [MobilityProgramRun] = [],
+        activeMobilitySessionIDs: Set<UUID> = [],
         meals: [LoggedMeal],
         checkIns: [DailyLogEntry],
         supplementOccurrences: [SupplementOccurrence],
@@ -142,6 +178,23 @@ enum TrainingCalendarBuilder {
         }, by: \.0)
         let workoutsByDay = Dictionary(grouping: workouts) { LocalDay(date: $0.startTime, calendar: calendar).rawValue }
         let mobilityByDay = Dictionary(grouping: mobilitySessions) { LocalDay(date: $0.startTime, calendar: calendar).rawValue }
+        let programSessionsByDay = Dictionary(grouping: mobilityProgramRuns.flatMap { run in
+            schedulableSessionProgress(in: run).compactMap { progress -> (String, TrainingCalendarProgramMobilitySession)? in
+                guard progress.scheduledDate != nil else { return nil }
+                return (
+                    progress.scheduledDay.rawValue,
+                    TrainingCalendarProgramMobilitySession(
+                        id: progress.id,
+                        runID: run.id,
+                        programName: run.sourceProgramName,
+                        sessionName: progress.displayName,
+                        status: progress.status,
+                        isOptional: progress.isOptional,
+                        isInProgress: progress.isInProgress(activeMobilitySessionIDs: activeMobilitySessionIDs)
+                    )
+                )
+            }
+        }, by: \.0)
         let mealsByDay = Dictionary(grouping: meals, by: \.dayKey)
         let checkInsByDay = Dictionary(grouping: checkIns, by: \.dayKey)
         let supplementsByDay = Dictionary(grouping: supplementOccurrences, by: \.dayKey)
@@ -165,6 +218,9 @@ enum TrainingCalendarBuilder {
                 return TrainingCalendarMobilitySession(id: session.id, name: session.nameSnapshot, status: session.status, startedAt: session.startTime)
             }
             .sorted { $0.startedAt < $1.startedAt }
+            let programSessions = (programSessionsByDay[day.rawValue] ?? [])
+                .map(\.1)
+                .sorted { $0.sessionName.localizedStandardCompare($1.sessionName) == .orderedAscending }
             let dayMeals = mealsByDay[day.rawValue] ?? []
             let nutrition = dayMeals.isEmpty ? nil : TrainingCalendarNutritionSummary(
                 totals: NutritionDaySummary.resolve(day: day, meals: dayMeals).totals,
@@ -179,6 +235,7 @@ enum TrainingCalendarBuilder {
                 plannedWorkouts: plannedWorkouts,
                 freeWorkouts: freeWorkouts,
                 mobilitySessions: projectedMobility,
+                mobilityProgramSessions: programSessions,
                 nutrition: nutrition,
                 checkIn: checkIn,
                 creatine: creatine
@@ -199,6 +256,8 @@ enum TrainingCalendarBuilder {
         planRuns: [PlanRun],
         workouts: [Workout],
         mobilitySessions: [MobilitySession],
+        mobilityProgramRuns: [MobilityProgramRun] = [],
+        activeMobilitySessionIDs: Set<UUID> = [],
         meals: [LoggedMeal],
         checkIns: [DailyLogEntry],
         supplementOccurrences: [SupplementOccurrence],
@@ -260,6 +319,22 @@ enum TrainingCalendarBuilder {
         }
         .sorted { $0.startedAt < $1.startedAt }
 
+        let programSessions = mobilityProgramRuns.flatMap { run in
+            schedulableSessionProgress(in: run).compactMap { progress -> TrainingCalendarProgramMobilitySession? in
+                guard let scheduledDate = progress.scheduledDate, calendar.isDate(scheduledDate, inSameDayAs: date) else { return nil }
+                return TrainingCalendarProgramMobilitySession(
+                    id: progress.id,
+                    runID: run.id,
+                    programName: run.sourceProgramName,
+                    sessionName: progress.displayName,
+                    status: progress.status,
+                    isOptional: progress.isOptional,
+                    isInProgress: progress.isInProgress(activeMobilitySessionIDs: activeMobilitySessionIDs)
+                )
+            }
+        }
+        .sorted { $0.sessionName.localizedStandardCompare($1.sessionName) == .orderedAscending }
+
         let dayMeals = meals.filter { $0.dayKey == day.rawValue }
         let nutrition = dayMeals.isEmpty ? nil : TrainingCalendarNutritionSummary(
             totals: NutritionDaySummary.resolve(day: day, meals: dayMeals).totals,
@@ -279,6 +354,7 @@ enum TrainingCalendarBuilder {
             plannedWorkouts: plannedWorkouts,
             freeWorkouts: freeWorkouts,
             mobilitySessions: projectedMobility,
+            mobilityProgramSessions: programSessions,
             nutrition: nutrition,
             checkIn: checkIn,
             creatine: creatine

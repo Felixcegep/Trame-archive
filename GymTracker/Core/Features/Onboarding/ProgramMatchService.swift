@@ -315,6 +315,18 @@ enum ProgramMatchService {
             }
         }
 
+        // MARK: Prerequisites
+        //
+        // Free text and unverifiable from the intake — there is no question
+        // that asks whether a lifter already knows their one-rep maxes or has
+        // the prescribed technique. Disclosing every prerequisite
+        // unconditionally is the honest alternative to guessing: a program
+        // that lists one is never handed out as a clean, caveat-free
+        // "Recommended" result.
+        for prerequisite in candidate.prerequisites {
+            warnings.append(.init(text: prerequisite))
+        }
+
         // MARK: Author warnings
         for warning in candidate.authorWarnings {
             warnings.append(.init(text: warning))

@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum UnitSystem: String, CaseIterable, Codable {
+nonisolated enum UnitSystem: String, CaseIterable, Codable, Sendable {
     case metric
     case imperial
 }

@@ -46,7 +46,7 @@ final class MobilityPhasePrescription {
     }
 }
 
-enum PNFPhaseType: String, Codable, CaseIterable, Hashable {
+nonisolated enum PNFPhaseType: String, Codable, CaseIterable, Hashable, Sendable {
     case initialStretch
     case contraction
     case relax
@@ -66,7 +66,7 @@ enum PNFPhaseType: String, Codable, CaseIterable, Hashable {
     }
 }
 
-enum ContractionIntensity: String, Codable, CaseIterable, Hashable {
+nonisolated enum ContractionIntensity: String, Codable, CaseIterable, Hashable, Sendable {
     case light
     case moderate
     case strong

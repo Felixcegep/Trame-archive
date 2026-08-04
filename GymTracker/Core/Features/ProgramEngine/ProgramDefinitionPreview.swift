@@ -17,6 +17,8 @@ nonisolated struct ProgramDefinitionPreviewSet: Hashable, Identifiable {
     let progressionEligible: Bool
     let restSeconds: Int?
     let isOptional: Bool
+    let completionRule: MetricCompletionRule?
+    let olympicAttempt: OlympicAttemptPrescription?
     /// A source-based back-off is a future conditional row, not a set shown
     /// at workout start. The preview must make that timing explicit.
     let generatesAfterSourceCompletion: Bool
@@ -32,6 +34,25 @@ nonisolated struct ProgramDefinitionPreviewTransition: Hashable, Identifiable {
     let applicationMode: ProgressionApplicationMode
 }
 
+nonisolated struct ProgramDefinitionPreviewExecutionBlock: Hashable, Identifiable {
+    let id: UUID
+    let blockKey: String
+    let name: String?
+    let kind: ExerciseBlockKind
+    let targetRounds: Int?
+    let restSeconds: Int?
+    let clockMode: BlockClockMode
+    let prescribedDurationSeconds: Int?
+    let timeCapSeconds: Int?
+    let intervalSeconds: Int?
+    let scoreKind: BlockScoreKind
+    let repetitionScheme: BlockRepetitionScheme
+    let repetitionStart: Int?
+    let repetitionEnd: Int?
+    let repetitionStep: Int?
+    let componentCount: Int
+}
+
 nonisolated struct ProgramDefinitionPreviewRow: Hashable, Identifiable {
     let id: UUID
     let blockIndex: Int
@@ -41,6 +62,8 @@ nonisolated struct ProgramDefinitionPreviewRow: Hashable, Identifiable {
     let workoutName: String
     let workoutRole: String
     let dayOffset: Int
+    let executionBlock: ProgramDefinitionPreviewExecutionBlock?
+    let executionBlockComponentOrder: Int?
     let exerciseID: UUID
     let exposureKey: String
     let setCount: Int
@@ -73,7 +96,10 @@ nonisolated enum ProgramDefinitionPreview {
             .flatMap { block in
                 block.weeks.sorted { $0.weekIndex < $1.weekIndex }.flatMap { week in
                     week.workouts.sorted { $0.orderIndex < $1.orderIndex }.flatMap { workout in
-                        workout.plannedExercises.sorted { $0.orderIndex < $1.orderIndex }.map { exercise in
+                        let executionBlocksByKey = Dictionary(uniqueKeysWithValues: workout.executionBlocks.map {
+                            ($0.blockKey.trimmingCharacters(in: .whitespacesAndNewlines), $0)
+                        })
+                        return workout.plannedExercises.sorted { $0.orderIndex < $1.orderIndex }.map { exercise in
                             let definitions = previewSets(for: exercise)
                             let sets = definitions.map { definition in
                                 let resolution = try? ProgramLoadResolver.resolve(definition.load, context: context)
@@ -92,9 +118,37 @@ nonisolated enum ProgramDefinitionPreview {
                                     progressionEligible: definition.progressionEligible,
                                     restSeconds: definition.restSeconds,
                                     isOptional: definition.isOptional,
+                                    completionRule: definition.completionRule,
+                                    olympicAttempt: definition.olympicAttempt,
                                     generatesAfterSourceCompletion: definition.generatesAfterSourceCompletion
                                 )
                             }
+                            let executionBlock = exercise.executionBlockKey
+                                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                                .flatMap { executionBlocksByKey[$0] }
+                                .map { block in
+                                    ProgramDefinitionPreviewExecutionBlock(
+                                        id: block.id,
+                                        blockKey: block.blockKey,
+                                        name: block.name,
+                                        kind: block.kind,
+                                        targetRounds: block.targetRounds,
+                                        restSeconds: block.restSeconds,
+                                        clockMode: block.clockMode,
+                                        prescribedDurationSeconds: block.prescribedDurationSeconds,
+                                        timeCapSeconds: block.timeCapSeconds,
+                                        intervalSeconds: block.intervalSeconds,
+                                        scoreKind: block.scoreKind,
+                                        repetitionScheme: block.repetitionScheme,
+                                        repetitionStart: block.repetitionStart,
+                                        repetitionEnd: block.repetitionEnd,
+                                        repetitionStep: block.repetitionStep,
+                                        componentCount: workout.plannedExercises.filter {
+                                            $0.executionBlockKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+                                                == block.blockKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                                        }.count
+                                    )
+                                }
                             return ProgramDefinitionPreviewRow(
                                 id: exercise.id,
                                 blockIndex: block.orderIndex,
@@ -104,6 +158,8 @@ nonisolated enum ProgramDefinitionPreview {
                                 workoutName: workout.name,
                                 workoutRole: workout.role,
                                 dayOffset: workout.dayOffset,
+                                executionBlock: executionBlock,
+                                executionBlockComponentOrder: exercise.executionBlockComponentOrder,
                                 exerciseID: exercise.exerciseID,
                                 exposureKey: exercise.exposureKey,
                                 setCount: sets.count,
@@ -164,6 +220,8 @@ nonisolated enum ProgramDefinitionPreview {
         case .actualRPEAboveTarget(let tolerance): return "Actual RPE above target (\(tolerance))"
         case .targetRIRMatched(let tolerance): return "Target RIR matched (±\(tolerance))"
         case .failureCountReached(let value): return "Failure count reaches \(value)"
+        case .consecutiveMissedAttemptsReached(let value):
+            return "Consecutive missed attempts reach \(value)"
         case .successfulAttemptRatioReached(let value): return "Successful attempts reach \(value)"
         case .technicalQualityReached: return "Technical quality reached"
         case .workoutCompleted: return "Workout completed"
@@ -217,6 +275,8 @@ nonisolated enum ProgramDefinitionPreview {
         case .resetFailureCount: return "Reset failure count"
         case .resetProgressionOffsets: return "Reset progression offsets"
         case .endExercise: return "End exercise"
+        case .endActiveDailyMaximumAndGenerateBackOffs(let sets, let repetitions, let percentage):
+            return "End daily maximum; generate \(sets)×\(repetitions) at \(percentage * 100)%"
         case .endProgram: return "End program"
         case .generateRecommendation: return "Generate recommendation"
         case .noChange: return "No change"

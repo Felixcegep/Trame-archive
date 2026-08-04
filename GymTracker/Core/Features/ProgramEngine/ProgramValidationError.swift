@@ -14,6 +14,16 @@ nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case emptyWorkouts
         case invalidDayOffset
         case emptyWorkout
+        case emptyExecutionBlock
+        case emptyExecutionBlockKey
+        case duplicateExecutionBlockKey
+        case invalidExecutionBlockOrder
+        case invalidExecutionBlockConfiguration
+        case unknownExecutionBlock
+        case missingExecutionBlockComponentOrder
+        case duplicateExecutionBlockComponentOrder
+        case invalidExecutionBlockComponentOrder
+        case invalidExecutionBlockComponentCount
         case emptyExposureKey
         case emptySetPrescription
         case invalidSetOrder
@@ -22,6 +32,7 @@ nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case invalidRPE
         case invalidRIR
         case invalidPrescriptionValue
+        case invalidCompletionRule
         case invalidLoadReference
         case invalidPercentage
         case invalidFormula
@@ -32,6 +43,7 @@ nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case formulaCycle
         case referenceCycle
         case trackingProfileConflict
+        case invalidProvenance
     }
 
     var id: UUID = UUID()
@@ -69,6 +81,17 @@ nonisolated enum ProgramDefinitionValidator {
             add("scheduleIntervalDays", .invalidSchedule, "Schedule interval must be at least one day.")
         }
         if definition.blocks.isEmpty { add("blocks", .emptyBlocks, "A program must contain a block.") }
+        if definition.provenance == nil, definition.sourceReferences?.isEmpty == false {
+            add("sourceReferences", .invalidProvenance, "Source references require an explicit provenance classification.")
+        }
+        for (index, reference) in (definition.sourceReferences ?? []).enumerated() {
+            let path = "sourceReferences[\(index)]"
+            if reference.organizationOrAuthors.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || reference.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || reference.sourceIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                add(path, .invalidProvenance, "A source reference requires authorship, title, and a stable source identifier.")
+            }
+        }
 
         var identifiers = Set<UUID>()
         var formulaSources: [String: Set<String>] = [:]
@@ -106,11 +129,56 @@ nonisolated enum ProgramDefinitionValidator {
                     checkID(workout.id, workoutPath)
                     if !workoutOrders.insert(workout.orderIndex).inserted { add("\(workoutPath).orderIndex", .invalidSetOrder, "Workout order indices must be unique within a week.") }
                     var workoutExposures = Set<String>()
+                    var executionBlockKeys = Set<String>()
+                    var executionBlockOrders = Set<Int>()
+                    var executionBlockMembershipOrders: [String: Set<Int>] = [:]
+                    var executionBlockMembershipCounts: [String: Int] = [:]
                     if workout.dayOffset < 0 || workout.dayOffset > 6 { add("\(workoutPath).dayOffset", .invalidDayOffset, "Day offset must be between zero and six.") }
                     if workout.plannedExercises.isEmpty { add(workoutPath, .emptyWorkout, "A workout must contain an exercise.") }
+                    for (executionBlockIndex, executionBlock) in workout.executionBlocks.enumerated() {
+                        let executionBlockPath = "\(workoutPath).executionBlocks[\(executionBlockIndex)]"
+                        checkID(executionBlock.id, executionBlockPath)
+                        let key = executionBlock.blockKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if key.isEmpty {
+                            add("\(executionBlockPath).blockKey", .emptyExecutionBlockKey, "Every execution block needs a stable key.")
+                        } else if !executionBlockKeys.insert(key).inserted {
+                            add("\(executionBlockPath).blockKey", .duplicateExecutionBlockKey, "Execution block keys must be unique within a workout.")
+                        }
+                        if executionBlock.orderIndex < 0 || !executionBlockOrders.insert(executionBlock.orderIndex).inserted {
+                            add("\(executionBlockPath).orderIndex", .invalidExecutionBlockOrder, "Execution block order indices must be non-negative and unique within a workout.")
+                        }
+                        if executionBlock.targetRounds.map({ $0 <= 0 }) == true {
+                            add("\(executionBlockPath).targetRounds", .invalidExecutionBlockConfiguration, "Target rounds must be positive.")
+                        }
+                        if executionBlock.restSeconds.map({ $0 < 0 }) == true {
+                            add("\(executionBlockPath).restSeconds", .invalidRest, "Execution block rest cannot be negative.")
+                        }
+                        if let message = executionBlockConfigurationMessage(for: executionBlock) {
+                            add(executionBlockPath, .invalidExecutionBlockConfiguration, message)
+                        }
+                    }
                     for (exerciseIndex, exercise) in workout.plannedExercises.enumerated() {
                         let exercisePath = "\(workoutPath).exercises[\(exerciseIndex)]"
                         checkID(exercise.id, exercisePath)
+                        if let authoredBlockKey = exercise.executionBlockKey {
+                            let blockKey = authoredBlockKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !executionBlockKeys.contains(blockKey) {
+                                add("\(exercisePath).executionBlockKey", .unknownExecutionBlock, "The exercise references an execution block that does not exist in this workout.")
+                            } else if let componentOrder = exercise.executionBlockComponentOrder {
+                                if componentOrder < 0 {
+                                    add("\(exercisePath).executionBlockComponentOrder", .invalidExecutionBlockComponentOrder, "Execution block component order cannot be negative.")
+                                } else {
+                                    if !executionBlockMembershipOrders[blockKey, default: []].insert(componentOrder).inserted {
+                                        add("\(exercisePath).executionBlockComponentOrder", .duplicateExecutionBlockComponentOrder, "Component order must be unique within an execution block.")
+                                    }
+                                    executionBlockMembershipCounts[blockKey, default: 0] += 1
+                                }
+                            } else {
+                                add("\(exercisePath).executionBlockComponentOrder", .missingExecutionBlockComponentOrder, "An execution-block exercise needs a component order.")
+                            }
+                        } else if exercise.executionBlockComponentOrder != nil {
+                            add("\(exercisePath).executionBlockComponentOrder", .unknownExecutionBlock, "A component order requires execution block membership.")
+                        }
                         if exercise.exposureKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             add("\(exercisePath).exposureKey", .emptyExposureKey, "Every planned exposure needs a stable key.")
                         } else if !workoutExposures.insert(exercise.exposureKey).inserted {
@@ -166,6 +234,8 @@ nonisolated enum ProgramDefinitionValidator {
                             if set.orderIndex < 0 { add("\(setPath).orderIndex", .invalidSetOrder, "Set order must not be negative.") }
                             if !setOrders.insert(set.orderIndex).inserted { add("\(setPath).orderIndex", .invalidSetOrder, "Set order indices must be unique within an exercise.") }
                             validateRep(set.repetitions, setPath, add)
+                            validateOlympicAttempt(set, setPath, add)
+                            validateCompletionRule(set, setPath, add)
                             if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
                             if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
                             if let rir = set.targetRIR, rir < 0 || rir > 10 { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
@@ -203,6 +273,8 @@ nonisolated enum ProgramDefinitionValidator {
                                     if set.orderIndex < 0 { add("\(setPath).orderIndex", .invalidSetOrder, "Set order must not be negative.") }
                                     if !waveSetOrders.insert(set.orderIndex).inserted { add("\(setPath).orderIndex", .invalidSetOrder, "Set order indices must be unique within a wave.") }
                                     validateRep(set.repetitions, setPath, add)
+                                    validateOlympicAttempt(set, setPath, add)
+                                    validateCompletionRule(set, setPath, add)
                                     if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
                                     if let rpe = set.targetRPE, rpe < 0 || rpe > 10 { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
                                     if let rir = set.targetRIR, rir < 0 || rir > 10 { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
@@ -229,7 +301,24 @@ nonisolated enum ProgramDefinitionValidator {
                             }
                         }
                         for (ruleIndex, rule) in exercise.progressionRules.enumerated() {
-                            validateTrigger(rule.trigger, "\(exercisePath).rules[\(ruleIndex)].trigger", add)
+                            let rulePath = "\(exercisePath).rules[\(ruleIndex)]"
+                            validateTrigger(rule.trigger, "\(rulePath).trigger", add)
+                            validateActiveWorkoutAction(
+                                rule,
+                                hasDailyMaximumPrescription: exercise.plannedSets.contains { $0.role == .dailyMaximum }
+                                    || exercise.waves.flatMap(\.plannedSets).contains { $0.role == .dailyMaximum }
+                                    || exercise.stages.flatMap(\.plannedSets).contains { $0.role == .dailyMaximum },
+                                path: rulePath,
+                                add
+                            )
+                            if let failureAction = rule.failureAction,
+                               case .endActiveDailyMaximumAndGenerateBackOffs = failureAction {
+                                add(
+                                    "\(rulePath).failureAction",
+                                    .invalidPrescriptionValue,
+                                    "Ending an active daily maximum cannot be a failure action."
+                                )
+                            }
                             if let formula = rule.formula {
                                 var sources = Set<String>()
                                 collectSources(formula, into: &sources)
@@ -255,6 +344,21 @@ nonisolated enum ProgramDefinitionValidator {
                             if rule.version < 1 { add("\(exercisePath).rules[\(ruleIndex)].version", .invalidSchemaVersion, "Rule version must be positive.") }
                         }
                     }
+                    for executionBlock in workout.executionBlocks {
+                        let blockKey = executionBlock.blockKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let memberCount = executionBlockMembershipCounts[blockKey] ?? 0
+                        if memberCount == 0 {
+                            add("\(workoutPath).executionBlocks", .emptyExecutionBlock, "Execution block '\(blockKey)' needs at least one exercise.")
+                            continue
+                        }
+                        if !validComponentCount(memberCount, for: executionBlock.kind) {
+                            add("\(workoutPath).executionBlocks", .invalidExecutionBlockComponentCount, "\(executionBlock.kind.title) has an invalid number of exercise components.")
+                        }
+                        let componentOrders = executionBlockMembershipOrders[blockKey] ?? []
+                        if componentOrders != Set(0..<memberCount) {
+                            add("\(workoutPath).executionBlocks", .invalidExecutionBlockComponentOrder, "Execution block component order must be contiguous from zero.")
+                        }
+                    }
                 }
             }
         }
@@ -276,6 +380,70 @@ nonisolated enum ProgramDefinitionValidator {
             add("intakeInputs[\(index)].exposureKey", .invalidIntakeExposure, "The intake input references exposure '\(intakeInput.exposureKey)', which does not exist in this program.")
         }
         return issues
+    }
+
+    private static func executionBlockConfigurationMessage(
+        for block: ProgramExecutionBlockDefinition
+    ) -> String? {
+        if let message = ExecutionBlockConfigurationValidator.message(
+            kind: block.kind,
+            clockMode: block.clockMode,
+            prescribedDurationSeconds: block.prescribedDurationSeconds,
+            timeCapSeconds: block.timeCapSeconds,
+            intervalSeconds: block.intervalSeconds,
+            repetitionScheme: block.repetitionScheme,
+            repetitionStart: block.repetitionStart,
+            repetitionEnd: block.repetitionEnd,
+            repetitionStep: block.repetitionStep
+        ) {
+            return message
+        }
+        if !block.kind.supportsRounds, block.targetRounds != nil {
+            return "This execution block format does not use target rounds."
+        }
+        if block.clockMode == .none,
+           block.prescribedDurationSeconds != nil || block.timeCapSeconds != nil || block.intervalSeconds != nil {
+            return "Clock durations require an enabled shared clock."
+        }
+        if block.clockMode != .countdown, block.prescribedDurationSeconds != nil {
+            return "Only a countdown clock uses a prescribed duration."
+        }
+        if block.clockMode != .repeatingInterval, block.intervalSeconds != nil {
+            return "Only a repeating-interval clock uses an interval length."
+        }
+        if block.repetitionScheme == .fixed,
+           block.repetitionStart != nil || block.repetitionEnd != nil || block.repetitionStep != nil {
+            return "Fixed repetitions cannot include ladder bounds."
+        }
+        if block.kind == .amrap, block.scoreKind != .roundsAndRepetitions {
+            return "An AMRAP is scored as rounds and repetitions."
+        }
+        if block.kind == .forTime, block.scoreKind != .duration {
+            return "A For Time block is scored by duration."
+        }
+        if (block.kind == .emom || block.kind == .interval),
+           block.scoreKind != .completedWork {
+            return "This interval format is scored by completed work."
+        }
+        if block.scoreKind == .duration, block.clockMode == .none {
+            return "A duration score requires a shared clock."
+        }
+        if block.scoreKind == .roundsAndRepetitions,
+           block.kind != .amrap,
+           !block.kind.supportsRounds {
+            return "Rounds-and-repetitions scoring requires a round-based format."
+        }
+        return nil
+    }
+
+    private static func validComponentCount(_ count: Int, for kind: ExerciseBlockKind) -> Bool {
+        switch kind {
+        case .straight: count == 1
+        case .pairedSet: count == 2
+        case .triset: count == 3
+        case .giantSet: count >= 4
+        default: count > 0
+        }
     }
 
     private static func validateRep(
@@ -321,8 +489,38 @@ nonisolated enum ProgramDefinitionValidator {
             if stageID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 add(path, .invalidPrescriptionValue, "A stage trigger requires a stage identifier.")
             }
+        case .failureCountReached(let count), .consecutiveMissedAttemptsReached(let count),
+                .velocityBelowZoneCount(let count):
+            if count < 1 {
+                add(path, .invalidPrescriptionValue, "A count trigger requires a positive threshold.")
+            }
         default:
             break
+        }
+    }
+
+    private static func validateOlympicAttempt(
+        _ set: SetPrescriptionDefinition,
+        _ path: String,
+        _ add: (String, ProgramValidationIssue.Code, String) -> Void
+    ) {
+        guard set.olympicAttempt != nil else { return }
+        guard case .sequence(let components) = set.repetitions, !components.isEmpty else {
+            add(
+                "\(path).olympicAttempt",
+                .invalidPrescriptionValue,
+                "An Olympic attempt requires an ordered component sequence."
+            )
+            return
+        }
+        if let target = set.olympicAttempt?.targetQuality,
+           target != .excellent,
+           target != .acceptable {
+            add(
+                "\(path).olympicAttempt.targetQuality",
+                .invalidPrescriptionValue,
+                "An Olympic target quality must be excellent or acceptable."
+            )
         }
     }
 
@@ -330,6 +528,38 @@ nonisolated enum ProgramDefinitionValidator {
         actions.compactMap { action in
             guard case .changeStage(let stageID) = action else { return nil }
             return stageID
+        }
+    }
+
+    private static func validateActiveWorkoutAction(
+        _ rule: ProgressionRuleDefinition,
+        hasDailyMaximumPrescription: Bool,
+        path: String,
+        _ add: (String, ProgramValidationIssue.Code, String) -> Void
+    ) {
+        guard case let .endActiveDailyMaximumAndGenerateBackOffs(
+            setCount,
+            repetitions,
+            percentage
+        ) = rule.successAction else { return }
+        guard setCount > 0, repetitions > 0, percentage > 0, percentage <= 1 else {
+            add(
+                "\(path).successAction",
+                .invalidPrescriptionValue,
+                "Generated back-offs need positive sets and repetitions and a percentage in 0…1."
+            )
+            return
+        }
+        guard case .consecutiveMissedAttemptsReached = rule.trigger,
+              rule.cadence == .nextSet,
+              rule.applicationMode == .recommendation,
+              hasDailyMaximumPrescription else {
+            add(
+                "\(path).successAction",
+                .invalidPrescriptionValue,
+                "Ending an active daily maximum requires a daily-maximum prescription, a consecutive-miss trigger, next-set cadence, and recommendation mode."
+            )
+            return
         }
     }
 
@@ -347,10 +577,49 @@ nonisolated enum ProgramDefinitionValidator {
                 add("\(setPath).orderIndex", .invalidSetOrder, "Stage set order indices must be non-negative and unique.")
             }
             validateRep(set.repetitions, setPath, add)
+            validateOlympicAttempt(set, setPath, add)
+            validateCompletionRule(set, setPath, add)
             if let rest = set.restSeconds, rest < 0 { add("\(setPath).restSeconds", .invalidRest, "Rest cannot be negative.") }
             if let rpe = set.targetRPE, !(0...10).contains(rpe) { add("\(setPath).targetRPE", .invalidRPE, "RPE must be between zero and ten.") }
             if let rir = set.targetRIR, !(0...10).contains(rir) { add("\(setPath).targetRIR", .invalidRIR, "RIR must be between zero and ten.") }
             validateLoad(set.load, "\(setPath).load", add)
+        }
+    }
+
+    private static func validateCompletionRule(
+        _ set: SetPrescriptionDefinition,
+        _ path: String,
+        _ add: (String, ProgramValidationIssue.Code, String) -> Void
+    ) {
+        guard let rule = set.completionRule else { return }
+        switch rule {
+        case .all(let metrics), .any(let metrics):
+            if metrics.isEmpty {
+                add(
+                    "\(path).completionRule",
+                    .invalidCompletionRule,
+                    "A metric completion rule must include at least one metric."
+                )
+            }
+            let unsupported = metrics.subtracting(TrackingMetric.completionWritable)
+            if !unsupported.isEmpty {
+                let names = unsupported.sorted { $0.rawValue < $1.rawValue }
+                    .map(\.title)
+                    .joined(separator: ", ")
+                add(
+                    "\(path).completionRule",
+                    .invalidCompletionRule,
+                    "These metrics cannot currently require set completion: \(names)."
+                )
+            }
+        case .prescribedTargets:
+            if set.prescribedCompletionMetrics.isEmpty {
+                add(
+                    "\(path).completionRule",
+                    .invalidCompletionRule,
+                    "Prescribed-target completion requires at least one explicit repetition, load, duration, distance, or calorie target."
+                )
+            }
         }
     }
 

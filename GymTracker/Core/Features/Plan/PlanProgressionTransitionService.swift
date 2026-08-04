@@ -173,6 +173,11 @@ enum PlanProgressionTransitionService {
             return PlanCoordinator.restartBlock(containing: sourceProgress, in: run)
         case .endExercise:
             return endExercise(progressionKey, in: run)
+        case .endActiveDailyMaximumAndGenerateBackOffs:
+            // This has no future-plan meaning. It is applied only by the
+            // active-workout recommendation transaction while performed and
+            // still-unperformed attempt rows are available.
+            return false
         case .endProgram:
             let testDayProgress: PlanWorkoutProgress?
             if run.plan?.programCompletionPolicy == .offerTestDay {

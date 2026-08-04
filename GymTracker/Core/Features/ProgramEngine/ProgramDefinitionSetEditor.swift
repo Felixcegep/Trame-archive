@@ -28,6 +28,24 @@ enum ProgramBuilderRepKind: String, CaseIterable, Identifiable {
     }
 }
 
+private enum ProgramBuilderCompletionMode: String, CaseIterable, Identifiable {
+    case legacy
+    case prescribedTargets
+    case all
+    case any
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .legacy: String(localized: "Tracking default")
+        case .prescribedTargets: String(localized: "All prescribed targets")
+        case .all: String(localized: "All selected metrics")
+        case .any: String(localized: "Any selected metric")
+        }
+    }
+}
+
 struct ProgramDefinitionSetEditor: View {
     @Binding var set: SetPrescriptionDefinition
     let exercises: [Exercise]
@@ -55,6 +73,12 @@ struct ProgramDefinitionSetEditor: View {
             }
 
             repFields
+
+            if case .sequence = set.repetitions {
+                olympicAttemptSection
+            }
+
+            completionSection
 
             TextField("Fixed load", text: fixedLoadBinding)
                 .keyboardType(.decimalPad)
@@ -112,6 +136,175 @@ struct ProgramDefinitionSetEditor: View {
         .padding(.vertical, Spacing.xxs)
     }
 
+    @ViewBuilder
+    private var olympicAttemptSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Toggle("Shared Olympic attempt", isOn: olympicAttemptEnabledBinding)
+                .accessibilityHint("Uses one parent load and records each ordered component outcome.")
+            if set.olympicAttempt != nil {
+                Picker("Technical purpose", selection: olympicTechnicalPurposeBinding) {
+                    ForEach(OlympicTechnicalPurpose.allCases, id: \.self) { purpose in
+                        Text(purpose.title).tag(purpose)
+                    }
+                }
+                Picker("Start position", selection: olympicStartPositionBinding) {
+                    ForEach(OlympicStartPosition.allCases, id: \.self) { position in
+                        Text(position.title).tag(position)
+                    }
+                }
+                Picker("Target quality", selection: olympicTargetQualityBinding) {
+                    Text("Excellent").tag(LiftQuality.excellent)
+                    Text("Acceptable").tag(LiftQuality.acceptable)
+                }
+                Text("The set is one attempt: one load, ordered component outcomes, then one rest period.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var olympicAttemptEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { set.olympicAttempt != nil },
+            set: { enabled in
+                set.olympicAttempt = enabled
+                    ? OlympicAttemptPrescription(
+                        technicalPurpose: .technicalAssessment,
+                        startPosition: .floor,
+                        targetQuality: .acceptable
+                    )
+                    : nil
+            }
+        )
+    }
+
+    private var olympicTechnicalPurposeBinding: Binding<OlympicTechnicalPurpose> {
+        Binding(
+            get: { set.olympicAttempt?.technicalPurpose ?? .technicalAssessment },
+            set: { set.olympicAttempt?.technicalPurpose = $0 }
+        )
+    }
+
+    private var olympicStartPositionBinding: Binding<OlympicStartPosition> {
+        Binding(
+            get: { set.olympicAttempt?.startPosition ?? .floor },
+            set: { set.olympicAttempt?.startPosition = $0 }
+        )
+    }
+
+    private var olympicTargetQualityBinding: Binding<LiftQuality> {
+        Binding(
+            get: { set.olympicAttempt?.targetQuality ?? .acceptable },
+            set: { set.olympicAttempt?.targetQuality = $0 }
+        )
+    }
+
+    @ViewBuilder
+    private var completionSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Picker("Completion", selection: completionModeBinding) {
+                ForEach(ProgramBuilderCompletionMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .accessibilityIdentifier("definition-set-completion-mode")
+
+            if completionMode == .all || completionMode == .any {
+                ForEach(completionMetrics, id: \.self) { metric in
+                    Toggle(metric.title, isOn: completionMetricBinding(metric))
+                        .accessibilityIdentifier("definition-completion-metric-\(metric.rawValue)")
+                }
+            }
+
+            Text(completionExplanation)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var selectedExercise: Exercise? {
+        exercises.first(where: { $0.id == fallbackExerciseID })
+    }
+
+    private var capabilityProfile: TrackingCapabilityProfile {
+        (selectedExercise?.trackingType ?? .weightAndReps).capabilityProfile
+    }
+
+    private var completionMetrics: [TrackingMetric] {
+        TrackingMetric.allCases.filter(capabilityProfile.completionWritableMetrics.contains)
+    }
+
+    private var completionMode: ProgramBuilderCompletionMode {
+        switch set.completionRule {
+        case nil: .legacy
+        case .some(.prescribedTargets): .prescribedTargets
+        case .some(.all(_)): .all
+        case .some(.any(_)): .any
+        }
+    }
+
+    private var completionModeBinding: Binding<ProgramBuilderCompletionMode> {
+        Binding(
+            get: { completionMode },
+            set: { mode in
+                switch mode {
+                case .legacy:
+                    set.completionRule = nil
+                case .prescribedTargets:
+                    set.completionRule = .prescribedTargets
+                case .all:
+                    set.completionRule = .all(defaultCompletionMetrics)
+                case .any:
+                    set.completionRule = .any(defaultCompletionMetrics)
+                }
+            }
+        )
+    }
+
+    private var defaultCompletionMetrics: Set<TrackingMetric> {
+        switch capabilityProfile.defaultCompletionRule {
+        case .all(let metrics), .any(let metrics): metrics
+        case .prescribedTargets: capabilityProfile.primaryMetric.map { Set([$0]) } ?? []
+        }
+    }
+
+    private func completionMetricBinding(_ metric: TrackingMetric) -> Binding<Bool> {
+        Binding(
+            get: { selectedCompletionMetrics.contains(metric) },
+            set: { enabled in
+                var metrics = selectedCompletionMetrics
+                if enabled {
+                    metrics.insert(metric)
+                } else if metrics.count > 1 {
+                    metrics.remove(metric)
+                }
+                set.completionRule = completionMode == .any ? .any(metrics) : .all(metrics)
+            }
+        )
+    }
+
+    private var selectedCompletionMetrics: Set<TrackingMetric> {
+        switch set.completionRule {
+        case .some(.all(let metrics)), .some(.any(let metrics)): metrics
+        case nil, .some(.prescribedTargets): defaultCompletionMetrics
+        }
+    }
+
+    private var completionExplanation: String {
+        switch completionMode {
+        case .legacy:
+            return String(localized: "Uses the exercise tracking type’s existing completion requirements.")
+        case .prescribedTargets:
+            return String(localized: "Requires every metric with an explicit target in this set.")
+        case .all:
+            return String(localized: "Every selected metric must be logged.")
+        case .any:
+            return String(localized: "Logging any one selected metric completes the requirement.")
+        }
+    }
+
     private var repKind: ProgramBuilderRepKind {
         switch set.repetitions {
         case .fixed: return .fixed
@@ -129,6 +322,9 @@ struct ProgramDefinitionSetEditor: View {
         Binding(
             get: { repKind },
             set: { kind in
+                if kind != .sequence {
+                    set.olympicAttempt = nil
+                }
                 switch kind {
                 case .fixed: set.repetitions = .fixed(8)
                 case .range: set.repetitions = .range(minimum: 8, maximum: 12)

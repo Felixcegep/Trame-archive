@@ -1,6 +1,6 @@
 import Foundation
 
-enum UnitConversion {
+nonisolated enum UnitConversion {
     private static let poundsPerKilogram: Float = 2.204_622_6
 
     static func weight(_ value: Float, from source: WeightType, to target: WeightType) -> Float {

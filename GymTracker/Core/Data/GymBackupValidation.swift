@@ -29,6 +29,7 @@ enum BackupValidationError: LocalizedError {
     case missingWorkout(String)
     case invalidExerciseRelationship
     case invalidProgramDefinition(String)
+    case invalidMobilityProgramDefinition(String)
     case invalidTrackingProfile(String)
 
     var errorDescription: String? {
@@ -57,6 +58,8 @@ enum BackupValidationError: LocalizedError {
             return "The backup contains an invalid exercise relationship."
         case .invalidProgramDefinition(let message):
             return "The backup contains an invalid program definition: \(message)"
+        case .invalidMobilityProgramDefinition(let message):
+            return "The backup contains an invalid mobility program definition: \(message)"
         case .invalidTrackingProfile(let message):
             return "The backup contains an invalid tracking profile: \(message)"
         }
@@ -73,6 +76,8 @@ extension BackupDTO {
         guard version >= Self.legacyVersion && version <= Self.currentVersion else {
             throw BackupValidationError.unsupportedVersion(version)
         }
+        let currentArchive = CurrentBackupArchive(adapting: self)
+        let workoutArchive = currentArchive.workout
 
         // A duplicate display name is only genuinely ambiguous when nothing
         // else can tell the exercises apart. From `programVersion` onward,
@@ -81,7 +86,7 @@ extension BackupDTO {
         // one's name — its id remains its true, distinct identity. Older
         // backups never carry ids, so duplicate names there are unresolvable
         // and must still be rejected.
-        let exerciseNames = exercises.map(\.name)
+        let exerciseNames = workoutArchive.exercises.map { $0.dto.name }
         if version < Self.programVersion {
             guard Set(exerciseNames).count == exerciseNames.count else {
                 let duplicate: String = Dictionary(grouping: exerciseNames, by: \.self)
@@ -113,7 +118,8 @@ extension BackupDTO {
                 throw BackupValidationError.invalidIdentifier("mobility routine purpose")
             }
         }
-        for template in templates {
+        for normalizedTemplate in workoutArchive.templates {
+            let template = normalizedTemplate.dto
             try validateExecutionBlockGraph(
                 template.executionBlocks?.map {
                     ExecutionBlockValidationInput(
@@ -169,7 +175,8 @@ extension BackupDTO {
             }
         }
 
-        for workout in workouts {
+        for normalizedWorkout in workoutArchive.workouts {
+            let workout = normalizedWorkout.dto
             try validateExecutionBlockGraph(
                 workout.executionBlocks?.map {
                     ExecutionBlockValidationInput(
@@ -241,6 +248,25 @@ extension BackupDTO {
                     throw BackupValidationError.invalidProgramDefinition(issues.map(\.message).joined(separator: " "))
                 }
             }
+            // The mobility program definition graph (Release 8 part 1) is a
+            // top-level array new to this slice; it decodes `[]` for every
+            // payload older than it, so this check is a no-op for those and
+            // does not need its own version gate. Mirrors the program
+            // definition validation immediately above: reject before the
+            // destination store is ever replaced.
+            try validateUniqueIdentifiers(mobilityProgramDefinitions.map(\.id), named: "mobility program definition")
+            for definition in mobilityProgramDefinitions {
+                guard definition.durationWeeks > 0, !definition.supportedDaysPerWeek.isEmpty else {
+                    throw BackupValidationError.invalidMobilityProgramDefinition(definition.name)
+                }
+                guard let payload = try? JSONDecoder().decode(MobilityProgramDefinitionPayload.self, from: definition.definitionData) else {
+                    throw BackupValidationError.invalidMobilityProgramDefinition(definition.name)
+                }
+                let mobilityIssues = MobilityProgramDefinitionValidator.validate(payload, isBuiltIn: definition.isBuiltIn)
+                guard mobilityIssues.isEmpty else {
+                    throw BackupValidationError.invalidMobilityProgramDefinition(mobilityIssues.map(\.message).joined(separator: " "))
+                }
+            }
             try validateUniqueIdentifiers(progressionRecommendations.map(\.id), named: "progression recommendation")
             let runIDs = Set(planRuns.map(\.id))
             let completedWorkoutIDs = Set(workouts.compactMap(\.id))
@@ -268,6 +294,68 @@ extension BackupDTO {
                 if let proposedLoadUnit = recommendation.proposedLoadUnit {
                     guard WeightType(rawValue: proposedLoadUnit) != nil else {
                         throw BackupValidationError.invalidIdentifier("progression recommendation load unit")
+                    }
+                }
+            }
+
+            // The Release 8 part 2 mobility program runtime graph is new to
+            // this slice, added alongside `mobilityProgramDefinitions`
+            // within Backup v26 (no new version constant). Both arrays
+            // decode `[]` for every older payload, so this is a no-op there
+            // and needs no separate version gate, mirroring the definition
+            // validation immediately above.
+            try validateUniqueIdentifiers(mobilityProgramRuns.map(\.id), named: "mobility program run")
+            var mobilitySessionProgressIDs = Set<String>()
+            for runDTO in mobilityProgramRuns {
+                guard let payload = try? JSONDecoder().decode(MobilityProgramDefinitionPayload.self, from: runDTO.programSnapshotData) else {
+                    throw BackupValidationError.invalidMobilityProgramDefinition(runDTO.sourceProgramName)
+                }
+                let issues = MobilityProgramDefinitionValidator.validate(payload)
+                guard issues.isEmpty else {
+                    throw BackupValidationError.invalidMobilityProgramDefinition(issues.map(\.message).joined(separator: " "))
+                }
+                guard MobilityProgramRunStatus(rawValue: runDTO.status) != nil else {
+                    throw BackupValidationError.invalidIdentifier("mobility program run status")
+                }
+                let progressIDs = runDTO.sessionProgress.map(\.id)
+                guard Set(progressIDs).count == progressIDs.count else {
+                    throw BackupValidationError.duplicateIdentifier("mobility program session progress")
+                }
+                for progressDTO in runDTO.sessionProgress {
+                    guard mobilitySessionProgressIDs.insert(progressDTO.id).inserted else {
+                        throw BackupValidationError.duplicateIdentifier("mobility program session progress")
+                    }
+                    guard MobilityProgramSessionStatus(rawValue: progressDTO.status) != nil,
+                          progressDTO.dayIndex >= 0, progressDTO.dayIndex <= 6 else {
+                        throw BackupValidationError.invalidIdentifier("mobility program session progress")
+                    }
+                }
+                let stateIDs = runDTO.progressionStates.map(\.id)
+                guard Set(stateIDs).count == stateIDs.count else {
+                    throw BackupValidationError.duplicateIdentifier("mobility progression state")
+                }
+                for stateDTO in runDTO.progressionStates {
+                    guard MobilitySide(rawValue: stateDTO.side) != nil else {
+                        throw BackupValidationError.invalidIdentifier("mobility progression state side")
+                    }
+                }
+            }
+
+            try validateUniqueIdentifiers(mobilityProgressionRecommendations.map(\.id), named: "mobility progression recommendation")
+            let mobilityRunIDs = Set(mobilityProgramRuns.map(\.id))
+            for recommendation in mobilityProgressionRecommendations {
+                guard mobilityRunIDs.contains(recommendation.runID),
+                      mobilitySessionProgressIDs.contains(recommendation.sessionProgressID),
+                      UUID(uuidString: recommendation.ruleID) != nil,
+                      MobilitySide(rawValue: recommendation.side) != nil,
+                      ProgressionApplicationMode(rawValue: recommendation.applicationMode) != nil,
+                      (try? JSONDecoder().decode(MobilityProgressionAction.self, from: recommendation.actionData)) != nil
+                else {
+                    throw BackupValidationError.invalidIdentifier("mobility progression recommendation")
+                }
+                if let decisionOutcome = recommendation.decisionOutcome {
+                    guard ProgressionDecisionOutcome(rawValue: decisionOutcome) != nil else {
+                        throw BackupValidationError.invalidIdentifier("mobility progression recommendation decision outcome")
                     }
                 }
             }
@@ -917,58 +1005,326 @@ extension BackupDTO {
         }
 
         var routineItemIDs = [String]()
+        var phasePrescriptionIDs = [String]()
+        var allBlockKeys = [String]()
         for routine in mobilityRoutines {
+            let blocks = routine.blocks ?? []
+            let blockKeys = Set(blocks.map(\.blockKey))
+            allBlockKeys.append(contentsOf: blocks.map(\.blockKey))
+            for block in blocks {
+                guard block.orderIndex >= 0,
+                      MobilityBlockKind(rawValue: block.kind) != nil,
+                      block.targetRounds.map({ $0 > 0 }) ?? true,
+                      isValid(block.restPrescription) else {
+                    throw BackupValidationError.invalidIdentifier("mobility routine block")
+                }
+            }
             for item in routine.items {
                 routineItemIDs.append(item.id)
                 guard definitionIDs.contains(item.definitionID),
                       item.orderIndex >= 0,
+                      (item.cycleCount ?? 1) > 0,
                       MobilitySide(rawValue: item.side) != nil,
                       item.targetDurationSeconds.map({ $0 > 0 }) ?? true,
                       item.targetRepetitions.map({ $0 > 0 }) ?? true,
-                      item.restSeconds.map({ $0 >= 0 }) ?? true else {
+                      item.restSeconds.map({ $0 >= 0 }) ?? true,
+                      item.method.map({ MobilityMethod(rawValue: $0) != nil }) ?? true,
+                      item.trainingPurpose.map({ MobilityTrainingPurpose(rawValue: $0) != nil }) ?? true,
+                      isValid(item.breathingPrescription),
+                      isValid(item.tempoPrescription),
+                      isValid(item.assistancePrescription),
+                      isValid(item.metricProfile, targets: item.metricTargets),
+                      item.supportLevel.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true,
+                      // A block never contains a block: an item's block
+                      // membership must resolve to a block authored on this
+                      // same routine, never to another item.
+                      item.blockKey.map({ blockKeys.contains($0) }) ?? true,
+                      item.sideStrategy.map({ MobilitySideStrategy(rawValue: $0) != nil }) ?? true,
+                      isValid(item.restPrescription) else {
                     throw BackupValidationError.invalidIdentifier("mobility routine item")
+                }
+                let phases = item.phases ?? []
+                let phaseOrder = phases.map(\.orderIndex)
+                guard Set(phaseOrder).count == phaseOrder.count else {
+                    throw BackupValidationError.invalidIdentifier("mobility phase prescription order")
+                }
+                for phase in phases {
+                    phasePrescriptionIDs.append(phase.id)
+                    guard phase.orderIndex >= 0,
+                          PNFPhaseType(rawValue: phase.phaseType) != nil,
+                          phase.durationSeconds > 0,
+                          phase.contractionIntensity.map({ ContractionIntensity(rawValue: $0) != nil }) ?? true,
+                          MobilitySide(rawValue: phase.side) != nil else {
+                        throw BackupValidationError.invalidIdentifier("mobility phase prescription")
+                    }
                 }
             }
         }
         try validateUniqueIdentifiers(routineItemIDs, named: "mobility routine item")
+        try validateUniqueIdentifiers(phasePrescriptionIDs, named: "mobility phase prescription")
+        try validateUniqueIdentifiers(allBlockKeys, named: "mobility routine block")
 
         var entryIDs = [String]()
         var resultIDs = [String]()
+        var phaseResultIDs = [String]()
+        var activeSessionCount = 0
         for session in mobilitySessions {
-            guard MobilitySessionStatus(rawValue: session.status) != nil,
+            guard let sessionStatus = MobilitySessionStatus(rawValue: session.status),
                   MobilitySessionContext(rawValue: session.context) != nil,
                   session.currentEntryIndex >= 0,
                   session.sourceRoutineID.map({ UUID(uuidString: $0) != nil }) ?? true,
                   session.workoutID.map({ UUID(uuidString: $0) != nil }) ?? true else {
                 throw BackupValidationError.invalidIdentifier("mobility session")
             }
+            if sessionStatus == .active { activeSessionCount += 1 }
+            guard Set(session.entries.map(\.orderIndex)).count == session.entries.count else {
+                throw BackupValidationError.invalidIdentifier("mobility entry order")
+            }
             for entry in session.entries {
                 entryIDs.append(entry.id)
+                let cycleCount = entry.cycleCount ?? 1
+                let phaseResults = entry.phaseResults ?? []
+                let phaseCountPerExecutionGroup = Dictionary(
+                    grouping: phaseResults,
+                    by: { "\($0.side)|\($0.cycleIndex)" }
+                ).values.map(\.count)
+                let maximumPhaseCount = phaseCountPerExecutionGroup.max() ?? 0
                 guard entry.orderIndex >= 0,
                       UUID(uuidString: entry.definitionIDSnapshot) != nil,
                       MobilityTrackingType(rawValue: entry.trackingType) != nil,
                       MobilitySide(rawValue: entry.side) != nil,
+                      cycleCount > 0,
+                      (0..<cycleCount).contains(entry.currentCycleIndex ?? 0),
+                      (entry.currentPhaseIndex ?? 0) >= 0,
+                      maximumPhaseCount == 0 || (entry.currentPhaseIndex ?? 0) < maximumPhaseCount,
+                      (entry.pausedElapsedSeconds ?? 0) >= 0,
                       entry.targetDurationSeconds.map({ $0 > 0 }) ?? true,
                       entry.targetRepetitions.map({ $0 > 0 }) ?? true,
-                      entry.restSeconds.map({ $0 >= 0 }) ?? true else {
+                      entry.restSeconds.map({ $0 >= 0 }) ?? true,
+                      entry.blockKindSnapshot.map({ MobilityBlockKind(rawValue: $0) != nil }) ?? true,
+                      (entry.blockOrderIndexSnapshot ?? 0) >= 0,
+                      entry.blockTargetRoundsSnapshot.map({ $0 > 0 }) ?? true,
+                      isValid(entry.blockRestSnapshot),
+                      (entry.roundIndexSnapshot ?? 0) >= 0,
+                      entry.sideStrategySnapshot.map({ MobilitySideStrategy(rawValue: $0) != nil }) ?? true,
+                      isValid(entry.restPrescriptionSnapshot) else {
                     throw BackupValidationError.invalidIdentifier("mobility entry")
                 }
                 for result in entry.results {
                     resultIDs.append(result.id)
-                    guard MobilitySide(rawValue: result.side) != nil,
-                          MobilityResultStatus(rawValue: result.status) != nil,
+                    guard let resultStatus = MobilityResultStatus(rawValue: result.status),
+                          MobilitySide(rawValue: result.side) != nil,
                           result.prescribedDurationSeconds.map({ $0 > 0 }) ?? true,
                           result.prescribedRepetitions.map({ $0 > 0 }) ?? true,
                           result.performedDurationSeconds.map({ $0 >= 0 }) ?? true,
                           result.performedRepetitions.map({ $0 >= 0 }) ?? true,
-                          result.perceivedIntensity.map({ (1...5).contains($0) }) ?? true else {
+                          result.perceivedIntensity.map({ (1...5).contains($0) }) ?? true,
+                          result.methodSnapshot.map({ MobilityMethod(rawValue: $0) != nil }) ?? true,
+                          result.trainingPurposeSnapshot.map({ MobilityTrainingPurpose(rawValue: $0) != nil }) ?? true,
+                          result.sensation.map({ MobilitySensation(rawValue: $0) != nil }) ?? true,
+                          result.movementQuality.map({ MobilityMovementQuality(rawValue: $0) != nil }) ?? true,
+                          (result.compensationKeys ?? []).allSatisfy({ MobilityCompensationKey(rawValue: $0) != nil }),
+                          Set(result.compensationKeys ?? []).count == (result.compensationKeys ?? []).count,
+                          isValid(result.breathingPrescriptionSnapshot),
+                          isValid(result.tempoPrescriptionSnapshot),
+                          isValid(result.assistancePrescriptionSnapshot),
+                          isValid(result.metricProfileSnapshot, targets: result.metricTargetsSnapshot),
+                          result.supportLevelSnapshot.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true,
+                          result.performedBreathingCycles.map({ $0 >= 0 }) ?? true,
+                          result.performedAssistanceLevel.map({ $0 >= 0 }) ?? true,
+                          result.performedSupportLevel.map({ MobilitySupportLevel(rawValue: $0) != nil }) ?? true,
+                          isValid(result.restSnapshot) else {
                         throw BackupValidationError.invalidIdentifier("mobility result")
+                    }
+                    if let sensation = result.sensation.flatMap(MobilitySensation.init(rawValue:)),
+                       sensation.isStopSignal,
+                       resultStatus != .stopped {
+                        throw BackupValidationError.invalidIdentifier("mobility stop-signal result")
+                    }
+                }
+                var phaseExecutionPositions = Set<String>()
+                for phaseResult in phaseResults {
+                    phaseResultIDs.append(phaseResult.id)
+                    guard phaseResult.orderIndex >= 0,
+                          PNFPhaseType(rawValue: phaseResult.phaseType) != nil,
+                          phaseResult.prescribedDurationSeconds > 0,
+                          phaseResult.performedDurationSeconds.map({ $0 >= 0 }) ?? true,
+                          (0..<cycleCount).contains(phaseResult.cycleIndex),
+                          MobilitySide(rawValue: phaseResult.side) != nil,
+                          phaseResult.prescribedIntensity.map({ ContractionIntensity(rawValue: $0) != nil }) ?? true,
+                          phaseResult.performedIntensity.map({ ContractionIntensity(rawValue: $0) != nil }) ?? true,
+                          MobilityResultStatus(rawValue: phaseResult.status) != nil,
+                          phaseExecutionPositions.insert(
+                              "\(phaseResult.side)|\(phaseResult.cycleIndex)|\(phaseResult.orderIndex)"
+                          ).inserted else {
+                        throw BackupValidationError.invalidIdentifier("mobility phase result")
                     }
                 }
             }
+            try validateMobilityExecutionGraph(session, status: sessionStatus)
+        }
+        guard activeSessionCount <= 1 else {
+            throw BackupValidationError.invalidIdentifier("active mobility session")
         }
         try validateUniqueIdentifiers(entryIDs, named: "mobility entry")
         try validateUniqueIdentifiers(resultIDs, named: "mobility result")
+        try validateUniqueIdentifiers(phaseResultIDs, named: "mobility phase result")
+    }
+
+    private func validateMobilityExecutionGraph(
+        _ session: MobilitySessionDTO,
+        status: MobilitySessionStatus
+    ) throws {
+        let entries = session.entries.sorted {
+            $0.orderIndex == $1.orderIndex ? $0.id < $1.id : $0.orderIndex < $1.orderIndex
+        }
+        guard entries.isEmpty == false else {
+            throw BackupValidationError.invalidIdentifier("mobility session execution graph")
+        }
+
+        let terminal: (String) -> Bool = { raw in
+            guard let status = MobilityResultStatus(rawValue: raw) else { return false }
+            return switch status {
+            case .notStarted, .inProgress: false
+            case .completed, .partial, .skipped, .stopped: true
+            }
+        }
+        let isNotStarted: (String) -> Bool = {
+            MobilityResultStatus(rawValue: $0) == .notStarted
+        }
+
+        for entry in entries where (entry.phaseResults ?? []).isEmpty == false {
+            let phases = entry.phaseResults ?? []
+            let resultSides = Set(entry.results.map(\.side))
+            let phaseSides = Set(phases.map(\.side))
+            let cycles = entry.cycleCount ?? 1
+            let groups = Dictionary(grouping: phases) { "\($0.side)|\($0.cycleIndex)" }
+            let signatures = groups.values.map { group in
+                group.sorted { $0.orderIndex < $1.orderIndex }.map {
+                    "\($0.orderIndex)|\($0.phaseType)|\($0.prescribedDurationSeconds)|\($0.prescribedIntensity ?? "")"
+                }
+            }
+            guard resultSides == phaseSides,
+                  groups.count == resultSides.count * cycles,
+                  Set(signatures).count == 1,
+                  groups.values.allSatisfy({ group in
+                      let order = group.map(\.orderIndex)
+                      return Set(order).count == order.count
+                  }) else {
+                throw BackupValidationError.invalidIdentifier("mobility phase execution graph")
+            }
+        }
+
+        switch status {
+        case .active:
+            guard session.endTime == nil,
+                  let currentIndex = entries.firstIndex(where: { $0.orderIndex == session.currentEntryIndex })
+            else {
+                throw BackupValidationError.invalidIdentifier("active mobility cursor")
+            }
+            let current = entries[currentIndex]
+            guard entries.enumerated().allSatisfy({ index, entry in
+                if index < currentIndex {
+                    return entry.results.allSatisfy { terminal($0.status) }
+                        && (entry.phaseResults ?? []).allSatisfy { terminal($0.status) }
+                        && entry.timerStartedAt == nil
+                }
+                if index > currentIndex {
+                    return entry.results.allSatisfy { isNotStarted($0.status) }
+                        && (entry.phaseResults ?? []).allSatisfy { isNotStarted($0.status) }
+                        && entry.timerStartedAt == nil
+                        && (entry.pausedElapsedSeconds ?? 0) == 0
+                }
+                return true
+            }) else {
+                throw BackupValidationError.invalidIdentifier("active mobility execution order")
+            }
+
+            let phaseResults = current.phaseResults ?? []
+            if phaseResults.isEmpty {
+                guard current.results.isEmpty == false,
+                      current.results.allSatisfy({ MobilityResultStatus(rawValue: $0.status) == .inProgress })
+                else {
+                    throw BackupValidationError.invalidIdentifier("active mobility result")
+                }
+            } else {
+                // Mirrors `MobilityEntry.executionOrderedPhaseResults(alternatingSides:)`
+                // and `MobilityFlowResolver`'s node ordering: an
+                // `.alternateEachRepetition` entry's active cursor is only
+                // valid against a cycle-major traversal, never the default
+                // side-major one.
+                let alternatingSides = current.sideStrategySnapshot == MobilitySideStrategy.alternateEachRepetition.rawValue
+                let ordered = phaseResults.sorted {
+                    if alternatingSides {
+                        if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
+                        if mobilitySideOrder($0.side) != mobilitySideOrder($1.side) {
+                            return mobilitySideOrder($0.side) < mobilitySideOrder($1.side)
+                        }
+                    } else {
+                        if mobilitySideOrder($0.side) != mobilitySideOrder($1.side) {
+                            return mobilitySideOrder($0.side) < mobilitySideOrder($1.side)
+                        }
+                        if $0.cycleIndex != $1.cycleIndex { return $0.cycleIndex < $1.cycleIndex }
+                    }
+                    if $0.orderIndex != $1.orderIndex { return $0.orderIndex < $1.orderIndex }
+                    return $0.id < $1.id
+                }
+                let inProgress = ordered.filter {
+                    MobilityResultStatus(rawValue: $0.status) == .inProgress
+                }
+                guard inProgress.count == 1,
+                      let node = inProgress.first,
+                      let nodeIndex = ordered.firstIndex(where: { $0.id == node.id }),
+                      ordered.prefix(nodeIndex).allSatisfy({ terminal($0.status) }),
+                      ordered.dropFirst(nodeIndex + 1).allSatisfy({ isNotStarted($0.status) }),
+                      node.cycleIndex == (current.currentCycleIndex ?? 0),
+                      phaseIndex(of: node, in: phaseResults) == (current.currentPhaseIndex ?? 0),
+                      current.results.filter({ $0.side == node.side }).count == 1,
+                      current.results.filter({ MobilityResultStatus(rawValue: $0.status) == .inProgress }).count == 1,
+                      current.results.first(where: { $0.side == node.side }).map({
+                          MobilityResultStatus(rawValue: $0.status) == .inProgress
+                      }) == true else {
+                    throw BackupValidationError.invalidIdentifier("active mobility phase cursor")
+                }
+            }
+
+        case .completed, .stopped:
+            guard session.endTime != nil,
+                  entries.allSatisfy({ entry in
+                      entry.timerStartedAt == nil
+                          && entry.results.allSatisfy { terminal($0.status) }
+                          && (entry.phaseResults ?? []).allSatisfy { terminal($0.status) }
+                  }) else {
+                throw BackupValidationError.invalidIdentifier("terminal mobility execution graph")
+            }
+        }
+    }
+
+    private func phaseIndex(
+        of phase: MobilityPhaseResultDTO,
+        in phases: [MobilityPhaseResultDTO]
+    ) -> Int {
+        phases
+            .filter { $0.side == phase.side && $0.cycleIndex == phase.cycleIndex }
+            .sorted {
+                $0.orderIndex == $1.orderIndex ? $0.id < $1.id : $0.orderIndex < $1.orderIndex
+            }
+            .firstIndex(where: { $0.id == phase.id }) ?? -1
+    }
+
+    private func mobilitySideOrder(_ rawValue: String) -> Int {
+        // `MobilitySide` has its own `.none` case, so over an optional the
+        // bare `.none` pattern binds to `Optional.none` and leaves
+        // `MobilitySide.none` unmatched. The explicit `.some(...)` patterns
+        // keep the two distinct.
+        switch MobilitySide(rawValue: rawValue) {
+        case .some(.none): 0
+        case .some(.left): 1
+        case .some(.right): 2
+        case .some(.bilateral): 3
+        case .some(.alternating): 4
+        case nil: Int.max
+        }
     }
 
     private func validateMobilityAssessments() throws {
@@ -1230,6 +1586,63 @@ extension BackupDTO {
             guard seen.insert(identifier).inserted else {
                 throw BackupValidationError.duplicateIdentifier(name)
             }
+        }
+    }
+
+    private func isValid(_ prescription: MobilityBreathingPrescriptionDTO?) -> Bool {
+        guard let prescription else { return true }
+        let values = [prescription.targetBreaths, prescription.inhaleSeconds, prescription.exhaleSeconds]
+        let hasInstruction = prescription.instructionKey?
+            .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        let hasContent = values.contains(where: { $0 != nil }) || hasInstruction
+        return hasContent && values.allSatisfy { $0.map({ $0 > 0 }) ?? true }
+    }
+
+    private func isValid(_ prescription: MobilityTempoPrescriptionDTO?) -> Bool {
+        guard let prescription else { return true }
+        let values = [
+            prescription.moveIntoRangeSeconds,
+            prescription.holdSeconds,
+            prescription.returnSeconds,
+            prescription.pauseSeconds
+        ]
+        return values.contains(where: { $0 != nil })
+            && values.allSatisfy { $0.map({ $0 > 0 }) ?? true }
+    }
+
+    private func isValid(_ prescription: MobilityAssistancePrescriptionDTO?) -> Bool {
+        guard let prescription else { return true }
+        return MobilityAssistanceType(rawValue: prescription.assistanceType) != nil
+            && (prescription.level.map({ $0 >= 0 }) ?? true)
+    }
+
+    /// A `.none`/`.userControlled`/`.breatheUntilReady` directive has no
+    /// numeric bounds to reject; `.exact` and `.range` reject a non-positive
+    /// or inverted bound before the destination store is ever touched.
+    private func isValid(_ prescription: MobilityRestPrescription?) -> Bool {
+        prescription?.isValid ?? true
+    }
+
+    private func isValid(
+        _ profile: MobilityMetricProfile?,
+        targets: MobilityMetricTargets?
+    ) -> Bool {
+        guard targets?.isValid ?? true else { return false }
+        guard let profile else { return true }
+        guard profile.supportedMetrics.isEmpty == false,
+              profile.primaryProgressMetric.map({ profile.supportedMetrics.contains($0) }) ?? true
+        else { return false }
+        switch profile.defaultCompletionRule {
+        case .all(let metrics), .any(let metrics):
+            return metrics.isEmpty == false
+                && metrics.isSubset(of: profile.completionWritableMetrics)
+        case .prescribedTargets:
+            guard let targets else { return false }
+            let metrics = targets.prescribedMetrics
+            return metrics.isEmpty == false
+                && metrics.isSubset(of: profile.completionWritableMetrics)
+        case .phaseSequenceCompleted:
+            return profile.supportedMetrics.contains(.cycles)
         }
     }
 }

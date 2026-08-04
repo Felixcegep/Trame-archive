@@ -44,6 +44,10 @@ final class OnboardingCoordinator {
     private(set) var validationAttemptCount = 0
 
     private let store: OnboardingDraftStore
+    /// Resolved once at init, matching `FeatureFlags`' own "resolved once at
+    /// composition time" rule — a flag that could flip mid-flow would add or
+    /// remove questions out from under a lifter answering them.
+    private let isMobilityMatchingEnabled: Bool
     private var autoAdvanceTask: Task<Void, Never>?
     /// The last moment a navigation actually committed. A second tap arriving
     /// inside `Self.inputCooldown` is the same tap as far as the lifter is
@@ -56,15 +60,27 @@ final class OnboardingCoordinator {
     /// never reads as lag.
     static let autoAdvanceDelay: Duration = .milliseconds(260)
 
-    init(store: OnboardingDraftStore = OnboardingDraftStore()) {
+    /// `isMobilityMatchingEnabled` stays injectable, but it cannot default to
+    /// `FeatureFlags.current` directly: a default argument expression is
+    /// evaluated in a nonisolated context, and the flag store is main-actor
+    /// isolated. Resolving `nil` inside this already-isolated initializer keeps
+    /// both the live default and the explicit override available.
+    init(
+        store: OnboardingDraftStore = OnboardingDraftStore(),
+        isMobilityMatchingEnabled: Bool? = nil
+    ) {
         self.store = store
+        self.isMobilityMatchingEnabled = isMobilityMatchingEnabled
+            ?? FeatureFlags.current.isEnabled(.mobilityProgram)
         self.draft = store.load() ?? OnboardingDraft()
         restore()
     }
 
     // MARK: Step model
 
-    var steps: [OnboardingStep] { OnboardingStep.steps(for: draft) }
+    var steps: [OnboardingStep] {
+        OnboardingStep.steps(for: draft, mobilityEnabled: isMobilityMatchingEnabled)
+    }
 
     var currentStepIndex: Int? {
         guard let currentStep else { return nil }
@@ -349,6 +365,9 @@ final class OnboardingCoordinator {
         case .units: draft.unitSystem != nil
         case .focusAreas: !draft.focusAreas.isEmpty
         case .competition: draft.competition?.isEmpty == false
+        case .mobilityGoal: draft.mobilityGoal != nil
+        case .mobilityExperience: draft.mobilityExperience != nil
+        case .mobilityFrequency: draft.mobilityFrequency != nil
         }
     }
 
@@ -370,6 +389,9 @@ final class OnboardingCoordinator {
             case .units: draft.unitSystem = nil
             case .focusAreas: draft.focusAreas = []
             case .competition: draft.competition = nil
+            case .mobilityGoal: draft.mobilityGoal = nil
+            case .mobilityExperience: draft.mobilityExperience = nil
+            case .mobilityFrequency: draft.mobilityFrequency = nil
             }
         }
     }

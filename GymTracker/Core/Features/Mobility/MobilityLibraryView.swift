@@ -7,6 +7,10 @@ struct MobilityLibraryView: View {
     /// Assessment presentation is root-owned, so this screen forwards the
     /// request upward rather than presenting the flow itself.
     let onStartAssessment: (MobilityAssessmentSession) -> Void
+    /// Mirrors `onStart`: a mobility program session compiles and starts
+    /// through the same `MobilitySessionService` path, then bubbles the
+    /// resulting session up to the root's single centralized presentation.
+    let onStartProgramSession: (MobilitySession) -> Void
 
     @Query(sort: \MobilityRoutine.updatedAt, order: .reverse) private var routines: [MobilityRoutine]
     @Query(sort: \MobilityDefinition.name) private var definitions: [MobilityDefinition]
@@ -38,6 +42,27 @@ struct MobilityLibraryView: View {
                         .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
+                }
+            }
+
+            if featureFlags.isEnabled(.mobilityProgram) {
+                Section {
+                    NavigationLink {
+                        MobilityProgramCatalogView(onStartProgramSession: onStartProgramSession)
+                    } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                Text("Mobility plans")
+                                    .font(AppFont.subheadlineSemibold)
+                                Text("Multi-week mobility programs with built-in progression")
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.gymSubduedText)
+                            }
+                        } icon: {
+                            GymIconChip(systemImage: AppIcon.mobility)
+                        }
+                    }
+                    .accessibilityIdentifier("open-mobility-programs")
                 }
             }
 
@@ -775,6 +800,10 @@ struct MobilityRoutineEditorView: View {
     /// Optional, and never required to save. "Not specified" is a legitimate
     /// resting state, not a prompt to complete.
     @State private var purpose: MobilityRoutinePurpose?
+    /// Blocks have no SwiftData relationship to `routine` (an ownership key,
+    /// like every other mobility sidecar), so they cannot be a `@Query` on a
+    /// static predicate here; they are loaded and reloaded explicitly.
+    @State private var blocks: [MobilityRoutineBlock] = []
 
     var body: some View {
         Form {
@@ -796,8 +825,26 @@ struct MobilityRoutineEditorView: View {
             }
 
             Section {
+                ForEach(blocks, id: \.blockKey) { block in
+                    MobilityRoutineBlockEditorRow(block: block, onChange: reloadBlocks, onDelete: {
+                        deleteBlock(block)
+                    })
+                }
+                Button {
+                    addBlock()
+                } label: {
+                    Label("Add block", systemImage: AppIcon.plus)
+                }
+                .accessibilityIdentifier("add-mobility-block")
+            } header: {
+                Text("Blocks")
+            } footer: {
+                Text("A block groups movements below and gives them a shared rest and, for circuits, a round count. A movement without a block runs on its own, exactly as before.")
+            }
+
+            Section {
                 ForEach(routine.orderedItems) { item in
-                    MobilityRoutineItemEditorRow(item: item)
+                    MobilityRoutineItemEditorRow(item: item, blocks: blocks)
                 }
                 .onDelete(perform: deleteItems)
 
@@ -826,6 +873,7 @@ struct MobilityRoutineEditorView: View {
             // only. Nothing is written back unless the lifter saves, so a
             // value from a future build survives being viewed here.
             purpose = routine.purpose
+            reloadBlocks()
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } }
@@ -835,6 +883,32 @@ struct MobilityRoutineEditorView: View {
                     .accessibilityIdentifier("save-mobility-routine")
             }
         }
+    }
+
+    private func reloadBlocks() {
+        blocks = MobilityEvidenceService.blocks(forRoutineID: routine.id, using: modelContext)
+    }
+
+    private func addBlock() {
+        _ = MobilityEvidenceService.upsertBlock(
+            routineID: routine.id,
+            orderIndex: blocks.count,
+            name: nil,
+            kind: .straightSequence,
+            targetRounds: nil,
+            restPrescription: nil,
+            using: modelContext
+        )
+        reloadBlocks()
+    }
+
+    private func deleteBlock(_ block: MobilityRoutineBlock) {
+        _ = MobilityEvidenceService.deleteBlock(
+            blockKey: block.blockKey,
+            routineItemIDs: routine.orderedItems.map(\.id),
+            using: modelContext
+        )
+        reloadBlocks()
     }
 
     private func add(_ definition: MobilityDefinition) {
@@ -855,7 +929,11 @@ struct MobilityRoutineEditorView: View {
     private func deleteItems(at offsets: IndexSet) {
         let ordered = routine.orderedItems
         for index in offsets {
-            modelContext.delete(ordered[index])
+            let item = ordered[index]
+            if let evidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)[item.id] {
+                modelContext.delete(evidence)
+            }
+            modelContext.delete(item)
         }
         routine.normalizeItemOrder()
         _ = modelContext.saveOrRollback()
@@ -871,9 +949,142 @@ struct MobilityRoutineEditorView: View {
     }
 }
 
+private struct MobilityRoutineBlockEditorRow: View {
+    @Environment(\.modelContext) private var modelContext
+    @Bindable var block: MobilityRoutineBlock
+    let onChange: () -> Void
+    let onDelete: () -> Void
+    @State private var name = ""
+    @State private var kind: MobilityBlockKind = .straightSequence
+    @State private var targetRounds: Int?
+    @State private var hasCustomRest = false
+    @State private var restScope: MobilityRestScope = .betweenRounds
+    @State private var restDirectiveKind: MobilityRestDirectiveKind = .none
+    @State private var restSeconds = 30
+    @State private var restMinimumSeconds = 20
+    @State private var restMaximumSeconds = 40
+    @State private var isLoading = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            TextField("Block name", text: $name)
+            Picker("Kind", selection: $kind) {
+                ForEach(MobilityBlockKind.allCases, id: \.self) { kind in
+                    Text(kind.displayName).tag(kind)
+                }
+            }
+            if kind.isRoundBased {
+                Stepper(
+                    "Rounds: \(targetRounds ?? 1)",
+                    value: Binding(get: { targetRounds ?? 1 }, set: { targetRounds = $0 }),
+                    in: 1...20
+                )
+            }
+            RestPrescriptionEditor(
+                title: kind.isRoundBased ? "Rest between rounds" : "Rest between movements in this block",
+                hasCustomRest: $hasCustomRest,
+                scope: $restScope,
+                directiveKind: $restDirectiveKind,
+                seconds: $restSeconds,
+                minimumSeconds: $restMinimumSeconds,
+                maximumSeconds: $restMaximumSeconds
+            )
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label("Delete block", systemImage: AppIcon.trash)
+            }
+        }
+        .onAppear {
+            name = block.name ?? ""
+            kind = block.kind
+            targetRounds = block.targetRounds
+            if let rest = block.restPrescription {
+                hasCustomRest = true
+                restScope = rest.scope
+                // Unpacked through a named local: assigning a four-element
+                // tuple straight into four separate @State properties is the
+                // shape that pushes this view body past the type-checker's
+                // time budget.
+                let editorValues = rest.directive.editorValues
+                restDirectiveKind = editorValues.kind
+                restSeconds = editorValues.seconds
+                restMinimumSeconds = editorValues.minimum
+                restMaximumSeconds = editorValues.maximum
+            }
+            Task { @MainActor in
+                await Task.yield()
+                isLoading = false
+            }
+        }
+        .onChange(of: name) { _, _ in save() }
+        .onChange(of: kind) { _, _ in save() }
+        .onChange(of: targetRounds) { _, _ in save() }
+        .onChange(of: hasCustomRest) { _, _ in save() }
+        .onChange(of: restScope) { _, _ in save() }
+        .onChange(of: restDirectiveKind) { _, _ in save() }
+        .onChange(of: restSeconds) { _, _ in save() }
+        .onChange(of: restMinimumSeconds) { _, _ in save() }
+        .onChange(of: restMaximumSeconds) { _, _ in save() }
+    }
+
+    private func save() {
+        guard isLoading == false else { return }
+        _ = MobilityEvidenceService.upsertBlock(
+            blockKey: block.blockKey,
+            routineID: block.routineID,
+            orderIndex: block.orderIndex,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            kind: kind,
+            targetRounds: kind.isRoundBased ? (targetRounds ?? 1) : nil,
+            restPrescription: hasCustomRest
+                ? MobilityRestPrescription(
+                    scope: restScope,
+                    directive: restDirectiveKind.directive(
+                        seconds: restSeconds,
+                        minimum: restMinimumSeconds,
+                        maximum: restMaximumSeconds
+                    )
+                  )
+                : nil,
+            using: modelContext
+        )
+        onChange()
+    }
+}
+
 private struct MobilityRoutineItemEditorRow: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var item: MobilityRoutineItem
+    let blocks: [MobilityRoutineBlock]
+    @State private var method: MobilityMethod?
+    @State private var trainingPurpose: MobilityTrainingPurpose?
+    @State private var breathingTarget: Int?
+    @State private var inhaleSeconds: Int?
+    @State private var exhaleSeconds: Int?
+    @State private var tempoIntoSeconds: Int?
+    @State private var tempoHoldSeconds: Int?
+    @State private var tempoReturnSeconds: Int?
+    @State private var tempoPauseSeconds: Int?
+    @State private var assistanceType: MobilityAssistanceType?
+    @State private var assistanceLevel: Int?
+    @State private var assistanceEquipment = ""
+    @State private var supportLevel: MobilitySupportLevel?
+    @State private var completionRuleSelection = "legacy"
+    @State private var blockKey: String?
+    @State private var sideStrategy: MobilitySideStrategy?
+    @State private var hasCustomRest = false
+    @State private var restScope: MobilityRestScope = .betweenMovements
+    @State private var restDirectiveKind: MobilityRestDirectiveKind = .none
+    @State private var restSeconds = 30
+    @State private var restMinimumSeconds = 20
+    @State private var restMaximumSeconds = 40
+    @State private var isLoadingEvidence = true
+
+    init(item: MobilityRoutineItem, blocks: [MobilityRoutineBlock]) {
+        self.item = item
+        self.blocks = blocks
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
@@ -889,17 +1100,449 @@ private struct MobilityRoutineItemEditorRow: View {
             } else {
                 Stepper("Target: \(item.targetRepetitions ?? item.definition.defaultRepetitions ?? 8) reps", value: repetitionsBinding, in: 1...100)
             }
+
+            DisclosureGroup("Advanced prescription") {
+                Picker("Method", selection: $method) {
+                    Text("Not specified").tag(MobilityMethod?.none)
+                    ForEach(MobilityMethod.allCases) { method in
+                        Text(method.displayName).tag(MobilityMethod?.some(method))
+                    }
+                }
+                Picker("Training purpose", selection: $trainingPurpose) {
+                    Text("Not specified").tag(MobilityTrainingPurpose?.none)
+                    ForEach(MobilityTrainingPurpose.allCases) { purpose in
+                        Text(purpose.displayName).tag(MobilityTrainingPurpose?.some(purpose))
+                    }
+                }
+
+                if item.orderedPhases.isEmpty {
+                    Picker("Completion requires", selection: $completionRuleSelection) {
+                        Text("Movement measure").tag("legacy")
+                        Text("All prescribed measures").tag("prescribed")
+                        if breathingTarget != nil {
+                            Text("Breathing cycles").tag("breathing")
+                        }
+                    }
+                }
+
+                Toggle("External load", isOn: Binding(
+                    get: { item.targetLoadValue != nil },
+                    set: { enabled in
+                        item.targetLoadValue = enabled ? 5 : nil
+                        item.targetLoadUnit = enabled ? (item.targetLoadUnit ?? .kilograms) : nil
+                        save()
+                        saveMetricEvidence()
+                    }
+                ))
+                if item.targetLoadValue != nil {
+                    Stepper(
+                        "Target load: \((item.targetLoadValue ?? 0).formatted(.number.precision(.fractionLength(0...2))))",
+                        value: Binding(
+                            get: { item.targetLoadValue ?? 0 },
+                            set: {
+                                item.targetLoadValue = $0
+                                save()
+                                saveMetricEvidence()
+                            }
+                        ),
+                        in: 0.5...1000,
+                        step: 0.5
+                    )
+                    Picker("Load unit", selection: Binding(
+                        get: { item.targetLoadUnit ?? .kilograms },
+                        set: {
+                            item.targetLoadUnit = $0
+                            save()
+                        }
+                    )) {
+                        ForEach(MobilityLoadUnit.allCases, id: \.self) { unit in
+                            Text(unit.abbreviation).tag(unit)
+                        }
+                    }
+                }
+
+                optionalStepper("Target breaths", value: $breathingTarget, range: 1...30)
+                optionalStepper("Inhale seconds", value: $inhaleSeconds, range: 1...20)
+                optionalStepper("Exhale seconds", value: $exhaleSeconds, range: 1...30)
+
+                optionalStepper("Move into range", value: $tempoIntoSeconds, range: 1...60)
+                optionalStepper("Tempo hold", value: $tempoHoldSeconds, range: 1...600)
+                optionalStepper("Return", value: $tempoReturnSeconds, range: 1...60)
+                optionalStepper("Pause", value: $tempoPauseSeconds, range: 1...60)
+
+                Picker("Assistance", selection: $assistanceType) {
+                    Text("Not specified").tag(MobilityAssistanceType?.none)
+                    ForEach(MobilityAssistanceType.allCases) { type in
+                        Text(type.displayName).tag(MobilityAssistanceType?.some(type))
+                    }
+                }
+                if assistanceType != nil {
+                    optionalStepper("Assistance level", value: $assistanceLevel, range: 0...10)
+                    TextField("Equipment detail", text: $assistanceEquipment)
+                }
+
+                Picker("Support", selection: $supportLevel) {
+                    Text("Not specified").tag(MobilitySupportLevel?.none)
+                    ForEach(MobilitySupportLevel.allCases) { support in
+                        Text(support.displayName).tag(MobilitySupportLevel?.some(support))
+                    }
+                }
+                Text("Support describes the setup used for comparison. It is not a score or diagnosis.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+
+                Picker("Block", selection: $blockKey) {
+                    Text("No block").tag(String?.none)
+                    ForEach(blocks, id: \.blockKey) { block in
+                        Text(block.name?.nilIfEmpty ?? block.kind.displayName).tag(String?.some(block.blockKey))
+                    }
+                }
+                .accessibilityIdentifier("mobility-item-block-picker")
+
+                if item.side == .bilateral || item.side == .alternating {
+                    Picker("Side strategy", selection: $sideStrategy) {
+                        Text("Default").tag(MobilitySideStrategy?.none)
+                        ForEach(MobilitySideStrategy.allCases, id: \.self) { strategy in
+                            Text(strategy.displayName).tag(MobilitySideStrategy?.some(strategy))
+                        }
+                    }
+                }
+
+                RestPrescriptionEditor(
+                    title: "Rest after this movement",
+                    hasCustomRest: $hasCustomRest,
+                    scope: $restScope,
+                    directiveKind: $restDirectiveKind,
+                    seconds: $restSeconds,
+                    minimumSeconds: $restMinimumSeconds,
+                    maximumSeconds: $restMaximumSeconds
+                )
+            }
         }
+        // Each `.onChange` wraps the view in another generic layer, and this
+        // editor tracks enough fields that chaining one per field pushed the
+        // body past the type-checker's time budget. Watching one combined
+        // signature per save target keeps the behaviour identical with a flat
+        // modifier chain.
         .onChange(of: item.sideRaw) { _, _ in save() }
+        .onChange(of: evidenceSignature) { _, _ in saveEvidence() }
+        .onChange(of: completionRuleSelection) { _, _ in saveMetricEvidence() }
+        .onChange(of: structureSignature) { _, _ in saveStructure() }
+        .onAppear {
+            let evidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)[item.id]
+            method = evidence?.method
+            trainingPurpose = evidence?.purpose
+            breathingTarget = evidence?.breathingPrescription?.targetBreaths
+            inhaleSeconds = evidence?.breathingPrescription?.inhaleSeconds
+            exhaleSeconds = evidence?.breathingPrescription?.exhaleSeconds
+            tempoIntoSeconds = evidence?.tempoPrescription?.moveIntoRangeSeconds
+            tempoHoldSeconds = evidence?.tempoPrescription?.holdSeconds
+            tempoReturnSeconds = evidence?.tempoPrescription?.returnSeconds
+            tempoPauseSeconds = evidence?.tempoPrescription?.pauseSeconds
+            assistanceType = evidence?.assistancePrescription?.assistanceType
+            assistanceLevel = evidence?.assistancePrescription?.level
+            assistanceEquipment = evidence?.assistancePrescription?.equipmentRaw ?? ""
+            supportLevel = evidence?.supportLevel
+            completionRuleSelection = completionSelection(for: evidence?.metricProfile)
+            blockKey = evidence?.blockKey
+            sideStrategy = evidence?.sideStrategy
+            if let rest = evidence?.restPrescription {
+                hasCustomRest = true
+                restScope = rest.scope
+                // Unpacked through a named local: assigning a four-element
+                // tuple straight into four separate @State properties is the
+                // shape that pushes this view body past the type-checker's
+                // time budget.
+                let editorValues = rest.directive.editorValues
+                restDirectiveKind = editorValues.kind
+                restSeconds = editorValues.seconds
+                restMinimumSeconds = editorValues.minimum
+                restMaximumSeconds = editorValues.maximum
+            }
+            Task { @MainActor in
+                await Task.yield()
+                isLoadingEvidence = false
+            }
+        }
+    }
+
+    /// Every authored prescription field that `saveEvidence()` persists,
+    /// collapsed into one comparable value so the body needs a single
+    /// `.onChange` rather than one per field.
+    private var evidenceSignature: String {
+        var parts: [String] = []
+        parts.append(method?.rawValue ?? "-")
+        parts.append(trainingPurpose?.rawValue ?? "-")
+        parts.append(breathingTarget.map(String.init) ?? "-")
+        parts.append(inhaleSeconds.map(String.init) ?? "-")
+        parts.append(exhaleSeconds.map(String.init) ?? "-")
+        parts.append(tempoIntoSeconds.map(String.init) ?? "-")
+        parts.append(tempoHoldSeconds.map(String.init) ?? "-")
+        parts.append(tempoReturnSeconds.map(String.init) ?? "-")
+        parts.append(tempoPauseSeconds.map(String.init) ?? "-")
+        parts.append(assistanceType?.rawValue ?? "-")
+        parts.append(assistanceLevel.map(String.init) ?? "-")
+        parts.append(assistanceEquipment)
+        parts.append(supportLevel?.rawValue ?? "-")
+        return parts.joined(separator: "|")
+    }
+
+    /// The same collapse for everything `saveStructure()` persists.
+    private var structureSignature: String {
+        var parts: [String] = []
+        parts.append(blockKey ?? "-")
+        parts.append(sideStrategy?.rawValue ?? "-")
+        parts.append(String(hasCustomRest))
+        parts.append(restScope.rawValue)
+        parts.append(restDirectiveKind.rawValue)
+        parts.append(String(restSeconds))
+        parts.append(String(restMinimumSeconds))
+        parts.append(String(restMaximumSeconds))
+        return parts.joined(separator: "|")
+    }
+
+    private func saveStructure() {
+        guard isLoadingEvidence == false else { return }
+        _ = MobilityEvidenceService.upsertStructurePrescription(
+            for: item.id,
+            blockKey: blockKey,
+            sideStrategy: sideStrategy,
+            restPrescription: hasCustomRest
+                ? MobilityRestPrescription(
+                    scope: restScope,
+                    directive: restDirectiveKind.directive(
+                        seconds: restSeconds,
+                        minimum: restMinimumSeconds,
+                        maximum: restMaximumSeconds
+                    )
+                  )
+                : nil,
+            using: modelContext
+        )
     }
 
     private var durationBinding: Binding<Int> {
-        Binding(get: { item.targetDurationSeconds ?? item.definition.defaultDurationSeconds ?? 30 }, set: { item.targetDurationSeconds = $0; save() })
+        Binding(
+            get: { item.targetDurationSeconds ?? item.definition.defaultDurationSeconds ?? 30 },
+            set: {
+                item.targetDurationSeconds = $0
+                save()
+                saveMetricEvidence()
+            }
+        )
     }
 
     private var repetitionsBinding: Binding<Int> {
-        Binding(get: { item.targetRepetitions ?? item.definition.defaultRepetitions ?? 8 }, set: { item.targetRepetitions = $0; save() })
+        Binding(
+            get: { item.targetRepetitions ?? item.definition.defaultRepetitions ?? 8 },
+            set: {
+                item.targetRepetitions = $0
+                save()
+                saveMetricEvidence()
+            }
+        )
     }
 
     private func save() { _ = modelContext.saveOrRollback() }
+
+    private func optionalStepper(
+        _ title: LocalizedStringKey,
+        value: Binding<Int?>,
+        range: ClosedRange<Int>
+    ) -> some View {
+        HStack {
+            Toggle(title, isOn: Binding(
+                get: { value.wrappedValue != nil },
+                set: { enabled in value.wrappedValue = enabled ? range.lowerBound : nil }
+            ))
+            if value.wrappedValue != nil {
+                Stepper(
+                    "\(value.wrappedValue ?? range.lowerBound)",
+                    value: Binding(
+                        get: { value.wrappedValue ?? range.lowerBound },
+                        set: { value.wrappedValue = $0 }
+                    ),
+                    in: range
+                )
+                .labelsHidden()
+            }
+        }
+    }
+
+    private func saveEvidence() {
+        guard isLoadingEvidence == false else { return }
+        _ = MobilityEvidenceService.upsertPrescription(
+            for: item.id,
+            method: method,
+            purpose: trainingPurpose,
+            breathingPrescription: MobilityBreathingPrescription(
+                targetBreaths: breathingTarget,
+                inhaleSeconds: inhaleSeconds,
+                exhaleSeconds: exhaleSeconds,
+                instructionKey: nil
+            ),
+            tempoPrescription: MobilityTempoPrescription(
+                moveIntoRangeSeconds: tempoIntoSeconds,
+                holdSeconds: tempoHoldSeconds,
+                returnSeconds: tempoReturnSeconds,
+                pauseSeconds: tempoPauseSeconds
+            ),
+            assistancePrescription: assistanceType.map {
+                MobilityAssistancePrescription(
+                    assistanceTypeRaw: $0.rawValue,
+                    level: assistanceLevel,
+                    equipmentRaw: assistanceEquipment.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                )
+            },
+            supportLevel: supportLevel,
+            using: modelContext
+        )
+        saveMetricEvidence()
+    }
+
+    private func completionSelection(for profile: MobilityMetricProfile?) -> String {
+        guard let profile else { return "legacy" }
+        switch profile.defaultCompletionRule {
+        case .prescribedTargets:
+            return "prescribed"
+        case .all(let metrics) where metrics == [.breathingCycles]:
+            return "breathing"
+        default:
+            return "legacy"
+        }
+    }
+
+    private func saveMetricEvidence() {
+        guard isLoadingEvidence == false else { return }
+        let baseMetric: MobilityMetric = item.definition.trackingType == .duration
+            ? .duration : .repetitions
+        var supported: Set<MobilityMetric> = [baseMetric]
+        if item.targetLoadValue != nil { supported.insert(.load) }
+        if breathingTarget != nil { supported.insert(.breathingCycles) }
+
+        let profile: MobilityMetricProfile?
+        switch completionRuleSelection {
+        case "prescribed":
+            profile = MobilityMetricProfile(
+                supportedMetrics: supported,
+                defaultCompletionRule: .prescribedTargets,
+                primaryProgressMetric: baseMetric
+            )
+        case "breathing" where breathingTarget != nil:
+            profile = MobilityMetricProfile(
+                supportedMetrics: supported,
+                defaultCompletionRule: .all([.breathingCycles]),
+                primaryProgressMetric: .breathingCycles
+            )
+        default:
+            profile = nil
+        }
+        let targets = MobilityMetricTargets(
+            durationSeconds: item.definition.trackingType == .duration
+                ? (item.targetDurationSeconds ?? item.definition.defaultDurationSeconds)
+                    .map(MobilityIntTarget.exact)
+                : nil,
+            repetitions: item.definition.trackingType == .repetitions
+                ? (item.targetRepetitions ?? item.definition.defaultRepetitions)
+                    .map(MobilityIntTarget.exact)
+                : nil,
+            load: item.targetLoadValue.map(MobilityDoubleTarget.exact),
+            breathingCycles: breathingTarget.map(MobilityIntTarget.exact)
+        )
+        _ = MobilityEvidenceService.upsertMetricPrescription(
+            for: item.id,
+            profile: profile,
+            targets: profile == nil ? nil : targets,
+            using: modelContext
+        )
+    }
+}
+
+/// Shared authoring control for a `MobilityRestPrescription`: a toggle for
+/// "use the default rest" versus an explicit scope + directive. Used by both
+/// the block row and the item row so scoped rest is authored identically in
+/// either place.
+private struct RestPrescriptionEditor: View {
+    let title: LocalizedStringKey
+    @Binding var hasCustomRest: Bool
+    @Binding var scope: MobilityRestScope
+    @Binding var directiveKind: MobilityRestDirectiveKind
+    @Binding var seconds: Int
+    @Binding var minimumSeconds: Int
+    @Binding var maximumSeconds: Int
+
+    var body: some View {
+        Toggle(title, isOn: $hasCustomRest)
+        if hasCustomRest {
+            Picker("Rest applies", selection: $scope) {
+                ForEach(MobilityRestScope.allCases, id: \.self) { scope in
+                    Text(scope.displayName).tag(scope)
+                }
+            }
+            Picker("Rest type", selection: $directiveKind) {
+                ForEach(MobilityRestDirectiveKind.allCases, id: \.self) { kind in
+                    Text(kind.displayName).tag(kind)
+                }
+            }
+            switch directiveKind {
+            case .none, .userControlled, .breatheUntilReady:
+                EmptyView()
+            case .exact:
+                Stepper("Rest: \(seconds) sec", value: $seconds, in: 1...600, step: 5)
+            case .range:
+                Stepper("Minimum: \(minimumSeconds) sec", value: $minimumSeconds, in: 1...600, step: 5)
+                Stepper("Maximum: \(maximumSeconds) sec", value: $maximumSeconds, in: max(minimumSeconds, 1)...600, step: 5)
+            }
+        }
+    }
+}
+
+/// A UI-only mirror of `MobilityRestDirective`'s cases without its
+/// associated values, so a `Picker` can select a kind before the seconds
+/// steppers for that kind exist.
+private enum MobilityRestDirectiveKind: String, CaseIterable, Hashable {
+    case none
+    case exact
+    case range
+    case userControlled
+    case breatheUntilReady
+
+    var displayName: String {
+        switch self {
+        case .none: String(localized: "No rest")
+        case .exact: String(localized: "Exact")
+        case .range: String(localized: "Rest range")
+        case .userControlled: String(localized: "User controlled")
+        case .breatheUntilReady: String(localized: "Breathe until ready")
+        }
+    }
+
+    func directive(seconds: Int, minimum: Int, maximum: Int) -> MobilityRestDirective {
+        switch self {
+        case .none: .none
+        case .exact: .exact(seconds: max(1, seconds))
+        case .range: .range(minimum: max(1, minimum), maximum: max(max(1, minimum), maximum))
+        case .userControlled: .userControlled
+        case .breatheUntilReady: .breatheUntilReady
+        }
+    }
+}
+
+private extension MobilityRestDirective {
+    /// `(kind, exactSeconds, rangeMinimum, rangeMaximum)`. Unused seconds
+    /// fields keep the editor's last-shown value rather than resetting to a
+    /// default, matching the other optional-stepper controls in this file.
+    var editorValues: (kind: MobilityRestDirectiveKind, seconds: Int, minimum: Int, maximum: Int) {
+        switch self {
+        case .none: (.none, 30, 20, 40)
+        case .exact(let seconds): (.exact, seconds, 20, 40)
+        case .range(let minimum, let maximum): (.range, 30, minimum, maximum)
+        case .userControlled: (.userControlled, 30, 20, 40)
+        case .breatheUntilReady: (.breatheUntilReady, 30, 20, 40)
+        }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

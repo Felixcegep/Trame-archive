@@ -35,6 +35,10 @@ struct ExerciseFormView: View {
     @State private var repCountingStyle: RepCountingStyle
     @State private var weightEntryStyle: WeightEntryStyle
     @State private var loadUnitCount: Int
+    @State private var sportDiscipline: SportDiscipline?
+    @State private var strongmanImplementKind: StrongmanImplementKind?
+    @State private var strongmanLoadConvention: LoadConvention?
+    @State private var strongmanEventFamily: StrongmanEventFamily?
 
     init(exercise: Exercise? = nil, onSave: @escaping (Exercise) -> Void) {
         self.exercise = exercise
@@ -61,6 +65,10 @@ struct ExerciseFormView: View {
         _repCountingStyle = State(initialValue: exercise?.repCountingStyle ?? .total)
         _weightEntryStyle = State(initialValue: exercise?.weightEntryStyle ?? .totalLoad)
         _loadUnitCount = State(initialValue: exercise?.loadUnitCount ?? 1)
+        _sportDiscipline = State(initialValue: exercise?.sportDiscipline)
+        _strongmanImplementKind = State(initialValue: exercise?.strongmanImplementProfile?.kind)
+        _strongmanLoadConvention = State(initialValue: exercise?.strongmanImplementProfile?.loadConvention)
+        _strongmanEventFamily = State(initialValue: exercise?.strongmanEventFamily)
     }
 
     var body: some View {
@@ -121,7 +129,11 @@ struct ExerciseFormView: View {
                         weightEntryStyle: $weightEntryStyle,
                         loadUnitCount: $loadUnitCount,
                         isPlateLoaded: $isPlateLoaded,
-                        tagsText: $tagsText
+                        tagsText: $tagsText,
+                        sportDiscipline: $sportDiscipline,
+                        strongmanImplementKind: $strongmanImplementKind,
+                        strongmanLoadConvention: $strongmanLoadConvention,
+                        strongmanEventFamily: $strongmanEventFamily
                     )
                 } label: {
                     drillDownRow(
@@ -203,10 +215,13 @@ struct ExerciseFormView: View {
             exercise.repCountingStyle = repCountingStyle
             exercise.weightEntryStyle = weightEntryStyle
             exercise.loadUnitCount = loadUnitCount
+            exercise.sportDiscipline = sportDiscipline
+            exercise.strongmanEventFamily = sportDiscipline == .strongman ? strongmanEventFamily : nil
+            exercise.strongmanImplementProfile = savedStrongmanImplementProfile
             return exercise
         }
 
-        return Exercise(
+        let newExercise = Exercise(
             name: trimmedName,
             primaryMuscles: selectedPrimaryMuscles,
             secondaryMuscles: selectedSecondaryMuscles,
@@ -230,6 +245,18 @@ struct ExerciseFormView: View {
             weightEntryStyle: weightEntryStyle,
             loadUnitCount: loadUnitCount
         )
+        newExercise.sportDiscipline = sportDiscipline
+        newExercise.strongmanEventFamily = sportDiscipline == .strongman ? strongmanEventFamily : nil
+        newExercise.strongmanImplementProfile = savedStrongmanImplementProfile
+        return newExercise
+    }
+
+    /// `nil` unless the discipline is strongman and an implement was chosen —
+    /// progressive disclosure means the convention/family pickers underneath
+    /// it are never even reachable otherwise, so there is nothing to encode.
+    private var savedStrongmanImplementProfile: StrongmanImplementProfile? {
+        guard sportDiscipline == .strongman, let strongmanImplementKind else { return nil }
+        return StrongmanImplementProfile(kind: strongmanImplementKind, loadConvention: strongmanLoadConvention)
     }
 
     private var normalizedVariationFamilyID: String? {

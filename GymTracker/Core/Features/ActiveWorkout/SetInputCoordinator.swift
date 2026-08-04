@@ -165,17 +165,24 @@ final class SetInputCoordinator {
         for type: TrackingType
     ) -> SetInputFocus.Field {
         let fields = inputFields(for: type)
-        let blocking = fields.first { isRequiredForCompletion($0) && !hasEnteredValue($0, in: set) }
+        let validation = WorkoutSetCompletionValidator.validate(.init(set: set, trackingType: type))
+        let blocking = validation.firstInvalidReason.flatMap { field(for: $0.metric) }
         return blocking
             ?? fields.first { !hasEnteredValue($0, in: set) }
             ?? fields.first
             ?? .repetitions
     }
 
-    /// Mirrors `ActiveWorkoutMutationService.canComplete`: load is never
-    /// required, because a bodyweight set legitimately carries no added weight.
-    private static func isRequiredForCompletion(_ field: SetInputFocus.Field) -> Bool {
-        field != .weight
+    private static func field(for metric: TrackingMetric) -> SetInputFocus.Field? {
+        switch metric {
+        case .repetitions: .repetitions
+        case .load: .weight
+        case .duration: .duration
+        case .distance: .distance
+        case .calories: .calories
+        case .meanVelocity, .peakVelocity, .jumpHeight, .contactTime,
+                .throwDistance, .cadence: nil
+        }
     }
 
     private static func hasEnteredValue(

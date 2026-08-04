@@ -10,12 +10,20 @@ enum ProgramDefinitionRepository {
         in context: ModelContext
     ) throws -> ProgramDefinitionRecord {
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
+        let exercisesByID = Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
         let trackingIssues = TrackingProfileValidator.validate(
             payload: payload,
-            exercisesByID: Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
+            exercisesByID: exercisesByID
         )
         guard trackingIssues.isEmpty else {
             throw ProgramDefinitionStoreError.invalid(trackingIssues.map(\.asProgramValidationIssue))
+        }
+        let metricIssues = ProgramMetricCompletionValidator.validate(
+            payload: payload,
+            exercisesByID: exercisesByID
+        )
+        guard metricIssues.isEmpty else {
+            throw ProgramDefinitionStoreError.invalid(metricIssues)
         }
 
         let record = try ProgramDefinitionRecord(payload: payload, isBuiltIn: isBuiltIn)

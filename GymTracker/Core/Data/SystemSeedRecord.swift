@@ -9,6 +9,7 @@ enum SystemSeedEntityKind: String, Codable, CaseIterable {
     case workoutPlan
     case repeatingPlan
     case programDefinition
+    case mobilityProgramDefinition
     case mobilityFamily
     case mobilityDefinition
     case mobilityRoutine

@@ -11,6 +11,12 @@ struct ExerciseSessionSet: Equatable, Sendable {
     let setType: SetType
     let setMethod: SetMethod
     let hasSegments: Bool
+    /// Whether `SportAnalyticsPolicyResolver` allows this specific set to
+    /// feed the Epley e1RM estimate. Defaults to `true`, matching every
+    /// pre-existing session (which always resolves to
+    /// `StandardStrengthAnalyticsPolicy`, itself unconditionally `true` for a
+    /// set with no Olympic complex components).
+    let contributesToE1RM: Bool
 
     init(
         orderIndex: Int,
@@ -19,7 +25,8 @@ struct ExerciseSessionSet: Equatable, Sendable {
         weightType: WeightType,
         setType: SetType,
         setMethod: SetMethod = .standard,
-        hasSegments: Bool = false
+        hasSegments: Bool = false,
+        contributesToE1RM: Bool = true
     ) {
         self.orderIndex = orderIndex
         self.repetitions = repetitions
@@ -28,6 +35,7 @@ struct ExerciseSessionSet: Equatable, Sendable {
         self.setType = setType
         self.setMethod = setMethod
         self.hasSegments = hasSegments
+        self.contributesToE1RM = contributesToE1RM
     }
 }
 
@@ -205,44 +213,47 @@ struct ExerciseDetailAnalyticsService {
 
     /// Chronological (oldest first) sessions so the latest is always `.last`.
     private func sessions(from workouts: [Workout], for exercise: Exercise) -> [ExerciseSession] {
-        workouts.compactMap { workout -> ExerciseSession? in
-            guard let entry = HistoricalExerciseIdentityPolicy.entry(
+        workouts.flatMap { workout in
+            HistoricalExerciseIdentityPolicy.entries(
                 for: exercise,
                 in: workout
-            ) else { return nil }
-
-            let sets = entry.orderedSets
-                .filter(\.done)
-                .map {
-                    ExerciseSessionSet(
-                        orderIndex: $0.orderIndex,
-                        repetitions: $0.repetitions,
-                        weight: $0.weight,
-                        weightType: $0.weightType,
-                        setType: $0.setType,
-                        setMethod: $0.resolvedSetMethod,
-                        hasSegments: !$0.segments.isEmpty
-                    )
-                }
-            guard !sets.isEmpty else { return nil }
-            return ExerciseSession(
-                workoutID: workout.id,
-                workoutDate: workout.startTime,
-                sets: sets,
-                semantics: entry.loggingSemanticsSnapshot
-            )
+            ).compactMap { entry -> ExerciseSession? in
+                let policy = SportAnalyticsPolicyResolver.policy(for: entry)
+                let sets = entry.orderedSets
+                    .filter(\.done)
+                    .map {
+                        ExerciseSessionSet(
+                            orderIndex: $0.orderIndex,
+                            repetitions: $0.repetitions,
+                            weight: $0.weight,
+                            weightType: $0.weightType,
+                            setType: $0.setType,
+                            setMethod: $0.resolvedSetMethod,
+                            hasSegments: !$0.segments.isEmpty,
+                            contributesToE1RM: policy.contributesToE1RM(set: $0, entry: entry)
+                        )
+                    }
+                guard !sets.isEmpty else { return nil }
+                return ExerciseSession(
+                    workoutID: workout.id,
+                    workoutDate: workout.startTime,
+                    sets: sets,
+                    semantics: entry.loggingSemanticsSnapshot
+                )
+            }
         }
     }
 
     private func notes(from workouts: [Workout], for exercise: Exercise) -> [ExerciseNote] {
-        workouts.compactMap { workout -> ExerciseNote? in
-            guard let entry = HistoricalExerciseIdentityPolicy.entry(
+        workouts.flatMap { workout in
+            HistoricalExerciseIdentityPolicy.entries(
                 for: exercise,
                 in: workout
-            ) else { return nil }
-            let text = entry.comment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            guard !text.isEmpty else { return nil }
-            return ExerciseNote(workoutDate: workout.startTime, text: text)
+            ).compactMap { entry -> ExerciseNote? in
+                let text = entry.comment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                guard !text.isEmpty else { return nil }
+                return ExerciseNote(workoutDate: workout.startTime, text: text)
+            }
         }
     }
 
@@ -382,7 +393,7 @@ struct ExerciseDetailAnalyticsService {
     /// documented rule rather than switching formulas per exercise or rep count.
     private func estimatedOneRepMax(in sessions: [ExerciseSession], unit: WeightType) -> OneRepMaxEstimate? {
         workingSets(in: sessions)
-            .filter { $0.set.repetitions > 0 && $0.set.weight > 0 }
+            .filter { $0.set.repetitions > 0 && $0.set.weight > 0 && $0.set.contributesToE1RM }
             .map { entry -> OneRepMaxEstimate in
                 let convertedWeight = UnitConversion.weight(entry.set.weight, from: entry.set.weightType, to: unit)
                 let estimated = convertedWeight * (1 + entry.set.repetitions / 30)

@@ -87,7 +87,9 @@ enum PlanProgressionEvaluationService {
                     metrics[.amrapRepetitions] = Double(amrap.repetitions)
                 }
                 metrics[.duration] = completedSets.compactMap(\.duration).reduce(0, +)
-                metrics[.distance] = completedSets.compactMap { $0.distance.map(Double.init) }.reduce(0, +)
+                metrics[.distance] = completedSets
+                    .compactMap { WorkoutDistancePolicy.meters(of: $0).map(Double.init) }
+                    .reduce(0, +)
                 metrics[.calories] = completedSets.compactMap(\.calories).reduce(0, +)
                 if let rpe = completedSets.compactMap(\.rpe).average { metrics[.rpe] = rpe }
                 if let rir = completedSets.compactMap(\.rir).map(Double.init).average { metrics[.rir] = rir }
@@ -326,6 +328,9 @@ enum PlanProgressionEvaluationService {
         let qualitySets = completedSets.compactMap(\.liftQuality)
         let successfulAttemptRatio = qualitySets.isEmpty ? nil : Double(qualitySets.filter { $0 == .excellent || $0 == .acceptable }.count) / Double(qualitySets.count)
         let missedAttempt = qualitySets.contains(.missed)
+        let consecutiveMissedAttempts = completedSets.reversed().prefix {
+            $0.olympicAttemptOutcome == .missed
+        }.count
         let completedRequiredSets = completedSets.filter { $0.isPrescribedOptional != true }
         let requiredCompleted = completedRequiredSets.count >= requiredSets
         let amrapRepetitions = completedSets.last(where: { $0.prescribedSetType == .amrap }).map { Int($0.repetitions) }
@@ -345,6 +350,7 @@ enum PlanProgressionEvaluationService {
             targetRIR: entry.prescribedRIR,
             actualRIR: actualRIR,
             successfulAttemptRatio: successfulAttemptRatio,
+            consecutiveMissedAttempts: consecutiveMissedAttempts,
             technicalQualityReached: !qualitySets.isEmpty && qualitySets.allSatisfy { $0 == .excellent || $0 == .acceptable },
             workoutCompleted: entry.workout?.status == .completed,
             weekCompleted: weekCompleted,
