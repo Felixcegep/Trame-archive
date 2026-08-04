@@ -1,6 +1,21 @@
 import Foundation
 import SwiftData
 
+public enum PersistenceOutcome: Sendable {
+    case saved
+    case failed(Error)
+
+    public var didSave: Bool {
+        if case .saved = self { return true }
+        return false
+    }
+
+    public var error: Error? {
+        if case let .failed(error) = self { return error }
+        return nil
+    }
+}
+
 extension ModelContext {
     /// Keeps a failed persistence operation from leaving deleted or edited
     /// models registered in this context for a later unrelated save. Callers
@@ -15,6 +30,20 @@ extension ModelContext {
             rollback()
             print("Failed to save SwiftData changes: \(error)")
             return false
+        }
+    }
+
+    /// Saves, or rolls back and returns the error rather than discarding it.
+    /// Prefer this over `saveOrRollback()` anywhere the failure is visible to
+    /// the user or needs to reach diagnostics.
+    func saveOrRollbackReportingFailure() -> PersistenceOutcome {
+        do {
+            try save()
+            return .saved
+        } catch {
+            rollback()
+            print("Failed to save SwiftData changes: \(error)")
+            return .failed(error)
         }
     }
 

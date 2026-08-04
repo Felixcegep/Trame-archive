@@ -468,7 +468,7 @@ struct RootView: View {
             selectedTab = .today
             todayPath.removeAll()
         case .activeWorkout(let workoutID):
-            guard workoutVM.restoreActiveWorkout(using: modelContext),
+            guard workoutVM.restoreActiveWorkout(using: modelContext).didSave,
                   workoutVM.activeWorkout?.id == workoutID
             else {
                 selectedTab = .today
@@ -510,7 +510,7 @@ struct RootView: View {
                 using: modelContext,
                 unitSystem: UserDefaults.standard.unitSystem
             )
-            guard workoutVM.restoreActiveWorkout(using: modelContext) else { return false }
+            guard workoutVM.restoreActiveWorkout(using: modelContext).didSave else { return false }
             isShowingPersonalizedWorkoutBuilder = false
             activeWorkoutPath.removeAll()
             isShowingActiveWorkout = true
@@ -1413,7 +1413,7 @@ struct RootView: View {
     }
 
     private func undoRepeatingPlanAdvancement(_ run: RepeatingPlanRun) {
-        guard !workoutVM.hasActiveWorkout, !workoutVM.restoreActiveWorkout(using: modelContext) else {
+        guard !workoutVM.hasActiveWorkout, !workoutVM.restoreActiveWorkout(using: modelContext).didSave else {
             guidedSourceActionError = "Finish or discard the active workout before undoing a rotation change."
             return
         }

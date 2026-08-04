@@ -21,7 +21,7 @@ enum WorkoutIntentService {
 
     static func startFree(using modelContext: ModelContext) -> StartWorkoutResult {
         let workoutViewModel = WorkoutViewModel()
-        if workoutViewModel.restoreActiveWorkout(using: modelContext),
+        if workoutViewModel.restoreActiveWorkout(using: modelContext).didSave,
            let workout = workoutViewModel.activeWorkout {
             return .resumed(workout)
         }
@@ -39,7 +39,7 @@ enum WorkoutIntentService {
         calendar: Calendar = .current
     ) -> Workout? {
         let workoutViewModel = WorkoutViewModel()
-        if workoutViewModel.restoreActiveWorkout(using: modelContext) {
+        if workoutViewModel.restoreActiveWorkout(using: modelContext).didSave {
             return workoutViewModel.activeWorkout
         }
 

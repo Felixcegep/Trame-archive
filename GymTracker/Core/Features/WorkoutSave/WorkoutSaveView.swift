@@ -457,9 +457,14 @@ struct WorkoutSaveView: View {
         }
         let workoutID = workout.id
         let wasPartial = workout.incompleteSetCount > 0
-        guard workoutVM.saveWorkout(using: modelContext) else {
+        let outcome = workoutVM.saveWorkout(using: modelContext)
+        guard outcome.didSave else {
             saveFailedCount += 1
-            saveErrorMessage = String(localized: "Your workout could not be saved and is still open, with every logged set intact. Try saving again.")
+            if let error = outcome.error {
+                saveErrorMessage = String(localized: "Your workout could not be saved (\(error.localizedDescription)) and is still open, with every logged set intact. Try saving again.")
+            } else {
+                saveErrorMessage = String(localized: "Your workout could not be saved and is still open, with every logged set intact. Try saving again.")
+            }
             return
         }
 

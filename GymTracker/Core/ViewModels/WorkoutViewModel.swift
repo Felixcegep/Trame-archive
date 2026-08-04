@@ -35,11 +35,11 @@ class WorkoutViewModel {
     /// that signature.
     private(set) var lastSavedSummary: CompletedWorkoutSummary?
 
-    func saveWorkout(using modelContext: ModelContext) -> Bool {
+    func saveWorkout(using modelContext: ModelContext) -> PersistenceOutcome {
         lastSavedSummary = nil
 
         guard let activeWorkout else {
-            return false
+            return .failed(NSError(domain: "GymTracker", code: 404, userInfo: [NSLocalizedDescriptionKey: String(localized: "No active workout found.")]))
         }
 
         // Pruning and finalization live in one described step so what a save
@@ -49,7 +49,7 @@ class WorkoutViewModel {
             activeWorkout,
             using: modelContext
         ) else {
-            return false
+            return .failed(NSError(domain: "GymTracker", code: 400, userInfo: [NSLocalizedDescriptionKey: String(localized: "Workout has no completed sets.")]))
         }
 
         completePlannedWorkoutIfNeeded(activeWorkout, using: modelContext)
@@ -57,13 +57,14 @@ class WorkoutViewModel {
             try completeRepeatingPlanOccurrenceIfNeeded(activeWorkout, using: modelContext)
         } catch {
             modelContext.rollback()
-            return false
+            return .failed(error)
         }
-        if modelContext.saveOrRollback() == false {
+        let outcome = modelContext.saveOrRollbackReportingFailure()
+        if outcome.didSave == false {
             // The active workout remains recoverable after a persistence failure.
             // SwiftData's rollback also undoes planned-run advancement and child
             // pruning performed above.
-            return false
+            return outcome
         }
 
         self.activeWorkout = nil
@@ -74,7 +75,7 @@ class WorkoutViewModel {
         Task {
             await LiveActivityManager.shared.end()
         }
-        return true
+        return .saved
     }
 
     func discardActiveWorkout(using modelContext: ModelContext) {
@@ -106,20 +107,20 @@ class WorkoutViewModel {
 
     @discardableResult
     func startWorkout(using modelContext: ModelContext) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext) else { return false }
+        guard !restoreActiveWorkout(using: modelContext).didSave else { return false }
 
         let newWorkout = Workout(name : nil)
-        return persistAndActivate(newWorkout, using: modelContext)
+        return persistAndActivate(newWorkout, using: modelContext).didSave
     }
 
     @discardableResult
     func startWorkout(with template: WorkoutTemplate, using modelContext: ModelContext) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext) else { return false }
+        guard !restoreActiveWorkout(using: modelContext).didSave else { return false }
 
         let newWorkout = Workout(template: template, unitSystem: unitSystem)
         ProgressionSnapshotService(modelContext: modelContext)
             .applyRecommendations(to: newWorkout, from: template)
-        return persistAndActivate(newWorkout, using: modelContext)
+        return persistAndActivate(newWorkout, using: modelContext).didSave
     }
 
     @discardableResult
@@ -140,7 +141,7 @@ class WorkoutViewModel {
         command: RepeatingPlanWorkoutStartCommand,
         using modelContext: ModelContext
     ) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext) else { return false }
+        guard !restoreActiveWorkout(using: modelContext).didSave else { return false }
 
         do {
             let staged = try RepeatingPlanCoordinator.start(
@@ -192,21 +193,17 @@ class WorkoutViewModel {
 
     @discardableResult
     func startWorkout(
-        from plannedWorkout: PlannedWorkout,
-        progress: PlanWorkoutProgress,
+        for plannedWorkout: PlannedWorkout,
         in planRun: PlanRun,
+        progress: PlanWorkoutProgress,
         using modelContext: ModelContext
     ) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext) else { return false }
+        guard !restoreActiveWorkout(using: modelContext).didSave else { return false }
         _ = PlanProgressionTransitionService.applyDuePendingTransitions(in: planRun)
         guard planRun.status == .active else { return false }
         guard progress.status == .available || progress.status == .upcoming else { return false }
 
         let newWorkout = Workout(plannedWorkout: plannedWorkout, planRun: planRun, unitSystem: unitSystem)
-        // Universal program prescriptions (waves, formulas, reference loads,
-        // conditioning targets, and role metadata) must be resolved before
-        // the workout is persisted. The resulting values are immutable
-        // snapshot evidence; later plan edits cannot reinterpret this session.
         for plannedExercise in plannedWorkout.orderedPlannedExercises {
             guard let entry = newWorkout.orderedExercises.first(where: {
                 $0.sourcePlannedExerciseID == plannedExercise.id
@@ -217,8 +214,6 @@ class WorkoutViewModel {
                 run: planRun,
                 unitSystem: unitSystem
             )
-            // Apply phase-level deload reductions after universal resolution so
-            // the deload remains the final future-only prescription snapshot.
             PlanDeloadService.apply(to: entry, for: plannedWorkout.week?.block)
         }
         ProgressionSnapshotService(modelContext: modelContext)
@@ -227,7 +222,7 @@ class WorkoutViewModel {
         progress.startedAt = .now
         planRun.updatedAt = .now
 
-        guard persistAndActivate(newWorkout, using: modelContext) else {
+        guard persistAndActivate(newWorkout, using: modelContext).didSave else {
             PlanCoordinator.restoreAvailability(progress, in: planRun)
             return false
         }
@@ -236,7 +231,7 @@ class WorkoutViewModel {
     }
 
     @discardableResult
-    func restoreActiveWorkout(using modelContext: ModelContext) -> Bool {
+    func restoreActiveWorkout(using modelContext: ModelContext) -> PersistenceOutcome {
         do {
             let workouts = try modelContext.fetch(FetchDescriptor<Workout>())
             let activeWorkouts = workouts
@@ -248,39 +243,20 @@ class WorkoutViewModel {
             }) else {
                 self.activeWorkout = nil
                 Task { await LiveActivityManager.shared.endOrphanedActivities() }
-                return false
+                return .saved
             }
 
             self.activeWorkout = activeWorkout
             reconcileLiveActivity()
-            return true
+            return .saved
         } catch {
             print("Failed to restore active workout: \(error)")
-            return false
+            return .failed(error)
         }
     }
 
-    /// Reconciles a mutation committed through a possibly different
-    /// `ModelContext` — an App Intent or Live Activity button executes
-    /// in-process but constructs its own context — into this view model's
-    /// own context-bound state. There is a single root-owned subscriber to
-    /// `.activeWorkoutMutated`, so this should only ever be called from
-    /// there, never from individual rows or sheets.
     @discardableResult
     func handleExternalWorkoutChange(workoutID: UUID, using modelContext: ModelContext) -> Bool {
-        // `modelContext` already has this workout's graph registered from an
-        // earlier fetch (e.g. `restoreActiveWorkout`), and re-fetching on the
-        // same context returns that same cached instance unchanged —
-        // SwiftData has no cross-context merge notification, so a plain
-        // `rollback()` + refetch does not pick up another context's commit
-        // either (verified empirically; there is no public refresh API).
-        // A throwaway context on the same store always reads the true
-        // committed state. Copying just the fields
-        // `ActiveWorkoutMutationService` can change onto the already-bound
-        // objects — rather than swapping `activeWorkout` to belong to this
-        // throwaway context — keeps every other in-app binding and save path
-        // working against the same context and object identity they always
-        // have.
         let freshContext = ModelContext(modelContext.container)
         guard let freshWorkout = (try? freshContext.fetch(FetchDescriptor<Workout>()))?
             .first(where: { $0.id == workoutID && $0.status == .active })
@@ -293,9 +269,7 @@ class WorkoutViewModel {
         }
 
         guard let boundWorkout = activeWorkout, boundWorkout.id == workoutID else {
-            // No bound object for this id yet — e.g. the workout was started
-            // entirely elsewhere — so a normal restore is the correct path.
-            return restoreActiveWorkout(using: modelContext)
+            return restoreActiveWorkout(using: modelContext).didSave
         }
 
         boundWorkout.restEndDate = freshWorkout.restEndDate
@@ -322,14 +296,14 @@ class WorkoutViewModel {
         return true
     }
 
-    private func persistAndActivate(_ workout: Workout, using modelContext: ModelContext) -> Bool {
+    private func persistAndActivate(_ workout: Workout, using modelContext: ModelContext) -> PersistenceOutcome {
         modelContext.insert(workout)
-        if modelContext.saveOrRollback() {
+        let outcome = modelContext.saveOrRollbackReportingFailure()
+        if outcome.didSave {
             activeWorkout = workout
             reconcileLiveActivity()
-            return true
         }
-        return false
+        return outcome
     }
 
     func reconcileLiveActivity() {
