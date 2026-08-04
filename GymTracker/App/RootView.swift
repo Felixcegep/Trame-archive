@@ -440,7 +440,7 @@ struct RootView: View {
             selectedTab = .today
             todayPath.removeAll()
         case .activeWorkout(let workoutID):
-            guard workoutVM.restoreActiveWorkout(using: modelContext).didSave,
+            guard workoutVM.restoreActiveWorkout(using: modelContext),
                   workoutVM.activeWorkout?.id == workoutID
             else {
                 selectedTab = .today
@@ -481,7 +481,7 @@ struct RootView: View {
                 using: modelContext,
                 unitSystem: UserDefaults.standard.unitSystem
             )
-            guard workoutVM.restoreActiveWorkout(using: modelContext).didSave else { return false }
+            guard workoutVM.restoreActiveWorkout(using: modelContext) else { return false }
             isShowingPersonalizedWorkoutBuilder = false
             activeSessionRouter.showActiveWorkout()
             return true

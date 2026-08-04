@@ -107,7 +107,7 @@ class WorkoutViewModel {
 
     @discardableResult
     func startWorkout(using modelContext: ModelContext) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext).didSave else { return false }
+        guard !restoreActiveWorkout(using: modelContext) else { return false }
 
         let newWorkout = Workout(name : nil)
         return persistAndActivate(newWorkout, using: modelContext).didSave
@@ -115,7 +115,7 @@ class WorkoutViewModel {
 
     @discardableResult
     func startWorkout(with template: WorkoutTemplate, using modelContext: ModelContext) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext).didSave else { return false }
+        guard !restoreActiveWorkout(using: modelContext) else { return false }
 
         let newWorkout = Workout(template: template, unitSystem: unitSystem)
         ProgressionSnapshotService(modelContext: modelContext)
@@ -141,7 +141,7 @@ class WorkoutViewModel {
         command: RepeatingPlanWorkoutStartCommand,
         using modelContext: ModelContext
     ) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext).didSave else { return false }
+        guard !restoreActiveWorkout(using: modelContext) else { return false }
 
         do {
             let staged = try RepeatingPlanCoordinator.start(
@@ -198,7 +198,7 @@ class WorkoutViewModel {
         progress: PlanWorkoutProgress,
         using modelContext: ModelContext
     ) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext).didSave else { return false }
+        guard !restoreActiveWorkout(using: modelContext) else { return false }
         _ = PlanProgressionTransitionService.applyDuePendingTransitions(in: planRun)
         guard planRun.status == .active else { return false }
         guard progress.status == .available || progress.status == .upcoming else { return false }
@@ -230,8 +230,19 @@ class WorkoutViewModel {
         return true
     }
 
+    /// Binds the persisted active workout, if there is one.
+    ///
+    /// - Returns: `true` only when a restorable active workout was found and is
+    ///   now bound to `activeWorkout`. `false` means there was nothing to
+    ///   restore, or the read failed.
+    ///
+    /// This deliberately does **not** return `PersistenceOutcome`. The method
+    /// performs a fetch and never calls `save()`, so "did the save succeed" is
+    /// not a question it can answer — and answering it anyway inverted every
+    /// caller's guard, because a store with no active workout still counted as
+    /// a successful persistence operation.
     @discardableResult
-    func restoreActiveWorkout(using modelContext: ModelContext) -> PersistenceOutcome {
+    func restoreActiveWorkout(using modelContext: ModelContext) -> Bool {
         do {
             let workouts = try modelContext.fetch(FetchDescriptor<Workout>())
             let activeWorkouts = workouts
@@ -243,15 +254,15 @@ class WorkoutViewModel {
             }) else {
                 self.activeWorkout = nil
                 Task { await LiveActivityManager.shared.endOrphanedActivities() }
-                return .saved
+                return true
             }
 
             self.activeWorkout = activeWorkout
             reconcileLiveActivity()
-            return .saved
+            return true
         } catch {
             print("Failed to restore active workout: \(error)")
-            return .failed(error)
+            return false
         }
     }
 
@@ -269,7 +280,7 @@ class WorkoutViewModel {
         }
 
         guard let boundWorkout = activeWorkout, boundWorkout.id == workoutID else {
-            return restoreActiveWorkout(using: modelContext).didSave
+            return restoreActiveWorkout(using: modelContext)
         }
 
         boundWorkout.restEndDate = freshWorkout.restEndDate

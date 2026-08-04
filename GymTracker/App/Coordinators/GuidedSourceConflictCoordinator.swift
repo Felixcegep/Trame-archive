@@ -69,7 +69,7 @@ final class GuidedSourceConflictCoordinator {
     }
 
     func undoRepeatingPlanAdvancement(_ run: RepeatingPlanRun, workoutVM: WorkoutViewModel, using modelContext: ModelContext) {
-        guard !workoutVM.hasActiveWorkout, !workoutVM.restoreActiveWorkout(using: modelContext).didSave else {
+        guard !workoutVM.hasActiveWorkout, !workoutVM.restoreActiveWorkout(using: modelContext) else {
             guidedSourceActionError = "Finish or discard the active workout before undoing a rotation change."
             return
         }
