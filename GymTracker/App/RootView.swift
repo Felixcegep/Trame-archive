@@ -30,22 +30,12 @@ struct RootView: View {
     @State private var trainNavigationID = UUID()
     @State private var nutritionPath: [NutritionRoute] = []
     @State private var progressPath: [ProgressRoute] = []
-    @State private var activeWorkoutPath: [ActiveWorkoutRoute] = []
-    @State private var isShowingActiveWorkout = false
-    @State private var activeMobilitySession: MobilitySession?
-    /// The assessment flow is presented from the root, like the active workout
-    /// and the active mobility session: the presenter owns dismissal, and the
-    /// flow only reports that it is finished.
-    @State private var activeAssessmentSession: MobilityAssessmentSession?
-    @State private var shouldDiscardActiveWorkout = false
+    @State private var activeSessionRouter = ActiveSessionRouter()
     @State private var selectedTab: AppTab = .today
     @State private var requestedRescheduleProgressID: UUID?
-    @State private var pendingWorkoutStart: PendingWorkoutStart?
-    @State private var workoutPreparationRequest: WorkoutPreparationRequest?
     @State private var postWorkoutCoordinator = PostWorkoutRoutingCoordinator()
     @State private var mobilityLinkError: String?
     @State private var guidedSourceCoordinator = GuidedSourceConflictCoordinator()
-    @State private var isShowingActiveWorkoutConflictAlert = false
     /// Confirmations shown on Today. Owned here because the two events that
     /// raise them do not happen on Today: saving a workout dismisses its own
     /// screen, and a plan action can be taken from Train.
@@ -170,11 +160,11 @@ struct RootView: View {
         .fullScreenCover(isPresented: shouldShowWelcome) {
             OnboardingFlowView(onFinish: handleOnboardingOutcome)
         }
-        .fullScreenCover(isPresented: $isShowingActiveWorkout, onDismiss: {
-            activeWorkoutPath.removeAll()
-            if shouldDiscardActiveWorkout {
+        .fullScreenCover(isPresented: $activeSessionRouter.isShowingActiveWorkout, onDismiss: {
+            activeSessionRouter.activeWorkoutPath.removeAll()
+            if activeSessionRouter.shouldDiscardActiveWorkout {
                 workoutVM.discardActiveWorkout(using: modelContext)
-                shouldDiscardActiveWorkout = false
+                activeSessionRouter.shouldDiscardActiveWorkout = false
                 postWorkoutCoordinator.clearPendingAfterDiscard()
             } else {
                 postWorkoutCoordinator.processPostWorkoutDismissal(
@@ -183,10 +173,10 @@ struct RootView: View {
                 )
             }
         }) {
-            NavigationStack(path: $activeWorkoutPath) {
+            NavigationStack(path: $activeSessionRouter.activeWorkoutPath) {
                 ActiveWorkoutView(
                     workoutVM: workoutVM,
-                    navigationPath: $activeWorkoutPath,
+                    navigationPath: $activeSessionRouter.activeWorkoutPath,
                     modelContext: modelContext,
                     activeLoggingMetrics: activeLoggingMetrics,
                     onDiscardRequested: requestDiscardActiveWorkout
@@ -196,8 +186,8 @@ struct RootView: View {
                     case .saveWorkout:
                         WorkoutSaveView(
                             workoutVM: workoutVM,
-                            navigationPath: $activeWorkoutPath,
-                            isPresented: $isShowingActiveWorkout,
+                            navigationPath: $activeSessionRouter.activeWorkoutPath,
+                            isPresented: $activeSessionRouter.isShowingActiveWorkout,
                             activeLoggingMetrics: activeLoggingMetrics,
                             onWorkoutSaved: { workoutID in
                                 prepareCooldown(for: workoutID)
@@ -214,10 +204,10 @@ struct RootView: View {
                 }
             }
         }
-        .fullScreenCover(item: $activeMobilitySession) { session in
+        .fullScreenCover(item: $activeSessionRouter.activeMobilitySession) { session in
             NavigationStack {
                 MobilitySessionView(session: session) {
-                    activeMobilitySession = nil
+                    activeSessionRouter.activeMobilitySession = nil
                     // Closes the loop between this session ending and any
                     // `MobilityProgramSessionProgress` it was started for —
                     // cheap and a no-op whenever the session was not
@@ -227,10 +217,10 @@ struct RootView: View {
                 }
             }
         }
-        .fullScreenCover(item: $activeAssessmentSession) { session in
+        .fullScreenCover(item: $activeSessionRouter.activeAssessmentSession) { session in
             NavigationStack {
                 MobilityAssessmentFlowView(session: session) {
-                    activeAssessmentSession = nil
+                    activeSessionRouter.activeAssessmentSession = nil
                 }
             }
         }
@@ -248,26 +238,26 @@ struct RootView: View {
         }
         .confirmationDialog(
             "An active workout is already in progress",
-            isPresented: $isShowingActiveWorkoutConflictAlert,
+            isPresented: $activeSessionRouter.isShowingActiveWorkoutConflictAlert,
             titleVisibility: .visible
         ) {
             Button("Resume Active Workout") {
-                isShowingActiveWorkout = true
-                pendingWorkoutStart = nil
+                activeSessionRouter.isShowingActiveWorkout = true
+                activeSessionRouter.pendingWorkoutStart = nil
             }
             Button("Discard & Start New", role: .destructive) {
-                let pendingStart = pendingWorkoutStart
-                pendingWorkoutStart = nil
+                let pendingStart = activeSessionRouter.pendingWorkoutStart
+                activeSessionRouter.pendingWorkoutStart = nil
                 activeLoggingMetrics.workoutDiscarded()
                 workoutVM.discardActiveWorkout(using: modelContext)
                 if workoutVM.hasActiveWorkout {
-                    isShowingActiveWorkout = true
+                    activeSessionRouter.isShowingActiveWorkout = true
                 } else if let pendingStart {
                     requestWorkoutPreparation(for: pendingStart)
                 }
             }
             Button("Cancel", role: .cancel) {
-                pendingWorkoutStart = nil
+                activeSessionRouter.pendingWorkoutStart = nil
             }
         } message: {
             Text("Do you want to continue your active workout, or discard it and start a new one?")
@@ -288,29 +278,29 @@ struct RootView: View {
         // put the routine's length or size, so it asked for a decision while
         // withholding what the decision was about. See `WorkoutPreparationSheet`.
         .sheet(isPresented: Binding(
-            get: { workoutPreparationRequest != nil },
-            set: { if !$0 { workoutPreparationRequest = nil } }
+            get: { activeSessionRouter.workoutPreparationRequest != nil },
+            set: { if !$0 { activeSessionRouter.workoutPreparationRequest = nil } }
         )) {
-            if let request = workoutPreparationRequest {
+            if let request = activeSessionRouter.workoutPreparationRequest {
                 let activeSession = MobilitySessionService.activeSession(using: modelContext)
                 WorkoutPreparationSheet(
                     routine: request.warmupRoutine,
                     hasActiveMobilitySession: activeSession != nil,
                     onStart: {
-                        workoutPreparationRequest = nil
+                        activeSessionRouter.workoutPreparationRequest = nil
                         continueWorkoutStart(request)
                     },
                     onResumeActive: {
-                        workoutPreparationRequest = nil
-                        activeMobilitySession = activeSession
+                        activeSessionRouter.workoutPreparationRequest = nil
+                        activeSessionRouter.activeMobilitySession = activeSession
                     },
                     onSkip: {
-                        workoutPreparationRequest = nil
+                        activeSessionRouter.workoutPreparationRequest = nil
                         // Rebuilt without the warm-up so the start cannot pick
                         // the linked routine back up on its way through.
                         continueWorkoutStart(WorkoutPreparationRequest(start: request.start))
                     },
-                    onCancel: { workoutPreparationRequest = nil }
+                    onCancel: { activeSessionRouter.workoutPreparationRequest = nil }
                 )
             }
         }
@@ -350,16 +340,16 @@ struct RootView: View {
         }
         .task { await prepareApp() }
         .onReceive(NotificationCenter.default.publisher(for: .gymDataRestored)) { _ in
-            pendingWorkoutStart = nil
+            activeSessionRouter.pendingWorkoutStart = nil
             guidedSourceCoordinator.guidedSourceConflictRequest = nil
-            isShowingActiveWorkout = false
+            activeSessionRouter.isShowingActiveWorkout = false
             // The restore transaction already staged and committed the
             // bundled catalog as part of its single save (see
             // `GymBackupRestore.restore(to:beforeCommit:)`). Reinstalling it
             // here would be a second, non-atomic transaction whose failure
             // could not roll back the already-committed restore.
             workoutVM.restoreActiveWorkout(using: modelContext)
-            activeMobilitySession = reconciledActiveMobilitySession()
+            activeSessionRouter.activeMobilitySession = reconciledActiveMobilitySession()
             Task {
                 await PlanNotificationScheduler.shared.reconcile(using: modelContext)
                 await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
@@ -405,9 +395,9 @@ struct RootView: View {
         AppScreen.current(
             selectedTab: selectedTab,
             isSettingsPresented: todayPath.last == .settings || todayPath.last == .settingsData,
-            isShowingActiveWorkout: isShowingActiveWorkout,
-            isShowingWorkoutSave: activeWorkoutPath.last == .saveWorkout,
-            isShowingActiveMobility: activeMobilitySession != nil
+            isShowingActiveWorkout: activeSessionRouter.isShowingActiveWorkout,
+            isShowingWorkoutSave: activeSessionRouter.activeWorkoutPath.last == .saveWorkout,
+            isShowingActiveMobility: activeSessionRouter.activeMobilitySession != nil
         )
     }
 
@@ -457,8 +447,7 @@ struct RootView: View {
                 return
             }
             selectedTab = .today
-            activeWorkoutPath.removeAll()
-            isShowingActiveWorkout = true
+            activeSessionRouter.showActiveWorkout()
         case .activeMobility(let sessionID):
             guard featureFlags.isEnabled(.mobility),
                   let session = reconciledActiveMobilitySession(),
@@ -468,7 +457,7 @@ struct RootView: View {
                 return
             }
             selectedTab = .train
-            activeMobilitySession = session
+            activeSessionRouter.activeMobilitySession = session
         case .personalizedWorkout(let launchRequest):
             guard featureFlags.isEnabled(.workoutGeneration) else {
                 selectedTab = .today
@@ -483,7 +472,7 @@ struct RootView: View {
 
     private func startPersonalizedWorkout(_ draft: ValidatedWorkoutDraft) -> Bool {
         guard workoutVM.hasActiveWorkout == false else {
-            isShowingActiveWorkout = true
+            activeSessionRouter.isShowingActiveWorkout = true
             return false
         }
         do {
@@ -494,8 +483,7 @@ struct RootView: View {
             )
             guard workoutVM.restoreActiveWorkout(using: modelContext).didSave else { return false }
             isShowingPersonalizedWorkoutBuilder = false
-            activeWorkoutPath.removeAll()
-            isShowingActiveWorkout = true
+            activeSessionRouter.showActiveWorkout()
             return true
         } catch {
             // Keep the review screen open, where the person can revise the
@@ -649,7 +637,7 @@ struct RootView: View {
     private var todayRoot: some View {
         HomeView(
             workoutVM: workoutVM,
-            isShowingActiveWorkout: $isShowingActiveWorkout,
+            isShowingActiveWorkout: $activeSessionRouter.isShowingActiveWorkout,
             onStartWorkout: startWorkout,
             onStartPlannedWorkout: startPlannedWorkout,
             onStartRepeatingWorkout: startRepeatingWorkout,
@@ -786,7 +774,7 @@ struct RootView: View {
             route: route,
             onStartPlannedWorkout: startPlannedWorkout,
             onStartRepeatingWorkout: startRepeatingWorkout,
-            onResumeActiveWorkout: { isShowingActiveWorkout = true },
+            onResumeActiveWorkout: { activeSessionRouter.isShowingActiveWorkout = true },
             onOpenWeeklyReview: onOpenWeeklyReview
         )
     }
@@ -901,13 +889,13 @@ struct RootView: View {
         case .mobility:
             MobilityLibraryView(
                 onStart: startMobility,
-                onStartAssessment: { activeAssessmentSession = $0 },
+                onStartAssessment: { activeSessionRouter.activeAssessmentSession = $0 },
                 onStartProgramSession: startMobilityProgramSession
             )
         case .mobilityPlans:
             MobilityProgramCatalogView(onStartProgramSession: startMobilityProgramSession)
         case .mobilityAssessments:
-            MobilityAssessmentLandingView(onStart: { activeAssessmentSession = $0 })
+            MobilityAssessmentLandingView(onStart: { activeSessionRouter.activeAssessmentSession = $0 })
         case .programPath(let route):
             programPathDestination(route, onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) })
         case .weeklyReview(let route):
@@ -952,16 +940,16 @@ struct RootView: View {
             // proves the actual store persistence.
             let outcome = AppBootstrap.applyFixture(.activeRestRunning, using: modelContext)
             _ = workoutVM.restoreActiveWorkout(using: modelContext)
-            isShowingActiveWorkout = false
-            isShowingActiveWorkoutConflictAlert = outcome.showsActiveWorkoutConflict
+            activeSessionRouter.isShowingActiveWorkout = false
+            activeSessionRouter.isShowingActiveWorkoutConflictAlert = outcome.showsActiveWorkoutConflict
         } else if let fixture {
             let outcome = AppBootstrap.applyFixture(fixture, using: modelContext)
             _ = workoutVM.restoreActiveWorkout(using: modelContext)
-            isShowingActiveWorkout = outcome.opensActiveWorkout && workoutVM.hasActiveWorkout
-            isShowingActiveWorkoutConflictAlert = outcome.showsActiveWorkoutConflict
+            activeSessionRouter.isShowingActiveWorkout = outcome.opensActiveWorkout && workoutVM.hasActiveWorkout
+            activeSessionRouter.isShowingActiveWorkoutConflictAlert = outcome.showsActiveWorkoutConflict
             if let receipt = outcome.progressionReceipt {
                 presentAfterDismissal {
-                    progressionReceiptRequest = ProgressionReceiptRequest(
+                    postWorkoutCoordinator.progressionReceiptRequest = ProgressionReceiptRequest(
                         planRunID: receipt.planRunID,
                         workoutID: receipt.workoutID
                     )
@@ -971,7 +959,7 @@ struct RootView: View {
             workoutVM.restoreActiveWorkout(using: modelContext)
         }
 
-        activeMobilitySession = reconciledActiveMobilitySession()
+        activeSessionRouter.activeMobilitySession = reconciledActiveMobilitySession()
         apply(UITestLaunch.seededDestination(using: modelContext))
         consumePendingPlanNotificationDestination()
         consumePendingAppIntentDestination()
@@ -1023,12 +1011,12 @@ struct RootView: View {
             workoutID: workoutID,
             using: modelContext
         ) else { return }
-        activeMobilitySession = session
+        activeSessionRouter.activeMobilitySession = session
     }
 
     private func resumeMobility(_ session: MobilitySession) {
         guard let restored = reconciledActiveMobilitySession(), restored.id == session.id else { return }
-        activeMobilitySession = restored
+        activeSessionRouter.activeMobilitySession = restored
     }
 
     /// Mirrors `startMobility`: a mobility program session is compiled and
@@ -1037,7 +1025,7 @@ struct RootView: View {
     /// `activeMobilitySession` fullScreenCover every mobility session (
     /// standalone or program) presents through.
     private func startMobilityProgramSession(_ session: MobilitySession) {
-        activeMobilitySession = session
+        activeSessionRouter.activeMobilitySession = session
     }
 
     private func reconciledActiveMobilitySession() -> MobilitySession? {
@@ -1083,7 +1071,7 @@ struct RootView: View {
         if !workoutVM.hasActiveWorkout {
             workoutVM.startWorkout(using: modelContext)
         }
-        isShowingActiveWorkout = workoutVM.hasActiveWorkout
+        activeSessionRouter.isShowingActiveWorkout = workoutVM.hasActiveWorkout
     }
 
     private func startWorkout(from template: WorkoutTemplate) {
@@ -1167,24 +1155,21 @@ struct RootView: View {
     }
 
     private func requestWorkoutStart(_ start: PendingWorkoutStart) {
-        if workoutVM.hasActiveWorkout {
-            pendingWorkoutStart = start
-            isShowingActiveWorkoutConflictAlert = true
+        guard workoutVM.hasActiveWorkout == false else {
+            activeSessionRouter.pendingWorkoutStart = start
+            activeSessionRouter.isShowingActiveWorkoutConflictAlert = true
             return
         }
         requestWorkoutPreparation(for: start)
     }
 
     private func requestWorkoutPreparation(for start: PendingWorkoutStart) {
-        guard let warmupRoutine = WorkoutMobilityLinkResolver.linkedRoutine(
+        let warmupRoutine = WorkoutMobilityLinkResolver.linkedRoutine(
             for: start,
             phase: .warmup,
             using: modelContext
-        ) else {
-            continueWorkoutStart(WorkoutPreparationRequest(start: start))
-            return
-        }
-        workoutPreparationRequest = WorkoutPreparationRequest(
+        )
+        activeSessionRouter.workoutPreparationRequest = WorkoutPreparationRequest(
             start: start,
             warmupRoutine: warmupRoutine
         )
@@ -1240,7 +1225,7 @@ struct RootView: View {
         }
 
         guard let warmupRoutine = request.warmupRoutine else {
-            isShowingActiveWorkout = true
+            activeSessionRouter.isShowingActiveWorkout = true
             return true
         }
 
@@ -1251,11 +1236,11 @@ struct RootView: View {
             using: modelContext
         ) else {
             guidedSourceCoordinator.guidedSourceActionError = String(localized: "The linked warm-up could not be started. Your workout is ready to begin.")
-            isShowingActiveWorkout = true
+            activeSessionRouter.isShowingActiveWorkout = true
             return true
         }
         postWorkoutCoordinator.warmupWorkoutID = workout.id
-        activeMobilitySession = session
+        activeSessionRouter.activeMobilitySession = session
         return true
     }
 
@@ -1265,7 +1250,7 @@ struct RootView: View {
             if let activeSession = MobilitySessionService.activeSession(using: modelContext) {
                 Button("Resume Active Mobility") {
                     postWorkoutCoordinator.cooldownRequest = nil
-                    activeMobilitySession = activeSession
+                    activeSessionRouter.activeMobilitySession = activeSession
                 }
                 .accessibilityIdentifier("resume-active-mobility-before-cooldown")
             } else {
@@ -1302,7 +1287,7 @@ struct RootView: View {
             mobilityLinkError = String(localized: "The linked mobility routine could not be started. Try again.")
             return
         }
-        activeMobilitySession = session
+        activeSessionRouter.activeMobilitySession = session
     }
 
     private func resumeWorkoutAfterWarmupIfNeeded(_ session: MobilitySession) {
@@ -1315,7 +1300,7 @@ struct RootView: View {
               )
         else { return }
         postWorkoutCoordinator.clearWarmupWorkoutID()
-        presentAfterDismissal { isShowingActiveWorkout = true }
+        presentAfterDismissal { self.activeSessionRouter.isShowingActiveWorkout = true }
     }
 
     /// SwiftUI swallows a presentation raised in the same runloop turn as the
@@ -1602,10 +1587,7 @@ struct RootView: View {
     /// half; what is left here is presentation state and the view model, which
     /// nothing outside the view can reach.
     private func resetForUITesting() {
-        isShowingActiveWorkout = false
-        shouldDiscardActiveWorkout = false
-        activeWorkoutPath.removeAll()
-        pendingWorkoutStart = nil
+        activeSessionRouter.reset()
         guidedSourceCoordinator.reset()
         postWorkoutCoordinator.reset()
         workoutVM.workout = nil
@@ -1622,7 +1604,6 @@ struct RootView: View {
 
     private func requestDiscardActiveWorkout() {
         activeLoggingMetrics.workoutDiscarded()
-        shouldDiscardActiveWorkout = true
-        isShowingActiveWorkout = false
+        activeSessionRouter.requestDiscardActiveWorkout()
     }
 }
