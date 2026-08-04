@@ -230,9 +230,9 @@ enum MobilityProgramCompiler {
         }
     }
 
-    /// `MobilityRoutine.name` is `@Attribute(.unique)` across every routine in
-    /// the store, including standalone user-authored ones. Two compiles of the
-    /// same session (a second run, a rescheduled week with an identical session
+    /// `MobilityRoutine.name` uniqueness across routines in the store is
+    /// enforced by application logic in `uniqueCompiledRoutineName`. Two compiles
+    /// of the same session (a second run, a rescheduled week with an identical session
     /// name) must never collide.
     ///
     /// The name is user-visible in the routine library, so uniqueness is
