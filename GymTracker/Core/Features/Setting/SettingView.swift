@@ -113,7 +113,7 @@ struct SettingView: View {
             } header: {
                 Text("Data")
             } footer: {
-                Text("Your training history lives locally on this iPhone and works offline. iCloud synchronizes user data across your devices while active workouts stay strictly on this device.")
+                Text("Your training history is saved on this iPhone and works offline. Use Data & backup to protect or move it to a new device.")
             }
 
             Section {
@@ -584,7 +584,7 @@ struct DataSettingsView: View {
             } header: {
                 Text("Data Safety")
             } footer: {
-                Text("Your training history lives locally on this iPhone and stays fully functional offline. iCloud keeps supported user data synchronized across your devices, while active workout drafts remain strictly on this device.")
+                Text("Your training history is saved on this iPhone and stays fully functional offline. Exporting a backup is currently the only way to move your history to another device.")
             }
 
             Section("Backup & Restore") {
