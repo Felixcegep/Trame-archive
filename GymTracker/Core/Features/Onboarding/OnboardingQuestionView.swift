@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// The answer control for one step.
+/// One of the three core questions, in the full-screen scaffold.
 ///
-/// One view rather than thirteen files: every question is a selection over a
-/// list, and the differences between them are the list, the arity, and one or
-/// two special controls. Splitting that into a file per question would produce
-/// thirteen near-identical layouts that drift apart the first time one of them
-/// is touched.
+/// Thin on purpose: the answer controls themselves live in
+/// `OnboardingAnswerContent`, because the same controls are now shown in two
+/// places — here, for the questions asked before any plan is visible, and in a
+/// refinement sheet on the results screen, for the questions that only reorder
+/// a list. Duplicating them would guarantee the two copies disagreed about what
+/// "Emphasis" means within a release.
 struct OnboardingQuestionView: View {
     @Bindable var coordinator: OnboardingCoordinator
     let step: OnboardingStep
@@ -25,7 +26,9 @@ struct OnboardingQuestionView: View {
             onBack: coordinator.goBack,
             onSkip: skipAction
         ) {
-            content
+            OnboardingAnswerContent(coordinator: coordinator, step: step) { answered in
+                coordinator.scheduleAutoAdvanceIfNeeded(from: answered)
+            }
         }
         // The one haptic in the question flow.
         //
@@ -55,6 +58,37 @@ struct OnboardingQuestionView: View {
             perform: coordinator.advance
         )
     }
+}
+
+/// The answer control for one question, without any chrome.
+///
+/// One view rather than sixteen files: every question is a selection over a
+/// list, and the differences between them are the list, the arity, and one or
+/// two special controls. Splitting that into a file per question would produce
+/// sixteen near-identical layouts that drift apart the first time one of them
+/// is touched.
+///
+/// Chrome-free because the same control now appears under two very different
+/// frames — a full-screen scaffold with a progress bar, and a sheet over the
+/// results list. The control should not know which one it is in.
+struct OnboardingAnswerContent: View {
+    @Bindable var coordinator: OnboardingCoordinator
+    let step: OnboardingStep
+    /// Called once an answer has landed in the draft.
+    ///
+    /// What happens next is the caller's business and differs completely
+    /// between the two hosts: the core flow carries the lifter to the next
+    /// question, while a refinement sheet re-ranks the list behind it and
+    /// closes. Putting that decision here would make the control responsible
+    /// for navigation it cannot see.
+    var onAnswer: ((OnboardingStep) -> Void)? = nil
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isShowingLocationPresets = false
+
+    var body: some View {
+        content
+    }
 
     @ViewBuilder
     private var content: some View {
@@ -78,12 +112,11 @@ struct OnboardingQuestionView: View {
         }
     }
 
-    /// Records a single answer and lets the step carry the lifter forward.
-    /// Every self-advancing question routes through here so the commit rule
-    /// lives in one place.
+    /// Records a single answer and reports it. Every self-advancing question
+    /// routes through here so the commit rule lives in one place.
     private func choose(_ mutate: @escaping (inout OnboardingDraft) -> Void) {
         coordinator.update(mutate)
-        coordinator.scheduleAutoAdvanceIfNeeded(from: step)
+        onAnswer?(step)
     }
 
     // MARK: Discipline
@@ -288,6 +321,53 @@ struct OnboardingQuestionView: View {
 
     // MARK: Location
 
+    /// Where the lifter trains, folded into the equipment question it exists to
+    /// serve.
+    ///
+    /// This used to be a screen of its own, which was a whole question asked in
+    /// order to pre-tick the next one — and the pre-ticking happened after the
+    /// screen that explained it had already gone. Collapsed by default, because
+    /// a preset is a shortcut and a shortcut that occupies the top third of the
+    /// sheet is not saving anyone anything; opened, it fills the grid below and
+    /// the ticks it made are immediately visible underneath.
+    @ViewBuilder
+    private var locationPresets: some View {
+        DisclosureGroup(isExpanded: $isShowingLocationPresets) {
+            VStack(spacing: Spacing.s) {
+                ForEach(TrainingLocationPreference.allCases, id: \.self) { location in
+                    OnboardingChoiceCard(
+                        title: location.title,
+                        detail: location.detail,
+                        icon: location.icon,
+                        isSelected: coordinator.draft.location == location
+                    ) {
+                        coordinator.update { draft in
+                            let isChange = draft.location != location
+                            draft.location = location
+                            // An explicitly tapped preset is a request to be
+                            // filled in, so it replaces what is there. Tapping
+                            // the preset already selected changes nothing,
+                            // which is what stops a stray tap from discarding
+                            // edits made since.
+                            draft.applyLocationSuggestion(replacingExisting: isChange)
+                        }
+                        withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : AppMotion.compact) {
+                            isShowingLocationPresets = false
+                        }
+                    }
+                    .accessibilityIdentifier("onboarding-location-\(location.rawValue)")
+                }
+            }
+            .padding(.top, Spacing.s)
+        } label: {
+            Text("Fill from where I train")
+                .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(Color.gymText)
+        }
+        .tint(Color.gymPrimary)
+        .accessibilityIdentifier("onboarding-location-presets")
+    }
+
     private var locationContent: some View {
         VStack(spacing: Spacing.s) {
             ForEach(TrainingLocationPreference.allCases, id: \.self) { location in
@@ -315,6 +395,8 @@ struct OnboardingQuestionView: View {
 
     private var equipmentContent: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
+            locationPresets
+
             if let location = coordinator.draft.location, !location.suggestedEquipment.isEmpty {
                 Text("We ticked what’s common for a \(location.title.lowercased()). Change anything that’s different.")
                     .font(AppFont.footnote)

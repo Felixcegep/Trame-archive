@@ -135,6 +135,13 @@ enum OnboardingStep: String, CaseIterable, Hashable, Sendable {
     }
 }
 
+/// Identity for `sheet(item:)`. The raw value already is the identity — it is
+/// what the draft persists — so this states it rather than inventing a second
+/// one that could disagree.
+extension OnboardingStep: Identifiable {
+    var id: String { rawValue }
+}
+
 extension OnboardingStep {
     /// The steps this draft actually leads to, in order.
     ///
@@ -153,53 +160,113 @@ extension OnboardingStep {
     static func steps(for draft: OnboardingDraft, mobilityEnabled: Bool) -> [OnboardingStep] {
         guard let path = draft.selectedPath, path.asksProfileQuestions else {
             // Free Workout gets at most the one question whose wrong default is
-            // visible on every screen afterwards.
+            // visible on every screen afterwards. It never reaches the results
+            // screen, so this is the only place its units answer can be taken.
             return draft.unitSystem == nil && !UnitSystemDefault.hasStoredPreference ? [.units] : []
         }
 
-        var steps: [OnboardingStep] = [.discipline, .goal, .experience]
+        // The three questions that decide which plans are even in the running,
+        // and nothing else.
+        //
+        // This list used to run to fifteen questions, and the cost was paid in
+        // the wrong order: a lifter configured an operating system before
+        // seeing a single plan, answering "how long should most workouts take?"
+        // with no idea whether the app had anything worth scheduling. Everything
+        // that merely *refines* an ordering now happens on the results screen,
+        // against a list the lifter can watch move — see `refinements(for:)`.
+        //
+        // These three carry the ranking's three heaviest weights, and only these
+        // three can change which plans are plausible rather than which order
+        // plausible ones appear in.
+        var steps: [OnboardingStep] = [.discipline, .goal]
 
         switch path {
         case .plan:
             steps.append(.frequency)
-            if draft.preferredDaysPerWeek != nil, draft.scheduleFlexibility != .variable {
-                steps.append(.weekdays)
-            }
         case .rotation:
             steps.append(.cadence)
         case .freeWorkout:
             break
         }
 
-        steps.append(.sessionDuration)
-        steps.append(.location)
-        steps.append(.equipment)
-
-        if draft.discipline?.specializedEquipmentGroup != nil {
-            steps.append(.specializedEquipment)
-        }
-
-        steps.append(.units)
-
-        if draft.goal?.asksMuscleEmphasis == true {
-            steps.append(.focusAreas)
-        }
-        if draft.goal == .prepareForCompetition {
-            steps.append(.competition)
-        }
-
-        // Asked last, and only behind the flag: a bonus question about a
-        // separate plan track, not a tax on every lifter who only cares about
-        // the one they came here for.
-        if mobilityEnabled {
-            steps.append(.mobilityGoal)
-            if draft.mobilityGoal != nil {
-                steps.append(.mobilityExperience)
-                steps.append(.mobilityFrequency)
-            }
-        }
+        // `mobilityEnabled` no longer adds questions here. Mobility is a
+        // separate plan track, and three questions about it were being charged
+        // to every lifter who came for a training plan; it now has its own
+        // entry point on the results screen, taken only by someone who says
+        // they want it. The parameter stays because the flag still gates
+        // whether mobility is offered at all, and because a signature this
+        // widely referenced should not churn for a behaviour change.
+        _ = mobilityEnabled
 
         return steps
+    }
+
+    /// The questions that no longer gate the results, offered afterwards as
+    /// refinements against a visible list.
+    ///
+    /// Each of these adjusts an ordering rather than deciding what is plausible,
+    /// which is exactly the kind of question that should be asked with the
+    /// answer's consequences on screen. Asked here, "45 to 60 minutes" is an
+    /// abstraction; asked on the results screen, it visibly moves a plan up or
+    /// down and can be undone in one tap.
+    ///
+    /// `location` is deliberately absent: it never reaches the ranking, and its
+    /// only job — pre-ticking equipment — is done inside the equipment sheet
+    /// where the ticks it produces are visible. `weekdays` and
+    /// `specializedEquipment` are absent for the same reason from the other
+    /// direction: neither reaches the ranking at all, so both live in the
+    /// training profile, where they can be set once the lifter has a plan that
+    /// gives them meaning.
+    static func refinements(for draft: OnboardingDraft) -> [OnboardingStep] {
+        var refinements: [OnboardingStep] = [.experience, .sessionDuration, .equipment]
+
+        if draft.goal?.asksMuscleEmphasis == true {
+            refinements.append(.focusAreas)
+        }
+        if draft.goal == .prepareForCompetition {
+            refinements.append(.competition)
+        }
+
+        return refinements
+    }
+
+    /// The chip label. Shorter than `question`, which is a sentence and does not
+    /// fit a row of chips.
+    var refinementTitle: String {
+        switch self {
+        case .experience: String(localized: "Experience")
+        case .sessionDuration: String(localized: "Session length")
+        case .equipment: String(localized: "Equipment")
+        case .focusAreas: String(localized: "Emphasis")
+        case .competition: String(localized: "Competition")
+        default: question
+        }
+    }
+
+    /// What the chip reads underneath its label: the answer as it stands, or
+    /// nothing when the question has not been answered.
+    ///
+    /// A chip that shows its current value is the difference between a filter
+    /// bar and a row of buttons that might do anything. It also means the
+    /// lifter can audit every answer the ranking used without opening a single
+    /// sheet.
+    func refinementSummary(for draft: OnboardingDraft) -> String? {
+        switch self {
+        case .experience:
+            draft.experience?.title
+        case .sessionDuration:
+            draft.sessionDuration?.summaryTitle
+        case .equipment:
+            draft.equipmentIDs.isEmpty ? nil : CountPhrase.items(draft.equipmentIDs.count)
+        case .focusAreas:
+            draft.focusAreas.isEmpty
+                ? nil
+                : draft.focusAreas.map(\.title).formatted(.list(type: .and))
+        case .competition:
+            draft.competition?.discipline?.title
+        default:
+            nil
+        }
     }
 }
 

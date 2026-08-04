@@ -20028,6 +20028,9 @@
       "scheduleMode": "sequential",
       "scheduleIntervalDays": 2,
       "description": "A 12-week technique and strength foundation for competition squat, bench press, and deadlift. Built from IPF competition standards and ACSM strength progression principles.",
+      "requiredEquipment": [
+        "Barbell"
+      ],
       "prerequisites": [
         "Can safely perform a basic barbell squat, bench press and deadlift",
         "No competition experience required"
@@ -20038,9 +20041,7 @@
         "generalStrength"
       ],
       "focusAreaIDs": [
-        "lowerBody",
-        "upperBody",
-        "fullBody"
+        "balanced"
       ],
       "estimatedSessionMinutesMinimum": 60,
       "estimatedSessionMinutesMaximum": 75,
@@ -20287,6 +20288,9 @@
       ],
       "scheduleMode": "fixedWeekdays",
       "description": "A 10-week four-day periodized powerlifting program alternating heavy intensity days with higher-volume accessory days.",
+      "requiredEquipment": [
+        "Barbell"
+      ],
       "prerequisites": [
         "Consistent training history with main competition lifts"
       ],
@@ -20294,7 +20298,7 @@
         "powerlifting"
       ],
       "focusAreaIDs": [
-        "fullBody"
+        "balanced"
       ],
       "estimatedSessionMinutesMinimum": 75,
       "estimatedSessionMinutesMaximum": 90,
@@ -20377,6 +20381,9 @@
       ],
       "scheduleMode": "fixedWeekdays",
       "description": "A 10-week peak and taper program designed to prepare lifters for an IPF-spec competition meet test day.",
+      "requiredEquipment": [
+        "Barbell"
+      ],
       "prerequisites": [
         "Comfortable taking heavy single attempts under command"
       ],
@@ -20384,7 +20391,7 @@
         "powerlifting"
       ],
       "focusAreaIDs": [
-        "fullBody"
+        "balanced"
       ],
       "estimatedSessionMinutesMinimum": 90,
       "estimatedSessionMinutesMaximum": 120,
@@ -20438,14 +20445,15 @@
       "scheduleMode": "sequential",
       "scheduleIntervalDays": 2,
       "description": "An 8-week positional foundation program for the snatch, clean, and jerk using light loads and position holds.",
-      "prerequisites": [
-        "Access to a barbell or technique bar"
+      "requiredEquipment": [
+        "Barbell"
       ],
+      "prerequisites": [],
       "supportedDisciplineIDs": [
         "olympicWeightlifting"
       ],
       "focusAreaIDs": [
-        "fullBody"
+        "balanced"
       ],
       "estimatedSessionMinutesMinimum": 60,
       "estimatedSessionMinutesMaximum": 75,
@@ -20508,6 +20516,9 @@
       "scheduleMode": "sequential",
       "scheduleIntervalDays": 2,
       "description": "A 6-week introduction to strongman event movement patterns including log press, carries, and loading.",
+      "requiredEquipment": [
+        "Other"
+      ],
       "prerequisites": [
         "Basic foundational resistance training experience"
       ],
@@ -20515,7 +20526,7 @@
         "strongman"
       ],
       "focusAreaIDs": [
-        "fullBody"
+        "balanced"
       ],
       "estimatedSessionMinutesMinimum": 60,
       "estimatedSessionMinutesMaximum": 75,
@@ -20577,15 +20588,19 @@
       ],
       "scheduleMode": "fixedWeekdays",
       "description": "An 8-week foundation combining aerobic running base with station movement efficiency for fitness racing.",
+      "requiredEquipment": [
+        "Bodyweight",
+        "Medicine Ball"
+      ],
       "prerequisites": [
         "Capable of 20 minutes continuous light jogging"
       ],
       "supportedDisciplineIDs": [
         "fitnessRacing",
-        "generalCardio"
+        "cardioEndurance"
       ],
       "focusAreaIDs": [
-        "fullBody"
+        "balanced"
       ],
       "estimatedSessionMinutesMinimum": 45,
       "estimatedSessionMinutesMaximum": 60,
@@ -20648,14 +20663,18 @@
       "scheduleMode": "sequential",
       "scheduleIntervalDays": 2,
       "description": "A 9-week walk-run progression guiding beginners from interval walks to 30 minutes of continuous running. Adapted from public health running guidelines.",
+      "requiredEquipment": [
+        "Bodyweight"
+      ],
       "prerequisites": [
         "Cleared for light aerobic activity"
       ],
       "supportedDisciplineIDs": [
-        "generalCardio"
+        "cardioEndurance"
       ],
       "focusAreaIDs": [
-        "lowerBody"
+        "quadriceps",
+        "hamstringsAndGlutes"
       ],
       "estimatedSessionMinutesMinimum": 30,
       "estimatedSessionMinutesMaximum": 40,
@@ -20706,14 +20725,17 @@
       ],
       "scheduleMode": "fixedWeekdays",
       "description": "A 10-week rowing ergometer program designed to improve 2,000 m sprint performance through aerobic intervals and pace practice.",
+      "requiredEquipment": [
+        "Cardio Machine"
+      ],
       "prerequisites": [
         "Familiar with basic rowing stroke technique"
       ],
       "supportedDisciplineIDs": [
-        "generalCardio"
+        "cardioEndurance"
       ],
       "focusAreaIDs": [
-        "fullBody"
+        "balanced"
       ],
       "estimatedSessionMinutesMinimum": 30,
       "estimatedSessionMinutesMaximum": 45,
@@ -20765,15 +20787,16 @@
       "scheduleMode": "sequential",
       "scheduleIntervalDays": 2,
       "description": "A 6-week introduction to core kettlebell movements: two-hand swing, Turkish get-up, goblet squat, and overhead press.",
-      "prerequisites": [
-        "One or two light-to-moderate kettlebells available"
+      "requiredEquipment": [
+        "Kettlebell"
       ],
+      "prerequisites": [],
       "supportedDisciplineIDs": [
         "generalStrength",
         "mixed"
       ],
       "focusAreaIDs": [
-        "fullBody"
+        "balanced"
       ],
       "estimatedSessionMinutesMinimum": 40,
       "estimatedSessionMinutesMaximum": 50,

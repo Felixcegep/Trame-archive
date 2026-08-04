@@ -44,6 +44,9 @@ nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case referenceCycle
         case trackingProfileConflict
         case invalidProvenance
+        case invalidDisciplineID
+        case invalidFocusAreaID
+        case invalidCompetitionDisciplineID
     }
 
     var id: UUID = UUID()
@@ -58,6 +61,45 @@ extension TrackingProfileIssue {
     var asProgramValidationIssue: ProgramValidationIssue {
         ProgramValidationIssue(path: path, code: .trackingProfileConflict, message: message)
     }
+}
+
+/// Hand-mirrored copies of three Onboarding enums' raw values.
+///
+/// `supportedDisciplineIDs`, `focusAreaIDs`, and `competitionDisciplineID`
+/// are stored as plain strings on the payload specifically so a program
+/// definition never has to import `TrainingDisciplinePreference`, `FocusArea`,
+/// or `CompetitionDiscipline` (all declared in
+/// `GymTracker/Core/Features/Onboarding/TrainingProfilePreferences.swift`) to
+/// compile. That indirection matters here for a second reason beyond payload
+/// stability: this file is also compiled into the widget extension target
+/// (see the "GymTracker" folder's membership exceptions in
+/// `GymTracker.xcodeproj/project.pbxproj`), which does not include the
+/// Onboarding feature at all — a direct reference to those types would not
+/// build there. Validating against a real import was the better-looking
+/// option and the wrong one; this set is the deliberate, documented
+/// duplication instead. If a case is added to or removed from any of the
+/// three source enums, this list must be updated in the same change, or the
+/// vocabulary that shipped the original drift (see `focusAreaIDs` history)
+/// will silently stop being caught again.
+nonisolated enum ProgramMatchVocabulary {
+    /// Mirrors `TrainingDisciplinePreference.allCases.map(\.rawValue)`.
+    static let disciplineIDs: Set<String> = [
+        "generalStrength", "bodybuilding", "powerlifting", "olympicWeightlifting",
+        "strongman", "fitnessRacing", "cardioEndurance", "mobilityFlexibility",
+        "generalFitness", "mixed", "unspecified"
+    ]
+
+    /// Mirrors `FocusArea.allCases.map(\.rawValue)`.
+    static let focusAreaIDs: Set<String> = [
+        "balanced", "chest", "back", "shoulders", "arms", "quadriceps",
+        "hamstringsAndGlutes", "calves", "core"
+    ]
+
+    /// Mirrors `CompetitionDiscipline.allCases.map(\.rawValue)`.
+    static let competitionDisciplineIDs: Set<String> = [
+        "powerlifting", "olympicWeightlifting", "strongman", "bodybuilding",
+        "fitnessRacing", "endurance", "other", "undecided"
+    ]
 }
 
 nonisolated enum ProgramDefinitionValidator {
@@ -92,6 +134,34 @@ nonisolated enum ProgramDefinitionValidator {
         }
         if let min = definition.estimatedSessionMinutesMinimum, let max = definition.estimatedSessionMinutesMaximum, min > max {
             add("estimatedSessionMinutesMinimum", .invalidPrescriptionValue, "Minimum session minutes cannot exceed maximum session minutes.")
+        }
+        // An unmappable identifier here is not a cosmetic typo: `ProgramMatchCandidate`
+        // reads these strings straight against the onboarding enums'
+        // `rawValue`s with no fallback, so a value that cannot map is dead
+        // metadata that silently never contributes to a recommendation.
+        for (index, disciplineID) in (definition.supportedDisciplineIDs ?? []).enumerated()
+        where !ProgramMatchVocabulary.disciplineIDs.contains(disciplineID) {
+            add(
+                "supportedDisciplineIDs[\(index)]",
+                .invalidDisciplineID,
+                "'\(disciplineID)' is not a recognised training discipline identifier."
+            )
+        }
+        for (index, focusAreaID) in (definition.focusAreaIDs ?? []).enumerated()
+        where !ProgramMatchVocabulary.focusAreaIDs.contains(focusAreaID) {
+            add(
+                "focusAreaIDs[\(index)]",
+                .invalidFocusAreaID,
+                "'\(focusAreaID)' is not a recognised focus area identifier."
+            )
+        }
+        if let competitionDisciplineID = definition.competitionDisciplineID,
+           !ProgramMatchVocabulary.competitionDisciplineIDs.contains(competitionDisciplineID) {
+            add(
+                "competitionDisciplineID",
+                .invalidCompetitionDisciplineID,
+                "'\(competitionDisciplineID)' is not a recognised competition discipline identifier."
+            )
         }
         for (index, reference) in (definition.sourceReferences ?? []).enumerated() {
             let path = "sourceReferences[\(index)]"

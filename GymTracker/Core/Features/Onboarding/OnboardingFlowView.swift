@@ -216,6 +216,13 @@ struct OnboardingFlowView: View {
         hasWrittenProfile = true
         if let unitSystem = coordinator.draft.unitSystem {
             TrainingProfileService.applyUnitSystem(unitSystem)
+        } else if !UnitSystemDefault.hasStoredPreference {
+            // Only when nothing has ever been stored. The draft can legitimately
+            // reach here empty — a Free Workout lifter whose units were already
+            // settled is never asked — and writing the locale's guess over a
+            // preference the lifter had already expressed would be this flow
+            // silently overruling an answer it did not take.
+            TrainingProfileService.applyUnitSystem(UnitSystemDefault.suggested)
         }
         TrainingProfileService.apply(coordinator.draft, using: modelContext)
     }

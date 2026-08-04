@@ -42,6 +42,18 @@ struct MobilityMatchWarning: Identifiable, Equatable, Sendable {
     let text: String
 }
 
+/// A free-text, author-written condition the intake cannot verify — mirrors
+/// `ProgramMatchPrerequisite`'s role on the workout side. Disclosed
+/// unconditionally (see the comment at the evaluation call site) but never a
+/// `MobilityMatchWarning`: nothing here compares what the lifter said against
+/// what the plan declared, so a prerequisite must never downgrade
+/// `compatibilityTitle` or count against a plan in the warnings-count
+/// tie-break.
+struct MobilityMatchPrerequisite: Identifiable, Equatable, Sendable {
+    var id: String { text }
+    let text: String
+}
+
 struct MobilityMatchResult: Identifiable, Equatable, Sendable {
     var id: UUID { programID }
     let programID: UUID
@@ -54,6 +66,7 @@ struct MobilityMatchResult: Identifiable, Equatable, Sendable {
     let score: Double
     let reasons: [MobilityMatchReason]
     let warnings: [MobilityMatchWarning]
+    let prerequisites: [MobilityMatchPrerequisite]
 
     var compatibilityTitle: String? {
         guard isRunnable else { return String(localized: "Not supported") }
@@ -135,10 +148,13 @@ enum MobilityMatchService {
 
         // Prerequisites are free text and cannot be verified from the
         // intake, so they are always disclosed rather than assumed met — a
-        // plan that lists one never earns a clean, caveat-free result.
-        for prerequisite in candidate.prerequisites {
-            warnings.append(.init(text: prerequisite))
-        }
+        // plan that lists one never earns a clean, caveat-free result. Kept
+        // out of `warnings` for the same reason `ProgramMatchService` keeps
+        // them out on the workout side: a prerequisite is the app disclosing
+        // something it cannot check, not the app comparing an answer against
+        // a declaration, so it must not drive `compatibilityTitle` or the
+        // warnings-count tie-break.
+        let prerequisites = candidate.prerequisites.map { MobilityMatchPrerequisite(text: $0) }
 
         if isUnsupported {
             warnings.insert(
@@ -157,7 +173,8 @@ enum MobilityMatchService {
             isRunnable: !isUnsupported,
             score: score,
             reasons: reasons,
-            warnings: warnings
+            warnings: warnings,
+            prerequisites: prerequisites
         )
     }
 }

@@ -89,6 +89,18 @@ struct ProgramMatchWarning: Identifiable, Equatable, Sendable {
     let text: String
 }
 
+/// A free-text, author-written condition the intake cannot verify — a known
+/// one-rep max, a technique standard, prior training history. Disclosed
+/// unconditionally (see the comment at the evaluation call site) but
+/// deliberately not a `ProgramMatchWarning`: nothing here compares what the
+/// lifter said against what the program declared, so a prerequisite must
+/// never downgrade `compatibility` or count against a program in the
+/// warnings-count tie-break. It is information, not a finding.
+struct ProgramMatchPrerequisite: Identifiable, Equatable, Sendable {
+    var id: String { text }
+    let text: String
+}
+
 enum ProgramCompatibility: Equatable, Sendable {
     /// Everything the lifter asked for, and nothing missing.
     case recommended
@@ -111,6 +123,7 @@ struct ProgramMatchResult: Identifiable, Equatable, Sendable {
     let score: Double
     let reasons: [ProgramMatchReason]
     let warnings: [ProgramMatchWarning]
+    let prerequisites: [ProgramMatchPrerequisite]
     let missingEquipment: [EquipmentType]
 
     /// Whether this build can execute the program at all. The one thing that
@@ -217,13 +230,24 @@ enum ProgramMatchService {
             .filter { !criteria.availableEquipment.contains($0) }
             .sorted { $0.rawValue < $1.rawValue }
 
+        // Equipment is the one question onboarding refuses to let the lifter
+        // skip, so it cannot be the one factor a program wins by omission.
+        // 24 of the 30 bundled programs declare `requiredEquipment: []`, and
+        // an empty requirement set can never produce a `missingEquipment`
+        // entry — so scoring on `missingEquipment.isEmpty` alone handed all
+        // 24 of them the full weight for declaring nothing, with no reason
+        // text either, since the reason line was already suppressed for an
+        // empty requirement list. The 6 programs that honestly named their
+        // equipment could then only tie or lose against plans that had never
+        // been checked against the lifter's rack at all. A program earns
+        // this weight only by declaring equipment the lifter actually has;
+        // declaring nothing earns neither the points nor a warning, and the
+        // program is scored on everything else instead.
         if !criteria.availableEquipment.isEmpty {
-            if missingEquipment.isEmpty {
+            if !candidate.requiredEquipment.isEmpty && missingEquipment.isEmpty {
                 score += Weight.equipment
-                if !candidate.requiredEquipment.isEmpty {
-                    reasons.append(.init(text: String(localized: "Uses only equipment you selected")))
-                }
-            } else {
+                reasons.append(.init(text: String(localized: "Uses only equipment you selected")))
+            } else if !missingEquipment.isEmpty {
                 let names = missingEquipment.map(\.onboardingTitle).formatted(.list(type: .and))
                 warnings.append(.init(text: String(localized: "Needs equipment you didn’t select: \(names)")))
             }
@@ -321,11 +345,21 @@ enum ProgramMatchService {
         // that asks whether a lifter already knows their one-rep maxes or has
         // the prescribed technique. Disclosing every prerequisite
         // unconditionally is the honest alternative to guessing: a program
-        // that lists one is never handed out as a clean, caveat-free
-        // "Recommended" result.
-        for prerequisite in candidate.prerequisites {
-            warnings.append(.init(text: prerequisite))
-        }
+        // that lists one is never handed out as a clean, caveat-free result
+        // that hides what its author expects walking in.
+        //
+        // They are kept out of `warnings` on purpose. 28 of the 30 bundled
+        // programs declare at least one prerequisite, and folding every one
+        // of them into `warnings` used to mean 28 of 30 result cards forced
+        // `compatibility` to `.worksWithChanges` and wore a red "Needs
+        // changes" hazard chip for author-written conditions like "can
+        // perform the five basic barbell lifts with an empty bar" — text
+        // that is not a mismatch the app found, because nothing here compares
+        // it against anything the lifter said. Only `warnings` — the app
+        // comparing what the lifter answered against what the program
+        // declared — may downgrade compatibility or cost a program the
+        // warnings-count tie-break; a prerequisite is disclosed, never scored.
+        let prerequisites = candidate.prerequisites.map { ProgramMatchPrerequisite(text: $0) }
 
         // MARK: Author warnings
         for warning in candidate.authorWarnings {
@@ -359,6 +393,7 @@ enum ProgramMatchService {
             score: score,
             reasons: reasons,
             warnings: warnings,
+            prerequisites: prerequisites,
             missingEquipment: missingEquipment
         )
     }

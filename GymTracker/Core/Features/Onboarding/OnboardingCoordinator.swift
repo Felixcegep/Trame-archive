@@ -371,7 +371,11 @@ final class OnboardingCoordinator {
         }
     }
 
-    private func clearAnswer(for step: OnboardingStep) {
+    /// Returns a step to unanswered. Not private because the refinement sheets
+    /// need it: they replaced the linear flow's Skip button, and without a way
+    /// to clear, a refinement would be the only answer in the app that cannot
+    /// be taken back to "not said".
+    func clearAnswer(for step: OnboardingStep) {
         update { draft in
             switch step {
             case .discipline: draft.discipline = nil
