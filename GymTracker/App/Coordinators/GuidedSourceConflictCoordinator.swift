@@ -41,7 +41,7 @@ final class GuidedSourceConflictCoordinator {
         guidedSourceUndoTask?.cancel()
     }
 
-    func scheduleUndo(for snapshot: GuidedSourceSwitchSnapshot, outcome: PlanLifecycleOutcome) {
+    func scheduleUndo(for snapshot: GuidedSourceSwitchSnapshot, outcome: PlanActionOutcome) {
         guard snapshot.fixedRuns.count + snapshot.repeatingRuns.count == 1 else { return }
         switch outcome {
         case .succeeded, .succeededSilently:
