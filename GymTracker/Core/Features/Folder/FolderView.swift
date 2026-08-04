@@ -16,6 +16,10 @@ struct FolderView: View {
     @Query private var workoutPlans: [WorkoutPlan]
     @Query private var repeatingPlans: [RepeatingPlan]
     @Query private var programDefinitions: [ProgramDefinitionRecord]
+    @Query(filter: #Predicate<MobilityRoutine> { !$0.isArchived })
+    private var mobilityRoutines: [MobilityRoutine]
+    @Query(filter: #Predicate<MobilityProgramDefinitionRecord> { !$0.isArchived })
+    private var mobilityProgramDefinitions: [MobilityProgramDefinitionRecord]
 
     @State private var activeSheet: FolderSheet?
     @State private var pendingSheet: FolderSheet?
@@ -153,19 +157,30 @@ struct FolderView: View {
                 onResumeRepeatingPlan: onResumeRepeatingPlan,
                 onEndRepeatingPlan: onEndRepeatingPlan
             )
-            librarySection
+            workoutLibrarySection
+            if featureFlags.isEnabled(.mobility) {
+                mobilityLibrarySection
+            }
         }
     }
 
-    /// Four rows, one noun each. Plans covers ready-made, saved and repeating
-    /// plans alike, so "which of these three is a plan?" stops being a question
-    /// the user has to answer before they can start.
-    private var librarySection: some View {
+    /// Workouts and mobility are two pillars, not four peers.
+    ///
+    /// These used to be one "Browse" card whose four rows mixed two different
+    /// axes: Plans/Workouts/Exercises are three zoom levels of the *same*
+    /// pillar, while "Stretch & Mobility" was an entire second pillar — with
+    /// its own plans, routines and assessments inside it — rendered as the last
+    /// sibling of the three. Two symptoms gave the mismatch away: it was the
+    /// only row that could not show a count, because it is not one countable
+    /// noun, and it shared `gymSecondary` with Exercises so it did not even
+    /// read as a different kind of thing.
+    ///
+    /// Splitting them into two titled groups gives mobility equal billing
+    /// without a fourth tab or a segmented control, either of which would hide
+    /// half the app behind a toggle.
+    private var workoutLibrarySection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            // "Browse", not "Library": the tab is named in the navigation bar
-            // now, and this heading introduces the browsing destinations rather
-            // than renaming the screen a second time.
-            LibrarySectionTitle("Browse")
+            LibrarySectionTitle("Workouts")
 
             LibraryGroupCard {
                 NavigationLink(value: LibraryRoute.plans) {
@@ -213,25 +228,78 @@ struct FolderView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("exercises-browser")
+            }
+        }
+    }
 
-                if featureFlags.isEnabled(.mobility) {
-                    LibraryGroupDivider()
+    /// The mobility pillar, opened up to the same depth as the workout one.
+    ///
+    /// Each row is a real destination that previously sat two or three taps
+    /// behind a single opaque door — the seven bundled mobility plans in
+    /// particular were invisible from this screen. Rows mirror the workout
+    /// group's order: the multi-week thing first, then the single sessions,
+    /// then the reference/measurement surface.
+    private var mobilityLibrarySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            LibrarySectionTitle("Stretch & Mobility")
 
-                    NavigationLink(value: LibraryRoute.mobility) {
+            LibraryGroupCard {
+                if featureFlags.isEnabled(.mobilityProgram) {
+                    NavigationLink(value: LibraryRoute.mobilityPlans) {
                         LibraryItemRow(
-                            title: "Stretch & Mobility",
-                            subtitle: "Warm-ups, cool-downs and recovery",
-                            icon: AppIcon.mobility,
-                            color: Color.gymSecondary,
-                            surface: Color.gymSecondarySurface,
+                            title: "Mobility plans",
+                            subtitle: "Multi-week routines that progress for you",
+                            icon: AppIcon.plan,
+                            color: Color.gymAccent,
+                            surface: Color.gymAccentSurface,
+                            count: mobilityPlanCount,
                             showsCard: false
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("train-mobility-library")
+                    .accessibilityIdentifier("mobility-plans-browser")
+
+                    LibraryGroupDivider()
+                }
+
+                NavigationLink(value: LibraryRoute.mobility) {
+                    LibraryItemRow(
+                        title: "Routines",
+                        subtitle: "Warm-ups, cool-downs and recovery",
+                        icon: AppIcon.mobility,
+                        color: Color.gymSecondary,
+                        surface: Color.gymSecondarySurface,
+                        count: mobilityRoutines.count,
+                        showsCard: false
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("train-mobility-library")
+
+                if featureFlags.isEnabled(.mobilityAssessment) {
+                    LibraryGroupDivider()
+
+                    NavigationLink(value: LibraryRoute.mobilityAssessments) {
+                        LibraryItemRow(
+                            title: "Assessments",
+                            subtitle: "Measure range and track it over time",
+                            icon: AppIcon.mobilityAssessment,
+                            color: Color.gymPrimary,
+                            surface: Color.gymPrimarySurface,
+                            showsCard: false
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("mobility-assessments-browser")
                 }
             }
         }
+    }
+
+    /// Bundled plus user-authored mobility plans, matching what the Mobility
+    /// plans destination actually lists.
+    private var mobilityPlanCount: Int {
+        mobilityProgramDefinitions.count
     }
 
     /// Ready-made definitions plus everything the user saved, matching what the
@@ -501,6 +569,8 @@ enum LibraryRoute: Hashable {
     case workouts
     case exercises
     case mobility
+    case mobilityPlans
+    case mobilityAssessments
     case archivedExercises
     case readyMadePlan(UUID)
     case plan(UUID)

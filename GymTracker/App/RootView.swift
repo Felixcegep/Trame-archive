@@ -908,6 +908,10 @@ struct RootView: View {
                 onStartAssessment: { activeAssessmentSession = $0 },
                 onStartProgramSession: startMobilityProgramSession
             )
+        case .mobilityPlans:
+            MobilityProgramCatalogView(onStartProgramSession: startMobilityProgramSession)
+        case .mobilityAssessments:
+            MobilityAssessmentLandingView(onStart: { activeAssessmentSession = $0 })
         case .programPath(let route):
             programPathDestination(route, onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) })
         case .weeklyReview(let route):
