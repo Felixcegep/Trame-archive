@@ -460,11 +460,15 @@ struct WorkoutSaveView: View {
         let outcome = workoutVM.saveWorkout(using: modelContext)
         guard outcome.didSave else {
             saveFailedCount += 1
+            // The error goes to the log, not into the alert. SwiftData surfaces
+            // text like "The operation couldn't be completed. (SwiftData.
+            // SwiftDataError error 1.)", which tells the user nothing and
+            // displaces the one sentence that does matter here: their sets are
+            // still safe and retrying is worthwhile.
             if let error = outcome.error {
-                saveErrorMessage = String(localized: "Your workout could not be saved (\(error.localizedDescription)) and is still open, with every logged set intact. Try saving again.")
-            } else {
-                saveErrorMessage = String(localized: "Your workout could not be saved and is still open, with every logged set intact. Try saving again.")
+                print("Workout save failed for \(workoutID): \(error)")
             }
+            saveErrorMessage = String(localized: "Your workout could not be saved and is still open, with every logged set intact. Try saving again.")
             return
         }
 
