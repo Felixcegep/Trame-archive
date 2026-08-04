@@ -190,6 +190,9 @@ nonisolated enum MobilityProgramLibraryData {
             supportedDaysPerWeek: [3],
             missedSessionPolicy: .shiftSequence,
             completionPolicy: .offerRestart(carryState: false),
+            goalIDs: [MobilityGoalPreference.generalFlexibility.rawValue, MobilityGoalPreference.recovery.rawValue],
+            experienceLevelRaw: "beginner",
+            prerequisites: [],
             provenance: ProgramProvenance(
                 kind: .guidelineAnchoredOriginalProgram,
                 statement: "An original GymTracker plan built from widely taught static-stretching guidelines. It is not affiliated with, endorsed by, or a reproduction of any cited organization's program."
@@ -367,6 +370,9 @@ nonisolated enum MobilityProgramLibraryData {
             supportedDaysPerWeek: [2],
             missedSessionPolicy: .shiftSequence,
             completionPolicy: .offerRestart(carryState: false),
+            goalIDs: [MobilityGoalPreference.generalFlexibility.rawValue, MobilityGoalPreference.recovery.rawValue],
+            experienceLevelRaw: "intermediate",
+            prerequisites: [],
             provenance: ProgramProvenance(
                 kind: .guidelineAnchoredOriginalProgram,
                 statement: "An original GymTracker plan built from the general contract-relax proprioceptive neuromuscular facilitation (PNF) technique described in the sports-science literature. It is not affiliated with, endorsed by, or a reproduction of any cited author's or organization's program."
@@ -528,6 +534,9 @@ nonisolated enum MobilityProgramLibraryData {
             supportedDaysPerWeek: [3],
             missedSessionPolicy: .shiftSequence,
             completionPolicy: .offerRestart(carryState: false),
+            goalIDs: [MobilityGoalPreference.generalFlexibility.rawValue, MobilityGoalPreference.targetedPosition.rawValue],
+            experienceLevelRaw: "intermediate",
+            prerequisites: [],
             provenance: ProgramProvenance(
                 kind: .guidelineAnchoredOriginalProgram,
                 statement: "An original GymTracker plan combining widely taught active-range-of-motion and end-range isometric control drills. It is not affiliated with, endorsed by, or a reproduction of any organization's branded methodology or paid program."
@@ -723,6 +732,9 @@ nonisolated enum MobilityProgramLibraryData {
             supportedDaysPerWeek: [2],
             missedSessionPolicy: .shiftSequence,
             completionPolicy: .offerRestart(carryState: false),
+            goalIDs: [MobilityGoalPreference.targetedPosition.rawValue],
+            experienceLevelRaw: "advanced",
+            prerequisites: ["Best suited to lifters already comfortable with the unloaded version of each position"],
             provenance: ProgramProvenance(
                 kind: .guidelineAnchoredOriginalProgram,
                 statement: "An original GymTracker plan applying general resistance-training load-progression guidelines to flexibility-at-length work. It is not affiliated with, endorsed by, or a reproduction of any cited organization's program."
@@ -947,6 +959,9 @@ nonisolated enum MobilityProgramLibraryData {
             supportedDaysPerWeek: [3],
             missedSessionPolicy: .shiftSequence,
             completionPolicy: .offerRestart(carryState: false),
+            goalIDs: [MobilityGoalPreference.targetedPosition.rawValue],
+            experienceLevelRaw: "advanced",
+            prerequisites: ["Written to pair with training that already includes squatting"],
             provenance: ProgramProvenance(
                 kind: .guidelineAnchoredOriginalProgram,
                 statement: "An original GymTracker plan combining widely taught movement-preparation warm-up guidance with separate standalone flexibility development work. It is not affiliated with, endorsed by, or a reproduction of any cited organization's program."
@@ -1051,6 +1066,9 @@ nonisolated enum MobilityProgramLibraryData {
             supportedDaysPerWeek: [3],
             missedSessionPolicy: .shiftSequence,
             completionPolicy: .offerRestart(carryState: false),
+            goalIDs: [MobilityGoalPreference.targetedPosition.rawValue],
+            experienceLevelRaw: "advanced",
+            prerequisites: ["Written to pair with training that already includes overhead pressing"],
             provenance: ProgramProvenance(
                 kind: .guidelineAnchoredOriginalProgram,
                 statement: "An original GymTracker plan combining widely taught movement-preparation warm-up guidance with separate standalone flexibility development work. It is not affiliated with, endorsed by, or a reproduction of any cited organization's program."
@@ -1302,6 +1320,9 @@ nonisolated enum MobilityProgramLibraryData {
             supportedDaysPerWeek: [3],
             missedSessionPolicy: .shiftSequence,
             completionPolicy: .offerRestart(carryState: false),
+            goalIDs: [MobilityGoalPreference.targetedPosition.rawValue],
+            experienceLevelRaw: "advanced",
+            prerequisites: ["Comfortable holding a supported split position"],
             provenance: ProgramProvenance(
                 kind: .guidelineAnchoredOriginalProgram,
                 statement: "An original GymTracker plan built from the general principle that external assistance can be progressively reduced as controlled range improves. It is not affiliated with, endorsed by, or a reproduction of any cited author's or organization's program."

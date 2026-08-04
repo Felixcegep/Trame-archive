@@ -84,6 +84,15 @@ nonisolated enum ProgramDefinitionValidator {
         if definition.provenance == nil, definition.sourceReferences?.isEmpty == false {
             add("sourceReferences", .invalidProvenance, "Source references require an explicit provenance classification.")
         }
+        if let min = definition.estimatedSessionMinutesMinimum, min <= 0 {
+            add("estimatedSessionMinutesMinimum", .invalidPrescriptionValue, "Minimum session minutes must be positive.")
+        }
+        if let max = definition.estimatedSessionMinutesMaximum, max <= 0 {
+            add("estimatedSessionMinutesMaximum", .invalidPrescriptionValue, "Maximum session minutes must be positive.")
+        }
+        if let min = definition.estimatedSessionMinutesMinimum, let max = definition.estimatedSessionMinutesMaximum, min > max {
+            add("estimatedSessionMinutesMinimum", .invalidPrescriptionValue, "Minimum session minutes cannot exceed maximum session minutes.")
+        }
         for (index, reference) in (definition.sourceReferences ?? []).enumerated() {
             let path = "sourceReferences[\(index)]"
             if reference.organizationOrAuthors.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

@@ -327,6 +327,12 @@ nonisolated struct MobilityProgramDefinitionPayload: Codable, Hashable, Identifi
     /// claim. It must not be inferred as official, sourced, or synthetic.
     var provenance: ProgramProvenance?
     var sourceReferences: [ProgramSourceReference]?
+    var goalIDs: [String]?
+    var experienceLevelRaw: String?
+    var prerequisites: [String]?
+    var estimatedSessionMinutesMinimum: Int?
+    var estimatedSessionMinutesMaximum: Int?
+    var targetDisciplineIDs: [String]?
     var blocks: [MobilityProgramBlockDefinition]
 
     init(
@@ -341,6 +347,12 @@ nonisolated struct MobilityProgramDefinitionPayload: Codable, Hashable, Identifi
         missedSessionPolicy: MissedWorkoutPolicy = .shiftSequence,
         completionPolicy: CompletionPolicy = .end,
         requiredCapabilities: [String] = [],
+        goalIDs: [String]? = nil,
+        experienceLevelRaw: String? = nil,
+        prerequisites: [String]? = nil,
+        estimatedSessionMinutesMinimum: Int? = nil,
+        estimatedSessionMinutesMaximum: Int? = nil,
+        targetDisciplineIDs: [String]? = nil,
         provenance: ProgramProvenance? = nil,
         sourceReferences: [ProgramSourceReference]? = nil,
         blocks: [MobilityProgramBlockDefinition]
@@ -358,13 +370,20 @@ nonisolated struct MobilityProgramDefinitionPayload: Codable, Hashable, Identifi
         self.requiredCapabilities = requiredCapabilities
         self.provenance = provenance
         self.sourceReferences = sourceReferences
+        self.goalIDs = goalIDs
+        self.experienceLevelRaw = experienceLevelRaw
+        self.prerequisites = prerequisites
+        self.estimatedSessionMinutesMinimum = estimatedSessionMinutesMinimum
+        self.estimatedSessionMinutesMaximum = estimatedSessionMinutesMaximum
+        self.targetDisciplineIDs = targetDisciplineIDs
         self.blocks = blocks
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, schemaVersion, templateVersion, programKey, name, summary, durationWeeks,
              supportedDaysPerWeek, missedSessionPolicy, completionPolicy, requiredCapabilities,
-             provenance, sourceReferences, blocks
+             provenance, sourceReferences, goalIDs, experienceLevelRaw, prerequisites,
+             estimatedSessionMinutesMinimum, estimatedSessionMinutesMaximum, targetDisciplineIDs, blocks
     }
 
     init(from decoder: Decoder) throws {
@@ -382,6 +401,12 @@ nonisolated struct MobilityProgramDefinitionPayload: Codable, Hashable, Identifi
         requiredCapabilities = try container.decodeIfPresent([String].self, forKey: .requiredCapabilities) ?? []
         provenance = try container.decodeIfPresent(ProgramProvenance.self, forKey: .provenance)
         sourceReferences = try container.decodeIfPresent([ProgramSourceReference].self, forKey: .sourceReferences)
+        goalIDs = try container.decodeIfPresent([String].self, forKey: .goalIDs)
+        experienceLevelRaw = try container.decodeIfPresent(String.self, forKey: .experienceLevelRaw)
+        prerequisites = try container.decodeIfPresent([String].self, forKey: .prerequisites)
+        estimatedSessionMinutesMinimum = try container.decodeIfPresent(Int.self, forKey: .estimatedSessionMinutesMinimum)
+        estimatedSessionMinutesMaximum = try container.decodeIfPresent(Int.self, forKey: .estimatedSessionMinutesMaximum)
+        targetDisciplineIDs = try container.decodeIfPresent([String].self, forKey: .targetDisciplineIDs)
         blocks = try container.decode([MobilityProgramBlockDefinition].self, forKey: .blocks)
     }
 }

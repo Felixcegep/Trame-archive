@@ -131,4 +131,61 @@ final class AuthoringProgramTests: XCTestCase {
             RepComponent(exerciseID: snatch, repetitions: 1, exerciseNameSnapshot: "Snatch")
         ]))
     }
+
+    func testAuthoringProgramMatchingMetadataExpansionAndValidation() throws {
+        let json = """
+        {
+          "programKey": "matching-metadata-test",
+          "name": "Matching Metadata Test",
+          "goal": "generalStrength",
+          "experienceLevel": "intermediate",
+          "durationWeeks": 4,
+          "supportedDaysPerWeek": [3],
+          "scheduleMode": "fixedWeekdays",
+          "supportedDisciplineIDs": ["powerlifting", "generalStrength"],
+          "focusAreaIDs": ["lowerBody", "upperBody"],
+          "estimatedSessionMinutesMinimum": 60,
+          "estimatedSessionMinutesMaximum": 90,
+          "competitionDisciplineID": "powerlifting",
+          "optionalEquipmentCapabilityIDs": ["bands", "chains"],
+          "blocks": [{
+            "name": "Base",
+            "phaseType": "strength",
+            "weeks": [{
+              "weekIndex": 0,
+              "workouts": [{"name": "Day 1", "dayOffset": 0, "exercises": []}]
+            }]
+          }]
+        }
+        """
+        let authoring = try JSONDecoder().decode(AuthoringProgramDefinition.self, from: Data(json.utf8))
+        XCTAssertEqual(authoring.supportedDisciplineIDs, ["powerlifting", "generalStrength"])
+        XCTAssertEqual(authoring.estimatedSessionMinutesMinimum, 60)
+        XCTAssertEqual(authoring.estimatedSessionMinutesMaximum, 90)
+
+        let payload = try authoring.expand(exerciseIDsByName: [:])
+        XCTAssertEqual(payload.supportedDisciplineIDs, ["powerlifting", "generalStrength"])
+        XCTAssertEqual(payload.focusAreaIDs, ["lowerBody", "upperBody"])
+        XCTAssertEqual(payload.estimatedSessionMinutesMinimum, 60)
+        XCTAssertEqual(payload.estimatedSessionMinutesMaximum, 90)
+        XCTAssertEqual(payload.competitionDisciplineID, "powerlifting")
+        XCTAssertEqual(payload.optionalEquipmentCapabilityIDs, ["bands", "chains"])
+
+        let issues = ProgramDefinitionValidator.validate(payload)
+        XCTAssertTrue(issues.isEmpty, "Validation should pass with valid session minutes")
+
+        // Round trip test
+        let encoded = try JSONEncoder().encode(payload)
+        let decoded = try JSONDecoder().decode(ProgramDefinitionPayload.self, from: encoded)
+        XCTAssertEqual(decoded.supportedDisciplineIDs, payload.supportedDisciplineIDs)
+        XCTAssertEqual(decoded.estimatedSessionMinutesMinimum, 60)
+        XCTAssertEqual(decoded.estimatedSessionMinutesMaximum, 90)
+
+        // Invalid minute range test
+        var invalidPayload = payload
+        invalidPayload.estimatedSessionMinutesMinimum = 100
+        invalidPayload.estimatedSessionMinutesMaximum = 50
+        let invalidIssues = ProgramDefinitionValidator.validate(invalidPayload)
+        XCTAssertTrue(invalidIssues.contains { $0.path == "estimatedSessionMinutesMinimum" && $0.code == .invalidPrescriptionValue })
+    }
 }

@@ -114,7 +114,7 @@ nonisolated struct AuthoringDirectSetDefinition: Codable, Hashable {
     ) throws -> SetPrescriptionDefinition {
         let group = AuthoringSetGroupDefinition(
             count: 1,
-            reps: reps,
+            reps: reps ?? ((complex != nil || olympicAttempt != nil) ? 1 : nil),
             repRange: repRange,
             amrap: amrap,
             durationSeconds: durationSeconds,
@@ -276,6 +276,12 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var requiredCapabilities: [String]?
     var provenance: ProgramProvenance?
     var sourceReferences: [ProgramSourceReference]?
+    var supportedDisciplineIDs: [String]?
+    var focusAreaIDs: [String]?
+    var estimatedSessionMinutesMinimum: Int?
+    var estimatedSessionMinutesMaximum: Int?
+    var competitionDisciplineID: String?
+    var optionalEquipmentCapabilityIDs: [String]?
     var rulesLibrary: [String: AuthoringRuleSetDefinition]?
     var stageTemplates: [String: [AuthoringStageDefinition]]?
     var waveTemplates: [String: [AuthoringWaveDefinition]]?
@@ -570,6 +576,12 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             requiredCapabilities: Set((requiredCapabilities ?? []) + detectedCapabilities).sorted(),
             provenance: provenance,
             sourceReferences: sourceReferences,
+            supportedDisciplineIDs: supportedDisciplineIDs,
+            focusAreaIDs: focusAreaIDs,
+            estimatedSessionMinutesMinimum: estimatedSessionMinutesMinimum,
+            estimatedSessionMinutesMaximum: estimatedSessionMinutesMaximum,
+            competitionDisciplineID: competitionDisciplineID,
+            optionalEquipmentCapabilityIDs: optionalEquipmentCapabilityIDs,
             blocks: expandedBlocks
         )
     }

@@ -54,67 +54,13 @@ struct MobilityMatchCandidate: Identifiable, Equatable, Sendable {
 }
 
 extension MobilityMatchCandidate {
-    private struct Metadata {
-        let goalIDs: Set<String>
-        let experienceLevel: MobilityMatchExperienceLevel
-        let prerequisites: [String]
-    }
-
-    /// One entry per bundled plan, reviewed against `MobilityProgramLibraryData`
-    /// each time a plan is added there. A `programKey` this table does not
-    /// recognise — a future plan, or a lifter's own imported one — still
-    /// ranks; it simply earns no goal or experience bonus and lists no
-    /// prerequisite, exactly like a workout program that never declared its
-    /// own matching metadata.
-    private static let metadataByProgramKey: [String: Metadata] = [
-        "general-flexibility-foundation": Metadata(
-            goalIDs: [MobilityGoalPreference.generalFlexibility.rawValue, MobilityGoalPreference.recovery.rawValue],
-            experienceLevel: .beginner,
-            prerequisites: []
-        ),
-        "contract-relax-lower-body": Metadata(
-            goalIDs: [MobilityGoalPreference.generalFlexibility.rawValue, MobilityGoalPreference.recovery.rawValue],
-            experienceLevel: .intermediate,
-            prerequisites: []
-        ),
-        "active-range-end-range-control": Metadata(
-            goalIDs: [MobilityGoalPreference.generalFlexibility.rawValue, MobilityGoalPreference.targetedPosition.rawValue],
-            experienceLevel: .intermediate,
-            prerequisites: []
-        ),
-        // Prerequisite text below is plain, un-localized `String` — deliberately,
-        // the same way `ProgramDefinitionPayload.prerequisites` is bundled
-        // catalogue content rather than UI chrome, and is never wrapped in
-        // `String(localized:)`. This table describes the same seven bundled
-        // plans; it is authored in Swift instead of `ProgramLibrary.json`'s
-        // JSON only because `MobilityProgramDefinitionPayload` has no field to
-        // hold it (see the type's own doc comment above).
-        "loaded-flexibility-foundations": Metadata(
-            goalIDs: [MobilityGoalPreference.targetedPosition.rawValue],
-            experienceLevel: .advanced,
-            prerequisites: [
-                "Best suited to lifters already comfortable with the unloaded version of each position"
-            ]
-        ),
-        "squat-mobility-integration": Metadata(
-            goalIDs: [MobilityGoalPreference.targetedPosition.rawValue],
-            experienceLevel: .advanced,
-            prerequisites: ["Written to pair with training that already includes squatting"]
-        ),
-        "overhead-mobility-integration": Metadata(
-            goalIDs: [MobilityGoalPreference.targetedPosition.rawValue],
-            experienceLevel: .advanced,
-            prerequisites: ["Written to pair with training that already includes overhead pressing"]
-        ),
-        "front-split-assistance-ladder": Metadata(
-            goalIDs: [MobilityGoalPreference.targetedPosition.rawValue],
-            experienceLevel: .advanced,
-            prerequisites: ["Comfortable holding a supported split position"]
-        )
-    ]
-
     init(payload: MobilityProgramDefinitionPayload) {
-        let metadata = Self.metadataByProgramKey[payload.programKey]
+        let level: MobilityMatchExperienceLevel
+        switch payload.experienceLevelRaw {
+        case "intermediate": level = .intermediate
+        case "advanced": level = .advanced
+        default: level = .beginner
+        }
         self.init(
             id: payload.id,
             programKey: payload.programKey,
@@ -123,9 +69,9 @@ extension MobilityMatchCandidate {
             durationWeeks: payload.durationWeeks,
             supportedDaysPerWeek: payload.supportedDaysPerWeek,
             requiredCapabilities: payload.requiredCapabilities,
-            goalIDs: metadata?.goalIDs ?? [],
-            experienceLevel: metadata?.experienceLevel ?? .beginner,
-            prerequisites: metadata?.prerequisites ?? []
+            goalIDs: Set(payload.goalIDs ?? []),
+            experienceLevel: level,
+            prerequisites: payload.prerequisites ?? []
         )
     }
 

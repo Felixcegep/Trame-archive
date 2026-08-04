@@ -361,6 +361,120 @@ enum MobilitySeedData {
                     ("Doorway Chest & Shoulder Opener", nil, 45, .bilateral),
                     ("90/90 Hip Switch", 8, nil, .alternating)
                 ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.squat-preparation-v2",
+                name: "Squat Preparation v2",
+                purpose: .preparation,
+                items: [
+                    ("Knee-to-Wall Ankle Mobilization", 8, nil, .alternating),
+                    ("90/90 Hip Switch", 6, nil, .alternating),
+                    ("Tactical Frog", 8, nil, .alternating),
+                    ("Deep-Squat Transition", 6, nil, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.bench-preparation-v2",
+                name: "Bench Preparation v2",
+                purpose: .preparation,
+                items: [
+                    ("Quadruped Wrist Rocks", 8, nil, .bilateral),
+                    ("Thoracic Rotation", 6, nil, .alternating),
+                    ("Shoulder Pass-Throughs", 8, nil, .bilateral),
+                    ("Wall Slides", 8, nil, .bilateral),
+                    ("Scapular Pull-Ups", 8, nil, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.deadlift-preparation-v2",
+                name: "Deadlift Preparation v2",
+                purpose: .preparation,
+                items: [
+                    ("Cat-Cow", 8, nil, .bilateral),
+                    ("Active Straight Leg Raise", 6, nil, .alternating),
+                    ("Single-Leg Hip Hinge", 6, nil, .alternating)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.snatch-preparation-v2",
+                name: "Snatch Preparation v2",
+                purpose: .preparation,
+                items: [
+                    ("Knee-to-Wall Ankle Mobilization", 8, nil, .alternating),
+                    ("90/90 Hip Switch", 6, nil, .alternating),
+                    ("Thoracic Rotation", 6, nil, .alternating),
+                    ("Shoulder Pass-Throughs", 10, nil, .bilateral),
+                    ("Wall Shoulder Flexion Lift-Off", 5, nil, .bilateral),
+                    ("Goblet Deep-Squat Hold", nil, 20, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.clean-and-jerk-preparation-v2",
+                name: "Clean & Jerk Preparation v2",
+                purpose: .preparation,
+                items: [
+                    ("Knee-to-Wall Ankle Mobilization", 8, nil, .alternating),
+                    ("90/90 Hip Switch", 6, nil, .alternating),
+                    ("Thoracic Rotation", 6, nil, .alternating),
+                    ("Quadruped Wrist Rocks", 10, nil, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.strongman-overhead-preparation-v2",
+                name: "Strongman Overhead Preparation v2",
+                purpose: .preparation,
+                items: [
+                    ("Quadruped Wrist Rocks", 10, nil, .bilateral),
+                    ("Thoracic Rotation", 6, nil, .alternating),
+                    ("Wall Slides", 8, nil, .bilateral),
+                    ("Scapular Pull-Ups", 8, nil, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.strongman-carry-preparation-v2",
+                name: "Strongman Carry & Loading Preparation v2",
+                purpose: .preparation,
+                items: [
+                    ("Knee-to-Wall Ankle Mobilization", 8, nil, .alternating),
+                    ("Hip CARs", 3, nil, .alternating),
+                    ("90/90 Hip Switch", 6, nil, .alternating),
+                    ("Deep-Squat Transition", 6, nil, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.fitness-racing-preparation-v2",
+                name: "Fitness Racing Preparation v2",
+                purpose: .preparation,
+                items: [
+                    ("Ankle Circles", 8, nil, .alternating),
+                    ("Knee-to-Wall Ankle Mobilization", 8, nil, .alternating),
+                    ("World's Greatest Stretch", 4, nil, .alternating),
+                    ("Cossack Squat", 6, nil, .alternating),
+                    ("Thoracic Rotation", 6, nil, .alternating)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.calisthenics-preparation-v2",
+                name: "Calisthenics Preparation v2",
+                purpose: .preparation,
+                items: [
+                    ("Wrist Circles", 10, nil, .alternating),
+                    ("Quadruped Wrist Rocks", 8, nil, .bilateral),
+                    ("First Knuckle Lifts", 8, nil, .bilateral),
+                    ("Shoulder CARs", 3, nil, .alternating),
+                    ("Scapular Pull-Ups", 8, nil, .bilateral),
+                    ("Hollow Body Hold", nil, 15, .bilateral)
+                ]
+            ),
+            RoutineSeedSpec(
+                key: "mobility-routine.kettlebell-preparation-v2",
+                name: "Kettlebell Preparation v2",
+                purpose: .preparation,
+                items: [
+                    ("Wrist Circles", 10, nil, .alternating),
+                    ("Thoracic Rotation", 6, nil, .alternating),
+                    ("Single-Leg Hip Hinge", 8, nil, .alternating)
+                ]
             )
         ]
 
