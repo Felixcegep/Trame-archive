@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftData
 import SwiftUI
 import UIKit
 
@@ -11,6 +12,30 @@ final class GuidedSourceConflictCoordinator {
     var guidedSourceActionError: String?
 
     private var guidedSourceUndoTask: Task<Void, Never>?
+
+    var guidedSourceSwitchTitle: String {
+        guard let request = guidedSourceConflictRequest else { return String(localized: "Change active plan?") }
+        switch request {
+        case .chooseFromToday:
+            return String(localized: "Choose your active plan")
+        case .activate(_), .resume(_):
+            return String(localized: "Switch to this rotation?")
+        case .workoutStart(let request):
+            if case .planned = request.start {
+                return String(localized: "Switch to this training plan?")
+            }
+            return String(localized: "Switch to this rotation?")
+        case .fixedPlan(_):
+            return String(localized: "Switch to this training plan?")
+        }
+    }
+
+    var guidedSourceSwitchMessage: String {
+        guard case .chooseFromToday? = guidedSourceConflictRequest else {
+            return String(localized: "Your current plan will be paused, not deleted. Its progress and completed workouts stay available, and you can resume it later.")
+        }
+        return String(localized: "Choose which plan appears in Today. The other plan will be paused, while its progress and completed workouts remain available.")
+    }
 
     deinit {
         guidedSourceUndoTask?.cancel()
@@ -41,6 +66,26 @@ final class GuidedSourceConflictCoordinator {
         guidedSourceUndoTask?.cancel()
         guidedSourceUndoTask = nil
         pendingGuidedSourceUndo = nil
+    }
+
+    func undoRepeatingPlanAdvancement(_ run: RepeatingPlanRun, workoutVM: WorkoutViewModel, using modelContext: ModelContext) {
+        guard !workoutVM.hasActiveWorkout, !workoutVM.restoreActiveWorkout(using: modelContext).didSave else {
+            guidedSourceActionError = "Finish or discard the active workout before undoing a rotation change."
+            return
+        }
+        guard workoutVM.undoLastRepeatingPlanAdvancement(in: run, using: modelContext) else {
+            guidedSourceActionError = "Undo is available only for the most recent completed or skipped rotation change."
+            return
+        }
+    }
+
+    func registerGuidedSourceUndo(
+        _ snapshot: GuidedSourceSwitchSnapshot,
+        after outcome: PlanActionOutcome = .succeededSilently,
+        workoutVM: WorkoutViewModel
+    ) {
+        guard !workoutVM.hasActiveWorkout else { return }
+        scheduleUndo(for: snapshot, outcome: outcome)
     }
 
     func reset() {

@@ -263,7 +263,7 @@ struct RootView: View {
             Text("Do you want to continue your active workout, or discard it and start a new one?")
         }
         .confirmationDialog(
-            guidedSourceSwitchTitle,
+            guidedSourceCoordinator.guidedSourceSwitchTitle,
             isPresented: Binding(
                 get: { guidedSourceCoordinator.guidedSourceConflictRequest != nil },
                 set: { if !$0 { guidedSourceCoordinator.guidedSourceConflictRequest = nil } }
@@ -272,7 +272,7 @@ struct RootView: View {
         ) {
             guidedSourceConflictActions
         } message: {
-            Text(guidedSourceSwitchMessage)
+            Text(guidedSourceCoordinator.guidedSourceSwitchMessage)
         }
         // A sheet, not a confirmation dialog: an action sheet had nowhere to
         // put the routine's length or size, so it asked for a decision while
@@ -314,7 +314,7 @@ struct RootView: View {
         ) {
             cooldownActions
         } message: {
-            Text(cooldownMessage)
+            Text(postWorkoutCoordinator.cooldownMessage(using: modelContext))
         }
         .alert(
             "Plan change failed",
@@ -1005,18 +1005,11 @@ struct RootView: View {
     }
 
     private func startMobility(_ routine: MobilityRoutine, _ context: MobilitySessionContext, _ workoutID: UUID?) {
-        guard let session = MobilitySessionService.start(
-            routine: routine,
-            context: context,
-            workoutID: workoutID,
-            using: modelContext
-        ) else { return }
-        activeSessionRouter.activeMobilitySession = session
+        activeSessionRouter.startMobility(routine, context, workoutID, using: modelContext)
     }
 
     private func resumeMobility(_ session: MobilitySession) {
-        guard let restored = reconciledActiveMobilitySession(), restored.id == session.id else { return }
-        activeSessionRouter.activeMobilitySession = restored
+        activeSessionRouter.resumeMobility(session, using: modelContext)
     }
 
     /// Mirrors `startMobility`: a mobility program session is compiled and
@@ -1025,7 +1018,7 @@ struct RootView: View {
     /// `activeMobilitySession` fullScreenCover every mobility session (
     /// standalone or program) presents through.
     private func startMobilityProgramSession(_ session: MobilitySession) {
-        activeSessionRouter.activeMobilitySession = session
+        activeSessionRouter.startMobilityProgramSession(session)
     }
 
     private func reconciledActiveMobilitySession() -> MobilitySession? {
@@ -1068,23 +1061,15 @@ struct RootView: View {
     }
 
     private func startFreeWorkout() {
-        if !workoutVM.hasActiveWorkout {
-            workoutVM.startWorkout(using: modelContext)
-        }
-        activeSessionRouter.isShowingActiveWorkout = workoutVM.hasActiveWorkout
+        activeSessionRouter.startFreeWorkout(workoutVM: workoutVM, using: modelContext)
     }
 
     private func startWorkout(from template: WorkoutTemplate) {
-        requestWorkoutStart(.template(template))
+        activeSessionRouter.startWorkout(from: template, using: modelContext, workoutVM: workoutVM)
     }
 
     private func startPlannedWorkout(_ planRun: PlanRun, _ progress: PlanWorkoutProgress) {
-        guard let plannedWorkout = PlanCoordinator.plannedWorkout(for: progress, in: planRun) else { return }
-        requestWorkoutStart(.planned(PendingPlannedWorkout(
-            planRun: planRun,
-            progress: progress,
-            plannedWorkout: plannedWorkout
-        )))
+        activeSessionRouter.startPlannedWorkout(planRun, progress, using: modelContext, workoutVM: workoutVM)
     }
 
     private func startFixedPlan(_ plan: WorkoutPlan, _ startDate: Date) {
@@ -1136,7 +1121,7 @@ struct RootView: View {
     }
 
     private func startRepeatingWorkout(_ run: RepeatingPlanRun) {
-        requestWorkoutStart(.repeating(run, .expected))
+        activeSessionRouter.startRepeatingWorkout(run, using: modelContext, workoutVM: workoutVM)
     }
 
     private func startAlternateRepeatingWorkout(
@@ -1144,35 +1129,25 @@ struct RootView: View {
         _ slotIndex: Int,
         _ continuationMode: RepeatingPlanContinuationMode
     ) {
-        requestWorkoutStart(.repeating(
+        activeSessionRouter.startAlternateRepeatingWorkout(
             run,
-            .alternate(slotIndex: slotIndex, continuationMode: continuationMode)
-        ))
+            slotIndex,
+            continuationMode,
+            using: modelContext,
+            workoutVM: workoutVM
+        )
     }
 
     private func repeatRepeatingWorkout(_ run: RepeatingPlanRun) {
-        requestWorkoutStart(.repeating(run, .repeatLast))
+        activeSessionRouter.repeatRepeatingWorkout(run, using: modelContext, workoutVM: workoutVM)
     }
 
     private func requestWorkoutStart(_ start: PendingWorkoutStart) {
-        guard workoutVM.hasActiveWorkout == false else {
-            activeSessionRouter.pendingWorkoutStart = start
-            activeSessionRouter.isShowingActiveWorkoutConflictAlert = true
-            return
-        }
-        requestWorkoutPreparation(for: start)
+        activeSessionRouter.requestWorkoutStart(start, using: modelContext, workoutVM: workoutVM)
     }
 
     private func requestWorkoutPreparation(for start: PendingWorkoutStart) {
-        let warmupRoutine = WorkoutMobilityLinkResolver.linkedRoutine(
-            for: start,
-            phase: .warmup,
-            using: modelContext
-        )
-        activeSessionRouter.workoutPreparationRequest = WorkoutPreparationRequest(
-            start: start,
-            warmupRoutine: warmupRoutine
-        )
+        activeSessionRouter.requestWorkoutPreparation(for: start, using: modelContext)
     }
 
     private func continueWorkoutStart(_ request: WorkoutPreparationRequest) {
@@ -1267,16 +1242,6 @@ struct RootView: View {
         }
     }
 
-    private var cooldownMessage: String {
-        if MobilitySessionService.activeSession(using: modelContext) != nil {
-            return String(localized: "Finish or stop the active mobility session before starting this linked cooldown.")
-        }
-        guard let routineName = postWorkoutCoordinator.cooldownRequest?.routine.name else {
-            return String(localized: "This workout has an optional linked cooldown.")
-        }
-        return String(localized: "Start \(routineName) after this workout? It is recorded as a separate mobility session.")
-    }
-
     private func startLinkedMobility(_ request: MobilityRoutineLaunchRequest) {
         guard let session = MobilitySessionService.start(
             routine: request.routine,
@@ -1366,14 +1331,7 @@ struct RootView: View {
     }
 
     private func undoRepeatingPlanAdvancement(_ run: RepeatingPlanRun) {
-        guard !workoutVM.hasActiveWorkout, !workoutVM.restoreActiveWorkout(using: modelContext).didSave else {
-            guidedSourceCoordinator.guidedSourceActionError = "Finish or discard the active workout before undoing a rotation change."
-            return
-        }
-        guard workoutVM.undoLastRepeatingPlanAdvancement(in: run, using: modelContext) else {
-            guidedSourceCoordinator.guidedSourceActionError = "Undo is available only for the most recent completed or skipped rotation change."
-            return
-        }
+        guidedSourceCoordinator.undoRepeatingPlanAdvancement(run, workoutVM: workoutVM, using: modelContext)
     }
 
     private func restartRepeatingPlan(_ run: RepeatingPlanRun) {
@@ -1445,30 +1403,6 @@ struct RootView: View {
         case .template:
             return "Continue"
         }
-    }
-
-    private var guidedSourceSwitchTitle: String {
-        guard let request = guidedSourceCoordinator.guidedSourceConflictRequest else { return String(localized: "Change active plan?") }
-        switch request {
-        case .chooseFromToday:
-            return String(localized: "Choose your active plan")
-        case .activate(_), .resume(_):
-            return String(localized: "Switch to this rotation?")
-        case .workoutStart(let request):
-            if case .planned = request.start {
-                return String(localized: "Switch to this training plan?")
-            }
-            return String(localized: "Switch to this rotation?")
-        case .fixedPlan(_):
-            return String(localized: "Switch to this training plan?")
-        }
-    }
-
-    private var guidedSourceSwitchMessage: String {
-        guard case .chooseFromToday? = guidedSourceCoordinator.guidedSourceConflictRequest else {
-            return String(localized: "Your current plan will be paused, not deleted. Its progress and completed workouts stay available, and you can resume it later.")
-        }
-        return String(localized: "Choose which plan appears in Today. The other plan will be paused, while its progress and completed workouts remain available.")
     }
 
     private var guidedSourceUndoBanner: some View {
@@ -1569,8 +1503,7 @@ struct RootView: View {
         _ snapshot: GuidedSourceSwitchSnapshot,
         after outcome: PlanActionOutcome = .succeededSilently
     ) {
-        guard !workoutVM.hasActiveWorkout else { return }
-        guidedSourceCoordinator.scheduleUndo(for: snapshot, outcome: outcome)
+        guidedSourceCoordinator.registerGuidedSourceUndo(snapshot, after: outcome, workoutVM: workoutVM)
     }
 
     private func undoGuidedSourceSwitch() {

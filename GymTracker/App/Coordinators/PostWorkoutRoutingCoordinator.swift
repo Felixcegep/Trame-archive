@@ -66,6 +66,16 @@ final class PostWorkoutRoutingCoordinator {
         cooldownRequest = nil
     }
 
+    func cooldownMessage(using modelContext: ModelContext) -> String {
+        if MobilitySessionService.activeSession(using: modelContext) != nil {
+            return String(localized: "Finish or stop the active mobility session before starting this linked cooldown.")
+        }
+        guard let routineName = cooldownRequest?.routine.name else {
+            return String(localized: "This workout has an optional linked cooldown.")
+        }
+        return String(localized: "Start \(routineName) after this workout? It is recorded as a separate mobility session.")
+    }
+
     func clearWarmupWorkoutID() {
         warmupWorkoutID = nil
     }
