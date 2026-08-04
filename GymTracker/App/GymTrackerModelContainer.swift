@@ -20,11 +20,82 @@ enum GymTrackerAppSchema {
 /// Explicit V3 CloudKit-compatible schema generation.
 /// Freezes Schema V2 in place and acts as the target schema baseline for all
 /// multi-device iCloud sync refactoring.
+///
+/// NOTE: The model list below is written as an explicit literal array and must
+/// NEVER again be expressed in terms of `GymTrackerAdvancedMobilityEvidenceSchema.models`.
+/// Delegating V3 to V2 caused both versioned schemas to resolve to identical live Swift classes,
+/// allowing any edit to a live model to silently rewrite historical schema definitions.
 enum GymTrackerCloudCompatibleSchemaV3: VersionedSchema {
     static let versionIdentifier = Schema.Version(3, 0, 0)
 
     static var models: [any PersistentModel.Type] {
-        return GymTrackerAdvancedMobilityEvidenceSchema.models
+        var types: [any PersistentModel.Type] = [
+            Workout.self,
+            WorkoutExecutionBlock.self,
+            Exercise.self,
+            ExerciseRelationship.self,
+            ExerciseEntry.self,
+            ExerciseSet.self,
+            ExerciseSetSegment.self,
+            ComplexComponentResult.self,
+            WorkoutTemplate.self,
+            TemplateExercise.self,
+            TemplateExerciseBlock.self,
+            WorkoutCollection.self,
+            WorkoutPlan.self,
+            PlanBlock.self,
+            PlanWeek.self,
+            PlannedWorkout.self,
+            PlannedExercise.self,
+            PlannedExerciseBlock.self,
+            PlannedSet.self,
+            PlannedExerciseAlternative.self,
+            PlanRun.self,
+            PlanWorkoutProgress.self,
+            PlanExerciseProgressionState.self,
+            RepeatingPlan.self,
+            RepeatingPlanSlot.self,
+            RepeatingPlanRun.self,
+            RepeatingPlanRunSlot.self,
+            RepeatingPlanOccurrence.self,
+            DailyLogEntry.self,
+            BodyWeightEntry.self,
+            SupplementOccurrence.self,
+            MobilityFamily.self,
+            MobilityDefinition.self,
+            MobilityRoutine.self,
+            MobilityRoutineItem.self,
+            MobilitySession.self,
+            MobilityEntry.self,
+            MobilityResult.self,
+            MobilityAssessmentDefinition.self,
+            MobilityAssessmentSession.self,
+            MobilityAssessmentResult.self,
+            MobilityAssessmentSample.self,
+            FoodItem.self,
+            FoodServing.self,
+            MealTemplate.self,
+            MealTemplateItem.self,
+            LoggedMeal.self,
+            LoggedMealItem.self,
+            NutritionTarget.self,
+            MobilityRoutineItemEvidence.self,
+            MobilityResultEvidence.self,
+            MobilityRoutineBlock.self,
+            MobilityEntryEvidence.self
+        ]
+#if !GYMTRACKER_EXTENSION
+        types.append(SystemSeedRecord.self)
+        types.append(ProgramDefinitionRecord.self)
+        types.append(PlanProgressionRecommendationRecord.self)
+        types.append(TrainingProfile.self)
+        types.append(MobilityProgramDefinitionRecord.self)
+        types.append(MobilityProgramRun.self)
+        types.append(MobilityProgramSessionProgress.self)
+        types.append(MobilityProgressionState.self)
+        types.append(MobilityProgressionRecommendationRecord.self)
+#endif
+        return types
     }
 }
 
@@ -187,12 +258,14 @@ enum GymTrackerModelContainer {
         if CommandLine.arguments.contains("-ui-testing-storage-unavailable") {
             return .unavailable("Simulated store failure for screenshot capture.")
         }
+        let backupLocation = GymTrackerPreMigrationBackup.createPreMigrationBackupIfNeeded()
         do {
             let configuration = GymTrackerPersistenceConfiguration()
             return .ready(try configuration.makeContainer())
         } catch {
             print("Unable to create GymTracker's persistent model container: \(error)")
-            return .unavailable(error.localizedDescription)
+            let backupInfo = backupLocation != nil ? " (Pre-migration backup retained at: \(backupLocation!.path))" : ""
+            return .unavailable("\(error.localizedDescription)\(backupInfo)")
         }
     }()
 
