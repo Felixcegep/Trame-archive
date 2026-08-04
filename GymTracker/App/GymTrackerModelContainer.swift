@@ -9,6 +9,12 @@ import SwiftData
 /// testers running different schema generations.
 enum GymTrackerAppSchema {
     static let diagnosticVersion = "13"
+
+    /// What the shipped build actually does with iCloud. This is deliberately
+    /// a literal, not derived from CloudSyncEnvironment: the point is that a
+    /// beta feedback report states the truth even if a future configuration
+    /// change is made without updating the user-facing copy.
+    static let cloudSyncState = "disabled"
 }
 
 /// Explicit V3 CloudKit-compatible schema generation.

@@ -13,6 +13,7 @@ struct BetaFeedbackContext: Sendable, Equatable {
     let appVersion: String
     let buildNumber: String
     let schemaVersion: String
+    let cloudSyncState: String
     let backupFormatVersion: Int
     let buildChannel: FeatureFlagBuildChannel
     let enabledFlags: [FeatureFlag]
@@ -25,6 +26,7 @@ struct BetaFeedbackContext: Sendable, Equatable {
         appVersion: String,
         buildNumber: String,
         schemaVersion: String,
+        cloudSyncState: String = GymTrackerAppSchema.cloudSyncState,
         backupFormatVersion: Int,
         buildChannel: FeatureFlagBuildChannel,
         enabledFlags: [FeatureFlag],
@@ -36,6 +38,7 @@ struct BetaFeedbackContext: Sendable, Equatable {
         self.appVersion = appVersion
         self.buildNumber = buildNumber
         self.schemaVersion = schemaVersion
+        self.cloudSyncState = cloudSyncState
         self.backupFormatVersion = backupFormatVersion
         self.buildChannel = buildChannel
         self.enabledFlags = enabledFlags
@@ -53,6 +56,7 @@ struct BetaFeedbackContext: Sendable, Equatable {
             (String(localized: "App Version"), appVersion),
             (String(localized: "Build"), buildNumber),
             (String(localized: "Schema Version"), schemaVersion),
+            (String(localized: "Cloud Sync"), cloudSyncState),
             (String(localized: "Backup Format"), "v\(backupFormatVersion)"),
             (String(localized: "Build Channel"), buildChannel.rawValue),
             (String(localized: "Enabled Flags"), enabledFlags.map(\.rawValue).joined(separator: ", ")),
@@ -91,6 +95,7 @@ enum BetaFeedbackContextProvider {
             appVersion: infoDictionary["CFBundleShortVersionString"] as? String ?? BetaFeedbackContext.unknownValue,
             buildNumber: infoDictionary["CFBundleVersion"] as? String ?? BetaFeedbackContext.unknownValue,
             schemaVersion: GymTrackerAppSchema.diagnosticVersion,
+            cloudSyncState: GymTrackerAppSchema.cloudSyncState,
             backupFormatVersion: BackupDTO.currentVersion,
             buildChannel: featureFlags.buildChannel,
             enabledFlags: featureFlags.enabledFlags,
