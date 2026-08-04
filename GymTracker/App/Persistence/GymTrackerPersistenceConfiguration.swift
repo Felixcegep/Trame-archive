@@ -17,37 +17,62 @@ public struct GymTrackerPersistenceConfiguration: Sendable {
         self.isInMemory = isInMemory
     }
 
-    /// Creates a fully initialized `ModelContainer` for GymTracker.
-    @MainActor
-    public func makeContainer() throws -> ModelContainer {
-        let schema = Schema(versionedSchema: GymTrackerCloudCompatibleSchemaV3.self)
+    public static let schema = Schema(versionedSchema: GymTrackerCloudCompatibleSchemaV3.self)
 
-        let cloudKitDatabaseSetting: ModelConfiguration.CloudKitDatabase = {
-            switch cloudEnvironment {
-            case .disabled:
+    private var cloudKitDatabaseSetting: ModelConfiguration.CloudKitDatabase {
+        switch cloudEnvironment {
+        case .disabled:
+            return .none
+        case .development, .production:
+            if let identifier = cloudContainerIdentifier, !identifier.isEmpty {
+                return .private(identifier)
+            } else {
                 return .none
-            case .development, .production:
-                if let identifier = cloudContainerIdentifier, !identifier.isEmpty {
-                    return .private(identifier)
-                } else {
-                    return .none
-                }
             }
-        }()
+        }
+    }
 
-        let mainConfiguration = ModelConfiguration(
-            "GymTrackerCloudUserData",
-            schema: schema,
+    /// The single `ModelConfiguration` the app opens.
+    ///
+    /// **The store location is deliberately left for SwiftData to derive.** Two
+    /// of this initializer's inputs feed that derived URL: the configuration
+    /// *name* and `groupContainer`. Every build that has shipped opened its
+    /// store through an unnamed configuration with `groupContainer: .automatic`,
+    /// because no `ModelConfiguration` was passed at all and those are the
+    /// defaults. Naming the configuration or forcing `groupContainer: .none`
+    /// silently points the app at a different file on disk, so a user's entire
+    /// history appears to vanish on first launch with no error anywhere.
+    ///
+    /// Do not name this configuration and do not change `groupContainer`
+    /// without a migration step that physically moves the existing store. The
+    /// two-store split described in `Documentation/Sync/TargetArchitecture.md`
+    /// must introduce its *second* store with an explicit `url:`, leaving this
+    /// one exactly where it already is.
+    ///
+    /// `cloudKitDatabase` does not participate in URL derivation, so setting it
+    /// explicitly is safe.
+    public func makeModelConfiguration() -> ModelConfiguration {
+        ModelConfiguration(
+            schema: Self.schema,
             isStoredInMemoryOnly: isInMemory,
             allowsSave: true,
-            groupContainer: .none,
+            groupContainer: .automatic,
             cloudKitDatabase: cloudKitDatabaseSetting
         )
+    }
 
-        return try ModelContainer(
-            for: schema,
+    /// Creates a fully initialized `ModelContainer` for GymTracker.
+    ///
+    /// Callers that need the store URL before the open — to copy the store
+    /// aside, for instance — should build the configuration with
+    /// `makeModelConfiguration()`, read its `url`, and pass it back in here so
+    /// exactly one configuration is used for both.
+    @MainActor
+    public func makeContainer(using configuration: ModelConfiguration? = nil) throws -> ModelContainer {
+        try ModelContainer(
+            for: Self.schema,
             migrationPlan: GymTrackerSchemaMigrationPlan.self,
-            configurations: [mainConfiguration]
+            configurations: [configuration ?? makeModelConfiguration()]
         )
     }
 }

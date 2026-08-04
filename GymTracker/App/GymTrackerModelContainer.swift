@@ -258,14 +258,32 @@ enum GymTrackerModelContainer {
         if CommandLine.arguments.contains("-ui-testing-storage-unavailable") {
             return .unavailable("Simulated store failure for screenshot capture.")
         }
-        let backupLocation = GymTrackerPreMigrationBackup.createPreMigrationBackupIfNeeded()
+        let persistence = GymTrackerPersistenceConfiguration()
+        // Build the configuration once and reuse it, so the store that gets
+        // copied aside is provably the same one that is about to be opened.
+        let configuration = persistence.makeModelConfiguration()
+        let currentVersion = GymTrackerCloudCompatibleSchemaV3.versionIdentifier
+
+        let backupOutcome = GymTrackerPreMigrationBackup.backUpIfSchemaVersionChanged(
+            storeURL: configuration.url,
+            currentVersion: currentVersion
+        )
+
         do {
-            let configuration = GymTrackerPersistenceConfiguration()
-            return .ready(try configuration.makeContainer())
+            let container = try persistence.makeContainer(using: configuration)
+            // Only a completed open proves the migration succeeded, so the
+            // recorded version advances here and nowhere else. A throw leaves
+            // the marker on the previous version, which is what stops the next
+            // launch from copying a damaged store over a good backup.
+            GymTrackerPreMigrationBackup.recordSuccessfulOpen(
+                storeURL: configuration.url,
+                version: currentVersion
+            )
+            return .ready(container)
         } catch {
             print("Unable to create GymTracker's persistent model container: \(error)")
-            let backupInfo = backupLocation != nil ? " (Pre-migration backup retained at: \(backupLocation!.path))" : ""
-            return .unavailable("\(error.localizedDescription)\(backupInfo)")
+            let recovery = backupOutcome.recoveryDescription.map { " \($0)" } ?? ""
+            return .unavailable("\(error.localizedDescription)\(recovery)")
         }
     }()
 
