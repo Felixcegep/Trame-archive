@@ -44,6 +44,49 @@ struct MobilityAssessmentFlowView: View {
         var isWarm: Bool = false
         var numericValues: [String: Double] = [:]
         var criteria: [String: MobilityAssessmentCriteriaObservation] = [:]
+        var trials: [String: [Double?]] = [:]
+    }
+
+    private func numericControls(_ definition: MobilityAssessmentDefinition) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            ForEach(definition.supportedSides, id: \.self) { side in
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(side.displayName)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.gymText)
+
+                    HStack(spacing: Spacing.xs) {
+                        ForEach(0..<3, id: \.self) { trialIndex in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Trial \(trialIndex + 1)")
+                                    .font(AppFont.caption)
+                                    .foregroundStyle(Color.gymSubduedText)
+                                DecimalField(
+                                    "Trial \(trialIndex + 1)",
+                                    value: trialBinding(for: side, index: trialIndex),
+                                    prompt: MobilityAssessmentValueFormatter.placeholder,
+                                    range: valueRange(for: definition.unit)
+                                )
+                                .gymFieldStyle()
+                                .accessibilityLabel(fieldAccessibilityLabel(side: side, unit: definition.unit, trialIndex: trialIndex))
+                                .accessibilityIdentifier(trialIndex == 0 ? "mobility-assessment-value-\(side.rawValue)" : "mobility-assessment-value-\(side.rawValue)-trial-\(trialIndex + 1)")
+                            }
+                        }
+
+                        Text(MobilityAssessmentValueFormatter.unitSuffix(definition.unit))
+                            .font(AppFont.subheadlineSemibold)
+                            .foregroundStyle(Color.gymSubduedText)
+                            .padding(.top, Spacing.m)
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
+
+            Text("Enter up to 3 trials per side for improved accuracy. Three trials allow repeated-measurement comparison.")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     var body: some View {
@@ -333,39 +376,6 @@ struct MobilityAssessmentFlowView: View {
         }
     }
 
-    private func numericControls(_ definition: MobilityAssessmentDefinition) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            ForEach(definition.supportedSides, id: \.self) { side in
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text(side.displayName)
-                        .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
-                    HStack(spacing: Spacing.s) {
-                        DecimalField(
-                            "Value",
-                            value: numericBinding(for: side),
-                            prompt: MobilityAssessmentValueFormatter.placeholder,
-                            range: valueRange(for: definition.unit)
-                        )
-                        .gymFieldStyle()
-                        .accessibilityLabel(fieldAccessibilityLabel(side: side, unit: definition.unit))
-                        .accessibilityIdentifier("mobility-assessment-value-\(side.rawValue)")
-
-                        Text(MobilityAssessmentValueFormatter.unitSuffix(definition.unit))
-                            .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymSubduedText)
-                            .accessibilityHidden(true)
-                    }
-                }
-            }
-
-            Text("Leave a side empty if you did not observe it. Left and right are saved as separate observations.")
-                .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
     private func criteriaControls(_ definition: MobilityAssessmentDefinition) -> some View {
         let side = definition.supportedSides.first ?? .combined
         return VStack(alignment: .leading, spacing: Spacing.s) {
@@ -570,21 +580,23 @@ struct MobilityAssessmentFlowView: View {
 
     private func fieldAccessibilityLabel(
         side: MobilityAssessmentSide,
-        unit: MobilityMeasurementUnit
+        unit: MobilityMeasurementUnit,
+        trialIndex: Int = 0
     ) -> String {
+        let trialSuffix = ", trial \(trialIndex + 1)"
         switch unit {
         case .degrees:
-            String(
+            return String(
                 localized: "mobility.assessment.field.degrees",
-                defaultValue: "\(side.displayName), degrees"
+                defaultValue: "\(side.displayName), degrees\(trialSuffix)"
             )
         case .centimetres:
-            String(
+            return String(
                 localized: "mobility.assessment.field.centimetres",
-                defaultValue: "\(side.displayName), centimetres"
+                defaultValue: "\(side.displayName), centimetres\(trialSuffix)"
             )
         case .criteria:
-            side.displayName
+            return side.displayName
         }
     }
 
@@ -594,6 +606,33 @@ struct MobilityAssessmentFlowView: View {
         case .centimetres: 0...100
         case .criteria: nil
         }
+    }
+
+    private func trialBinding(for side: MobilityAssessmentSide, index: Int) -> Binding<Double?> {
+        Binding(
+            get: {
+                let list = draft.trials[side.rawValue] ?? [nil, nil, nil]
+                return list.indices.contains(index) ? list[index] : nil
+            },
+            set: { newValue in
+                var list = draft.trials[side.rawValue] ?? [nil, nil, nil]
+                while list.count < 3 {
+                    list.append(nil)
+                }
+                list[index] = newValue
+                draft.trials[side.rawValue] = list
+
+                let activeValues = list.compactMap { $0 }
+                if activeValues.isEmpty {
+                    draft.numericValues.removeValue(forKey: side.rawValue)
+                } else {
+                    let sorted = activeValues.sorted()
+                    let count = sorted.count
+                    let median = count % 2 == 1 ? sorted[count / 2] : (sorted[count / 2 - 1] + sorted[count / 2]) / 2.0
+                    draft.numericValues[side.rawValue] = median
+                }
+            }
+        )
     }
 
     private func numericBinding(for side: MobilityAssessmentSide) -> Binding<Double?> {
@@ -704,6 +743,7 @@ struct MobilityAssessmentFlowView: View {
     ) -> MobilityAssessmentResultInput? {
         let numericValue = draft.numericValues[side.rawValue]
         let criteria = draft.criteria[side.rawValue]
+        let activeTrials = (draft.trials[side.rawValue] ?? []).compactMap { $0 }
         switch definition.unit {
         case .criteria:
             guard criteria != nil else { return nil }
@@ -720,12 +760,10 @@ struct MobilityAssessmentFlowView: View {
             method: definition.manualMode,
             unit: definition.unit,
             isActiveRange: draft.isActiveRange,
-            // The session's day, not today's: an assessment started before
-            // midnight stays one sitting.
             day: session.day,
             source: .manual,
-            // A hand-entered value is moderate at best, and the record says so.
-            confidence: .moderate
+            confidence: .moderate,
+            trials: definition.unit == .criteria || activeTrials.isEmpty ? nil : activeTrials
         )
     }
 

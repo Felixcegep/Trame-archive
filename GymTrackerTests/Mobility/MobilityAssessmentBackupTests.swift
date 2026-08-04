@@ -93,7 +93,7 @@ final class MobilityAssessmentBackupTests: XCTestCase {
             darkMode: false,
             unitSystem: .metric
         )
-        XCTAssertEqual(backup.version, 24)
+        XCTAssertEqual(backup.version, BackupDTO.currentVersion)
         XCTAssertEqual(backup.mobilityAssessmentDefinitions.count, 10)
         XCTAssertEqual(backup.mobilityAssessmentSessions.count, 2)
         let encoded = try JSONEncoder().encode(backup)

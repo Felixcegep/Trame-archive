@@ -96,10 +96,18 @@ enum MobilityAssessmentValidationService {
         case .criteria:
             guard input.numericValue == nil else { return .unexpectedNumericValue }
             guard input.criteria != nil else { return .missingCriteriaObservation }
+            if let trials = input.trials, trials.isEmpty == false {
+                return .unexpectedNumericValue
+            }
         case .degrees, .centimetres:
             guard input.criteria == nil else { return .unexpectedCriteriaObservation }
             guard let value = input.numericValue else { return .missingNumericValue }
             guard value.isFinite else { return .nonFiniteValue }
+            if let trials = input.trials {
+                for trial in trials {
+                    guard trial.isFinite else { return .nonFiniteValue }
+                }
+            }
         }
         return nil
     }
@@ -234,7 +242,24 @@ enum MobilityAssessmentSessionService {
             existing.source = input.source
             existing.confidence = input.confidence
             existing.updatedAt = now
-            existing.sample = nil
+            if let trials = input.trials, let newSample = MobilityAssessmentSample.create(from: trials, createdAt: now) {
+                if let sample = existing.sample {
+                    sample.sampleCount = newSample.sampleCount
+                    sample.median = newSample.median
+                    sample.minimum = newSample.minimum
+                    sample.maximum = newSample.maximum
+                    sample.standardDeviation = newSample.standardDeviation
+                    sample.offAxisExcessDegrees = newSample.offAxisExcessDegrees
+                    sample.captureDuration = newSample.captureDuration
+                    sample.createdAt = now
+                } else {
+                    newSample.result = existing
+                    existing.sample = newSample
+                    context.insert(newSample)
+                }
+            } else {
+                existing.sample = nil
+            }
             session.updatedAt = now
             session.skippedDefinitionKeys.removeAll { $0 == definition.catalogueKey }
             try save(context)
@@ -248,6 +273,11 @@ enum MobilityAssessmentSessionService {
             createdAt: now,
             updatedAt: now
         )
+        if let trials = input.trials, let sample = MobilityAssessmentSample.create(from: trials, createdAt: now) {
+            sample.result = result
+            result.sample = sample
+            context.insert(sample)
+        }
         result.session = session
         session.results.append(result)
         session.skippedDefinitionKeys.removeAll { $0 == definition.catalogueKey }

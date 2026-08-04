@@ -68,14 +68,8 @@ enum BackupValidationError: LocalizedError {
 
 extension BackupDTO {
     func validate() throws {
-        // A plain `version == Self.xVersion || ...` chain silently stops
-        // accepting the previous version whenever a new constant is added
-        // without also appending it here. Every version from the legacy
-        // baseline through the current one is supported, so a range check
-        // cannot regress that way on the next bump.
-        guard version >= Self.legacyVersion && version <= Self.currentVersion else {
-            throw BackupValidationError.unsupportedVersion(version)
-        }
+        try BackupEnvelopeValidator.validate(self)
+        try ReceiptBackupValidator.validate(self)
         let currentArchive = CurrentBackupArchive(adapting: self)
         let workoutArchive = currentArchive.workout
 
@@ -405,7 +399,7 @@ extension BackupDTO {
             try validateMobility()
         }
         if version >= Self.mobilityAssessmentVersion {
-            try validateMobilityAssessments()
+            try AssessmentBackupValidator.validate(self)
         }
 
         if version >= Self.nutritionVersion {

@@ -109,6 +109,7 @@ struct MobilityAssessmentResultInput: Equatable, Sendable {
     let day: LocalDay
     let source: MobilityMeasurementSource
     let confidence: MobilityMeasurementConfidence
+    let trials: [Double]?
 
     init(
         numericValue: Double? = nil,
@@ -121,7 +122,8 @@ struct MobilityAssessmentResultInput: Equatable, Sendable {
         isActiveRange: Bool,
         day: LocalDay,
         source: MobilityMeasurementSource = .manual,
-        confidence: MobilityMeasurementConfidence = .moderate
+        confidence: MobilityMeasurementConfidence = .moderate,
+        trials: [Double]? = nil
     ) {
         self.numericValue = numericValue
         self.criteria = criteria
@@ -134,6 +136,7 @@ struct MobilityAssessmentResultInput: Equatable, Sendable {
         self.day = day
         self.source = source
         self.confidence = confidence
+        self.trials = trials
     }
 }
 
