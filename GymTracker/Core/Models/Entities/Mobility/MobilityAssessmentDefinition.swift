@@ -4,7 +4,7 @@ import SwiftData
 @Model
 final class MobilityAssessmentDefinition {
     var id: UUID
-    @Attribute(.unique) var catalogueKey: String
+    var catalogueKey: String
     var name: String
     var nameLocalizationKey: String
     var instructionsLocalizationKey: String

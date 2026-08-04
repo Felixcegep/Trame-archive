@@ -12,6 +12,7 @@ import SwiftData
 final class Exercise {
     /// Stable external identity for program definitions and backup links.
     var id = UUID()
+    var catalogueKey: String? = nil
     var name: String
     var primaryMuscles: [Muscle]
     var secondaryMuscles: [Muscle]?

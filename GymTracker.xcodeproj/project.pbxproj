@@ -65,6 +65,8 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				App/GymTrackerModelContainer.swift,
+				App/Persistence/GymTrackerPersistenceConfiguration.swift,
+				App/Persistence/GymTrackerStoreURLs.swift,
 				Core/DesignSystem/Colors.swift,
 				Core/Features/ActiveWorkout/WorkoutSetCompletionWorkflow.swift,
 				Core/Features/Plan/PlanProgressionEvaluationService.swift,
@@ -83,6 +85,7 @@
 				Core/LiveActivity/GymTrackerAttributes.swift,
 				Core/LiveActivity/LiveActivityIntents.swift,
 				Core/LiveActivity/LiveActivityManager.swift,
+				Core/Sync/CloudSyncEnvironment.swift,
 				Core/Widgets/WidgetSnapshot.swift,
 				Localizable.xcstrings,
 			);

@@ -4,7 +4,8 @@ import SwiftData
 @Model
 final class FoodItem {
     var id: UUID
-    @Attribute(.unique) var name: String
+    var name: String
+    var catalogueKey: String? = nil
     var referenceAmount: Double
     var referenceUnitRaw: String
     var calories: Double?

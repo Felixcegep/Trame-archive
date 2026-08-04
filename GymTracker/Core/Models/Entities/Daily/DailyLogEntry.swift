@@ -11,7 +11,7 @@ enum DailyCheckInStatus: String, Codable, CaseIterable {
 @Model
 final class DailyLogEntry {
     var id: UUID
-    @Attribute(.unique) var dayKey: String
+    var dayKey: String
     var statusRaw: String
     var sleepQuality: Int?
     var energy: Int?

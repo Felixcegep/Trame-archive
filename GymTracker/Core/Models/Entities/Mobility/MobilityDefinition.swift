@@ -4,7 +4,8 @@ import SwiftData
 @Model
 final class MobilityDefinition {
     var id: UUID
-    @Attribute(.unique) var name: String
+    var name: String
+    var catalogueKey: String? = nil
     var instructions: String?
     var trackingTypeRaw: String
     var defaultDurationSeconds: Int?

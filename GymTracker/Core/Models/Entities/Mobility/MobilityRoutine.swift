@@ -4,7 +4,8 @@ import SwiftData
 @Model
 final class MobilityRoutine {
     var id: UUID
-    @Attribute(.unique) var name: String
+    var name: String
+    var catalogueKey: String? = nil
     var notes: String?
     /// Optional by design: legacy and custom routines may genuinely be unclassified.
     var purposeRaw: String?

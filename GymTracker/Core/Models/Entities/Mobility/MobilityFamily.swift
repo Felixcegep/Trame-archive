@@ -4,7 +4,8 @@ import SwiftData
 @Model
 final class MobilityFamily {
     var id: UUID
-    @Attribute(.unique) var name: String
+    var name: String
+    var catalogueKey: String? = nil
     var createdAt: Date
     var updatedAt: Date
     @Relationship(deleteRule: .nullify, inverse: \MobilityDefinition.family)

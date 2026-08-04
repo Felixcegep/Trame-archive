@@ -12,7 +12,7 @@ enum BodyWeightSource: String, Codable, CaseIterable {
 @Model
 final class BodyWeightEntry {
     var id: UUID
-    @Attribute(.unique) var dayKey: String
+    var dayKey: String
     var value: Float
     var unitRaw: String
     var sourceRaw: String

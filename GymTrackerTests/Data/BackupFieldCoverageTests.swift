@@ -677,15 +677,15 @@ final class BackupFieldCoverageTests: XCTestCase {
     ///
     /// Then extend the matching round-trip test above and bump the count here.
     func testBackupDTOFieldCountsMatchTheirMappings() {
-        assertFieldCount(of: ExerciseSetDTO.self, equals: 58)
-        assertFieldCount(of: ExerciseSetSegmentDTO.self, equals: 11)
+        assertFieldCount(of: ExerciseSetDTO.self, equals: 61)
+        assertFieldCount(of: ExerciseSetSegmentDTO.self, equals: 17)
         assertFieldCount(of: ComplexComponentResultDTO.self, equals: 8)
-        assertFieldCount(of: ExerciseEntryDTO.self, equals: 58)
+        assertFieldCount(of: ExerciseEntryDTO.self, equals: 60)
         assertFieldCount(of: WorkoutDTO.self, equals: 23)
-        assertFieldCount(of: ExerciseTemplateDTO.self, equals: 28)
+        assertFieldCount(of: ExerciseTemplateDTO.self, equals: 31)
         assertFieldCount(of: FoodItemDTO.self, equals: 21)
         assertFieldCount(of: LoggedMealDTO.self, equals: 10)
-        assertFieldCount(of: MobilityRoutineDTO.self, equals: 8)
+        assertFieldCount(of: MobilityRoutineDTO.self, equals: 9)
         assertFieldCount(of: MobilityAssessmentDefinitionDTO.self, equals: 21)
         assertFieldCount(of: MobilityAssessmentSampleDTO.self, equals: 9)
         assertFieldCount(of: MobilityAssessmentResultDTO.self, equals: 24)
@@ -813,7 +813,18 @@ final class BackupFieldCoverageTests: XCTestCase {
         "RepeatingPlanDTO",
         "RepeatingPlanRunSlotDTO",
         "RepeatingPlanOccurrenceDTO",
-        "RepeatingPlanRunDTO"
+        "RepeatingPlanRunDTO",
+        "MobilityEntryEvidenceDTO",
+        "MobilityProgramDefinitionDTO",
+        "MobilityProgramRunDTO",
+        "MobilityProgramSessionProgressDTO",
+        "MobilityProgressionRecommendationDTO",
+        "MobilityProgressionStateDTO",
+        "MobilityRoutineBlockDTO",
+        "MobilityTempoPrescriptionDTO",
+        "MobilityAssistancePrescriptionDTO",
+        "MobilityBreathingPrescriptionDTO",
+        "TrainingProfileDTO"
     ]
 
     private func assertFieldCount<T>(

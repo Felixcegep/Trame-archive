@@ -8,7 +8,18 @@ import SwiftData
 /// model's stored shape changes, so a beta feedback report can distinguish
 /// testers running different schema generations.
 enum GymTrackerAppSchema {
-    static let diagnosticVersion = "12"
+    static let diagnosticVersion = "13"
+}
+
+/// Explicit V3 CloudKit-compatible schema generation.
+/// Freezes Schema V2 in place and acts as the target schema baseline for all
+/// multi-device iCloud sync refactoring.
+enum GymTrackerCloudCompatibleSchemaV3: VersionedSchema {
+    static let versionIdentifier = Schema.Version(3, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        return GymTrackerAdvancedMobilityEvidenceSchema.models
+    }
 }
 
 /// First additive schema after the verified baseline. The existing models are
@@ -132,13 +143,18 @@ enum GymTrackerCurrentBaselineSchema: VersionedSchema {
 enum GymTrackerSchemaMigrationPlan: SchemaMigrationPlan {
     static let schemas: [any VersionedSchema.Type] = [
         GymTrackerCurrentBaselineSchema.self,
-        GymTrackerAdvancedMobilityEvidenceSchema.self
+        GymTrackerAdvancedMobilityEvidenceSchema.self,
+        GymTrackerCloudCompatibleSchemaV3.self
     ]
 
     static let stages: [MigrationStage] = [
         .lightweight(
             fromVersion: GymTrackerCurrentBaselineSchema.self,
             toVersion: GymTrackerAdvancedMobilityEvidenceSchema.self
+        ),
+        .lightweight(
+            fromVersion: GymTrackerAdvancedMobilityEvidenceSchema.self,
+            toVersion: GymTrackerCloudCompatibleSchemaV3.self
         )
     ]
 }
@@ -166,12 +182,8 @@ enum GymTrackerModelContainer {
             return .unavailable("Simulated store failure for screenshot capture.")
         }
         do {
-            return .ready(
-                try ModelContainer(
-                    for: schema,
-                    migrationPlan: GymTrackerSchemaMigrationPlan.self
-                )
-            )
+            let configuration = GymTrackerPersistenceConfiguration()
+            return .ready(try configuration.makeContainer())
         } catch {
             print("Unable to create GymTracker's persistent model container: \(error)")
             return .unavailable(error.localizedDescription)
@@ -186,5 +198,5 @@ enum GymTrackerModelContainer {
     /// Retained for existing callers and test helpers that consume a `Schema`
     /// value directly. The model list now has one owner: the named current
     /// baseline above.
-    static let schema = Schema(versionedSchema: GymTrackerAdvancedMobilityEvidenceSchema.self)
+    static let schema = Schema(versionedSchema: GymTrackerCloudCompatibleSchemaV3.self)
 }

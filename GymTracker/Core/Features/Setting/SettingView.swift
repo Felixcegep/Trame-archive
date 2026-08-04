@@ -113,9 +113,7 @@ struct SettingView: View {
             } header: {
                 Text("Data")
             } footer: {
-                Text(lastBackupExportTimestamp == nil
-                     ? "Your training history lives only on this iPhone. There is no cloud copy, so an export is the only way to survive losing or replacing the device."
-                     : "Your training history lives only on this iPhone. Anything logged since your last export is not in that copy.")
+                Text("Your training history lives locally on this iPhone and works offline. iCloud synchronizes user data across your devices while active workouts stay strictly on this device.")
             }
 
             Section {
@@ -586,11 +584,7 @@ struct DataSettingsView: View {
             } header: {
                 Text("Data Safety")
             } footer: {
-                if lastBackupExportTimestamp == nil {
-                    Text("Your training history lives only on this iPhone. There is no cloud copy, so an export is the only way to survive losing or replacing the device.")
-                } else {
-                    Text("Your training history lives only on this iPhone. Anything logged since your last export is not in that copy.")
-                }
+                Text("Your training history lives locally on this iPhone and stays fully functional offline. iCloud keeps supported user data synchronized across your devices, while active workout drafts remain strictly on this device.")
             }
 
             Section("Backup & Restore") {
