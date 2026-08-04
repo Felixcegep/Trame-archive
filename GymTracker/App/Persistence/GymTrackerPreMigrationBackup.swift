@@ -83,11 +83,10 @@ public enum GymTrackerPreMigrationBackup {
     ) -> Outcome {
         let current = versionString(currentVersion)
 
+        // A fresh install has nothing to lose. The marker is deliberately not
+        // written here: only a successful open may record a version, and the
+        // open that creates this store has not happened yet.
         guard fileManager.fileExists(atPath: storeURL.path) else {
-            // A fresh install has nothing to protect. Record the version now so
-            // that the *next* schema change is seen as a real migration rather
-            // than as an unrecorded one.
-            recordSuccessfulOpen(storeURL: storeURL, version: currentVersion, fileManager: fileManager)
             return .noStoreToProtect
         }
 
