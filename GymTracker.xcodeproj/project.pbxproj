@@ -66,7 +66,6 @@
 			membershipExceptions = (
 				App/GymTrackerModelContainer.swift,
 				App/Persistence/GymTrackerPersistenceConfiguration.swift,
-				App/Persistence/GymTrackerStoreURLs.swift,
 				Core/DesignSystem/Colors.swift,
 				Core/Features/ActiveWorkout/WorkoutSetCompletionWorkflow.swift,
 				Core/Features/Plan/PlanProgressionEvaluationService.swift,

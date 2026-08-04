@@ -27,8 +27,7 @@ struct CompletedWorkoutSummary: Equatable {
 /// deletes children, which is the whole point. What it does provide is a
 /// *described* result, so a test can assert exactly what was pruned and a
 /// caller can report the counts without re-deriving them from the pruned
-/// graph. `WorkoutCompletionTransaction` (RA-008) is expected to absorb this as
-/// its preparation step.
+/// graph. See `Documentation/Sync/TargetArchitecture.md` for target sync completion transaction design.
 ///
 /// Deliberately does **not** commit. The caller owns the transaction boundary,
 /// because a rollback has to undo progression advancement as well as this
