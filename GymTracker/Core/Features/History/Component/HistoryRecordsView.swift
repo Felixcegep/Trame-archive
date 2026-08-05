@@ -79,7 +79,7 @@ struct HistoryRecordsView: View {
                             .foregroundStyle(Color.gymSubduedText)
                     }
                     Spacer()
-                    Text("\(Formatters.formatFloat(session.volume)) volume")
+                    Text("\(Formatters.formatFloat(session.volume)) \(session.unit) volume")
                         .font(AppFont.captionSemiboldMonospaced)
                         .foregroundStyle(Color.gymPrimary)
                 }
@@ -216,7 +216,16 @@ struct HistoryRecordsView: View {
     }
 
     private var notableSessions: [HistorySessionRecord] {
-        workouts.map { workout in
+        // Sets carry their own `weightType`, so summing each set "in its own
+        // unit" (as this used to do) mixes kg and lbs into one meaningless
+        // number whenever a session logs both. Every set must be converted
+        // to a single unit before summing — the user's display unit, since
+        // this total is shown to the user (see `HistoryProgressView`'s
+        // identical `displayWeightType` for the established convention;
+        // internal-math call sites like `PlanProgressionEvaluationService`
+        // use a fixed `.kg` instead because they don't render to the UI).
+        let displayWeightType: WeightType = UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
+        return workouts.map { workout in
             let volume = workout.orderedExercises.reduce(Float.zero) { total, exercise in
                 let trackingType = exercise.trackingTypeSnapshot
                 guard trackingType.usesWeight && trackingType.usesReps else { return total }
@@ -226,11 +235,11 @@ struct HistoryRecordsView: View {
                         weightType: set.weightType,
                         repetitions: set.repetitions,
                         semantics: exercise.loggingSemanticsSnapshot,
-                        in: set.weightType
+                        in: displayWeightType
                     )
                 }
             }
-            return HistorySessionRecord(title: workout.displayTitle, volume: volume, date: workout.startTime)
+            return HistorySessionRecord(title: workout.displayTitle, volume: volume, unit: displayWeightType.rawValue, date: workout.startTime)
         }
         .filter { $0.volume > 0 }
         .sorted { $0.volume > $1.volume }
@@ -254,6 +263,7 @@ struct HistoryRecord: Identifiable {
 struct HistorySessionRecord: Identifiable {
     let title: String
     let volume: Float
+    let unit: String
     let date: Date
     var id: String { "\(title)-\(date.timeIntervalSinceReferenceDate)" }
 }

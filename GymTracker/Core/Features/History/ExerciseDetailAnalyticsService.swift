@@ -44,12 +44,25 @@ struct ExerciseSession: Equatable, Sendable {
     let workoutDate: Date
     let sets: [ExerciseSessionSet]
     let semantics: LoggingSemantics
+    /// The tracking type this occurrence was actually logged under —
+    /// `ExerciseEntry.trackingTypeSnapshot`, frozen at entry-creation time.
+    /// `Exercise.trackingType` is user-editable at any point, so metric
+    /// eligibility must be decided from this snapshot, never from the live
+    /// exercise definition.
+    let trackingTypeSnapshot: TrackingType
 
-    init(workoutID: UUID? = nil, workoutDate: Date, sets: [ExerciseSessionSet], semantics: LoggingSemantics = .default) {
+    init(
+        workoutID: UUID? = nil,
+        workoutDate: Date,
+        sets: [ExerciseSessionSet],
+        semantics: LoggingSemantics = .default,
+        trackingTypeSnapshot: TrackingType
+    ) {
         self.workoutID = workoutID
         self.workoutDate = workoutDate
         self.sets = sets
         self.semantics = semantics
+        self.trackingTypeSnapshot = trackingTypeSnapshot
     }
 
     /// Sets that count toward strength metrics; a warm-up never does.
@@ -178,8 +191,19 @@ struct ExerciseDetailAnalyticsService {
 
         let unit = latestSession.workingSets.last?.weightType ?? latestSession.sets.last?.weightType ?? .kg
         let previousSession = sessions.dropLast().last
-        let includesLoad = includesLoadMetrics(exercise.trackingType)
-        let includesReps = exercise.trackingType.usesReps
+        // Eligibility must come from history, not from `exercise.trackingType`:
+        // that field is user-editable at any time, and a definition-based
+        // check would let editing it *retroactively* rewrite what past
+        // sessions show (e.g. an exercise switched from "weight and reps" to
+        // "reps only" would silently drop load PRs that were genuinely
+        // logged). Each session's `trackingTypeSnapshot` records what the
+        // exercise actually was at the moment it was logged, so we ask: did
+        // ANY occurrence in range record this metric? That way a tracking
+        // type change going forward never erases evidence already recorded,
+        // and a series spanning a change reports the union of what both
+        // sides logged rather than whatever the exercise happens to be today.
+        let includesLoad = sessions.contains { includesLoadMetrics($0.trackingTypeSnapshot) }
+        let includesReps = sessions.contains { $0.trackingTypeSnapshot.usesReps }
 
         return ExerciseDetailAnalytics(
             sessionCount: sessions.count,
@@ -202,13 +226,35 @@ struct ExerciseDetailAnalyticsService {
     // MARK: Fetching
 
     private func completedWorkouts(before date: Date) throws -> [Workout] {
+        // Completion status and the upper date bound are plain stored
+        // properties, so both can be pushed into the predicate and let
+        // SwiftData filter at the store instead of materializing every
+        // workout ever recorded. What can't move: matching a workout's
+        // logged exercises back to `exercise` via
+        // `HistoricalExerciseIdentityPolicy` (falling back through
+        // `exerciseIDSnapshot` when the live relationship has been
+        // repointed) is identity resolution, not a stored-property
+        // comparison, so it stays an in-memory filter in
+        // `sessions(from:for:)` / `notes(from:for:)`, same as before.
+        // Only the date bound goes into the predicate. Completion status
+        // deliberately does not: SwiftData rejects a captured enum constant at
+        // runtime — "Unsupported Predicate: Captured/constant values of type
+        // 'WorkoutStatus' are not supported" — and it does so as a thrown
+        // error at fetch time, not a compile error, so this is the kind of
+        // change that looks correct until it is actually run. The date bound
+        // is what removes the unbounded scan anyway; filtering the remaining
+        // in-range workouts by status in memory is cheap.
+        let predicate = #Predicate<Workout> { workout in
+            workout.startTime <= date
+        }
         let descriptor = FetchDescriptor<Workout>(
+            predicate: predicate,
             sortBy: [
                 SortDescriptor(\Workout.startTime, order: .forward),
                 SortDescriptor(\Workout.id, order: .forward)
             ]
         )
-        return try modelContext.fetch(descriptor).filter { $0.status == .completed && $0.startTime <= date }
+        return try modelContext.fetch(descriptor).filter { $0.status == .completed }
     }
 
     /// Chronological (oldest first) sessions so the latest is always `.last`.
@@ -238,7 +284,8 @@ struct ExerciseDetailAnalyticsService {
                     workoutID: workout.id,
                     workoutDate: workout.startTime,
                     sets: sets,
-                    semantics: entry.loggingSemanticsSnapshot
+                    semantics: entry.loggingSemanticsSnapshot,
+                    trackingTypeSnapshot: entry.trackingTypeSnapshot
                 )
             }
         }

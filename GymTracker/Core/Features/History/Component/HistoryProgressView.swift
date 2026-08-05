@@ -49,7 +49,16 @@ struct HistoryProgressView: View {
     }
 
     private var exerciseSeries: [HistoryExerciseSeries] {
-        var byName: [String: HistoryExerciseSeries] = [:]
+        // Keyed by `HistoricalExerciseIdentityPolicy.identity(of:)`, not by
+        // `nameSnapshot`. Two catalogue exercises that happen to share a
+        // display name must not merge into one trend, and one exercise that
+        // was renamed mid-history must not split into two. This is the same
+        // identity `ExerciseDetailAnalyticsService` already resolves entries
+        // under (`HistoricalExerciseIdentityPolicy.entries(for:in:)`); this
+        // view has its own workout-major loop rather than a per-exercise
+        // fetch, so it calls the same policy directly per entry instead of
+        // reusing that method.
+        var byIdentity: [UUID: HistoryExerciseSeries] = [:]
         let displayWeightType: WeightType = UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
 
         for workout in workouts.sorted(by: { $0.startTime < $1.startTime }) {
@@ -75,10 +84,19 @@ struct HistoryProgressView: View {
                 let reps = completedSets.reduce(Float.zero) { $0 + (trackingType.usesReps ? $1.repetitions : 0) }
 
                 guard load != nil || volume > 0 || reps > 0 else { continue }
-                var series = byName[exercise.nameSnapshot] ?? HistoryExerciseSeries(
+                let identity = HistoricalExerciseIdentityPolicy.identity(of: exercise)
+                var series = byIdentity[identity] ?? HistoryExerciseSeries(
+                    id: identity,
                     name: exercise.nameSnapshot,
                     unit: trackingType.usesWeight ? displayWeightType.rawValue : ""
                 )
+                // `workouts` is sorted ascending above, so the last entry
+                // processed for this identity is the most recent occurrence.
+                // Re-stamping the name on every occurrence means a series
+                // that spans a rename displays the exercise's current name,
+                // not the name it happened to have the first time it was
+                // logged.
+                series.name = exercise.nameSnapshot
                 if let load {
                     series.loadPoints.append(HistoryMetricPoint(date: workout.startTime, value: load))
                 }
@@ -88,11 +106,11 @@ struct HistoryProgressView: View {
                 if reps > 0 {
                     series.repsPoints.append(HistoryMetricPoint(date: workout.startTime, value: reps))
                 }
-                byName[exercise.nameSnapshot] = series
+                byIdentity[identity] = series
             }
         }
 
-        return byName.values.sorted { $0.totalPointCount > $1.totalPointCount }
+        return byIdentity.values.sorted { $0.totalPointCount > $1.totalPointCount }
     }
 
     private var frequencyPoints: [HistoryFrequencyPoint] {
@@ -359,13 +377,16 @@ enum HistoryProgressMetric: String, CaseIterable, Identifiable {
 }
 
 struct HistoryExerciseSeries: Identifiable {
-    let name: String
+    // The historical identity (`HistoricalExerciseIdentityPolicy`), not the
+    // display name — two exercises can share a name, and one exercise's name
+    // can change, so only the identity is safe to key SwiftUI's diffing on.
+    let id: UUID
+    var name: String
     let unit: String
     var loadPoints: [HistoryMetricPoint] = []
     var volumePoints: [HistoryMetricPoint] = []
     var repsPoints: [HistoryMetricPoint] = []
 
-    var id: String { name }
     var totalPointCount: Int { loadPoints.count + volumePoints.count + repsPoints.count }
 
     func points(for metric: HistoryProgressMetric) -> [HistoryMetricPoint] {
