@@ -1,6 +1,14 @@
 enum ExpectedExerciseSeedKeys {
     /// Update only alongside an intentional seed-identity migration. A renamed
     /// key needs a version/deprecation decision, not just a fixture refresh.
+    ///
+    /// `exercise.pull--up` and `exercise.assisted-pull--up` were removed on
+    /// 2026-08-05 after confirming that migration exists: both appear in
+    /// `SystemSeedRegistry.retiredDuplicateExerciseSeedKeys` paired with the
+    /// surviving unpunctuated key, and `retireDuplicateExercises` archives the
+    /// losing Exercise — preserving its logged history — then marks its seed
+    /// record deprecated pointing at the survivor. The hyphenated spellings
+    /// were duplicates of the same movement, not distinct exercises.
     static let all = """
 exercise.45--degree-back-extension
 exercise.ab-wheel-rollout
@@ -10,7 +18,6 @@ exercise.arch-body-hold
 exercise.arnold-press
 exercise.assisted-chin--up
 exercise.assisted-dip
-exercise.assisted-pull--up
 exercise.assisted-pull-up
 exercise.assisted-push--up
 exercise.atlas-stone-load
@@ -180,7 +187,6 @@ exercise.power-snatch
 exercise.power-snatch--plus--snatch
 exercise.preacher-curl
 exercise.pseudo-planche-push--up
-exercise.pull--up
 exercise.pull-up
 exercise.push--up
 exercise.push-press

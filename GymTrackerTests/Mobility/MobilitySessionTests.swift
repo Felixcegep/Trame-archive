@@ -273,7 +273,7 @@ final class MobilitySessionTests: XCTestCase {
         ]
         XCTAssertEqual(authoredPurposes.count, 15)
         let purposesByName = Dictionary(uniqueKeysWithValues: routines.map { ($0.name, $0.purpose) })
-        XCTAssertEqual(purposesByName.count, authoredPurposes.count)
+        XCTAssertEqual(routines.count, 25)
         for (name, expectedPurpose) in authoredPurposes {
             XCTAssertEqual(purposesByName[name], expectedPurpose, "Seeded routine '\(name)' must retain its authored purpose")
         }

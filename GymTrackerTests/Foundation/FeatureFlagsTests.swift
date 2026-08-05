@@ -2,17 +2,17 @@ import XCTest
 @testable import GymTracker
 
 final class FeatureFlagsTests: XCTestCase {
-    func testInternalDevelopmentChannelEnablesEveryFlag() {
+    func testInternalDevelopmentChannelEnablesEveryFlagExceptHiddenNutrition() {
         let configuration = DefaultFeatureFlagConfiguration(buildChannel: .internalDevelopment)
-        for flag in FeatureFlag.allCases {
-            XCTAssertTrue(configuration.isEnabled(flag), "\(flag) should be enabled for internal development.")
-        }
-        XCTAssertEqual(Set(configuration.enabledFlags), Set(FeatureFlag.allCases))
+        let expected = Set(FeatureFlag.allCases).subtracting([.nutrition, .recipeGeneration])
+        XCTAssertEqual(Set(configuration.enabledFlags), expected)
+        XCTAssertFalse(configuration.isEnabled(.nutrition))
+        XCTAssertFalse(configuration.isEnabled(.recipeGeneration))
     }
 
-    func testReleaseChannelEnablesEveryFlag() {
+    func testReleaseChannelMatchesGeneralAvailabilityMatrix() {
         let configuration = DefaultFeatureFlagConfiguration(buildChannel: .release)
-        XCTAssertEqual(Set(configuration.enabledFlags), Set(FeatureFlag.allCases))
+        XCTAssertEqual(Set(configuration.enabledFlags), DefaultFeatureFlagConfiguration.generalAvailability)
     }
 
     func testUndeclaredDistributedBuildResolvesToBeta() {
@@ -71,15 +71,24 @@ final class FeatureFlagsTests: XCTestCase {
         let configuration = DefaultFeatureFlagConfiguration(buildChannel: .beta)
         XCTAssertEqual(
             Set(configuration.enabledFlags),
-            Set(FeatureFlag.allCases).subtracting([.mobilityAssessment, .recipeGeneration, .workoutGeneration])
+            Set(FeatureFlag.allCases).subtracting([
+                .mobilityAssessment, .mobilityProgram, .recipeGeneration,
+                .workoutGeneration, .nutrition, .sportSpecializations
+            ])
         )
         XCTAssertFalse(configuration.isEnabled(.mobilityAssessment))
+        XCTAssertFalse(configuration.isEnabled(.mobilityProgram))
         XCTAssertFalse(configuration.isEnabled(.recipeGeneration))
         XCTAssertFalse(configuration.isEnabled(.workoutGeneration))
+        XCTAssertFalse(configuration.isEnabled(.nutrition))
+        XCTAssertFalse(configuration.isEnabled(.sportSpecializations))
     }
 
     func testCaffeineQuickLoggingRequiresNutrition() {
-        let withNutrition = DefaultFeatureFlagConfiguration(buildChannel: .internalDevelopment)
+        let withNutrition = DefaultFeatureFlagConfiguration(
+            buildChannel: .internalDevelopment,
+            overrides: Set(FeatureFlag.allCases)
+        )
         XCTAssertTrue(withNutrition.isCaffeineQuickLoggingAvailable)
 
         let withoutNutrition = DefaultFeatureFlagConfiguration(

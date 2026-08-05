@@ -658,7 +658,25 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
                     run: run,
                     modelContext: context
                 )
-                XCTAssertFalse(results.isEmpty, "No progression exposures were evaluated for \(record.name)")
+                // Not every bundled program is engine-driven. Documentation/
+                // ProgramEngine/02-ProgramSpecifications.md states three times
+                // that "No automated progression rule runs on any <...>
+                // exposure — every load is a direct percentage of the lifter's
+                // own intake maximum, matching the source concept of
+                // autoregulated contest preparation rather than an
+                // engine-driven ramp." Thirteen bundled programs are authored
+                // that way on purpose (strongman, powerlifting meet prep,
+                // weightlifting, and the conditioning/erg specs), so asserting
+                // exposures unconditionally contradicted the specification.
+                // Where a workout does carry rules, they must still evaluate.
+                let hasRules = workout.orderedExercises.contains { entry in
+                    guard let rulesData = entry.prescriptionRulesData,
+                          let rules = try? JSONDecoder().decode([ProgressionRuleDefinition].self, from: rulesData) else { return false }
+                    return !rules.isEmpty
+                }
+                if hasRules {
+                    XCTAssertFalse(results.isEmpty, "No progression exposures were evaluated for \(record.name)")
+                }
                 _ = PlanProgressionTransitionService.applyAutomaticTransitions(
                     results,
                     sourceProgress: progress,
