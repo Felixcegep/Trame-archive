@@ -28,6 +28,7 @@ struct ActiveWorkoutView: View {
     @State private var isShowingExecutionBlockBuilder = false
     @State private var executionBlockToEdit: WorkoutExecutionBlock?
     @State private var activeRecommendationErrorMessage: String?
+    @State private var externalRestSyncTask: Task<Void, Never>?
 
     private var unitSystem: UnitSystem {
         UserDefaults.standard.unitSystem
@@ -170,6 +171,8 @@ struct ActiveWorkoutView: View {
         }
         .onDisappear {
             viewModel.persistChanges()
+            externalRestSyncTask?.cancel()
+            externalRestSyncTask = nil
         }
         .onAppear {
             viewModel.loadPreviousPerformances()
@@ -183,6 +186,25 @@ struct ActiveWorkoutView: View {
                 viewModel.restorePersistedRestTimer()
             }
         }
+        // App Intents and Live Activity buttons mutate persisted rest state
+        // (`Workout.restEndDate` / `pausedRemainingTime`) through a separate
+        // `ModelContext`, then post this notification. `RootView` patches the
+        // shared model fields via `WorkoutViewModel.handleExternalWorkoutChange`,
+        // but nothing else tells this screen's countdown to re-derive itself,
+        // so a rest skipped from Siri or the Live Activity would otherwise
+        // keep ticking here toward a deadline that no longer exists. Deferred
+        // by one run-loop turn so it always reads the model after RootView's
+        // own (synchronous) handler has applied the patch, regardless of
+        // subscriber registration order.
+        .onReceive(NotificationCenter.default.publisher(for: .activeWorkoutMutated)) { notification in
+            guard let workoutID = notification.object as? UUID,
+                  workoutID == viewModel.activeWorkout?.id
+            else { return }
+            externalRestSyncTask?.cancel()
+            externalRestSyncTask = Task { @MainActor in
+                viewModel.restorePersistedRestTimer()
+            }
+        }
     }
 
     private func workoutContent(for workout: Workout) -> some View {
@@ -190,6 +212,8 @@ struct ActiveWorkoutView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.l) {
                     sessionHeader(for: workout)
+
+                    saveFailureBanner
 
                     if let recommendation = activeDailyMaximumRecommendation(for: workout),
                        let entry = workout.orderedExercises.first(where: {
@@ -402,6 +426,36 @@ struct ActiveWorkoutView: View {
             Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets")
         } else {
             Text("\(workout.completedSetCount) / \(workout.totalSetCount) sets · \(CountPhrase.exercises(workout.exercises.count))")
+        }
+    }
+
+    /// Non-blocking, non-modal notice that the last edit failed to save and
+    /// was rolled back. Deliberately not an alert: an alert mid-set would
+    /// interrupt a lift for a background persistence hiccup that the next
+    /// edit will retry on its own. Clears itself the moment a save succeeds.
+    @ViewBuilder
+    private var saveFailureBanner: some View {
+        if viewModel.hasPersistenceFailure {
+            HStack(spacing: Spacing.s) {
+                Image(systemName: AppIcon.warning)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymAccent)
+                    .accessibilityHidden(true)
+                Text("Some changes haven’t saved yet. Keep entering — GymTracker will try again.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, Spacing.m)
+            .padding(.vertical, Spacing.s)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.gymBorder, lineWidth: 1)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("active-workout-save-failure-banner")
         }
     }
 

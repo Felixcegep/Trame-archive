@@ -28,7 +28,21 @@ class ActiveWorkoutViewModel {
     /// return would be reporting old news. It deliberately does not increment
     /// this, so nothing observing it can fire on relaunch or on a fixture load.
     private(set) var restCompletionCount = 0
-    
+
+    /// Set when the most recent `persistChanges()` call failed to save and
+    /// rolled back — every set/rep/weight edit, exercise add/remove,
+    /// substitution, and completion during a live workout goes through that
+    /// one path. `ActiveWorkoutView` surfaces this as a small, non-blocking
+    /// banner: losing a rep entry must never interrupt a set with a modal.
+    /// Cleared the moment a save succeeds again.
+    private(set) var lastPersistenceFailure: Error?
+
+    /// How many consecutive `persistChanges()` calls have failed since the
+    /// last successful save. Resets to zero on success.
+    private(set) var consecutivePersistenceFailureCount = 0
+
+    var hasPersistenceFailure: Bool { lastPersistenceFailure != nil }
+
     init(
         workoutVM: WorkoutViewModel,
         modelContext: ModelContext,
@@ -511,6 +525,8 @@ class ActiveWorkoutViewModel {
         }
         if let timerEndDate = workoutVM.activeWorkout?.restEndDate {
             guard timerEndDate > .now else {
+                timerTask?.cancel()
+                timerTask = nil
                 workoutVM.activeWorkout?.restEndDate = nil
                 persistChanges()
                 restTimer.ready()
@@ -523,6 +539,17 @@ class ActiveWorkoutViewModel {
             timerTask = nil
             restTimer.restore(endDate: nil, pausedRemaining: pausedRemaining)
             workoutVM.reconcileLiveActivity()
+        } else if timerTask != nil || restTimer.isVisible {
+            // Both persisted fields are nil, yet a local countdown or
+            // paused/ready state is still around. That only happens when an
+            // external mutation (Siri, the Live Activity, a widget) cleared
+            // the persisted rest through a separate `ModelContext` — most
+            // commonly a skip — while this countdown kept ticking toward a
+            // deadline that no longer exists. `cancelTimer` stops it and
+            // reconciles the Live Activity; it is a no-op on the
+            // already-nil persisted fields, so it does not loop back into
+            // another save or another notification.
+            cancelTimer()
         }
     }
 
@@ -631,11 +658,32 @@ class ActiveWorkoutViewModel {
     
     func removeExercise(_ exerciseEntry: ExerciseEntry) {
         if let workout = workoutVM.activeWorkout {
+            let formerBlockID = exerciseEntry.executionBlockID
             workout.exercises.removeAll { $0 === exerciseEntry }
             modelContext.delete(exerciseEntry)
             workout.normalizeExerciseOrder()
+            removeExecutionBlockIfEmpty(formerBlockID, in: workout)
             persistChanges()
         }
+    }
+
+    /// Deleting the last member of an execution block would otherwise leave a
+    /// phantom card: block membership is derived dynamically by
+    /// `WorkoutExecutionBlockService.entries`, so an empty block has no
+    /// dangling reference and keeps rendering as a live Start/round/score
+    /// control for exercises that no longer exist. Mirrors the cleanup
+    /// `CompletedWorkoutPreparationService.prepare` performs at save time,
+    /// but only the deletion — a block that still has members is left
+    /// untouched.
+    private func removeExecutionBlockIfEmpty(_ blockID: UUID?, in workout: Workout) {
+        guard let blockID,
+              let block = workout.orderedExecutionBlocks.first(where: { $0.id == blockID }),
+              WorkoutExecutionBlockService.entries(in: block, workout: workout).isEmpty
+        else {
+            return
+        }
+        WorkoutExecutionBlockService.remove(block, from: workout)
+        modelContext.delete(block)
     }
 
     func superset(_ exerciseEntry: ExerciseEntry, with otherEntry: ExerciseEntry) {
@@ -776,7 +824,17 @@ class ActiveWorkoutViewModel {
     }
 
     func persistChanges() {
-        _ = modelContext.saveOrRollback()
+        switch modelContext.saveOrRollbackReportingFailure() {
+        case .saved:
+            lastPersistenceFailure = nil
+            consecutivePersistenceFailureCount = 0
+        case .failed(let error):
+            consecutivePersistenceFailureCount += 1
+            lastPersistenceFailure = error
+            // The raw SwiftData error is diagnostic-only; the banner never
+            // shows this text to the lifter.
+            print("ActiveWorkoutViewModel: persistChanges failed (\(consecutivePersistenceFailureCount) consecutive): \(error)")
+        }
     }
 
     private func loadPreviousPerformance(for exercise: ExerciseEntry) {
