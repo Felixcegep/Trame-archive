@@ -192,7 +192,7 @@ struct MuscleBalanceAnalyticsService {
             return []
         }
         return (0..<count).reversed().compactMap { offset in
-            guard let start = Calendar.autoupdatingCurrent.date(
+            guard let start = Calendar.current.date(
                 byAdding: .weekOfYear,
                 value: -offset,
                 to: currentWeekStart
@@ -202,7 +202,7 @@ struct MuscleBalanceAnalyticsService {
     }
 
     private func weekInterval(containing date: Date) -> DateInterval? {
-        Calendar.autoupdatingCurrent.dateInterval(of: .weekOfYear, for: date)
+        Calendar.current.dateInterval(of: .weekOfYear, for: date)
     }
 
     private func average(

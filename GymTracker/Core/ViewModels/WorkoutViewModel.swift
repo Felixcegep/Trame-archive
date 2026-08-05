@@ -193,9 +193,9 @@ class WorkoutViewModel {
 
     @discardableResult
     func startWorkout(
-        for plannedWorkout: PlannedWorkout,
-        in planRun: PlanRun,
+        from plannedWorkout: PlannedWorkout,
         progress: PlanWorkoutProgress,
+        in planRun: PlanRun,
         using modelContext: ModelContext
     ) -> Bool {
         guard !restoreActiveWorkout(using: modelContext) else { return false }
@@ -297,6 +297,32 @@ class WorkoutViewModel {
                 set.weight = freshSet.weight
                 set.rpe = freshSet.rpe
                 set.rir = freshSet.rir
+                set.liftQuality = freshSet.liftQuality
+
+                // Segments and complex components are nested evidence that
+                // `synchronizeSegmentCompletion()`/`synchronizeComplexCompletion()`
+                // mutate as part of the same external completion (see
+                // `WorkoutSetCompletionWorkflow.execute`). Copy every field
+                // those methods write, matching by `id` exactly like the set
+                // loop above so a child missing on one side is skipped rather
+                // than duplicated or crashing.
+                let freshSegmentsByID = Dictionary(
+                    uniqueKeysWithValues: freshSet.segments.map { ($0.id, $0) }
+                )
+                for segment in set.segments {
+                    guard let freshSegment = freshSegmentsByID[segment.id] else { continue }
+                    segment.done = freshSegment.done
+                }
+
+                let freshComponentsByID = Dictionary(
+                    uniqueKeysWithValues: freshSet.complexComponents.map { ($0.id, $0) }
+                )
+                for component in set.complexComponents {
+                    guard let freshComponent = freshComponentsByID[component.id] else { continue }
+                    component.performedRepetitions = freshComponent.performedRepetitions
+                    component.outcome = freshComponent.outcome
+                    component.liftQuality = freshComponent.liftQuality
+                }
             }
         }
 

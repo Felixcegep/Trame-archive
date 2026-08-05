@@ -77,7 +77,24 @@ enum PlanProgressionEvaluationService {
                 guard !completedSets.isEmpty else { continue }
                 var metrics: [ProgressionMetric: Double] = [:]
                 let repetitions = completedSets.reduce(0) { $0 + Double($1.repetitions) }
-                let volume = completedSets.reduce(0) { $0 + Double($1.repetitions) * Double($1.weight) }
+                // Route through `VolumeCalculator`, the single source of truth
+                // for weight × reps → training volume, rather than a local
+                // formula: `ExerciseSet.weightType` is stored per set, so a
+                // unit change mid-plan (or a unilateral/per-hand exercise)
+                // would otherwise silently disagree with History/Analytics.
+                // `.kg` is the target unit because it is this domain's
+                // canonical unit elsewhere (`trainingMax`, `estimatedOneRepMax`,
+                // and `ExerciseSet.prescribedReferenceValue` are all documented
+                // as kilograms).
+                let volume = completedSets.reduce(Double(0)) { partial, set in
+                    partial + Double(VolumeCalculator.setVolume(
+                        weight: set.weight,
+                        weightType: set.weightType,
+                        repetitions: set.repetitions,
+                        semantics: entry.loggingSemanticsSnapshot,
+                        in: .kg
+                    ))
+                }
                 metrics[.load] = completedSets.last.map { Double($0.weight) }
                 metrics[.repetitions] = repetitions / Double(completedSets.count)
                 metrics[.setCount] = Double(completedSets.count)
@@ -310,7 +327,19 @@ enum PlanProgressionEvaluationService {
             if let exact = set.prescribedRepetitions { return Int(set.repetitions) >= exact }
             return false
         }.count
-        let totalVolume = completedSets.reduce(0) { $0 + Double($1.repetitions) * Double($1.weight) }
+        // See the matching comment above `evaluateAndApply`'s volume computation:
+        // route through `VolumeCalculator` instead of a local weight × reps
+        // formula so this agrees with History/Analytics regardless of
+        // per-set unit or laterality. `.kg` is this domain's canonical unit.
+        let totalVolume = completedSets.reduce(Double(0)) { partial, set in
+            partial + Double(VolumeCalculator.setVolume(
+                weight: set.weight,
+                weightType: set.weightType,
+                repetitions: set.repetitions,
+                semantics: entry.loggingSemanticsSnapshot,
+                in: .kg
+            ))
+        }
         let completedCalories = completedSets.compactMap(\.calories).reduce(0, +)
         let actualRPE = completedSets.compactMap { $0.rpe }.average
         let actualRIR = completedSets.compactMap { $0.rir }
