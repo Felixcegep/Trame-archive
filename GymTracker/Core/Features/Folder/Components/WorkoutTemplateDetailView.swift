@@ -16,6 +16,7 @@ struct WorkoutTemplateDetailView: View {
         sort: \MobilityRoutine.name
     ) private var mobilityRoutines: [MobilityRoutine]
 
+    @Environment(\.dismiss) private var dismiss
     let template: WorkoutTemplate
     let onStartWorkout: (WorkoutTemplate) -> Void
 
@@ -25,6 +26,10 @@ struct WorkoutTemplateDetailView: View {
     @State private var executionBlockToEdit: TemplateExerciseBlock?
     @State private var mobilityPlacementToEdit: WorkoutMobilityPlacement?
     @State private var mobilityLinkError: Error?
+    @State private var isShowingRenamePrompt = false
+    @State private var renameText = ""
+    @State private var templateFeedbackReason: String?
+    @State private var isShowingTemplateFeedback = false
 
     var body: some View {
         List {
@@ -130,10 +135,39 @@ struct WorkoutTemplateDetailView: View {
                     }
                     .disabled(orderedTemplateExercises.isEmpty)
                     .accessibilityIdentifier("add-template-execution-block")
+
+                    Divider()
+
+                    Button("Rename template", systemImage: AppIcon.edit) {
+                        renameText = template.name
+                        isShowingRenamePrompt = true
+                    }
+
+                    Button("Duplicate template", systemImage: AppIcon.copy) {
+                        duplicateTemplate()
+                    }
+
+                    Button("Delete template", systemImage: AppIcon.trash, role: .destructive) {
+                        deleteTemplate()
+                    }
                 } label: {
-                    Image(systemName: AppIcon.plus)
+                    Image(systemName: AppIcon.ellipsis)
                 }
-                .accessibilityIdentifier("template-add-menu")
+                .accessibilityIdentifier("template-options-menu")
+            }
+        }
+        .alert("Rename Template", isPresented: $isShowingRenamePrompt) {
+            TextField("Template Name", text: $renameText)
+            Button("Cancel", role: .cancel) { }
+            Button("Save") {
+                applyRename()
+            }
+        }
+        .alert("Template Status", isPresented: $isShowingTemplateFeedback) {
+            Button("OK") { }
+        } message: {
+            if let templateFeedbackReason {
+                Text(templateFeedbackReason)
             }
         }
         .sheet(isPresented: $isShowingExercisePicker) {
@@ -200,6 +234,40 @@ struct WorkoutTemplateDetailView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func applyRename() {
+        do {
+            try WorkoutTemplateArchiveService.rename(template, to: renameText, using: modelContext)
+        } catch {
+            templateFeedbackReason = error.localizedDescription
+            isShowingTemplateFeedback = true
+        }
+    }
+
+    private func duplicateTemplate() {
+        do {
+            _ = try WorkoutTemplateArchiveService.duplicate(template, using: modelContext)
+        } catch {
+            templateFeedbackReason = error.localizedDescription
+            isShowingTemplateFeedback = true
+        }
+    }
+
+    private func deleteTemplate() {
+        do {
+            let outcome = try WorkoutTemplateArchiveService.hideOrDeleteResult(template, using: modelContext)
+            switch outcome {
+            case .deleted:
+                dismiss()
+            case .archived(let reason):
+                templateFeedbackReason = reason
+                isShowingTemplateFeedback = true
+            }
+        } catch {
+            templateFeedbackReason = error.localizedDescription
+            isShowingTemplateFeedback = true
         }
     }
 

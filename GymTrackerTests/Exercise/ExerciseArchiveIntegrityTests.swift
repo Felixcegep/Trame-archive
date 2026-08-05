@@ -104,8 +104,15 @@ final class ExerciseArchiveIntegrityTests: XCTestCase {
         context.insert(template)
         try context.save()
 
-        try ExerciseArchiveService.hideOrDelete(unreferenced, using: context)
-        try ExerciseArchiveService.hideOrDelete(referenced, using: context)
+        let unreferencedOutcome = try ExerciseArchiveService.hideOrDeleteResult(unreferenced, using: context)
+        let referencedOutcome = try ExerciseArchiveService.hideOrDeleteResult(referenced, using: context)
+
+        XCTAssertEqual(unreferencedOutcome, .deleted)
+        if case .archived(let reason) = referencedOutcome {
+            XCTAssertTrue(reason.contains("template"), "Expected reason to explain template reference, got: \(reason)")
+        } else {
+            XCTFail("Expected referenced exercise to return .archived(reason:)")
+        }
 
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
         XCTAssertFalse(exercises.contains { $0.name == "Unused Custom" })

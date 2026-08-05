@@ -8,7 +8,7 @@ import SwiftData
 /// model's stored shape changes, so a beta feedback report can distinguish
 /// testers running different schema generations.
 enum GymTrackerAppSchema {
-    static let diagnosticVersion = "13"
+    static let diagnosticVersion = "14"
 
     /// What the shipped build actually does with iCloud. This is deliberately
     /// a literal, not derived from CloudSyncEnvironment: the point is that a

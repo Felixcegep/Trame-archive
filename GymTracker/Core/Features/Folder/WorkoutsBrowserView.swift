@@ -144,7 +144,9 @@ struct WorkoutsBrowserView: View {
     }
 
     private var sortedTemplates: [WorkoutTemplate] {
-        workoutTemplates.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        workoutTemplates
+            .filter { !$0.isArchived }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     private func workoutCountText(_ count: Int) -> String {

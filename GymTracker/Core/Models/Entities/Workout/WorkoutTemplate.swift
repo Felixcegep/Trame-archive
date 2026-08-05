@@ -26,6 +26,7 @@ class WorkoutTemplate {
     var preWorkoutMobilityRoutine: MobilityRoutine?
     var postWorkoutMobilityRoutine: MobilityRoutine?
     var isBuiltIn: Bool = false
+    var isArchived: Bool = false
 
     init(
         name: String,
@@ -33,7 +34,8 @@ class WorkoutTemplate {
         templateExercises: [TemplateExercise]? = nil,
         preWorkoutMobilityRoutine: MobilityRoutine? = nil,
         postWorkoutMobilityRoutine: MobilityRoutine? = nil,
-        isBuiltIn: Bool = false
+        isBuiltIn: Bool = false,
+        isArchived: Bool = false
     ) {
         self.name = name
         self.templateExercises = templateExercises ?? exercises.enumerated().map { index, exercise in
@@ -42,6 +44,7 @@ class WorkoutTemplate {
         self.preWorkoutMobilityRoutine = preWorkoutMobilityRoutine
         self.postWorkoutMobilityRoutine = postWorkoutMobilityRoutine
         self.isBuiltIn = isBuiltIn
+        self.isArchived = isArchived
     }
 
     var orderedTemplateExercises: [TemplateExercise] {

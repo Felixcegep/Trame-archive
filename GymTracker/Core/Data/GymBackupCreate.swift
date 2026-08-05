@@ -101,7 +101,8 @@ extension BackupDTO {
                     )
                 },
                 preWorkoutMobilityRoutineName: template.preWorkoutMobilityRoutine?.name,
-                postWorkoutMobilityRoutineName: template.postWorkoutMobilityRoutine?.name
+                postWorkoutMobilityRoutineName: template.postWorkoutMobilityRoutine?.name,
+                isArchived: template.isArchived
             )
         }
 

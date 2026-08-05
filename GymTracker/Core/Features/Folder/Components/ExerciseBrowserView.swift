@@ -40,6 +40,8 @@ struct ExerciseBrowserView: View {
     @State private var filter = ExerciseFilterState()
     @State private var sortOrder: ExerciseSortOrder = .nameAscending
     @State private var rows: [ExerciseRowSnapshot] = []
+    @State private var archiveFeedbackReason: String?
+    @State private var isShowingArchiveFeedback = false
     /// Every seeded exercise lives in `exercises`, so an empty row list on a
     /// fresh, unfiltered library is not "you haven't added one yet" whenever
     /// the bundled catalogue failed to install — it is every one of the 253
@@ -136,6 +138,13 @@ struct ExerciseBrowserView: View {
         .onChange(of: exercises.count) { _, _ in
             recomputeRows()
         }
+        .alert("Exercise Status", isPresented: $isShowingArchiveFeedback) {
+            Button("OK") { }
+        } message: {
+            if let archiveFeedbackReason {
+                Text(archiveFeedbackReason)
+            }
+        }
     }
 
     private func recomputeRows() {
@@ -165,18 +174,23 @@ struct ExerciseBrowserView: View {
     }
 
     private func hideExercise(_ exercise: Exercise) {
-        do {
-            try ExerciseArchiveService.hideOrDelete(exercise, using: modelContext)
-        } catch {
-            print("Failed to hide exercise: \(error)")
-        }
+        handleArchiveOrDelete(exercise)
     }
 
     private func deleteExercise(_ exercise: Exercise) {
+        handleArchiveOrDelete(exercise)
+    }
+
+    private func handleArchiveOrDelete(_ exercise: Exercise) {
         do {
-            try ExerciseArchiveService.hideOrDelete(exercise, using: modelContext)
+            let outcome = try ExerciseArchiveService.hideOrDeleteResult(exercise, using: modelContext)
+            if case .archived(let reason) = outcome {
+                archiveFeedbackReason = reason
+                isShowingArchiveFeedback = true
+            }
         } catch {
-            print("Failed to delete exercise: \(error)")
+            archiveFeedbackReason = error.localizedDescription
+            isShowingArchiveFeedback = true
         }
     }
 }

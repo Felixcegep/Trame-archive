@@ -60,6 +60,8 @@ struct ExerciseView : View {
     @State private var isShowingInsights = false
     @State private var isShowingRelationshipEditor = false
     @State private var quickStats: ExerciseQuickStats?
+    @State private var deletionFeedbackReason: String?
+    @State private var isShowingDeletionFeedback = false
 
     init(exercise: Exercise) {
         editableExercise = exercise
@@ -160,6 +162,15 @@ struct ExerciseView : View {
         .navigationDestination(isPresented: $isShowingInsights) {
             if let editableExercise {
                 ExerciseDetailInsightsDestination(exercise: editableExercise)
+            }
+        }
+        .alert("Exercise Archived", isPresented: $isShowingDeletionFeedback) {
+            Button("OK") {
+                dismiss()
+            }
+        } message: {
+            if let deletionFeedbackReason {
+                Text(deletionFeedbackReason)
             }
         }
         .task(id: editableExercise?.persistentModelID) {
@@ -490,8 +501,14 @@ struct ExerciseView : View {
     private func deleteExercise() {
         guard let editableExercise else { return }
         do {
-            try ExerciseArchiveService.hideOrDelete(editableExercise, using: modelContext)
-            dismiss()
+            let outcome = try ExerciseArchiveService.hideOrDeleteResult(editableExercise, using: modelContext)
+            switch outcome {
+            case .deleted:
+                dismiss()
+            case .archived(let reason):
+                deletionFeedbackReason = reason
+                isShowingDeletionFeedback = true
+            }
         } catch {
             print("Failed to delete exercise: \(error)")
         }

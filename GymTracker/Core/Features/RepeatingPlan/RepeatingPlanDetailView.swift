@@ -15,10 +15,16 @@ struct RepeatingPlanDetailView: View {
     let onEndRepeatingPlan: (RepeatingPlanRun) -> Void
     let onOpenProgramPath: (ProgramPathRoute) -> Void
 
+    @Environment(\.modelContext) private var modelContext
+
     @State private var isShowingAlternatePicker = false
     @State private var selectedAlternate: AlternateSelection?
     @State private var isShowingAlternateContinuationChoice = false
     @State private var pendingDestructiveAction: DestructiveAction?
+    @State private var isShowingRenamePrompt = false
+    @State private var renameText = ""
+    @State private var lifecycleFeedback: String?
+    @State private var isShowingDeleteConfirmation = false
 
     var body: some View {
         List {
@@ -85,6 +91,94 @@ struct RepeatingPlanDetailView: View {
         .background(Color.gymBackground)
         .navigationTitle(plan.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        renameText = plan.name
+                        isShowingRenamePrompt = true
+                    } label: {
+                        Label("Rename", systemImage: AppIcon.edit)
+                    }
+                    .accessibilityIdentifier("rename-rotation")
+
+                    Button {
+                        do {
+                            try RepeatingPlanArchiveService.duplicate(plan, using: modelContext)
+                            lifecycleFeedback = "Rotation duplicated."
+                        } catch {
+                            lifecycleFeedback = "Could not duplicate the rotation."
+                        }
+                    } label: {
+                        Label("Duplicate", systemImage: AppIcon.duplicate)
+                    }
+                    .accessibilityIdentifier("duplicate-rotation")
+
+                    Divider()
+
+                    if plan.isArchived {
+                        Button {
+                            do {
+                                try RepeatingPlanArchiveService.restore(plan, using: modelContext)
+                                lifecycleFeedback = "Rotation restored."
+                            } catch {
+                                lifecycleFeedback = "Could not restore the rotation."
+                            }
+                        } label: {
+                            Label("Restore", systemImage: AppIcon.restore)
+                        }
+                        .accessibilityIdentifier("restore-rotation")
+                    }
+
+                    Button(role: .destructive) {
+                        isShowingDeleteConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: AppIcon.trash)
+                    }
+                    .accessibilityIdentifier("delete-rotation")
+                } label: {
+                    Image(systemName: AppIcon.options)
+                        .accessibilityLabel("Rotation options")
+                }
+            }
+        }
+        .alert("Rename Rotation", isPresented: $isShowingRenamePrompt) {
+            TextField("Rotation name", text: $renameText)
+            Button("Save") {
+                do {
+                    try RepeatingPlanArchiveService.rename(plan, to: renameText, using: modelContext)
+                } catch {
+                    lifecycleFeedback = "Could not rename the rotation."
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        }
+        .alert("Rotation Updated", isPresented: Binding(
+            get: { lifecycleFeedback != nil },
+            set: { if !$0 { lifecycleFeedback = nil } }
+        )) {
+            Button("OK") { lifecycleFeedback = nil }
+        } message: {
+            Text(lifecycleFeedback ?? "")
+        }
+        .confirmationDialog(
+            "Delete this rotation?",
+            isPresented: $isShowingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                do {
+                    let outcome = try RepeatingPlanArchiveService.hideOrDeleteResult(plan, using: modelContext)
+                    if case .archived(let reason) = outcome {
+                        lifecycleFeedback = reason
+                    }
+                } catch {
+                    lifecycleFeedback = "Could not delete the rotation."
+                }
+            }
+        } message: {
+            Text("This rotation and its workout slots will be removed. Completed workouts and run history are always preserved.")
+        }
         .sheet(isPresented: $isShowingAlternatePicker, onDismiss: presentAlternateContinuationChoice) {
             if let run = currentRun {
                 NavigationStack {

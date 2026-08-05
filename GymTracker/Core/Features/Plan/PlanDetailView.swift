@@ -18,6 +18,10 @@ struct PlanDetailView: View {
     @State private var startDate = Date.now
     @State private var reschedulingProgress: PlanWorkoutProgress?
     @State private var rescheduleDate = Date.now
+    @State private var isShowingRenamePrompt = false
+    @State private var renameText = ""
+    @State private var lifecycleFeedback: String?
+    @State private var isShowingDeleteConfirmation = false
 
     var body: some View {
         List {
@@ -173,14 +177,99 @@ struct PlanDetailView: View {
         .background(Color.gymBackground)
         .navigationTitle(plan.name)
         .toolbar {
-            if !plan.isArchived {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Edit") {
-                        isShowingEditor = true
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    if !plan.isArchived {
+                        Button("Edit") {
+                            isShowingEditor = true
+                        }
+                        .accessibilityIdentifier("edit-plan")
                     }
-                    .accessibilityIdentifier("edit-plan")
+
+                    Button {
+                        renameText = plan.name
+                        isShowingRenamePrompt = true
+                    } label: {
+                        Label("Rename", systemImage: AppIcon.edit)
+                    }
+                    .accessibilityIdentifier("rename-plan")
+
+                    Button {
+                        do {
+                            try WorkoutPlanArchiveService.duplicate(plan, using: modelContext)
+                            lifecycleFeedback = "Plan duplicated."
+                        } catch {
+                            lifecycleFeedback = "Could not duplicate the plan."
+                        }
+                    } label: {
+                        Label("Duplicate", systemImage: AppIcon.duplicate)
+                    }
+                    .accessibilityIdentifier("duplicate-plan")
+
+                    Divider()
+
+                    if plan.isArchived {
+                        Button {
+                            do {
+                                try WorkoutPlanArchiveService.restore(plan, using: modelContext)
+                                lifecycleFeedback = "Plan restored."
+                            } catch {
+                                lifecycleFeedback = "Could not restore the plan."
+                            }
+                        } label: {
+                            Label("Restore", systemImage: AppIcon.restore)
+                        }
+                        .accessibilityIdentifier("restore-plan")
+                    }
+
+                    Button(role: .destructive) {
+                        isShowingDeleteConfirmation = true
+                    } label: {
+                        Label(plan.isArchived ? "Delete" : "Delete", systemImage: AppIcon.trash)
+                    }
+                    .accessibilityIdentifier("delete-plan")
+                } label: {
+                    Image(systemName: AppIcon.options)
+                        .accessibilityLabel("Plan options")
                 }
             }
+        }
+        .alert("Rename Plan", isPresented: $isShowingRenamePrompt) {
+            TextField("Plan name", text: $renameText)
+            Button("Save") {
+                do {
+                    try WorkoutPlanArchiveService.rename(plan, to: renameText, using: modelContext)
+                } catch {
+                    lifecycleFeedback = "Could not rename the plan."
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        }
+        .alert("Plan Updated", isPresented: Binding(
+            get: { lifecycleFeedback != nil },
+            set: { if !$0 { lifecycleFeedback = nil } }
+        )) {
+            Button("OK") { lifecycleFeedback = nil }
+        } message: {
+            Text(lifecycleFeedback ?? "")
+        }
+        .confirmationDialog(
+            "Delete this plan?",
+            isPresented: $isShowingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                do {
+                    let outcome = try WorkoutPlanArchiveService.hideOrDeleteResult(plan, using: modelContext)
+                    if case .archived(let reason) = outcome {
+                        lifecycleFeedback = reason
+                    }
+                } catch {
+                    lifecycleFeedback = "Could not delete the plan."
+                }
+            }
+        } message: {
+            Text("This plan and its prescriptions will be removed. Completed workouts and run history are always preserved.")
         }
         .sheet(isPresented: $isShowingStartDate) {
             NavigationStack {

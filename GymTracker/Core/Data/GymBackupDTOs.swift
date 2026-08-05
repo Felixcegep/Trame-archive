@@ -139,6 +139,7 @@ nonisolated struct WorkoutTemplateDTO: Codable {
     var executionBlocks: [TemplateExerciseBlockDTO]? = nil
     var preWorkoutMobilityRoutineName: String? = nil
     var postWorkoutMobilityRoutineName: String? = nil
+    var isArchived: Bool? = false
 }
 
 nonisolated struct WorkoutCollectionDTO: Codable {
@@ -1351,7 +1352,11 @@ nonisolated struct BackupDTO: Codable {
     /// side-specific quality/sensation evidence. Older backups restore with
     /// no advanced evidence and never infer it from free-text notes.
     static let advancedMobilityEvidenceVersion = 26
-    static let currentVersion = advancedMobilityEvidenceVersion
+    /// Adds template lifecycle tracking (isArchived). Older backups restore
+    /// with templates explicitly active, preserving fidelity since archiving
+    /// didn't exist when they were exported.
+    static let templateLifecycleVersion = 27
+    static let currentVersion = templateLifecycleVersion
 
     init(
         version: Int,
