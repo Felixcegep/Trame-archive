@@ -48,6 +48,13 @@ class WorkoutViewModel {
     /// Cleared at the start of every save, so it never describes an older one.
     private(set) var lastSaveFailure: Error?
 
+    /// Why the most recent repeating-plan start refused, when it did.
+    ///
+    /// Recorded for the same reason as `lastSaveFailure`: the signature stays
+    /// `Bool`, but "the rotation would not start" and "the rotation is paused"
+    /// are different things a caller may need to tell apart.
+    private(set) var lastStartFailure: Error?
+
     func saveWorkout(using modelContext: ModelContext) -> Bool {
         lastSavedSummary = nil
         lastSaveFailure = nil
@@ -184,7 +191,15 @@ class WorkoutViewModel {
             NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
             return true
         } catch {
+            // The reason a rotation refused to start was previously discarded
+            // here, so the caller saw a bare `false` and nobody — user or
+            // developer — could tell whether the run was paused, the cursor
+            // was invalid, the slot had no template, or an occurrence was
+            // already in progress. Each of those is a different problem with a
+            // different fix.
             modelContext.rollback()
+            lastStartFailure = error
+            print("startWorkout(from:command:using:) failed for run \(repeatingPlanRun.id): \(error)")
             return false
         }
     }
@@ -272,7 +287,12 @@ class WorkoutViewModel {
             }) else {
                 self.activeWorkout = nil
                 Task { await LiveActivityManager.shared.endOrphanedActivities() }
-                return true
+                // Nothing to restore. This must be `false`, not `true`: callers
+                // read the result as "an active workout was found and bound",
+                // and every `startWorkout` overload guards on
+                // `!restoreActiveWorkout(...)`. Returning `true` here makes all
+                // of them refuse to start anything.
+                return false
             }
 
             self.activeWorkout = activeWorkout
