@@ -5,6 +5,7 @@ import SwiftUI
 /// It deliberately links to domain-owned history instead of copying or
 /// reinterpreting their persisted truth.
 struct ProgressHubView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     @Query(sort: \MobilitySession.startTime, order: .reverse) private var mobilitySessions: [MobilitySession]
     @Query(sort: \MobilityAssessmentSession.startedAt, order: .reverse) private var assessmentSessions: [MobilityAssessmentSession]
@@ -12,8 +13,36 @@ struct ProgressHubView: View {
     @Query(sort: \DailyLogEntry.createdAt, order: .reverse) private var dailyLogEntries: [DailyLogEntry]
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
+    @State private var overviewRange: AnalyticsDateRange = .twelveWeeks
+    @State private var overviewState: ProgressOverviewState = .loading
+
     var body: some View {
         List {
+            Section {
+                // The range control is a list row rather than a toolbar menu:
+                // toolbar buttons do not reliably fire on pushed screens in
+                // this iOS generation, and a row keeps the control reachable
+                // with the same gesture as everything else on the screen.
+                Picker("Period", selection: $overviewRange) {
+                    ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
+                        Text(range.title).tag(range)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("progress-overview-range")
+
+                // Only the cards drop the row surface — they bring their own.
+                // Clearing it for the whole section stripped the picker of its
+                // grouped background too, leaving the control floating on the
+                // page as if it were a caption.
+                ProgressOverviewSection(range: overviewRange, state: overviewState)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: 0, trailing: 0))
+            } header: {
+                Text("Overview")
+            }
+
             Section("Training") {
                 progressLink(
                     route: .workoutHistory,
@@ -80,6 +109,85 @@ struct ProgressHubView: View {
         .background(Color.gymBackground)
         .navigationTitle("Progress")
         .accessibilityIdentifier("progress-screen")
+        // Recomputed when the range changes rather than in `body`: these are
+        // store reads, and running them as computed properties re-ran them on
+        // every re-render. `task(id:)` also cancels a superseded load when the
+        // lifter changes range twice quickly.
+        .task(id: overviewRange) {
+            overviewState = loadOverview()
+        }
+    }
+
+    /// Reads the overview from the analytics services.
+    ///
+    /// Synchronous on the main actor by design: these services hold a
+    /// `ModelContext`, which is not `Sendable`, so the work must not hop off
+    /// the actor that owns it.
+    private func loadOverview() -> ProgressOverviewState {
+        guard completedWorkouts.isEmpty == false else { return .empty }
+
+        let displayWeightType: WeightType = UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
+        let calendar = Calendar.current
+
+        do {
+            let consistency = try TrainingConsistencyAnalyticsService(modelContext: modelContext)
+                .analytics(calendar: calendar)
+            let records = try PersonalRecordAnalyticsService(modelContext: modelContext)
+                .personalRecords(dateRange: overviewRange, displayWeightType: displayWeightType)
+            let series = try ExerciseProgressAnalyticsService(modelContext: modelContext)
+                .series(dateRange: overviewRange, displayWeightType: displayWeightType)
+
+            let rangeInterval = overviewRange.dateInterval()
+            let weekInterval = calendar.dateInterval(of: .weekOfYear, for: .now)
+
+            return .loaded(
+                ProgressOverviewSummary(
+                    workoutsThisWeek: consistency.weeklyFrequency.last?.workoutCount ?? 0,
+                    trainingTimeThisWeekText: trainingTimeText(in: weekInterval),
+                    consistencyTakeaway: consistency.takeawayText,
+                    latestRecord: records.max { $0.date < $1.date },
+                    featuredSeries: series.max { totalPoints($0) < totalPoints($1) },
+                    mobilitySessionsInRange: completedMobilitySessions.filter { session in
+                        rangeInterval.map { $0.contains(session.startTime) } ?? true
+                    }.count,
+                    assessmentRecencyText: assessmentRecencyText
+                )
+            )
+        } catch {
+            print("ProgressHubView: analytics read failed: \(error)")
+            return .failed
+        }
+    }
+
+    private func totalPoints(_ series: ExerciseProgressSeries) -> Int {
+        series.loadPoints.count + series.volumePoints.count + series.repsPoints.count
+    }
+
+    /// Nil rather than "0m" when nothing was recorded: an absent duration and a
+    /// zero-length session are different facts.
+    private func trainingTimeText(in interval: DateInterval?) -> String? {
+        guard let interval else { return nil }
+        let seconds = completedWorkouts
+            .filter { interval.contains($0.startTime) }
+            .reduce(into: TimeInterval.zero) { total, workout in
+                guard let end = workout.endTime else { return }
+                total += end.timeIntervalSince(workout.startTime)
+            }
+        guard seconds > 0 else { return nil }
+        let minutes = Int(seconds / 60)
+        return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
+    }
+
+    private var assessmentRecencyText: String {
+        guard let latest = recordedAssessmentSessions.first else {
+            return "No assessment recorded yet."
+        }
+        let days = Calendar.current.dateComponents([.day], from: latest.startedAt, to: .now).day ?? 0
+        switch days {
+        case 0: return "Last assessment today."
+        case 1: return "Last assessment yesterday."
+        default: return "Last assessment \(days) days ago."
+        }
     }
 
     private var completedWorkouts: [Workout] {

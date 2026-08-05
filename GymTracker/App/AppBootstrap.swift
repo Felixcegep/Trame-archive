@@ -249,6 +249,13 @@ enum UITestLaunch {
             destination.tab = .progress
             destination.progressPath = [.workoutHistory]
         }
+        // Progress root, not a pushed destination. `-ui-testing-open-history`
+        // lands past the hub, so the overview's populated state — its whole
+        // reason for existing — had no way to be reached for capture or
+        // review. Capture-only, like the storage-unavailable hook.
+        if arguments.contains("-ui-testing-open-progress") {
+            destination.tab = .progress
+        }
         if arguments.contains("-ui-testing-open-library") {
             destination.tab = .train
         }
