@@ -95,7 +95,8 @@ final class ContextualTrackingAndLoadedMobilityTests: XCTestCase {
         // `.first` happens to return.
         let resultsBySide = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.side, $0) })
         let target = try XCTUnwrap(resultsBySide[.left])
-        XCTAssertTrue(MobilitySessionService.completeCurrent(in: session, resultInputs: [target.id: resultInput], using: context))
+        let inputsByResultID = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.id, resultInput) })
+        XCTAssertTrue(MobilitySessionService.completeCurrent(in: session, resultInputs: inputsByResultID, using: context))
 
         XCTAssertEqual(target.performedLoadValue, 12.5)
         XCTAssertEqual(target.performedLoadUnit, .kilograms)

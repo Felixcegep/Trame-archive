@@ -216,8 +216,8 @@ final class ProgramSnapshotIntegrationTests: XCTestCase {
 
         let entry = try XCTUnwrap(viewModel.activeWorkout?.orderedExercises.first)
         let set = try XCTUnwrap(entry.orderedSets.first)
-        XCTAssertEqual(set.calories, 420)
-        XCTAssertEqual(set.prescribedCalories, 420)
+        XCTAssertNil(set.calories)
+        XCTAssertEqual(set.prescribedCaloriesSnapshot, 420)
         XCTAssertEqual(set.prescribedRestSeconds, 60)
         XCTAssertEqual(set.prescribedTempo, "controlled")
         XCTAssertEqual(set.prescribedProgressionEligible, false)
