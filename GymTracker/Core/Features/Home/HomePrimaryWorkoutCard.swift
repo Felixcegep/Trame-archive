@@ -101,12 +101,17 @@ struct HomePrimaryWorkoutCard: View {
             }
 
             if !hasActiveWorkout {
+                // Full width rather than hugging its label: the capsule used to
+                // leave most of the card's width as dead space beside the one
+                // action the screen exists for, and a wider target is faster to
+                // hit with a phone in one hand.
                 HStack(spacing: Spacing.s) {
                     Text(primaryActionTitle)
                         .font(AppFont.subheadlineBold)
                     Image(systemName: AppIcon.chevronRight)
                         .font(AppFont.captionBold)
                 }
+                .frame(maxWidth: .infinity)
                 .foregroundStyle(.white)
                 .padding(.vertical, Spacing.md)
                 .padding(.horizontal, Spacing.xl)
