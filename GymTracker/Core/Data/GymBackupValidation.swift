@@ -987,6 +987,21 @@ extension BackupDTO {
         try validateUniqueIdentifiers(mobilityRoutines.map(\.id), named: "mobility routine")
         try validateUniqueIdentifiers(mobilitySessions.map(\.id), named: "mobility session")
 
+        // MobilityFamily.name and MobilityDefinition.name lost their
+        // @Attribute(.unique) constraint, so a restored backup can now carry
+        // duplicate names; a duplicate would otherwise trap the seeder's
+        // Dictionary(uniqueKeysWithValues:) lookup at restore/seed time
+        // instead of failing validation cleanly here. Mirrors the
+        // mobilityAssessmentDefinitions.catalogueKey uniqueness check below.
+        let familyNames = mobilityFamilies.map(\.name)
+        guard Set(familyNames).count == familyNames.count else {
+            throw BackupValidationError.duplicateIdentifier("mobility family name")
+        }
+        let definitionNames = mobilityDefinitions.map(\.name)
+        guard Set(definitionNames).count == definitionNames.count else {
+            throw BackupValidationError.duplicateIdentifier("mobility definition name")
+        }
+
         let familyIDs = Set(mobilityFamilies.map(\.id))
         let definitionIDs = Set(mobilityDefinitions.map(\.id))
         for definition in mobilityDefinitions {

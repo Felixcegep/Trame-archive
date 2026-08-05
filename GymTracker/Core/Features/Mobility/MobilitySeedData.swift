@@ -14,7 +14,20 @@ enum MobilitySeedData {
 
     static func stage(using context: ModelContext, registry: SystemSeedRegistry) throws {
         var existingFamilies = try context.fetch(FetchDescriptor<MobilityFamily>())
-        var familyMap: [String: MobilityFamily] = Dictionary(uniqueKeysWithValues: existingFamilies.map { ($0.name, $0) })
+        // MobilityFamily.name lost its @Attribute(.unique) constraint, so two
+        // families can now share a name; Dictionary(uniqueKeysWithValues:)
+        // would trap (uncatchable) on that collision instead of throwing.
+        // Unlike Exercise (isCustom) or MobilityDefinition (isCustom),
+        // MobilityFamily has no field to distinguish a system record from a
+        // user one, so there's nothing to prefer — keep the first family
+        // encountered, deterministic for a given fetch. This is the same
+        // "keep first" fallback ExerciseRelationshipSeedData.swift uses for
+        // its outer `uniquingKeysWith: { first, _ in first }` after its own
+        // system-preference pass.
+        var familyMap: [String: MobilityFamily] = Dictionary(
+            existingFamilies.map { ($0.name, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         func family(_ name: String) throws -> MobilityFamily {
             let key = SystemSeedKey.make(namespace: "mobility-family", legacyName: name)
@@ -480,7 +493,18 @@ enum MobilitySeedData {
 
         let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
         let allDefs = try context.fetch(FetchDescriptor<MobilityDefinition>())
-        let defsByName = Dictionary(uniqueKeysWithValues: allDefs.map { ($0.name, $0) })
+        // MobilityDefinition.name lost its @Attribute(.unique) constraint, so
+        // two definitions can now share a name; Dictionary(uniqueKeysWithValues:)
+        // would trap (uncatchable) on that collision instead of throwing.
+        // Prefer the system definition (isCustom == false) over a
+        // user-created duplicate, the same preference this file already
+        // applies above (~line 156) when adopting a legacy definition by
+        // exact-name match, and the same preference
+        // Exercise.uniquedByNamePreferringSystem() applies for exercises.
+        let defsByName = Dictionary(
+            allDefs.map { ($0.name, $0) },
+            uniquingKeysWith: { first, second in first.isCustom && !second.isCustom ? second : first }
+        )
 
         for spec in routineSpecs {
             if let record = try registry.record(for: spec.key, expectedKind: .mobilityRoutine) {

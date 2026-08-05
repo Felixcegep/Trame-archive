@@ -53,7 +53,18 @@ enum SystemSeedCatalogCoordinator {
             contentVersion: contentVersion
         )
 
-        _ = try ExerciseRelationshipSeedData.seed(in: context, saveChanges: false)
+        // ExerciseRelationshipSeedData.seed only asserts on an unresolved
+        // exercise name, which is stripped in Release builds; without this
+        // guard a Release install would silently skip relationships instead
+        // of failing, the same class of gap installWorkoutTemplatesAndCollection
+        // closes below with its `guard desiredTemplates.count == ...` check.
+        let relationshipSeedResult = try ExerciseRelationshipSeedData.seed(in: context, saveChanges: false)
+        guard relationshipSeedResult.unresolvedNames.isEmpty else {
+            throw SystemSeedError.unresolvedDependency(
+                key: "exercise-relationship-seed-data",
+                dependency: relationshipSeedResult.unresolvedNames.sorted().joined(separator: ", ")
+            )
+        }
         report += try registerExerciseRelationships(in: context, registry: registry)
 
         report += try installWorkoutTemplatesAndCollection(in: context, registry: registry)
