@@ -77,15 +77,17 @@ enum MobilityLoadUnit: String, Codable, CaseIterable, Hashable {
         }
     }
 
+    /// Routed through the canonical `UnitConversion.weight` conversion so
+    /// this can never silently disagree with the constant every other
+    /// weight conversion in the app uses. `UnitConversion.weight` works in
+    /// `Float`; the narrowing round-trip only affects precision far beyond
+    /// what a load value needs, and the public `Double` signature here is
+    /// unchanged.
     func convert(_ value: Double, to targetUnit: MobilityLoadUnit) -> Double {
-        switch (self, targetUnit) {
-        case (.kilograms, .kilograms), (.pounds, .pounds):
-            return value
-        case (.kilograms, .pounds):
-            return value * 2.20462
-        case (.pounds, .kilograms):
-            return value / 2.20462
-        }
+        guard self != targetUnit else { return value }
+        let source: WeightType = self == .kilograms ? .kg : .lbs
+        let target: WeightType = targetUnit == .kilograms ? .kg : .lbs
+        return Double(UnitConversion.weight(Float(value), from: source, to: target))
     }
 }
 

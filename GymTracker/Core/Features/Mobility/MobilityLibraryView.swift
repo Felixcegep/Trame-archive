@@ -546,13 +546,36 @@ struct MobilityLibraryView: View {
     }
 
     private func createRoutine() -> MobilityRoutine? {
-        let routine = MobilityRoutine(name: "New mobility routine")
+        let routine = MobilityRoutine(name: uniqueRoutineName())
         if let definition = definitions.first(where: { $0.isArchived == false }) {
             routine.items = [MobilityRoutineItem(definition: definition, orderIndex: 0)]
         }
         modelContext.insert(routine)
         guard modelContext.saveOrRollback() else { return nil }
         return routine
+    }
+
+    /// A freshly created routine has no user-typed name to validate, so the
+    /// case-insensitive collision guard `MobilityDefinitionForm.save()` and
+    /// `MobilityRoutineEditorView.save()` use to reject a colliding name
+    /// cannot apply here — there is nothing to reject yet. Instead the same
+    /// case-insensitive comparison disambiguates the default name up front,
+    /// exactly as `MobilityProgramDefinitionStore.uniqueCompiledRoutineName`
+    /// disambiguates compiled routine names, so repeated taps on "New
+    /// routine" never produce indistinguishable duplicates in the library.
+    private func uniqueRoutineName() -> String {
+        let base = "New mobility routine"
+        let existingNames = (try? modelContext.fetch(FetchDescriptor<MobilityRoutine>()))?.map(\.name) ?? []
+        guard existingNames.contains(where: { $0.localizedCaseInsensitiveCompare(base) == .orderedSame }) else {
+            return base
+        }
+        var suffix = 2
+        while existingNames.contains(where: {
+            $0.localizedCaseInsensitiveCompare("\(base) \(suffix)") == .orderedSame
+        }) {
+            suffix += 1
+        }
+        return "\(base) \(suffix)"
     }
 }
 
@@ -804,6 +827,7 @@ struct MobilityRoutineEditorView: View {
     /// like every other mobility sidecar), so they cannot be a `@Query` on a
     /// static predicate here; they are loaded and reloaded explicitly.
     @State private var blocks: [MobilityRoutineBlock] = []
+    @State private var error: ValidationIssue?
 
     var body: some View {
         Form {
@@ -883,6 +907,11 @@ struct MobilityRoutineEditorView: View {
                     .accessibilityIdentifier("save-mobility-routine")
             }
         }
+        .alert("Couldn’t save routine", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("OK", role: .cancel) { error = nil }
+        } message: {
+            Text(error?.message ?? "Please try again.")
+        }
     }
 
     private func reloadBlocks() {
@@ -940,11 +969,23 @@ struct MobilityRoutineEditorView: View {
     }
 
     private func save() {
-        routine.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let existingRoutines = (try? modelContext.fetch(FetchDescriptor<MobilityRoutine>())) ?? []
+        guard existingRoutines.allSatisfy({
+            $0.id == routine.id || $0.name.localizedCaseInsensitiveCompare(trimmedName) != .orderedSame
+        }) else {
+            error = ValidationIssue(severity: .error, message: "A routine with that name already exists.")
+            return
+        }
+
+        routine.name = trimmedName
         routine.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : notes
         routine.purpose = purpose
         routine.updatedAt = .now
-        guard modelContext.saveOrRollback() else { return }
+        guard modelContext.saveOrRollback() else {
+            error = ValidationIssue(severity: .error, message: "The routine could not be saved. Try again.")
+            return
+        }
         dismiss()
     }
 }

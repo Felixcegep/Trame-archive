@@ -183,7 +183,11 @@ enum MobilitySessionService {
 
     /// Restores one active session only when its performed-evidence graph has
     /// one unambiguous current execution node. Narrow legacy cursor/status
-    /// mismatches are repaired in one save; ambiguous graphs remain untouched.
+    /// mismatches are repaired in one save. A graph that cannot be
+    /// unambiguously reconciled is never left dangling `.active` — doing so
+    /// would permanently block every future `start()` — so it is force
+    /// terminated in place (see `terminateUnreconcilable`) and this still
+    /// reports `.invalid` for the current launch.
     static func restoreActiveSession(
         now: Date = .now,
         using modelContext: ModelContext
@@ -196,7 +200,16 @@ enum MobilitySessionService {
         }
         let activeSessions = sessions.filter { $0.status == .active }
         guard activeSessions.isEmpty == false else { return .none }
-        guard activeSessions.count == 1, let session = activeSessions.first else { return .invalid }
+        guard activeSessions.count == 1, let session = activeSessions.first else {
+            // More (or fewer) than one `.active` session is itself an
+            // unreconcilable graph shape — there is no trustworthy "the"
+            // active session to restore. Leaving any of them dangling in
+            // `.active` would permanently block every future `start()`
+            // (see `activeSession(using:)`), so every one of them is force
+            // terminated rather than left stuck.
+            activeSessions.forEach { terminateUnreconcilable($0, using: modelContext) }
+            return .invalid
+        }
 
         switch reconciliationPlan(for: session, using: modelContext) {
         case .valid:
@@ -223,8 +236,37 @@ enum MobilitySessionService {
                 return .persistenceFailure
             }
         case .invalid:
+            // Unreconcilable: there is no single unambiguous current
+            // execution node. Rather than leaving the session `.active`
+            // forever (permanently blocking `start()`), terminate it in
+            // place using `stop()`'s own semantics, which only finalizes
+            // not-yet-terminal results/phases and never touches evidence
+            // that is already completed/partial/skipped.
+            terminateUnreconcilable(session, using: modelContext)
             return .invalid
         }
+    }
+
+    /// Force-terminates a session whose performed-evidence graph could not
+    /// be reconciled, so it can never again satisfy `activeSession(using:)`
+    /// and permanently block `start()`. Reuses `stop()` verbatim: it is
+    /// already defensive against arbitrary graph shapes (it does not assume
+    /// a single in-progress node) and already preserves any evidence that is
+    /// already terminal (`.completed`/`.partial`/`.skipped`) — only
+    /// `.notStarted`/`.inProgress` results and phases are finalized to
+    /// `.stopped`. No result or phase is deleted.
+    @discardableResult
+    private static func terminateUnreconcilable(
+        _ session: MobilitySession,
+        using modelContext: ModelContext
+    ) -> Bool {
+        let terminated = stop(session, using: modelContext)
+        if terminated {
+            print("MobilitySessionService: force-stopped unreconcilable active session \(session.id) to clear a permanent start() lockout.")
+        } else {
+            print("MobilitySessionService: failed to force-stop unreconcilable active session \(session.id); it may remain active and continue blocking start().")
+        }
+        return terminated
     }
 
     @discardableResult
