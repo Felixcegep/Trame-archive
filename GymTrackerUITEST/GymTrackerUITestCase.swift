@@ -32,15 +32,15 @@ class GymTrackerUITestCase: XCTestCase {
             break
         }
 
-        let index: Int
+        let tabIdentifier: String
         switch tab {
-        case .today: index = 0
-        case .train: index = 1
-        case .nutrition: index = 2
-        case .progress: index = 3
+        case .today: tabIdentifier = "tab-today"
+        case .train: tabIdentifier = "tab-train"
+        case .nutrition: tabIdentifier = "tab-nutrition"
+        case .progress: tabIdentifier = "tab-progress"
         case .history, .settings: fatalError("Compatibility destinations are handled above")
         }
-        let tabButton = app.tabBars.buttons.element(boundBy: index)
+        let tabButton = app.buttons[tabIdentifier].firstMatch
         XCTAssertTrue(tabButton.waitForExistence(timeout: 5))
         tabButton.tap()
     }

@@ -7,7 +7,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     }
 
     func testCoordinatedNavigationExposesFourDestinationsAndTodaySettings() {
-        let app = launchFreshApp()
+        let app = launchFreshApp(additionalArguments: [
+            "-feature-flags", "today,mobility,nutrition,bodyWeight,dailyCheckIn,programBuilder,advancedExecution,betaFeedback"
+        ])
 
         XCTAssertEqual(app.tabBars.buttons.count, 4)
         XCTAssertTrue(app.tabBars.buttons.element(boundBy: 0).label.contains("Today"))
