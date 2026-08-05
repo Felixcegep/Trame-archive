@@ -111,6 +111,10 @@ public enum GymTrackerPreMigrationBackup {
                     to: backupDirectory.appendingPathComponent(url.lastPathComponent)
                 )
             }
+            // Only now that a newer copy exists on disk is it safe to drop the
+            // older generations. Pruning before the copy — or on every launch —
+            // would reintroduce the failure this whole type guards against.
+            pruneBackups(keeping: backupDirectory, in: safetyDirectory(for: storeURL), fileManager: fileManager)
             return .backedUp(fromVersion: sourceVersion, location: backupDirectory)
         } catch {
             // Remove a half-written directory. Leaving it would make the
@@ -118,6 +122,37 @@ public enum GymTrackerPreMigrationBackup {
             // suppress every future attempt.
             try? fileManager.removeItem(at: backupDirectory)
             return .failed(error.localizedDescription)
+        }
+    }
+
+    /// Keeps exactly one pre-migration backup: the one just written.
+    ///
+    /// Each backup is a full copy of the store, so retaining one per schema
+    /// generation would leave a permanent duplicate of the user's entire
+    /// history behind after every upgrade, with no way to reclaim the space.
+    /// Older generations are also the less useful ones — the store has since
+    /// been migrated and used — so the most recent copy is the only one worth
+    /// keeping.
+    static func pruneBackups(
+        keeping survivor: URL,
+        in safetyDirectory: URL,
+        fileManager: FileManager = .default
+    ) {
+        guard let entries = try? fileManager.contentsOfDirectory(
+            at: safetyDirectory,
+            includingPropertiesForKeys: nil
+        ) else { return }
+
+        for entry in entries
+        where entry.lastPathComponent.hasPrefix("PreMigration-")
+            && entry.lastPathComponent != survivor.lastPathComponent {
+            do {
+                try fileManager.removeItem(at: entry)
+            } catch {
+                // A backup that cannot be removed is a space problem, never a
+                // correctness one. The surviving copy is already written.
+                print("Could not prune old pre-migration backup at \(entry.path): \(error)")
+            }
         }
     }
 

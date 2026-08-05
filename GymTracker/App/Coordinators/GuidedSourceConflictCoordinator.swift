@@ -37,9 +37,13 @@ final class GuidedSourceConflictCoordinator {
         return String(localized: "Choose which plan appears in Today. The other plan will be paused, while its progress and completed workouts remain available.")
     }
 
-    deinit {
-        guidedSourceUndoTask?.cancel()
-    }
+    // No `deinit` cancels `guidedSourceUndoTask`: this type is `@MainActor` and
+    // a `deinit` is nonisolated, so touching that property from one does not
+    // compile. Cancelling there would buy nothing anyway — the task captures
+    // `self` weakly and only writes back inside `MainActor.run`, so once this
+    // coordinator is gone the pending write is a no-op and the orphaned sleep
+    // resolves to nothing. `dismissUndo()` and `reset()` remain the real
+    // cancellation points.
 
     func scheduleUndo(for snapshot: GuidedSourceSwitchSnapshot, outcome: PlanActionOutcome) {
         guard snapshot.fixedRuns.count + snapshot.repeatingRuns.count == 1 else { return }
