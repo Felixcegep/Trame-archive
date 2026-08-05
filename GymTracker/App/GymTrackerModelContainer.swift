@@ -17,88 +17,6 @@ enum GymTrackerAppSchema {
     static let cloudSyncState = "disabled"
 }
 
-/// Explicit V3 CloudKit-compatible schema generation.
-/// Freezes Schema V2 in place and acts as the target schema baseline for all
-/// multi-device iCloud sync refactoring.
-///
-/// NOTE: The model list below is written as an explicit literal array and must
-/// NEVER again be expressed in terms of `GymTrackerAdvancedMobilityEvidenceSchema.models`.
-/// Delegating V3 to V2 caused both versioned schemas to resolve to identical live Swift classes,
-/// allowing any edit to a live model to silently rewrite historical schema definitions.
-enum GymTrackerCloudCompatibleSchemaV3: VersionedSchema {
-    static let versionIdentifier = Schema.Version(3, 0, 0)
-
-    static var models: [any PersistentModel.Type] {
-        var types: [any PersistentModel.Type] = [
-            Workout.self,
-            WorkoutExecutionBlock.self,
-            Exercise.self,
-            ExerciseRelationship.self,
-            ExerciseEntry.self,
-            ExerciseSet.self,
-            ExerciseSetSegment.self,
-            ComplexComponentResult.self,
-            WorkoutTemplate.self,
-            TemplateExercise.self,
-            TemplateExerciseBlock.self,
-            WorkoutCollection.self,
-            WorkoutPlan.self,
-            PlanBlock.self,
-            PlanWeek.self,
-            PlannedWorkout.self,
-            PlannedExercise.self,
-            PlannedExerciseBlock.self,
-            PlannedSet.self,
-            PlannedExerciseAlternative.self,
-            PlanRun.self,
-            PlanWorkoutProgress.self,
-            PlanExerciseProgressionState.self,
-            RepeatingPlan.self,
-            RepeatingPlanSlot.self,
-            RepeatingPlanRun.self,
-            RepeatingPlanRunSlot.self,
-            RepeatingPlanOccurrence.self,
-            DailyLogEntry.self,
-            BodyWeightEntry.self,
-            SupplementOccurrence.self,
-            MobilityFamily.self,
-            MobilityDefinition.self,
-            MobilityRoutine.self,
-            MobilityRoutineItem.self,
-            MobilitySession.self,
-            MobilityEntry.self,
-            MobilityResult.self,
-            MobilityAssessmentDefinition.self,
-            MobilityAssessmentSession.self,
-            MobilityAssessmentResult.self,
-            MobilityAssessmentSample.self,
-            FoodItem.self,
-            FoodServing.self,
-            MealTemplate.self,
-            MealTemplateItem.self,
-            LoggedMeal.self,
-            LoggedMealItem.self,
-            NutritionTarget.self,
-            MobilityRoutineItemEvidence.self,
-            MobilityResultEvidence.self,
-            MobilityRoutineBlock.self,
-            MobilityEntryEvidence.self
-        ]
-#if !GYMTRACKER_EXTENSION
-        types.append(SystemSeedRecord.self)
-        types.append(ProgramDefinitionRecord.self)
-        types.append(PlanProgressionRecommendationRecord.self)
-        types.append(TrainingProfile.self)
-        types.append(MobilityProgramDefinitionRecord.self)
-        types.append(MobilityProgramRun.self)
-        types.append(MobilityProgramSessionProgress.self)
-        types.append(MobilityProgressionState.self)
-        types.append(MobilityProgressionRecommendationRecord.self)
-#endif
-        return types
-    }
-}
-
 /// First additive schema after the verified baseline. The existing models are
 /// intentionally untouched; the transition only introduces mobility-owned
 /// prescription and performed-evidence records.
@@ -220,18 +138,13 @@ enum GymTrackerCurrentBaselineSchema: VersionedSchema {
 enum GymTrackerSchemaMigrationPlan: SchemaMigrationPlan {
     static let schemas: [any VersionedSchema.Type] = [
         GymTrackerCurrentBaselineSchema.self,
-        GymTrackerAdvancedMobilityEvidenceSchema.self,
-        GymTrackerCloudCompatibleSchemaV3.self
+        GymTrackerAdvancedMobilityEvidenceSchema.self
     ]
 
     static let stages: [MigrationStage] = [
         .lightweight(
             fromVersion: GymTrackerCurrentBaselineSchema.self,
             toVersion: GymTrackerAdvancedMobilityEvidenceSchema.self
-        ),
-        .lightweight(
-            fromVersion: GymTrackerAdvancedMobilityEvidenceSchema.self,
-            toVersion: GymTrackerCloudCompatibleSchemaV3.self
         )
     ]
 }
@@ -246,9 +159,18 @@ enum GymTrackerModelContainer {
         case unavailable(String)
     }
 
-    /// A failed store open must not terminate the process. The app renders a
+    /// A failed store open should not terminate the process: the app renders a
     /// recovery state without attaching a context, so it cannot overwrite a
     /// recoverable on-disk store with a fresh empty one.
+    ///
+    /// **This only holds for failures SwiftData reports as a Swift `Error`.**
+    /// Verified the hard way: a malformed migration plan made CoreData raise an
+    /// `NSException` from `addPersistentStoreWithDescription:` instead, which
+    /// `catch` below cannot intercept, so the process hit `SIGABRT` on launch
+    /// and the recovery state was never reached. If store-open failure has to
+    /// be survivable for every cause, the open needs an Objective-C shim that
+    /// catches `NSException`, or a pre-flight compatibility check against the
+    /// store's metadata before the container is built. Neither exists yet.
     static let bootstrapState: BootstrapState = {
         // The recovery state is otherwise reachable only through a real store
         // failure, which no UI test can provoke, so it has never had a
@@ -262,7 +184,7 @@ enum GymTrackerModelContainer {
         // Build the configuration once and reuse it, so the store that gets
         // copied aside is provably the same one that is about to be opened.
         let configuration = persistence.makeModelConfiguration()
-        let currentVersion = GymTrackerCloudCompatibleSchemaV3.versionIdentifier
+        let currentVersion = GymTrackerAdvancedMobilityEvidenceSchema.versionIdentifier
 
         let backupOutcome = GymTrackerPreMigrationBackup.backUpIfSchemaVersionChanged(
             storeURL: configuration.url,
@@ -295,5 +217,5 @@ enum GymTrackerModelContainer {
     /// Retained for existing callers and test helpers that consume a `Schema`
     /// value directly. The model list now has one owner: the named current
     /// baseline above.
-    static let schema = Schema(versionedSchema: GymTrackerCloudCompatibleSchemaV3.self)
+    static let schema = Schema(versionedSchema: GymTrackerAdvancedMobilityEvidenceSchema.self)
 }
