@@ -11,7 +11,11 @@ struct ProgressHubView: View {
     @Query(sort: \MobilityAssessmentSession.startedAt, order: .reverse) private var assessmentSessions: [MobilityAssessmentSession]
     @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var loggedMeals: [LoggedMeal]
     @Query(sort: \DailyLogEntry.createdAt, order: .reverse) private var dailyLogEntries: [DailyLogEntry]
+    @Query private var planRuns: [PlanRun]
+    @Query private var repeatingPlanRuns: [RepeatingPlanRun]
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
+
+    var onOpenPlan: ((UUID) -> Void)? = nil
 
     @State private var overviewRange: AnalyticsDateRange = .twelveWeeks
     @State private var overviewState: ProgressOverviewState = .loading
@@ -35,7 +39,7 @@ struct ProgressHubView: View {
                 // Clearing it for the whole section stripped the picker of its
                 // grouped background too, leaving the control floating on the
                 // page as if it were a caption.
-                ProgressOverviewSection(range: overviewRange, state: overviewState)
+                ProgressOverviewSection(range: overviewRange, state: overviewState, onOpenPlan: onOpenPlan)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: 0, trailing: 0))
@@ -137,26 +141,64 @@ struct ProgressHubView: View {
             let series = try ExerciseProgressAnalyticsService(modelContext: modelContext)
                 .series(dateRange: overviewRange, displayWeightType: displayWeightType)
 
+            // The journey preview reads the same projection the Journey screen
+            // renders, so the card can never disagree with the screen it opens.
+            let journey = try TrainingJourneyBuilder(modelContext: modelContext).journey(calendar: calendar)
             let rangeInterval = overviewRange.dateInterval()
             let weekInterval = calendar.dateInterval(of: .weekOfYear, for: .now)
+
+            let activeFixed = planRuns.filter { $0.status == .active }
+            let activeRepeating = repeatingPlanRuns.filter { $0.status == .active }
+            var currentPlanID: UUID?
+            var currentPlanName: String?
+            var currentPlanPhaseText: String?
+
+            if activeFixed.count == 1 && activeRepeating.isEmpty {
+                let run = activeFixed[0]
+                currentPlanID = run.sourcePlanID
+                currentPlanName = run.sourcePlanName
+                currentPlanPhaseText = "Week \(run.currentWeekIndex + 1)"
+            } else if activeRepeating.count == 1 && activeFixed.isEmpty {
+                let run = activeRepeating[0]
+                currentPlanID = run.sourcePlanID
+                currentPlanName = run.sourcePlanName
+                currentPlanPhaseText = "Cycle \(run.completedCycleCount + 1)"
+            }
 
             return .loaded(
                 ProgressOverviewSummary(
                     workoutsThisWeek: consistency.weeklyFrequency.last?.workoutCount ?? 0,
                     trainingTimeThisWeekText: trainingTimeText(in: weekInterval),
                     consistencyTakeaway: consistency.takeawayText,
+                    currentPlanID: currentPlanID,
+                    currentPlanName: currentPlanName,
+                    currentPlanPhaseText: currentPlanPhaseText,
                     latestRecord: records.max { $0.date < $1.date },
                     featuredSeries: series.max { totalPoints($0) < totalPoints($1) },
                     mobilitySessionsInRange: completedMobilitySessions.filter { session in
                         rangeInterval.map { $0.contains(session.startTime) } ?? true
                     }.count,
-                    assessmentRecencyText: assessmentRecencyText
+                    assessmentRecencyText: assessmentRecencyText,
+                    latestChapterTitle: journey.first?.chapters.first?.title,
+                    journeySummaryText: journeySummaryText(journey)
                 )
             )
         } catch {
             print("ProgressHubView: analytics read failed: \(error)")
             return .failed
         }
+    }
+
+    /// Counts chapters rather than naming a "milestone": a chapter count is a
+    /// fact the records support, where "3 milestones" would be a category this
+    /// app has never defined.
+    private func journeySummaryText(_ journey: [TrainingJourneyYear]) -> String {
+        let chapters = journey.reduce(0) { $0 + $1.chapters.count }
+        guard chapters > 0 else { return "Your training history appears here as you complete workouts." }
+        let years = journey.count
+        let chapterText = chapters == 1 ? "1 chapter" : "\(chapters) chapters"
+        let yearText = years == 1 ? "1 year" : "\(years) years"
+        return "\(chapterText) across \(yearText)"
     }
 
     private func totalPoints(_ series: ExerciseProgressSeries) -> Int {
@@ -230,6 +272,7 @@ extension ProgressRoute {
     var accessibilityIdentifier: String {
         switch self {
         case .workoutHistory: "workout-history"
+        case .trainingJourney: "training-journey"
         case .records: "records"
         case .trainingTrends: "training-trends"
         case .muscleGroupVolume: "muscle-group-volume"

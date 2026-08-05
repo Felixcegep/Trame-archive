@@ -12,6 +12,7 @@ import SwiftUI
 struct ProgressOverviewSection: View {
     let range: AnalyticsDateRange
     let state: ProgressOverviewState
+    var onOpenPlan: ((UUID) -> Void)? = nil
 
     var body: some View {
         switch state {
@@ -29,6 +30,9 @@ struct ProgressOverviewSection: View {
     @ViewBuilder
     private func loadedCards(_ summary: ProgressOverviewSummary) -> some View {
         currentPeriodCard(summary)
+        if summary.currentPlanID != nil {
+            currentPlanCard(summary)
+        }
         if let record = summary.latestRecord {
             recordCard(record)
         }
@@ -36,6 +40,32 @@ struct ProgressOverviewSection: View {
             trendCard(series)
         }
         mobilityCard(summary)
+        journeyCard(summary)
+    }
+
+    // MARK: - Journey preview
+
+    /// Last card by intent. The cards above answer "how am I doing now"; this
+    /// one opens the long view, which is a different question and should not
+    /// compete with the immediate ones for attention.
+    private func journeyCard(_ summary: ProgressOverviewSummary) -> some View {
+        overviewCard(
+            route: .trainingJourney,
+            identifier: "journey",
+            icon: AppIcon.journey,
+            tint: .gymAccent,
+            title: "Journey"
+        ) {
+            if let latest = summary.latestChapterTitle {
+                Text(latest)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
+            }
+            Text(summary.journeySummaryText)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: - Current period
@@ -68,6 +98,43 @@ struct ProgressOverviewSection: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    // MARK: - Current plan
+
+    private func currentPlanCard(_ summary: ProgressOverviewSummary) -> some View {
+        guard let planID = summary.currentPlanID, let name = summary.currentPlanName else {
+            return AnyView(EmptyView())
+        }
+        return AnyView(
+            Button {
+                onOpenPlan?(planID)
+            } label: {
+                GymCard {
+                    HStack(spacing: Spacing.m) {
+                        GymIconChip(systemImage: AppIcon.plan, tint: .gymPrimary)
+                        Text("Current Plan")
+                            .font(AppFont.captionBold)
+                            .tracking(0.8)
+                            .textCase(.uppercase)
+                            .foregroundStyle(Color.gymSubduedText)
+                        Spacer(minLength: 0)
+                    }
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text(name)
+                            .font(AppFont.subheadlineSemibold)
+                            .foregroundStyle(Color.gymText)
+                        if let phase = summary.currentPlanPhaseText {
+                            Text(phase)
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.gymSubduedText)
+                        }
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("progress-overview-current-plan")
+        )
     }
 
     // MARK: - Latest record
@@ -249,8 +316,14 @@ struct ProgressOverviewSummary: Equatable {
     var workoutsThisWeek: Int
     var trainingTimeThisWeekText: String?
     var consistencyTakeaway: String?
+    var currentPlanID: UUID?
+    var currentPlanName: String?
+    var currentPlanPhaseText: String?
     var latestRecord: PersonalRecordItem?
     var featuredSeries: ExerciseProgressSeries?
     var mobilitySessionsInRange: Int
     var assessmentRecencyText: String
+    /// The most recent chapter's name, nil when nothing has been recorded yet.
+    var latestChapterTitle: String?
+    var journeySummaryText: String
 }

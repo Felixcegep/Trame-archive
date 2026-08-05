@@ -108,11 +108,13 @@ struct RootView: View {
             }
 
             NavigationStack(path: $progressPath) {
-                ProgressHubView()
+                ProgressHubView(onOpenPlan: openPlanFromProgress)
                     .navigationDestination(for: ProgressRoute.self) { route in
                         switch route {
                         case .workoutHistory:
                             HistoryView(viewModel: workoutVM, onStartFreeWorkout: startFreeWorkout)
+                        case .trainingJourney:
+                            TrainingJourneyView()
                         case .records:
                             HistoryView(viewModel: workoutVM, onStartFreeWorkout: startFreeWorkout, initialTab: .records)
                         case .trainingTrends:
@@ -430,6 +432,15 @@ struct RootView: View {
             todayPath.append(.plan(planID))
         } else if repeatingPlan(id: planID) != nil {
             todayPath.append(.repeatingPlan(planID))
+        }
+    }
+
+    private func openPlanFromProgress(_ planID: UUID) {
+        selectedTab = .train
+        if plan(id: planID) != nil {
+            trainPath = [.plan(planID)]
+        } else if repeatingPlan(id: planID) != nil {
+            trainPath = [.repeatingPlan(planID)]
         }
     }
 

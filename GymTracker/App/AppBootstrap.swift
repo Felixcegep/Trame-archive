@@ -256,6 +256,10 @@ enum UITestLaunch {
         if arguments.contains("-ui-testing-open-progress") {
             destination.tab = .progress
         }
+        if arguments.contains("-ui-testing-open-journey") {
+            destination.tab = .progress
+            destination.progressPath = [.trainingJourney]
+        }
         if arguments.contains("-ui-testing-open-library") {
             destination.tab = .train
         }

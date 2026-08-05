@@ -56,6 +56,9 @@ enum NutritionRoute: Hashable {
 
 enum ProgressRoute: Hashable {
     case workoutHistory
+    /// Training history read across plans. Distinct from `workoutHistory`,
+    /// which lists sessions, and from Program Path, which stays inside one run.
+    case trainingJourney
     case records
     case trainingTrends
     case muscleGroupVolume

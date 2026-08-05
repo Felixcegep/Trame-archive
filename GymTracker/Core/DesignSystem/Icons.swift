@@ -7,6 +7,12 @@ struct AppIcon {
     static let history = "clock.arrow.circlepath"
     static let settings = "gearshape"
     static let plan = "calendar"
+    /// A rotation, as distinct from a dated plan: it cycles rather than
+    /// advancing through a calendar.
+    static let repeatingPlan = "arrow.triangle.2.circlepath"
+    /// Training history read as a sequence of plans rather than a list of
+    /// sessions.
+    static let journey = "point.topleft.down.to.point.bottomright.curvepath"
     static let planAdd = "calendar.badge.plus"
     static let reschedule = "calendar.badge.clock"
     static let tomorrow = "calendar.badge.plus"
