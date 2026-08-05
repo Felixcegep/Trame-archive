@@ -15,7 +15,12 @@ struct AppIcon {
     static let journey = "point.topleft.down.to.point.bottomright.curvepath"
     static let planAdd = "calendar.badge.plus"
     static let reschedule = "calendar.badge.clock"
-    static let tomorrow = "calendar.badge.plus"
+    /// Moving an existing session forward by one day — not adding one, which
+    /// is what `planAdd`'s `.badge.plus` says. It also sat directly beside
+    /// `reschedule` in the planned-workout card while sharing `planAdd`'s
+    /// exact glyph, so two adjacent actions that do different things read as
+    /// the same calendar-with-a-badge mark.
+    static let tomorrow = "arrow.right.circle"
     static let minimize = "chevron.down"
     static let chevronLeft = "chevron.left"
     static let chevronRight = "chevron.right"
