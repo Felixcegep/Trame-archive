@@ -35,11 +35,26 @@ class WorkoutViewModel {
     /// that signature.
     private(set) var lastSavedSummary: CompletedWorkoutSummary?
 
-    func saveWorkout(using modelContext: ModelContext) -> PersistenceOutcome {
+    /// Why the most recent save failed, when it did.
+    ///
+    /// Recorded here for the same reason as `lastSavedSummary` above: the
+    /// signature stays `Bool`. A previous refactor changed `saveWorkout` to
+    /// return `PersistenceOutcome` instead, which broke 28 test call sites that
+    /// assert on the `Bool` and forced the error through a return value that
+    /// callers only ever reduce back to true/false. The error is diagnostic
+    /// detail, not the answer to "did it save", so it belongs beside the
+    /// summary rather than in the signature.
+    ///
+    /// Cleared at the start of every save, so it never describes an older one.
+    private(set) var lastSaveFailure: Error?
+
+    func saveWorkout(using modelContext: ModelContext) -> Bool {
         lastSavedSummary = nil
+        lastSaveFailure = nil
 
         guard let activeWorkout else {
-            return .failed(NSError(domain: "GymTracker", code: 404, userInfo: [NSLocalizedDescriptionKey: String(localized: "No active workout found.")]))
+            lastSaveFailure = NSError(domain: "GymTracker", code: 404, userInfo: [NSLocalizedDescriptionKey: String(localized: "No active workout found.")])
+            return false
         }
 
         // Pruning and finalization live in one described step so what a save
@@ -49,7 +64,8 @@ class WorkoutViewModel {
             activeWorkout,
             using: modelContext
         ) else {
-            return .failed(NSError(domain: "GymTracker", code: 400, userInfo: [NSLocalizedDescriptionKey: String(localized: "Workout has no completed sets.")]))
+            lastSaveFailure = NSError(domain: "GymTracker", code: 400, userInfo: [NSLocalizedDescriptionKey: String(localized: "Workout has no completed sets.")])
+            return false
         }
 
         completePlannedWorkoutIfNeeded(activeWorkout, using: modelContext)
@@ -57,14 +73,16 @@ class WorkoutViewModel {
             try completeRepeatingPlanOccurrenceIfNeeded(activeWorkout, using: modelContext)
         } catch {
             modelContext.rollback()
-            return .failed(error)
+            lastSaveFailure = error
+            return false
         }
         let outcome = modelContext.saveOrRollbackReportingFailure()
         if outcome.didSave == false {
             // The active workout remains recoverable after a persistence failure.
             // SwiftData's rollback also undoes planned-run advancement and child
             // pruning performed above.
-            return outcome
+            lastSaveFailure = outcome.error
+            return false
         }
 
         self.activeWorkout = nil
@@ -75,7 +93,7 @@ class WorkoutViewModel {
         Task {
             await LiveActivityManager.shared.end()
         }
-        return .saved
+        return true
     }
 
     func discardActiveWorkout(using modelContext: ModelContext) {
