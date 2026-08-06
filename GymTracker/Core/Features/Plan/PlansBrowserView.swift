@@ -63,6 +63,8 @@ struct PlansBrowserView: View {
             .padding(.vertical, Spacing.s)
 
             List {
+                strengthPathsHeader
+
                 switch scope {
                 case .following: followingSections
                 case .mine: mineSections
@@ -114,6 +116,46 @@ struct PlansBrowserView: View {
         featureFlags.isEnabled(.programBuilder)
             ? Scope.allCases
             : Scope.allCases.filter { $0 != .readyMade }
+    }
+
+    /// Teaches the three strength paths in user language.
+    private var strengthPathsHeader: some View {
+        Section {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Text("Strength Paths")
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .textCase(.uppercase)
+
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    pathExplanationRow(
+                        title: "Free Workout",
+                        description: "I choose what I do today."
+                    )
+                    pathExplanationRow(
+                        title: "Program",
+                        description: "My sessions are scheduled across weeks."
+                    )
+                    pathExplanationRow(
+                        title: "Rotation",
+                        description: "I always do the next workout, regardless of weekday."
+                    )
+                }
+            }
+            .padding(.vertical, Spacing.xs)
+        }
+        .listRowBackground(Color.gymCard)
+    }
+
+    private func pathExplanationRow(title: String, description: String) -> some View {
+        HStack(alignment: .top, spacing: Spacing.xs) {
+            Text("\(title) —")
+                .font(AppFont.captionBold)
+                .foregroundStyle(Color.gymText)
+            Text("“\(description)”")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+        }
     }
 
     /// Landing on an empty "Following" tab teaches nothing, so a user with no

@@ -316,13 +316,13 @@ struct CaffeineQuickLogSheet: View {
         } label: {
             HStack(spacing: Spacing.s) {
                 Image(systemName: AppIcon.plus)
-                    .font(AppFont.caption2Bold)
+                    .font(AppFont.captionBold)
                 Text(CaffeineSource.other.title)
                     .font(AppFont.footnoteMedium)
                 Spacer(minLength: 0)
                 if isSelected {
                     Image(systemName: AppIcon.checkmarkCircle)
-                        .font(AppFont.caption2Bold)
+                        .font(AppFont.captionBold)
                         .foregroundStyle(Color.gymPrimary)
                 }
             }
@@ -455,7 +455,7 @@ struct CaffeineQuickLogSheet: View {
                 Spacer(minLength: 0)
                 Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubtleText)
+                    .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubduedText)
             }
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.m)
@@ -566,7 +566,7 @@ struct CaffeineQuickLogSheet: View {
                 Text("NIH Office of Dietary Supplements: pre-workout effects and safety can't always be predicted from caffeine content alone.")
             }
             .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubtleText)
+            .foregroundStyle(Color.gymSubduedText)
             .padding(.top, Spacing.xs)
         }
         .font(AppFont.caption)

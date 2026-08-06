@@ -15,7 +15,7 @@ struct WeeklyProgramReviewProgressionDecisionRow: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Label(outcomeTitle, systemImage: outcomeIcon)
-                .font(AppFont.caption2Bold)
+                .font(AppFont.captionBold)
                 .foregroundStyle(outcomeTint)
 
             if let proposed = WeeklyProgramReviewPresentation.proposedLoadLine(decision.proposedLoad) {
@@ -30,8 +30,8 @@ struct WeeklyProgramReviewProgressionDecisionRow: View {
             }
 
             Text(WeeklyProgramReviewPresentation.ruleLabel(version: decision.ruleVersion))
-                .font(AppFont.caption2)
-                .foregroundStyle(Color.gymSubtleText)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
         }
         .padding(.vertical, Spacing.xxs)
         .accessibilityElement(children: .combine)
@@ -81,8 +81,8 @@ struct WeeklyProgramReviewSubstitutionRow: View {
                     .foregroundStyle(Color.gymSubduedText)
                     .strikethrough()
                 Image(systemName: "arrow.right")
-                    .font(AppFont.caption2)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
                     .accessibilityHidden(true)
                 Text(substitution.selectedExerciseName)
                     .font(AppFont.subheadlineSemibold)
@@ -118,22 +118,22 @@ struct WeeklyProgramReviewSubstitutionRow: View {
                     tint: SubstitutionPresentation.comparabilityColor(comparability)
                 )
                 Text(SubstitutionPresentation.comparabilityDetail(comparability))
-                    .font(AppFont.caption2)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             if let policy = substitution.progressionPolicy {
                 Text(SubstitutionPresentation.progressionEffect(policy))
-                    .font(AppFont.caption2)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             if let confidence = substitution.confidence {
                 Text(SubstitutionPresentation.confidenceTitle(confidence))
-                    .font(AppFont.caption2)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
         .padding(.vertical, Spacing.xxs)
@@ -144,7 +144,7 @@ struct WeeklyProgramReviewSubstitutionRow: View {
     private func verdictLine(icon: String, text: String, tint: Color) -> some View {
         HStack(spacing: Spacing.xs) {
             Image(systemName: icon)
-                .font(AppFont.caption2)
+                .font(AppFont.caption)
                 .foregroundStyle(tint)
                 .accessibilityHidden(true)
             Text(text)

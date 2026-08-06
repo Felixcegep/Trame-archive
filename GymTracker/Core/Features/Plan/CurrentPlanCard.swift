@@ -150,7 +150,7 @@ private extension CurrentPlanCard {
 
                         Image(systemName: AppIcon.chevronRight)
                             .font(AppFont.captionBold)
-                            .foregroundStyle(Color.gymSubtleText)
+                            .foregroundStyle(Color.gymSubduedText)
                     }
 
                     Text(summary.title)
@@ -172,7 +172,7 @@ private extension CurrentPlanCard {
                             .padding(.top, Spacing.xxs)
                         Text("\(completed) of \(total) workouts")
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubtleText)
+                            .foregroundStyle(Color.gymSubduedText)
                     }
                 }
                 .padding(Spacing.l)
@@ -233,7 +233,7 @@ private extension CurrentPlanCard {
 
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.m)
@@ -258,7 +258,7 @@ private extension CurrentPlanCard {
 
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.m)

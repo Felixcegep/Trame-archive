@@ -109,8 +109,8 @@ struct WhyExplanationView: View {
             ForEach(section.items, id: \.self) { item in
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                     Image(systemName: AppIcon.circleFill)
-                        .font(AppFont.caption2)
-                        .foregroundStyle(Color.gymSubtleText)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
                         .accessibilityHidden(true)
                     Text(item)
                         .font(AppFont.body)

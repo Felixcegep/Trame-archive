@@ -106,8 +106,8 @@ private extension PlanFormView {
     }
 
     var lengthSection: some View {
-        Section("Length") {
-            Picker("Length", selection: $length) {
+        Section("Structure") {
+            Picker("Structure", selection: $length) {
                 ForEach(Length.allCases, id: \.self) { option in
                     Text(option.title).tag(option)
                 }
@@ -118,8 +118,11 @@ private extension PlanFormView {
             if length == .fixed {
                 Stepper("\(durationWeeks) weeks", value: $durationWeeks, in: 1...52)
                     .accessibilityIdentifier("plan-duration-weeks")
+                Text("Program — my sessions are scheduled across weeks.")
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymSubduedText)
             } else {
-                Text("The plan cycles through your chosen workouts in order until you stop it.")
+                Text("Rotation — I always do the next workout, regardless of weekday.")
                     .font(AppFont.footnote)
                     .foregroundStyle(Color.gymSubduedText)
             }

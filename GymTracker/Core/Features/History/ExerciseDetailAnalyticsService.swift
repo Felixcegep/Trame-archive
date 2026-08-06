@@ -132,6 +132,33 @@ struct ExerciseDetailAnalytics: Equatable, Sendable {
     let estimatedOneRepMax: OneRepMaxEstimate?
     let weeklyVolume: [ExerciseVolumeWeek]
     let notes: [ExerciseNote]
+    let insight: AnalyticsInsight?
+
+    init(
+        sessionCount: Int,
+        unit: WeightType?,
+        latestSession: ExerciseSession?,
+        sessionComparison: SessionComparison?,
+        bestLoadSet: ExerciseBestSet?,
+        bestRepetitionSet: ExerciseBestSet?,
+        bestSetsByRepRange: [RepRangeBest],
+        estimatedOneRepMax: OneRepMaxEstimate?,
+        weeklyVolume: [ExerciseVolumeWeek],
+        notes: [ExerciseNote],
+        insight: AnalyticsInsight? = nil
+    ) {
+        self.sessionCount = sessionCount
+        self.unit = unit
+        self.latestSession = latestSession
+        self.sessionComparison = sessionComparison
+        self.bestLoadSet = bestLoadSet
+        self.bestRepetitionSet = bestRepetitionSet
+        self.bestSetsByRepRange = bestSetsByRepRange
+        self.estimatedOneRepMax = estimatedOneRepMax
+        self.weeklyVolume = weeklyVolume
+        self.notes = notes
+        self.insight = insight
+    }
 }
 
 /// Read-only analytics for the per-exercise detail page. Every figure is
@@ -173,6 +200,7 @@ struct ExerciseDetailAnalyticsService {
         let workouts = try completedWorkouts(before: referenceDate)
         let sessions = sessions(from: workouts, for: exercise)
         let notes = notes(from: workouts, for: exercise)
+        let policy = SportAnalyticsPolicyResolver.policy(for: exercise)
 
         guard let latestSession = sessions.last else {
             return ExerciseDetailAnalytics(
@@ -185,7 +213,8 @@ struct ExerciseDetailAnalyticsService {
                 bestSetsByRepRange: [],
                 estimatedOneRepMax: nil,
                 weeklyVolume: weeklyVolume(in: [], unit: .kg, endingAt: referenceDate, count: weekCount),
-                notes: notes
+                notes: notes,
+                insight: policy.evaluateInsight(sessionCount: 0)
             )
         }
 
@@ -205,6 +234,15 @@ struct ExerciseDetailAnalyticsService {
         let includesLoad = sessions.contains { includesLoadMetrics($0.trackingTypeSnapshot) }
         let includesReps = sessions.contains { $0.trackingTypeSnapshot.usesReps }
 
+        let volumes = includesLoad
+            ? weeklyVolume(in: sessions, unit: unit, endingAt: referenceDate, count: weekCount)
+            : weeklyVolume(in: [], unit: .kg, endingAt: referenceDate, count: weekCount)
+        let takeaway = StrengthInsightPresentationPolicy.volumeTakeaway(
+            sessionCount: sessions.count,
+            weeklyVolumes: volumes.map(\.totalVolume)
+        )
+        let insight = policy.evaluateInsight(sessionCount: sessions.count, takeaway: takeaway)
+
         return ExerciseDetailAnalytics(
             sessionCount: sessions.count,
             unit: unit,
@@ -216,12 +254,12 @@ struct ExerciseDetailAnalyticsService {
             bestRepetitionSet: includesReps ? bestRepetitionSet(in: sessions, unit: unit) : nil,
             bestSetsByRepRange: includesLoad ? bestSetsByRepRange(in: sessions, unit: unit) : [],
             estimatedOneRepMax: includesLoad ? estimatedOneRepMax(in: sessions, unit: unit) : nil,
-            weeklyVolume: includesLoad
-                ? weeklyVolume(in: sessions, unit: unit, endingAt: referenceDate, count: weekCount)
-                : weeklyVolume(in: [], unit: .kg, endingAt: referenceDate, count: weekCount),
-            notes: notes
+            weeklyVolume: volumes,
+            notes: notes,
+            insight: insight
         )
     }
+
 
     // MARK: Fetching
 

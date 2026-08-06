@@ -266,6 +266,26 @@ final class BackupFieldCoverageTests: XCTestCase {
         XCTAssertTrue(restored.orderedItems.isEmpty)
     }
 
+    func testWorkoutTemplateRoundTripsEveryPersistedField() throws {
+        let source = try makeContext()
+        let exercise = Exercise(name: "Template Bench Press", primaryMuscles: [.upperChest])
+        let template = WorkoutTemplate(name: "Upper Body Hypertrophy", exercises: [exercise])
+        template.isArchived = true
+        source.insert(exercise)
+        source.insert(template)
+        try source.save()
+
+        let restored = try XCTUnwrap(
+            roundTrip(source)
+                .fetch(FetchDescriptor<WorkoutTemplate>())
+                .first { $0.name == "Upper Body Hypertrophy" }
+        )
+
+        XCTAssertEqual(restored.id, template.id)
+        XCTAssertEqual(restored.name, "Upper Body Hypertrophy")
+        XCTAssertTrue(restored.isArchived)
+    }
+
     func testExerciseRoundTripsEveryPersistedField() throws {
         let source = try makeContext()
         let exercise = Exercise(

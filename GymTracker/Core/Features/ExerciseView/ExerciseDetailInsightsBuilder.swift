@@ -100,7 +100,8 @@ enum ExerciseDetailInsightsBuilder {
                 )
             }.reversed()),
             progression: activeProgression(for: exercise, using: context),
-            historyCount: historyCount
+            historyCount: historyCount,
+            insight: analytics.insight
         )
     }
 

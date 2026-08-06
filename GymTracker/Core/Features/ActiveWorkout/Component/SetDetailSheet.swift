@@ -394,10 +394,10 @@ struct SetDetailSheet: View {
                     .padding(.top, Spacing.s)
             } label: {
                 Text(SetTypeGroup.more.title)
-                    .font(AppFont.caption2Bold)
+                    .font(AppFont.captionBold)
                     .textCase(.uppercase)
                     .tracking(0.6)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
@@ -410,10 +410,10 @@ struct SetDetailSheet: View {
     private func setTypeGroup(title: String, types: [SetType], identifier: String) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text(title)
-                .font(AppFont.caption2Bold)
+                .font(AppFont.captionBold)
                 .textCase(.uppercase)
                 .tracking(0.6)
-                .foregroundStyle(Color.gymSubtleText)
+                .foregroundStyle(Color.gymSubduedText)
                 .accessibilityIdentifier("set-type-group-\(identifier)")
             setTypeGrid(types, isShortcut: identifier == "recent")
         }
@@ -935,7 +935,7 @@ struct SetDetailSheet: View {
 
     private func eyebrow(_ title: LocalizedStringKey) -> some View {
         Text(title)
-            .font(AppFont.caption2Bold)
+            .font(AppFont.captionBold)
             .textCase(.uppercase)
             .tracking(0.55)
             .foregroundStyle(Color.gymSubduedText)

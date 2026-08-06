@@ -63,7 +63,7 @@ struct WeeklyProgramReviewHeader: View {
             if let dateRangeTitle {
                 Text(dateRangeTitle)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
         .padding(.vertical, Spacing.xs)

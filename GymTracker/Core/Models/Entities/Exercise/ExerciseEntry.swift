@@ -329,11 +329,16 @@ final class ExerciseEntry {
         }
     }
 
+    /// Single source of truth for whether this entry belongs to a completed workout.
+    var isCompleted: Bool { workout?.isCompleted ?? false }
+
     func addEmptySet() {
+        assert(!isCompleted, "Illegal write: Cannot add set to an entry in a completed workout.")
         sets.append(createEmptySet(orderIndex: nextSetOrderIndex))
     }
 
     func addDefaultSets(count: Int = 3) {
+        assert(!isCompleted, "Illegal write: Cannot add default sets to an entry in a completed workout.")
         for _ in 0..<count {
             addEmptySet()
         }
@@ -343,6 +348,7 @@ final class ExerciseEntry {
     /// prescription and position in the active workout. Callers must delete
     /// existing sets before rebuilding them for the replacement tracking type.
     func updateExerciseSnapshot(from exercise: Exercise) {
+        assert(!isCompleted, "Illegal write: Cannot update exercise snapshot on an entry in a completed workout.")
         self.exercise = exercise
         nameSnapshot = exercise.name
         exerciseIDSnapshot = exercise.id
@@ -414,6 +420,7 @@ final class ExerciseEntry {
     /// `.continueShared` policy that the evaluation cannot support, so a
     /// non-`direct` comparability can never reach the `true` branch here.
     func applySubstitutionDecision(_ decision: SubstitutionDecision) {
+        assert(!isCompleted, "Illegal write: Cannot apply substitution decision to an entry in a completed workout.")
         substitutionReasonCode = decision.reason.rawValue
         substitutionScopeRaw = decision.scope.rawValue
         substitutionProgressionPolicyRaw = decision.progressionPolicy.rawValue
@@ -429,6 +436,7 @@ final class ExerciseEntry {
     }
 
     func copyLastSet() {
+        assert(!isCompleted, "Illegal write: Cannot copy last set on an entry in a completed workout.")
         guard let lastSet = orderedSets.last else {
             addEmptySet()
             return
@@ -468,6 +476,7 @@ final class ExerciseEntry {
     }
 
     func normalizeSetOrder() {
+        assert(!isCompleted, "Illegal write: Cannot normalize set order on an entry in a completed workout.")
         for (index, set) in orderedSets.enumerated() {
             set.orderIndex = index
             set.normalizeSegmentOrder()
@@ -479,11 +488,13 @@ final class ExerciseEntry {
     }
 
     func startActiveDuration(at date: Date = .now) {
+        assert(!isCompleted, "Illegal write: Cannot start active duration on an entry in a completed workout.")
         guard activeDurationStartedAt == nil else { return }
         activeDurationStartedAt = date
     }
 
     func stopActiveDuration(at date: Date = .now) {
+        assert(!isCompleted, "Illegal write: Cannot stop active duration on an entry in a completed workout.")
         guard let startedAt = activeDurationStartedAt else { return }
         accumulatedActiveDuration += max(0, date.timeIntervalSince(startedAt))
         activeDurationStartedAt = nil

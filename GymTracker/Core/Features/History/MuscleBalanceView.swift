@@ -195,7 +195,7 @@ private struct MuscleGroupSummaryRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
             Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
-                .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubtleText)
+                .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubduedText)
                 .accessibilityHidden(true)
             Text(summary.group.displayName)
                 .font(AppFont.subheadlineSemibold)
@@ -247,7 +247,8 @@ private struct MuscleGroupVolumeChart: View {
             title: "\(group.displayName) · 8 weeks",
             evidence: "Estimated completed working sets; every week is shown.",
             takeaway: takeaway,
-            titleIdentifier: "muscle-balance-chart-title"
+            titleIdentifier: "muscle-balance-chart-title",
+            insight: insight
         ) {
             if let selectedWeek {
                 GymChartSelectionAnnotation(
@@ -307,5 +308,20 @@ private struct MuscleGroupVolumeChart: View {
             return "Estimated weekly sets were about the same as the previous four weeks."
         }
         return "Estimated weekly sets were \(percentage)% \(ratio > 0 ? "higher" : "lower") than the previous four weeks."
+    }
+
+    private var insight: AnalyticsInsight {
+        let activeWeeks = weeks.filter { $0.count(for: group) > 0 }.count
+        let level = StrengthEvidenceLevel.resolve(comparableSessionCount: activeWeeks)
+        return AnalyticsInsight(
+            sessionCount: activeWeeks,
+            wordingTier: level.title,
+            evidenceLevel: level,
+            allowsDirectionalClaim: level.allowsDirectionalClaim,
+            comparisonConditions: "Completed working sets mapped to primary (1.0) and secondary (0.5) muscle groups across 8 weeks.",
+            excludedEvidence: "Warm-up sets, active, planned, or discarded workouts.",
+            calculationMethod: "Estimated sets per week averaged across recent 4 weeks vs previous 4 weeks.",
+            takeaway: takeaway
+        )
     }
 }

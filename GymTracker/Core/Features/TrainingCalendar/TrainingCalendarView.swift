@@ -75,7 +75,12 @@ struct TrainingCalendarView: View {
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-calendar-screen")
         .sheet(item: $reschedulingWorkout) { workout in
-            TrainingCalendarRescheduleSheet(workout: workout) { date, shiftRemaining in
+            let resolved = progress(for: workout)
+            TrainingCalendarRescheduleSheet(
+                workout: workout,
+                progress: resolved?.progress,
+                run: resolved?.run
+            ) { date, shiftRemaining in
                 guard let resolved = progress(for: workout) else { return false }
                 if shiftRemaining {
                     return PlanCoordinator.rescheduleRemaining(
@@ -570,44 +575,20 @@ private struct TrainingCalendarDayAgenda: View {
 }
 
 private struct TrainingCalendarRescheduleSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
     let workout: TrainingCalendarPlannedWorkout
+    let progress: PlanWorkoutProgress?
+    let run: PlanRun?
     let onSave: (Date, Bool) -> Bool
-    @State private var date = Date.now
-    @State private var shiftRemaining = false
-    @State private var errorMessage: String?
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section(workout.workoutName) {
-                    DatePicker("Scheduled date", selection: $date, displayedComponents: .date)
-                    Toggle("Shift remaining workouts", isOn: $shiftRemaining)
-                }
-                if let errorMessage {
-                    Section {
-                        Text(errorMessage).foregroundStyle(Color.gymDestructive)
-                    }
-                }
-            }
-            .navigationTitle("Reschedule")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        if onSave(date, shiftRemaining) {
-                            dismiss()
-                        } else {
-                            errorMessage = "The schedule could not be saved. Try again."
-                        }
-                    }
-                    .accessibilityIdentifier("training-calendar-confirm-reschedule")
-                }
-            }
-        }
+        PlanRescheduleSheet(
+            workoutName: workout.workoutName,
+            initialDate: progress?.scheduledDate,
+            progress: progress,
+            run: run,
+            confirmIdentifier: "training-calendar-confirm-reschedule",
+            datePickerIdentifier: "training-calendar-reschedule-date",
+            onSave: onSave
+        )
     }
 }

@@ -56,7 +56,7 @@ struct SubstitutionReasonPicker: View {
                 Spacer(minLength: Spacing.s)
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .accessibilityHidden(true)
             }
             .contentShape(Rectangle())

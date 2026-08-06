@@ -154,7 +154,8 @@ private struct HistoryFrequencyChart: View {
             title: "Training frequency · 8 weeks",
             evidence: "Completed workouts only; every week is shown.",
             takeaway: takeaway,
-            titleIdentifier: "training-frequency-chart"
+            titleIdentifier: "training-frequency-chart",
+            insight: insight
         ) {
             if let selectedPoint {
                 GymChartSelectionAnnotation(
@@ -199,6 +200,27 @@ private struct HistoryFrequencyChart: View {
         if previous == recent { return "Training frequency was the same across the two four-week windows." }
         return "You completed \(abs(recent - previous)) \(recent > previous ? "more" : "fewer") workouts in the recent four weeks."
     }
+
+    private var insight: AnalyticsInsight {
+        let workoutCount = points.reduce(0) { $0 + $1.count }
+        let level = StrengthEvidenceLevel.resolve(comparableSessionCount: workoutCount)
+        let tier: String? = switch workoutCount {
+        case 0: nil
+        case 1...3: "Limited data"
+        case 4...7: "Short window"
+        default: "Trend"
+        }
+        return AnalyticsInsight(
+            sessionCount: workoutCount,
+            wordingTier: tier,
+            evidenceLevel: level,
+            allowsDirectionalClaim: level.allowsDirectionalClaim,
+            comparisonConditions: "Completed workouts grouped by calendar week across the last 8 weeks.",
+            excludedEvidence: "Active, planned, or discarded workouts.",
+            calculationMethod: "Weekly workout counts compared across two four-week windows.",
+            takeaway: takeaway
+        )
+    }
 }
 
 struct HistoryExerciseProgressCard: View {
@@ -213,11 +235,18 @@ struct HistoryExerciseProgressCard: View {
         }
     }
 
+    private var insight: AnalyticsInsight {
+        let count = series.points(for: metric).count
+        let policy = StandardStrengthAnalyticsPolicy()
+        return policy.evaluateInsight(sessionCount: count, takeaway: takeaway)
+    }
+
     var body: some View {
         GymChartCard(
             title: series.name,
             evidence: evidenceLevel.evidenceText(comparableSessionCount: series.points(for: metric).count),
-            takeaway: takeaway
+            takeaway: takeaway,
+            insight: insight
         ) {
             Picker("Metric", selection: $metric) {
                 ForEach(HistoryProgressMetric.allCases) { metric in

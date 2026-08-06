@@ -380,7 +380,7 @@ private extension SavedWorkoutTemplatePicker {
 
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.m)
@@ -522,7 +522,7 @@ private extension SavedWorkoutTemplatePicker {
                 if !dynamicTypeSize.isAccessibilitySize {
                     Image(systemName: AppIcon.play)
                         .font(AppFont.caption)
-                        .foregroundStyle(isStartable ? Color.gymPrimary : Color.gymSubtleText)
+                        .foregroundStyle(isStartable ? Color.gymPrimary : Color.gymSubduedText)
                         .frame(width: 32, height: 32)
                         .background(isStartable ? Color.gymPrimarySurface : Color.gymRowSurface, in: Circle())
                 }

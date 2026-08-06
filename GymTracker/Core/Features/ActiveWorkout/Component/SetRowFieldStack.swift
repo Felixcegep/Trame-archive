@@ -62,7 +62,7 @@ struct SetRowFieldStack: View {
     private func labeledField<Field: View>(label: String, field: Field) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xxs) {
             Text(label)
-                .font(AppFont.caption2Bold)
+                .font(AppFont.captionBold)
                 .tracking(0.55)
                 .foregroundStyle(Color.gymSubduedText)
             field
@@ -85,7 +85,7 @@ struct SetRowFieldStack: View {
             HStack(spacing: Spacing.xxs) {
                 Text(shown.isEmpty ? placeholder(for: field) : shown)
                     .font(AppFont.subheadlineSemiboldMonospaced)
-                    .foregroundStyle(shown.isEmpty ? Color.gymSubtleText : textColor)
+                    .foregroundStyle(shown.isEmpty ? Color.gymSubduedText : textColor)
                     .lineLimit(1)
 
                 if let unit {

@@ -46,6 +46,7 @@ struct HomeView: View {
     /// the store and `UserDefaults`, and neither belongs in a body.
     @State private var isShowingPersonalizationPrompt = false
     @State private var completedWorkoutCount = 0
+    @State private var workoutStartCount = 0
 
     private var activeFixedPlanRuns: [PlanRun] {
         planRuns
@@ -128,6 +129,7 @@ struct HomeView: View {
             // near-miss silently moved a workout by a day with no way to tell.
             .gymStatusBanner($statusMessage)
             .gymFeedback(.scheduleChanged, trigger: scheduleChangeCount)
+            .gymFeedback(.workoutStarted, trigger: workoutStartCount)
             .onDisappear {
                 // Confirmations are scoped to Today; leaving the screen must
                 // not make an old message reappear on a later return.
@@ -158,7 +160,10 @@ struct HomeView: View {
                     onOpenMobility: onOpenMobility,
                     onResumeMobility: onResumeMobility
                 )
-                HomeWeekSummaryCard()
+                HomeWeekSummaryCard(
+                    isPrimaryCardOfferingStart: todayWorkoutSummary.kind == .planned || todayWorkoutSummary.kind == .repeating,
+                    onStartWorkout: { isShowingTemplatePicker = true }
+                )
                 // Last in the page, after everything the lifter came for.
                 if isShowingPersonalizationPrompt {
                     PersonalizationPromptCard(
@@ -219,6 +224,7 @@ struct HomeView: View {
             SavedWorkoutTemplatePicker(templates: workoutTemplates, availableExercises: exerciseTemplates) { template in
                 isShowingTemplatePicker = false
                 DispatchQueue.main.async {
+                    workoutStartCount += 1
                     onStartWorkout(template)
                 }
             } onStartEmpty: {
@@ -227,7 +233,11 @@ struct HomeView: View {
                     startEmptyWorkout()
                 }
             } onStartPersonalized: { draft in
-                startPersonalizedWorkout(draft)
+                let didStart = startPersonalizedWorkout(draft)
+                if didStart {
+                    workoutStartCount += 1
+                }
+                return didStart
             }
         }
     }
@@ -250,8 +260,10 @@ private extension HomeView {
         if workoutVM.hasActiveWorkout {
             isShowingActiveWorkout = true
         } else if let run = activePlanRun, let progress = activePlanProgress {
+            workoutStartCount += 1
             onStartPlannedWorkout(run, progress)
         } else if let run = activeRepeatingPlanRun {
+            workoutStartCount += 1
             onStartRepeatingWorkout(run)
         } else if todayWorkoutSummary.kind == .guidedConflict {
             onResolveGuidedSourceConflict()
@@ -267,6 +279,7 @@ private extension HomeView {
             return
         }
         workoutVM.startWorkout(using: modelContext)
+        workoutStartCount += 1
         isShowingActiveWorkout = true
     }
 

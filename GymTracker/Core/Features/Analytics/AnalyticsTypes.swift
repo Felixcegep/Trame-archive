@@ -117,3 +117,24 @@ struct AnalyticsSourceReference: Hashable, Equatable, Sendable, Identifiable {
         self.setID = setID
     }
 }
+
+/// Structured analytics insight containing evidence tier, metrics, and explanatory metadata.
+struct AnalyticsInsight: Equatable, Sendable {
+    /// The number of comparable sessions analyzed.
+    let sessionCount: Int
+    /// Wording tier title: "Latest result" (1 session), "Early comparison" (2–3 sessions), "Trend" (4+ sessions), or nil if 0.
+    let wordingTier: String?
+    /// Evidence level classification (.none, .latestResult, .earlyComparison, .trend).
+    let evidenceLevel: StrengthEvidenceLevel
+    /// Whether directional claims (e.g. % increase/decrease) are allowed.
+    let allowsDirectionalClaim: Bool
+    /// Description of conditions required for sessions to be comparable.
+    let comparisonConditions: String
+    /// Description of evidence excluded from analysis.
+    let excludedEvidence: String
+    /// Description of the mathematical calculation method used.
+    let calculationMethod: String
+    /// Human-readable takeaway summary statement, if applicable.
+    let takeaway: String?
+}
+

@@ -387,7 +387,7 @@ struct MobilityAssessmentFlowView: View {
                     HStack(spacing: Spacing.m) {
                         Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
                             .font(AppFont.subheadline)
-                            .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubtleText)
+                            .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubduedText)
                             .accessibilityHidden(true)
                         Text(observation.displayName)
                             .font(AppFont.subheadline)

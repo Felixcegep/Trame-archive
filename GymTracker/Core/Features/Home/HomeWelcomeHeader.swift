@@ -63,13 +63,13 @@ struct HomeWelcomeHeader: View {
                 Spacer(minLength: Spacing.s)
 
                 Text(stage)
-                    .font(AppFont.caption2Bold)
+                    .font(AppFont.captionBold)
                     .padding(.horizontal, Spacing.s)
                     .padding(.vertical, Spacing.xxs)
-                    .background(Color.gymCard.opacity(0.72), in: Capsule())
+                    .background(Color.gymBackground, in: Capsule())
 
                 Image(systemName: AppIcon.chevronRight)
-                    .font(AppFont.caption2Bold)
+                    .font(AppFont.captionBold)
             }
             .foregroundStyle(Color.gymAccent)
             .padding(.horizontal, Spacing.m)

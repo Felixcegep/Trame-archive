@@ -129,7 +129,7 @@ struct FolderView: View {
                     searchText = ""
                 } label: {
                     Image(systemName: AppIcon.failureCircle)
-                        .foregroundStyle(Color.gymSubtleText)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
                 .accessibilityLabel("Clear search")
             }

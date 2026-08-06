@@ -69,16 +69,16 @@ struct WelcomeView: View {
                     LibrarySectionTitle("Set up my training")
 
                     optionCard(
-                        title: "Follow a plan",
-                        detail: "My sessions are scheduled across a set number of weeks.",
+                        title: "Program (Plan)",
+                        detail: "My sessions are scheduled across weeks.",
                         icon: AppIcon.plan,
                         identifier: "welcome-follow-plan",
                         action: onChoosePlan
                     )
 
                     optionCard(
-                        title: "Follow a rotation",
-                        detail: "I always do the next workout in the cycle, whatever day it is.",
+                        title: "Rotation (Repeating Plan)",
+                        detail: "I always do the next workout, regardless of weekday.",
                         icon: AppIcon.routine,
                         identifier: "welcome-follow-rotation",
                         action: onChooseRotation
@@ -89,8 +89,8 @@ struct WelcomeView: View {
                     LibrarySectionTitle("Or start now")
 
                     optionCard(
-                        title: "Free workout",
-                        detail: "I decide what I am doing today.",
+                        title: "Free Workout",
+                        detail: "I choose what I do today.",
                         icon: AppIcon.play,
                         identifier: "welcome-skip",
                         isProminent: false,
@@ -150,7 +150,7 @@ struct WelcomeView: View {
                         .foregroundStyle(Color.gymText)
 
                     Text(detail)
-                        .font(AppFont.subheadline)
+                        .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
@@ -160,7 +160,7 @@ struct WelcomeView: View {
 
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .padding(.top, Spacing.md)
             }
             .padding(Spacing.l)

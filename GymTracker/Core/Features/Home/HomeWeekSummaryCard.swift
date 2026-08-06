@@ -7,6 +7,9 @@ import SwiftUI
 /// someone opens before a session, not to analyse one, so this states whether
 /// the week is on track and hands anything deeper to Progress.
 struct HomeWeekSummaryCard: View {
+    let isPrimaryCardOfferingStart: Bool
+    let onStartWorkout: () -> Void
+    
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
 
     private var summary: TrainingWeekSummary {
@@ -32,9 +35,20 @@ struct HomeWeekSummaryCard: View {
                     .overlay(Color.gymBorder)
 
                 HStack(spacing: Spacing.s) {
-                    Text(weekSummary.detailText)
-                        .font(weekSummary.hasTraining ? AppFont.subheadlineMediumMonospaced : AppFont.subheadline)
-                        .foregroundStyle(weekSummary.hasTraining ? Color.gymText : Color.gymSubduedText)
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        Text(weekSummary.detailText)
+                            .font(weekSummary.hasTraining ? AppFont.subheadlineMediumMonospaced : AppFont.subheadline)
+                            .foregroundStyle(weekSummary.hasTraining ? Color.gymText : Color.gymSubduedText)
+                        
+                        if !weekSummary.hasTraining && !isPrimaryCardOfferingStart {
+                            Button(action: onStartWorkout) {
+                                Text("Start a session today")
+                                    .font(AppFont.captionBold)
+                                    .foregroundStyle(Color.gymPrimary)
+                            }
+                            .accessibilityIdentifier("today-week-start-session")
+                        }
+                    }
 
                     Spacer(minLength: 0)
                 }
@@ -43,9 +57,7 @@ struct HomeWeekSummaryCard: View {
             .background {
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                     .fill(Color.gymCard)
-                    .stroke(Color.gymBorder, lineWidth: 1)
             }
-            .shadow(color: Color.gymText.opacity(0.02), radius: 4, x: 0, y: 2)
         }
         // One stop, not fifteen. Read day by day this card is a stutter of
         // single letters; read as a sentence it is the same information.
@@ -57,7 +69,7 @@ struct HomeWeekSummaryCard: View {
     private func dayColumn(_ day: TrainingWeekSummary.Day) -> some View {
         VStack(spacing: Spacing.s) {
             Text(day.initial)
-                .font(AppFont.caption2Bold)
+                .font(AppFont.captionBold)
                 .foregroundStyle(day.isToday ? Color.gymPrimary : Color.gymSubduedText)
 
             mark(for: day)

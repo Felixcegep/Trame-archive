@@ -85,7 +85,7 @@ nonisolated enum ProgramMatchVocabulary {
     /// Mirrors `TrainingDisciplinePreference.allCases.map(\.rawValue)`.
     static let disciplineIDs: Set<String> = [
         "generalStrength", "bodybuilding", "powerlifting", "olympicWeightlifting",
-        "strongman", "fitnessRacing", "cardioEndurance", "mobilityFlexibility",
+        "strongman", "hybridFitnessRacing", "cardioEndurance", "mobilityFlexibility",
         "generalFitness", "mixed", "unspecified"
     ]
 
@@ -98,7 +98,7 @@ nonisolated enum ProgramMatchVocabulary {
     /// Mirrors `CompetitionDiscipline.allCases.map(\.rawValue)`.
     static let competitionDisciplineIDs: Set<String> = [
         "powerlifting", "olympicWeightlifting", "strongman", "bodybuilding",
-        "fitnessRacing", "endurance", "other", "undecided"
+        "hybridFitnessRacing", "endurance", "other", "undecided"
     ]
 }
 

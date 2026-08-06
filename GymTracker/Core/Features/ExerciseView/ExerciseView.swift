@@ -300,7 +300,7 @@ struct ExerciseView : View {
 
             Image(systemName: AppIcon.chevronRight)
                 .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymSubtleText)
+                .foregroundStyle(Color.gymSubduedText)
         }
     }
 
@@ -316,7 +316,7 @@ struct ExerciseView : View {
                     if exercise.primaryMuscles.isEmpty {
                         Text("Not set")
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymSubtleText)
+                            .foregroundStyle(Color.gymSubduedText)
                     } else {
                         ChipFlowLayout(spacing: Spacing.s) {
                             ForEach(exercise.primaryMuscles, id: \.self) { muscle in
@@ -374,7 +374,7 @@ struct ExerciseView : View {
                     Divider()
                     Text("Not set: \(unspecifiedAttributes.joined(separator: " · "))")
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubtleText)
+                        .foregroundStyle(Color.gymSubduedText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -413,7 +413,7 @@ struct ExerciseView : View {
 
                             Image(systemName: AppIcon.chevronRight)
                                 .font(AppFont.captionBold)
-                                .foregroundStyle(Color.gymSubtleText)
+                                .foregroundStyle(Color.gymSubduedText)
                         }
                         .contentShape(Rectangle())
                     }
@@ -566,10 +566,10 @@ private struct QuickStatTile: View {
                     HStack(spacing: Spacing.xxs) {
                         if let directionIcon {
                             Image(systemName: directionIcon)
-                                .font(AppFont.caption2Bold)
+                                .font(AppFont.captionBold)
                         }
                         Text(detail)
-                            .font(AppFont.caption2)
+                            .font(AppFont.caption)
                     }
                     .foregroundStyle(directionTint)
                     .fixedSize(horizontal: false, vertical: true)
@@ -586,7 +586,7 @@ private struct QuickStatTile: View {
         case .primary: .gymPrimary
         case .secondary: .gymSecondary
         case .accent: .gymAccent
-        case .neutral: .gymSubtleText
+        case .neutral: .gymSubduedText
         }
     }
 
@@ -602,7 +602,7 @@ private struct QuickStatTile: View {
         switch metric.direction {
         case .up: .gymSecondary
         case .down: .gymAccent
-        case .flat: .gymSubtleText
+        case .flat: .gymSubduedText
         }
     }
 }

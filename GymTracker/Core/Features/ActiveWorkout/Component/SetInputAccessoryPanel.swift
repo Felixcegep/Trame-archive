@@ -183,7 +183,7 @@ struct SetInputAccessoryPanel: View {
                     .font(AppFont.captionBold)
                     .tracking(0.8)
                     .textCase(.uppercase)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -343,10 +343,10 @@ struct SetInputAccessoryPanel: View {
 
         return VStack(spacing: Spacing.xs) {
             Text(fieldCaption(field))
-                .font(AppFont.caption2Bold)
+                .font(AppFont.captionBold)
                 .tracking(0.6)
                 .textCase(.uppercase)
-                .foregroundStyle(Color.gymSubtleText)
+                .foregroundStyle(Color.gymSubduedText)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: Spacing.s) {
@@ -617,7 +617,7 @@ struct SetInputAccessoryPanel: View {
         } label: {
             Image(systemName: systemImage)
                 .font(AppFont.subheadlineBold)
-                .foregroundStyle(isEnabled ? Color.gymPrimary : Color.gymSubtleText)
+                .foregroundStyle(isEnabled ? Color.gymPrimary : Color.gymSubduedText)
                 .frame(width: 44, height: 44)
                 .background(Color.gymRowSurface, in: Circle())
                 .contentShape(Circle())

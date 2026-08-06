@@ -555,28 +555,28 @@ struct DataSettingsView: View {
         Form {
             Section {
                 LabeledContent {
-                    Text("This iPhone")
+                    Text(dataSafetyMetadata.storageLocationDescription)
                 } label: {
                     Label("Stored", systemImage: AppIcon.lock)
                 }
                 .accessibilityIdentifier("settings-data-safety-storage")
 
                 LabeledContent {
-                    Text(relativeBackupDate(lastBackupExportTimestamp))
+                    Text(dataSafetyMetadata.formattedLastExportDate())
                 } label: {
                     Label("Last export", systemImage: AppIcon.export)
                 }
                 .accessibilityIdentifier("settings-data-safety-last-export")
 
                 LabeledContent {
-                    Text(lastBackupRestoreTimestamp == nil ? "Not yet" : relativeBackupDate(lastBackupRestoreTimestamp))
+                    Text(dataSafetyMetadata.restoreTestedDescription())
                 } label: {
                     Label("Restore tested", systemImage: AppIcon.restore)
                 }
                 .accessibilityIdentifier("settings-data-safety-restore-tested")
 
                 LabeledContent {
-                    Text(verbatim: "v\(BackupDTO.currentVersion)")
+                    Text(verbatim: dataSafetyMetadata.backupFormatVersion)
                 } label: {
                     Label("Backup format", systemImage: AppIcon.import)
                 }
@@ -672,6 +672,10 @@ struct DataSettingsView: View {
         }
     }
 
+    private var dataSafetyMetadata: DataSafetyMetadata {
+        DataSafetyService.fetchMetadata()
+    }
+
     private func relativeBackupDate(_ timestamp: Double?) -> String {
         guard let timestamp else { return String(localized: "Never") }
         return Date(timeIntervalSince1970: timestamp)
@@ -681,38 +685,20 @@ struct DataSettingsView: View {
     private func prepareExport() {
         guard isPreparingExport == false else { return }
         isPreparingExport = true
-        do {
-            let backup = try BackupDTO.create(
-                from: modelContext,
-                restTimer: restTimer,
-                darkMode: selectedAppearance == .dark,
-                unitSystem: unitSystem
-            )
-            Task {
-                do {
-                    let fileURL = try await Task.detached(priority: .utility) {
-                        let encoder = JSONEncoder()
-                        encoder.outputFormatting = .prettyPrinted
-                        encoder.dateEncodingStrategy = .iso8601
-                        let data = try encoder.encode(backup)
-                        let fileURL = FileManager.default.temporaryDirectory
-                            .appendingPathComponent("TrameBackup.json")
-                        try data.write(to: fileURL, options: .atomic)
-                        return fileURL
-                    }.value
-                    exportURL = fileURL
-                    // Recorded when the file exists, not when the share sheet is
-                    // dismissed: the user may share it anywhere, or nowhere, and
-                    // the fact this section reports is that a backup was produced.
-                    lastBackupExportTimestamp = Date.now.timeIntervalSince1970
-                } catch {
-                    showImportError("The backup could not be exported. \(error.localizedDescription)")
-                }
-                isPreparingExport = false
+        Task {
+            do {
+                let result = try await DataSafetyService.exportData(
+                    from: modelContext,
+                    restTimer: restTimer,
+                    darkMode: selectedAppearance == .dark,
+                    unitSystem: unitSystem
+                )
+                exportURL = result.fileURL
+                lastBackupExportTimestamp = result.exportDate.timeIntervalSince1970
+            } catch {
+                showImportError("The backup could not be exported. \(error.localizedDescription)")
             }
-        } catch {
             isPreparingExport = false
-            showImportError("The backup could not be exported. \(error.localizedDescription)")
         }
     }
 

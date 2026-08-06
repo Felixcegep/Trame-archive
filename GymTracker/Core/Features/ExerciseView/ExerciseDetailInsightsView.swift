@@ -41,6 +41,7 @@ struct ExerciseDetailInsightsView: View {
                     InsufficientExerciseHistoryCard(sessionCount: model.historyCount)
                 }
 
+
                 if let latestSession = model.latestSession {
                     ExerciseSessionSection(
                         session: latestSession,
@@ -60,7 +61,8 @@ struct ExerciseDetailInsightsView: View {
                     ExerciseVolumeChartSection(
                         points: model.volumePoints,
                         historyCount: model.historyCount,
-                        takeaway: model.volumeTakeaway
+                        takeaway: model.volumeTakeaway,
+                        insight: model.insight
                     )
                 }
 
@@ -105,8 +107,10 @@ private struct InsufficientExerciseHistoryCard: View {
     let sessionCount: Int
 
     var body: some View {
+        let level = StrengthEvidenceLevel.resolve(comparableSessionCount: sessionCount)
+        let title = level.title ?? (sessionCount == 1 ? String(localized: "Latest result") : String(localized: "Early comparison"))
         GymCard(variant: .current) {
-            Label("Early history", systemImage: AppIcon.info)
+            Label(title, systemImage: AppIcon.info)
                 .font(AppFont.subheadlineSemibold)
                 .foregroundStyle(Color.gymPrimary)
             Text("Based on \(sessionCount) completed \(sessionCount == 1 ? "session" : "sessions"). Keep logging before treating changes as a trend.")
@@ -206,13 +210,15 @@ private struct ExerciseVolumeChartSection: View {
     let points: [ExerciseDetailVolumePoint]
     let historyCount: Int
     let takeaway: String?
+    let insight: AnalyticsInsight?
 
     @State private var selectedDate: Date?
 
-    init(points: [ExerciseDetailVolumePoint], historyCount: Int, takeaway: String?) {
+    init(points: [ExerciseDetailVolumePoint], historyCount: Int, takeaway: String?, insight: AnalyticsInsight? = nil) {
         self.points = points
         self.historyCount = historyCount
         self.takeaway = takeaway
+        self.insight = insight
         _selectedDate = State(initialValue: points.last(where: { $0.sessionCount > 0 })?.date ?? points.last?.date)
     }
 
@@ -225,7 +231,8 @@ private struct ExerciseVolumeChartSection: View {
         GymChartCard(
             title: "Completed volume · 8 weeks",
             evidence: "Based on \(historyCount) completed \(historyCount == 1 ? "session" : "sessions").",
-            takeaway: takeaway
+            takeaway: takeaway,
+            insight: insight
         ) {
             if let selectedPoint {
                 GymChartSelectionAnnotation(
@@ -294,7 +301,7 @@ private struct ExerciseBestResultsSection: View {
                             if let detail = result.detail {
                                 Text(detail)
                                     .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubtleText)
+                                    .foregroundStyle(Color.gymSubduedText)
                             }
                         }
                         Spacer()

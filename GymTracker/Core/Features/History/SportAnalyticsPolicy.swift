@@ -37,6 +37,13 @@ protocol SportAnalyticsPolicy {
     func supportedRecords(for entry: ExerciseEntry) -> Set<SportRecordKind>
     func contributesToE1RM(set: ExerciseSet, entry: ExerciseEntry) -> Bool
     func contributesToStrengthVolume(set: ExerciseSet, entry: ExerciseEntry) -> Bool
+
+    /// Description of conditions required for sessions to be comparable.
+    var comparisonConditions: String { get }
+    /// Description of evidence excluded from analysis.
+    var excludedEvidence: String { get }
+    /// Description of the mathematical calculation method used.
+    var calculationMethod: String { get }
 }
 
 /// General strength, bodybuilding, and powerlifting. This is the exact
@@ -67,6 +74,18 @@ nonisolated struct StandardStrengthAnalyticsPolicy: SportAnalyticsPolicy {
     func contributesToStrengthVolume(set: ExerciseSet, entry: ExerciseEntry) -> Bool {
         true
     }
+
+    var comparisonConditions: String {
+        "Standard working sets with matching exercise identity and weight unit."
+    }
+
+    var excludedEvidence: String {
+        "Warm-up sets, segmented sets, complexes, velocity probes, and non-standard set methods."
+    }
+
+    var calculationMethod: String {
+        "Sum of working set volume (weight × reps) and Epley e1RM formula (weight × (1 + reps / 30)) for ≤10 reps."
+    }
 }
 
 /// Snatch and other Olympic-lifting attempts logged as a structured complex.
@@ -89,6 +108,18 @@ nonisolated struct OlympicAttemptAnalyticsPolicy: SportAnalyticsPolicy {
         guard let outcome = set.olympicAttemptOutcome else { return true }
         return outcome == .made
     }
+
+    var comparisonConditions: String {
+        "Olympic lifting attempts scorable as made/partial/missed."
+    }
+
+    var excludedEvidence: String {
+        "Missed or partial attempts, warm-ups, and traditional submaximal e1RM formulas."
+    }
+
+    var calculationMethod: String {
+        "Best successful lift, attempt success rate, and complex total result."
+    }
 }
 
 /// Yoke and other loaded-carry events. The record is a load moved over a
@@ -107,6 +138,18 @@ nonisolated struct YokeCarryAnalyticsPolicy: SportAnalyticsPolicy {
     func contributesToStrengthVolume(set: ExerciseSet, entry: ExerciseEntry) -> Bool {
         false
     }
+
+    var comparisonConditions: String {
+        "Loaded carries matching strongman load convention."
+    }
+
+    var excludedEvidence: String {
+        "Standard e1RM formulas, traditional rep volume, and warm-ups."
+    }
+
+    var calculationMethod: String {
+        "Maximum load moved over distance (load × distance)."
+    }
 }
 
 /// Farmer's Hold and other static loaded holds. The record is a load held
@@ -122,6 +165,18 @@ nonisolated struct FarmersHoldAnalyticsPolicy: SportAnalyticsPolicy {
 
     func contributesToStrengthVolume(set: ExerciseSet, entry: ExerciseEntry) -> Bool {
         false
+    }
+
+    var comparisonConditions: String {
+        "Static loaded holds matching strongman load convention."
+    }
+
+    var excludedEvidence: String {
+        "Distance metrics, e1RM formulas, and traditional volume."
+    }
+
+    var calculationMethod: String {
+        "Maximum load held for duration (load × duration)."
     }
 }
 
@@ -144,6 +199,18 @@ nonisolated struct StrongmanGeneralEventAnalyticsPolicy: SportAnalyticsPolicy {
     func contributesToStrengthVolume(set: ExerciseSet, entry: ExerciseEntry) -> Bool {
         true
     }
+
+    var comparisonConditions: String {
+        "Strongman event sets matching load convention."
+    }
+
+    var excludedEvidence: String {
+        "Submaximal e1RM formulas and warm-ups."
+    }
+
+    var calculationMethod: String {
+        "Event load PRs and total implement volume."
+    }
 }
 
 /// SkiErg and other single-modality erg/distance cardio work.
@@ -158,6 +225,18 @@ nonisolated struct ErgDistanceAnalyticsPolicy: SportAnalyticsPolicy {
 
     func contributesToStrengthVolume(set: ExerciseSet, entry: ExerciseEntry) -> Bool {
         false
+    }
+
+    var comparisonConditions: String {
+        "Single-modality ergometer distance and duration logs."
+    }
+
+    var excludedEvidence: String {
+        "Strength load PRs, e1RM estimates, and rep volume."
+    }
+
+    var calculationMethod: String {
+        "Distance, split duration, and pace metrics."
     }
 }
 
@@ -175,6 +254,18 @@ nonisolated struct FitnessSimulationAnalyticsPolicy: SportAnalyticsPolicy {
 
     func contributesToStrengthVolume(set: ExerciseSet, entry: ExerciseEntry) -> Bool {
         false
+    }
+
+    var comparisonConditions: String {
+        "Fitness racing simulation workout splits and station segments."
+    }
+
+    var excludedEvidence: String {
+        "Individual set load and rep PRs."
+    }
+
+    var calculationMethod: String {
+        "Total event time, run splits, station splits, and transition times."
     }
 }
 
@@ -195,7 +286,7 @@ enum SportAnalyticsPolicyResolver {
             case .hold: return FarmersHoldAnalyticsPolicy()
             default: return StrongmanGeneralEventAnalyticsPolicy()
             }
-        case .fitnessRacing:
+        case .hybridFitnessRacing:
             return FitnessSimulationAnalyticsPolicy()
         case .generalCardio:
             return ErgDistanceAnalyticsPolicy()
@@ -218,3 +309,23 @@ enum SportAnalyticsPolicyResolver {
         policy(discipline: entry.sportDisciplineSnapshot, strongmanEventFamily: entry.strongmanEventFamilySnapshot)
     }
 }
+
+extension SportAnalyticsPolicy {
+    func evaluateInsight(
+        sessionCount: Int,
+        takeaway: String? = nil
+    ) -> AnalyticsInsight {
+        let level = StrengthEvidenceLevel.resolve(comparableSessionCount: sessionCount)
+        return AnalyticsInsight(
+            sessionCount: sessionCount,
+            wordingTier: level.title,
+            evidenceLevel: level,
+            allowsDirectionalClaim: level.allowsDirectionalClaim,
+            comparisonConditions: comparisonConditions,
+            excludedEvidence: excludedEvidence,
+            calculationMethod: calculationMethod,
+            takeaway: takeaway
+        )
+    }
+}
+

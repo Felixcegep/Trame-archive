@@ -236,6 +236,9 @@ class Workout {
         )
     }
 
+    /// Single source of truth for whether a workout has been finalized and saved into History.
+    var isCompleted: Bool { status == .completed }
+
     /// Single source of truth for what a workout is called across the save
     /// flow, History list, and History detail: the explicit name when set,
     /// otherwise a title derived from its exercises.
@@ -278,6 +281,7 @@ class Workout {
     }
 
     func normalizeExerciseOrder() {
+        assert(!isCompleted, "Illegal write: Cannot normalize exercise order on a completed workout.")
         for (index, exercise) in orderedExercises.enumerated() {
             exercise.orderIndex = index
             exercise.normalizeSetOrder()
@@ -319,6 +323,7 @@ class Workout {
         from sources: [ExecutionBlockSnapshotSource],
         sourceMembership: [ExecutionBlockMembershipSnapshotSource]
     ) {
+        assert(!isCompleted, "Illegal write: Cannot snapshot execution blocks on a completed workout.")
         guard !sources.isEmpty else { return }
         var snapshotIDs: [UUID: UUID] = [:]
         executionBlocks = sources.map { source in

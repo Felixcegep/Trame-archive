@@ -45,7 +45,7 @@ struct BuiltInBadge: View {
 
     var body: some View {
         Text(text)
-            .font(AppFont.caption2Bold)
+            .font(AppFont.captionBold)
             .tracking(0.3)
             .foregroundStyle(Color.gymSecondary)
             .padding(.horizontal, Spacing.xs)
@@ -90,11 +90,11 @@ struct LibraryItemRow: View {
             Spacer()
             if let count {
                 Text("\(count)")
-                    .font(AppFont.subheadlineMonospaced)
+                    .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
             }
             if showsChevron {
-                Image(systemName: AppIcon.chevronRight).font(AppFont.captionBold).foregroundStyle(Color.gymSubtleText)
+                Image(systemName: AppIcon.chevronRight).font(AppFont.captionBold).foregroundStyle(Color.gymSubduedText)
             }
         }
         .padding(.horizontal, Spacing.l - 2)
@@ -219,7 +219,7 @@ struct LibraryListSectionHeader: View {
             Text("\(count)")
                 .font(AppFont.caption)
                 .monospacedDigit()
-                .foregroundStyle(Color.gymSubtleText)
+                .foregroundStyle(Color.gymSubduedText)
         }
         .padding(.horizontal, Spacing.xxs)
         .padding(.top, Spacing.m)
@@ -248,7 +248,7 @@ struct RecentLibraryRow: View {
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
                 Text(type)
-                    .font(AppFont.caption2Bold)
+                    .font(AppFont.captionBold)
                     .tracking(0.5)
                     .foregroundStyle(color)
             }
@@ -257,7 +257,7 @@ struct RecentLibraryRow: View {
 
             Image(systemName: AppIcon.chevronRight)
                 .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymSubtleText)
+                .foregroundStyle(Color.gymSubduedText)
         }
         .padding(.horizontal, Spacing.l - 2)
         .padding(.vertical, Spacing.m)

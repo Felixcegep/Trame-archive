@@ -253,7 +253,7 @@ private struct ProgressionReceiptCard: View {
             if let qualifier = presentation.evidenceQualifier {
                 Text(qualifier)
                     .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

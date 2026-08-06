@@ -28,9 +28,23 @@ nonisolated enum SportDiscipline: String, Codable, CaseIterable, Hashable, Senda
     case powerlifting
     case olympicWeightlifting
     case strongman
-    case fitnessRacing
+    case hybridFitnessRacing
     case generalCardio
     case mixed
+
+    init?(rawValue: String) {
+        switch rawValue {
+        case "generalStrength": self = .generalStrength
+        case "bodybuilding": self = .bodybuilding
+        case "powerlifting": self = .powerlifting
+        case "olympicWeightlifting": self = .olympicWeightlifting
+        case "strongman": self = .strongman
+        case "hybridFitnessRacing", "fitnessRacing": self = .hybridFitnessRacing
+        case "generalCardio": self = .generalCardio
+        case "mixed": self = .mixed
+        default: return nil
+        }
+    }
 
     var title: String {
         switch self {
@@ -39,7 +53,7 @@ nonisolated enum SportDiscipline: String, Codable, CaseIterable, Hashable, Senda
         case .powerlifting: String(localized: "Powerlifting", comment: "Sport discipline")
         case .olympicWeightlifting: String(localized: "Olympic weightlifting", comment: "Sport discipline")
         case .strongman: String(localized: "Strongman", comment: "Sport discipline")
-        case .fitnessRacing: String(localized: "Fitness racing", comment: "Sport discipline")
+        case .hybridFitnessRacing: String(localized: "HYROX Race Preparation", comment: "Sport discipline")
         case .generalCardio: String(localized: "Cardio", comment: "Sport discipline")
         case .mixed: String(localized: "Mixed", comment: "Sport discipline")
         }
@@ -117,9 +131,9 @@ extension SportCapabilityProfile {
                 supportsSplitTracking: false,
                 analyticsPolicyIdentifier: SportAnalyticsPolicyIdentifier.strongmanEvent
             )
-        case .fitnessRacing:
+        case .hybridFitnessRacing:
             return SportCapabilityProfile(
-                discipline: .fitnessRacing,
+                discipline: .hybridFitnessRacing,
                 allowedBlockKinds: [.forTime, .interval, .medley, .chipper, .amrap],
                 allowedMetrics: trackingMetrics.union([.duration, .distance, .cadence]),
                 supportsAttemptOutcomes: false,

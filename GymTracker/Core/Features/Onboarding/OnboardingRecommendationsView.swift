@@ -279,8 +279,8 @@ struct OnboardingRecommendationsView: View {
                 // bottom, and the glyph should agree with where the thing comes
                 // from. A chevron pointing right would promise a push.
                 Image(systemName: AppIcon.chevronDown)
-                    .font(AppFont.caption2Bold)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubduedText)
             }
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
@@ -697,7 +697,7 @@ struct OnboardingRecommendationCard: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         } icon: {
                             Image(systemName: AppIcon.checkmark)
-                                .font(AppFont.caption2Bold)
+                                .font(AppFont.captionBold)
                                 .foregroundStyle(Color.gymSecondary)
                         }
                     }
@@ -728,7 +728,7 @@ struct OnboardingRecommendationCard: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         } icon: {
                             Image(systemName: AppIcon.warningCircle)
-                                .font(AppFont.caption2Bold)
+                                .font(AppFont.captionBold)
                                 .foregroundStyle(Color.gymDestructive)
                         }
                     }
@@ -758,7 +758,7 @@ struct OnboardingRecommendationCard: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         } icon: {
                             Image(systemName: AppIcon.info)
-                                .font(AppFont.caption2Bold)
+                                .font(AppFont.captionBold)
                                 .foregroundStyle(Color.gymSubduedText)
                         }
                     }
@@ -941,7 +941,7 @@ struct MobilityRecommendationCard: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         } icon: {
                             Image(systemName: AppIcon.checkmark)
-                                .font(AppFont.caption2Bold)
+                                .font(AppFont.captionBold)
                                 .foregroundStyle(Color.gymSecondary)
                         }
                     }
@@ -967,7 +967,7 @@ struct MobilityRecommendationCard: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         } icon: {
                             Image(systemName: AppIcon.warningCircle)
-                                .font(AppFont.caption2Bold)
+                                .font(AppFont.captionBold)
                                 .foregroundStyle(Color.gymDestructive)
                         }
                     }
@@ -993,7 +993,7 @@ struct MobilityRecommendationCard: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         } icon: {
                             Image(systemName: AppIcon.info)
-                                .font(AppFont.caption2Bold)
+                                .font(AppFont.captionBold)
                                 .foregroundStyle(Color.gymSubduedText)
                         }
                     }

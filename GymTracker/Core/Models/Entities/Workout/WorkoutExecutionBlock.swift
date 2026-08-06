@@ -80,6 +80,9 @@ final class WorkoutExecutionBlock {
         self.sourceDefinitionBlockKey = nil
     }
 
+    /// Single source of truth for whether this block belongs to a completed workout.
+    var isCompleted: Bool { workout?.isCompleted ?? false }
+
     func elapsedDuration(at date: Date = .now) -> TimeInterval {
         accumulatedElapsedDuration + max(0, elapsedStartedAt.map { date.timeIntervalSince($0) } ?? 0)
     }
@@ -95,12 +98,14 @@ final class WorkoutExecutionBlock {
     }
 
     func start(at date: Date = .now) {
+        assert(!isCompleted, "Illegal write: Cannot start execution block on a completed workout.")
         guard elapsedStartedAt == nil else { return }
         status = .inProgress
         elapsedStartedAt = date
     }
 
     func pause(at date: Date = .now) {
+        assert(!isCompleted, "Illegal write: Cannot pause execution block on a completed workout.")
         guard let elapsedStartedAt else { return }
         accumulatedElapsedDuration += max(0, date.timeIntervalSince(elapsedStartedAt))
         self.elapsedStartedAt = nil

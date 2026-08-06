@@ -155,11 +155,85 @@ struct GymMetricValue: View {
     }
 }
 
+struct AnalyticsInsightDisclosureView: View {
+    let insight: AnalyticsInsight
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: isExpanded ? AppIcon.chevronDown : AppIcon.chevronRight)
+                        .font(AppFont.caption2Bold)
+                        .foregroundStyle(Color.gymSubduedText)
+                    Text(buttonTitle)
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.gymSubduedText)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Evidence and methodology details")
+            .accessibilityIdentifier("insight-details-toggle")
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    detailRow(
+                        title: "Session count",
+                        value: "\(insight.sessionCount) completed \(insight.sessionCount == 1 ? "session" : "sessions")"
+                    )
+                    detailRow(
+                        title: "Comparison conditions",
+                        value: insight.comparisonConditions
+                    )
+                    detailRow(
+                        title: "Excluded evidence",
+                        value: insight.excludedEvidence
+                    )
+                    detailRow(
+                        title: "Calculation method",
+                        value: insight.calculationMethod
+                    )
+                }
+                .padding(.top, Spacing.xs)
+                .padding(.leading, Spacing.s)
+                .accessibilityIdentifier("insight-details-content")
+            }
+        }
+        .padding(.top, Spacing.s)
+    }
+
+    private var buttonTitle: String {
+        if let wordingTier = insight.wordingTier {
+            return "\(wordingTier) · Evidence & method"
+        } else {
+            return "Evidence & method"
+        }
+    }
+
+    private func detailRow(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(title)
+                .font(AppFont.captionBold)
+                .foregroundStyle(Color.gymText)
+            Text(value)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+        }
+    }
+}
+
 struct GymChartCard<Content: View>: View {
     let title: String
     let evidence: String?
     let takeaway: String?
     let titleIdentifier: String?
+    let insight: AnalyticsInsight?
     @ViewBuilder let content: Content
 
     init(
@@ -167,12 +241,14 @@ struct GymChartCard<Content: View>: View {
         evidence: String? = nil,
         takeaway: String? = nil,
         titleIdentifier: String? = nil,
+        insight: AnalyticsInsight? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
         self.evidence = evidence
         self.takeaway = takeaway
         self.titleIdentifier = titleIdentifier
+        self.insight = insight
         self.content = content()
     }
 
@@ -186,6 +262,9 @@ struct GymChartCard<Content: View>: View {
                     Label(takeaway, systemImage: AppIcon.info)
                         .font(AppFont.subheadline)
                         .foregroundStyle(Color.gymText)
+                }
+                if let insight {
+                    AnalyticsInsightDisclosureView(insight: insight)
                 }
             }
         }

@@ -141,7 +141,7 @@ struct MobilityAssessmentLandingView: View {
                 Spacer(minLength: Spacing.s)
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .accessibilityHidden(true)
             }
             .frame(minHeight: ComponentSize.minimumTouchTarget)
@@ -302,7 +302,7 @@ struct MobilityAssessmentSelectionView: View {
                 // survives greyscale and VoiceOver alike.
                 Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubtleText)
+                    .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubduedText)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(MobilityAssessmentCopy.name(for: definition))

@@ -115,7 +115,7 @@ struct RotationSlotRow: View {
         HStack(alignment: .top, spacing: Spacing.m) {
             GymIconChip(
                 systemImage: AppIcon.routine,
-                tint: slot.isTemplateAvailable ? Color.gymAccent : Color.gymSubtleText
+                tint: slot.isTemplateAvailable ? Color.gymAccent : Color.gymSubduedText
             )
 
             VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -130,14 +130,14 @@ struct RotationSlotRow: View {
 
                 if !slot.isTemplateAvailable {
                     Label("Workout unavailable", systemImage: AppIcon.warning)
-                        .font(AppFont.caption2Bold)
+                        .font(AppFont.captionBold)
                         .foregroundStyle(Color.gymAccent)
                         .accessibilityIdentifier("program-path-slot-unavailable")
                 }
 
                 if isCurrentCycle, let state = slot.occurrenceState {
                     Label(stateTitle(state), systemImage: stateIcon(state))
-                        .font(AppFont.caption2Bold)
+                        .font(AppFont.captionBold)
                         .foregroundStyle(stateTint(state))
                         .accessibilityIdentifier("program-path-slot-\(stateIdentifier(state))")
                 }
@@ -216,7 +216,7 @@ struct RotationOccurrenceRow: View {
         HStack(alignment: .top, spacing: Spacing.m) {
             Image(systemName: ProgramPathPresentation.occurrenceKindIcon(occurrence.kind))
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(isUndone ? Color.gymSubtleText : Color.gymAccent)
+                .foregroundStyle(isUndone ? Color.gymSubduedText : Color.gymAccent)
                 .frame(width: Spacing.xxl, alignment: .center)
                 .accessibilityHidden(true)
 
@@ -240,12 +240,12 @@ struct RotationOccurrenceRow: View {
 
                 Text(ProgramPathPresentation.occurrenceEffect(occurrence))
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(ProgramPathPresentation.occurrenceTimestamp(occurrence))
-                    .font(AppFont.caption2)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
             }
 
             Spacer(minLength: Spacing.s)

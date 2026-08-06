@@ -22,7 +22,7 @@ private struct MobilityHoldProgressLabel: View {
 
     var body: some View {
         label
-            .foregroundStyle(hasReachedTarget ? Color.gymSecondary : Color.gymPrimary)
+            .foregroundStyle(hasReachedTarget ? Color.gymSecondary : Color.gymAccent)
             .animation(reduceMotion ? nil : AppMotion.compact, value: hasReachedTarget)
             // A Bool trigger never fires on its initial value, so re-entering a
             // movement whose target already passed stays silent: reaching the
@@ -42,9 +42,11 @@ private struct MobilityHoldProgressLabel: View {
     private var label: some View {
         if hasReachedTarget {
             Label("Target reached · \(elapsedSeconds) sec", systemImage: AppIcon.checkmarkCircle)
+                .font(AppFont.titleMedium)
                 .monospacedDigit()
         } else {
             Text("\(elapsedSeconds) / \(targetSeconds) sec")
+                .font(AppFont.titleMedium)
                 .monospacedDigit()
         }
     }
@@ -77,27 +79,8 @@ struct MobilitySessionView: View {
 
     var body: some View {
         Group {
-            if session.status == .active, let entry = session.currentEntry {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.xl) {
-                        progressHeader
-                        currentEntry(entry)
-                        resultInputs(entry)
-                        if entry.isPhaseDriven == false {
-                            previousPerformance(entry)
-                        }
-                    }
-                    .padding(.horizontal, Spacing.xl)
-                    .padding(.vertical, Spacing.l)
-                }
-                // Pinned, exactly as Active Workout pins its finish button.
-                // Mobility execution and workout execution are separate
-                // domains but the same *act* — work through prescribed items,
-                // record what was performed, commit — and a lifter should not
-                // have to relearn where the committing action lives when they
-                // cross from one to the other. It also stops the action from
-                // scrolling off under a long list of result inputs.
-                .safeAreaInset(edge: .bottom) { actions }
+            if session.status == .active, session.currentEntry != nil {
+                activeSessionContent
             } else {
                 terminalContent
             }
@@ -137,6 +120,91 @@ struct MobilitySessionView: View {
         .onAppear(perform: loadCurrentEntry)
         .onChange(of: session.currentEntryIndex) { _, _ in loadCurrentEntry() }
         .onChange(of: currentPhaseResultID) { _, _ in loadCurrentEntry() }
+        .gymFeedback(.sessionSaved, trigger: session.status) { (old: MobilitySessionStatus, new: MobilitySessionStatus) in
+            old != .completed && new == .completed
+        }
+    }
+
+    @ViewBuilder
+    private var activeSessionContent: some View {
+        if session.currentEntry != nil {
+            scrollContent
+                .safeAreaInset(edge: .bottom) {
+                    actions
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var scrollContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.xl) {
+                progressHeader
+                entriesList
+            }
+            .padding(.horizontal, Spacing.xl)
+            .padding(.vertical, Spacing.l)
+        }
+    }
+
+    @ViewBuilder
+    private var entriesList: some View {
+        VStack(spacing: Spacing.m) {
+            ForEach(Array(session.orderedEntries.enumerated()), id: \.element.id) { tuple in
+                listRow(for: tuple.element, at: tuple.offset)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func listRow(for loopEntry: MobilityEntry, at index: Int) -> some View {
+        if index < session.currentEntryIndex {
+            completedMovementRow(loopEntry, index: index)
+        } else if index == session.currentEntryIndex {
+            activeMovementRow(loopEntry)
+        } else {
+            upcomingMovementRow(loopEntry, index: index)
+        }
+    }
+
+    @ViewBuilder
+    private func activeMovementRow(_ loopEntry: MobilityEntry) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xl) {
+            currentEntry(loopEntry)
+            resultInputs(loopEntry)
+            if loopEntry.isPhaseDriven == false {
+                previousPerformance(loopEntry)
+            }
+        }
+    }
+
+    private func completedMovementRow(_ entry: MobilityEntry, index: Int) -> some View {
+        HStack(spacing: Spacing.m) {
+            Image(systemName: AppIcon.checkmark)
+                .font(AppFont.captionBold)
+                .foregroundStyle(Color.gymSecondary)
+            Text(entry.definitionNameSnapshot)
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymSubduedText)
+                .strikethrough()
+            Spacer()
+        }
+        .padding(Spacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func upcomingMovementRow(_ entry: MobilityEntry, index: Int) -> some View {
+        HStack(spacing: Spacing.m) {
+            Text("\(index + 1)")
+                .font(AppFont.captionBold)
+                .foregroundStyle(Color.gymSubduedText)
+            Text(entry.definitionNameSnapshot)
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymSubduedText)
+            Spacer()
+        }
+        .padding(Spacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var progressHeader: some View {
@@ -144,12 +212,13 @@ struct MobilitySessionView: View {
             Text("MOBILITY SESSION")
                 .font(AppFont.captionBold)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymAccent)
+                .foregroundStyle(Color.gymSubduedText)
             Text("Movement \(min(session.currentEntryIndex + 1, session.entries.count)) of \(session.entries.count)")
                 .font(AppFont.subheadline)
                 .foregroundStyle(Color.gymSubduedText)
             ProgressView(value: Double(session.currentEntryIndex), total: Double(max(session.entries.count, 1)))
-                .tint(Color.gymPrimary)
+                .tint(Color.gymSecondary)
+                .accessibilityHidden(true)
         }
     }
 
@@ -194,8 +263,7 @@ struct MobilitySessionView: View {
                         .foregroundStyle(Color.gymSubduedText)
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         if entry.isTimerPaused {
-                            Label("Paused at \(elapsedSeconds(for: entry)) sec", systemImage: AppIcon.pause)
-                                .monospacedDigit()
+                            pausedTimerLabel(for: entry)
                         } else {
                             MobilityHoldProgressLabel(
                                 elapsedSeconds: elapsedSeconds(for: entry),
@@ -217,8 +285,7 @@ struct MobilitySessionView: View {
                     if entry.trackingType == .duration, let target = entry.targetDurationSeconds {
                         TimelineView(.periodic(from: .now, by: 1)) { _ in
                             if entry.isTimerPaused {
-                                Label("Paused at \(elapsedSeconds(for: entry)) sec", systemImage: AppIcon.pause)
-                                    .monospacedDigit()
+                                pausedTimerLabel(for: entry)
                             } else {
                                 MobilityHoldProgressLabel(
                                     elapsedSeconds: elapsedSeconds(for: entry),
@@ -243,17 +310,22 @@ struct MobilitySessionView: View {
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // `gymPrimarySurface`, the same fill Active Workout gives the exercise
-        // being worked. Mobility used the neutral card surface, so the item
-        // under the lifter's attention looked identical to every other card on
-        // the screen.
-        .background(Color.gymPrimarySurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        // `gymCurrentSetSurface`, matching the highlight Active Workout gives
+        // the current set row.
+        .background(Color.gymCurrentSetSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(Color.gymBorder, lineWidth: 1)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(entryAccessibilityLabel(entry))
+    }
+
+    private func pausedTimerLabel(for entry: MobilityEntry) -> some View {
+        Label("Paused at \(elapsedSeconds(for: entry)) sec", systemImage: AppIcon.pause)
+            .font(AppFont.titleMedium)
+            .monospacedDigit()
+            .foregroundStyle(Color.gymAccent)
     }
 
     @ViewBuilder
@@ -376,49 +448,84 @@ struct MobilitySessionView: View {
         VStack(spacing: Spacing.m) {
             executionControls
             if let stop = currentStopSignal {
-                VStack(alignment: .leading, spacing: Spacing.s) {
-                    Text("Stop and pay attention to what you feel. This records your observation; it is not a diagnosis.")
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
-                    Button(role: .destructive) {
-                        stopForSensation(stop.sensation, resultID: stop.resultID)
-                    } label: {
-                        Label("Stop session now", systemImage: AppIcon.stop)
-                    }
-                    .buttonStyle(.gymPrimary)
-                    .accessibilityIdentifier("stop-mobility-for-sensation")
-                }
+                stopSensationContent(stop)
             } else if session.currentEntry?.isPhaseDriven == true {
-                Button {
-                    completeCurrentPhase()
-                } label: {
-                    Label("Complete phase", systemImage: AppIcon.checkmarkCircle)
-                }
-                .buttonStyle(.gymPrimaryProminent)
-                .accessibilityIdentifier("complete-mobility-phase")
-
-                HStack(spacing: Spacing.xl) {
-                    Button("Save partial phase") { savePartialCurrentPhase() }
-                        .accessibilityIdentifier("save-partial-mobility-phase")
-
-                    Spacer(minLength: Spacing.s)
-
-                    Button("Skip phase") { skipCurrentPhase() }
-                        .foregroundStyle(Color.gymSubduedText)
-                        .accessibilityIdentifier("skip-mobility-phase")
-                }
-                .font(AppFont.subheadlineSemibold)
-                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                phaseActions
             } else {
+                movementActions
+            }
+        }
+        .padding(.horizontal, Spacing.xl)
+        .padding(.vertical, Spacing.m)
+        .background(Color.gymBackground)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Color.gymBorder)
+                .frame(height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private func stopSensationContent(_ stop: (resultID: UUID, sensation: MobilitySensation)) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("Stop and pay attention to what you feel. This records your observation; it is not a diagnosis.")
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymSubduedText)
+            Button(role: .destructive) {
+                stopForSensation(stop.sensation, resultID: stop.resultID)
+            } label: {
+                Label("Stop session now", systemImage: AppIcon.stop)
+            }
+            .buttonStyle(.gymPrimary)
+            .accessibilityIdentifier("stop-mobility-for-sensation")
+        }
+    }
+
+    private var phaseActions: some View {
+        Group {
+            Button {
+                completeCurrentPhase()
+            } label: {
+                Label("Complete phase", systemImage: AppIcon.checkmark)
+                    .font(AppFont.subheadlineBold)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 50)
+                    .background(Color.gymSecondary)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+            }
+            .buttonStyle(.gymPress)
+            .accessibilityIdentifier("complete-mobility-phase")
+
+            HStack(spacing: Spacing.xl) {
+                Button("Save partial phase") { savePartialCurrentPhase() }
+                    .accessibilityIdentifier("save-partial-mobility-phase")
+
+                Spacer(minLength: Spacing.s)
+
+                Button("Skip phase") { skipCurrentPhase() }
+                    .foregroundStyle(Color.gymSubduedText)
+                    .accessibilityIdentifier("skip-mobility-phase")
+            }
+            .font(AppFont.subheadlineSemibold)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+        }
+    }
+
+    private var movementActions: some View {
+        Group {
                 Button {
                     completeCurrent()
                 } label: {
-                    Label("Complete movement", systemImage: AppIcon.checkmarkCircle)
+                    Label("Complete movement", systemImage: AppIcon.checkmark)
+                        .font(AppFont.subheadlineBold)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 50)
+                        .background(Color.gymSecondary)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
                 }
-                // The app's own prominent style, not `.borderedProminent`: this is
-                // the same committing action as Active Workout's, and it was the
-                // one place in an execution flow still wearing a system button.
-                .buttonStyle(.gymPrimaryProminent)
+                .buttonStyle(.gymPress)
                 .accessibilityIdentifier("complete-mobility-movement")
 
                 HStack(spacing: Spacing.xl) {
@@ -433,15 +540,6 @@ struct MobilitySessionView: View {
                 }
                 .font(AppFont.subheadlineSemibold)
                 .frame(minHeight: ComponentSize.minimumTouchTarget)
-            }
-        }
-        .padding(.horizontal, Spacing.xl)
-        .padding(.vertical, Spacing.m)
-        .background(Color.gymBackground)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Color.gymBorder)
-                .frame(height: 1)
         }
     }
 

@@ -61,6 +61,7 @@ enum GymTrackerTestStore {
             MobilitySession.self,
             MobilityEntry.self,
             MobilityResult.self,
+            MobilityResultEvidence.self,
             MobilityAssessmentDefinition.self,
             MobilityAssessmentSession.self,
             MobilityAssessmentResult.self,

@@ -282,6 +282,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var estimatedSessionMinutesMaximum: Int?
     var competitionDisciplineID: String?
     var optionalEquipmentCapabilityIDs: [String]?
+    var displayName: String?
+    var disclaimer: String?
     var rulesLibrary: [String: AuthoringRuleSetDefinition]?
     var stageTemplates: [String: [AuthoringStageDefinition]]?
     var waveTemplates: [String: [AuthoringWaveDefinition]]?
@@ -582,6 +584,8 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             estimatedSessionMinutesMaximum: estimatedSessionMinutesMaximum,
             competitionDisciplineID: competitionDisciplineID,
             optionalEquipmentCapabilityIDs: optionalEquipmentCapabilityIDs,
+            displayName: displayName,
+            disclaimer: disclaimer,
             blocks: expandedBlocks
         )
     }

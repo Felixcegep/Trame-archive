@@ -44,4 +44,14 @@ enum StrengthInsightPresentationPolicy {
         }
         return "The recent four weeks contained \(percentage)% \(change > 0 ? "more" : "less") completed volume than the previous four weeks."
     }
+
+    static func insight(
+        sessionCount: Int,
+        weeklyVolumes: [Float],
+        policy: SportAnalyticsPolicy = StandardStrengthAnalyticsPolicy()
+    ) -> AnalyticsInsight {
+        let takeaway = volumeTakeaway(sessionCount: sessionCount, weeklyVolumes: weeklyVolumes)
+        return policy.evaluateInsight(sessionCount: sessionCount, takeaway: takeaway)
+    }
 }
+

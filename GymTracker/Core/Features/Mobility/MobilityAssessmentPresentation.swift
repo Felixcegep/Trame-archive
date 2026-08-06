@@ -220,8 +220,8 @@ struct MobilityAssessmentObservationRow: View {
             // labelled as entered and carries the confidence it was frozen with,
             // so it is never read as something the phone measured.
             Text(observation.provenanceText)
-                .font(AppFont.caption2)
-                .foregroundStyle(Color.gymSubtleText)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
 
             if let comparison = observation.comparison {
                 comparisonView(comparison)

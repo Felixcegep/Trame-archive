@@ -35,15 +35,26 @@ struct ProgramPathView: View {
                 PlanRescheduleSheet(
                     workoutName: progress.plannedWorkoutName,
                     initialDate: progress.scheduledDate,
+                    progress: progress,
+                    run: fixedRun,
                     confirmIdentifier: "program-path-confirm-reschedule"
-                ) { date in
+                ) { date, shiftRemaining in
                     guard let run = fixedRun else { return false }
-                    return PlanCoordinator.reschedule(
-                        progress,
-                        to: date,
-                        in: run,
-                        using: modelContext
-                    )
+                    if shiftRemaining {
+                        return PlanCoordinator.rescheduleRemaining(
+                            from: progress,
+                            to: date,
+                            in: run,
+                            using: modelContext
+                        )
+                    } else {
+                        return PlanCoordinator.reschedule(
+                            progress,
+                            to: date,
+                            in: run,
+                            using: modelContext
+                        )
+                    }
                 }
             }
     }

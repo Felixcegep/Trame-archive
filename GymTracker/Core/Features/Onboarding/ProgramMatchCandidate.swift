@@ -28,10 +28,51 @@ struct ProgramMatchCandidate: Identifiable, Equatable, Sendable {
 
     // Optional matching metadata. Absent means "this program never said",
     // which must never be scored as a mismatch.
+    let programKey: String?
     let supportedDisciplineIDs: [String]
     let focusAreaIDs: [String]
     let estimatedSessionMinutes: ClosedRange<Int>?
     let competitionDisciplineID: String?
+
+    init(
+        id: UUID,
+        name: String,
+        summary: String? = nil,
+        goal: PlanGoal,
+        experienceLevel: PlanExperienceLevel,
+        supportedDaysPerWeek: [Int],
+        durationWeeks: Int,
+        scheduleMode: PlanScheduleMode,
+        requiredEquipment: [EquipmentType] = [],
+        prerequisites: [String] = [],
+        requiredCapabilities: [String] = [],
+        authorWarnings: [String] = [],
+        isExperimental: Bool = false,
+        programKey: String? = nil,
+        supportedDisciplineIDs: [String] = [],
+        focusAreaIDs: [String] = [],
+        estimatedSessionMinutes: ClosedRange<Int>? = nil,
+        competitionDisciplineID: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.summary = summary
+        self.goal = goal
+        self.experienceLevel = experienceLevel
+        self.supportedDaysPerWeek = supportedDaysPerWeek
+        self.durationWeeks = durationWeeks
+        self.scheduleMode = scheduleMode
+        self.requiredEquipment = requiredEquipment
+        self.prerequisites = prerequisites
+        self.requiredCapabilities = requiredCapabilities
+        self.authorWarnings = authorWarnings
+        self.isExperimental = isExperimental
+        self.programKey = programKey
+        self.supportedDisciplineIDs = supportedDisciplineIDs
+        self.focusAreaIDs = focusAreaIDs
+        self.estimatedSessionMinutes = estimatedSessionMinutes
+        self.competitionDisciplineID = competitionDisciplineID
+    }
 
     /// Whether this program is written for the lifter's discipline.
     ///
@@ -40,6 +81,9 @@ struct ProgramMatchCandidate: Identifiable, Equatable, Sendable {
     /// from its `PlanGoal`, so the question still contributes something on day
     /// one instead of waiting for every definition to be re-authored.
     func matchesDiscipline(_ discipline: TrainingDisciplinePreference) -> Bool {
+        if discipline == .hybridFitnessRacing && (programKey == "bodyweight-ladder-foundations" || name.localizedCaseInsensitiveContains("bodyweight ladder")) {
+            return false
+        }
         if !supportedDisciplineIDs.isEmpty {
             return supportedDisciplineIDs.contains(discipline.rawValue)
         }
@@ -74,6 +118,7 @@ extension ProgramMatchCandidate {
             requiredCapabilities: payload.requiredCapabilities,
             authorWarnings: payload.warnings,
             isExperimental: payload.isExperimental,
+            programKey: payload.programKey,
             supportedDisciplineIDs: payload.supportedDisciplineIDs ?? [],
             focusAreaIDs: payload.focusAreaIDs ?? [],
             estimatedSessionMinutes: minutes,

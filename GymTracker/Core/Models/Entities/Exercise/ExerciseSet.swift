@@ -206,7 +206,8 @@ final class ExerciseSet {
         self.usedMetric = usedMetric
         self.segments = []
         self.complexComponents = []
-    }
+    }    /// Single source of truth for whether this set belongs to a completed workout.
+    var isCompleted: Bool { exerciseEntry?.isCompleted ?? false }
 
     var resolvedSetMethod: SetMethod {
         setMethod ?? .standard
@@ -241,6 +242,7 @@ final class ExerciseSet {
     /// both the full implement profile and its load convention together, so
     /// the two can never drift apart on a single set.
     func applyStrongmanEvidence(implementProfile: StrongmanImplementProfile, eventFamily: StrongmanEventFamily?) {
+        assert(!isCompleted, "Illegal write: Cannot apply strongman evidence to a set in a completed workout.")
         strongmanImplementProfile = implementProfile
         strongmanLoadConvention = implementProfile.loadConvention
         strongmanEventFamily = eventFamily
@@ -347,6 +349,7 @@ final class ExerciseSet {
     /// Existing segments are never overwritten by a method change, preserving
     /// recorded work instead of silently fabricating or deleting history.
     func ensureSegmentsForMethod() {
+        assert(!isCompleted, "Illegal write: Cannot ensure segments on a set in a completed workout.")
         let method = resolvedSetMethod
         let requiredCount = method.minimumSegmentCount
         guard requiredCount > 0, segments.count < requiredCount else { return }
@@ -365,6 +368,7 @@ final class ExerciseSet {
     /// Segments are evidence inside this one set, so they share the parent
     /// completion transition and never become independently completable work.
     func synchronizeSegmentCompletion() {
+        assert(!isCompleted, "Illegal write: Cannot synchronize segment completion on a set in a completed workout.")
         for segment in segments {
             segment.done = done
         }
@@ -373,6 +377,7 @@ final class ExerciseSet {
     /// Removes prescription evidence when the user intentionally creates a
     /// new ad-hoc set rather than extending a generated set role.
     func clearPrescription() {
+        assert(!isCompleted, "Illegal write: Cannot clear prescription on a set in a completed workout.")
         prescribedSetType = nil
         prescribedRepetitions = nil
         prescribedRepRangeMinimum = nil
@@ -453,6 +458,7 @@ final class ExerciseSet {
     /// results are never replaced, preserving a partial active or historical
     /// attempt across reconciliation and relaunch.
     func ensureComplexComponents(for components: [ComplexComponentSnapshot]) {
+        assert(!isCompleted, "Illegal write: Cannot ensure complex components on a set in a completed workout.")
         guard complexComponents.isEmpty else { return }
         repetitions = Float(components.reduce(0) { $0 + $1.prescribedRepetitions })
         complexComponents = components.enumerated().map { index, component in
@@ -466,6 +472,7 @@ final class ExerciseSet {
     }
 
     func synchronizeComplexCompletion() {
+        assert(!isCompleted, "Illegal write: Cannot synchronize complex completion on a set in a completed workout.")
         guard !complexComponents.isEmpty else { return }
         guard done else {
             // Reopening the parent returns the attempt to an editable state but

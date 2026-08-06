@@ -217,6 +217,8 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     /// but is what a missing-equipment warning is written from.
     var optionalEquipmentCapabilityIDs: [String]?
 
+    var displayName: String?
+    var disclaimer: String?
     var blocks: [ProgramBlockDefinition]
 
     init(
@@ -248,6 +250,8 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         estimatedSessionMinutesMaximum: Int? = nil,
         competitionDisciplineID: String? = nil,
         optionalEquipmentCapabilityIDs: [String]? = nil,
+        displayName: String? = nil,
+        disclaimer: String? = nil,
         blocks: [ProgramBlockDefinition]
     ) {
         self.id = id
@@ -278,6 +282,8 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         self.estimatedSessionMinutesMaximum = estimatedSessionMinutesMaximum
         self.competitionDisciplineID = competitionDisciplineID
         self.optionalEquipmentCapabilityIDs = optionalEquipmentCapabilityIDs
+        self.displayName = displayName
+        self.disclaimer = disclaimer
         self.blocks = blocks
     }
 
@@ -290,16 +296,19 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
              supportedDisciplineIDs,
              focusAreaIDs, estimatedSessionMinutesMinimum,
              estimatedSessionMinutesMaximum, competitionDisciplineID,
-             optionalEquipmentCapabilityIDs, blocks
+             optionalEquipmentCapabilityIDs, displayName, disclaimer, blocks
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
-        templateVersion = try container.decode(Int.self, forKey: .templateVersion)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        templateVersion = try container.decodeIfPresent(Int.self, forKey: .templateVersion) ?? 1
         programKey = try container.decodeIfPresent(String.self, forKey: .programKey) ?? ""
-        name = try container.decode(String.self, forKey: .name)
+        displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
+        disclaimer = try container.decodeIfPresent(String.self, forKey: .disclaimer)
+        let decodedName = try container.decodeIfPresent(String.self, forKey: .name)
+        name = decodedName ?? displayName ?? ""
         description = try container.decodeIfPresent(String.self, forKey: .description)
         goal = try container.decode(PlanGoal.self, forKey: .goal)
         experienceLevel = try container.decode(PlanExperienceLevel.self, forKey: .experienceLevel)

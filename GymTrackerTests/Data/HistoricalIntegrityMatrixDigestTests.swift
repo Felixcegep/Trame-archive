@@ -187,6 +187,43 @@ final class HistoricalIntegrityMatrixDigestTests: XCTestCase {
         XCTAssertEqual(initialDigest, digestAfterEdit, "Completed assessment session digest must remain invariant when definition is updated")
     }
 
+    // MARK: - 5. Completed State Immutability & Digest Integrity
+    func testCompletedStateImmutabilityStatusAndIsCompletedPropagation() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Squat", primaryMuscles: [.quadriceps])
+        context.insert(exercise)
+
+        let set = ExerciseSet(repetitions: 5, weight: 100, done: true, usedMetric: .metric)
+        let entry = ExerciseEntry(exercise: exercise, sets: [set], usedMetric: .metric)
+        let block = WorkoutExecutionBlock(orderIndex: 0, kind: .straight)
+
+        let workout = Workout(name: "Leg Session")
+        workout.exercises = [entry]
+        workout.executionBlocks = [block]
+        context.insert(workout)
+
+        // Active workout state verification
+        XCTAssertFalse(workout.isCompleted)
+        XCTAssertFalse(entry.isCompleted)
+        XCTAssertFalse(set.isCompleted)
+        XCTAssertFalse(block.isCompleted)
+
+        // Mark completed
+        workout.status = .completed
+        workout.endTime = Date.now
+
+        XCTAssertTrue(workout.isCompleted)
+        XCTAssertTrue(entry.isCompleted)
+        XCTAssertTrue(set.isCompleted)
+        XCTAssertTrue(block.isCompleted)
+
+        let initialDigest = computeWorkoutDigest(workout)
+        // Digest should reflect completed workout structure cleanly
+        XCTAssertFalse(initialDigest.isEmpty)
+        let secondDigest = computeWorkoutDigest(workout)
+        XCTAssertEqual(initialDigest, secondDigest)
+    }
+
     // MARK: - Helper Digest Functions
 
     private func computeWorkoutDigest(_ workout: Workout) -> String {

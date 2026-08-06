@@ -110,7 +110,7 @@ struct WeeklyProgramReviewSessionRow: View {
             if session.completedWorkoutID != nil {
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
                     .accessibilityHidden(true)
             }
         }

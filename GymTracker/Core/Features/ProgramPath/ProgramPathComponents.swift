@@ -46,7 +46,7 @@ struct ProgramPathHeader: View {
                     .accessibilityHidden(true)
                 Text(progressSummary)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
         }
         .padding(.vertical, Spacing.xs)

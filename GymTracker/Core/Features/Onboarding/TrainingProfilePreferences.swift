@@ -44,12 +44,29 @@ enum TrainingDisciplinePreference: String, Codable, CaseIterable, Hashable, Send
     case powerlifting
     case olympicWeightlifting
     case strongman
-    case fitnessRacing
+    case hybridFitnessRacing
     case cardioEndurance
     case mobilityFlexibility
     case generalFitness
     case mixed
     case unspecified
+
+    init?(rawValue: String) {
+        switch rawValue {
+        case "generalStrength": self = .generalStrength
+        case "bodybuilding": self = .bodybuilding
+        case "powerlifting": self = .powerlifting
+        case "olympicWeightlifting": self = .olympicWeightlifting
+        case "strongman": self = .strongman
+        case "hybridFitnessRacing", "fitnessRacing": self = .hybridFitnessRacing
+        case "cardioEndurance": self = .cardioEndurance
+        case "mobilityFlexibility": self = .mobilityFlexibility
+        case "generalFitness": self = .generalFitness
+        case "mixed": self = .mixed
+        case "unspecified": self = .unspecified
+        default: return nil
+        }
+    }
 
     var title: String {
         switch self {
@@ -58,7 +75,7 @@ enum TrainingDisciplinePreference: String, Codable, CaseIterable, Hashable, Send
         case .powerlifting: String(localized: "Powerlifting")
         case .olympicWeightlifting: String(localized: "Olympic weightlifting")
         case .strongman: String(localized: "Strongman")
-        case .fitnessRacing: String(localized: "Fitness racing and hybrid")
+        case .hybridFitnessRacing: String(localized: "HYROX and Hybrid Racing")
         case .cardioEndurance: String(localized: "Cardio and endurance")
         case .mobilityFlexibility: String(localized: "Mobility and flexibility")
         case .generalFitness: String(localized: "General fitness")
@@ -74,7 +91,7 @@ enum TrainingDisciplinePreference: String, Codable, CaseIterable, Hashable, Send
         case .powerlifting: "figure.strengthtraining.functional"
         case .olympicWeightlifting: "figure.australian.football"
         case .strongman: "figure.martial.arts"
-        case .fitnessRacing: "figure.mixed.cardio"
+        case .hybridFitnessRacing: "figure.mixed.cardio"
         case .cardioEndurance: "figure.run"
         case .mobilityFlexibility: AppIcon.mobility
         case .generalFitness: "figure.walk"
@@ -90,7 +107,7 @@ enum TrainingDisciplinePreference: String, Codable, CaseIterable, Hashable, Send
         switch self {
         case .olympicWeightlifting: .olympicWeightlifting
         case .strongman: .strongman
-        case .fitnessRacing: .hybrid
+        case .hybridFitnessRacing: .hybrid
         case .mobilityFlexibility: .mobility
         default: nil
         }
@@ -519,10 +536,24 @@ enum CompetitionDiscipline: String, Codable, CaseIterable, Hashable, Sendable {
     case olympicWeightlifting
     case strongman
     case bodybuilding
-    case fitnessRacing
+    case hybridFitnessRacing
     case endurance
     case other
     case undecided
+
+    init?(rawValue: String) {
+        switch rawValue {
+        case "powerlifting": self = .powerlifting
+        case "olympicWeightlifting": self = .olympicWeightlifting
+        case "strongman": self = .strongman
+        case "bodybuilding": self = .bodybuilding
+        case "hybridFitnessRacing", "fitnessRacing": self = .hybridFitnessRacing
+        case "endurance": self = .endurance
+        case "other": self = .other
+        case "undecided": self = .undecided
+        default: return nil
+        }
+    }
 
     var title: String {
         switch self {
@@ -530,7 +561,7 @@ enum CompetitionDiscipline: String, Codable, CaseIterable, Hashable, Sendable {
         case .olympicWeightlifting: String(localized: "Olympic weightlifting")
         case .strongman: String(localized: "Strongman")
         case .bodybuilding: String(localized: "Bodybuilding")
-        case .fitnessRacing: String(localized: "Fitness racing or hybrid event")
+        case .hybridFitnessRacing: String(localized: "HYROX Race Preparation")
         case .endurance: String(localized: "Running or endurance event")
         case .other: String(localized: "Other")
         case .undecided: String(localized: "I haven’t decided")

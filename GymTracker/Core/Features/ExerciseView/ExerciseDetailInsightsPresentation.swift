@@ -18,6 +18,39 @@ struct ExerciseDetailInsightsModel: Equatable {
     let notes: [ExerciseDetailNote]
     let progression: ExerciseDetailProgression?
     let historyCount: Int
+    let insight: AnalyticsInsight?
+
+    init(
+        exerciseName: String,
+        subtitle: String,
+        latestSession: ExerciseDetailSession?,
+        previousSession: ExerciseDetailSession?,
+        bestResults: [ExerciseDetailBestResult],
+        estimatedOneRepMax: ExerciseDetailMetric?,
+        estimatedOneRepMaxUnavailableReason: String?,
+        volumePoints: [ExerciseDetailVolumePoint],
+        changeSummary: String?,
+        volumeTakeaway: String?,
+        notes: [ExerciseDetailNote],
+        progression: ExerciseDetailProgression?,
+        historyCount: Int,
+        insight: AnalyticsInsight? = nil
+    ) {
+        self.exerciseName = exerciseName
+        self.subtitle = subtitle
+        self.latestSession = latestSession
+        self.previousSession = previousSession
+        self.bestResults = bestResults
+        self.estimatedOneRepMax = estimatedOneRepMax
+        self.estimatedOneRepMaxUnavailableReason = estimatedOneRepMaxUnavailableReason
+        self.volumePoints = volumePoints
+        self.changeSummary = changeSummary
+        self.volumeTakeaway = volumeTakeaway
+        self.notes = notes
+        self.progression = progression
+        self.historyCount = historyCount
+        self.insight = insight
+    }
 
     var hasHistory: Bool {
         latestSession != nil || historyCount > 0
@@ -144,7 +177,8 @@ extension ExerciseDetailInsightsModel {
             explanation: "Not every required set reached 8 reps last time.",
             actionLabel: "View recommendation"
         ),
-        historyCount: 7
+        historyCount: 7,
+        insight: StandardStrengthAnalyticsPolicy().evaluateInsight(sessionCount: 7, takeaway: "Weekly volume is about the same across the last four weeks.")
     )
 
     static let previewInsufficient = ExerciseDetailInsightsModel(
@@ -169,7 +203,8 @@ extension ExerciseDetailInsightsModel {
         volumeTakeaway: "Early pattern — complete more sessions before treating this as a trend.",
         notes: [],
         progression: nil,
-        historyCount: 1
+        historyCount: 1,
+        insight: StandardStrengthAnalyticsPolicy().evaluateInsight(sessionCount: 1, takeaway: "Early pattern — complete more sessions before treating this as a trend.")
     )
 
     static let previewEmpty = ExerciseDetailInsightsModel(
@@ -185,6 +220,7 @@ extension ExerciseDetailInsightsModel {
         volumeTakeaway: nil,
         notes: [],
         progression: nil,
-        historyCount: 0
+        historyCount: 0,
+        insight: StandardStrengthAnalyticsPolicy().evaluateInsight(sessionCount: 0)
     )
 }

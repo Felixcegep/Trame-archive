@@ -498,7 +498,7 @@ extension TrainingDisciplinePreference {
         case .powerlifting: [.powerlifting]
         case .olympicWeightlifting: [.powerlifting, .generalStrength]
         case .strongman: [.generalStrength, .powerlifting]
-        case .fitnessRacing: [.generalFitness]
+        case .hybridFitnessRacing: [.generalFitness]
         case .cardioEndurance: [.generalFitness]
         case .mobilityFlexibility: [.generalFitness]
         case .generalFitness: [.generalFitness]

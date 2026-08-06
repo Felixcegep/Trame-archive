@@ -37,6 +37,8 @@ enum GymFeedback {
     /// available — and the custom keypad raises no first responder, so it
     /// replaces a system keyboard click rather than adding to one.
     case keyPressed
+    /// A deliberate user action started a new workout (not resumed an existing one).
+    case workoutStarted
     /// A set or exercise was appended.
     case itemAdded
     /// A set was marked complete. Deliberately *not* `.success`: this happens
@@ -76,6 +78,8 @@ enum GymFeedback {
 
     var sensoryFeedback: SensoryFeedback {
         switch self {
+        case .workoutStarted:
+            .impact(flexibility: .soft)
         case .keyPressed, .itemAdded, .scheduleChanged:
             .impact(weight: .light)
         case .setCompleted, .planStateChanged:

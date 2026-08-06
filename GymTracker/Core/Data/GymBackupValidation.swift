@@ -70,6 +70,10 @@ extension BackupDTO {
     func validate() throws {
         try BackupEnvelopeValidator.validate(self)
         try ReceiptBackupValidator.validate(self)
+        try StrengthBackupValidator.validate(self)
+        try ProgramBackupValidator.validate(self)
+        try MobilityBackupValidator.validate(self)
+        try NutritionBackupValidator.validate(self)
         let currentArchive = CurrentBackupArchive(adapting: self)
         let workoutArchive = currentArchive.workout
 

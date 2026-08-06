@@ -160,8 +160,8 @@ struct DailyCheckInSheet: View {
                         )
                     }
                 Text(option.title)
-                    .font(AppFont.caption2Bold)
-                    .foregroundStyle(isSelected ? Color.gymText : Color.gymSubtleText)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(isSelected ? Color.gymText : Color.gymSubduedText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
@@ -269,7 +269,7 @@ struct DailyCheckInSheet: View {
                     if note.isEmpty {
                         Text("Anything worth remembering?")
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymSubtleText)
+                            .foregroundStyle(Color.gymSubduedText)
                             .padding(.leading, Spacing.md)
                             .padding(.top, Spacing.m)
                             .allowsHitTesting(false)

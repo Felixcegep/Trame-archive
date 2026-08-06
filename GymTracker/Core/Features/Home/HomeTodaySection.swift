@@ -1,15 +1,12 @@
 import SwiftData
 import SwiftUI
 
-/// What sits under the workout card on Today: work already in progress, then
-/// the two places a lifter goes next.
+/// Visually subordinate supporting actions on Today.
 ///
-/// This used to be a six-row "Today's support" group covering mobility, a daily
-/// check-in, nutrition totals, creatine, and caffeine. Five of those rows were
-/// adjacent domains competing with training for the most valuable space in the
-/// app, and the group read as the content of the screen rather than as the tier
-/// below the session. Today is a training screen; food, supplements, and the
-/// daily questionnaire live in their own destinations.
+/// Renders supporting items (active mobility in progress, due mobility program session,
+/// exercise library, and stretch routines) in a single compact, grouped surface below the
+/// primary workout card. Workout execution remains visually primary while supporting
+/// actions stay easily accessible without competing at equal visual weight.
 struct HomeTodaySection: View {
     let onOpenExercises: () -> Void
     let onOpenMobility: () -> Void
@@ -21,43 +18,48 @@ struct HomeTodaySection: View {
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            if let activeMobilitySession {
-                resumeMobilityCard(activeMobilitySession)
-            } else if let dueProgramSession {
-                dueMobilityProgramCard(dueProgramSession)
-            }
-
+        VStack(alignment: .leading, spacing: Spacing.s) {
             // Passed pre-localized: `LibrarySectionTitle` takes a `String`, so a
             // bare literal would never reach the string catalog.
             LibrarySectionTitle(String(localized: "Quick access"))
 
-            HStack(spacing: Spacing.m) {
-                quickAccessTile(
-                    title: "Exercises",
-                    subtitle: "Browse the library",
-                    icon: AppIcon.muscles,
-                    tint: Color.gymPrimary,
-                    surface: Color.gymPrimarySurface,
-                    identifier: "today-open-exercises",
-                    hint: "Opens the exercise library in Train.",
-                    action: onOpenExercises
-                )
+            GymCard {
+                VStack(spacing: 0) {
+                    if let activeMobilitySession {
+                        resumeMobilityRow(activeMobilitySession)
+                        Divider().background(Color.gymBorder)
+                    } else if let dueProgramSession {
+                        dueMobilityProgramRow(dueProgramSession)
+                        Divider().background(Color.gymBorder)
+                    }
 
-                if featureFlags.isEnabled(.mobility) {
-                    quickAccessTile(
-                        title: "Stretch",
-                        subtitle: "Mobility routines",
-                        icon: AppIcon.mobility,
-                        tint: Color.gymAccent,
-                        surface: Color.gymAccentSurface,
-                        identifier: "today-open-mobility",
-                        hint: "Opens mobility routines in Train.",
-                        action: onOpenMobility
+                    quickAccessRow(
+                        title: "Exercises",
+                        subtitle: "Browse the exercise library",
+                        icon: AppIcon.muscles,
+                        tint: Color.gymPrimary,
+                        surface: Color.gymPrimarySurface,
+                        identifier: "today-open-exercises",
+                        hint: "Opens the exercise library in Train.",
+                        action: onOpenExercises
                     )
+
+                    if featureFlags.isEnabled(.mobility) {
+                        Divider().background(Color.gymBorder)
+
+                        quickAccessRow(
+                            title: "Stretch",
+                            subtitle: "Mobility routines and programs",
+                            icon: AppIcon.mobility,
+                            tint: Color.gymAccent,
+                            surface: Color.gymAccentSurface,
+                            identifier: "today-open-mobility",
+                            hint: "Opens mobility routines in Train.",
+                            action: onOpenMobility
+                        )
+                    }
                 }
             }
-            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -80,7 +82,7 @@ struct HomeTodaySection: View {
         return nil
     }
 
-    private func dueMobilityProgramCard(_ due: (run: MobilityProgramRun, progress: MobilityProgramSessionProgress)) -> some View {
+    private func dueMobilityProgramRow(_ due: (run: MobilityProgramRun, progress: MobilityProgramSessionProgress)) -> some View {
         Button(action: onOpenMobility) {
             HStack(spacing: Spacing.m) {
                 Image(systemName: AppIcon.mobility)
@@ -102,17 +104,11 @@ struct HomeTodaySection: View {
 
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
-            .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.m)
+            .padding(.vertical, Spacing.s)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background {
-                RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                    .fill(Color.gymCard)
-                    .stroke(Color.gymAccent.opacity(0.24), lineWidth: 1)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
         .accessibilityIdentifier("today-open-mobility-plan-session")
@@ -130,9 +126,7 @@ struct HomeTodaySection: View {
         return mobilitySessions.first { $0.status == .active }
     }
 
-    /// In-progress work outranks both tiles, so it is a full-width card above
-    /// them rather than a third destination beside them.
-    private func resumeMobilityCard(_ session: MobilitySession) -> some View {
+    private func resumeMobilityRow(_ session: MobilitySession) -> some View {
         let position = min(session.currentEntryIndex + 1, session.entries.count)
         let value = String(localized: "Resume · \(position) of \(session.entries.count)")
 
@@ -147,9 +141,12 @@ struct HomeTodaySection: View {
                     .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
 
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("Stretch in progress")
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymText)
+                    HStack(spacing: Spacing.xs) {
+                        Text("Stretch in progress")
+                            .font(AppFont.subheadlineBold)
+                            .foregroundStyle(Color.gymText)
+                        GymStatusBadge(title: "Active", systemImage: AppIcon.play, tint: Color.gymAccent)
+                    }
                     Text(value)
                         .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
@@ -159,24 +156,18 @@ struct HomeTodaySection: View {
 
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubtleText)
+                    .foregroundStyle(Color.gymSubduedText)
             }
-            .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.m)
+            .padding(.vertical, Spacing.s)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background {
-                RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                    .fill(Color.gymCard)
-                    .stroke(Color.gymAccent.opacity(0.24), lineWidth: 1)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
         .accessibilityIdentifier("resume-mobility-session")
         .accessibilityLabel("Stretch in progress, \(value)")
     }
 
-    private func quickAccessTile(
+    private func quickAccessRow(
         title: LocalizedStringKey,
         subtitle: LocalizedStringKey,
         icon: String,
@@ -187,7 +178,7 @@ struct HomeTodaySection: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack(spacing: Spacing.m) {
                 Image(systemName: icon)
                     .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(tint)
@@ -201,20 +192,17 @@ struct HomeTodaySection: View {
                     Text(subtitle)
                         .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
+
+                Spacer(minLength: Spacing.s)
+
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubduedText)
             }
-            // Both dimensions fill: `maxHeight` is what keeps two tiles with
-            // differently wrapping subtitles the same height instead of
-            // centre-aligned at two different sizes.
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding(Spacing.l - 2)
-            .background {
-                RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                    .fill(Color.gymCard)
-                    .stroke(Color.gymBorder, lineWidth: 1)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+            .padding(.vertical, Spacing.s)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
         .accessibilityIdentifier(identifier)
