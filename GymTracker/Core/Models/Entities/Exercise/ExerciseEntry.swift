@@ -344,6 +344,17 @@ final class ExerciseEntry {
         }
     }
 
+    func removeSet(_ set: ExerciseSet) {
+        assert(!isCompleted, "Illegal write: Cannot remove set from an entry in a completed workout.")
+        sets.removeAll(where: { $0.id == set.id })
+        normalizeSetOrder()
+    }
+
+    func updateComment(_ newComment: String?) {
+        assert(!isCompleted, "Illegal write: Cannot update comment on an entry in a completed workout.")
+        self.comment = newComment
+    }
+
     /// Replaces an unstarted entry's library definition while retaining its
     /// prescription and position in the active workout. Callers must delete
     /// existing sets before rebuilding them for the replacement tracking type.

@@ -280,6 +280,28 @@ class Workout {
         })
     }
 
+    func addEntry(_ entry: ExerciseEntry) {
+        assert(!isCompleted, "Illegal write: Cannot add entry to a completed workout.")
+        exercises.append(entry)
+        normalizeExerciseOrder()
+    }
+
+    func removeEntry(_ entry: ExerciseEntry) {
+        assert(!isCompleted, "Illegal write: Cannot remove entry from a completed workout.")
+        exercises.removeAll(where: { $0.id == entry.id })
+        normalizeExerciseOrder()
+    }
+
+    func updateName(_ newName: String?) {
+        assert(!isCompleted, "Illegal write: Cannot update name on a completed workout.")
+        self.name = newName
+    }
+
+    func updateNotes(_ newNotes: String?) {
+        assert(!isCompleted, "Illegal write: Cannot update notes on a completed workout.")
+        self.notes = newNotes
+    }
+
     func normalizeExerciseOrder() {
         assert(!isCompleted, "Illegal write: Cannot normalize exercise order on a completed workout.")
         for (index, exercise) in orderedExercises.enumerated() {
