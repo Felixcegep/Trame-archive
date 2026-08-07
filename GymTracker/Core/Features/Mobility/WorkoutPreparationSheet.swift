@@ -105,13 +105,13 @@ struct WorkoutPreparationSheet: View {
     /// and returning it as a key would send "Hip Openers" through the string
     /// catalogue looking for a translation of it.
     private var title: Text {
-        guard !hasActiveMobilitySession else {
+        if hasActiveMobilitySession {
             return Text("A mobility session is already running")
         }
-        guard let routine else {
-            return Text("This workout has a linked warm-up")
+        if let routine {
+            return Text(verbatim: routine.name)
         }
-        return Text(verbatim: routine.name)
+        return Text("Optional Warm-Up")
     }
 
     private var explanation: LocalizedStringKey {

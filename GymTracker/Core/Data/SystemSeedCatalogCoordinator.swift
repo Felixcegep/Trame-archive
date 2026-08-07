@@ -13,7 +13,7 @@ enum SystemSeedCatalogCoordinator {
     // stale duplicate/misclassified records and need `needsInstallation`
     // to trigger a reinstall so `ExerciseSystemSeedInstaller` can apply
     // both the corrected fields and the duplicate retirement.
-    static let contentVersion = 16
+    static let contentVersion = 17
 
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.

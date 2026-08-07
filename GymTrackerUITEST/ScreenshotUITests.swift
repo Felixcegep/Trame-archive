@@ -116,9 +116,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         selectTab(.library, in: app)
         saveScreenshot("overview/02_Train")
 
-        let libraryHeader = app.staticTexts["BROWSE"].firstMatch
-        XCTAssertTrue(libraryHeader.waitForExistence(timeout: 5))
-        tapButton("workouts-browser", in: app)
+        let workoutsBrowser = app.descendants(matching: .any)["workouts-browser"]
+        XCTAssertTrue(workoutsBrowser.waitForExistence(timeout: 10))
+        workoutsBrowser.tap()
         saveScreenshot("overview/02b_Train_Templates")
         app.navigationBars.buttons.firstMatch.tap()
         tapButton("plans-browser", in: app)
@@ -657,6 +657,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
 
         let history = launchFixture("history-bench", expectsActiveWorkout: false)
         selectTab(.progress, in: history)
+        saveScreenshot("overview/03a_Progress_Populated")
         let trendsLink = history.descendants(matching: .any)["progress-training-trends"]
         XCTAssertTrue(trendsLink.waitForExistence(timeout: 10))
         trendsLink.tap()

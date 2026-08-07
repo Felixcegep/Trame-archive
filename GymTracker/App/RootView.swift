@@ -1159,6 +1159,9 @@ struct RootView: View {
 
     private func requestWorkoutPreparation(for start: PendingWorkoutStart) {
         activeSessionRouter.requestWorkoutPreparation(for: start, using: modelContext)
+        if activeSessionRouter.workoutPreparationRequest == nil {
+            continueWorkoutStart(WorkoutPreparationRequest(start: start))
+        }
     }
 
     private func continueWorkoutStart(_ request: WorkoutPreparationRequest) {

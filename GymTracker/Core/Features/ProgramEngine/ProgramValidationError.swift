@@ -116,8 +116,18 @@ nonisolated enum ProgramDefinitionValidator {
         }
         if definition.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { add("name", .emptyName, "A program name is required.") }
         if definition.durationWeeks < 1 { add("durationWeeks", .invalidDuration, "A program must contain at least one week.") }
+        let totalExpandedWeeks = definition.blocks.reduce(0) { $0 + $1.weeks.count }
+        if totalExpandedWeeks != definition.durationWeeks {
+            add("durationWeeks", .invalidDuration, "Expanded week count (\(totalExpandedWeeks)) does not match declared durationWeeks (\(definition.durationWeeks)).")
+        }
         if definition.supportedDaysPerWeek.isEmpty || definition.supportedDaysPerWeek.contains(where: { $0 < 1 || $0 > 7 }) {
             add("supportedDaysPerWeek", .invalidSchedule, "Supported days must be between one and seven.")
+        }
+        if definition.scheduleMode == .fixedWeekdays, definition.supportedDaysPerWeek.count == 1, let expectedDays = definition.supportedDaysPerWeek.first {
+            let maxWorkoutCountInWeek = definition.blocks.flatMap(\.weeks).map { Set($0.workouts.map(\.dayOffset)).count }.max() ?? 0
+            if maxWorkoutCountInWeek < expectedDays {
+                add("supportedDaysPerWeek", .invalidSchedule, "Fixed weekdays schedule advertises \(expectedDays) days/week, but max workouts in any expanded week is \(maxWorkoutCountInWeek).")
+            }
         }
         if definition.scheduleIntervalDays < 1 {
             add("scheduleIntervalDays", .invalidSchedule, "Schedule interval must be at least one day.")

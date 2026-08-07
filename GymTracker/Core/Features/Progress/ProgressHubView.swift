@@ -40,9 +40,6 @@ struct ProgressHubView: View {
                 // grouped background too, leaving the control floating on the
                 // page as if it were a caption.
                 ProgressOverviewSection(range: overviewRange, state: overviewState, onOpenPlan: onOpenPlan)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: 0, trailing: 0))
             } header: {
                 Text("Overview")
             }

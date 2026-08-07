@@ -125,10 +125,15 @@ final class ActiveSessionRouter {
             phase: .warmup,
             using: modelContext
         )
-        workoutPreparationRequest = WorkoutPreparationRequest(
-            start: start,
-            warmupRoutine: warmupRoutine
-        )
+        let activeSession = MobilitySessionService.activeSession(using: modelContext)
+        if warmupRoutine != nil || activeSession != nil {
+            workoutPreparationRequest = WorkoutPreparationRequest(
+                start: start,
+                warmupRoutine: warmupRoutine
+            )
+        } else {
+            workoutPreparationRequest = nil
+        }
     }
 
     func reset() {
