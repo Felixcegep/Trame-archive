@@ -8,9 +8,10 @@ import SwiftData
 /// testers prior to this freeze. Therefore, Schema.Version(2, 0, 0) is the first
 /// distributable V2 shape.
 ///
-/// Any future model additions, property modifications, or relationship shape changes
-/// MUST introduce Schema.Version(3, 0, 0) and a corresponding migration stage rather
-/// than extending V2 in place.
+/// Note: `testFrozenV2ModelInventoryMatchesExpectedModels()` mechanically protects the
+/// registered model inventory (the 62 app model types). The architectural contract requires
+/// that ANY persisted shape change (including stored-property additions or relationship shape
+/// changes inside existing models) requires Schema.Version(3, 0, 0) and a migration stage.
 @MainActor
 final class GymTrackerFrozenV2SchemaTests: XCTestCase {
 

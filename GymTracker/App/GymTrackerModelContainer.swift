@@ -17,9 +17,11 @@ enum GymTrackerAppSchema {
     static let cloudSyncState = "disabled"
 }
 
-/// First additive schema after the verified baseline. The existing models are
-/// intentionally untouched; the transition only introduces mobility-owned
-/// prescription and performed-evidence records.
+/// First additive schema after the verified baseline. Schema.Version(2, 0, 0)
+/// is formally frozen before first TestFlight distribution. The Mobility Program
+/// definition and runtime models listed here form the frozen initial V2 shape.
+/// Do not append another persistent model or otherwise change persistent shape under V2.
+/// Any future persistent shape change requires a new VersionedSchema generation.
 enum GymTrackerAdvancedMobilityEvidenceSchema: VersionedSchema {
     static let versionIdentifier = Schema.Version(2, 0, 0)
 
@@ -31,18 +33,9 @@ enum GymTrackerAdvancedMobilityEvidenceSchema: VersionedSchema {
             MobilityEntryEvidence.self
         ]
 #if !GYMTRACKER_EXTENSION
-        // The mobility program definition graph (Release 8 part 1) extends
-        // this same V2 generation in place, exactly like the four models
-        // above already did: additive, optional-decode, no new schema
-        // version. It is app-only, mirroring `ProgramDefinitionRecord`'s own
-        // extension gate on the baseline schema below.
+        // Part of the frozen initial V2 shape: App-only mobility program definition
+        // and runtime models. Appended here prior to V2 schema freeze.
         types.append(MobilityProgramDefinitionRecord.self)
-        // The mobility program runtime (Release 8 part 2) extends the same
-        // V2 generation in place again: a run, its per-session progress,
-        // its per-(progressionKey, side) progression state, and its
-        // recommendation receipts. All four are new tables with no existing
-        // column changes, so this stays additive under the frozen
-        // `Schema.Version(2, 0, 0)` identifier — neither part has shipped.
         types.append(MobilityProgramRun.self)
         types.append(MobilityProgramSessionProgress.self)
         types.append(MobilityProgressionState.self)
