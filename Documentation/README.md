@@ -26,9 +26,14 @@ document and then removed. Git history preserves obsolete material.
 - [`GymTracker Design System/ComponentPrompts.md`](GymTracker%20Design%20System/ComponentPrompts.md) — reusable mockup and prototype prompts.
 - [`GymTracker Design System/SKILL.md`](GymTracker%20Design%20System/SKILL.md) — entry point for the GymTracker design skill.
 
-## Active plans
+## Implementation plans and execution
 
-- [`Plans/MobilityAssessmentPlan.md`](Plans/MobilityAssessmentPlan.md) — mobility assessment scope and remaining verification.
+- [`05-Implementation-Plans/MASTER-Implementation-Order.md`](05-Implementation-Plans/MASTER-Implementation-Order.md) — codebase-first master implementation order and execution rules.
+- [`05-Implementation-Plans/Agent-Model-Allocation.md`](05-Implementation-Plans/Agent-Model-Allocation.md) — implementation-agent routing reference across L1–L5 capability levels.
+- [`05-Implementation-Plans/Task-Matrix.md`](05-Implementation-Plans/Task-Matrix.md) — task matrix across all execution epics.
+- [`05-Implementation-Plans/Phase-0/P0-Critical-Execution-Plan.md`](05-Implementation-Plans/Phase-0/P0-Critical-Execution-Plan.md) — Phase 0 release verification and instrumented beta plan.
+- [`05-Implementation-Plans/Competitive-Execution/`](05-Implementation-Plans/Competitive-Execution/) — CE-01 through CE-09 competitive execution plans.
+- [`99-Archive/`](99-Archive/) — superseded implementation plans and historical planning documents.
 
 ## Release verification and audits
 
