@@ -60,8 +60,8 @@ override the source-of-truth documents above.
 - `FeaturesList.md` owns implementation status and implementation order.
 - `DomainModel.md` owns domain invariants and lifecycle semantics.
 - `ScreenshotCoverage.md` owns screenshot state and capture status.
-- Temporary plans and audits declare an owner, review date, and exit condition.
-- When a plan is complete, move its decisions into the owning source-of-truth
-  document and remove the plan unless it still contains active work.
-- Git history, not an in-tree archive, preserves obsolete documents.
+- Superseded plans with useful historical context move to [`Documentation/99-Archive/`](99-Archive/).
+- Pure duplicates with no unique information may be deleted.
+- Archived documents are non-authoritative and must link to their active successor.
+- Git history remains the final record for deleted duplicates.
 - Generated documentation bundles are derived snapshots, not source-of-truth documents, and should not be edited manually.
