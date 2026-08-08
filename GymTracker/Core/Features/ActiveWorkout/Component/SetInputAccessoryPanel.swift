@@ -188,6 +188,7 @@ struct SetInputAccessoryPanel: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Button {
+                    viewModel.flushPendingTypedInputSave()
                     coordinator.focus = nil
                 } label: {
                     Image(systemName: AppIcon.minimize)
@@ -430,6 +431,7 @@ struct SetInputAccessoryPanel: View {
 
         return HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
             Button {
+                viewModel.flushPendingTypedInputSave()
                 coordinator.focusField(field)
             } label: {
                 Text(shown.isEmpty ? "—" : shown)
@@ -613,6 +615,7 @@ struct SetInputAccessoryPanel: View {
         let isEnabled = offset < 0 ? coordinator.previousInput != nil : coordinator.nextInput != nil
 
         return Button {
+            viewModel.flushPendingTypedInputSave()
             coordinator.moveFocus(by: offset)
         } label: {
             Image(systemName: systemImage)

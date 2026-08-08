@@ -75,6 +75,7 @@ struct ActiveWorkoutView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
+                    viewModel.flushPendingTypedInputSave()
                     activeLoggingMetrics.workoutMinimized()
                     dismiss()
                 } label: {
@@ -182,8 +183,13 @@ struct ActiveWorkoutView: View {
             viewModel.trackActiveExercise(with: identifier)
         }
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
+            switch newPhase {
+            case .active:
                 viewModel.restorePersistedRestTimer()
+            case .inactive, .background:
+                viewModel.flushPendingTypedInputSave()
+            @unknown default:
+                viewModel.flushPendingTypedInputSave()
             }
         }
         // App Intents and Live Activity buttons mutate persisted rest state
@@ -761,6 +767,7 @@ struct ActiveWorkoutView: View {
             let owesActiveDecision = activeDailyMaximumRecommendation(for: workout) != nil
             VStack {
                 Button {
+                    viewModel.flushPendingTypedInputSave()
                     viewModel.cancelTimer()
                     navigationPath.append(.saveWorkout)
                 } label: {

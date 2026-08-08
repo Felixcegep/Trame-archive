@@ -226,8 +226,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         enterValue("7", field: "reps", for: "Bench Press", set: 0, in: app)
         enterValue("42", field: "weight", for: "Bench Press", set: 0, in: app)
 
-        // Deliberately terminate with the keypad still open. Each keystroke must
-        // persist independently of dismissal or scene phase.
+        // Deliberately terminate with the keypad still open. The latest draft
+        // must flush at the lifecycle boundary even though keypresses are
+        // coalesced instead of saved one by one.
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
@@ -287,6 +288,30 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             app.staticTexts["prescription-summary-Goblet Stiletto Squat"]
                 .waitForExistence(timeout: 5)
         )
+    }
+
+    func testLinkedWarmupStartsMobilityBeforeTheSameWorkout() {
+        let app = launchFixture("linked-mobility-workout", expectsActiveWorkout: false)
+
+        let startFreeWorkout = app.buttons["start-free-workout"]
+        scrollToElement(startFreeWorkout, in: app)
+        startFreeWorkout.tap()
+        let template = app.buttons["workout-template-Linked Mobility Screenshot"]
+        for _ in 0..<12 where !template.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(template.waitForExistence(timeout: 10))
+        XCTAssertTrue(template.isHittable)
+        template.tap()
+
+        tapButton("start-linked-warmup", in: app)
+        XCTAssertTrue(app.buttons["complete-mobility-movement"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["active-workout-title"].exists)
+
+        tapButton("stop-mobility-session", in: app)
+        tapButton("Stop Session", in: app)
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(activeExerciseCard("Bench Press", in: app).waitForExistence(timeout: 5))
     }
 
     func testPushFocusFiltersActiveExercisePicker() {

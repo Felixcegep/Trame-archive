@@ -30,14 +30,26 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         let context = try makeContext()
         _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
         let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
-        let payloads = try records.map { try $0.payload() }
-        guard let hybrid = payloads.first(where: { $0.programKey == "hybrid-race-foundations" }) else {
-            XCTFail("hybrid-race-foundations was not found in seeded catalog")
-            return
+        let retiredKeys = [
+            "powerlifting-meet-preparation",
+            "weightlifting-technical-foundations",
+            "strongman-event-foundations",
+            "hybrid-race-foundations",
+            "couch-to-continuous-running",
+            "rowerg-2000m-builder",
+            "kettlebell-foundations"
+        ]
+
+        for key in retiredKeys {
+            let record = try XCTUnwrap(
+                records.first { (try? $0.payload().programKey) == key },
+                "Expected \(key) in the bundled seed before retirement."
+            )
+            XCTAssertTrue(record.isArchived, "Under-authored \(key) must not be discoverable.")
         }
-        XCTAssertEqual(hybrid.durationWeeks, 8)
-        XCTAssertEqual(hybrid.supportedDaysPerWeek, [1])
-        XCTAssertEqual(hybrid.blocks.flatMap(\.weeks).count, 8)
+
+        let active = try ProgramDefinitionRepository.activeDefinitions(in: context)
+        XCTAssertFalse(active.contains { (try? $0.payload().programKey) == "hybrid-race-foundations" })
     }
 
     @MainActor

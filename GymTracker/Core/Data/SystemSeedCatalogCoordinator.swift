@@ -13,7 +13,21 @@ enum SystemSeedCatalogCoordinator {
     // stale duplicate/misclassified records and need `needsInstallation`
     // to trigger a reinstall so `ExerciseSystemSeedInstaller` can apply
     // both the corrected fields and the duplicate retirement.
-    static let contentVersion = 17
+    // 18: withheld bundled programs whose current payload contains only one
+    // authored session despite advertising a multi-week training program.
+    // Existing installs need this version so those records are archived rather
+    // than continuing to surface an incomplete Program Path.
+    static let contentVersion = 18
+
+    private static let retiredBundledProgramKeys: Set<String> = [
+        "powerlifting-meet-preparation",
+        "weightlifting-technical-foundations",
+        "strongman-event-foundations",
+        "hybrid-race-foundations",
+        "couch-to-continuous-running",
+        "rowerg-2000m-builder",
+        "kettlebell-foundations"
+    ]
 
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.
@@ -82,6 +96,7 @@ enum SystemSeedCatalogCoordinator {
             bundle: bundle,
             saveChanges: false
         )
+        report += try retireUnderSpecifiedBundledPrograms(in: context)
         report += try registerPrograms(in: context, registry: registry)
 #endif
 
@@ -111,6 +126,29 @@ enum SystemSeedCatalogCoordinator {
 
         return report
     }
+
+#if !GYMTRACKER_EXTENSION
+    /// Keeps incomplete bundled definitions recoverable without presenting
+    /// them as real programs. A future content version can remove a key from
+    /// this set; ProgramDefinitionRepository then unarchives the restored
+    /// built-in definition on the next install.
+    private static func retireUnderSpecifiedBundledPrograms(
+        in context: ModelContext
+    ) throws -> SystemSeedInstallReport {
+        let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+        var report = SystemSeedInstallReport()
+        for record in records where record.isBuiltIn {
+            let payload = try record.payload()
+            guard retiredBundledProgramKeys.contains(payload.programKey), !record.isArchived else {
+                continue
+            }
+            record.isArchived = true
+            record.updatedAt = .now
+            report.updated += 1
+        }
+        return report
+    }
+#endif
 
     private static func registerExerciseRelationships(
         in context: ModelContext,

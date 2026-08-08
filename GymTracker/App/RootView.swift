@@ -1176,12 +1176,7 @@ struct RootView: View {
     private func continueWorkoutStartIfNeeded(_ start: PendingWorkoutStart) {
         guard activeSessionRouter.workoutPreparationRequest == nil,
               activeSessionRouter.isShowingActiveWorkoutConflictAlert == false else { return }
-        // Template starts originate inside Home's template picker sheet. Give
-        // that sheet time to finish its dismissal before presenting the active
-        // workout cover, otherwise SwiftUI can silently swallow the cover.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            continueWorkoutStart(WorkoutPreparationRequest(start: start))
-        }
+        continueWorkoutStart(WorkoutPreparationRequest(start: start))
     }
 
     private func continueWorkoutStart(_ request: WorkoutPreparationRequest) {

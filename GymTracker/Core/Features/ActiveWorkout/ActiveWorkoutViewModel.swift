@@ -3,6 +3,7 @@ import SwiftUI
 import SwiftData
 
 @Observable
+@MainActor
 class ActiveWorkoutViewModel {
     var unitSystem: UnitSystem {
         UserDefaults.standard.unitSystem
@@ -14,6 +15,9 @@ class ActiveWorkoutViewModel {
     
     private let restTimer = RestTimerController()
     private var timerTask: Task<Void, Never>?
+    private var pendingTypedInputSaveTask: Task<Void, Never>?
+    private var hasPendingTypedInputSave = false
+    private static let typedInputSaveDelay: Duration = .milliseconds(180)
     private(set) var previousPerformances: [PersistentIdentifier: PreviousExercisePerformance] = [:]
 
     var isTimerVisible: Bool { restTimer.isVisible }
@@ -366,7 +370,7 @@ class ActiveWorkoutViewModel {
         }
 
         markUserOverride(on: set)
-        persistChanges()
+        scheduleTypedInputSave()
         activeLoggingMetrics?.valueCommitted(for: set.id, field: field)
     }
 
@@ -823,18 +827,57 @@ class ActiveWorkoutViewModel {
         activePlanRun()?.plan?.goal
     }
 
-    func persistChanges() {
+    private func saveNow() -> Bool {
         switch modelContext.saveOrRollbackReportingFailure() {
         case .saved:
             lastPersistenceFailure = nil
             consecutivePersistenceFailureCount = 0
+            return true
         case .failed(let error):
             consecutivePersistenceFailureCount += 1
             lastPersistenceFailure = error
             // The raw SwiftData error is diagnostic-only; the banner never
             // shows this text to the lifter.
             print("ActiveWorkoutViewModel: persistChanges failed (\(consecutivePersistenceFailureCount) consecutive): \(error)")
+            return false
         }
+    }
+
+    /// Saves immediately and absorbs any pending keypad edit into this same
+    /// transaction. Non-keypad mutations, lifecycle transitions, and
+    /// navigation use this as their durable boundary.
+    func persistChanges() {
+        pendingTypedInputSaveTask?.cancel()
+        pendingTypedInputSaveTask = nil
+        hasPendingTypedInputSave = false
+        _ = saveNow()
+    }
+
+    private func scheduleTypedInputSave() {
+        hasPendingTypedInputSave = true
+        pendingTypedInputSaveTask?.cancel()
+        pendingTypedInputSaveTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: Self.typedInputSaveDelay)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            self?.flushPendingTypedInputSave()
+        }
+    }
+
+    /// Flushes the coalesced keypad edit at an explicit durability boundary.
+    /// Set completion intentionally does not call this first: its workflow
+    /// owns the single transaction that includes both the typed value and the
+    /// completion state.
+    @discardableResult
+    func flushPendingTypedInputSave() -> Bool {
+        pendingTypedInputSaveTask?.cancel()
+        pendingTypedInputSaveTask = nil
+        guard hasPendingTypedInputSave else { return true }
+        hasPendingTypedInputSave = false
+        return saveNow()
     }
 
     private func loadPreviousPerformance(for exercise: ExerciseEntry) {
@@ -983,6 +1026,9 @@ class ActiveWorkoutViewModel {
         now: Date = .now
     ) -> WorkoutSetCompletionWorkflow.Outcome {
         guard let workout = workoutVM.activeWorkout else { return .unavailable }
+        pendingTypedInputSaveTask?.cancel()
+        pendingTypedInputSaveTask = nil
+        hasPendingTypedInputSave = false
         let outcome = WorkoutSetCompletionWorkflow(modelContext: modelContext).execute(
             .init(
                 workoutID: workout.id,
