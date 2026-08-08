@@ -19,6 +19,7 @@ FAST_TESTS=(
   testPersistsDraftSetValuesAfterTermination
   testResumesPausedRestTimerAfterRelaunch
   testStartSeededTemplateIncludesPrescription
+  testLinkedWarmupStartsMobilityBeforeTheSameWorkout
   testPushFocusFiltersActiveExercisePicker
   testPlateCalculatorMatchesExerciseLoadingStyle
   testActiveWorkoutSetMutationsAndRestTimer

@@ -37,9 +37,6 @@ enum ProgramDefinitionRepository {
             existing.durationWeeks = record.durationWeeks
             existing.supportedDaysPerWeek = record.supportedDaysPerWeek
             existing.isBuiltIn = record.isBuiltIn
-            if isBuiltIn {
-                existing.isArchived = false
-            }
             existing.updatedAt = .now
             existing.definitionData = record.definitionData
             return existing

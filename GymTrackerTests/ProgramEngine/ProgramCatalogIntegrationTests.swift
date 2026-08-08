@@ -26,11 +26,9 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         _ = try ProgramDefinitionRepository.compile(try XCTUnwrap(records.first), using: context)
     }
 
-    func testHybridRaceFoundationsStructuralIntegrity() throws {
-        let context = try makeContext()
-        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: context)
-        let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+    func testUnderAuthoredBundledProgramsAreAbsentAndLegacyRecordsAreRetired() throws {
         let retiredKeys = [
+            "powerlifting-volume-intensity",
             "powerlifting-meet-preparation",
             "weightlifting-technical-foundations",
             "strongman-event-foundations",
@@ -40,16 +38,36 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
             "kettlebell-foundations"
         ]
 
+        let freshContext = try makeContext()
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: freshContext)
+        let freshRecords = try freshContext.fetch(FetchDescriptor<ProgramDefinitionRecord>())
         for key in retiredKeys {
-            let record = try XCTUnwrap(
-                records.first { (try? $0.payload().programKey) == key },
-                "Expected \(key) in the bundled seed before retirement."
+            XCTAssertFalse(
+                freshRecords.contains { (try? $0.payload().programKey) == key },
+                "Fresh bundled catalog must not create withheld \(key)."
             )
-            XCTAssertTrue(record.isArchived, "Under-authored \(key) must not be discoverable.")
         }
 
-        let active = try ProgramDefinitionRepository.activeDefinitions(in: context)
-        XCTAssertFalse(active.contains { (try? $0.payload().programKey) == "hybrid-race-foundations" })
+        let migrationContext = try makeContext()
+        let exercise = Exercise(name: "Legacy archive exercise", primaryMuscles: [.quadriceps])
+        migrationContext.insert(exercise)
+        try migrationContext.save()
+
+        var legacy = simpleDefinition(exerciseID: exercise.id)
+        legacy.programKey = "hybrid-race-foundations"
+        _ = try ProgramDefinitionRepository.save(legacy, isBuiltIn: true, in: migrationContext)
+        try migrationContext.save()
+
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: migrationContext)
+        let migratedRecords = try migrationContext.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+        let migrated = try XCTUnwrap(
+            migratedRecords.first { (try? $0.payload().programKey) == "hybrid-race-foundations" },
+            "Existing installations must retain the stable key so it can be retired."
+        )
+        XCTAssertTrue(migrated.isArchived)
+
+        let active = try ProgramDefinitionRepository.activeDefinitions(in: migrationContext)
+        XCTAssertFalse(active.contains { retiredKeys.contains((try? $0.payload().programKey) ?? "") })
     }
 
     @MainActor

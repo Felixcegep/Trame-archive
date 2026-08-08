@@ -32,6 +32,30 @@ final class ActiveWorkoutInputPersistenceTests: XCTestCase {
         XCTAssertEqual(reloaded.weight, 42)
     }
 
+    func testRapidDecimalWeightEntryWithBackspacePersistsFinalValueAfterCoalescing() async throws {
+        let fixture = try makeFixture()
+        let coordinator = SetInputCoordinator()
+        let keys: [KeypadKey] = [.digit(1), .decimal, .digit(2), .backspace, .digit(5)]
+        var committedTexts: [String] = []
+
+        for key in keys {
+            let text = try XCTUnwrap(coordinator.applyKey(key, decimalSeparator: "."))
+            committedTexts.append(text)
+            fixture.viewModel.commitTypedValue(text, field: .weight, in: fixture.set)
+        }
+
+        XCTAssertEqual(committedTexts, ["1", "1.", "1.2", "1.", "1.5"])
+        XCTAssertEqual(fixture.set.weight, Float(1.5), accuracy: 0.0001)
+
+        let beforeDebounce = try fetchSet(in: ModelContext(fixture.container), id: fixture.set.id)
+        XCTAssertEqual(beforeDebounce.weight, 0, accuracy: 0.0001)
+
+        try await Task.sleep(for: .milliseconds(300))
+
+        let afterDebounce = try fetchSet(in: ModelContext(fixture.container), id: fixture.set.id)
+        XCTAssertEqual(afterDebounce.weight, Float(1.5), accuracy: 0.0001)
+    }
+
     func testSetCompletionCommitsPendingInputAndCompletionTogether() throws {
         let fixture = try makeFixture()
 
