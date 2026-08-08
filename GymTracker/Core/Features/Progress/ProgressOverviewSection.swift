@@ -43,8 +43,6 @@ struct ProgressOverviewSection: View {
         journeyCard(summary)
     }
 
-    // MARK: - Journey preview
-
     /// Last card by intent. The cards above answer "how am I doing now"; this
     /// one opens the long view, which is a different question and should not
     /// compete with the immediate ones for attention.
@@ -80,9 +78,9 @@ struct ProgressOverviewSection: View {
             tint: .gymPrimary,
             title: "This week"
         ) {
-            let countText = countDescription(summary.workoutsThisWeek, singular: "completed workout")
+            let countText = CountPhrase.completedWorkouts(summary.workoutsThisWeek)
             let detailText = summary.trainingTimeThisWeekText.map { "\(countText) · \($0)" } ?? countText
-            Text(detailText)
+            Text(verbatim: detailText)
                 .font(AppFont.caption)
                 .foregroundStyle(Color.gymSubduedText)
 
@@ -93,10 +91,6 @@ struct ProgressOverviewSection: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-    }
-
-    private func countDescription(_ count: Int, singular: String) -> String {
-        count == 1 ? "1 \(singular)" : "\(count) \(singular)s"
     }
 
     // MARK: - Current plan
@@ -127,13 +121,16 @@ struct ProgressOverviewSection: View {
                         }
                     }
                     Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
+                    Image(systemName: AppIcon.chevronRight)
                         .font(AppFont.captionBold)
                         .foregroundStyle(Color.gymSubduedText)
                 }
                 .padding(.vertical, Spacing.xs)
             }
             .buttonStyle(.plain)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: Spacing.xs, leading: 0, bottom: Spacing.xs, trailing: 0))
             .accessibilityIdentifier("progress-overview-current-plan")
         )
     }
@@ -148,7 +145,7 @@ struct ProgressOverviewSection: View {
             tint: .gymSecondary,
             title: "Latest record"
         ) {
-            Text("\(record.exerciseName) — \(record.displayValue)")
+            Text(verbatim: "\(record.exerciseName) — \(record.displayValue)")
                 .font(AppFont.captionBold)
                 .foregroundStyle(Color.gymText)
             Text("\(record.kind) · \(record.date.formatted(date: .abbreviated, time: .omitted))")
@@ -167,7 +164,7 @@ struct ProgressOverviewSection: View {
             tint: .gymAccent,
             title: "Most logged"
         ) {
-            Text("\(series.name) · \(sessionCountText(series))")
+            Text(verbatim: "\(series.name) · \(sessionCountText(series))")
                 .font(AppFont.caption)
                 .foregroundStyle(Color.gymSubduedText)
 
@@ -182,7 +179,7 @@ struct ProgressOverviewSection: View {
 
     private func sessionCountText(_ series: ExerciseProgressSeries) -> String {
         let count = max(series.loadPoints.count, max(series.volumePoints.count, series.repsPoints.count))
-        return count == 1 ? "1 recorded session" : "\(count) recorded sessions"
+        return CountPhrase.recordedSessions(count)
     }
 
     // MARK: - Mobility
@@ -195,8 +192,8 @@ struct ProgressOverviewSection: View {
             tint: .gymSecondary,
             title: "Mobility"
         ) {
-            let sessionText = summary.mobilitySessionsInRange == 1 ? "1 session" : "\(summary.mobilitySessionsInRange) sessions"
-            Text("\(sessionText) · \(summary.assessmentRecencyText)")
+            let sessionText = CountPhrase.sessions(summary.mobilitySessionsInRange)
+            Text(verbatim: "\(sessionText) · \(summary.assessmentRecencyText)")
                 .font(AppFont.caption)
                 .foregroundStyle(Color.gymSubduedText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -271,6 +268,9 @@ struct ProgressOverviewSection: View {
             .padding(.vertical, Spacing.xs)
         }
         .accessibilityIdentifier("progress-overview-\(identifier)")
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: Spacing.xs, leading: 0, bottom: Spacing.xs, trailing: 0))
     }
 }
 

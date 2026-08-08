@@ -153,25 +153,27 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         openSettings.tap()
         XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
         saveScreenshot("overview/04_Settings")
+
+        let populatedProgress = launchFixture("history-bench", expectsActiveWorkout: false)
+        selectTab(.progress, in: populatedProgress)
+        XCTAssertTrue(populatedProgress.descendants(matching: .any)["progress-screen"].waitForExistence(timeout: 10))
+        saveScreenshot("overview/03a_Progress_Populated")
+        populatedProgress.terminate()
     }
 
-    /// Both destinations only need Settings opened once, then a scroll to
-    /// each row — one launch replaces two.
+    /// Capture the nested Settings destinations with deterministic navigation.
     func testCaptureSettingsShortcutsAndBetaFeedbackScreenshots() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
         app.launch()
 
+        tapButton("settings-advanced", in: app)
         let shortcutsLink = app.descendants(matching: .any)["settings-shortcuts-link"]
-        // Settings is a lazy Form; the link is below the initial viewport and
-        // is not materialized until the form has been scrolled toward it.
-        for _ in 0..<8 where !shortcutsLink.exists {
-            app.swipeUp()
-        }
-        XCTAssertTrue(shortcutsLink.waitForExistence(timeout: 45))
+        XCTAssertTrue(shortcutsLink.waitForExistence(timeout: 5))
         scrollToElement(shortcutsLink, in: app)
         saveScreenshot("overview/04d_Settings_Shortcuts")
 
+        app.navigationBars.buttons.element(boundBy: 0).tap()
         let feedbackRow = app.descendants(matching: .any)["settings-beta-feedback"]
         scrollToElement(feedbackRow, in: app)
         feedbackRow.tap()
@@ -187,11 +189,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
         app.launch()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 45))
+        tapButton("settings-data", in: app)
         let dataSafety = app.descendants(matching: .any)["settings-data-safety-last-export"]
-        for _ in 0..<6 where dataSafety.exists == false {
-            app.swipeUp()
-        }
-        XCTAssertTrue(dataSafety.exists)
+        XCTAssertTrue(dataSafety.waitForExistence(timeout: 5))
         app.swipeUp()
         saveScreenshot("overview/04g_Settings_Data_Safety")
     }
@@ -657,7 +657,6 @@ final class ScreenshotUITests: GymTrackerUITestCase {
 
         let history = launchFixture("history-bench", expectsActiveWorkout: false)
         selectTab(.progress, in: history)
-        saveScreenshot("overview/03a_Progress_Populated")
         let trendsLink = history.descendants(matching: .any)["progress-training-trends"]
         XCTAssertTrue(trendsLink.waitForExistence(timeout: 10))
         trendsLink.tap()

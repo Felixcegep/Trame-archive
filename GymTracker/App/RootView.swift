@@ -1076,11 +1076,18 @@ struct RootView: View {
     }
 
     private func startWorkout(from template: WorkoutTemplate) {
-        activeSessionRouter.startWorkout(from: template, using: modelContext, workoutVM: workoutVM)
+        let start = activeSessionRouter.startWorkout(from: template, using: modelContext, workoutVM: workoutVM)
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func startPlannedWorkout(_ planRun: PlanRun, _ progress: PlanWorkoutProgress) {
-        activeSessionRouter.startPlannedWorkout(planRun, progress, using: modelContext, workoutVM: workoutVM)
+        guard let start = activeSessionRouter.startPlannedWorkout(
+            planRun,
+            progress,
+            using: modelContext,
+            workoutVM: workoutVM
+        ) else { return }
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func startFixedPlan(_ plan: WorkoutPlan, _ startDate: Date) {
@@ -1132,7 +1139,8 @@ struct RootView: View {
     }
 
     private func startRepeatingWorkout(_ run: RepeatingPlanRun) {
-        activeSessionRouter.startRepeatingWorkout(run, using: modelContext, workoutVM: workoutVM)
+        let start = activeSessionRouter.startRepeatingWorkout(run, using: modelContext, workoutVM: workoutVM)
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func startAlternateRepeatingWorkout(
@@ -1140,26 +1148,38 @@ struct RootView: View {
         _ slotIndex: Int,
         _ continuationMode: RepeatingPlanContinuationMode
     ) {
-        activeSessionRouter.startAlternateRepeatingWorkout(
+        let start = activeSessionRouter.startAlternateRepeatingWorkout(
             run,
             slotIndex,
             continuationMode,
             using: modelContext,
             workoutVM: workoutVM
         )
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func repeatRepeatingWorkout(_ run: RepeatingPlanRun) {
-        activeSessionRouter.repeatRepeatingWorkout(run, using: modelContext, workoutVM: workoutVM)
+        let start = activeSessionRouter.repeatRepeatingWorkout(run, using: modelContext, workoutVM: workoutVM)
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func requestWorkoutStart(_ start: PendingWorkoutStart) {
         activeSessionRouter.requestWorkoutStart(start, using: modelContext, workoutVM: workoutVM)
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func requestWorkoutPreparation(for start: PendingWorkoutStart) {
         activeSessionRouter.requestWorkoutPreparation(for: start, using: modelContext)
-        if activeSessionRouter.workoutPreparationRequest == nil {
+        continueWorkoutStartIfNeeded(start)
+    }
+
+    private func continueWorkoutStartIfNeeded(_ start: PendingWorkoutStart) {
+        guard activeSessionRouter.workoutPreparationRequest == nil,
+              activeSessionRouter.isShowingActiveWorkoutConflictAlert == false else { return }
+        // Template starts originate inside Home's template picker sheet. Give
+        // that sheet time to finish its dismissal before presenting the active
+        // workout cover, otherwise SwiftUI can silently swallow the cover.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             continueWorkoutStart(WorkoutPreparationRequest(start: start))
         }
     }

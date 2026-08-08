@@ -38,6 +38,18 @@ enum CountPhrase {
             : String(localized: "\(count) sessions")
     }
 
+    static func completedWorkouts(_ count: Int) -> String {
+        count == 1
+            ? String(localized: "1 completed workout")
+            : String(localized: "\(count) completed workouts")
+    }
+
+    static func recordedSessions(_ count: Int) -> String {
+        count == 1
+            ? String(localized: "1 recorded session")
+            : String(localized: "\(count) recorded sessions")
+    }
+
     static func sessionsPerWeek(_ count: Int) -> String {
         count == 1
             ? String(localized: "1 session a week")

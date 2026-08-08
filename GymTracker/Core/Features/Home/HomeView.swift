@@ -47,6 +47,7 @@ struct HomeView: View {
     @State private var isShowingPersonalizationPrompt = false
     @State private var completedWorkoutCount = 0
     @State private var workoutStartCount = 0
+    @State private var pendingTemplateStart: WorkoutTemplate?
 
     private var activeFixedPlanRuns: [PlanRun] {
         planRuns
@@ -91,7 +92,7 @@ struct HomeView: View {
 
     var body: some View {
         homeContent
-            .sheet(isPresented: $isShowingTemplatePicker) {
+            .sheet(isPresented: $isShowingTemplatePicker, onDismiss: handleTemplatePickerDismissal) {
                 templatePicker
                     .presentationDetents([.large])
             }
@@ -222,11 +223,8 @@ struct HomeView: View {
     private var templatePicker: some View {
         NavigationStack {
             SavedWorkoutTemplatePicker(templates: workoutTemplates, availableExercises: exerciseTemplates) { template in
+                pendingTemplateStart = template
                 isShowingTemplatePicker = false
-                DispatchQueue.main.async {
-                    workoutStartCount += 1
-                    onStartWorkout(template)
-                }
             } onStartEmpty: {
                 isShowingTemplatePicker = false
                 DispatchQueue.main.async {
@@ -242,6 +240,7 @@ struct HomeView: View {
         }
     }
 
+
     private func rescheduleSheet(for progress: PlanWorkoutProgress) -> some View {
         RescheduleWorkoutSheet(
             progress: progress,
@@ -251,6 +250,13 @@ struct HomeView: View {
             onCancel: { reschedulingProgress = nil },
             onSave: { saveReschedule(progress) }
         )
+    }
+
+    private func handleTemplatePickerDismissal() {
+        guard let template = pendingTemplateStart else { return }
+        pendingTemplateStart = nil
+        workoutStartCount += 1
+        onStartWorkout(template)
     }
 
 }

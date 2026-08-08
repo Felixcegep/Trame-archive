@@ -35,15 +35,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         selectTab(.settings, in: app)
         XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
-        // Settings is a lazy Form; the Shortcuts row is below the first
-        // viewport and does not exist in the accessibility hierarchy until
-        // it has been scrolled into view.
+        tapButton("settings-advanced", in: app)
         let shortcuts = app.descendants(matching: .any)["settings-shortcuts-link"]
-        var scrollAttempts = 0
-        while shortcuts.exists == false && scrollAttempts < 6 {
-            app.swipeUp()
-            scrollAttempts += 1
-        }
         XCTAssertTrue(shortcuts.waitForExistence(timeout: 5))
     }
 
@@ -266,11 +259,20 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             scrollAttempts += 1
         }
         XCTAssertTrue(template.waitForExistence(timeout: 5))
+        while template.isHittable == false && scrollAttempts < 12 {
+            app.swipeUp()
+            scrollAttempts += 1
+        }
+        XCTAssertTrue(template.isHittable)
         let templateEnabled = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "isEnabled == true"),
             object: template
         )
         XCTAssertEqual(XCTWaiter().wait(for: [templateEnabled], timeout: 8), .completed)
+        // The picker keeps its search field docked above the bottom edge. A
+        // final scroll ensures the selected row's tap target is fully clear
+        // of that dock before synthesizing the tap.
+        app.swipeUp()
         template.tap()
 
         // This catalogue template has no linked warm-up. Keep the optional
@@ -539,13 +541,11 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
         app.launch()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 45))
+        tapButton("settings-data", in: app)
         let lastExport = app.descendants(matching: .any)["settings-data-safety-last-export"]
         let restoreTested = app.descendants(matching: .any)["settings-data-safety-restore-tested"]
 
-        for _ in 0..<6 where lastExport.exists == false {
-            app.swipeUp()
-        }
-        XCTAssertTrue(lastExport.exists)
+        XCTAssertTrue(lastExport.waitForExistence(timeout: 5))
         XCTAssertTrue(lastExport.label.contains("Never") || (lastExport.value as? String) == "Never")
         XCTAssertTrue(
             restoreTested.label.contains("Not yet") || (restoreTested.value as? String) == "Not yet"
