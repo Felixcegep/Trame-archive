@@ -24,11 +24,46 @@ struct PlansBrowserView: View {
         }
     }
 
+    /// How the ready-made catalogue is ordered.
+    ///
+    /// A mode the lifter can see and change, never a silent reshuffle. A list
+    /// that reorders itself with no visible cause and no way back is the thing
+    /// `OnboardingRecommendationsView` already argues against in its own
+    /// subtitle, which refuses to claim personalisation it cannot back up.
+    enum Ordering: String, CaseIterable, Identifiable {
+        case rankedForYou
+        case alphabetical
+
+        var id: Self { self }
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .rankedForYou: "Ranked for you"
+            case .alphabetical: "A–Z"
+            }
+        }
+
+        /// Spoken as what the ordering *does*, not as its four-word label —
+        /// "A–Z" alone tells a VoiceOver user nothing about what changes.
+        var accessibilityLabel: String {
+            switch self {
+            case .rankedForYou:
+                String(localized: "Ranked for you, ordered by how well each plan matches your training profile")
+            case .alphabetical:
+                String(localized: "A to Z, ordered alphabetically by name")
+            }
+        }
+    }
+
     @Environment(\.modelContext) private var modelContext
     @Query private var plans: [WorkoutPlan]
     @Query private var repeatingPlans: [RepeatingPlan]
     @Query private var programDefinitions: [ProgramDefinitionRecord]
     @Query private var workoutTemplates: [WorkoutTemplate]
+    /// The persisted answers, read live. Ranking is recomputed from this on
+    /// every appearance rather than cached, so editing the profile in Settings
+    /// and returning here re-ranks with nothing to invalidate.
+    @Query private var trainingProfiles: [TrainingProfile]
     /// `WorkoutPlan` has no `isBuiltIn` flag, so the seed registry is what
     /// distinguishes a plan the app shipped from one the user built. Reading it
     /// here also covers installs that already seeded before this distinction
@@ -46,6 +81,10 @@ struct PlansBrowserView: View {
     @State private var catalogInstallState = SystemCatalogInstallState.shared
     @State private var discoveryFilters = ProgramDiscoveryFilters()
     @State private var isShowingDiscoveryFilters = false
+    /// The mode the lifter last chose, remembered across launches. Defaults to
+    /// ranked, which only takes effect when there is actually a profile to rank
+    /// against — see `effectiveOrdering`.
+    @AppStorage(DefaultsKey.catalogueOrdering) private var storedOrdering: Ordering = .rankedForYou
 
     var body: some View {
         // The scope control sits outside the scroll rather than in its first
@@ -175,6 +214,48 @@ struct PlansBrowserView: View {
         discoveryFilters.isEmpty
             ? String(localized: "Refine")
             : String(localized: "Refine, \(discoveryFilters.activeFacetCount) active")
+    }
+
+    /// What the lifter told us, or `nil` when they have never answered anything.
+    private var matchingCriteria: ProgramMatchCriteria? {
+        guard let profile = trainingProfiles.first else { return nil }
+        let criteria = profile.matchingCriteria
+        // An existing user who has never seen onboarding has a profile full of
+        // `nil`. Ranking against nothing produces the catalogue's own order
+        // wearing a label that claims it was personalised, which is the one
+        // claim this control must never make falsely.
+        return criteria.isEmpty ? nil : criteria
+    }
+
+    /// Whether ranking is a mode this screen may honestly offer at all.
+    private var canRank: Bool { matchingCriteria != nil }
+
+    /// The ordering actually applied. Falls back to alphabetical whenever there
+    /// is nothing to rank against, regardless of the remembered preference — so
+    /// a lifter who ranked, then cleared their profile, sees A–Z rather than a
+    /// "Ranked for you" list ordered by nothing.
+    private var effectiveOrdering: Ordering {
+        canRank ? storedOrdering : .alphabetical
+    }
+
+    /// Shown only in the catalogue, and only when both options mean something.
+    ///
+    /// `Following` and `Mine` are not ranked catalogues — they are lists of
+    /// what the lifter already has, where "which fits me best" is not the
+    /// question being asked.
+    @ViewBuilder
+    private var orderingControl: some View {
+        if scope == .readyMade, canRank, hasUnfilteredReadyMadeDefinitions {
+            Picker("Order", selection: $storedOrdering) {
+                ForEach(Ordering.allCases) { ordering in
+                    Text(ordering.title)
+                        .tag(ordering)
+                        .accessibilityLabel(ordering.accessibilityLabel)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("plans-ordering")
+        }
     }
 
     /// Teaches the two scheduled paths, where the distinction is actually needed.
@@ -385,15 +466,69 @@ private extension PlansBrowserView {
 // MARK: - Ready-made
 
 private extension PlansBrowserView {
+    /// Filters narrow, then search narrows, then the chosen ordering sorts what
+    /// is left.
+    ///
+    /// The order of those three stages is not cosmetic. Ranking may only
+    /// *reorder*; an explicit filter is the only thing allowed to remove a plan
+    /// from view. Running the rank before the filters would leave a low-scoring
+    /// plan excluded at the end anyway, and would invite counts that describe a
+    /// universe the lifter is not actually looking at.
     var readyMadeRecords: [ProgramDefinitionRecord] {
-        programDefinitions
+        let narrowed = programDefinitions
             .filter { $0.isBuiltIn && !$0.isArchived }
             .filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
             .filter { record in
                 guard let payload = try? record.payload() else { return false }
                 return discoveryFilters.matches(ProgramMatchCandidate(payload: payload))
             }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+
+        switch effectiveOrdering {
+        case .alphabetical:
+            return narrowed.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        case .rankedForYou:
+            return rankedOrder(of: narrowed)
+        }
+    }
+
+    /// The narrowed set, ordered by `ProgramMatchService`.
+    ///
+    /// Ranks only what survived filtering and search, so the ordering describes
+    /// the list actually on screen. A record whose payload will not decode keeps
+    /// its place at the end rather than vanishing: it already passed the filters
+    /// above, and silently dropping a plan the lifter can see in A–Z mode would
+    /// make ranking look like it hides things — the one thing it must never do.
+    func rankedOrder(of records: [ProgramDefinitionRecord]) -> [ProgramDefinitionRecord] {
+        guard let criteria = matchingCriteria else {
+            return records.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        }
+
+        var candidatesByID: [UUID: ProgramMatchCandidate] = [:]
+        for record in records {
+            guard let payload = try? record.payload() else { continue }
+            candidatesByID[record.id] = ProgramMatchCandidate(payload: payload)
+        }
+
+        let ranked = ProgramMatchService.rank(
+            programs: Array(candidatesByID.values),
+            criteria: criteria
+        )
+        let position = Dictionary(
+            uniqueKeysWithValues: ranked.enumerated().map { ($0.element.programID, $0.offset) }
+        )
+
+        return records.sorted { lhs, rhs in
+            switch (position[lhs.id], position[rhs.id]) {
+            case let (left?, right?):
+                return left < right
+            case (nil, _?):
+                return false
+            case (_?, nil):
+                return true
+            case (nil, nil):
+                return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            }
+        }
     }
 
     var unfilteredReadyMadeCandidates: [ProgramMatchCandidate] {
@@ -468,6 +603,15 @@ private extension PlansBrowserView {
         programDefinitions.contains { $0.isBuiltIn && !$0.isArchived }
     }
 
+    /// Names the ordering actually in effect, so the list never claims to be
+    /// personalised when it is alphabetical — the same honesty
+    /// `OnboardingRecommendationsView.headerSubtitle` already enforces when it
+    /// refuses to say "ranked from your answers" to someone who skipped every
+    /// question.
+    var readyMadeSectionTitle: LocalizedStringKey {
+        effectiveOrdering == .rankedForYou ? "Ranked for you" : "Ready-made"
+    }
+
     @ViewBuilder
     var readyMadeSection: some View {
         if !hasReadyMadeContent {
@@ -513,8 +657,16 @@ private extension PlansBrowserView {
                     }
                 }
             }
+            // Sits with the list it orders rather than in the pinned strip
+            // above. Search and scope are already stacked up there; a third
+            // permanent control would push the first plan further down the
+            // screen the catalogue exists to show, and this one applies to a
+            // single scope, so pinning it would also make that strip change
+            // height as the lifter switches tabs.
+            orderingControl
+
             if !readyMadeRecords.isEmpty {
-                planSection("Ready-made") {
+                planSection(readyMadeSectionTitle) {
                     ForEach(Array(readyMadeRecords.enumerated()), id: \.element.id) { index, record in
                         if index > 0 { rowDivider }
                         NavigationLink(value: LibraryRoute.readyMadePlan(record.id)) {

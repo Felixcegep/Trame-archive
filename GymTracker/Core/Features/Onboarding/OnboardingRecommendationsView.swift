@@ -593,6 +593,16 @@ struct OnboardingRecommendationsView: View {
     //
     // Three of them, always. A recommendation screen the lifter cannot leave
     // except by accepting a recommendation is not a recommendation screen.
+    //
+    // "See every plan" rather than "Browse all plans": the old wording framed
+    // the catalogue as somewhere you go *instead of* here, which used to be
+    // literally true — leaving discarded the ranking, and the catalogue was
+    // alphabetical with no explanation of anything. The answers now persist
+    // (including refinements made on this screen) and the catalogue orders
+    // itself by them, so the catalogue is the same recommendation seen wider,
+    // not a different screen bought at the cost of this one. The copy stops
+    // implying a trade that no longer exists, without claiming a ranking that
+    // a lifter who skipped every question would not actually get.
 
     private var alternatives: some View {
         VStack(spacing: Spacing.s) {
@@ -610,11 +620,11 @@ struct OnboardingRecommendationsView: View {
                     .buttonStyle(.gymPrimary)
                     .accessibilityIdentifier("onboarding-start-free-workout")
             } else if leadingResult == nil {
-                Button("Browse all plans", action: onBrowseAll)
+                Button("See every plan", action: onBrowseAll)
                     .buttonStyle(.gymPrimary)
                     .accessibilityIdentifier("onboarding-browse-all")
             } else {
-                Button("Browse all plans", action: onBrowseAll)
+                Button("See every plan", action: onBrowseAll)
                     .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(Color.gymSubduedText)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
@@ -640,7 +650,7 @@ struct OnboardingRecommendationsView: View {
                     .buttonStyle(.gymPress)
                     .accessibilityIdentifier("onboarding-start-free-workout")
             } else {
-                Button("Browse all plans", action: onBrowseAll)
+                Button("See every plan", action: onBrowseAll)
                     .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(Color.gymSubduedText)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)

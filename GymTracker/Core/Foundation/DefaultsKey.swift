@@ -30,6 +30,10 @@ struct DefaultsKey {
     static let bodyWeightPromptCadence = "bodyWeightPromptCadence"
     static let caffeineBirthdateTimestamp = "caffeineBirthdateTimestamp"
     static let effortMeasure = "effortMeasure"
+    /// How the ready-made catalogue is ordered. The *mode* is remembered; the
+    /// ranked order itself never is — it is recomputed from the current profile
+    /// on every appearance, so it cannot go stale the way a cached order could.
+    static let catalogueOrdering = "catalogueOrdering.v1"
     /// Comma-joined `SetType` raw values, most recent first. See `RecentSetTypes`.
     static let recentSetTypes = "recentSetTypes.v1"
     static let activeLoggingMetrics = "activeLoggingMetrics.v1"

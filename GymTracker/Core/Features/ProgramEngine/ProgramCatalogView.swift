@@ -42,6 +42,9 @@ enum ProgramActivationOutcome: Equatable {
 struct ProgramCatalogDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var exercises: [Exercise]
+    /// The persisted answers, read live so editing them in Settings and
+    /// returning here re-evaluates with nothing to invalidate.
+    @Query private var trainingProfiles: [TrainingProfile]
     let record: ProgramDefinitionRecord
     /// Starts the compiled plan through the owner's guarded path.
     ///
@@ -70,8 +73,10 @@ struct ProgramCatalogDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xxl) {
                 overview
+                whyItFits
                 requirements
                 prescription
+                provenance
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.l)
@@ -161,6 +166,146 @@ struct ProgramCatalogDetailView: View {
             chips.append(String(localized: "In order, not on fixed days"))
         }
         return chips
+    }
+
+    /// This plan measured against what the lifter actually told us.
+    ///
+    /// `nil` — and therefore no section at all — whenever there is nothing
+    /// honest to say: no profile, or a profile that answers nothing. An
+    /// existing user who has never seen onboarding has a `TrainingProfile`
+    /// full of `nil`, and evaluating against it would produce a "why this fits
+    /// you" heading above an empty result, which claims a comparison that
+    /// never happened.
+    private var matchResult: ProgramMatchResult? {
+        guard let payload, let profile = trainingProfiles.first else { return nil }
+        let criteria = profile.matchingCriteria
+        guard !criteria.isEmpty else { return nil }
+        return ProgramMatchService.evaluate(
+            ProgramMatchCandidate(payload: payload),
+            criteria: criteria
+        )
+    }
+
+    /// The mismatches this screen found by comparing an answer against a
+    /// declaration — not the ones the author simply wrote down.
+    ///
+    /// `ProgramMatchService` folds `candidate.authorWarnings` into the same
+    /// `warnings` array as its own derived findings, and `requirements` below
+    /// already renders those author warnings unconditionally under "Worth
+    /// knowing". Showing the array raw here would print every author warning
+    /// twice on the same screen. Excluding them is not deduplication for its
+    /// own sake: "what doesn't match" is a claim about *the lifter's answers*,
+    /// and a warning the author would have written for anybody is not that.
+    private var derivedWarnings: [ProgramMatchWarning] {
+        guard let result = matchResult else { return [] }
+        let authored = Set(payload?.warnings ?? [])
+        return result.warnings.filter { !authored.contains($0.text) }
+    }
+
+    @ViewBuilder
+    private var whyItFits: some View {
+        if let result = matchResult, !result.reasons.isEmpty || !derivedWarnings.isEmpty {
+            sectionCard(title: "Why this fits you") {
+                // Deliberately no score, percentage, or star rating. The
+                // service's `score` is an unbounded weight sum with no declared
+                // maximum — rendering it as "87% match" would invent a
+                // precision the ranking does not have.
+                if !result.reasons.isEmpty {
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        ForEach(result.reasons) { reason in
+                            Label {
+                                Text(reason.text)
+                                    .foregroundStyle(Color.gymText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } icon: {
+                                Image(systemName: AppIcon.checkmark)
+                                    .foregroundStyle(Color.gymSecondary)
+                            }
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(
+                        String(localized: "Why it matches: \(result.reasons.map(\.text).joined(separator: ", "))")
+                    )
+                }
+
+                if !derivedWarnings.isEmpty {
+                    if !result.reasons.isEmpty {
+                        Divider().overlay(Color.gymBorder)
+                    }
+                    Text("What doesn’t match")
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.gymSubduedText)
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        ForEach(derivedWarnings) { warning in
+                            Label {
+                                Text(warning.text)
+                                    .foregroundStyle(Color.gymText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } icon: {
+                                Image(systemName: AppIcon.warningCircle)
+                                    .foregroundStyle(Color.gymDestructive)
+                            }
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(
+                        String(localized: "What doesn’t match: \(derivedWarnings.map(\.text).joined(separator: ", "))")
+                    )
+                }
+            }
+            .font(AppFont.subheadline)
+            .accessibilityIdentifier("program-catalog-why-it-fits")
+        }
+    }
+
+    /// Where the plan came from, when it says.
+    ///
+    /// Omitted entirely when absent, rather than shown as "Unknown". A missing
+    /// provenance is a legitimate silence — there is nothing the lifter can do
+    /// about it and nothing it changes about the prescription — unlike a
+    /// missing *answer*, which they can act on. Provenance is descriptive only:
+    /// it never alters what the plan prescribes.
+    @ViewBuilder
+    private var provenance: some View {
+        if let provenance = payload?.provenance {
+            sectionCard(title: "Where this plan comes from") {
+                Text(provenanceTitle(provenance.kind))
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let statement = provenance.statement, !statement.isEmpty {
+                    Text(statement)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .font(AppFont.subheadline)
+            .accessibilityIdentifier("program-catalog-provenance")
+        }
+    }
+
+    /// Deliberately phrased so none of these claims endorsement by, or
+    /// authorship from, whoever published the underlying method. "Follows a
+    /// published format" and "is the official programme" are different
+    /// statements, and only the first is one Trame can make.
+    private func provenanceTitle(_ kind: ProgramProvenanceKind) -> String {
+        switch kind {
+        case .sourceBackedExactFormat:
+            String(localized: "Follows a published programme format")
+        case .sourceBackedOriginalAdaptation:
+            String(localized: "Adapted from a published source")
+        case .guidelineAnchoredOriginalProgram:
+            String(localized: "Built on published training guidelines")
+        case .researchAnchoredOriginalProgram:
+            String(localized: "Built on published research")
+        case .engineConformanceSynthetic:
+            // The one kind a lifter genuinely needs to read before starting:
+            // this plan exists to exercise the app's engine, not as training
+            // advice authored for a person.
+            String(localized: "Built to demonstrate app features, not as training advice")
+        }
     }
 
     /// Two blocks, never one.
