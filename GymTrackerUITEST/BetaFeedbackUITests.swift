@@ -4,7 +4,7 @@ final class BetaFeedbackUITests: GymTrackerUITestCase {
     private func launchSettings() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertEqual(app.state, .runningForeground)
 
         let preparing = app.descendants(matching: .any)["app-preparing"]

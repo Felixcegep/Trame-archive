@@ -159,7 +159,7 @@ enum AppBootstrap {
     /// Builds the backup payload the Settings import test imports. It has to be
     /// encoded from a real store, so it cannot be a static file in the bundle.
     static func prepareUITestImportPayloadIfNeeded(
-        arguments: [String] = CommandLine.arguments,
+        arguments: [String] = AppLaunchArguments.current,
         using context: ModelContext
     ) {
         guard arguments.contains("-ui-testing-import-valid") else { return }
@@ -229,7 +229,7 @@ enum UITestLaunch {
     /// True when the launch is asking for a clean store — either explicitly or
     /// by naming a fixture, since a fixture graph is only valid on an empty one.
     static func isResettingData(
-        arguments: [String] = CommandLine.arguments,
+        arguments: [String] = AppLaunchArguments.current,
         fixture: UITestFixture?
     ) -> Bool {
         arguments.contains("-reset-data") || fixture != nil
@@ -238,12 +238,12 @@ enum UITestLaunch {
     /// Keeps the completed brand frame visible for deterministic visual
     /// verification. It has no effect outside a launch that explicitly names
     /// the capture-only argument.
-    static func holdsLaunchExperience(arguments: [String] = CommandLine.arguments) -> Bool {
+    static func holdsLaunchExperience(arguments: [String] = AppLaunchArguments.current) -> Bool {
         arguments.contains("-ui-testing-hold-launch-experience")
     }
 
     /// Tab and path arguments that need no seeded data.
-    static func initialDestination(arguments: [String] = CommandLine.arguments) -> Destination {
+    static func initialDestination(arguments: [String] = AppLaunchArguments.current) -> Destination {
         var destination = Destination()
         if arguments.contains("-ui-testing-open-history") {
             destination.tab = .progress
@@ -277,7 +277,7 @@ enum UITestLaunch {
     /// Destinations and alert states that need the seeded catalogue or the
     /// fixture graph to already exist.
     static func seededDestination(
-        arguments: [String] = CommandLine.arguments,
+        arguments: [String] = AppLaunchArguments.current,
         using context: ModelContext
     ) -> Destination {
         var destination = Destination()

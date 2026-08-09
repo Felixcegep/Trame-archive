@@ -224,7 +224,7 @@ enum FeatureFlags {
     /// user-facing experimental-toggle screen and no remote configuration
     /// source for Beta 0.
     static func makeCurrent(
-        arguments: [String] = CommandLine.arguments,
+        arguments: [String] = AppLaunchArguments.current,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         channel: FeatureFlagBuildChannel = .resolve(
             infoDictionary: Bundle.main.infoDictionary,
