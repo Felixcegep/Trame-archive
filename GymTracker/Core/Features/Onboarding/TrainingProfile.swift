@@ -137,6 +137,7 @@ final class TrainingProfile {
             scheduleFlexibility: scheduleFlexibility,
             sessionDuration: sessionDuration,
             availableEquipment: equipment,
+            availableEquipmentCapabilityIDs: Set(specializedEquipmentCapabilityIDs),
             focusAreas: focusAreas,
             competitionDiscipline: competition?.discipline,
             competitionDate: competition?.eventDate

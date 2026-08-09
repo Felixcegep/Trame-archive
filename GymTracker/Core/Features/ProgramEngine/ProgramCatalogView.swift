@@ -76,6 +76,7 @@ struct ProgramCatalogDetailView: View {
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.l)
         }
+        .accessibilityIdentifier("program-catalog-detail")
         .folderScreenStyle()
         // The action is pinned rather than trailing the scroll. It used to be
         // the last element of a screen whose length depends on how much a plan
@@ -88,7 +89,6 @@ struct ProgramCatalogDetailView: View {
         // differ mainly by name.
         .navigationTitle(record.name)
         .navigationBarTitleDisplayMode(.inline)
-        .accessibilityIdentifier("program-catalog-detail")
         .sheet(isPresented: $isShowingSetup) {
             if let payload {
                 NavigationStack {

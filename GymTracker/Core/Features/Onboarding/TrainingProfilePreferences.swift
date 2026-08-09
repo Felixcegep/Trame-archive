@@ -433,7 +433,7 @@ extension EquipmentType {
 /// than as a central Swift enum that grows by one case every time a discipline
 /// is added. An identifier a build does not recognise is carried through
 /// backups untouched instead of being dropped.
-enum SpecializedEquipmentGroup: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum SpecializedEquipmentGroup: String, Codable, CaseIterable, Hashable, Sendable {
     case olympicWeightlifting
     case strongman
     case hybrid
@@ -491,9 +491,15 @@ enum SpecializedEquipmentGroup: String, Codable, CaseIterable, Hashable, Sendabl
     }
 }
 
-struct SpecializedEquipmentCapability: Identifiable, Hashable, Sendable {
+nonisolated struct SpecializedEquipmentCapability: Identifiable, Hashable, Sendable {
     let id: String
     let title: String
+
+    static func title(for id: String) -> String {
+        SpecializedEquipmentGroup.allCases
+            .flatMap(\.capabilities)
+            .first { $0.id == id }?.title ?? id
+    }
 }
 
 // MARK: - Emphasis

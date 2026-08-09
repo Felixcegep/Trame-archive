@@ -1167,6 +1167,17 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         openPlans(.readyMade, in: app)
         saveScreenshot("plans/13k_Program_Catalog")
 
+        tapButton("program-discovery-filter-button", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-discovery-filters"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13ka_Program_Catalog_Filters")
+        tapButton("Powerlifting", in: app)
+        tapButton("Done", in: app)
+        XCTAssertTrue(app.buttons["program-catalog-Powerlifting Foundations"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13kb_Program_Catalog_Filtered")
+        tapButton("program-discovery-filter-button", in: app)
+        tapButton("Clear", in: app)
+        tapButton("Done", in: app)
+
         let program = app.buttons["program-catalog-Double Progression Builder"].firstMatch
         XCTAssertTrue(program.waitForExistence(timeout: 5))
         program.tap()

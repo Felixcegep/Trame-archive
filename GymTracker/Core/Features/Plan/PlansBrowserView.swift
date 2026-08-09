@@ -44,6 +44,8 @@ struct PlansBrowserView: View {
     /// catalogue, so an empty "Ready-made" scope is not automatically "the
     /// app ships nothing" — see `SystemCatalogInstallState`.
     @State private var catalogInstallState = SystemCatalogInstallState.shared
+    @State private var discoveryFilters = ProgramDiscoveryFilters()
+    @State private var isShowingDiscoveryFilters = false
 
     var body: some View {
         // The scope control sits outside the scroll rather than in its first
@@ -93,6 +95,18 @@ struct PlansBrowserView: View {
         .background(Color.gymBackground)
         .searchable(text: $searchText, prompt: "Search plans")
         .navigationTitle("Plans")
+        .toolbar {
+            if scope == .readyMade {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        isShowingDiscoveryFilters = true
+                    } label: {
+                        Label(filterButtonTitle, systemImage: AppIcon.filters)
+                    }
+                    .accessibilityIdentifier("program-discovery-filter-button")
+                }
+            }
+        }
         .onAppear(perform: selectInitialScope)
         .sheet(isPresented: $isShowingPlanForm) {
             NavigationStack {
@@ -102,6 +116,19 @@ struct PlansBrowserView: View {
                     onSaveRepeating: { LibraryService.createRepeatingPlan($0, using: modelContext) }
                 )
             }
+        }
+        .sheet(isPresented: $isShowingDiscoveryFilters) {
+            ProgramDiscoveryFilterSheet(
+                filters: $discoveryFilters,
+                disciplines: availableDisciplines,
+                goals: availableGoals,
+                experienceLevels: availableExperienceLevels,
+                daysPerWeek: availableDaysPerWeek,
+                durationWeeks: availableDurations,
+                scheduleModes: availableScheduleModes,
+                equipment: availableEquipment,
+                capabilityIDs: availableCapabilityIDs
+            )
         }
     }
 
@@ -142,6 +169,12 @@ struct PlansBrowserView: View {
     /// difference between "nothing matched" and "you have nothing".
     private var isSearching: Bool {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private var filterButtonTitle: String {
+        discoveryFilters.isEmpty
+            ? String(localized: "Refine")
+            : String(localized: "Refine, \(discoveryFilters.activeFacetCount) active")
     }
 
     /// Teaches the two scheduled paths, where the distinction is actually needed.
@@ -356,7 +389,59 @@ private extension PlansBrowserView {
         programDefinitions
             .filter { $0.isBuiltIn && !$0.isArchived }
             .filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
+            .filter { record in
+                guard let payload = try? record.payload() else { return false }
+                return discoveryFilters.matches(ProgramMatchCandidate(payload: payload))
+            }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    var unfilteredReadyMadeCandidates: [ProgramMatchCandidate] {
+        programDefinitions
+            .filter { $0.isBuiltIn && !$0.isArchived }
+            .compactMap { record in
+                guard let payload = try? record.payload() else { return nil }
+                return ProgramMatchCandidate(payload: payload)
+            }
+    }
+
+    var availableDisciplines: [TrainingDisciplinePreference] {
+        let ids = Set(unfilteredReadyMadeCandidates.flatMap(\.supportedDisciplineIDs))
+        return TrainingDisciplinePreference.allCases.filter { ids.contains($0.rawValue) }
+    }
+
+    var availableGoals: [PlanGoal] {
+        let values = Set(unfilteredReadyMadeCandidates.map(\.goal))
+        return PlanGoal.allCases.filter(values.contains)
+    }
+
+    var availableExperienceLevels: [PlanExperienceLevel] {
+        let values = Set(unfilteredReadyMadeCandidates.map(\.experienceLevel))
+        return PlanExperienceLevel.allCases.filter(values.contains)
+    }
+
+    var availableDaysPerWeek: [Int] {
+        Set(unfilteredReadyMadeCandidates.flatMap(\.supportedDaysPerWeek)).sorted()
+    }
+
+    var availableDurations: [Int] {
+        Set(unfilteredReadyMadeCandidates.map(\.durationWeeks)).sorted()
+    }
+
+    var availableScheduleModes: [PlanScheduleMode] {
+        let values = Set(unfilteredReadyMadeCandidates.map(\.scheduleMode))
+        return PlanScheduleMode.allCases.filter(values.contains)
+    }
+
+    var availableEquipment: [EquipmentType] {
+        let candidates = unfilteredReadyMadeCandidates.map(\.equipmentRequirement)
+        let values = Set(candidates.flatMap { $0.allOf + $0.anyOf.flatMap { $0 } })
+        return EquipmentType.onboardingOrder.filter(values.contains)
+    }
+
+    var availableCapabilityIDs: [String] {
+        Set(unfilteredReadyMadeCandidates.flatMap(\.equipmentRequirement.requiredCapabilityIDs))
+            .sorted { SpecializedEquipmentCapability.title(for: $0) < SpecializedEquipmentCapability.title(for: $1) }
     }
 
     /// Plans the app seeded directly, as opposed to as a program definition.
@@ -376,7 +461,11 @@ private extension PlansBrowserView {
     }
 
     var hasReadyMadeContent: Bool {
-        !readyMadeRecords.isEmpty || !seededPlans.isEmpty || !seededRepeatingPlans.isEmpty
+        hasUnfilteredReadyMadeDefinitions || !seededPlans.isEmpty || !seededRepeatingPlans.isEmpty
+    }
+
+    var hasUnfilteredReadyMadeDefinitions: Bool {
+        programDefinitions.contains { $0.isBuiltIn && !$0.isArchived }
     }
 
     @ViewBuilder
@@ -405,6 +494,25 @@ private extension PlansBrowserView {
                 )
             }
         } else {
+            if readyMadeRecords.isEmpty,
+               hasUnfilteredReadyMadeDefinitions,
+               (!discoveryFilters.isEmpty || isSearching) {
+                if discoveryFilters.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
+                } else {
+                    ContentUnavailableView {
+                        Label("No plans match", systemImage: AppIcon.filters)
+                    } description: {
+                        Text("Change your search or refinements to see more plans.")
+                    } actions: {
+                        Button("Clear refinements") { discoveryFilters.clear() }
+                            .font(AppFont.subheadlineSemibold)
+                            .foregroundStyle(Color.gymPrimary)
+                            .buttonStyle(.gymPress)
+                            .accessibilityIdentifier("program-discovery-clear-filters")
+                    }
+                }
+            }
             if !readyMadeRecords.isEmpty {
                 planSection("Ready-made") {
                     ForEach(Array(readyMadeRecords.enumerated()), id: \.element.id) { index, record in
