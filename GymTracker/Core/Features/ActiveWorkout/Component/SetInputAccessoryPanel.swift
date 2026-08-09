@@ -216,8 +216,19 @@ struct SetInputAccessoryPanel: View {
                         .foregroundStyle(Color.gymText)
                         .lineLimit(1)
 
-                    if let target = prescribedTargetText(exercise: exercise, set: set) {
-                        Text(target)
+                    // What the plan asks for, and what the lifter actually did
+                    // here last time — the two numbers a set is measured
+                    // against, on the one surface guaranteed to stay visible.
+                    //
+                    // With the keypad raised the panel owns most of the screen
+                    // and the set table is clipped to a couple of rows, so every
+                    // affordance carrying previous performance — the card-level
+                    // summary, the field placeholder, the "use last time" button
+                    // — is off screen at exactly the moment the number is being
+                    // typed. The target already lived here; its counterpart did
+                    // not, and the data was already loaded one view model away.
+                    if let reference = referenceText(exercise: exercise, set: set) {
+                        Text(reference)
                             .font(AppFont.caption)
                             .foregroundStyle(Color.gymSubduedText)
                             .lineLimit(1)
@@ -225,7 +236,7 @@ struct SetInputAccessoryPanel: View {
                 }
                 .frame(maxWidth: .infinity)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel(setPositionText(exercise: exercise, set: set))
+                .accessibilityLabel(referenceAccessibilityLabel(exercise: exercise, set: set))
 
                 navigationButton(systemImage: AppIcon.chevronRight, offset: 1)
             }
@@ -286,6 +297,60 @@ struct SetInputAccessoryPanel: View {
 
         guard !parts.isEmpty else { return nil }
         return String(localized: "Target \(parts.joined(separator: " · "))")
+    }
+
+    /// The prescription, what was lifted here last time, or both.
+    ///
+    /// One line rather than two: the panel's whole justification is leaving the
+    /// workout above it as much room as possible, and a lifter comparing a
+    /// target against last time is comparing two numbers, not reading two
+    /// sentences. Either half may be absent — a free workout has no target, a
+    /// first-ever session has no history — and the line simply carries whatever
+    /// is true.
+    private func referenceText(exercise: ExerciseEntry, set: ExerciseSet) -> String? {
+        let parts = [
+            prescribedTargetText(exercise: exercise, set: set),
+            previousSetText(exercise: exercise, set: set)
+        ].compactMap { $0 }
+        guard !parts.isEmpty else { return nil }
+        return parts.joined(separator: "  ·  ")
+    }
+
+    /// What this same set index produced in the last session that recorded one.
+    ///
+    /// Deliberately reuses the set's *current* unit via `UnitConversion` rather
+    /// than the historical one: the number exists to be compared against what
+    /// the lifter is about to type, and a comparison across units is not one.
+    private func previousSetText(exercise: ExerciseEntry, set: ExerciseSet) -> String? {
+        let index = setPosition(of: set, in: exercise)
+        guard let previous = viewModel.previousPerformance(for: exercise)?.set(at: index) else {
+            return nil
+        }
+
+        let tracking = exercise.trackingTypeSnapshot
+        if tracking.usesWeight {
+            let weight = UnitConversion.weight(
+                previous.weight,
+                from: previous.weightType,
+                to: set.weightType
+            )
+            return String(localized: "Last \(Formatters.formatFloat(previous.repetitions)) × \(Formatters.formatFloat(weight)) \(set.weightType.rawValue)")
+        }
+        if tracking.usesDuration, let duration = previous.duration {
+            return String(localized: "Last \(Int(duration)) sec")
+        }
+        if tracking.usesReps {
+            return String(localized: "Last \(Formatters.formatFloat(previous.repetitions)) reps")
+        }
+        return nil
+    }
+
+    /// Spoken as one sentence, so the set position and the two numbers it is
+    /// measured against are a single VoiceOver stop rather than three.
+    private func referenceAccessibilityLabel(exercise: ExerciseEntry, set: ExerciseSet) -> String {
+        let position = setPositionText(exercise: exercise, set: set)
+        guard let reference = referenceText(exercise: exercise, set: set) else { return position }
+        return "\(position). \(reference)"
     }
 
     // MARK: - Values

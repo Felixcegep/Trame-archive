@@ -85,7 +85,7 @@ struct SetRowFieldStack: View {
             HStack(spacing: Spacing.xxs) {
                 Text(shown.isEmpty ? placeholder(for: field) : shown)
                     .font(AppFont.subheadlineSemiboldMonospaced)
-                    .foregroundStyle(shown.isEmpty ? Color.gymSubduedText : textColor)
+                    .foregroundStyle(valueColor(shown: shown, isActive: isActive, textColor: textColor))
                     .lineLimit(1)
 
                 if let unit {
@@ -122,15 +122,35 @@ struct SetRowFieldStack: View {
         .accessibilityIdentifier("\(identifierPrefix(field))-field-\(exerciseEntry.exercise.name)-\(index)")
     }
 
+    /// Ink for a fact, subdued for a suggestion.
+    ///
+    /// A planned workout arrives with every cell prefilled, and those numbers
+    /// used to render exactly like the ones the lifter had actually performed —
+    /// same size, same weight, same colour. Set 1 completed at 8 × 50 and set 3
+    /// merely *proposing* 8 × 50 were distinguishable only by the row's green
+    /// wash, so the table stated a prediction with the same confidence as a
+    /// measurement.
+    ///
+    /// The rule the codebase already applies to empty versus zero — "missing and
+    /// zero stay distinct" — one level up: unlogged and logged stay distinct.
+    /// The focused field is exempt, because a value being typed is the lifter's
+    /// own input and dimming it under their thumb would read as a fault.
+    ///
+    /// This is also what makes retiring the weight column's violet safe: the
+    /// separation a set row needs is logged-versus-suggested, not weight-versus-
+    /// everything, and contrast now carries it.
+    private func valueColor(shown: String, isActive: Bool, textColor: Color) -> Color {
+        if shown.isEmpty { return .gymSubduedText }
+        if isActive || isCompletedAndLocked { return textColor }
+        return exerciseSet.done ? textColor : .gymSubduedText
+    }
+
     private var repsField: some View {
         valueButton(.repetitions)
     }
 
     private var weightField: some View {
-        // Data, not a warning. This is the number the lifter is about to put
-        // on the bar; it was the same hue as the rest timer and the validation
-        // messages.
-        valueButton(.weight, textColor: .gymDataEmphasis)
+        valueButton(.weight)
     }
 
     private var durationField: some View {

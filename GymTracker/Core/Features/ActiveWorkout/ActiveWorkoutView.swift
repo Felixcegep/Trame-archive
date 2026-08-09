@@ -410,7 +410,14 @@ struct ActiveWorkoutView: View {
             }
 
             ProgressView(value: Double(workout.completedSetCount), total: Double(max(workout.totalSetCount, 1)))
-                .tint(Color.gymSecondary)
+                // Ink, not green. Green is this palette's completion semantic —
+                // it means *this set is done*, on the checkmark and the row that
+                // carries it. A meter that is partly green the whole way through
+                // spends that meaning on decoration, and by the time a lifter has
+                // logged three sets the colour has told them nothing the bar's
+                // own length did not. Progress is a quantity; completion is a
+                // state.
+                .tint(Color.gymText.opacity(0.45))
                 // The summary line above states the same progress in words, so
                 // the bar is a visual restatement rather than a second stop.
                 .accessibilityHidden(true)

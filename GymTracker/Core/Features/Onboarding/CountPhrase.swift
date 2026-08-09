@@ -56,6 +56,18 @@ enum CountPhrase {
             : String(localized: "\(count) sessions a week")
     }
 
+    /// The noun beside a count that is typeset separately.
+    ///
+    /// Unlike every other phrase here this one omits the digits: Today renders
+    /// the figure large and monospaced on its own, so repeating it in the label
+    /// would print the number twice. It still has to agree in number, which is
+    /// why it is a function and not a constant.
+    static func sessionsThisWeek(_ count: Int) -> String {
+        count == 1
+            ? String(localized: "session this week")
+            : String(localized: "sessions this week")
+    }
+
     static func items(_ count: Int) -> String {
         count == 1
             ? String(localized: "1 item")

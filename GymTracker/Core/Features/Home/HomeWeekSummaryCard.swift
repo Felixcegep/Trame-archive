@@ -25,6 +25,35 @@ struct HomeWeekSummaryCard: View {
             LibrarySectionTitle(String(localized: "This week"))
 
             VStack(spacing: Spacing.m) {
+                // The figure first.
+                //
+                // Today reported the week as seven small marks and a sentence,
+                // which is a picture of the week rather than an answer about it.
+                // The count is the answer, and it costs nothing new: it is
+                // already on `TrainingWeekSummary`, from the same query this
+                // card was making anyway.
+                //
+                // Deliberately *not* rendered as "2 of 4". A denominator implies
+                // a weekly target, and nothing here knows one — a plan's
+                // `supportedDaysPerWeek` is what a plan *can* run at, not what
+                // this lifter committed to. Inventing the goal to make the
+                // number look like progress would be the screen asserting
+                // something it cannot support.
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                    Text("\(weekSummary.workoutCount)")
+                        .font(AppFont.displayMedium)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.gymText)
+
+                    Text(CountPhrase.sessionsThisWeek(weekSummary.workoutCount))
+                        .font(AppFont.footnote)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: 0)
+                }
+                .accessibilityHidden(true)
+
                 HStack(spacing: Spacing.xs) {
                     ForEach(weekSummary.days) { day in
                         dayColumn(day)

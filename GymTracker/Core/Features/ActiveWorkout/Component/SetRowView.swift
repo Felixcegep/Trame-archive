@@ -178,6 +178,20 @@ struct SetRowView: View {
     /// filled rows in the list, which is what makes those fills read as meaning
     /// rather than as texture. Rows stay separated by the list's spacing and by
     /// the field outlines they contain.
+    /// The current row loses its fill too, for the reason the comment above
+    /// already establishes and then stops one step short of.
+    ///
+    /// A current set inside a current exercise was three tinted surfaces
+    /// stacked: `gymPrimarySurface` on the card, `gymCurrentSetSurface` on the
+    /// row, and outlined cells inside that. The two tints differ by a few points
+    /// of luminance, so the inner one separated nothing — it just made the card
+    /// look quilted. "You are here" is already carried by the leading pointer
+    /// (a silhouette, which survives grayscale and Increase Contrast), by the
+    /// tinted index chip, and by the card's own heading.
+    ///
+    /// A completed row keeps its wash. That one is genuinely state, it is the
+    /// fastest way to scan which sets are behind you, and it is what the
+    /// closest domain reference does as well.
     private var rowSurface: Color {
         if isEditingCompletedSet {
             return Color.gymPrimarySurface
@@ -186,7 +200,7 @@ struct SetRowView: View {
             return Color.gymSecondarySurface
         }
 
-        return isCurrentSet ? Color.gymCurrentSetSurface : .clear
+        return .clear
     }
 
     private var rowActions: some View {

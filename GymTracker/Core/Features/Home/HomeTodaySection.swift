@@ -33,12 +33,22 @@ struct HomeTodaySection: View {
                         Divider().background(Color.gymBorder)
                     }
 
+                    // Neutral chips.
+                    //
+                    // These were tinted primary and accent, which spent two of
+                    // the palette's meanings on rows that carry no state:
+                    // "Exercises" is not an action in progress and "Stretch" is
+                    // not something needing attention — they are doors. Colour
+                    // on a door is decoration, and it competed with the two
+                    // things on Today that genuinely are states (a session in
+                    // progress, a day trained). The glyph still distinguishes
+                    // them; the hue no longer claims anything.
                     quickAccessRow(
                         title: "Exercises",
                         subtitle: "Browse the exercise library",
                         icon: AppIcon.muscles,
-                        tint: Color.gymPrimary,
-                        surface: Color.gymPrimarySurface,
+                        tint: Color.gymSubduedText,
+                        surface: Color.gymRowSurface,
                         identifier: "today-open-exercises",
                         hint: "Opens the exercise library in Train.",
                         action: onOpenExercises
@@ -51,8 +61,8 @@ struct HomeTodaySection: View {
                             title: "Stretch",
                             subtitle: "Mobility routines and programs",
                             icon: AppIcon.mobility,
-                            tint: Color.gymAccent,
-                            surface: Color.gymAccentSurface,
+                            tint: Color.gymSubduedText,
+                            surface: Color.gymRowSurface,
                             identifier: "today-open-mobility",
                             hint: "Opens mobility routines in Train.",
                             action: onOpenMobility
