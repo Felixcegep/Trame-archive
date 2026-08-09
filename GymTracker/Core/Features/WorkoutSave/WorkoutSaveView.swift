@@ -443,7 +443,7 @@ struct WorkoutSaveView: View {
         // a UI test cannot arrange. This reproduces its exact outcome — counted,
         // workout left open, every logged set intact — so the alert has a
         // screenshot. Capture-only; no shipped launch carries the argument.
-        if CommandLine.arguments.contains("-ui-testing-fail-workout-save") {
+        if AppLaunchArguments.current.contains("-ui-testing-fail-workout-save") {
             saveFailedCount += 1
             saveErrorMessage = String(localized: "Your workout could not be saved and is still open, with every logged set intact. Try saving again.")
             return

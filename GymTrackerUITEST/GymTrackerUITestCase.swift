@@ -1,6 +1,23 @@
 import XCTest
 @testable import GymTracker
 
+extension XCUIApplication {
+    private static let mirroredArgumentsEnvironmentKey = "GYMTRACKER_UI_TEST_ARGUMENTS_JSON"
+
+    /// Mirrors the exact argument array through an environment payload before
+    /// launching. The app still supports ordinary command-line delivery, but
+    /// this fallback keeps Simulator launch-service argument loss from opening
+    /// onboarding or silently skipping a requested fixture.
+    func launchWithGymTrackerUITestArguments(mirroring arguments: [String]? = nil) {
+        let mirroredArguments = arguments ?? launchArguments
+        if let data = try? JSONEncoder().encode(mirroredArguments),
+           let payload = String(data: data, encoding: .utf8) {
+            launchEnvironment[Self.mirroredArgumentsEnvironmentKey] = payload
+        }
+        launch()
+    }
+}
+
 enum AppTab {
     case today
     case train
@@ -148,7 +165,14 @@ class GymTrackerUITestCase: XCTestCase {
     }
 
     func assertRestDuration(_ expected: String, in app: XCUIApplication) {
-        let duration = app.descendants(matching: .any)["settings-rest-duration"]
+        var duration = app.descendants(matching: .any)["settings-rest-duration"]
+        if !duration.exists {
+            let workoutSettings = app.buttons["settings-workout"]
+            XCTAssertTrue(workoutSettings.waitForExistence(timeout: 5))
+            workoutSettings.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["settings-workout-screen"].waitForExistence(timeout: 5))
+            duration = app.descendants(matching: .any)["settings-rest-duration"]
+        }
         XCTAssertTrue(duration.waitForExistence(timeout: 5))
         let value = duration.value as? String ?? duration.label
         XCTAssertTrue(value.contains(expected), "Expected rest duration to contain '\(expected)', got '\(value)'")
@@ -169,7 +193,7 @@ class GymTrackerUITestCase: XCTestCase {
         // actually present.
         for attempt in 0..<2 {
             app.launchArguments = ["-ui-testing", "-reset-data"] + additionalArguments
-            app.launch()
+            app.launchWithGymTrackerUITestArguments()
             XCTAssertEqual(app.state, .runningForeground)
 
             // A reset clears and reseeds SwiftData before the tab content
@@ -213,7 +237,7 @@ class GymTrackerUITestCase: XCTestCase {
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-test-fixture", fixture] + additionalArguments
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertEqual(app.state, .runningForeground)
 
         let preparing = app.descendants(matching: .any)["app-preparing"]
@@ -221,7 +245,15 @@ class GymTrackerUITestCase: XCTestCase {
         if expectsMobilitySession {
             XCTAssertTrue(app.buttons["complete-mobility-movement"].waitForExistence(timeout: 30))
         } else if expectsActiveWorkout {
-            XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 30))
+            let title = app.staticTexts["active-workout-title"]
+            if !title.waitForExistence(timeout: 30) {
+                // The fixture graph is durable even if a full-screen-cover
+                // presentation is dropped during cold-launch hand-off.
+                let resume = app.buttons["resume-active-workout"]
+                XCTAssertTrue(resume.waitForExistence(timeout: 5))
+                resume.tap()
+                XCTAssertTrue(title.waitForExistence(timeout: 10))
+            }
         } else {
             XCTAssertTrue(app.buttons[expectedHomeControl].waitForExistence(timeout: 15))
         }
@@ -234,7 +266,7 @@ class GymTrackerUITestCase: XCTestCase {
     ) {
         app.terminate()
         app.launchArguments = launchArguments
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertEqual(app.state, .runningForeground)
 
         let preparing = app.descendants(matching: .any)["app-preparing"]

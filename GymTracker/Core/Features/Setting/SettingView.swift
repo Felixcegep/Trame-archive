@@ -653,15 +653,15 @@ struct DataSettingsView: View {
             guard !didHandleUITestImport else { return }
             didHandleUITestImport = true
 
-            if CommandLine.arguments.contains("-ui-testing-import-error") {
+            if AppLaunchArguments.current.contains("-ui-testing-import-error") {
                 showImportError("This file is not a valid Trame backup. Choose a backup exported from Trame.")
-            } else if CommandLine.arguments.contains("-ui-testing-import-corrupt") {
+            } else if AppLaunchArguments.current.contains("-ui-testing-import-corrupt") {
                 do {
                     _ = try BackupImportService.decodeAndValidate(Data("not-json".utf8))
                 } catch {
                     showImportError("This backup could not be read. \(error.localizedDescription)")
                 }
-            } else if CommandLine.arguments.contains("-ui-testing-import-valid"),
+            } else if AppLaunchArguments.current.contains("-ui-testing-import-valid"),
                       let data = UITestFixture.UITestImportPayload.validData {
                 do {
                     importBackup = try BackupImportService.decodeAndValidate(data)

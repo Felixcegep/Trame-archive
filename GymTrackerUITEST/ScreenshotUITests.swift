@@ -9,7 +9,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             "-reset-data",
             "-ui-testing-hold-launch-experience"
         ]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         let brandMark = app.descendants(matching: .any)["launch-brand-mark"]
         XCTAssertTrue(brandMark.waitForExistence(timeout: 15))
@@ -165,7 +165,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureSettingsShortcutsAndBetaFeedbackScreenshots() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         tapButton("settings-advanced", in: app)
         let shortcutsLink = app.descendants(matching: .any)["settings-shortcuts-link"]
@@ -187,7 +187,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureSettingsDataSafetyScreenshot() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 45))
         tapButton("settings-data", in: app)
         let dataSafety = app.descendants(matching: .any)["settings-data-safety-last-export"]
@@ -583,35 +583,35 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureT36MissingStatesScreenshots() {
         let welcome = XCUIApplication()
         welcome.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-show-welcome"]
-        welcome.launch()
+        welcome.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(welcome.descendants(matching: .any)["welcome"].waitForExistence(timeout: 30))
         saveScreenshot("overview/00_Welcome")
         welcome.terminate()
 
         let storage = XCUIApplication()
         storage.launchArguments = ["-ui-testing", "-ui-testing-storage-unavailable"]
-        storage.launch()
+        storage.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(storage.descendants(matching: .any)["storage-unavailable"].waitForExistence(timeout: 15))
         saveScreenshot("overview/00b_Storage_Unavailable")
         storage.terminate()
 
         let missingRoute = XCUIApplication()
         missingRoute.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-missing-route"]
-        missingRoute.launch()
+        missingRoute.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(missingRoute.staticTexts["Exercise unavailable"].waitForExistence(timeout: 30))
         saveScreenshot("overview/02e_Route_Unavailable")
         missingRoute.terminate()
 
         let guidedError = XCUIApplication()
         guidedError.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-guided-source-error"]
-        guidedError.launch()
+        guidedError.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(guidedError.alerts["Couldn’t update training source"].waitForExistence(timeout: 30))
         saveScreenshot("active-workout/08s_Guided_Source_Error")
         guidedError.terminate()
 
         let mobilityError = XCUIApplication()
         mobilityError.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-mobility-link-error"]
-        mobilityError.launch()
+        mobilityError.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(mobilityError.alerts["Couldn’t start mobility"].waitForExistence(timeout: 30))
         saveScreenshot("active-workout/08t_Mobility_Link_Error")
         mobilityError.terminate()
@@ -825,7 +825,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             "plan-active-run",
             "-ui-testing-open-plan-reminder-reschedule"
         ]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertEqual(app.state, .runningForeground)
         let preparing = app.descendants(matching: .any)["app-preparing"]
         XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
@@ -1022,7 +1022,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureSettingsImportErrorScreenshot() {
         let settings = XCUIApplication()
         settings.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings", "-ui-testing-import-error"]
-        settings.launch()
+        settings.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(settings.alerts["Import Error"].waitForExistence(timeout: 15))
         saveScreenshot("overview/04b_Settings_Import_Error")
     }
@@ -1037,7 +1037,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             "-ui-test-fixture",
             "backup-import-target"
         ]
-        preview.launch()
+        preview.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(preview.descendants(matching: .any)["import-preview"].waitForExistence(timeout: 15))
         saveScreenshot("overview/04c_Settings_Import_Preview")
     }
@@ -1409,7 +1409,10 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         func review(_ exerciseName: String, field: String, slug: String) {
             let target = app.buttons["\(field)-field-\(exerciseName)-0"]
             if !target.exists {
-                let card = activeExerciseCard(exerciseName, in: app)
+                // Target the disclosure label directly. The combined card
+                // accessibility element contains nested menu/disclosure
+                // controls whose XCTest type can vary across iOS runtimes.
+                let card = app.staticTexts["active-exercise-\(exerciseName)"]
                 scrollToElement(card, in: app)
                 card.tap()
             }
@@ -1445,7 +1448,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         review("Bench Press", field: "reps", slug: "01-weight-and-reps")
         review("Push-Up", field: "reps", slug: "02-reps-only")
         review("Weighted Pull-Up", field: "reps", slug: "03-weighted-bodyweight")
-        review("Assisted Pull-Up", field: "reps", slug: "04-assisted-bodyweight")
+        review("Assisted Pull Up", field: "reps", slug: "04-assisted-bodyweight")
         review("Plank", field: "duration", slug: "05-duration")
         review("Treadmill Run", field: "duration", slug: "06-duration-and-distance-duration-field")
         review("Treadmill Run", field: "distance", slug: "07-duration-and-distance-distance-field")

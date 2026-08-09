@@ -12,6 +12,8 @@ RUN_ID="$(date +%Y%m%d-%H%M%S)"
 # Behavioral tests deliberately exclude screenshot capture and the two-phase
 # reboot verifier. Those lanes have their own deterministic runners below.
 FAST_TESTS=(
+  testMirroredLaunchArgumentsOpenFixtureWhenProcessArgumentsAreMissing
+  testMirroredLaunchArgumentsCanExplicitlyPresentWelcome
   testCoordinatedNavigationExposesFourDestinationsAndTodaySettings
   testStartFreeWorkout
   testResumesPersistedActiveWorkoutAfterRelaunch

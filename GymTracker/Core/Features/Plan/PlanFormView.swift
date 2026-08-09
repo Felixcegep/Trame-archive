@@ -399,7 +399,7 @@ private extension PlanFormView {
         if requiredEquipment.isEmpty {
             requiredEquipment = suggestedEquipment
         }
-        if CommandLine.arguments.contains("-ui-testing-plan-deload") {
+        if AppLaunchArguments.current.contains("-ui-testing-plan-deload") {
             includesDeload = true
             isShowingOptions = true
         }

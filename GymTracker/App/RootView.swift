@@ -583,12 +583,12 @@ struct RootView: View {
                 // setup and is now asking for it is choosing how their next
                 // workout gets decided, which is the first question.
                 if isShowingOnboarding { return true }
-                if CommandLine.arguments.contains("-ui-testing-show-welcome") {
+                if AppLaunchArguments.current.contains("-ui-testing-show-welcome") {
                     return !isPreparingApp
                 }
                 return !hasCompletedWelcome
                     && !isPreparingApp
-                    && !CommandLine.arguments.contains("-ui-testing")
+                    && !AppLaunchArguments.current.contains("-ui-testing")
             },
             set: {
                 if !$0 {
@@ -926,7 +926,7 @@ struct RootView: View {
     /// consumed.
     private func prepareApp() async {
         let fixture = UITestFixture.launchFixture
-        let isRebootVerificationFixture = CommandLine.arguments.contains("-ui-testing-reboot-rest-fixture")
+        let isRebootVerificationFixture = AppLaunchArguments.current.contains("-ui-testing-reboot-rest-fixture")
         let isResettingForUITesting = UITestLaunch.isResettingData(fixture: fixture)
             || isRebootVerificationFixture
 

@@ -19,7 +19,7 @@ enum PersonalizationPromptPolicy {
         completedWorkoutCount: Int,
         using context: ModelContext,
         defaults: UserDefaults = .standard,
-        arguments: [String] = CommandLine.arguments
+        arguments: [String] = AppLaunchArguments.current
     ) -> Bool {
         // Suppressed under UI testing for the same reason the welcome screen
         // is: every fixture asserts against a specific screen, and a card that

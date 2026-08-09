@@ -1,6 +1,34 @@
 import XCTest
 
 final class GymTrackerUITEST: GymTrackerUITestCase {
+    func testMirroredLaunchArgumentsOpenFixtureWhenProcessArgumentsAreMissing() {
+        let app = XCUIApplication()
+        app.launchArguments = []
+        app.launchWithGymTrackerUITestArguments(mirroring: [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-test-fixture",
+            "active-draft"
+        ])
+
+        let preparing = app.descendants(matching: .any)["app-preparing"]
+        XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 30))
+        XCTAssertFalse(app.descendants(matching: .any)["welcome"].exists)
+    }
+
+    func testMirroredLaunchArgumentsCanExplicitlyPresentWelcome() {
+        let app = XCUIApplication()
+        app.launchArguments = []
+        app.launchWithGymTrackerUITestArguments(mirroring: [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-testing-show-welcome"
+        ])
+
+        XCTAssertTrue(app.descendants(matching: .any)["welcome"].waitForExistence(timeout: 30))
+    }
+
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -43,7 +71,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testAppearanceMenuSupportsSystemDarkAndLightModes() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         let picker = app.buttons["settings-appearance-picker"]
         XCTAssertTrue(picker.waitForExistence(timeout: 45))
@@ -77,7 +105,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testStartFreeWorkout() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         let startButton = app.buttons["start-free-workout"]
         XCTAssertTrue(startButton.waitForExistence(timeout: 5))
@@ -129,7 +157,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testResumesPersistedActiveWorkoutAfterRelaunch() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         startEmptyWorkout(in: app)
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
@@ -143,7 +171,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.terminate()
 
         app.launchArguments = ["-ui-testing"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         let resumeButton = app.buttons["resume-active-workout"]
         XCTAssertTrue(resumeButton.waitForExistence(timeout: 5))
@@ -201,7 +229,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testVerifiesRunningRestAfterSimulatorReboot() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-ui-testing-reboot-rest-fixture"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertEqual(app.state, .runningForeground)
 
         XCTAssertTrue(app.buttons["resume-active-workout"].waitForExistence(timeout: 15))
@@ -317,7 +345,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testPushFocusFiltersActiveExercisePicker() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         startEmptyWorkout(in: app)
 
@@ -330,7 +358,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(pushFilter.waitForExistence(timeout: 5))
         pushFilter.tap()
 
-        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["exercise-link-Arnold Press"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
     }
 
@@ -357,7 +385,10 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
-        let legPressExercise = activeExerciseCard("Leg Press", in: app)
+        // Target the disclosure label itself. The card's combined accessibility
+        // button also contains its nested menu button and can resolve to that
+        // child after a relaunch, which does not expand the exercise.
+        let legPressExercise = app.staticTexts["active-exercise-Leg Press"]
         scrollToElement(legPressExercise, in: app)
         legPressExercise.tap()
         tapButton("weight-field-Leg Press-0", in: app)
@@ -564,7 +595,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testDataSafetySectionReportsExportState() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 45))
         tapButton("settings-data", in: app)
         let lastExport = app.descendants(matching: .any)["settings-data-safety-last-export"]
@@ -616,7 +647,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
         app.terminate()
         app.launchArguments = ["-ui-testing", "-ui-testing-open-history"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         let historyScreen = app.descendants(matching: .any)
             .matching(identifier: "history-screen")
@@ -669,7 +700,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
     func testCreatesCustomExercise() {
         let app = launchFreshApp()
-        app.tabBars.buttons.element(boundBy: 1).tap()
+        selectTab(.library, in: app)
         app.buttons["Create library item"].tap()
         XCTAssertTrue(app.buttons["New Exercise"].waitForExistence(timeout: 5))
         app.buttons["New Exercise"].tap()
@@ -701,7 +732,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
     func testCreatesPlanStartsRunAndLaunchesPlannedWorkout() {
         let app = launchFreshApp()
-        app.tabBars.buttons.element(boundBy: 1).tap()
+        selectTab(.library, in: app)
 
         app.buttons["Create library item"].tap()
         XCTAssertTrue(app.buttons["New Training Plan"].waitForExistence(timeout: 5))
@@ -800,14 +831,18 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             "-ui-test-fixture",
             "backup-import-target"
         ]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
-        XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 15))
+        // The launch route intentionally pushes through Settings to Data & Backup.
+        // Once pushed, the parent screen is no longer part of the accessibility tree.
+        XCTAssertTrue(app.descendants(matching: .any)["settings-data-screen"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.descendants(matching: .any)["import-preview"].waitForExistence(timeout: 15))
 
         tapButton("confirm-backup-restore", in: app)
         tapButton("restore-replace-all-data", in: app)
 
+        XCTAssertTrue(app.descendants(matching: .any)["settings-data-screen"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons["Settings"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
         assertUnitSystem("Imperial", in: app)
         assertRestDuration("120", in: app)
@@ -834,7 +869,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             "-ui-test-fixture",
             "backup-import-target"
         ]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         XCTAssertTrue(app.alerts["Import Error"].waitForExistence(timeout: 15))
         tapButton("OK", in: app)
@@ -847,9 +882,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testDefaultCollectionSeededOnLaunch() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
-        app.tabBars.buttons.element(boundBy: 1).tap()
+        selectTab(.library, in: app)
         // Saved workouts and their folders moved off the Train root into the
         // Workouts destination, so Train can state what you are following first.
         tapButton("workouts-browser", in: app)

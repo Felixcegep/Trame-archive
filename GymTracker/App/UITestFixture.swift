@@ -53,13 +53,14 @@ enum UITestFixture: String {
     case linkedMobilityWorkout = "linked-mobility-workout"
 
     static var launchFixture: UITestFixture? {
+        let arguments = AppLaunchArguments.current
         guard
-            let index = CommandLine.arguments.firstIndex(of: "-ui-test-fixture"),
-            CommandLine.arguments.indices.contains(index + 1)
+            let index = arguments.firstIndex(of: "-ui-test-fixture"),
+            arguments.indices.contains(index + 1)
         else {
             return nil
         }
-        return UITestFixture(rawValue: CommandLine.arguments[index + 1])
+        return UITestFixture(rawValue: arguments[index + 1])
     }
 
     var opensActiveWorkout: Bool {

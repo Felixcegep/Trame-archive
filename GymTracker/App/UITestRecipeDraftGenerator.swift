@@ -16,12 +16,12 @@ enum UITestRecipeDraftGenerationResult: String {
 
     static var launchOverride: UITestRecipeDraftGenerationResult? {
         guard
-            let index = CommandLine.arguments.firstIndex(of: "-ui-test-recipe-generation-result"),
-            CommandLine.arguments.indices.contains(index + 1)
+            let index = AppLaunchArguments.current.firstIndex(of: "-ui-test-recipe-generation-result"),
+            AppLaunchArguments.current.indices.contains(index + 1)
         else {
             return nil
         }
-        return UITestRecipeDraftGenerationResult(rawValue: CommandLine.arguments[index + 1])
+        return UITestRecipeDraftGenerationResult(rawValue: AppLaunchArguments.current[index + 1])
     }
 }
 

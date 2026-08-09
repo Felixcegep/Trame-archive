@@ -36,7 +36,7 @@ enum RecipeGenerationAvailability {
 
     static func status(
         locale: Locale = .current,
-        arguments: [String] = CommandLine.arguments,
+        arguments: [String] = AppLaunchArguments.current,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> RecipeGenerationAvailabilityStatus {
         // Apple Intelligence is rarely available on CI simulators, so a

@@ -170,7 +170,7 @@ enum GymTrackerModelContainer {
         // screenshot. Capture-only: the argument is never passed by a shipped
         // launch, and the branch attaches no context, exactly like the real
         // failure path.
-        if CommandLine.arguments.contains("-ui-testing-storage-unavailable") {
+        if AppLaunchArguments.current.contains("-ui-testing-storage-unavailable") {
             return .unavailable("Simulated store failure for screenshot capture.")
         }
         let persistence = GymTrackerPersistenceConfiguration()
