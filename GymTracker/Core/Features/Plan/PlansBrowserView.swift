@@ -44,7 +44,6 @@ struct PlansBrowserView: View {
     /// catalogue, so an empty "Ready-made" scope is not automatically "the
     /// app ships nothing" — see `SystemCatalogInstallState`.
     @State private var catalogInstallState = SystemCatalogInstallState.shared
-    private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var body: some View {
         // The scope control sits outside the list rather than in its first row:
@@ -112,57 +111,88 @@ struct PlansBrowserView: View {
         PlanOwnership.isAppProvided(plan, seedRecords: seedRecords)
     }
 
-    private var visibleScopes: [Scope] {
-        featureFlags.isEnabled(.programBuilder)
-            ? Scope.allCases
-            : Scope.allCases.filter { $0 != .readyMade }
+    /// All three, always.
+    ///
+    /// "Ready-made" used to be hidden unless `.programBuilder` was enabled,
+    /// which tied discovery of shipped content to an *authoring* capability:
+    /// withholding the program builder from a wave would also have removed
+    /// every bundled plan from browse, and with it the destination onboarding's
+    /// recommendations push people toward. Reading a plan the app ships is not
+    /// the same permission as building one.
+    private var visibleScopes: [Scope] { Scope.allCases }
+
+    /// Whether the list is currently narrowed by a query, which is the
+    /// difference between "nothing matched" and "you have nothing".
+    private var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    /// Teaches the three strength paths in user language.
+    /// Teaches the two scheduled paths, where the distinction is actually needed.
+    ///
+    /// This used to render above all three scopes, permanently, and took roughly
+    /// the top third of the first screen — so the answer to "which plan should I
+    /// pick" opened with a vocabulary lesson and pushed the plans themselves
+    /// below the fold. It also taught "Free Workout", which is not a thing this
+    /// screen lists.
+    ///
+    /// It survives only where the vocabulary is load-bearing: someone following
+    /// nothing, deciding between a program and a rotation for the first time.
+    /// Once either exists, the list demonstrates the difference better than the
+    /// card explained it.
+    @ViewBuilder
     private var strengthPathsHeader: some View {
-        Section {
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                Text("Strength Paths")
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .textCase(.uppercase)
+        if shouldExplainStrengthPaths {
+            Section {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    Text("Two ways to follow a plan")
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .textCase(.uppercase)
 
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    pathExplanationRow(
-                        title: "Free Workout",
-                        description: "I choose what I do today."
-                    )
-                    pathExplanationRow(
-                        title: "Program",
-                        description: "My sessions are scheduled across weeks."
-                    )
-                    pathExplanationRow(
-                        title: "Rotation",
-                        description: "I always do the next workout, regardless of weekday."
-                    )
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        pathExplanationRow(
+                            title: "Program",
+                            description: "My sessions are scheduled across weeks."
+                        )
+                        pathExplanationRow(
+                            title: "Rotation",
+                            description: "I always do the next workout, regardless of weekday."
+                        )
+                    }
                 }
+                .padding(.vertical, Spacing.xs)
+                .accessibilityElement(children: .contain)
             }
-            .padding(.vertical, Spacing.xs)
+            .listRowBackground(Color.gymCard)
         }
-        .listRowBackground(Color.gymCard)
     }
 
+    private var shouldExplainStrengthPaths: Bool {
+        !isSearching && followedFixedPlans.isEmpty && followedRepeatingPlans.isEmpty
+    }
+
+    /// Stacked, not columned. The title and its quoted description were an
+    /// `HStack` that ran out of width as soon as Dynamic Type grew, wrapping the
+    /// quote into a ragged column beside a one-word label.
     private func pathExplanationRow(title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: Spacing.xs) {
-            Text("\(title) —")
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(title)
                 .font(AppFont.captionBold)
                 .foregroundStyle(Color.gymText)
             Text("“\(description)”")
                 .font(AppFont.caption)
                 .foregroundStyle(Color.gymSubduedText)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(description)")
     }
 
     /// Landing on an empty "Following" tab teaches nothing, so a user with no
     /// open run starts on the list they can actually act from.
     private func selectInitialScope() {
         guard followedFixedPlans.isEmpty, followedRepeatingPlans.isEmpty else { return }
-        scope = featureFlags.isEnabled(.programBuilder) ? .readyMade : .mine
+        scope = .readyMade
     }
 }
 
@@ -187,15 +217,24 @@ private extension PlansBrowserView {
     var followingSections: some View {
         if followedFixedPlans.isEmpty && followedRepeatingPlans.isEmpty {
             Section {
-                ContentUnavailableView {
-                    Label("Not following a plan", systemImage: AppIcon.plan)
-                } description: {
-                    Text("Pick a ready-made plan or build your own, and Today will tell you what to train.")
-                } actions: {
-                    Button("Build a plan", action: createPlan)
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.gymPrimary)
-                        .accessibilityIdentifier("create-plan-empty-state")
+                // A query that matched nothing is not a report about the
+                // library. Telling someone who follows three plans that they
+                // are "not following a plan" — and offering to build one —
+                // because they mistyped a name is the screen answering a
+                // question nobody asked.
+                if isSearching {
+                    ContentUnavailableView.search(text: searchText)
+                } else {
+                    ContentUnavailableView {
+                        Label("Not following a plan", systemImage: AppIcon.plan)
+                    } description: {
+                        Text("Pick a ready-made plan or build your own, and Today will tell you what to train.")
+                    } actions: {
+                        Button("Build a plan", action: createPlan)
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color.gymPrimary)
+                            .accessibilityIdentifier("create-plan-empty-state")
+                    }
                 }
             }
             .listRowBackground(Color.clear)
@@ -250,15 +289,19 @@ private extension PlansBrowserView {
     var mineSections: some View {
         if activePlans.isEmpty && activeRepeatingPlans.isEmpty && archivedPlans.isEmpty && archivedRepeatingPlans.isEmpty {
             Section {
-                ContentUnavailableView {
-                    Label("No training plans yet", systemImage: AppIcon.planAdd)
-                } description: {
-                    Text("A training plan schedules your saved workouts across the week so you always know what to train next.")
-                } actions: {
-                    Button("Create a plan", action: createPlan)
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.gymPrimary)
-                        .accessibilityIdentifier("create-program-empty-state")
+                if isSearching {
+                    ContentUnavailableView.search(text: searchText)
+                } else {
+                    ContentUnavailableView {
+                        Label("No training plans yet", systemImage: AppIcon.planAdd)
+                    } description: {
+                        Text("A training plan schedules your saved workouts across the week so you always know what to train next.")
+                    } actions: {
+                        Button("Create a plan", action: createPlan)
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color.gymPrimary)
+                            .accessibilityIdentifier("create-program-empty-state")
+                    }
                 }
             }
             .listRowBackground(Color.clear)
@@ -322,7 +365,14 @@ private extension PlansBrowserView {
     var readyMadeSection: some View {
         if !hasReadyMadeContent {
             Section {
-                if catalogInstallState.failure != nil {
+                // Order matters. A search that matched nothing was previously
+                // indistinguishable from a catalogue that failed to install, so
+                // mistyping a plan name reported "The built-in plans could not
+                // be loaded" — an infrastructure failure, raised for a typo,
+                // right next to the genuine failure view that means it.
+                if isSearching {
+                    ContentUnavailableView.search(text: searchText)
+                } else if catalogInstallState.failure != nil {
                     SystemCatalogUnavailableView {
                         AppBootstrap.seedSystemCatalog(using: modelContext)
                     }
@@ -346,9 +396,14 @@ private extension PlansBrowserView {
                         NavigationLink(value: LibraryRoute.readyMadePlan(record.id)) {
                             planRow(
                                 name: record.name,
-                                detail: "\(record.durationWeeks) weeks · \(record.supportedDaysPerWeek.map(String.init).joined(separator: "/")) days per week",
+                                // Goal leads. Every bundled plan declares one,
+                                // and without it the catalogue is a list of
+                                // names distinguished only by week and day
+                                // counts — "Conjugate Rotation Wave, 6 weeks,
+                                // 4 days" says nothing about what it is for.
+                                detail: "\(record.goal.onboardingTitle) · \(record.durationWeeks) weeks · \(record.supportedDaysPerWeek.map(String.init).joined(separator: "/")) days per week",
                                 icon: AppIcon.planCatalog,
-                                badge: record.experienceLevel.rawValue.localizedCapitalized
+                                badge: record.experienceLevel.onboardingTitle
                             )
                         }
                         .accessibilityIdentifier("program-catalog-\(record.name)")
@@ -405,12 +460,15 @@ private extension PlansBrowserView {
                 .foregroundStyle(Color.gymAccent)
                 .frame(width: 32, height: 32)
                 .background(Color.gymAccentSurface, in: Circle())
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(name)
                     .font(AppFont.subheadlineSemibold)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
                     .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: Spacing.s)
             if let badge {
@@ -420,8 +478,23 @@ private extension PlansBrowserView {
                     .padding(.horizontal, Spacing.s)
                     .padding(.vertical, Spacing.xxs)
                     .background(Color.gymRowSurface, in: Capsule())
+                    .fixedSize()
             }
         }
+        // One stop per row rather than three. Twenty-one plans meant sixty-odd
+        // swipes to cross the catalogue, and the badge — read on its own as a
+        // bare "Advanced" — did not say what it described.
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel(name: name, detail: detail, badge: badge))
+    }
+
+    /// The badge is not one kind of thing — it carries an experience level on a
+    /// ready-made row and a run status ("Following", "Paused") everywhere else —
+    /// so it is read as its own clause rather than wrapped in a sentence that
+    /// would be true for only one of them.
+    func rowAccessibilityLabel(name: String, detail: String, badge: String?) -> String {
+        guard let badge else { return "\(name), \(detail)" }
+        return "\(name), \(detail), \(badge)"
     }
 
     func runBadge(for plan: WorkoutPlan) -> String? {

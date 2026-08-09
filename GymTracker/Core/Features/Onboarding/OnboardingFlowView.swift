@@ -25,6 +25,10 @@ enum OnboardingOutcome: Equatable {
 /// this screen's preparation, nor replayed when the lifter navigates backwards
 /// inside the flow.
 struct OnboardingFlowView: View {
+    /// Starts a compiled plan through the root's guarded path. Onboarding does
+    /// not decide whether a plan may become the active one any more than the
+    /// catalogue does — see `ProgramCatalogDetailView.onStartPlan`.
+    let onStartPlan: (WorkoutPlan, Date) -> ProgramActivationOutcome
     let onFinish: (OnboardingOutcome) -> Void
 
     @Environment(\.modelContext) private var modelContext
@@ -152,7 +156,7 @@ struct OnboardingFlowView: View {
     @ViewBuilder
     private func programDestination(_ programID: UUID) -> some View {
         if let record = programRecord(programID) {
-            ProgramCatalogDetailView(record: record) {
+            ProgramCatalogDetailView(record: record, onStartPlan: onStartPlan) {
                 path.removeAll()
                 writeProfileIfNeeded()
                 if let summary = OnboardingActivationSummary.current(using: modelContext) {
