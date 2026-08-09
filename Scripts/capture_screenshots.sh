@@ -125,7 +125,7 @@ files_for_scene() {
     workout-form) echo "templates/12b_New_Workout_Form.png templates/12c_Exercise_Filters.png" ;;
     plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13c_Program_Equipment.png plans/13d_Plan_Deload_Schedule.png plans/13g_Plan_Exercise_Alternatives.png plans/13h_Plan_Per_Set_Prescription.png plans/13n_Plan_Execution_Block.png plans/13_Plan_Review.png plans/13i_Program_Prescription_Preview.png plans/13b_Plan_Active_Run.png overview/01d_Home_Active_Plan.png" ;;
     program-builder) echo "plans/13j_Program_Definition_Builder.png" ;;
-    program-catalog) echo "plans/13k_Program_Catalog.png plans/13l_Program_Catalog_Detail.png plans/13m_Program_Intake.png" ;;
+    program-catalog) echo "plans/13k_Program_Catalog.png plans/13ka_Program_Catalog_Filters.png plans/13kb_Program_Catalog_Filtered.png plans/13l_Program_Catalog_Detail.png plans/13m_Program_Intake.png" ;;
     plan-calendar) echo "plans/13e_Plan_Calendar.png plans/13f_Plan_Calendar_Day.png" ;;
     training-calendar) echo "calendar/21_Training_Calendar.png calendar/21b_Training_Calendar_Reschedule.png calendar/21c_Training_Calendar_Empty.png" ;;
     hidden) echo "exercises/16_Hidden_Exercises.png" ;;

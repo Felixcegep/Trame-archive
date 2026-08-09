@@ -15,6 +15,20 @@ struct OnboardingRecommendationsView: View {
     let onOpenMobilityProgram: (UUID) -> Void
     let onBrowseAll: () -> Void
     let onStartFreeWorkout: () -> Void
+    /// Persists the draft back to `TrainingProfile` after a refinement.
+    ///
+    /// This screen's own `rank()` only reorders what's on screen from
+    /// `coordinator.draft`. The profile record itself is written once, on
+    /// first reaching this screen (`OnboardingFlowView.writeProfileIfNeeded`),
+    /// and an answer changed here afterward — in `OnboardingRefinementSheet`
+    /// or the mobility intake sheet — used to update the ranking the lifter
+    /// sees without ever reaching the store. Anything that later trusts the
+    /// persisted record instead of this screen's live draft — a future
+    /// ranked catalogue browse, a plan detail's why-it-fits section — would
+    /// then rank against an answer the lifter had already changed in front
+    /// of them. `TrainingProfileService` writes only from the view that owns
+    /// it, so this screen reports the change rather than writing directly.
+    let onDraftRefined: () -> Void
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -74,10 +88,10 @@ struct OnboardingRecommendationsView: View {
         // Re-ranked on dismissal rather than on every tick inside the sheet:
         // a list reshuffling under a half-finished equipment selection is the
         // screen arguing with someone mid-sentence.
-        .sheet(item: $activeRefinement, onDismiss: rank) { step in
+        .sheet(item: $activeRefinement, onDismiss: refinementDismissed) { step in
             OnboardingRefinementSheet(coordinator: coordinator, step: step)
         }
-        .sheet(isPresented: $isShowingMobilityIntake, onDismiss: rank) {
+        .sheet(isPresented: $isShowingMobilityIntake, onDismiss: refinementDismissed) {
             OnboardingMobilityIntakeSheet(coordinator: coordinator)
         }
         .task {
@@ -97,6 +111,14 @@ struct OnboardingRecommendationsView: View {
                 isHeadingFocused = true
             }
         }
+    }
+
+    /// Re-ranks and persists together — they used to happen separately
+    /// (`onDismiss: rank`), which reordered what the lifter saw without ever
+    /// telling `TrainingProfile` the answer had changed.
+    private func refinementDismissed() {
+        rank()
+        onDraftRefined()
     }
 
     /// Ranks the catalogue against the draft as it currently stands.
@@ -571,6 +593,16 @@ struct OnboardingRecommendationsView: View {
     //
     // Three of them, always. A recommendation screen the lifter cannot leave
     // except by accepting a recommendation is not a recommendation screen.
+    //
+    // "See every plan" rather than "Browse all plans": the old wording framed
+    // the catalogue as somewhere you go *instead of* here, which used to be
+    // literally true — leaving discarded the ranking, and the catalogue was
+    // alphabetical with no explanation of anything. The answers now persist
+    // (including refinements made on this screen) and the catalogue orders
+    // itself by them, so the catalogue is the same recommendation seen wider,
+    // not a different screen bought at the cost of this one. The copy stops
+    // implying a trade that no longer exists, without claiming a ranking that
+    // a lifter who skipped every question would not actually get.
 
     private var alternatives: some View {
         VStack(spacing: Spacing.s) {
@@ -588,11 +620,11 @@ struct OnboardingRecommendationsView: View {
                     .buttonStyle(.gymPrimary)
                     .accessibilityIdentifier("onboarding-start-free-workout")
             } else if leadingResult == nil {
-                Button("Browse all plans", action: onBrowseAll)
+                Button("See every plan", action: onBrowseAll)
                     .buttonStyle(.gymPrimary)
                     .accessibilityIdentifier("onboarding-browse-all")
             } else {
-                Button("Browse all plans", action: onBrowseAll)
+                Button("See every plan", action: onBrowseAll)
                     .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(Color.gymSubduedText)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
@@ -618,7 +650,7 @@ struct OnboardingRecommendationsView: View {
                     .buttonStyle(.gymPress)
                     .accessibilityIdentifier("onboarding-start-free-workout")
             } else {
-                Button("Browse all plans", action: onBrowseAll)
+                Button("See every plan", action: onBrowseAll)
                     .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(Color.gymSubduedText)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)

@@ -25,6 +25,10 @@ enum OnboardingOutcome: Equatable {
 /// this screen's preparation, nor replayed when the lifter navigates backwards
 /// inside the flow.
 struct OnboardingFlowView: View {
+    /// Starts a compiled plan through the root's guarded path. Onboarding does
+    /// not decide whether a plan may become the active one any more than the
+    /// catalogue does — see `ProgramCatalogDetailView.onStartPlan`.
+    let onStartPlan: (WorkoutPlan, Date) -> ProgramActivationOutcome
     let onFinish: (OnboardingOutcome) -> Void
 
     @Environment(\.modelContext) private var modelContext
@@ -76,7 +80,8 @@ struct OnboardingFlowView: View {
                     onOpenProgram: { path.append(.program($0)) },
                     onOpenMobilityProgram: { path.append(.mobilityProgram($0)) },
                     onBrowseAll: { finish(.browseAllPlans) },
-                    onStartFreeWorkout: { finish(.startFreeWorkout) }
+                    onStartFreeWorkout: { finish(.startFreeWorkout) },
+                    onDraftRefined: persistRefinedDraft
                 )
 
             case .completed(let summary):
@@ -152,7 +157,7 @@ struct OnboardingFlowView: View {
     @ViewBuilder
     private func programDestination(_ programID: UUID) -> some View {
         if let record = programRecord(programID) {
-            ProgramCatalogDetailView(record: record) {
+            ProgramCatalogDetailView(record: record, onStartPlan: onStartPlan) {
                 path.removeAll()
                 writeProfileIfNeeded()
                 if let summary = OnboardingActivationSummary.current(using: modelContext) {
@@ -224,6 +229,27 @@ struct OnboardingFlowView: View {
             // silently overruling an answer it did not take.
             TrainingProfileService.applyUnitSystem(UnitSystemDefault.suggested)
         }
+        TrainingProfileService.apply(coordinator.draft, using: modelContext)
+    }
+
+    /// Persists a refinement made *after* the initial write.
+    ///
+    /// `writeProfileIfNeeded` above is deliberately one-shot — see its own
+    /// comment — so an answer changed afterward, in
+    /// `OnboardingRefinementSheet` or the mobility intake sheet, updated the
+    /// in-memory draft and the on-screen ranking but never reached
+    /// `TrainingProfile` itself. Nothing downstream that trusts the
+    /// persisted record instead of this screen's live draft could see the
+    /// change.
+    ///
+    /// Bypasses the one-shot guard on purpose, and does not set it: this is
+    /// wired to a deliberate refinement dismissal, not to every render, so
+    /// it cannot regress into the per-answer autosave `hasWrittenProfile`
+    /// exists to avoid. `TrainingProfileService.apply` already writes only
+    /// the fields the draft has touched and is safe to call repeatedly — the
+    /// timestamps it updates are read only for nullability, never for their
+    /// exact value (see `PersonalizationPromptCard`).
+    private func persistRefinedDraft() {
         TrainingProfileService.apply(coordinator.draft, using: modelContext)
     }
 

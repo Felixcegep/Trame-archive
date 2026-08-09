@@ -115,10 +115,54 @@ struct SetRowView: View {
         HStack(spacing: Spacing.s) {
             statusBadge
 
+            previousValueColumn
+
             fieldStack(isStacked: false)
 
             rowActions
         }
+    }
+
+    /// What this same set index produced last time, read at a glance beside
+    /// the fields it is a target for.
+    ///
+    /// Horizontal layout only. At accessibility sizes the row already falls
+    /// back to a stacked layout for the same reason this column does not
+    /// follow it there — five columns is already three more than the space
+    /// affords. The exercise-header summary above every card and the set
+    /// panel's own "Last time" line still carry the same information at
+    /// those sizes; this is a convenience for the common case, not the only
+    /// place it exists.
+    private var previousValueColumn: some View {
+        Text(previousValueText)
+            .font(AppFont.caption)
+            .foregroundStyle(Color.gymSubduedText)
+            .lineLimit(1)
+            .frame(width: 52, alignment: .leading)
+            .accessibilityLabel(String(localized: "Previous: \(previousValueText)"))
+            .accessibilityIdentifier("previous-set-\(exerciseEntry.exercise.name)-\(index)")
+    }
+
+    private var previousValueText: String {
+        guard let previousSet else { return "\u{2014}" }
+        if trackingType.usesWeight {
+            let weight = UnitConversion.weight(
+                previousSet.weight,
+                from: previousSet.weightType,
+                to: exerciseSet.weightType
+            )
+            return "\(Formatters.formatFloat(previousSet.repetitions)) × \(Formatters.formatFloat(weight))"
+        }
+        if trackingType.usesDuration, let duration = previousSet.duration {
+            return "\(Int(duration)) sec"
+        }
+        if trackingType.usesReps {
+            return "\(Formatters.formatFloat(previousSet.repetitions)) reps"
+        }
+        if trackingType.usesCalories, let calories = previousSet.calories {
+            return "\(Formatters.formatFloat(Float(calories))) cal"
+        }
+        return "\u{2014}"
     }
 
     private var stackedRowInputs: some View {
@@ -145,6 +189,7 @@ struct SetRowView: View {
             coordinator: coordinator,
             previousSet: previousSet,
             isCompletedAndLocked: isCompletedAndLocked,
+            isCurrentSet: isCurrentSet,
             isTimerRunning: isTimerRunning,
             isStacked: isStacked,
             onFieldSelected: { completionValidationMessage = nil }
@@ -178,6 +223,20 @@ struct SetRowView: View {
     /// filled rows in the list, which is what makes those fills read as meaning
     /// rather than as texture. Rows stay separated by the list's spacing and by
     /// the field outlines they contain.
+    /// The current row loses its fill too, for the reason the comment above
+    /// already establishes and then stops one step short of.
+    ///
+    /// A current set inside a current exercise was three tinted surfaces
+    /// stacked: `gymPrimarySurface` on the card, `gymCurrentSetSurface` on the
+    /// row, and outlined cells inside that. The two tints differ by a few points
+    /// of luminance, so the inner one separated nothing — it just made the card
+    /// look quilted. "You are here" is already carried by the leading pointer
+    /// (a silhouette, which survives grayscale and Increase Contrast), by the
+    /// tinted index chip, and by the card's own heading.
+    ///
+    /// A completed row keeps its wash. That one is genuinely state, it is the
+    /// fastest way to scan which sets are behind you, and it is what the
+    /// closest domain reference does as well.
     private var rowSurface: Color {
         if isEditingCompletedSet {
             return Color.gymPrimarySurface
@@ -186,7 +245,7 @@ struct SetRowView: View {
             return Color.gymSecondarySurface
         }
 
-        return isCurrentSet ? Color.gymCurrentSetSurface : .clear
+        return .clear
     }
 
     private var rowActions: some View {

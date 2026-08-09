@@ -165,6 +165,39 @@ nonisolated struct ProgramExecutionBlockDefinition: Codable, Hashable, Identifia
     }
 }
 
+nonisolated enum FocusAreaApplicability: String, Codable, Hashable {
+    case applicable
+    case notApplicable
+}
+
+/// Declarative equipment truth used by discovery and matching only.
+///
+/// `allOf` is conjunctive, each nested `anyOf` group is disjunctive, and every
+/// group must be satisfied. Capability identifiers cover implements that are
+/// intentionally more specific than `EquipmentType` (for example `skiErg`).
+nonisolated struct ProgramEquipmentRequirement: Codable, Hashable {
+    var allOf: [EquipmentType]
+    var anyOf: [[EquipmentType]]
+    var requiredCapabilityIDs: [String]
+    var optionalCapabilityIDs: [String]
+
+    init(
+        allOf: [EquipmentType] = [],
+        anyOf: [[EquipmentType]] = [],
+        requiredCapabilityIDs: [String] = [],
+        optionalCapabilityIDs: [String] = []
+    ) {
+        self.allOf = allOf
+        self.anyOf = anyOf
+        self.requiredCapabilityIDs = requiredCapabilityIDs
+        self.optionalCapabilityIDs = optionalCapabilityIDs
+    }
+
+    var hasRequirements: Bool {
+        !allOf.isEmpty || !anyOf.isEmpty || !requiredCapabilityIDs.isEmpty
+    }
+}
+
 nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     var id: UUID
     var schemaVersion: Int
@@ -204,6 +237,9 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
 
     /// `TrainingDisciplinePreference` raw values this program is written for.
     var supportedDisciplineIDs: [String]?
+    /// Whether physique-region focus is meaningful for this program. `nil`
+    /// means unknown legacy metadata; `.notApplicable` is an authored answer.
+    var focusAreaApplicability: FocusAreaApplicability?
     /// `FocusArea` raw values this program emphasises.
     var focusAreaIDs: [String]?
     /// The usual length of one session. Advertised as a range because a
@@ -216,6 +252,9 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     /// it. Kept separate from `requiredEquipment`, which gates nothing today
     /// but is what a missing-equipment warning is written from.
     var optionalEquipmentCapabilityIDs: [String]?
+    /// Author-reviewed equipment expression. Legacy payloads continue to use
+    /// `requiredEquipment` until this value is authored.
+    var equipmentRequirement: ProgramEquipmentRequirement?
 
     var displayName: String?
     var disclaimer: String?
@@ -245,11 +284,13 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         provenance: ProgramProvenance? = nil,
         sourceReferences: [ProgramSourceReference]? = nil,
         supportedDisciplineIDs: [String]? = nil,
+        focusAreaApplicability: FocusAreaApplicability? = nil,
         focusAreaIDs: [String]? = nil,
         estimatedSessionMinutesMinimum: Int? = nil,
         estimatedSessionMinutesMaximum: Int? = nil,
         competitionDisciplineID: String? = nil,
         optionalEquipmentCapabilityIDs: [String]? = nil,
+        equipmentRequirement: ProgramEquipmentRequirement? = nil,
         displayName: String? = nil,
         disclaimer: String? = nil,
         blocks: [ProgramBlockDefinition]
@@ -277,11 +318,13 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         self.provenance = provenance
         self.sourceReferences = sourceReferences
         self.supportedDisciplineIDs = supportedDisciplineIDs
+        self.focusAreaApplicability = focusAreaApplicability
         self.focusAreaIDs = focusAreaIDs
         self.estimatedSessionMinutesMinimum = estimatedSessionMinutesMinimum
         self.estimatedSessionMinutesMaximum = estimatedSessionMinutesMaximum
         self.competitionDisciplineID = competitionDisciplineID
         self.optionalEquipmentCapabilityIDs = optionalEquipmentCapabilityIDs
+        self.equipmentRequirement = equipmentRequirement
         self.displayName = displayName
         self.disclaimer = disclaimer
         self.blocks = blocks
@@ -294,9 +337,10 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
              warnings, isExperimental, intakeInputs, missedWorkoutPolicy,
              completionPolicy, requiredCapabilities, provenance, sourceReferences,
              supportedDisciplineIDs,
-             focusAreaIDs, estimatedSessionMinutesMinimum,
+             focusAreaApplicability, focusAreaIDs, estimatedSessionMinutesMinimum,
              estimatedSessionMinutesMaximum, competitionDisciplineID,
-             optionalEquipmentCapabilityIDs, displayName, disclaimer, blocks
+             optionalEquipmentCapabilityIDs, equipmentRequirement,
+             displayName, disclaimer, blocks
     }
 
     init(from decoder: Decoder) throws {
@@ -331,11 +375,13 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         // rank differently, and collapsing them would silently penalise the
         // entire pre-existing catalogue.
         supportedDisciplineIDs = try container.decodeIfPresent([String].self, forKey: .supportedDisciplineIDs)
+        focusAreaApplicability = try container.decodeIfPresent(FocusAreaApplicability.self, forKey: .focusAreaApplicability)
         focusAreaIDs = try container.decodeIfPresent([String].self, forKey: .focusAreaIDs)
         estimatedSessionMinutesMinimum = try container.decodeIfPresent(Int.self, forKey: .estimatedSessionMinutesMinimum)
         estimatedSessionMinutesMaximum = try container.decodeIfPresent(Int.self, forKey: .estimatedSessionMinutesMaximum)
         competitionDisciplineID = try container.decodeIfPresent(String.self, forKey: .competitionDisciplineID)
         optionalEquipmentCapabilityIDs = try container.decodeIfPresent([String].self, forKey: .optionalEquipmentCapabilityIDs)
+        equipmentRequirement = try container.decodeIfPresent(ProgramEquipmentRequirement.self, forKey: .equipmentRequirement)
         blocks = try container.decode([ProgramBlockDefinition].self, forKey: .blocks)
     }
 }

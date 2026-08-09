@@ -154,6 +154,127 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(currentPlan.label.contains("Double Progression Builder"))
     }
 
+    func testCatalogActivationRequiresResolvingAnExistingPlanConflict() {
+        let app = launchFixture(
+            "plan-active-run",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+
+        openPlans(.readyMade, in: app)
+        app.searchFields["Search plans"].tap()
+        app.searchFields["Search plans"].typeText("Double Progression")
+        app.searchFields["Search plans"].typeText("\n")
+        tapButton("program-catalog-Double Progression Builder", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-catalog-detail"].waitForExistence(timeout: 5))
+        tapButton("use-program", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-intake"].waitForExistence(timeout: 5))
+        let load = app.textFields["Default starting load"]
+        XCTAssertTrue(load.waitForExistence(timeout: 5))
+        load.tap()
+        load.typeText("20")
+        if app.buttons["Done"].waitForExistence(timeout: 2) {
+            app.buttons["Done"].tap()
+        }
+        tapButton("start-program", in: app)
+
+        XCTAssertTrue(
+            app.buttons["resolve-guided-conflict-and-continue-plan"].waitForExistence(timeout: 8)
+        )
+        let cancel = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "Cancel"))
+            .firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 3))
+        cancel.tap()
+
+        let originalPlan = app.buttons["current-plan-card"]
+        XCTAssertTrue(originalPlan.waitForExistence(timeout: 5))
+        XCTAssertTrue(originalPlan.label.contains("Screenshot Plan Run"))
+    }
+
+    func testCatalogActivationConflictCanPauseThePriorPlanAndContinue() {
+        let app = launchFixture(
+            "plan-active-run",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+
+        openPlans(.readyMade, in: app)
+        app.searchFields["Search plans"].tap()
+        app.searchFields["Search plans"].typeText("Double Progression")
+        app.searchFields["Search plans"].typeText("\n")
+        tapButton("program-catalog-Double Progression Builder", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-catalog-detail"].waitForExistence(timeout: 5))
+        tapButton("use-program", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-intake"].waitForExistence(timeout: 5))
+        let load = app.textFields["Default starting load"]
+        XCTAssertTrue(load.waitForExistence(timeout: 5))
+        load.tap()
+        load.typeText("20")
+        if app.buttons["Done"].waitForExistence(timeout: 2) {
+            app.buttons["Done"].tap()
+        }
+        tapButton("start-program", in: app)
+
+        XCTAssertTrue(
+            app.buttons["resolve-guided-conflict-and-continue-plan"].waitForExistence(timeout: 8)
+        )
+        tapButton("resolve-guided-conflict-and-continue-plan", in: app)
+
+        let replacementPlan = app.buttons["current-plan-card"]
+        XCTAssertTrue(replacementPlan.waitForExistence(timeout: 8))
+        XCTAssertTrue(replacementPlan.label.contains("Double Progression Builder"))
+    }
+
+    func testPlanSearchNoMatchDoesNotShowLibraryOrInstallFailureEmptyStates() {
+        let app = launchFreshApp()
+        openPlans(.readyMade, in: app)
+
+        let search = app.searchFields["Search plans"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("not-a-real-plan")
+
+        let noResults = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "No Results for")
+        ).firstMatch
+        XCTAssertTrue(noResults.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["The built-in plans could not be loaded."].exists)
+        XCTAssertFalse(app.buttons["Build a plan"].exists)
+
+        app.buttons["Clear text"].tap()
+        app.buttons["Following"].tap()
+        search.tap()
+        search.typeText("not-a-followed-plan")
+
+        XCTAssertTrue(noResults.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Not following a plan"].exists)
+        XCTAssertFalse(app.buttons["Build a plan"].exists)
+    }
+
+    func testProgramDiscoveryFiltersCombineWithSearchAndCanBeCleared() {
+        let app = launchFreshApp()
+        openPlans(.readyMade, in: app)
+
+        tapButton("program-discovery-filter-button", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-discovery-filters"].waitForExistence(timeout: 5))
+        tapButton("Powerlifting", in: app)
+        tapButton("Done", in: app)
+
+        let search = app.searchFields["Search plans"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Foundation Barbell")
+        XCTAssertTrue(app.staticTexts["No plans match"].waitForExistence(timeout: 5))
+
+        tapButton("program-discovery-clear-filters", in: app)
+        XCTAssertTrue(app.buttons["program-catalog-Foundation Barbell 5×5"].waitForExistence(timeout: 5))
+
+        app.buttons["Clear text"].tap()
+        XCTAssertTrue(app.buttons["program-catalog-Powerlifting Foundations"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["program-catalog-Foundation Barbell 5×5"].waitForExistence(timeout: 5))
+    }
+
     func testResumesPersistedActiveWorkoutAfterRelaunch() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]

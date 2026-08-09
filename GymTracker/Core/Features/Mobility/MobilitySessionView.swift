@@ -310,8 +310,12 @@ struct MobilitySessionView: View {
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // `gymCurrentSetSurface`, matching the highlight Active Workout gives
-        // the current set row.
+        // `gymCurrentSetSurface` marks the movement in progress.
+        //
+        // This is a card sitting directly on the background, so the fill is the
+        // only thing separating it — unlike Active Workout's set row, which sat
+        // inside an already-tinted exercise card and has since dropped its own
+        // fill for that reason. Same token, different job.
         .background(Color.gymCurrentSetSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)

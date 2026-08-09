@@ -310,9 +310,11 @@ struct FolderView: View {
             + repeatingPlans.filter { !$0.isArchived }.count
     }
 
+    /// Not gated on `.programBuilder`. Bundled plans are shipped *content*, and
+    /// hiding them behind an authoring capability also hid the destination that
+    /// onboarding's recommendations send people to. See `PlansBrowserView`.
     private var readyMadePlanCount: Int {
-        guard featureFlags.isEnabled(.programBuilder) else { return 0 }
-        return programDefinitions.filter { $0.isBuiltIn && !$0.isArchived }.count
+        programDefinitions.filter { $0.isBuiltIn && !$0.isArchived }.count
     }
 
     private func presentPendingSheet() {

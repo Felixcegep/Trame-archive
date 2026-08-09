@@ -23,8 +23,8 @@ final class FeatureFlagNavigationUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["tab-nutrition"].waitForExistence(timeout: 10))
     }
 
-    /// Ready-made plans are a scope inside Plans rather than their own Train
-    /// row, so `programBuilder` now gates that segment.
+    /// Ready-made plans are shipped catalogue content, so they remain browsable
+    /// even when the plan-authoring capability is disabled.
     func testMobilityAndProgramCatalogLinksHideWhenTheirFlagsAreDisabled() {
         let app = launchFreshApp(additionalArguments: [
             "-feature-flags", "today,nutrition,bodyWeight,dailyCheckIn,advancedExecution,betaFeedback"
@@ -38,7 +38,7 @@ final class FeatureFlagNavigationUITests: GymTrackerUITestCase {
 
         tapButton("plans-browser", in: app)
         XCTAssertTrue(app.buttons["Mine"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["Ready-made"].exists)
+        XCTAssertTrue(app.buttons["Ready-made"].exists)
     }
 
     func testMobilityAndProgramCatalogLinksShowWhenEnabled() {

@@ -277,11 +277,13 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var provenance: ProgramProvenance?
     var sourceReferences: [ProgramSourceReference]?
     var supportedDisciplineIDs: [String]?
+    var focusAreaApplicability: FocusAreaApplicability?
     var focusAreaIDs: [String]?
     var estimatedSessionMinutesMinimum: Int?
     var estimatedSessionMinutesMaximum: Int?
     var competitionDisciplineID: String?
     var optionalEquipmentCapabilityIDs: [String]?
+    var equipmentRequirement: ProgramEquipmentRequirement?
     var displayName: String?
     var disclaimer: String?
     var rulesLibrary: [String: AuthoringRuleSetDefinition]?
@@ -579,11 +581,13 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             provenance: provenance,
             sourceReferences: sourceReferences,
             supportedDisciplineIDs: supportedDisciplineIDs,
+            focusAreaApplicability: focusAreaApplicability,
             focusAreaIDs: focusAreaIDs,
             estimatedSessionMinutesMinimum: estimatedSessionMinutesMinimum,
             estimatedSessionMinutesMaximum: estimatedSessionMinutesMaximum,
             competitionDisciplineID: competitionDisciplineID,
             optionalEquipmentCapabilityIDs: optionalEquipmentCapabilityIDs,
+            equipmentRequirement: equipmentRequirement,
             displayName: displayName,
             disclaimer: disclaimer,
             blocks: expandedBlocks

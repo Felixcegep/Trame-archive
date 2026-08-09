@@ -356,6 +356,11 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
                 ProgramDefinitionValidator.validate(payload, isBuiltIn: true).isEmpty,
                 "Validation failed for \(payload.programKey)"
             )
+            XCTAssertFalse(payload.supportedDisciplineIDs?.isEmpty ?? true, "Missing discipline metadata for \(payload.programKey)")
+            XCTAssertNotNil(payload.focusAreaApplicability, "Missing focus applicability for \(payload.programKey)")
+            XCTAssertNotNil(payload.equipmentRequirement, "Missing equipment expression for \(payload.programKey)")
+            XCTAssertNotNil(payload.estimatedSessionMinutesMinimum, "Missing session minimum for \(payload.programKey)")
+            XCTAssertNotNil(payload.estimatedSessionMinutesMaximum, "Missing session maximum for \(payload.programKey)")
             XCTAssertFalse(try ProgramDefinitionPreview.rows(for: payload).isEmpty)
             _ = try ProgramDefinitionRepository.compile(record, using: context)
         }

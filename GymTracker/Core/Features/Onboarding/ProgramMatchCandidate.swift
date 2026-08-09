@@ -17,6 +17,7 @@ struct ProgramMatchCandidate: Identifiable, Equatable, Sendable {
     let durationWeeks: Int
     let scheduleMode: PlanScheduleMode
     let requiredEquipment: [EquipmentType]
+    let equipmentRequirement: ProgramEquipmentRequirement
     /// Free-text, author-written conditions ("Known one-repetition maximums
     /// for squat, bench press, and deadlift"). Nothing in the intake can
     /// verify these, so `ProgramMatchService` always discloses them rather
@@ -31,6 +32,7 @@ struct ProgramMatchCandidate: Identifiable, Equatable, Sendable {
     let programKey: String?
     let supportedDisciplineIDs: [String]
     let focusAreaIDs: [String]
+    let focusAreaApplicability: FocusAreaApplicability?
     let estimatedSessionMinutes: ClosedRange<Int>?
     let competitionDisciplineID: String?
 
@@ -44,6 +46,7 @@ struct ProgramMatchCandidate: Identifiable, Equatable, Sendable {
         durationWeeks: Int,
         scheduleMode: PlanScheduleMode,
         requiredEquipment: [EquipmentType] = [],
+        equipmentRequirement: ProgramEquipmentRequirement? = nil,
         prerequisites: [String] = [],
         requiredCapabilities: [String] = [],
         authorWarnings: [String] = [],
@@ -51,6 +54,7 @@ struct ProgramMatchCandidate: Identifiable, Equatable, Sendable {
         programKey: String? = nil,
         supportedDisciplineIDs: [String] = [],
         focusAreaIDs: [String] = [],
+        focusAreaApplicability: FocusAreaApplicability? = nil,
         estimatedSessionMinutes: ClosedRange<Int>? = nil,
         competitionDisciplineID: String? = nil
     ) {
@@ -63,6 +67,8 @@ struct ProgramMatchCandidate: Identifiable, Equatable, Sendable {
         self.durationWeeks = durationWeeks
         self.scheduleMode = scheduleMode
         self.requiredEquipment = requiredEquipment
+        self.equipmentRequirement = equipmentRequirement
+            ?? ProgramEquipmentRequirement(allOf: requiredEquipment)
         self.prerequisites = prerequisites
         self.requiredCapabilities = requiredCapabilities
         self.authorWarnings = authorWarnings
@@ -70,24 +76,17 @@ struct ProgramMatchCandidate: Identifiable, Equatable, Sendable {
         self.programKey = programKey
         self.supportedDisciplineIDs = supportedDisciplineIDs
         self.focusAreaIDs = focusAreaIDs
+        self.focusAreaApplicability = focusAreaApplicability
         self.estimatedSessionMinutes = estimatedSessionMinutes
         self.competitionDisciplineID = competitionDisciplineID
     }
 
     /// Whether this program is written for the lifter's discipline.
     ///
-    /// An explicit declaration wins. Where a program has not declared one —
-    /// which is the entire catalogue as it stands — the discipline is inferred
-    /// from its `PlanGoal`, so the question still contributes something on day
-    /// one instead of waiting for every definition to be re-authored.
+    /// Only an explicit declaration counts. A goal may correlate with a sport,
+    /// but correlation is not authored discipline metadata.
     func matchesDiscipline(_ discipline: TrainingDisciplinePreference) -> Bool {
-        if discipline == .hybridFitnessRacing && (programKey == "bodyweight-ladder-foundations" || name.localizedCaseInsensitiveContains("bodyweight ladder")) {
-            return false
-        }
-        if !supportedDisciplineIDs.isEmpty {
-            return supportedDisciplineIDs.contains(discipline.rawValue)
-        }
-        return discipline.associatedPlanGoals.contains(goal)
+        supportedDisciplineIDs.contains(discipline.rawValue)
     }
 }
 
@@ -114,6 +113,7 @@ extension ProgramMatchCandidate {
             durationWeeks: payload.durationWeeks,
             scheduleMode: payload.scheduleMode,
             requiredEquipment: payload.requiredEquipment,
+            equipmentRequirement: payload.equipmentRequirement,
             prerequisites: payload.prerequisites,
             requiredCapabilities: payload.requiredCapabilities,
             authorWarnings: payload.warnings,
@@ -121,6 +121,7 @@ extension ProgramMatchCandidate {
             programKey: payload.programKey,
             supportedDisciplineIDs: payload.supportedDisciplineIDs ?? [],
             focusAreaIDs: payload.focusAreaIDs ?? [],
+            focusAreaApplicability: payload.focusAreaApplicability,
             estimatedSessionMinutes: minutes,
             competitionDisciplineID: payload.competitionDisciplineID
         )

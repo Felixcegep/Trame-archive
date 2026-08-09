@@ -160,7 +160,10 @@ struct RootView: View {
         }
         .animation(AppMotion.compact, value: isShowingLaunchExperience)
         .fullScreenCover(isPresented: shouldShowWelcome) {
-            OnboardingFlowView(onFinish: handleOnboardingOutcome)
+            OnboardingFlowView(
+                onStartPlan: startOnboardingPlan,
+                onFinish: handleOnboardingOutcome
+            )
         }
         .fullScreenCover(isPresented: $activeSessionRouter.isShowingActiveWorkout, onDismiss: {
             activeSessionRouter.activeWorkoutPath.removeAll()
@@ -825,7 +828,10 @@ struct RootView: View {
                 // card now names the plan they just started. Replacing the stack
                 // avoids asking UIKit to pop the detail while its setup sheet is
                 // still completing its dismissal transition.
-                ProgramCatalogDetailView(record: record) {
+                ProgramCatalogDetailView(
+                    record: record,
+                    onStartPlan: startCatalogPlan
+                ) {
                     trainPath.removeAll()
                     trainNavigationID = UUID()
                 }
@@ -1097,6 +1103,46 @@ struct RootView: View {
             return
         }
         _ = performFixedPlanAction(action)
+    }
+
+    /// Starting a freshly compiled catalogue plan, through the same guard every
+    /// other plan-start surface uses.
+    ///
+    /// `ProgramCatalogDetailView` used to call `PlanCoordinator.startRun`
+    /// directly, which made catalogue activation the one path that could not see
+    /// an existing run. Following one plan and activating another from the
+    /// catalogue left two active `PlanRun`s, and `HomeView.activePlanRun`
+    /// resolves a plan only when there is exactly one — so Today stopped showing
+    /// either of them.
+    private func startCatalogPlan(_ plan: WorkoutPlan, _ startDate: Date) -> ProgramActivationOutcome {
+        let action = FixedPlanAction.start(plan, startDate)
+        guard activeRepeatingPlanRuns().isEmpty, activeFixedPlanRuns().isEmpty else {
+            guidedSourceCoordinator.guidedSourceConflictRequest = .fixedPlan(action)
+            return .handledByOwner
+        }
+        // `performFixedPlanAction` reports its own failure through
+        // `guidedSourceActionError`, so the detail screen must not also
+        // report it — one failure, one message.
+        return performFixedPlanAction(action) ? .started : .handledByOwner
+    }
+
+    /// Onboarding runs in a `fullScreenCover`, so the conflict dialog this view
+    /// presents would sit behind it and never be seen. The flow is re-enterable
+    /// from the personalization offer, which makes an already-active plan a real
+    /// case here rather than a theoretical one, so the conflict is reported
+    /// inside the flow instead of deferred to a control the lifter cannot reach.
+    private func startOnboardingPlan(_ plan: WorkoutPlan, _ startDate: Date) -> ProgramActivationOutcome {
+        if let current = activeFixedPlanRuns().first {
+            return .refused(
+                String(localized: "You're already following \(current.sourcePlanName). Pause it in Train › Plans before starting another plan.")
+            )
+        }
+        if let rotation = activeRepeatingPlanRuns().first {
+            return .refused(
+                String(localized: "You're already following \(rotation.sourcePlanName). Pause it in Train › Plans before starting a plan.")
+            )
+        }
+        return performFixedPlanAction(.start(plan, startDate)) ? .started : .handledByOwner
     }
 
     private func resumeFixedPlan(_ run: PlanRun) {

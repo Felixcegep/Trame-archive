@@ -1,23 +1,59 @@
 import SwiftData
 import SwiftUI
 
+/// One fact about a plan.
+///
+/// Deliberately neutral rather than `gymPrimary`: this design system reserves
+/// the primary tint for actions, and three primary-coloured capsules sitting
+/// directly above the one real action on this screen competed with it instead
+/// of supporting it. Metadata describes; it does not invite a tap.
 struct ProgramMetaChip: View {
     let text: String
 
     var body: some View {
-        Text(LocalizedStringKey(text))
+        // Not `LocalizedStringKey`. Every call site passes a string that is
+        // already localized or already interpolated, so the lookup could only
+        // ever miss and fall back to the text it was handed.
+        Text(text)
             .font(AppFont.captionBold)
-            .foregroundStyle(Color.gymPrimary)
+            .foregroundStyle(Color.gymSubduedText)
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.xs)
-            .background(Color.gymPrimarySurface, in: Capsule())
+            .background(Color.gymRowSurface, in: Capsule())
     }
+}
+
+/// What the owner of this screen did with a compiled plan.
+///
+/// Activation cannot be decided here. Whether a plan may start depends on what
+/// else is already running, and that is knowledge the navigation owner holds —
+/// see `ProgramCatalogDetailView.activate(_:startDate:)` for why this screen
+/// stopped starting runs itself.
+enum ProgramActivationOutcome: Equatable {
+    /// The run started.
+    case started
+    /// The owner took the decision over — a conflict dialog, or its own error
+    /// presentation. Nothing started, and this screen must not claim it did.
+    case handledByOwner
+    /// Nothing started, and this screen owns telling the lifter why.
+    case refused(String)
 }
 
 struct ProgramCatalogDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var exercises: [Exercise]
+    /// The persisted answers, read live so editing them in Settings and
+    /// returning here re-evaluates with nothing to invalidate.
+    @Query private var trainingProfiles: [TrainingProfile]
     let record: ProgramDefinitionRecord
+    /// Starts the compiled plan through the owner's guarded path.
+    ///
+    /// This screen used to call `PlanCoordinator.startRun` directly, which made
+    /// it the one activation surface in the app that could not see an existing
+    /// run: activating a catalogue plan while already following one produced two
+    /// active `PlanRun`s, and `HomeView` shows a plan only when there is exactly
+    /// one — so Today went blank while two plans were running.
+    let onStartPlan: (WorkoutPlan, Date) -> ProgramActivationOutcome
     /// Activation used to leave the user on this screen with a disabled "Plan
     /// added" label and no indication of what changed. The owner of the
     /// navigation stack pops back to Train instead, where the plan is now
@@ -37,17 +73,27 @@ struct ProgramCatalogDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xxl) {
                 overview
+                whyItFits
                 requirements
                 prescription
-                activation
+                provenance
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.l)
         }
-        .folderScreenStyle()
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("program-catalog-detail")
+        .folderScreenStyle()
+        // The action is pinned rather than trailing the scroll. It used to be
+        // the last element of a screen whose length depends on how much a plan
+        // declares, so a plan with several prerequisites pushed the only way
+        // forward below the fold. `OnboardingRecommendationsView` pins its
+        // primary action for the same reason.
+        .safeAreaInset(edge: .bottom) { activation }
+        // Named, so the screen is still identifiable once the display title has
+        // scrolled away — it is reached from a list of twenty-odd plans that
+        // differ mainly by name.
+        .navigationTitle(record.name)
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isShowingSetup) {
             if let payload {
                 NavigationStack {
@@ -64,46 +110,266 @@ struct ProgramCatalogDetailView: View {
             Text(record.name)
                 .font(AppFont.displayMedium)
                 .foregroundStyle(Color.gymText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
             if let summary = record.summary {
                 Text(summary)
                     .font(AppFont.body)
                     .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            HStack(spacing: Spacing.s) {
-                ProgramMetaChip(text: "\(record.durationWeeks) weeks")
-                ProgramMetaChip(text: record.experienceLevel.rawValue.localizedCapitalized)
-                ProgramMetaChip(text: record.supportedDaysPerWeek.map(String.init).joined(separator: "/") + " days/week")
+            // Flowing rather than a fixed `HStack`: four capsules on one line
+            // overflow the moment Dynamic Type grows, and this screen is the
+            // last thing a lifter reads before committing twelve weeks.
+            ChipFlowLayout(spacing: Spacing.s) {
+                ForEach(metaChips, id: \.self) { chip in
+                    ProgramMetaChip(text: chip)
+                }
             }
+            // One VoiceOver stop for the whole strip. Read individually, four
+            // capsules are four swipes of context-free fragments.
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(metaChips.joined(separator: ", "))
         }
     }
 
+    /// The facts a lifter needs before opening a plan, in decision order.
+    ///
+    /// Goal leads because it is the one thing that says what the plan is *for*,
+    /// it is authored on every bundled definition, and it was previously shown
+    /// nowhere in discovery — neither here nor on the row that reaches here.
+    private var metaChips: [String] {
+        var chips = [
+            record.goal.onboardingTitle,
+            record.experienceLevel.onboardingTitle
+        ]
+        // A plan that supports several week shapes says so — collapsing "3 or 4
+        // days" to one number would be a quiet half-truth on the screen where
+        // the choice is made. A plan that declares none says nothing at all
+        // rather than "0 days/week".
+        switch record.supportedDaysPerWeek.count {
+        case 0:
+            break
+        case 1:
+            chips.append(CountPhrase.daysPerWeekAbbreviated(record.supportedDaysPerWeek[0]))
+        default:
+            chips.append(
+                record.supportedDaysPerWeek.map(String.init).joined(separator: "/")
+                    + String(localized: " days/week")
+            )
+        }
+        chips.append(String(localized: "\(record.durationWeeks) weeks"))
+        if let payload, payload.scheduleMode == .sequential {
+            // Only the non-obvious mode is worth a chip. "Fixed weekdays" is
+            // what a plan is assumed to be; running in order regardless of the
+            // calendar is the thing that changes how a week feels.
+            chips.append(String(localized: "In order, not on fixed days"))
+        }
+        return chips
+    }
+
+    /// This plan measured against what the lifter actually told us.
+    ///
+    /// `nil` — and therefore no section at all — whenever there is nothing
+    /// honest to say: no profile, or a profile that answers nothing. An
+    /// existing user who has never seen onboarding has a `TrainingProfile`
+    /// full of `nil`, and evaluating against it would produce a "why this fits
+    /// you" heading above an empty result, which claims a comparison that
+    /// never happened.
+    private var matchResult: ProgramMatchResult? {
+        guard let payload, let profile = trainingProfiles.first else { return nil }
+        let criteria = profile.matchingCriteria
+        guard !criteria.isEmpty else { return nil }
+        return ProgramMatchService.evaluate(
+            ProgramMatchCandidate(payload: payload),
+            criteria: criteria
+        )
+    }
+
+    /// The mismatches this screen found by comparing an answer against a
+    /// declaration — not the ones the author simply wrote down.
+    ///
+    /// `ProgramMatchService` folds `candidate.authorWarnings` into the same
+    /// `warnings` array as its own derived findings, and `requirements` below
+    /// already renders those author warnings unconditionally under "Worth
+    /// knowing". Showing the array raw here would print every author warning
+    /// twice on the same screen. Excluding them is not deduplication for its
+    /// own sake: "what doesn't match" is a claim about *the lifter's answers*,
+    /// and a warning the author would have written for anybody is not that.
+    private var derivedWarnings: [ProgramMatchWarning] {
+        guard let result = matchResult else { return [] }
+        let authored = Set(payload?.warnings ?? [])
+        return result.warnings.filter { !authored.contains($0.text) }
+    }
+
     @ViewBuilder
-    private var requirements: some View {
-        if let payload, !payload.prerequisites.isEmpty || !payload.warnings.isEmpty {
-            sectionCard(title: "Before you start") {
-                ForEach(payload.prerequisites, id: \.self) { item in
-                    Label {
-                        Text(item).foregroundStyle(Color.gymText)
-                    } icon: {
-                        Image(systemName: AppIcon.checkmarkCircle)
-                            .foregroundStyle(Color.gymSecondary)
+    private var whyItFits: some View {
+        if let result = matchResult, !result.reasons.isEmpty || !derivedWarnings.isEmpty {
+            sectionCard(title: "Why this fits you") {
+                // Deliberately no score, percentage, or star rating. The
+                // service's `score` is an unbounded weight sum with no declared
+                // maximum — rendering it as "87% match" would invent a
+                // precision the ranking does not have.
+                if !result.reasons.isEmpty {
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        ForEach(result.reasons) { reason in
+                            Label {
+                                Text(reason.text)
+                                    .foregroundStyle(Color.gymText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } icon: {
+                                Image(systemName: AppIcon.checkmark)
+                                    .foregroundStyle(Color.gymSecondary)
+                            }
+                        }
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(
+                        String(localized: "Why it matches: \(result.reasons.map(\.text).joined(separator: ", "))")
+                    )
                 }
-                ForEach(payload.warnings, id: \.self) { warning in
-                    Label(warning, systemImage: AppIcon.warning)
-                        .foregroundStyle(Color.gymDestructive)
+
+                if !derivedWarnings.isEmpty {
+                    if !result.reasons.isEmpty {
+                        Divider().overlay(Color.gymBorder)
+                    }
+                    Text("What doesn’t match")
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.gymSubduedText)
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        ForEach(derivedWarnings) { warning in
+                            Label {
+                                Text(warning.text)
+                                    .foregroundStyle(Color.gymText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } icon: {
+                                Image(systemName: AppIcon.warningCircle)
+                                    .foregroundStyle(Color.gymDestructive)
+                            }
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(
+                        String(localized: "What doesn’t match: \(derivedWarnings.map(\.text).joined(separator: ", "))")
+                    )
                 }
             }
             .font(AppFont.subheadline)
+            .accessibilityIdentifier("program-catalog-why-it-fits")
+        }
+    }
+
+    /// Where the plan came from, when it says.
+    ///
+    /// Omitted entirely when absent, rather than shown as "Unknown". A missing
+    /// provenance is a legitimate silence — there is nothing the lifter can do
+    /// about it and nothing it changes about the prescription — unlike a
+    /// missing *answer*, which they can act on. Provenance is descriptive only:
+    /// it never alters what the plan prescribes.
+    @ViewBuilder
+    private var provenance: some View {
+        if let provenance = payload?.provenance {
+            sectionCard(title: "Where this plan comes from") {
+                Text(provenanceTitle(provenance.kind))
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let statement = provenance.statement, !statement.isEmpty {
+                    Text(statement)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .font(AppFont.subheadline)
+            .accessibilityIdentifier("program-catalog-provenance")
+        }
+    }
+
+    /// Deliberately phrased so none of these claims endorsement by, or
+    /// authorship from, whoever published the underlying method. "Follows a
+    /// published format" and "is the official programme" are different
+    /// statements, and only the first is one Trame can make.
+    private func provenanceTitle(_ kind: ProgramProvenanceKind) -> String {
+        switch kind {
+        case .sourceBackedExactFormat:
+            String(localized: "Follows a published programme format")
+        case .sourceBackedOriginalAdaptation:
+            String(localized: "Adapted from a published source")
+        case .guidelineAnchoredOriginalProgram:
+            String(localized: "Built on published training guidelines")
+        case .researchAnchoredOriginalProgram:
+            String(localized: "Built on published research")
+        case .engineConformanceSynthetic:
+            // The one kind a lifter genuinely needs to read before starting:
+            // this plan exists to exercise the app's engine, not as training
+            // advice authored for a person.
+            String(localized: "Built to demonstrate app features, not as training advice")
+        }
+    }
+
+    /// Two blocks, never one.
+    ///
+    /// A prerequisite and an author warning used to share a card and differ
+    /// only by icon — and the prerequisite wore `checkmarkCircle` in
+    /// `gymSecondary`, this system's *completion* token, so "around six months
+    /// of consistent training" read as a box already ticked. Nothing in the app
+    /// verifies a prerequisite: `ProgramMatchService` is explicit that they are
+    /// unverifiable author-written conditions, disclosed and never scored. The
+    /// iconography here now matches `OnboardingRecommendationCard`, which had
+    /// it right — neutral `info` for what the author expects, `warningCircle`
+    /// for what the app has actually found.
+    @ViewBuilder
+    private var requirements: some View {
+        if let payload {
+            if !payload.prerequisites.isEmpty {
+                sectionCard(title: "Before you start") {
+                    Text("Written by the plan's author. Trame can't check these for you.")
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    ForEach(payload.prerequisites, id: \.self) { item in
+                        Label {
+                            Text(item)
+                                .foregroundStyle(Color.gymSubduedText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } icon: {
+                            Image(systemName: AppIcon.info)
+                                .foregroundStyle(Color.gymSubduedText)
+                        }
+                    }
+                }
+                .font(AppFont.subheadline)
+                .accessibilityIdentifier("program-catalog-prerequisites")
+            }
+
+            if !payload.warnings.isEmpty {
+                sectionCard(title: "Worth knowing") {
+                    ForEach(payload.warnings, id: \.self) { warning in
+                        Label {
+                            Text(warning)
+                                .foregroundStyle(Color.gymText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } icon: {
+                            Image(systemName: AppIcon.warningCircle)
+                                .foregroundStyle(Color.gymDestructive)
+                        }
+                    }
+                }
+                .font(AppFont.subheadline)
+                .accessibilityIdentifier("program-catalog-warnings")
+            }
         }
     }
 
     @ViewBuilder
     private var prescription: some View {
-        if let payload, let rows = try? ProgramDefinitionPreview.rows(for: payload) {
+        if let payload,
+           let rows = try? ProgramDefinitionPreview.rows(for: payload),
+           case let preview = weekOnePreview(from: rows),
+           !preview.shown.isEmpty {
             let names = exerciseNamesByID
-            let previewRows = Array(rows.prefix(8))
-            let workouts = groupedByWorkout(previewRows)
+            let workouts = preview.shown
 
             sectionCard(title: "Week 1 preview") {
                 ForEach(Array(workouts.enumerated()), id: \.offset) { index, workout in
@@ -138,21 +404,49 @@ struct ProgramCatalogDetailView: View {
                         }
                     }
                 }
-                if rows.count > previewRows.count {
-                    Text("Plus \(rows.count - previewRows.count) more prescribed exercises across the plan")
+                if preview.hiddenSessionCount > 0 {
+                    Text("Plus \(CountPhrase.sessions(preview.hiddenSessionCount)) more in week 1")
                         .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
     }
 
+    /// Whole sessions from week one, and how many were left out.
+    ///
+    /// The preview used to take a flat `prefix(8)` of prescription rows and
+    /// group afterwards, so the cut landed wherever row eight happened to fall
+    /// — inside a workout, silently. A four-exercise lower day whose last two
+    /// rows were trimmed rendered as a two-exercise lower day, which is not a
+    /// shortened preview but a wrong one, on the screen a lifter uses to
+    /// compare plans. Truncation now falls on a session boundary, the first
+    /// session is always whole however long it is, and the omission is counted
+    /// in the same unit as the heading rather than in raw exercise rows.
+    private func weekOnePreview(
+        from rows: [ProgramDefinitionPreviewRow]
+    ) -> (shown: [(name: String, rows: [ProgramDefinitionPreviewRow])], hiddenSessionCount: Int) {
+        let sessions = groupedByWorkout(rows.filter { $0.weekIndex == 0 })
+        var shown: [(name: String, rows: [ProgramDefinitionPreviewRow])] = []
+        var remainingRows = 8
+        for session in sessions {
+            if !shown.isEmpty && session.rows.count > remainingRows { break }
+            shown.append(session)
+            remainingRows -= session.rows.count
+            if remainingRows <= 0 { break }
+        }
+        return (shown, sessions.count - shown.count)
+    }
+
+    /// Sessions in order, named by the workout alone — the card heading already
+    /// establishes the week, so repeating it on every group was noise.
     private func groupedByWorkout(
         _ rows: [ProgramDefinitionPreviewRow]
     ) -> [(name: String, rows: [ProgramDefinitionPreviewRow])] {
         var groups: [(name: String, rows: [ProgramDefinitionPreviewRow])] = []
         for row in rows {
-            let name = "Week \(row.weekIndex + 1) · \(row.workoutName)"
+            let name = row.workoutName
             if let lastIndex = groups.indices.last, groups[lastIndex].name == name {
                 groups[lastIndex].rows.append(row)
             } else {
@@ -170,6 +464,11 @@ struct ProgramCatalogDetailView: View {
             Text(title)
                 .font(AppFont.titleSmall)
                 .foregroundStyle(Color.gymText)
+                // Lets VoiceOver's rotor jump section to section. This is the
+                // longest screen in the discovery flow, and without the trait
+                // the only way past the week-one preview was to swipe through
+                // every exercise in it.
+                .accessibilityAddTraits(.isHeader)
             VStack(alignment: .leading, spacing: Spacing.m) {
                 content()
             }
@@ -186,23 +485,44 @@ struct ProgramCatalogDetailView: View {
     private var activation: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             if let errorMessage {
-                Label(errorMessage, systemImage: AppIcon.warning)
+                Label(errorMessage, systemImage: AppIcon.warningCircle)
                     .font(AppFont.subheadline)
                     .foregroundStyle(Color.gymDestructive)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("program-catalog-error")
             }
+            // The app's own prominent style, not the system's.
+            //
+            // This was `.borderedProminent` at `.large` — the one committing
+            // action in discovery drawn by a different set of rules than every
+            // other committing action in the app. `gymPrimaryProminent` is what
+            // Finish Workout and every onboarding CTA already use: a 54pt pill
+            // on `gymPrimaryDeep` (chosen because white on `gymPrimary` misses
+            // AA for a 17pt label), and a disabled state that outlines rather
+            // than fading the fill.
             Button {
                 isShowingSetup = true
             } label: {
                 Label("Use this plan", systemImage: AppIcon.play)
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.gymPrimaryProminent)
             .accessibilityIdentifier("use-program")
         }
+        .padding(.horizontal, Spacing.xl)
+        .padding(.top, Spacing.m)
+        .padding(.bottom, Spacing.s)
+        // Opaque, so the preview card scrolling underneath reads as passing
+        // behind the bar rather than as being clipped by it.
+        .background(Color.gymBackground)
     }
 
+    /// Compiles the plan and hands it to the owner to start.
+    ///
+    /// The compile and the insert stay here — they are this screen's knowledge
+    /// of the catalogue. Whether the resulting plan may *become the active one*
+    /// is not: that depends on what is already running, which is the navigation
+    /// owner's business, and calling `PlanCoordinator.startRun` from here
+    /// bypassed the guard every other plan-start surface goes through.
     private func activate(_ payload: ProgramDefinitionPayload, startDate: Date) throws {
         let exercises = try modelContext.fetch(FetchDescriptor<Exercise>())
         let plan = try ProgramDefinitionCompiler.compile(
@@ -210,12 +530,35 @@ struct ProgramCatalogDetailView: View {
             exercisesByID: Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
         )
         modelContext.insert(plan)
-        guard PlanCoordinator.startRun(for: plan, startDate: startDate, using: modelContext) != nil else {
-            throw ProgramDefinitionStoreError.persistenceFailed
+
+        switch onStartPlan(plan, startDate) {
+        case .started:
+            errorMessage = nil
+            onActivated()
+        case .handledByOwner:
+            // A conflict dialog, or the owner's own error, is now presented
+            // above this stack. Leaving is what makes it visible; claiming the
+            // plan started would be a lie, so nothing here says so.
+            errorMessage = nil
+            onActivated()
+        case .refused(let message):
+            // Nothing started, so nothing should be left behind. This plan was
+            // compiled a moment ago for this activation alone; without the
+            // delete it would persist as a plan the lifter never created and
+            // would then find in "Mine".
+            modelContext.delete(plan)
+            // Thrown rather than assigned, so the setup sheet stays open with
+            // the reason attached to the control the lifter just used, instead
+            // of dismissing onto a message they would have to go looking for.
+            throw ProgramActivationRefusal(message: message)
         }
-        errorMessage = nil
-        onActivated()
     }
+}
+
+/// A refusal the lifter can act on, phrased by whoever knows why.
+private struct ProgramActivationRefusal: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
 }
 
 private struct ProgramActivationSetupView: View {

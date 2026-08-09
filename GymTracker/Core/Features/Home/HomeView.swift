@@ -156,14 +156,22 @@ struct HomeView: View {
                     onReschedule: beginRescheduling,
                     onSkip: { progressToSkip = $0 }
                 )
+                // Training data before navigation shortcuts.
+                //
+                // The week summary is the only thing on Today that reports what
+                // the lifter has actually done, and it used to sit last — under
+                // a list of links to other screens. Every daily surface worth
+                // copying leads with the figure and puts shortcuts beneath it,
+                // because "am I on track?" is the question the screen exists to
+                // answer and a shortcut list answers nothing.
+                HomeWeekSummaryCard(
+                    isPrimaryCardOfferingStart: todayWorkoutSummary.kind == .planned || todayWorkoutSummary.kind == .repeating,
+                    onStartWorkout: { isShowingTemplatePicker = true }
+                )
                 HomeTodaySection(
                     onOpenExercises: onOpenExercises,
                     onOpenMobility: onOpenMobility,
                     onResumeMobility: onResumeMobility
-                )
-                HomeWeekSummaryCard(
-                    isPrimaryCardOfferingStart: todayWorkoutSummary.kind == .planned || todayWorkoutSummary.kind == .repeating,
-                    onStartWorkout: { isShowingTemplatePicker = true }
                 )
                 // Last in the page, after everything the lifter came for.
                 if isShowingPersonalizationPrompt {

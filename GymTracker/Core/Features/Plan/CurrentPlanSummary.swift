@@ -60,18 +60,28 @@ struct CurrentPlanSummary: Equatable {
         planRuns: [PlanRun],
         repeatingPlanRuns: [RepeatingPlanRun]
     ) -> CurrentPlanSummary {
+        let activeFixed = planRuns.filter { $0.status == .active }
+        let activeRepeating = repeatingPlanRuns.filter { $0.status == .active }
+        let activeCount = activeFixed.count + activeRepeating.count
+
+        // Pausing the previous source is how a guided-source switch preserves
+        // its history. A single active source therefore wins over any number
+        // of paused runs; treating active + paused as ambiguous made a
+        // successful switch look like two plans were still running.
+        if activeCount == 1 {
+            if let run = activeFixed.first { return resolve(fixed: run) }
+            if let run = activeRepeating.first { return resolve(repeating: run) }
+        }
+
+        guard activeCount == 0 else {
+            return ambiguousSummary
+        }
+
         let openFixed = planRuns.filter(isOpen)
         let openRepeating = repeatingPlanRuns.filter { $0.status == .active || $0.status == .paused }
 
         guard openFixed.count + openRepeating.count <= 1 else {
-            return .init(
-                kind: .ambiguous,
-                title: String(localized: "More than one plan is running"),
-                detail: String(localized: "Open Plans to stop the ones you are not following."),
-                target: nil,
-                completedWorkouts: nil,
-                totalWorkouts: nil
-            )
+            return ambiguousSummary
         }
 
         if let run = openFixed.first { return resolve(fixed: run) }
@@ -81,6 +91,17 @@ struct CurrentPlanSummary: Equatable {
             kind: .none,
             title: String(localized: "No plan yet"),
             detail: String(localized: "Follow a plan and Today will tell you what to train."),
+            target: nil,
+            completedWorkouts: nil,
+            totalWorkouts: nil
+        )
+    }
+
+    private static var ambiguousSummary: CurrentPlanSummary {
+        .init(
+            kind: .ambiguous,
+            title: String(localized: "More than one plan is running"),
+            detail: String(localized: "Open Plans to stop the ones you are not following."),
             target: nil,
             completedWorkouts: nil,
             totalWorkouts: nil

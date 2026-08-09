@@ -214,7 +214,8 @@ private extension CurrentPlanCard {
                     lineWidth: summary.isPaused ? 1 : 1.5
                 )
         }
-        .shadow(color: Color.gymText.opacity(0.03), radius: 6, x: 0, y: 3)
+        // No shadow: fill plus border already separates this from the
+        // background, and a third device is noise. See `HomePrimaryWorkoutCard`.
     }
 
     /// Where the run currently is, as its own destination. The card's main tap

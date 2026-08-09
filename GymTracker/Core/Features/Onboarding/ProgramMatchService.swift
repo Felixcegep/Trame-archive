@@ -14,6 +14,7 @@ struct ProgramMatchCriteria: Equatable, Sendable {
     var scheduleFlexibility: ScheduleFlexibility?
     var sessionDuration: SessionDurationPreference?
     var availableEquipment: Set<EquipmentType> = []
+    var availableEquipmentCapabilityIDs: Set<String> = []
     var focusAreas: [FocusArea] = []
     var competitionDiscipline: CompetitionDiscipline?
     var competitionDate: Date?
@@ -27,6 +28,7 @@ struct ProgramMatchCriteria: Equatable, Sendable {
         scheduleFlexibility: ScheduleFlexibility? = nil,
         sessionDuration: SessionDurationPreference? = nil,
         availableEquipment: Set<EquipmentType> = [],
+        availableEquipmentCapabilityIDs: Set<String> = [],
         focusAreas: [FocusArea] = [],
         competitionDiscipline: CompetitionDiscipline? = nil,
         competitionDate: Date? = nil
@@ -39,6 +41,7 @@ struct ProgramMatchCriteria: Equatable, Sendable {
         self.scheduleFlexibility = scheduleFlexibility
         self.sessionDuration = sessionDuration
         self.availableEquipment = availableEquipment
+        self.availableEquipmentCapabilityIDs = availableEquipmentCapabilityIDs
         self.focusAreas = focusAreas
         self.competitionDiscipline = competitionDiscipline
         self.competitionDate = competitionDate
@@ -70,6 +73,7 @@ struct ProgramMatchCriteria: Equatable, Sendable {
             && rotationCadence == nil
             && sessionDuration == nil
             && availableEquipment.isEmpty
+            && availableEquipmentCapabilityIDs.isEmpty
             && focusAreas.isEmpty
             && competitionDiscipline == nil
     }
@@ -226,9 +230,16 @@ enum ProgramMatchService {
         }
 
         // MARK: Equipment
-        let missingEquipment = candidate.requiredEquipment
+        let equipmentRequirement = candidate.equipmentRequirement
+        let missingEquipment = equipmentRequirement.allOf
             .filter { !criteria.availableEquipment.contains($0) }
             .sorted { $0.rawValue < $1.rawValue }
+        let unsatisfiedAlternatives = equipmentRequirement.anyOf.filter { alternatives in
+            alternatives.allSatisfy { !criteria.availableEquipment.contains($0) }
+        }
+        let missingEquipmentCapabilityIDs = equipmentRequirement.requiredCapabilityIDs
+            .filter { !criteria.availableEquipmentCapabilityIDs.contains($0) }
+            .sorted()
 
         // Equipment is the one question onboarding refuses to let the lifter
         // skip, so it cannot be the one factor a program wins by omission.
@@ -243,12 +254,21 @@ enum ProgramMatchService {
         // this weight only by declaring equipment the lifter actually has;
         // declaring nothing earns neither the points nor a warning, and the
         // program is scored on everything else instead.
-        if !criteria.availableEquipment.isEmpty {
-            if !candidate.requiredEquipment.isEmpty && missingEquipment.isEmpty {
+        if !criteria.availableEquipment.isEmpty || !criteria.availableEquipmentCapabilityIDs.isEmpty {
+            if equipmentRequirement.hasRequirements
+                && missingEquipment.isEmpty
+                && unsatisfiedAlternatives.isEmpty
+                && missingEquipmentCapabilityIDs.isEmpty {
                 score += Weight.equipment
                 reasons.append(.init(text: String(localized: "Uses only equipment you selected")))
-            } else if !missingEquipment.isEmpty {
-                let names = missingEquipment.map(\.onboardingTitle).formatted(.list(type: .and))
+            } else if !missingEquipment.isEmpty || !unsatisfiedAlternatives.isEmpty || !missingEquipmentCapabilityIDs.isEmpty {
+                var missingNames = missingEquipment.map(\.onboardingTitle)
+                missingNames += unsatisfiedAlternatives.map {
+                    $0.map(\.onboardingTitle).formatted(.list(type: .or))
+                }
+                missingNames += missingEquipmentCapabilityIDs
+                    .map(SpecializedEquipmentCapability.title(for:))
+                let names = missingNames.formatted(.list(type: .and))
                 warnings.append(.init(text: String(localized: "Needs equipment you didn’t select: \(names)")))
             }
         }
@@ -301,7 +321,9 @@ enum ProgramMatchService {
         }
 
         // MARK: Focus areas
-        if !criteria.focusAreas.isEmpty, !candidate.focusAreaIDs.isEmpty {
+        if !criteria.focusAreas.isEmpty,
+           candidate.focusAreaApplicability == .applicable,
+           !candidate.focusAreaIDs.isEmpty {
             let overlap = criteria.focusAreas.filter { candidate.focusAreaIDs.contains($0.rawValue) }
             if !overlap.isEmpty {
                 score += Weight.focusArea
