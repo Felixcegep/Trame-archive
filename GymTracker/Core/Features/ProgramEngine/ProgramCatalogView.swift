@@ -346,14 +346,21 @@ struct ProgramCatalogDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("program-catalog-error")
             }
+            // The app's own prominent style, not the system's.
+            //
+            // This was `.borderedProminent` at `.large` — the one committing
+            // action in discovery drawn by a different set of rules than every
+            // other committing action in the app. `gymPrimaryProminent` is what
+            // Finish Workout and every onboarding CTA already use: a 54pt pill
+            // on `gymPrimaryDeep` (chosen because white on `gymPrimary` misses
+            // AA for a 17pt label), and a disabled state that outlines rather
+            // than fading the fill.
             Button {
                 isShowingSetup = true
             } label: {
                 Label("Use this plan", systemImage: AppIcon.play)
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.gymPrimaryProminent)
             .accessibilityIdentifier("use-program")
         }
         .padding(.horizontal, Spacing.xl)

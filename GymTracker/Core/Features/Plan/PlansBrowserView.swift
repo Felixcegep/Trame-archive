@@ -46,10 +46,10 @@ struct PlansBrowserView: View {
     @State private var catalogInstallState = SystemCatalogInstallState.shared
 
     var body: some View {
-        // The scope control sits outside the list rather than in its first row:
-        // as a scrolling row it shared the same strip as the searchable drawer
-        // and the two drew on top of each other. Pinned, it also stays reachable
-        // while the list scrolls.
+        // The scope control sits outside the scroll rather than in its first
+        // row: as a scrolling row it shared the same strip as the searchable
+        // drawer and the two drew on top of each other. Pinned, it also stays
+        // reachable while the list scrolls.
         VStack(spacing: 0) {
             Picker("Show", selection: $scope) {
                 ForEach(visibleScopes) { scope in
@@ -58,19 +58,36 @@ struct PlansBrowserView: View {
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("plans-scope")
-            .padding(.horizontal, Spacing.l)
+            .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.s)
 
-            List {
-                strengthPathsHeader
+            // A `ScrollView` of cards rather than a `List`.
+            //
+            // This screen is the last one in discovery still wearing system
+            // chrome: default row insets, default separators, and a grouped
+            // background that no other Trame surface uses. Every list the app
+            // owns — Today's "Log today" rows, the exercise card's set table,
+            // the program detail sections — is one card with hairline-separated
+            // rows, and the catalogue is the screen where that consistency
+            // matters most, since it is what a lifter compares plans in.
+            //
+            // Nothing is lost in the conversion: these rows have no swipe
+            // actions, no `onDelete`, and no `onMove`, so `List` was providing
+            // styling and nothing else.
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    strengthPathsHeader
 
-                switch scope {
-                case .following: followingSections
-                case .mine: mineSections
-                case .readyMade: readyMadeSection
+                    switch scope {
+                    case .following: followingSections
+                    case .mine: mineSections
+                    case .readyMade: readyMadeSection
+                    }
                 }
+                .padding(.horizontal, Spacing.xl)
+                .padding(.bottom, Spacing.xxxl)
             }
-            .scrollContentBackground(.hidden)
+            .scrollIndicators(.hidden)
             .accessibilityIdentifier("plans-browser-list")
         }
         .background(Color.gymBackground)
@@ -142,28 +159,32 @@ struct PlansBrowserView: View {
     @ViewBuilder
     private var strengthPathsHeader: some View {
         if shouldExplainStrengthPaths {
-            Section {
-                VStack(alignment: .leading, spacing: Spacing.s) {
-                    Text("Two ways to follow a plan")
-                        .font(AppFont.captionBold)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .textCase(.uppercase)
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                Text("Two ways to follow a plan")
+                    .font(AppFont.captionBold)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .textCase(.uppercase)
 
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        pathExplanationRow(
-                            title: "Program",
-                            description: "My sessions are scheduled across weeks."
-                        )
-                        pathExplanationRow(
-                            title: "Rotation",
-                            description: "I always do the next workout, regardless of weekday."
-                        )
-                    }
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    pathExplanationRow(
+                        title: "Program",
+                        description: "My sessions are scheduled across weeks."
+                    )
+                    pathExplanationRow(
+                        title: "Rotation",
+                        description: "I always do the next workout, regardless of weekday."
+                    )
                 }
-                .padding(.vertical, Spacing.xs)
-                .accessibilityElement(children: .contain)
             }
-            .listRowBackground(Color.gymCard)
+            .padding(Spacing.l)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.gymBorder, lineWidth: 1)
+            }
+            .accessibilityElement(children: .contain)
         }
     }
 
@@ -216,34 +237,31 @@ private extension PlansBrowserView {
     @ViewBuilder
     var followingSections: some View {
         if followedFixedPlans.isEmpty && followedRepeatingPlans.isEmpty {
-            Section {
-                // A query that matched nothing is not a report about the
-                // library. Telling someone who follows three plans that they
-                // are "not following a plan" — and offering to build one —
-                // because they mistyped a name is the screen answering a
-                // question nobody asked.
-                if isSearching {
-                    ContentUnavailableView.search(text: searchText)
-                } else {
-                    ContentUnavailableView {
-                        Label("Not following a plan", systemImage: AppIcon.plan)
-                    } description: {
-                        Text("Pick a ready-made plan or build your own, and Today will tell you what to train.")
-                    } actions: {
-                        Button("Build a plan", action: createPlan)
-                            .buttonStyle(.borderedProminent)
-                            .tint(Color.gymPrimary)
-                            .accessibilityIdentifier("create-plan-empty-state")
-                    }
+            // A query that matched nothing is not a report about the library.
+            // Telling someone who follows three plans that they are "not
+            // following a plan" — and offering to build one — because they
+            // mistyped a name is the screen answering a question nobody asked.
+            if isSearching {
+                ContentUnavailableView.search(text: searchText)
+            } else {
+                ContentUnavailableView {
+                    Label("Not following a plan", systemImage: AppIcon.plan)
+                } description: {
+                    Text("Pick a ready-made plan or build your own, and Today will tell you what to train.")
+                } actions: {
+                    Button("Build a plan", action: createPlan)
+                        .buttonStyle(.gymPrimary)
+                        .accessibilityIdentifier("create-plan-empty-state")
                 }
             }
-            .listRowBackground(Color.clear)
         } else {
-            Section("Following") {
-                ForEach(followedFixedPlans) { plan in
+            planSection("Following") {
+                ForEach(Array(followedFixedPlans.enumerated()), id: \.element.id) { index, plan in
+                    if index > 0 { rowDivider }
                     fixedPlanRow(plan)
                 }
-                ForEach(followedRepeatingPlans) { plan in
+                ForEach(Array(followedRepeatingPlans.enumerated()), id: \.element.id) { index, plan in
+                    if index > 0 || !followedFixedPlans.isEmpty { rowDivider }
                     repeatingPlanRow(plan)
                 }
             }
@@ -288,41 +306,41 @@ private extension PlansBrowserView {
     @ViewBuilder
     var mineSections: some View {
         if activePlans.isEmpty && activeRepeatingPlans.isEmpty && archivedPlans.isEmpty && archivedRepeatingPlans.isEmpty {
-            Section {
-                if isSearching {
-                    ContentUnavailableView.search(text: searchText)
-                } else {
-                    ContentUnavailableView {
-                        Label("No training plans yet", systemImage: AppIcon.planAdd)
-                    } description: {
-                        Text("A training plan schedules your saved workouts across the week so you always know what to train next.")
-                    } actions: {
-                        Button("Create a plan", action: createPlan)
-                            .buttonStyle(.borderedProminent)
-                            .tint(Color.gymPrimary)
-                            .accessibilityIdentifier("create-program-empty-state")
-                    }
+            if isSearching {
+                ContentUnavailableView.search(text: searchText)
+            } else {
+                ContentUnavailableView {
+                    Label("No training plans yet", systemImage: AppIcon.planAdd)
+                } description: {
+                    Text("A training plan schedules your saved workouts across the week so you always know what to train next.")
+                } actions: {
+                    Button("Create a plan", action: createPlan)
+                        .buttonStyle(.gymPrimary)
+                        .accessibilityIdentifier("create-program-empty-state")
                 }
             }
-            .listRowBackground(Color.clear)
         } else {
             if !activePlans.isEmpty || !activeRepeatingPlans.isEmpty {
-                Section("Active") {
-                    ForEach(activePlans) { plan in
+                planSection("Active") {
+                    ForEach(Array(activePlans.enumerated()), id: \.element.id) { index, plan in
+                        if index > 0 { rowDivider }
                         fixedPlanRow(plan)
                     }
-                    ForEach(activeRepeatingPlans) { plan in
+                    ForEach(Array(activeRepeatingPlans.enumerated()), id: \.element.id) { index, plan in
+                        if index > 0 || !activePlans.isEmpty { rowDivider }
                         repeatingPlanRow(plan)
                     }
                 }
             }
 
             if !archivedPlans.isEmpty || !archivedRepeatingPlans.isEmpty {
-                Section("Archived") {
-                    ForEach(archivedPlans) { plan in
+                planSection("Archived") {
+                    ForEach(Array(archivedPlans.enumerated()), id: \.element.id) { index, plan in
+                        if index > 0 { rowDivider }
                         fixedPlanRow(plan)
                     }
-                    ForEach(archivedRepeatingPlans) { plan in
+                    ForEach(Array(archivedRepeatingPlans.enumerated()), id: \.element.id) { index, plan in
+                        if index > 0 || !archivedPlans.isEmpty { rowDivider }
                         repeatingPlanRow(plan)
                     }
                 }
@@ -364,35 +382,33 @@ private extension PlansBrowserView {
     @ViewBuilder
     var readyMadeSection: some View {
         if !hasReadyMadeContent {
-            Section {
-                // Order matters. A search that matched nothing was previously
-                // indistinguishable from a catalogue that failed to install, so
-                // mistyping a plan name reported "The built-in plans could not
-                // be loaded" — an infrastructure failure, raised for a typo,
-                // right next to the genuine failure view that means it.
-                if isSearching {
-                    ContentUnavailableView.search(text: searchText)
-                } else if catalogInstallState.failure != nil {
-                    SystemCatalogUnavailableView {
-                        AppBootstrap.seedSystemCatalog(using: modelContext)
-                    }
-                } else {
-                    // Reachable without a recorded failure the first frame or
-                    // two after launch, before `AppBootstrap.seedSystemCatalog`
-                    // has run at all — the launch overlay covers this screen
-                    // for that entire window, so nobody actually sees it.
-                    ContentUnavailableView(
-                        "No plans available",
-                        systemImage: AppIcon.plan,
-                        description: Text("The built-in plans could not be loaded.")
-                    )
+            // Order matters. A search that matched nothing was previously
+            // indistinguishable from a catalogue that failed to install, so
+            // mistyping a plan name reported "The built-in plans could not be
+            // loaded" — an infrastructure failure, raised for a typo, right
+            // next to the genuine failure view that means it.
+            if isSearching {
+                ContentUnavailableView.search(text: searchText)
+            } else if catalogInstallState.failure != nil {
+                SystemCatalogUnavailableView {
+                    AppBootstrap.seedSystemCatalog(using: modelContext)
                 }
+            } else {
+                // Reachable without a recorded failure the first frame or two
+                // after launch, before `AppBootstrap.seedSystemCatalog` has run
+                // at all — the launch overlay covers this screen for that
+                // entire window, so nobody actually sees it.
+                ContentUnavailableView(
+                    "No plans available",
+                    systemImage: AppIcon.plan,
+                    description: Text("The built-in plans could not be loaded.")
+                )
             }
-            .listRowBackground(Color.clear)
         } else {
             if !readyMadeRecords.isEmpty {
-                Section("Ready-made") {
-                    ForEach(readyMadeRecords) { record in
+                planSection("Ready-made") {
+                    ForEach(Array(readyMadeRecords.enumerated()), id: \.element.id) { index, record in
+                        if index > 0 { rowDivider }
                         NavigationLink(value: LibraryRoute.readyMadePlan(record.id)) {
                             planRow(
                                 name: record.name,
@@ -406,17 +422,20 @@ private extension PlansBrowserView {
                                 badge: record.experienceLevel.onboardingTitle
                             )
                         }
+                        .buttonStyle(.plain)
                         .accessibilityIdentifier("program-catalog-\(record.name)")
                     }
                 }
             }
 
             if !seededPlans.isEmpty || !seededRepeatingPlans.isEmpty {
-                Section("Included with the app") {
-                    ForEach(seededPlans) { plan in
+                planSection("Included with the app") {
+                    ForEach(Array(seededPlans.enumerated()), id: \.element.id) { index, plan in
+                        if index > 0 { rowDivider }
                         fixedPlanRow(plan)
                     }
-                    ForEach(seededRepeatingPlans) { plan in
+                    ForEach(Array(seededRepeatingPlans.enumerated()), id: \.element.id) { index, plan in
+                        if index > 0 || !seededPlans.isEmpty { rowDivider }
                         repeatingPlanRow(plan)
                     }
                 }
@@ -437,6 +456,9 @@ private extension PlansBrowserView {
                 badge: runBadge(for: plan)
             )
         }
+        // Outside a `List`, a `NavigationLink` renders its label as a tinted
+        // button — every row title would have gone blue.
+        .buttonStyle(.plain)
         .accessibilityIdentifier("plan-row-\(plan.name)")
     }
 
@@ -449,21 +471,29 @@ private extension PlansBrowserView {
                 badge: repeatingRunBadge(for: plan) ?? String(localized: "Repeats")
             )
         }
+        .buttonStyle(.plain)
         .accessibilityIdentifier("repeating-plan-row-\(plan.id)")
     }
 
     /// Length is stated on every row so a repeating plan and an eight-week plan
     /// are never confused for two different kinds of object.
+    ///
+    /// The chevron and the row's own tint are drawn here rather than inherited.
+    /// Inside a `List` the system supplied both; this screen is a `ScrollView`
+    /// of cards now, where a bare `NavigationLink` renders as an untinted button
+    /// with no disclosure indicator at all — so a row would have stopped looking
+    /// tappable.
     func planRow(name: String, detail: String, icon: String, badge: String?) -> some View {
         HStack(spacing: Spacing.m) {
             Image(systemName: icon)
                 .foregroundStyle(Color.gymAccent)
-                .frame(width: 32, height: 32)
-                .background(Color.gymAccentSurface, in: Circle())
+                .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
+                .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(name)
                     .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
                     .font(AppFont.caption)
@@ -480,12 +510,56 @@ private extension PlansBrowserView {
                     .background(Color.gymRowSurface, in: Capsule())
                     .fixedSize()
             }
+            Image(systemName: AppIcon.chevronRight)
+                .font(AppFont.caption2Bold)
+                .foregroundStyle(Color.gymSubduedText)
+                .accessibilityHidden(true)
         }
+        .padding(.horizontal, Spacing.l)
+        .padding(.vertical, Spacing.m)
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+        .contentShape(Rectangle())
         // One stop per row rather than three. Twenty-one plans meant sixty-odd
         // swipes to cross the catalogue, and the badge — read on its own as a
         // bare "Advanced" — did not say what it described.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel(name: name, detail: detail, badge: badge))
+    }
+
+    /// One card holding a group of rows, hairline-separated.
+    ///
+    /// The same container Today's "Log today" list and the program detail
+    /// screen's sections use, so the catalogue stops being the one discovery
+    /// surface wearing system list chrome.
+    func planSection<Content: View>(
+        _ title: LocalizedStringKey,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text(title)
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .textCase(.uppercase)
+                .foregroundStyle(Color.gymSubduedText)
+                .accessibilityAddTraits(.isHeader)
+
+            VStack(spacing: 0) {
+                content()
+            }
+            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.gymBorder, lineWidth: 1)
+            }
+        }
+    }
+
+    /// The separator between rows inside a `planSection`. Inset past the icon
+    /// chip so it reads as dividing a list rather than cutting the card in two.
+    var rowDivider: some View {
+        Divider()
+            .overlay(Color.gymBorder)
+            .padding(.leading, Spacing.l + ComponentSize.iconChip + Spacing.m)
     }
 
     /// The badge is not one kind of thing — it carries an experience level on a
