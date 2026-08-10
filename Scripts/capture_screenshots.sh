@@ -7,7 +7,9 @@ SCREENSHOT_DIR="$WORKSPACE_DIR/Screenshots"
 # Override per process to allow independent scene groups to run on separate simulators.
 # The default remains the established screenshot simulator for local, single-device capture.
 SIMULATOR_ID="${SIMULATOR_ID:-11536E2C-BBE1-411D-AF6C-DF4ADCD332D1}"
-SIMULATOR_ID_2="${SIMULATOR_ID_2:-700D60D5-78C9-4E1E-9C66-A8B2280B1C4B}"
+# A second simulator is opt-in. The repository's host-stability rule defaults
+# screenshot work to one simulator and one UI-test stream.
+SIMULATOR_ID_2="${SIMULATOR_ID_2:-}"
 APP_BUNDLE_ID="felix.GymTracker"
 
 # Detect whether we should run tests on two simulators concurrently
@@ -40,6 +42,7 @@ Scenes:
   settings-data-safety   Settings Data Safety section
   pages                  Today, Train, Nutrition, and Settings secondary page states
   mobility               Mobility routine library and active execution
+  mobility-assessment    Assessment hub cards, capture flow, and history detail
   active                 Active Workout, tools, completed, discard, and review states
   rest                   Running, paused, and ready Rest Between Sets cards
   history                Saved-workout History list and detail
