@@ -743,6 +743,123 @@ struct StartMobilityRoutineIntent: AppIntent {
     }
 }
 
+enum MobilityIntentMutationResult: Equatable {
+    case applied(sessionCompleted: Bool)
+    case noActiveSession
+    case stale
+    case needsPerformedRepetitions
+    case invalid
+    case persistenceFailure
+}
+
+/// Adapter for Siri, widgets, and future Watch commands. It validates the
+/// durable session/entry identity before delegating to MobilitySessionService;
+/// it never owns a second mobility cursor or completion implementation.
+@MainActor
+enum MobilityIntentMutationService {
+    static func completeCurrentNode(
+        expectedSessionID: UUID? = nil,
+        expectedEntryID: UUID? = nil,
+        performedDurationSeconds: Int? = nil,
+        performedRepetitions: Int? = nil,
+        now: Date = .now,
+        using context: ModelContext
+    ) -> MobilityIntentMutationResult {
+        guard let session = MobilitySessionService.activeSession(using: context) else { return .noActiveSession }
+        if let expectedSessionID, session.id != expectedSessionID { return .stale }
+        guard let entry = session.currentEntry else { return .stale }
+        if let expectedEntryID, entry.id != expectedEntryID { return .stale }
+
+        let elapsed = performedDurationSeconds ?? elapsedSeconds(for: entry, now: now)
+        if entry.isPhaseDriven {
+            switch MobilitySessionService.completeCurrentPhase(
+                in: session,
+                performedDurationSeconds: elapsed,
+                now: now,
+                using: context
+            ) {
+            case .applied:
+                return .applied(sessionCompleted: session.status == .completed)
+            case .stale: return .stale
+            case .persistenceFailure: return .persistenceFailure
+            case .invalidPerformedDuration, .stopSignalRequiresStop: return .invalid
+            }
+        }
+
+        if entry.trackingType == .repetitions, performedRepetitions == nil {
+            return .needsPerformedRepetitions
+        }
+        let applied = MobilitySessionService.completeCurrent(
+            in: session,
+            performedDurationSeconds: elapsed,
+            performedRepetitions: performedRepetitions,
+            using: context
+        )
+        return applied ? .applied(sessionCompleted: session.status == .completed) : .invalid
+    }
+
+    private static func elapsedSeconds(for entry: MobilityEntry, now: Date) -> Int? {
+        guard entry.trackingType == .duration || entry.isPhaseDriven else { return nil }
+        let running = entry.timerStartedAt.map { max(0, Int(now.timeIntervalSince($0))) } ?? 0
+        let elapsed = entry.pausedElapsedSeconds + running
+        return elapsed > 0 ? elapsed : nil
+    }
+}
+
+struct CompleteCurrentMobilityNodeIntent: AppIntent {
+    static let title: LocalizedStringResource = "Complete current mobility movement"
+    static let description = IntentDescription("Completes the current mobility movement using Trame's active-session workflow.")
+    static let openAppWhenRun = false
+    static var parameterSummary: some ParameterSummary {
+        Summary("Complete current mobility movement") {
+            \.$performedRepetitions
+        }
+    }
+
+    @Parameter(title: "Performed repetitions", requestValueDialog: "How many repetitions did you perform?")
+    var performedRepetitions: Int?
+
+    /// Widget/Watch callers set these identities. Ordinary Siri/Shortcut runs
+    /// leave them nil and resolve the durable current node at execution time.
+    var expectedSessionID: UUID?
+    var expectedEntryID: UUID?
+
+    init() {}
+
+    init(expectedSessionID: UUID?, expectedEntryID: UUID?, performedRepetitions: Int? = nil) {
+        self.expectedSessionID = expectedSessionID
+        self.expectedEntryID = expectedEntryID
+        self.performedRepetitions = performedRepetitions
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard let container = GymTrackerModelContainer.shared else {
+            return .result(dialog: "Trame data is temporarily unavailable.")
+        }
+        let result = MobilityIntentMutationService.completeCurrentNode(
+            expectedSessionID: expectedSessionID,
+            expectedEntryID: expectedEntryID,
+            performedRepetitions: performedRepetitions,
+            using: ModelContext(container)
+        )
+        switch result {
+        case .applied(let sessionCompleted):
+            return .result(dialog: sessionCompleted ? "Mobility session complete." : "Movement complete. The next movement is ready.")
+        case .noActiveSession:
+            return .result(dialog: "There is no active mobility session.")
+        case .stale:
+            return .result(dialog: "That mobility movement is no longer current. Open Trame to review the session.")
+        case .needsPerformedRepetitions:
+            return .result(dialog: "Tell Trame how many repetitions you performed before completing this movement.")
+        case .invalid:
+            return .result(dialog: "This movement needs more information in Trame before it can be completed.")
+        case .persistenceFailure:
+            return .result(dialog: "The movement could not be saved. Nothing was advanced.")
+        }
+    }
+}
+
 struct GymTrackerAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
@@ -785,22 +902,10 @@ struct GymTrackerAppShortcuts: AppShortcutsProvider {
             systemImageName: "pause.fill"
         )
         AppShortcut(
-            intent: ControlRestIntent(action: .resume),
-            phrases: ["Resume my rest in \(.applicationName)"],
-            shortTitle: "Resume rest",
-            systemImageName: "play.fill"
-        )
-        AppShortcut(
             intent: ControlRestIntent(action: .skip),
             phrases: ["Skip my rest in \(.applicationName)"],
             shortTitle: "Skip rest",
             systemImageName: "forward.fill"
-        )
-        AppShortcut(
-            intent: ControlRestIntent(action: .addThirtySeconds),
-            phrases: ["Add 30 seconds to my rest in \(.applicationName)"],
-            shortTitle: "Add 30 seconds",
-            systemImageName: "plus.circle"
         )
         AppShortcut(
             intent: ViewPreviousPerformanceIntent(),
@@ -809,13 +914,34 @@ struct GymTrackerAppShortcuts: AppShortcutsProvider {
             systemImageName: "chart.line.uptrend.xyaxis"
         )
         AppShortcut(
-            intent: ShowWeeklyVolumeIntent(),
+            intent: StartMobilityRoutineIntent(),
             phrases: [
-                "Show my weekly volume in \(.applicationName)",
-                "How much training volume did I do this week with \(.applicationName)"
+                "Start a mobility routine with \(.applicationName)",
+                "Start mobility in \(.applicationName)",
+                "Démarrer une routine de mobilité avec \(.applicationName)"
             ],
-            shortTitle: "Weekly volume",
-            systemImageName: "chart.bar"
+            shortTitle: "Start mobility routine",
+            systemImageName: "figure.flexibility"
+        )
+        AppShortcut(
+            intent: ConfirmCreatineIntent(),
+            phrases: [
+                "Confirm today's creatine in \(.applicationName)",
+                "Log creatine with \(.applicationName)",
+                "Confirmer la créatine d’aujourd’hui dans \(.applicationName)"
+            ],
+            shortTitle: "Confirm creatine",
+            systemImageName: "checkmark.seal"
+        )
+        AppShortcut(
+            intent: CompleteCurrentMobilityNodeIntent(),
+            phrases: [
+                "Complete my mobility movement with \(.applicationName)",
+                "Finish this mobility movement in \(.applicationName)",
+                "Terminer mon mouvement de mobilité dans \(.applicationName)"
+            ],
+            shortTitle: "Complete mobility movement",
+            systemImageName: "checkmark.circle"
         )
     }
 }
