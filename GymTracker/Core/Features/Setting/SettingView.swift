@@ -245,6 +245,13 @@ private struct PersonalDetailsSettingsView: View {
                 }
                 .accessibilityIdentifier("settings-body-weight")
 
+                NavigationLink {
+                    HealthKitBodyMassSettingsView()
+                } label: {
+                    Label("Apple Health", systemImage: AppIcon.bodyWeight)
+                }
+                .accessibilityIdentifier("settings-apple-health")
+
                 Picker("Ask in check-in", selection: $bodyWeightPromptCadence) {
                     Text("Off").tag(BodyWeightPromptCadence.off)
                     Text("Weekly").tag(BodyWeightPromptCadence.weekly)

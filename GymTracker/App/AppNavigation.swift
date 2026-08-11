@@ -62,6 +62,9 @@ enum ProgressRoute: Hashable {
     case records
     case trainingTrends
     case muscleGroupVolume
+    case weightlifting
+    case trainingLedger
+    case coachExchange
     case mobilityHistory
     /// Recorded observations, kept separate from `mobilityHistory`: performed
     /// routine work and measured evidence are two different kinds of record.

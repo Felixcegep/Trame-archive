@@ -69,6 +69,24 @@ struct ProgressHubView: View {
                     detail: "Estimated working-set distribution and evidence",
                     icon: AppIcon.muscles
                 )
+                progressLink(
+                    route: .weightlifting,
+                    title: "Weightlifting",
+                    detail: "Full lifts, components, and quality evidence",
+                    icon: AppIcon.trophy
+                )
+                progressLink(
+                    route: .trainingLedger,
+                    title: String(localized: "progression.ledger.title", defaultValue: "Training ledger"),
+                    detail: String(localized: "progression.ledger.entry.detail", defaultValue: "Recommendation decisions and evidence"),
+                    icon: AppIcon.progression
+                )
+                progressLink(
+                    route: .coachExchange,
+                    title: String(localized: "coach.exchange.title", defaultValue: "Coach exchange"),
+                    detail: String(localized: "coach.exchange.entry.detail", defaultValue: "Share selected training definitions and reports"),
+                    icon: AppIcon.export
+                )
             }
 
             Section("Supporting history") {
@@ -273,6 +291,9 @@ extension ProgressRoute {
         case .records: "records"
         case .trainingTrends: "training-trends"
         case .muscleGroupVolume: "muscle-group-volume"
+        case .weightlifting: "weightlifting"
+        case .trainingLedger: "training-ledger"
+        case .coachExchange: "coach-exchange"
         case .mobilityHistory: "mobility-history"
         case .mobilityAssessmentHistory: "mobility-assessment-history"
         case .nutritionHistory: "nutrition-history"

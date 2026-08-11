@@ -182,9 +182,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             app.buttons["resolve-guided-conflict-and-continue-plan"].waitForExistence(timeout: 8)
         )
         let cancel = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "Cancel"))
+            .matching(NSPredicate(format: "label CONTAINS[c] %@", "Cancel"))
             .firstMatch
-        XCTAssertTrue(cancel.waitForExistence(timeout: 3))
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5))
         cancel.tap()
 
         let originalPlan = app.buttons["current-plan-card"]

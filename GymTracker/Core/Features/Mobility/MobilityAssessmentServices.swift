@@ -79,10 +79,14 @@ enum MobilityAssessmentValidationService {
         guard definition.setupKeys.contains(input.setupKey) else {
             return .unsupportedSetup
         }
-        guard input.method == definition.manualMode else {
+        let expectedMethod = input.source == .deviceMotion
+            ? definition.preferredMode
+            : definition.manualMode
+        guard input.method == expectedMethod else {
             return .unsupportedMethod
         }
-        guard input.source == .manual, input.method.isManual else {
+        guard (input.source == .manual && input.method.isManual)
+                || (input.source == .deviceMotion && !input.method.isManual) else {
             return .manualSourceRequiresManualMethod
         }
         guard input.confidence.rank <= MobilityMeasurementConfidence.moderate.rank else {

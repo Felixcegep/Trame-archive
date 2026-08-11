@@ -224,6 +224,206 @@ final class HistoricalIntegrityMatrixDigestTests: XCTestCase {
         XCTAssertEqual(initialDigest, secondDigest)
     }
 
+    // MARK: - 6. Release-Safe Completed Workout Mutation Boundary
+    func testCompletedMutationFamiliesRejectAndPreserveHistoricalDigest() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Squat", primaryMuscles: [.quadriceps])
+        let replacementExercise = Exercise(name: "Front Squat", primaryMuscles: [.quadriceps])
+        context.insert(exercise)
+        context.insert(replacementExercise)
+
+        let set = ExerciseSet(repetitions: 5, weight: 100, done: true, usedMetric: .metric)
+        set.setMethod = .cluster
+        set.prescribedRepetitions = 5
+        let entry = ExerciseEntry(exercise: exercise, sets: [set], usedMetric: .metric)
+        entry.comment = "Historical comment"
+        let block = WorkoutExecutionBlock(
+            orderIndex: 0,
+            kind: .straight,
+            name: "Historical block",
+            scoreKind: .roundsAndRepetitions
+        )
+        block.status = .inProgress
+
+        let workout = Workout(name: "Leg Session")
+        workout.notes = "Historical notes"
+        workout.exercises = [entry]
+        workout.executionBlocks = [block]
+        context.insert(workout)
+        try context.save()
+        workout.status = .completed
+        workout.endTime = Date(timeIntervalSince1970: 1_700_001_000)
+
+        XCTAssertTrue(workout.isCompleted)
+        XCTAssertTrue(entry.isCompleted)
+        XCTAssertTrue(set.isCompleted)
+        XCTAssertTrue(block.isCompleted)
+        let initialDigest = computeHistoricalMutationDigest(workout)
+
+        // Workout ownership and metadata mutations.
+        XCTAssertEqual(
+            workout.updateName("Changed"),
+            .rejected(.completedWorkoutMutation(.updateWorkoutName))
+        )
+        XCTAssertEqual(
+            workout.updateNotes("Changed"),
+            .rejected(.completedWorkoutMutation(.updateWorkoutNotes))
+        )
+        XCTAssertEqual(
+            workout.addEntry(ExerciseEntry(exercise: replacementExercise, usedMetric: .metric)),
+            .rejected(.completedWorkoutMutation(.addWorkoutEntry))
+        )
+        XCTAssertEqual(
+            workout.removeEntry(entry),
+            .rejected(.completedWorkoutMutation(.removeWorkoutEntry))
+        )
+        XCTAssertEqual(
+            workout.normalizeExerciseOrder(),
+            .rejected(.completedWorkoutMutation(.normalizeWorkoutOrder))
+        )
+
+        // Exercise-entry mutations.
+        XCTAssertEqual(
+            entry.addEmptySet(),
+            .rejected(.completedWorkoutMutation(.addExerciseSet))
+        )
+        XCTAssertEqual(
+            entry.addDefaultSets(count: 2),
+            .rejected(.completedWorkoutMutation(.addExerciseSet))
+        )
+        XCTAssertEqual(
+            entry.removeSet(set),
+            .rejected(.completedWorkoutMutation(.removeExerciseSet))
+        )
+        XCTAssertEqual(
+            entry.updateComment("Changed"),
+            .rejected(.completedWorkoutMutation(.updateExerciseComment))
+        )
+        XCTAssertEqual(
+            entry.updateExerciseSnapshot(from: replacementExercise),
+            .rejected(.completedWorkoutMutation(.updateExerciseSnapshot))
+        )
+        XCTAssertEqual(
+            entry.applySubstitutionDecision(completedMutationTestDecision()),
+            .rejected(.completedWorkoutMutation(.applySubstitutionDecision))
+        )
+        XCTAssertEqual(
+            entry.copyLastSet(),
+            .rejected(.completedWorkoutMutation(.copyLastSet))
+        )
+        XCTAssertEqual(
+            entry.normalizeSetOrder(),
+            .rejected(.completedWorkoutMutation(.normalizeExerciseOrder))
+        )
+        XCTAssertEqual(
+            entry.startActiveDuration(at: Date(timeIntervalSince1970: 1_700_001_001)),
+            .rejected(.completedWorkoutMutation(.startExerciseDuration))
+        )
+        XCTAssertEqual(
+            entry.stopActiveDuration(at: Date(timeIntervalSince1970: 1_700_001_002)),
+            .rejected(.completedWorkoutMutation(.stopExerciseDuration))
+        )
+
+        // Exercise-set mutations, including structured evidence families.
+        XCTAssertEqual(
+            set.applyStrongmanEvidence(
+                implementProfile: StrongmanImplementProfile(kind: .yoke),
+                eventFamily: .carry
+            ),
+            .rejected(.completedWorkoutMutation(.applyStrongmanEvidence))
+        )
+        XCTAssertEqual(
+            set.ensureSegmentsForMethod(),
+            .rejected(.completedWorkoutMutation(.ensureSetSegments))
+        )
+        XCTAssertEqual(
+            set.synchronizeSegmentCompletion(),
+            .rejected(.completedWorkoutMutation(.synchronizeSetSegmentCompletion))
+        )
+        XCTAssertEqual(
+            set.clearPrescription(),
+            .rejected(.completedWorkoutMutation(.clearSetPrescription))
+        )
+        XCTAssertEqual(
+            set.normalizeSegmentOrder(),
+            .rejected(.completedWorkoutMutation(.normalizeSegmentOrder))
+        )
+        XCTAssertEqual(
+            set.ensureComplexComponents(for: [
+                ComplexComponentSnapshot(
+                    exerciseID: replacementExercise.id,
+                    exerciseNameSnapshot: replacementExercise.name,
+                    prescribedRepetitions: 1
+                )
+            ]),
+            .rejected(.completedWorkoutMutation(.ensureComplexComponents))
+        )
+        XCTAssertEqual(
+            set.synchronizeComplexCompletion(),
+            .rejected(.completedWorkoutMutation(.synchronizeComplexCompletion))
+        )
+
+        // Execution-block model and service mutations.
+        XCTAssertEqual(
+            block.start(at: Date(timeIntervalSince1970: 1_700_001_003)),
+            .rejected(.completedWorkoutMutation(.startExecutionBlock))
+        )
+        XCTAssertEqual(
+            block.pause(at: Date(timeIntervalSince1970: 1_700_001_004)),
+            .rejected(.completedWorkoutMutation(.pauseExecutionBlock))
+        )
+        XCTAssertEqual(
+            WorkoutExecutionBlockService.completeRound(in: block),
+            .rejected(.completedWorkoutMutation(.completeExecutionBlock))
+        )
+        XCTAssertEqual(
+            WorkoutExecutionBlockService.recordAdditionalRepetitions(2, in: block),
+            .rejected(.completedWorkoutMutation(.updateExecutionBlockScore))
+        )
+        XCTAssertEqual(
+            WorkoutExecutionBlockService.updateScore(block, completedRounds: 2, scoreValue: 99),
+            .rejected(.completedWorkoutMutation(.updateExecutionBlockScore))
+        )
+        XCTAssertEqual(
+            WorkoutExecutionBlockService.assign(entries: [entry], to: block),
+            .rejected(.completedWorkoutMutation(.updateExecutionBlock))
+        )
+        XCTAssertEqual(
+            WorkoutExecutionBlockService.remove(block, from: workout),
+            .rejected(.completedWorkoutMutation(.removeExecutionBlock))
+        )
+        XCTAssertEqual(
+            WorkoutExecutionBlockService.complete(block),
+            .rejected(.completedWorkoutMutation(.completeExecutionBlock))
+        )
+        XCTAssertEqual(
+            WorkoutExecutionBlockService.cap(block),
+            .rejected(.completedWorkoutMutation(.capExecutionBlock))
+        )
+        XCTAssertEqual(
+            WorkoutExecutionBlockService.stop(block),
+            .rejected(.completedWorkoutMutation(.stopExecutionBlock))
+        )
+        XCTAssertEqual(
+            WorkoutExecutionBlockService.finalizeForWorkoutSave(block),
+            .rejected(.completedWorkoutMutation(.completeExecutionBlock))
+        )
+        XCTAssertThrowsError(
+            try WorkoutExecutionBlockService.create(
+                kind: .straight,
+                entries: [entry],
+                in: workout
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? WorkoutExecutionBlockError,
+                .completedWorkoutMutation(.updateExecutionBlock)
+            )
+        }
+
+        XCTAssertEqual(computeHistoricalMutationDigest(workout), initialDigest)
+    }
+
     // MARK: - Helper Digest Functions
 
     private func computeWorkoutDigest(_ workout: Workout) -> String {
@@ -239,6 +439,55 @@ final class HistoricalIntegrityMatrixDigestTests: XCTestCase {
             }
         }
         return components.joined(separator: "|")
+    }
+
+    private func computeHistoricalMutationDigest(_ workout: Workout) -> String {
+        var components = [
+            "workout:\(workout.name ?? "")",
+            "notes:\(workout.notes ?? "")",
+            "status:\(workout.status.rawValue)",
+            "endTime:\(workout.endTime?.timeIntervalSince1970 ?? 0)"
+        ]
+        for entry in workout.orderedExercises {
+            components.append("entry:\(entry.id)_\(entry.orderIndex)_\(entry.displayName)_\(entry.comment ?? "")")
+            for set in entry.orderedSets {
+                components.append(
+                    "set:\(set.id)_\(set.orderIndex)_\(set.repetitions)_\(set.weight)_\(set.done)_\(set.resolvedSetMethod.rawValue)_\(set.prescribedRepetitions ?? 0)"
+                )
+                for segment in set.orderedSegments {
+                    components.append("segment:\(segment.id)_\(segment.orderIndex)_\(segment.repetitions)_\(segment.done)")
+                }
+            }
+        }
+        for block in workout.orderedExecutionBlocks {
+            components.append(
+                "block:\(block.id)_\(block.orderIndex)_\(block.kind.rawValue)_\(block.name ?? "")_\(block.status.rawValue)_\(block.completedRounds)_\(block.additionalRepetitions)_\(block.scoreValue ?? 0)"
+            )
+        }
+        return components.joined(separator: "|")
+    }
+
+    private func completedMutationTestDecision() -> SubstitutionDecision {
+        SubstitutionDecision(
+            reason: .preference,
+            scope: .todayOnly,
+            progressionPolicy: .separate,
+            evaluation: SubstitutionEvaluationSnapshot(
+                version: 1,
+                ruleID: "completed_mutation_test",
+                sourceExerciseID: UUID(),
+                candidateExerciseID: UUID(),
+                reason: .preference,
+                suitability: .good,
+                comparability: .direct,
+                confidence: .high,
+                matchedFactorCodes: [],
+                differingFactorCodes: [],
+                missingEvidenceCodes: [],
+                hardFilterFailureCodes: [],
+                candidateProvenance: .systemReviewed
+            )
+        )
     }
 
     private func computeSubstitutionDigest(_ entry: ExerciseEntry) -> String {

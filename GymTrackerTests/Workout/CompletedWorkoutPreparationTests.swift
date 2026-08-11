@@ -84,6 +84,40 @@ final class CompletedWorkoutPreparationTests: XCTestCase {
         XCTAssertEqual(workingEntry.orderedSets.count, 1)
     }
 
+    func testPreparingCompletedWorkoutIsIdempotentAndLeavesHistoricalGraphUntouched() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = Exercise(name: "Historical Lift", primaryMuscles: [.quadriceps])
+        let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
+        let recorded = ExerciseSet(
+            repetitions: 5,
+            weight: 100,
+            done: true,
+            orderIndex: 0,
+            usedMetric: .metric
+        )
+        let retainedPartial = ExerciseSet(orderIndex: 1, usedMetric: .metric)
+        entry.sets = [recorded, retainedPartial]
+        let originalEnd = Date(timeIntervalSince1970: 1_700_000_000)
+        let workout = Workout(name: "  Historical  ", endTime: originalEnd)
+        workout.status = .completed
+        workout.exercises = [entry]
+        context.insert(exercise)
+        context.insert(workout)
+        try context.save()
+
+        let result = CompletedWorkoutPreparationService.prepare(
+            workout,
+            at: originalEnd.addingTimeInterval(600),
+            using: context
+        )
+
+        XCTAssertNil(result)
+        XCTAssertEqual(workout.name, "  Historical  ")
+        XCTAssertEqual(workout.endTime, originalEnd)
+        XCTAssertEqual(entry.sets.count, 2)
+        XCTAssertTrue(entry.sets.contains { $0 === retainedPartial })
+    }
+
     func testViewModelPublishesSummaryOnlyAfterSuccessfulSave() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let exercise = Exercise(name: "Saved Lift", primaryMuscles: [.upperChest])

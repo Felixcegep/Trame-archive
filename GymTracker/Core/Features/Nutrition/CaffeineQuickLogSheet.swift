@@ -340,6 +340,7 @@ struct CaffeineQuickLogSheet: View {
         }
         .buttonStyle(.gymPress)
         .accessibilityLabel("Other caffeine source")
+        .accessibilityIdentifier("Other caffeine source")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -465,6 +466,7 @@ struct CaffeineQuickLogSheet: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(intensity.title), \(intensity.rangeDescription)")
+        .accessibilityIdentifier(intensity.title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 

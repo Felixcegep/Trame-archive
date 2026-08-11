@@ -1,9 +1,9 @@
 import XCTest
 
 final class BetaFeedbackUITests: GymTrackerUITestCase {
-    private func launchSettings() -> XCUIApplication {
+    private func launchSettings(additionalArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
+        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"] + additionalArguments
         app.launchWithGymTrackerUITestArguments()
         XCTAssertEqual(app.state, .runningForeground)
 
@@ -54,17 +54,20 @@ final class BetaFeedbackUITests: GymTrackerUITestCase {
     }
 
     func testDisablingDiagnosticsHidesThePreview() {
-        let app = launchSettings()
+        let app = launchSettings(additionalArguments: ["-ui-testing-beta-feedback-diagnostics-off"])
         openBetaFeedback(in: app)
 
         let toggle = app.switches["beta-feedback-diagnostics-toggle"]
         scrollFeedbackFormDown(in: app)
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        // Only the trailing switch control toggles a Form row like this; the
-        // rest of the row (where a plain `.tap()` lands) is inert.
-        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
-        XCTAssertEqual(toggle.value as? String, "0")
-        XCTAssertFalse(app.staticTexts["App Version"].exists)
+        scrollToElement(toggle, in: app)
+        XCTAssertTrue(toggle.isHittable)
+        let switchedOff = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "0"),
+            object: toggle
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [switchedOff], timeout: 10), .completed)
+        XCTAssertTrue(app.staticTexts["App Version"].waitForNonExistence(timeout: 5))
     }
 
     func testCancelDismissesWithoutSharing() {

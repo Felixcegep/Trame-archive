@@ -8,7 +8,18 @@ struct BetaFeedbackScreen: View {
     @Environment(\.dismiss) private var dismiss
     let context: BetaFeedbackContext
     @State private var feedbackText: String = ""
-    @State private var includeDiagnostics = true
+    @State private var includeDiagnostics: Bool
+
+    init(context: BetaFeedbackContext) {
+        self.context = context
+        // The simulator's nested SwiftUI/Form switch proxy is not reliably
+        // tappable on iOS 26. Keep a deterministic UI-test seam for verifying
+        // the privacy-off state while the shipped control remains a native
+        // Toggle for VoiceOver and Dynamic Type users.
+        _includeDiagnostics = State(
+            initialValue: !AppLaunchArguments.current.contains("-ui-testing-beta-feedback-diagnostics-off")
+        )
+    }
 
     var body: some View {
         NavigationStack {

@@ -18,7 +18,8 @@ enum WidgetSnapshotService {
             today: todayData(using: context),
             weeklyVolume: weeklyVolumeData(using: context),
             caffeine: caffeineData(using: context),
-            creatine: creatineData(using: context)
+            creatine: creatineData(using: context),
+            mobility: mobilityData(using: context)
         )
     }
 
@@ -70,6 +71,37 @@ enum WidgetSnapshotService {
         let occurrences = (try? context.fetch(FetchDescriptor<SupplementOccurrence>())) ?? []
         let isConfirmed = occurrences.first { $0.dayKey == today.rawValue && $0.kind == .creatine }?.status == .completed
         return CreatineWidgetData(isConfirmed: isConfirmed)
+    }
+
+    private static func mobilityData(using context: ModelContext) -> MobilityWidgetData {
+        let sessions = (try? context.fetch(FetchDescriptor<MobilitySession>())) ?? []
+        let snapshots = sessions.map { session in
+            let entries = session.orderedEntries
+            let completedEntries = entries.filter { entry in
+                entry.results.contains { result in
+                    result.status == .completed || result.status == .partial
+                }
+            }.count
+            let state: MobilityWidgetSessionSnapshot.State = switch session.status {
+            case .active: .active
+            case .completed: .completed
+            case .stopped: .stopped
+            }
+            return MobilityWidgetSessionSnapshot(
+                state: state,
+                sessionID: session.id,
+                title: session.nameSnapshot,
+                currentEntryID: session.currentEntry?.id,
+                currentMovementName: session.currentEntry?.definitionNameSnapshot,
+                currentEntryNeedsRepetitions: session.currentEntry.map {
+                    $0.trackingType == .repetitions && !$0.isPhaseDriven
+                },
+                completedEntryCount: completedEntries,
+                totalEntryCount: entries.count,
+                startTime: session.startTime
+            )
+        }
+        return MobilityWidgetProjection.resolve(sessions: snapshots, now: .now, calendar: .current)
     }
 }
 

@@ -626,7 +626,13 @@ struct ActiveWorkoutView: View {
                         executionBlockToEdit = block
                     },
                     onRemove: {
-                        WorkoutExecutionBlockService.remove(block, from: workout)
+                        guard WorkoutExecutionBlockService.remove(block, from: workout).isApplied else {
+                            return
+                        }
+                        try? WorkoutExecutionBlockSplitService.deleteEvidence(
+                            for: block.id,
+                            using: modelContext
+                        )
                         modelContext.delete(block)
                         viewModel.persistChanges()
                     }

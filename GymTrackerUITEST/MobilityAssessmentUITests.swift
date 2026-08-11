@@ -18,7 +18,9 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
 
         selectTab(.progress, in: app)
         let progressHistory = app.descendants(matching: .any)["progress-mobility-assessment-history"]
-        XCTAssertTrue(progressHistory.waitForExistence(timeout: 5))
+        // Supporting-history rows are lazily materialized by SwiftUI's List;
+        // bring the row into the viewport before asserting its identity.
+        scrollToElement(progressHistory, in: app)
         XCTAssertTrue(progressHistory.label.contains("1"), "A zero-result sitting must not be counted")
         progressHistory.tap()
         XCTAssertTrue(app.navigationBars["Assessment history"].waitForExistence(timeout: 5))
@@ -42,6 +44,7 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
         let empty = launchFreshApp()
         openMobilityHub(in: empty)
         XCTAssertTrue(empty.buttons["open-mobility-assessment"].waitForExistence(timeout: 5))
+        assertNoRawInflectionMarkup(in: empty)
         saveScreenshot("mobility/18e_Mobility_Hub_Card_Empty")
 
         let recorded = launchFixture("mobility-assessment-recorded", expectsActiveWorkout: false)
@@ -68,6 +71,7 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
 
         tapButton("toggle-all-mobility-assessments", in: app)
         tapButton("mobility-assessment-select-mobility-assessment.thoracic-rotation-seated", in: app)
+        tapButton("mobility-assessment-select-mobility-assessment.open-book-rotation", in: app)
         let beginAssessment = app.buttons["begin-mobility-assessment"]
         scrollToElement(beginAssessment, in: app)
         beginAssessment.tap()
@@ -89,7 +93,11 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
         saveScreenshot("mobility-assessment/21e_Assessment_Confirmation")
 
         tapButton("mobility-assessment-next", in: app)
+        XCTAssertTrue(app.buttons["skip-mobility-assessment"].waitForExistence(timeout: 5))
+        tapButton("skip-mobility-assessment", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["mobility-assessment-summary"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["mobility-assessment-skipped-heading"].waitForExistence(timeout: 5))
+        assertNoRawInflectionMarkup(in: app)
         saveScreenshot("mobility-assessment/21f_Assessment_Summary")
         tapButton("finish-mobility-assessment", in: app)
     }
@@ -112,7 +120,33 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
         XCTAssertTrue(session.waitForExistence(timeout: 5))
         session.tap()
         XCTAssertTrue(history.navigationBars["Assessment"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            history.descendants(matching: .any)["mobility-assessment-session-detail"]
+                .waitForExistence(timeout: 5)
+        )
+        RunLoop.current.run(until: Date().addingTimeInterval(0.75))
         saveScreenshot("mobility-assessment/21g_Assessment_History_Detail")
+    }
+
+    func testCaptureMobilityAssessmentProfileScreenshot() {
+        let profile = launchFixture("mobility-assessment-history-detail", expectsActiveWorkout: false)
+        openMobilityHub(in: profile)
+        tapButton("open-mobility-assessment", in: profile)
+
+        let profileLink = profile.descendants(matching: .any)["open-mobility-assessment-profile"]
+        scrollToElement(profileLink, in: profile)
+        profileLink.tap()
+
+        XCTAssertTrue(profile.descendants(matching: .any)["mobility-assessment-profile"].waitForExistence(timeout: 10))
+        XCTAssertTrue(profile.descendants(matching: .any)["mobility-profile-coverage"].waitForExistence(timeout: 10))
+        XCTAssertTrue(profile.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "mobility-profile-measurement-")
+        ).firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(profile.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "mobility-profile-side-gap-")
+        ).firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(profile.descendants(matching: .any)["mobility-profile-scope"].waitForExistence(timeout: 10))
+        saveScreenshot("mobility-assessment/21h_Mobility_Assessment_Profile")
     }
 
     private func openMobilityHub(in app: XCUIApplication) {
@@ -124,6 +158,23 @@ final class MobilityAssessmentUITests: GymTrackerUITestCase {
     private func historySessionRows(in app: XCUIApplication) -> XCUIElementQuery {
         app.descendants(matching: .any).matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "mobility-assessment-history-session-")
+        )
+    }
+
+    private func assertNoRawInflectionMarkup(
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let rawMarkup = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS[c] %@", "inflect")
+        )
+        XCTAssertEqual(
+            rawMarkup.count,
+            0,
+            "The UI must not expose raw localization inflection markup",
+            file: file,
+            line: line
         )
     }
 

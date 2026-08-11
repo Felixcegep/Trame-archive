@@ -35,7 +35,8 @@ extension WidgetSnapshot {
             today: TodayWidgetData(state: .noWorkout, title: "No workout today", completedSetCount: 0, totalSetCount: 0, currentExerciseName: nil),
             weeklyVolume: WeeklyVolumeWidgetData(completedWorkoutCount: 0, workingSetCount: 0, loadVolume: nil, unitSymbol: nil),
             caffeine: CaffeineWidgetData(loggedMilligrams: 0, referenceMilligrams: 400),
-            creatine: CreatineWidgetData(isConfirmed: false)
+            creatine: CreatineWidgetData(isConfirmed: false),
+            mobility: .placeholder
         )
     }
 }

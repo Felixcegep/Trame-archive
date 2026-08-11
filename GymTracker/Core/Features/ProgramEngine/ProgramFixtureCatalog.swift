@@ -248,9 +248,21 @@ enum ProgramFixtureCatalog {
             ("Deload", .deload, 1, 3)
         ]
         let blocks = phases.enumerated().map { index, phase in
-            let exercise = self.exercise(id: exerciseIDs["squat"]!, key: "block-\(index)-squat", sets: fixedSets(index == 3 ? 2 : 4, reps: phase.3), rules: [blockRule], initialTrainingMax: 200)
-            let week = ProgramWeekDefinition(weekIndex: index, name: phase.0, workouts: [workout(phase.0, exercises: [exercise])])
-            return ProgramBlockDefinition(orderIndex: index, name: phase.0, phaseType: phase.1, weeks: [week])
+            let weeks = (0..<phase.2).map { weekIndex in
+                let exercise = self.exercise(
+                    id: exerciseIDs["squat"]!,
+                    key: "block-\(index)-squat",
+                    sets: fixedSets(index == 3 ? 2 : 4, reps: phase.3),
+                    rules: [blockRule],
+                    initialTrainingMax: 200
+                )
+                return ProgramWeekDefinition(
+                    weekIndex: weekIndex,
+                    name: "\(phase.0) \(weekIndex + 1)",
+                    workouts: [workout(phase.0, exercises: [exercise])]
+                )
+            }
+            return ProgramBlockDefinition(orderIndex: index, name: phase.0, phaseType: phase.1, weeks: weeks)
         }
         return definition(name: "Block Periodized Strength", blocks: blocks, durationWeeks: 12)
     }
@@ -291,6 +303,7 @@ enum ProgramFixtureCatalog {
         let normalizedWorkouts = workouts.enumerated().map { workoutIndex, workout in
             var normalized = workout
             normalized.orderIndex = workoutIndex
+            normalized.dayOffset = workoutIndex
             normalized.plannedExercises = workout.plannedExercises.enumerated().map { exerciseIndex, exercise in
                 var normalizedExercise = exercise
                 normalizedExercise.orderIndex = exerciseIndex

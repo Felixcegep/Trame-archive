@@ -540,7 +540,15 @@ struct ProgramCatalogDetailView: View {
             // above this stack. Leaving is what makes it visible; claiming the
             // plan started would be a lie, so nothing here says so.
             errorMessage = nil
-            onActivated()
+            // The callback is invoked from the setup sheet's confirmation
+            // action. Mutating the owning navigation path in that same
+            // presentation turn races the sheet dismissal on iOS 26 and can
+            // kill the UI test runner before the conflict dialog is rendered.
+            // Let the sheet finish its transition, then replace the detail
+            // path so the owner-owned dialog remains visible and cancellable.
+            DispatchQueue.main.async {
+                onActivated()
+            }
         case .refused(let message):
             // Nothing started, so nothing should be left behind. This plan was
             // compiled a moment ago for this activation alone; without the

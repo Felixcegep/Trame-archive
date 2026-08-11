@@ -58,6 +58,7 @@
 		44E0076E2FFAEB0600BF7D2B /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		44E007702FFAEB0600BF7D2B /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		A10000000000000000000001 /* GymTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GymTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C10000000000000000000002 /* TrameWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrameWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -68,6 +69,7 @@
 				App/Persistence/GymTrackerPersistenceConfiguration.swift,
 				App/Persistence/GymTrackerPreMigrationBackup.swift,
 				Core/DesignSystem/Colors.swift,
+				Core/DesignSystem/Icons.swift,
 				Core/Features/ActiveWorkout/WorkoutSetCompletionWorkflow.swift,
 				Core/Features/Plan/PlanProgressionEvaluationService.swift,
 				Core/Features/Plan/PlanProgressionRecommendationService.swift,
@@ -137,6 +139,11 @@
 			path = GymTrackerTests;
 			sourceTree = "<group>";
 		};
+		C10000000000000000000005 /* GymTrackerWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = GymTrackerWatch;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -170,6 +177,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -190,6 +204,7 @@
 				44E007722FFAEB0600BF7D2B /* GymTrackerExtension */,
 				4406369B300194FD0084434D /* GymTrackerUITEST */,
 				A10000000000000000000002 /* GymTrackerTests */,
+				C10000000000000000000005 /* GymTrackerWatch */,
 				44E0076D2FFAEB0600BF7D2B /* Frameworks */,
 				44E0063B2FF6E3C000BF7D2B /* Products */,
 				4446FF1A3002CEB5002547B3 /* Recovered References */,
@@ -203,6 +218,7 @@
 				44E0076C2FFAEB0600BF7D2B /* GymTrackerExtensionExtension.appex */,
 				4406369A300194FD0084434D /* GymTrackerUITEST.xctest */,
 				A10000000000000000000001 /* GymTrackerTests.xctest */,
+				C10000000000000000000002 /* TrameWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -313,6 +329,28 @@
 			productReference = A10000000000000000000001 /* GymTrackerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		C10000000000000000000010 /* TrameWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000000000000000000011 /* Build configuration list for PBXNativeTarget "TrameWatch" */;
+			buildPhases = (
+				C10000000000000000000007 /* Sources */,
+				C10000000000000000000006 /* Frameworks */,
+				C10000000000000000000008 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C10000000000000000000005 /* GymTrackerWatch */,
+			);
+			name = TrameWatch;
+			packageProductDependencies = (
+			);
+			productName = TrameWatch;
+			productReference = C10000000000000000000002 /* TrameWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -331,6 +369,9 @@
 						CreatedOnToolsVersion = 26.6;
 					};
 					44E0076B2FFAEB0600BF7D2B = {
+						CreatedOnToolsVersion = 26.6;
+					};
+					C10000000000000000000010 = {
 						CreatedOnToolsVersion = 26.6;
 					};
 				};
@@ -354,6 +395,7 @@
 				44E0076B2FFAEB0600BF7D2B /* GymTrackerExtensionExtension */,
 				44063699300194FD0084434D /* GymTrackerUITEST */,
 				A10000000000000000000003 /* GymTrackerTests */,
+				C10000000000000000000010 /* TrameWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -387,6 +429,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000000000000000000008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -412,6 +461,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A10000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C10000000000000000000007 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -616,6 +672,9 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Trame;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Trame reads body-mass measurements from Apple Health only when you choose to import them.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Trame saves a completed workout summary to Apple Health after you explicitly enable Health access.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Trame uses this iPhone's motion sensors to measure an angle during mobility assessments you start.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -656,6 +715,9 @@
 				INFOPLIST_KEY_GTFeatureFlagChannel = beta;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Trame reads body-mass measurements from Apple Health only when you choose to import them.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Trame saves a completed workout summary to Apple Health after you explicitly enable Health access.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Trame uses this iPhone's motion sensors to measure an angle during mobility assessments you start.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -781,6 +843,57 @@
 			};
 			name = Release;
 		};
+		C10000000000000000000012 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M9FC992T46;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Trame;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = felix.GymTracker;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = felix.GymTracker.watchkitapp;
+				PRODUCT_NAME = TrameWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Debug;
+		};
+		C10000000000000000000013 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = M9FC992T46;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Trame;
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = felix.GymTracker;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = felix.GymTracker.watchkitapp;
+				PRODUCT_NAME = TrameWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -825,6 +938,15 @@
 			buildConfigurations = (
 				A10000000000000000000010 /* Debug */,
 				A10000000000000000000011 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C10000000000000000000011 /* Build configuration list for PBXNativeTarget "TrameWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C10000000000000000000012 /* Debug */,
+				C10000000000000000000013 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

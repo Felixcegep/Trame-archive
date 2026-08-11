@@ -44,8 +44,9 @@ enum CompletedWorkoutPreparationService {
         at date: Date = .now,
         using modelContext: ModelContext
     ) -> CompletedWorkoutSummary? {
-        // Validate before pruning anything.
-        guard workout.completedSetCount > 0 else { return nil }
+        // Historical truth is immutable. Re-running preparation after a save
+        // must not prune or normalize an already completed object graph.
+        guard !workout.isCompleted, workout.completedSetCount > 0 else { return nil }
 
         var summary = CompletedWorkoutSummary()
 
@@ -59,7 +60,7 @@ enum CompletedWorkoutPreparationService {
             for set in incompleteSets {
                 modelContext.delete(set)
             }
-            exercise.normalizeSetOrder()
+            _ = exercise.normalizeSetOrder()
         }
 
         // Added-but-never-started exercises do not belong in history. An empty
@@ -83,14 +84,14 @@ enum CompletedWorkoutPreparationService {
                 workout.executionBlocks.removeAll { $0 === block }
                 modelContext.delete(block)
             } else {
-                WorkoutExecutionBlockService.finalizeForWorkoutSave(block, at: date)
+                _ = WorkoutExecutionBlockService.finalizeForWorkoutSave(block, at: date)
             }
         }
 
         workout.name = normalized(workout.name)
         workout.notes = normalized(workout.notes)
 
-        workout.normalizeExerciseOrder()
+        _ = workout.normalizeExerciseOrder()
         workout.status = .completed
         workout.endTime = date
         workout.restEndDate = nil

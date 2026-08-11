@@ -16,5 +16,6 @@ struct GymTrackerExtensionBundle: WidgetBundle {
         WeeklyVolumeWidget()
         CaffeineWidget()
         CreatineWidget()
+        MobilityWidget()
     }
 }

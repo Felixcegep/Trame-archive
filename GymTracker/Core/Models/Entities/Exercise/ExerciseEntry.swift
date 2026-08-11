@@ -332,34 +332,58 @@ final class ExerciseEntry {
     /// Single source of truth for whether this entry belongs to a completed workout.
     var isCompleted: Bool { workout?.isCompleted ?? false }
 
-    func addEmptySet() {
-        assert(!isCompleted, "Illegal write: Cannot add set to an entry in a completed workout.")
+    @discardableResult
+    func addEmptySet() -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .addExerciseSet
+        ) { return rejection }
         sets.append(createEmptySet(orderIndex: nextSetOrderIndex))
+        return .applied
     }
 
-    func addDefaultSets(count: Int = 3) {
-        assert(!isCompleted, "Illegal write: Cannot add default sets to an entry in a completed workout.")
+    @discardableResult
+    func addDefaultSets(count: Int = 3) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .addExerciseSet
+        ) { return rejection }
         for _ in 0..<count {
-            addEmptySet()
+            _ = addEmptySet()
         }
+        return .applied
     }
 
-    func removeSet(_ set: ExerciseSet) {
-        assert(!isCompleted, "Illegal write: Cannot remove set from an entry in a completed workout.")
+    @discardableResult
+    func removeSet(_ set: ExerciseSet) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .removeExerciseSet
+        ) { return rejection }
         sets.removeAll(where: { $0.id == set.id })
-        normalizeSetOrder()
+        _ = normalizeSetOrder()
+        return .applied
     }
 
-    func updateComment(_ newComment: String?) {
-        assert(!isCompleted, "Illegal write: Cannot update comment on an entry in a completed workout.")
+    @discardableResult
+    func updateComment(_ newComment: String?) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .updateExerciseComment
+        ) { return rejection }
         self.comment = newComment
+        return .applied
     }
 
     /// Replaces an unstarted entry's library definition while retaining its
     /// prescription and position in the active workout. Callers must delete
     /// existing sets before rebuilding them for the replacement tracking type.
-    func updateExerciseSnapshot(from exercise: Exercise) {
-        assert(!isCompleted, "Illegal write: Cannot update exercise snapshot on an entry in a completed workout.")
+    @discardableResult
+    func updateExerciseSnapshot(from exercise: Exercise) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .updateExerciseSnapshot
+        ) { return rejection }
         self.exercise = exercise
         nameSnapshot = exercise.name
         exerciseIDSnapshot = exercise.id
@@ -378,6 +402,7 @@ final class ExerciseEntry {
         recommendationRepCeiling = nil
         recommendationCompletedSets = nil
         recommendationPriorWorkoutDate = nil
+        return .applied
     }
 
     // MARK: - Decision-aware substitution
@@ -430,8 +455,12 @@ final class ExerciseEntry {
     /// `SubstitutionDecision`'s own initializer has already downgraded a
     /// `.continueShared` policy that the evaluation cannot support, so a
     /// non-`direct` comparability can never reach the `true` branch here.
-    func applySubstitutionDecision(_ decision: SubstitutionDecision) {
-        assert(!isCompleted, "Illegal write: Cannot apply substitution decision to an entry in a completed workout.")
+    @discardableResult
+    func applySubstitutionDecision(_ decision: SubstitutionDecision) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .applySubstitutionDecision
+        ) { return rejection }
         substitutionReasonCode = decision.reason.rawValue
         substitutionScopeRaw = decision.scope.rawValue
         substitutionProgressionPolicyRaw = decision.progressionPolicy.rawValue
@@ -444,18 +473,23 @@ final class ExerciseEntry {
         // Retained so a pre-v20 reader still sees a non-nil marker. Stable and
         // non-localized on purpose: it is provenance, not display text.
         substitutionReason = "structured:\(decision.reason.rawValue)"
+        return .applied
     }
 
-    func copyLastSet() {
-        assert(!isCompleted, "Illegal write: Cannot copy last set on an entry in a completed workout.")
+    @discardableResult
+    func copyLastSet() -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .copyLastSet
+        ) { return rejection }
         guard let lastSet = orderedSets.last else {
-            addEmptySet()
-            return
+            return addEmptySet()
         }
 
         let copiedSet = lastSet.copy()
         copiedSet.orderIndex = nextSetOrderIndex
         sets.append(copiedSet)
+        return .applied
     }
 
     /// The stable identity for completed-history grouping, analytics, and
@@ -486,29 +520,44 @@ final class ExerciseEntry {
         })
     }
 
-    func normalizeSetOrder() {
-        assert(!isCompleted, "Illegal write: Cannot normalize set order on an entry in a completed workout.")
+    @discardableResult
+    func normalizeSetOrder() -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .normalizeExerciseOrder
+        ) { return rejection }
         for (index, set) in orderedSets.enumerated() {
             set.orderIndex = index
             set.normalizeSegmentOrder()
         }
+        return .applied
     }
 
     func activeDuration(at date: Date = .now) -> TimeInterval {
         accumulatedActiveDuration + max(0, activeDurationStartedAt.map { date.timeIntervalSince($0) } ?? 0)
     }
 
-    func startActiveDuration(at date: Date = .now) {
-        assert(!isCompleted, "Illegal write: Cannot start active duration on an entry in a completed workout.")
-        guard activeDurationStartedAt == nil else { return }
+    @discardableResult
+    func startActiveDuration(at date: Date = .now) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .startExerciseDuration
+        ) { return rejection }
+        guard activeDurationStartedAt == nil else { return .applied }
         activeDurationStartedAt = date
+        return .applied
     }
 
-    func stopActiveDuration(at date: Date = .now) {
-        assert(!isCompleted, "Illegal write: Cannot stop active duration on an entry in a completed workout.")
-        guard let startedAt = activeDurationStartedAt else { return }
+    @discardableResult
+    func stopActiveDuration(at date: Date = .now) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .stopExerciseDuration
+        ) { return rejection }
+        guard let startedAt = activeDurationStartedAt else { return .applied }
         accumulatedActiveDuration += max(0, date.timeIntervalSince(startedAt))
         activeDurationStartedAt = nil
+        return .applied
     }
 
     private var nextSetOrderIndex: Int {

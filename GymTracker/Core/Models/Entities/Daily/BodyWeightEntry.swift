@@ -4,6 +4,7 @@ import SwiftData
 enum BodyWeightSource: String, Codable, CaseIterable {
     case settings
     case checkIn
+    case healthKit
 }
 
 /// One user-authored body-weight observation for a local calendar day.

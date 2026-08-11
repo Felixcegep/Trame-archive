@@ -42,7 +42,7 @@ final class WorkoutBackupFailureTests: XCTestCase {
             guard case .missingPlan(let identifier) = error as? BackupValidationError else {
                 return XCTFail("Expected a missing-plan validation error, got \(error)")
             }
-            XCTAssertEqual(identifier, missingPlanID)
+            XCTAssertEqual(UUID(uuidString: identifier), UUID(uuidString: missingPlanID))
         }
         XCTAssertTrue(
             try context.fetch(FetchDescriptor<Exercise>()).contains { $0.name == sentinel.name }

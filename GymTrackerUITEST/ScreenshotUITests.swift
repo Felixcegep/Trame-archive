@@ -11,13 +11,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         ]
         app.launchWithGymTrackerUITestArguments()
 
-        let brandMark = app.descendants(matching: .any)["launch-brand-mark"]
-        XCTAssertTrue(brandMark.waitForExistence(timeout: 15))
-        let completedFrame = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "value == %@", "Ready"),
-            object: brandMark
-        )
-        XCTAssertEqual(XCTWaiter().wait(for: [completedFrame], timeout: 15), .completed)
+        // The animated canvas is intentionally decorative and does not always
+        // publish its container identifier on iOS 26. The visible brand name
+        // is the stable, user-facing completion signal.
+        XCTAssertTrue(app.staticTexts["Trame"].waitForExistence(timeout: 15))
+        RunLoop.current.run(until: Date().addingTimeInterval(0.75))
         saveScreenshot("overview/00a_Launch_Brand")
     }
 
@@ -196,6 +194,201 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("overview/04g_Settings_Data_Safety")
     }
 
+    /// Coach Exchange is reached through the Progress hub rather than a
+    /// capture-only launch destination. The first two frames intentionally
+    /// show the untouched package selection state and then the local package
+    /// builder after one deterministic definition has been selected.
+    func testCaptureCoachExchangeScreenshots() {
+        let app = launchFreshApp()
+        selectTab(.progress, in: app)
+        tapButton("progress-coach-exchange", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["coach-exchange-screen"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["coach-exchange-package-empty"].waitForExistence(timeout: 5))
+        saveScreenshot("coach-exchange/23_Coach_Exchange_Empty")
+        app.terminate()
+
+        let builder = launchFixture(
+            "coach-exchange",
+            additionalArguments: [
+                "-ui-testing-open-coach-exchange",
+                "-ui-testing-coach-exchange-builder-expanded",
+                "-ui-testing-coach-exchange-select-first",
+                "-ui-testing-coach-exchange-build-first"
+            ],
+            expectsActiveWorkout: false,
+            expectedHomeControl: "coach-exchange-screen"
+        )
+        XCTAssertTrue(builder.staticTexts["GymTracker"].waitForExistence(timeout: 10))
+        saveScreenshot("coach-exchange/23a_Coach_Exchange_Package_Builder")
+    }
+
+    /// The app-side test hook named below must inject a deterministic package
+    /// preview into CoachExchangeView. This keeps the capture independent of
+    /// the system file picker while exercising the real conflict picker and
+    /// atomic-application success state. The hook is intentionally not
+    /// implemented in this UI-test target; it belongs to the app/bootstrap
+    /// seam and is reported in the implementation handoff.
+    func testCaptureCoachExchangeImportScreenshots() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-testing-coach-exchange-import-conflict"
+        ]
+        app.launchWithGymTrackerUITestArguments()
+
+        let preview = app.descendants(matching: .any)["coach-exchange-import-preview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 30))
+        let apply = app.buttons["coach-exchange-import-apply"]
+        scrollToElement(apply, in: app)
+        saveScreenshot("coach-exchange/23b_Coach_Exchange_Conflict_Preview")
+
+        // The preview fixture defaults to the safest explicit decision: keep
+        // the existing definition. Resolution variants are covered by the
+        // atomic importer tests; this scene proves the visible conflict and
+        // real application/success path without depending on menu internals.
+        for _ in 0..<4 where !apply.isHittable {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
+                .press(
+                    forDuration: 0.05,
+                    thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.48))
+                )
+        }
+        XCTAssertTrue(apply.waitForExistence(timeout: 5))
+        XCTAssertTrue(apply.isHittable)
+        apply.tap()
+        let success = app.descendants(matching: .any)["coach-exchange-import-success"]
+        if !success.waitForExistence(timeout: 15) {
+            let alert = app.alerts.firstMatch
+            let detail = alert.exists
+                ? alert.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | ")
+                : "No import error alert appeared."
+            XCTFail("Coach import did not reach its success state. \(detail)")
+        }
+        // The success label replaces the button in-place. Re-scrolling here
+        // with XCTest's hittability helper can move the short row under the
+        // navigation material on iOS 26. Pull the content down slightly so the
+        // completed state has breathing room beneath the title instead.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.34))
+            .press(
+                forDuration: 0.05,
+                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.52))
+            )
+        // Allow the navigation bar and material layers to settle after the
+        // atomic import redraw before recording the completion state.
+        RunLoop.current.run(until: Date().addingTimeInterval(0.75))
+        saveScreenshot("coach-exchange/23c_Coach_Exchange_Import_Complete")
+    }
+
+    /// The history fixture provides one completed, immutable chapter without
+    /// recreating a workout through UI actions. Capture both supported Journey
+    /// presentations so the timeline remains a first-class visual surface.
+    func testCaptureTrainingJourneyScreenshots() {
+        let app = launchFixture("history-bench", expectsActiveWorkout: false)
+        selectTab(.progress, in: app)
+        tapButton("progress-overview-journey", in: app)
+
+        XCTAssertTrue(app.descendants(matching: .any)["training-journey-screen"].waitForExistence(timeout: 10))
+        let chapter = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "training-journey-chapter-")
+        ).firstMatch
+        XCTAssertTrue(chapter.waitForExistence(timeout: 10))
+        saveScreenshot("journey/24_Training_Journey_List")
+
+        tapFirstAvailableButton(["Timeline", "Chronologie"], in: app)
+        XCTAssertTrue(
+            app.staticTexts["Selected date"].waitForExistence(timeout: 10)
+                || app.staticTexts["Date sélectionnée"].waitForExistence(timeout: 2)
+        )
+        RunLoop.current.run(until: Date().addingTimeInterval(0.75))
+        saveScreenshot("journey/24a_Training_Journey_Timeline")
+    }
+
+    /// The deterministic fixture contains made, partial, and missed completed
+    /// attempts so the dashboard proves both full-lift evidence and the
+    /// component-level evidence boundary.
+    func testCaptureWeightliftingDashboardScreenshot() {
+        let app = launchFixture(
+            "weightlifting-dashboard",
+            additionalArguments: ["-ui-testing-open-weightlifting"],
+            expectsActiveWorkout: false,
+            expectedHomeControl: "weightlifting-dashboard"
+        )
+
+        XCTAssertTrue(app.descendants(matching: .any)["weightlifting-dashboard"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["competition-attempts-snatch"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["start-competition-day"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["weightlifting-attempt-summary"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["weightlifting-component-outcomes-unknown"].waitForExistence(timeout: 10))
+        saveScreenshot("progress/26_Weightlifting_Populated")
+
+        tapControl("start-competition-day", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["active-workout-title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Competition day"].waitForExistence(timeout: 5))
+        saveScreenshot("progress/26a_Competition_Day_Active")
+    }
+
+    /// The progression-receipt fixture already owns a persisted recommendation
+    /// ledger entry. Capture the list and its evidence/detail destination.
+    func testCaptureProgressionLedgerScreenshots() {
+        let app = launchFixture(
+            "progression-receipt",
+            additionalArguments: ["-ui-testing-open-training-ledger"],
+            expectsActiveWorkout: false,
+            expectedHomeControl: "progression-ledger-screen"
+        )
+        let receiptDone = app.buttons["Done"]
+        if receiptDone.waitForExistence(timeout: 3) {
+            receiptDone.tap()
+        } else {
+            let frenchDone = app.buttons["Terminé"]
+            if frenchDone.waitForExistence(timeout: 1) { frenchDone.tap() }
+        }
+
+        XCTAssertTrue(app.descendants(matching: .any)["progression-ledger-screen"].waitForExistence(timeout: 10))
+        let row = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "progression-ledger-row-")
+        ).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        saveScreenshot("progression/25_Training_Ledger")
+
+        row.tap()
+        let detail = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "progression-ledger-detail-")
+        ).firstMatch
+        XCTAssertTrue(detail.waitForExistence(timeout: 10))
+        saveScreenshot("progression/25a_Training_Ledger_Detail")
+    }
+
+    /// CE-05 owns a focused, shared execution surface rather than a second
+    /// widget-side state graph. The existing fixtures provide a running
+    /// execution block, a durable round transition (which also surfaces the
+    /// existing rest state), and explicit complex-component outcomes.
+    func testCaptureMixedWorkoutScreenshots() {
+        let eyesUp = launchFixture("active-execution-block")
+        let eyesUpSurface = eyesUp.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "execution-block-eyes-up-")
+        ).firstMatch
+        XCTAssertTrue(eyesUpSurface.waitForExistence(timeout: 10))
+        XCTAssertTrue(eyesUp.buttons["Complete round"].waitForExistence(timeout: 5))
+        saveScreenshot("mixed-workout/27_Mixed_Eyes_Up_Runtime")
+
+        // The block has two exercise components. The first action advances the
+        // component cursor; the second closes the round and records the
+        // round-completed split that starts the existing rest state.
+        tapButton("Complete round", in: eyesUp)
+        tapButton("Complete round", in: eyesUp)
+        XCTAssertTrue(eyesUp.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 10))
+        saveScreenshot("mixed-workout/27a_Mixed_Runtime_Split")
+
+        let complex = launchFixture("active-complex-components")
+        XCTAssertTrue(complex.staticTexts["Three-Position Snatch"].waitForExistence(timeout: 10))
+        XCTAssertTrue(complex.buttons["complex-component-0"].waitForExistence(timeout: 5))
+        XCTAssertTrue(complex.buttons["complex-component-1"].exists)
+        XCTAssertTrue(complex.buttons["complex-component-2"].exists)
+        saveScreenshot("mixed-workout/27b_Mixed_Complex_Component_Evidence")
+    }
+
     func testCaptureBetaFeedbackActiveLoggingScreenshot() {
         let app = launchFixture("active-in-progress")
         enterValidValues(for: "Bench Press", set: 0, in: app)
@@ -203,7 +396,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("minimize-workout", in: app)
         XCTAssertTrue(app.buttons["resume-active-workout"].waitForExistence(timeout: 10))
 
-        selectTab(.settings, in: app)
+        tapButton("open-settings", in: app)
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
         let feedbackRow = app.descendants(matching: .any)["settings-beta-feedback"]
         scrollToElement(feedbackRow, in: app)
@@ -575,6 +768,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.navigationBars["Why?"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Progression rule v2")).firstMatch.exists)
         XCTAssertTrue(app.staticTexts["The rule's condition was met."].exists)
+        XCTAssertTrue(app.staticTexts["Effect on your plan"].waitForExistence(timeout: 5))
+        app.swipeUp()
         saveScreenshot("progression/10g_Progression_Receipt_Why")
     }
 
@@ -605,7 +800,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let guidedError = XCUIApplication()
         guidedError.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-guided-source-error"]
         guidedError.launchWithGymTrackerUITestArguments()
-        XCTAssertTrue(guidedError.alerts["Couldn’t update training source"].waitForExistence(timeout: 30))
+        XCTAssertTrue(guidedError.alerts["Plan change failed"].waitForExistence(timeout: 30))
         saveScreenshot("active-workout/08s_Guided_Source_Error")
         guidedError.terminate()
 
@@ -671,9 +866,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let nutrition = launchFixture(
             "nutrition-today",
             expectsActiveWorkout: false,
-            expectedHomeControl: "open-nutrition-today"
+            expectedHomeControl: "tab-nutrition"
         )
-        tapButton("open-nutrition-today", in: nutrition)
+        selectTab(.nutrition, in: nutrition)
         tapButton("open-food-library", in: nutrition)
         XCTAssertTrue(nutrition.navigationBars["Food library"].waitForExistence(timeout: 10))
         saveScreenshot("nutrition/20b_Food_Library")
@@ -684,9 +879,10 @@ final class ScreenshotUITests: GymTrackerUITestCase {
 
         let repeatMeal = launchFixture(
             "today-complete",
-            expectsActiveWorkout: false
+            expectsActiveWorkout: false,
+            expectedHomeControl: "tab-nutrition"
         )
-        tapButton("open-nutrition-today", in: repeatMeal)
+        selectTab(.nutrition, in: repeatMeal)
         XCTAssertTrue(repeatMeal.descendants(matching: .any)["nutrition-today-totals"].waitForExistence(timeout: 10))
         let repeatButton = repeatMeal.descendants(matching: .any).matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "repeat-logged-meal-")
@@ -751,34 +947,43 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     /// Today screen. Check-in and caffeine are cancelable without saving, so
     /// one launch replaces three.
     func testCaptureTodayCompleteTourScreenshots() {
-        let app = launchFixture("today-complete", expectsActiveWorkout: false)
-
-        // A completed check-in is intentionally tucked behind Today's handled
-        // support disclosure. Expand it before reopening the entry.
-        tapButton("today-toggle-handled-support", in: app)
-        tapButton("open-daily-check-in", in: app)
-        XCTAssertTrue(app.navigationBars["Daily check-in"].waitForExistence(timeout: 5))
+        let app = launchFixture(
+            "today-complete",
+            additionalArguments: ["-ui-testing-open-daily-check-in"],
+            expectsActiveWorkout: false,
+            expectedHomeControl: "daily-check-in-save"
+        )
         saveScreenshot("overview/01e_Daily_Check_In")
         tapButton("Cancel", in: app)
         XCTAssertTrue(app.navigationBars["Daily check-in"].waitForNonExistence(timeout: 5))
+        app.terminate()
 
-        tapButton("today-caffeine-summary", in: app)
-        XCTAssertTrue(app.navigationBars["Log caffeine"].waitForExistence(timeout: 5))
+        let caffeine = launchFixture(
+            "today-complete",
+            additionalArguments: ["-ui-testing-open-caffeine-log"],
+            expectsActiveWorkout: false,
+            expectedHomeControl: "confirm-log-caffeine"
+        )
+        XCTAssertTrue(caffeine.navigationBars["Log caffeine"].waitForExistence(timeout: 5))
         saveScreenshot("nutrition/20a_Caffeine_Quick_Log")
-        tapButton("Cancel", in: app)
-        XCTAssertTrue(app.navigationBars["Log caffeine"].waitForNonExistence(timeout: 5))
+        tapButton("Cancel", in: caffeine)
+        XCTAssertTrue(caffeine.navigationBars["Log caffeine"].waitForNonExistence(timeout: 5))
 
         // Managing routines is the Train tab's job; Today only starts or resumes
         // one, so the library is reached from Train rather than a Today link.
-        selectTab(.library, in: app)
-        tapButton("train-mobility-library", in: app)
-        XCTAssertTrue(app.navigationBars["Mobility"].waitForExistence(timeout: 5))
+        selectTab(.library, in: caffeine)
+        tapButton("train-mobility-library", in: caffeine)
+        XCTAssertTrue(caffeine.navigationBars["Mobility"].waitForExistence(timeout: 5))
         saveScreenshot("mobility/18_Mobility_Routines")
     }
 
     func testCaptureDailyCheckInWeightDueScreenshot() {
-        let app = launchFixture("today-weight-due", expectsActiveWorkout: false)
-        tapButton("open-daily-check-in", in: app)
+        let app = launchFixture(
+            "today-weight-due",
+            additionalArguments: ["-ui-testing-open-daily-check-in"],
+            expectsActiveWorkout: false,
+            expectedHomeControl: "daily-check-in-weight"
+        )
         XCTAssertTrue(app.textFields["daily-check-in-weight"].waitForExistence(timeout: 5))
         saveScreenshot("overview/01h_Daily_Check_In_Weight_Due")
     }
@@ -786,7 +991,10 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureBodyWeightHistoryScreenshot() {
         let app = launchFixture("body-weight-history", expectsActiveWorkout: false)
         selectTab(.settings, in: app)
-        tapButton("settings-body-weight", in: app)
+        tapButton("settings-personal-details", in: app)
+        let bodyWeight = app.buttons["settings-body-weight"]
+        scrollToElement(bodyWeight, in: app)
+        bodyWeight.tap()
         XCTAssertTrue(app.descendants(matching: .any)["body-weight-history"].waitForExistence(timeout: 5))
         saveScreenshot("overview/04a_Body_Weight_History")
     }
@@ -887,9 +1095,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let app = launchFixture(
             "nutrition-today",
             expectsActiveWorkout: false,
-            expectedHomeControl: "open-nutrition-today"
+            expectedHomeControl: "tab-nutrition"
         )
-        tapButton("open-nutrition-today", in: app)
+        selectTab(.nutrition, in: app)
         XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["nutrition-today-totals"].waitForExistence(timeout: 5))
         saveScreenshot("nutrition/20_Nutrition_Today")
@@ -996,9 +1204,12 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let app = launchFixture(
             "nutrition-today",
             expectsActiveWorkout: false,
-            expectedHomeControl: "open-nutrition-today"
+            expectedHomeControl: "today-open-exercises"
         )
-        tapButton("open-nutrition-today", in: app)
+        // Nutrition is a first-class destination, not a Today shortcut. Enter
+        // it through the tab bar so this test follows the shipped navigation
+        // contract instead of depending on a removed Home affordance.
+        selectTab(.nutrition, in: app)
         let quickLog = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "quick-log-food-")).firstMatch
         XCTAssertTrue(quickLog.waitForExistence(timeout: 5))
         quickLog.tap()
@@ -1038,7 +1249,15 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             "backup-import-target"
         ]
         preview.launchWithGymTrackerUITestArguments()
-        XCTAssertTrue(preview.descendants(matching: .any)["import-preview"].waitForExistence(timeout: 15))
+        let importPreview = preview.descendants(matching: .any)["import-preview"]
+        if !importPreview.waitForExistence(timeout: 15) {
+            let bars = preview.navigationBars.allElementsBoundByIndex.map(\.identifier).joined(separator: ", ")
+            let alert = preview.alerts.firstMatch
+            let alertText = alert.exists
+                ? alert.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | ")
+                : "none"
+            XCTFail("Import preview did not appear. Navigation: \(bars). Alert: \(alertText)")
+        }
         saveScreenshot("overview/04c_Settings_Import_Preview")
     }
 
@@ -1054,7 +1273,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCaptureTemplateExecutionBlockScreenshot() {
         let app = launchFreshApp()
         openUpperBodyTemplateEditor(in: app)
-        tapButton("template-add-menu", in: app)
+        tapControl("template-options-menu", in: app)
         tapButton("add-template-execution-block", in: app)
         XCTAssertTrue(app.navigationBars["Execution Block"].waitForExistence(timeout: 5))
         saveScreenshot("templates/12d_Template_Execution_Block")
@@ -1103,19 +1322,25 @@ final class ScreenshotUITests: GymTrackerUITestCase {
 
         openPlans(.mine, in: app)
         tapButton("plan-row-Screenshot Plan", in: app)
-        tapButton("edit-plan", in: app)
-        let editWorkout = app.buttons["edit-plan-workout"].firstMatch
+        let options = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label == %@", "Plan options")
+        ).firstMatch
+        XCTAssertTrue(options.waitForExistence(timeout: 5))
+        options.tap()
+        tapControl("edit-plan", in: app)
+        XCTAssertTrue(app.navigationBars["Edit Plan"].waitForExistence(timeout: 5))
+        let editWorkout = app.descendants(matching: .any)["edit-plan-workout"].firstMatch
         scrollToElement(editWorkout, in: app)
         editWorkout.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let executionBlock = app.buttons["add-plan-execution-block"]
-        if executionBlock.exists == false {
+        let executionBlock = app.descendants(matching: .any)["add-plan-execution-block"].firstMatch
+        if !executionBlock.waitForExistence(timeout: 3), editWorkout.exists {
             // The editor row is a nested SwiftUI button inside a Form cell;
             // retry once through XCTest's semantic tap if the coordinate event
             // was consumed by the cell's scroll transition.
             editWorkout.tap()
         }
         scrollToElement(executionBlock, in: app)
-        executionBlock.tap()
+        executionBlock.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(app.navigationBars["Execution Block"].waitForExistence(timeout: 5))
         saveScreenshot("plans/13n_Plan_Execution_Block")
         tapButton("Cancel", in: app)
@@ -1287,7 +1512,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let app = launchFreshApp()
         tapButton("open-training-calendar", in: app)
         waitForTrainingCalendar(in: app)
-        XCTAssertTrue(app.staticTexts["Nothing recorded for this day"].waitForExistence(timeout: 5))
+        let emptyState = app.staticTexts["Nothing recorded for this day"]
+        XCTAssertTrue(emptyState.waitForExistence(timeout: 5))
+        app.swipeUp()
         saveScreenshot("calendar/21c_Training_Calendar_Empty")
     }
 
@@ -1318,10 +1545,11 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             expectedHomeControl: "start-repeating-workout"
         )
         openRepeatingPlanFixture(in: detail)
+        detail.swipeUp()
         saveScreenshot("plans/22_Repeating_Plan_Detail")
 
         revealRepeatingPlanActions(in: detail)
-        tapButton("repeating-plan-more-actions", in: detail)
+        tapControl("repeating-plan-more-actions", in: detail)
         tapButton("Choose Another Workout", in: detail)
         XCTAssertTrue(detail.navigationBars["Choose Workout"].waitForExistence(timeout: 5))
         saveScreenshot("plans/22a_Repeating_Plan_Choose_Another")
@@ -1332,7 +1560,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             expectedHomeControl: "start-repeating-workout"
         )
         openRepeatingPlanFixture(in: paused)
-        tapButton("pause-repeating-plan", in: paused)
+        revealRepeatingPlanActions(in: paused)
+        tapControl("pause-repeating-plan", in: paused)
         XCTAssertTrue(paused.buttons["resume-repeating-plan"].waitForExistence(timeout: 5))
         saveScreenshot("plans/22b_Repeating_Plan_Paused")
 
@@ -1343,7 +1572,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         )
         openRepeatingPlanFixture(in: undo)
         revealRepeatingPlanActions(in: undo)
-        tapButton("repeating-plan-more-actions", in: undo)
+        tapControl("repeating-plan-more-actions", in: undo)
         XCTAssertTrue(undo.buttons["Undo Last Advancement"].waitForExistence(timeout: 5))
         saveScreenshot("plans/22c_Repeating_Plan_Undo")
     }
@@ -1359,7 +1588,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     }
 
     private func revealRepeatingPlanActions(in app: XCUIApplication) {
-        let actions = app.buttons["repeating-plan-more-actions"]
+        let actions = app.descendants(matching: .any)["repeating-plan-more-actions"]
         for _ in 0..<3 where !actions.exists {
             app.swipeUp()
         }
@@ -1474,20 +1703,23 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     /// a design review aid, not a canonical product screenshot. Run it directly:
     /// `-only-testing:GymTrackerUITEST/ScreenshotUITests/testReviewCaffeineSourceStates`.
     func testReviewCaffeineSourceStates() {
-        let app = launchFixture("today-complete", expectsActiveWorkout: false)
-
-        tapButton("today-caffeine-summary", in: app)
+        let app = launchFixture(
+            "today-complete",
+            additionalArguments: ["-ui-testing-open-caffeine-log"],
+            expectsActiveWorkout: false,
+            expectedHomeControl: "confirm-log-caffeine"
+        )
         XCTAssertTrue(app.navigationBars["Log caffeine"].waitForExistence(timeout: 5))
 
-        tapButton("Pre-workout", in: app)
+        tapControl("Pre-workout", in: app)
         XCTAssertTrue(app.staticTexts["How strong?"].waitForExistence(timeout: 5))
         saveScreenshot("debug/caffeine-preworkout-intensity")
 
-        tapButton("Custom, Enter the exact label value", in: app)
+        tapControl("Custom", in: app)
         XCTAssertTrue(app.textFields["caffeine-preworkout-exact-mg"].waitForExistence(timeout: 5))
         saveScreenshot("debug/caffeine-preworkout-custom")
 
-        tapButton("Other caffeine source", in: app)
+        tapControl("Other caffeine source", in: app)
         XCTAssertTrue(app.textFields["caffeine-other-exact-mg"].waitForExistence(timeout: 5))
         saveScreenshot("debug/caffeine-other")
     }

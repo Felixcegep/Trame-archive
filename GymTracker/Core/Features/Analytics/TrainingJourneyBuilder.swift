@@ -26,6 +26,7 @@ struct TrainingJourneyChapter: Identifiable, Equatable, Sendable {
     let personalRecords: Int
     let mobilitySessions: Int
     let assessments: Int
+    let disciplineDistribution: TrainingJourneyDisciplineDistribution
 
     var isOngoing: Bool { end == nil }
 }
@@ -169,7 +170,8 @@ struct TrainingJourneyBuilder: Sendable {
             completedWorkouts: workouts.count,
             personalRecords: records.filter { span.contains($0.date) }.count,
             mobilitySessions: mobilitySessions.filter { span.contains($0.startTime) }.count,
-            assessments: assessments.filter { span.contains($0.startedAt) }.count
+            assessments: assessments.filter { span.contains($0.startedAt) }.count,
+            disciplineDistribution: TrainingJourneyDisciplineDistribution.project(workouts: workouts)
         )
     }
 

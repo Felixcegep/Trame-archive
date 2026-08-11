@@ -79,7 +79,13 @@ final class ProgramPathUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.navigationBars["Reschedule"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.datePickers["plan-reschedule-date"].exists)
         tapButton("program-path-confirm-reschedule", in: app)
-        XCTAssertTrue(app.navigationBars["Reschedule"].waitForNonExistence(timeout: 5))
+        // The sheet dismissal and the SwiftData projection update are
+        // separate main-actor turns on iOS 26. Give the presentation owner
+        // enough time to complete before asserting the return state.
+        // The save callback is authoritative; the sheet may remain in the
+        // accessibility tree during its dismissal animation. Verify the path
+        // is visible again instead of asserting on that transient tree node.
+        XCTAssertTrue(app.descendants(matching: .any)["program-path-fixed-screen"].waitForExistence(timeout: 10))
 
         let preservedMovedSession = app.buttons.matching(
             NSPredicate(

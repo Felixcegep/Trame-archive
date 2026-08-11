@@ -107,19 +107,19 @@ enum CountPhrase {
     static func observations(_ count: Int) -> String {
         count == 1
             ? String(localized: "1 observation")
-            : String(localized: "\(count) observations")
+            : String(format: String(localized: "%lld observations"), Int64(count))
     }
 
     static func assessments(_ count: Int) -> String {
         count == 1
             ? String(localized: "1 assessment")
-            : String(localized: "\(count) assessments")
+            : String(format: String(localized: "%lld assessments"), Int64(count))
     }
 
     static func recordedAssessments(_ count: Int) -> String {
         count == 1
             ? String(localized: "1 recorded assessment")
-            : String(localized: "\(count) recorded assessments")
+            : String(format: String(localized: "%lld recorded assessments"), Int64(count))
     }
 
     static func routines(_ count: Int) -> String {
