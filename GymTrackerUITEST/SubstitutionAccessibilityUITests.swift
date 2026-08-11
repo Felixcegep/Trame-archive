@@ -42,7 +42,13 @@ final class SubstitutionAccessibilityUITests: GymTrackerUITestCase {
         XCTAssertTrue(today.isSelected || today.value as? String == "1", "Today-only must be preselected")
         XCTAssertFalse(future.isSelected)
 
-        let allVisibleText = app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " ").lowercased()
+        let confirmation = app.descendants(matching: .any)["substitution-confirmation"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        // The root TabView remains present behind the active-workout sheet and
+        // contains unrelated mobility copy (including the word “programs”).
+        // Scope this vocabulary assertion to the substitution confirmation
+        // surface so it verifies the flow's own user-facing copy.
+        let allVisibleText = confirmation.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " ").lowercased()
         XCTAssertFalse(allVisibleText.contains("program"), "User-facing substitution copy must say plan, never program")
         XCTAssertFalse(allVisibleText.contains("%"), "The swap flow must not present an equivalence percentage")
     }

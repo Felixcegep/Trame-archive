@@ -139,11 +139,11 @@ final class AuthoringProgramTests: XCTestCase {
           "name": "Matching Metadata Test",
           "goal": "generalStrength",
           "experienceLevel": "intermediate",
-          "durationWeeks": 4,
-          "supportedDaysPerWeek": [3],
+          "durationWeeks": 1,
+          "supportedDaysPerWeek": [1],
           "scheduleMode": "fixedWeekdays",
           "supportedDisciplineIDs": ["powerlifting", "generalStrength"],
-          "focusAreaIDs": ["lowerBody", "upperBody"],
+          "focusAreaIDs": ["quadriceps", "chest"],
           "estimatedSessionMinutesMinimum": 60,
           "estimatedSessionMinutesMaximum": 90,
           "competitionDisciplineID": "powerlifting",
@@ -153,7 +153,11 @@ final class AuthoringProgramTests: XCTestCase {
             "phaseType": "strength",
             "weeks": [{
               "weekIndex": 0,
-              "workouts": [{"name": "Day 1", "dayOffset": 0, "exercises": []}]
+              "workouts": [{"name": "Day 1", "dayOffset": 0, "exercises": [{
+                "exercise": "Back Squat",
+                "exposureKey": "matching-squat",
+                "setGroups": [{"count": 1, "reps": 5}]
+              }]}]
             }]
           }]
         }
@@ -163,16 +167,16 @@ final class AuthoringProgramTests: XCTestCase {
         XCTAssertEqual(authoring.estimatedSessionMinutesMinimum, 60)
         XCTAssertEqual(authoring.estimatedSessionMinutesMaximum, 90)
 
-        let payload = try authoring.expand(exerciseIDsByName: [:])
+        let payload = try authoring.expand(exerciseIDsByName: ["Back Squat": UUID()])
         XCTAssertEqual(payload.supportedDisciplineIDs, ["powerlifting", "generalStrength"])
-        XCTAssertEqual(payload.focusAreaIDs, ["lowerBody", "upperBody"])
+        XCTAssertEqual(payload.focusAreaIDs, ["quadriceps", "chest"])
         XCTAssertEqual(payload.estimatedSessionMinutesMinimum, 60)
         XCTAssertEqual(payload.estimatedSessionMinutesMaximum, 90)
         XCTAssertEqual(payload.competitionDisciplineID, "powerlifting")
         XCTAssertEqual(payload.optionalEquipmentCapabilityIDs, ["bands", "chains"])
 
         let issues = ProgramDefinitionValidator.validate(payload)
-        XCTAssertTrue(issues.isEmpty, "Validation should pass with valid session minutes")
+        XCTAssertTrue(issues.isEmpty, "Validation should pass with valid session minutes: \(issues)")
 
         // Round trip test
         let encoded = try JSONEncoder().encode(payload)

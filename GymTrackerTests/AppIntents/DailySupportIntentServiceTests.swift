@@ -69,6 +69,18 @@ final class DailySupportIntentServiceTests: XCTestCase {
         XCTAssertEqual(occurrences.first?.status, .completed)
     }
 
+    func testPromotedCaffeineShortcutUsesAStablePreconfiguredPreset() {
+        let intent = LogCaffeineIntent()
+
+        XCTAssertEqual(intent.drink, .brewed)
+        XCTAssertEqual(intent.size, .medium)
+        XCTAssertEqual(
+            intent.drink.preset.caffeineMilligrams(for: intent.size.size),
+            intent.drink.preset.mediumMilligrams,
+            accuracy: 0.001
+        )
+    }
+
     // MARK: - Meal logging
     //
     // `LogMealIntent.perform()` and `MealTemplateIntentQuery.entities(matching:)`
@@ -149,5 +161,60 @@ final class DailySupportIntentServiceTests: XCTestCase {
 
         XCTAssertEqual(store.consume(), .activeMobility(sessionID))
         XCTAssertNil(store.consume())
+    }
+
+    func testCompleteMobilityNodeRequiresPerformedRepetitionsAndRejectsStaleIdentity() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let definition = MobilityDefinition(name: "Hip rotations", trackingType: .repetitions, defaultDurationSeconds: nil, defaultRepetitions: 8)
+        let routine = MobilityRoutine(name: "Hips")
+        routine.items = [MobilityRoutineItem(definition: definition, orderIndex: 0, targetRepetitions: 8)]
+        context.insert(routine)
+        try context.save()
+        let session = try XCTUnwrap(MobilitySessionService.start(routine: routine, using: context))
+        let entryID = try XCTUnwrap(session.currentEntry?.id)
+
+        XCTAssertEqual(
+            MobilityIntentMutationService.completeCurrentNode(using: context),
+            .needsPerformedRepetitions
+        )
+        XCTAssertEqual(
+            MobilityIntentMutationService.completeCurrentNode(
+                expectedSessionID: session.id,
+                expectedEntryID: UUID(),
+                performedRepetitions: 8,
+                using: context
+            ),
+            .stale
+        )
+        XCTAssertEqual(
+            MobilityIntentMutationService.completeCurrentNode(
+                expectedSessionID: session.id,
+                expectedEntryID: entryID,
+                performedRepetitions: 8,
+                using: context
+            ),
+            .applied(sessionCompleted: true)
+        )
+        XCTAssertEqual(session.status, .completed)
+        XCTAssertEqual(session.entries.first?.results.first?.performedRepetitions, 8)
+    }
+
+    func testCompleteTimedMobilityNodeUsesPersistedTimerElapsedWithoutInventingTarget() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let definition = MobilityDefinition(name: "Hold", trackingType: .duration, defaultDurationSeconds: 60, defaultRepetitions: nil)
+        let routine = MobilityRoutine(name: "Timed")
+        routine.items = [MobilityRoutineItem(definition: definition, orderIndex: 0, targetDurationSeconds: 60)]
+        context.insert(routine)
+        try context.save()
+        let session = try XCTUnwrap(MobilitySessionService.start(routine: routine, using: context))
+        let now = Date(timeIntervalSince1970: 1_000)
+        session.currentEntry?.timerStartedAt = now.addingTimeInterval(-17)
+        try context.save()
+
+        XCTAssertEqual(
+            MobilityIntentMutationService.completeCurrentNode(now: now, using: context),
+            .applied(sessionCompleted: true)
+        )
+        XCTAssertEqual(session.entries.first?.results.first?.performedDurationSeconds, 17)
     }
 }

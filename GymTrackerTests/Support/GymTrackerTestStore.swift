@@ -75,6 +75,8 @@ enum GymTrackerTestStore {
             NutritionTarget.self,
             ProgramDefinitionRecord.self,
             PlanProgressionRecommendationRecord.self,
+            HealthKitBodyMassProvenance.self,
+            HealthKitWorkoutExportReceipt.self,
             WorkoutPlan.self,
             PlanBlock.self,
             PlanWeek.self,
