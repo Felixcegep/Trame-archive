@@ -21,6 +21,7 @@ struct MobilityAssessmentLandingView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 heroCard
+                profileLink
                 whatItRecordsCard
                 historyLink
                 MobilityAssessmentScopeNote()
@@ -154,6 +155,38 @@ struct MobilityAssessmentLandingView: View {
         }
         .buttonStyle(.gymPress)
         .accessibilityIdentifier("open-mobility-assessment-history")
+    }
+
+    private var profileLink: some View {
+        NavigationLink {
+            MobilityAssessmentProfileView()
+        } label: {
+            HStack(spacing: Spacing.m) {
+                GymIconChip(systemImage: AppIcon.mobilityAssessment)
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(String(localized: "mobility.profile.title", defaultValue: "Mobility profile"))
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.gymText)
+                    Text(String(localized: "mobility.profile.entry.detail", defaultValue: "Latest observations, side differences, and comparison conditions"))
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+                Spacer(minLength: Spacing.s)
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .accessibilityHidden(true)
+            }
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .padding(Spacing.l)
+            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.gymBorder, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityIdentifier("open-mobility-assessment-profile")
     }
 
     // MARK: - Derived state

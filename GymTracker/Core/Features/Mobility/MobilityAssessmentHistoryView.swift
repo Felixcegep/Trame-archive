@@ -125,6 +125,7 @@ struct MobilityAssessmentSessionDetailView: View {
             .padding(.vertical, Spacing.l)
         }
         .background(Color.gymBackground)
+        .accessibilityIdentifier("mobility-assessment-session-detail")
         .navigationTitle("Assessment")
         .navigationBarTitleDisplayMode(.inline)
         .task { load() }

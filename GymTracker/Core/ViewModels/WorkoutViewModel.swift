@@ -22,6 +22,10 @@ class WorkoutViewModel {
         activeWorkout != nil
     }
     func removeWorkout(using modelContext: ModelContext, workout: Workout){
+        try? WorkoutExecutionBlockSplitService.deleteWorkoutEvidence(
+            for: workout.id,
+            using: modelContext
+        )
         modelContext.delete(workout)
         _ = modelContext.saveOrRollback()
     }
@@ -47,6 +51,19 @@ class WorkoutViewModel {
     ///
     /// Cleared at the start of every save, so it never describes an older one.
     private(set) var lastSaveFailure: Error?
+
+#if !GYMTRACKER_EXTENSION
+    /// HealthKit is an optional post-commit side effect. The adapter never
+    /// requests permission here; Settings or another explicit user action
+    /// owns authorization. Tests replace this with a deterministic adapter.
+    var healthKitAdapter: any HealthKitAdapter = {
+#if canImport(HealthKit)
+        LiveHealthKitAdapter()
+#else
+        UnavailableHealthKitAdapter()
+#endif
+    }()
+#endif
 
     /// Why the most recent repeating-plan start refused, when it did.
     ///
@@ -83,6 +100,16 @@ class WorkoutViewModel {
             lastSaveFailure = error
             return false
         }
+        #if !GYMTRACKER_EXTENSION
+        let healthKitSummary = HealthKitWorkoutSummary(
+            workoutID: activeWorkout.id,
+            name: activeWorkout.name,
+            startDate: activeWorkout.startTime,
+            endDate: activeWorkout.endTime ?? .now,
+            completedExerciseCount: summary.savedExerciseCount,
+            completedSetCount: summary.savedSetCount
+        )
+        #endif
         let outcome = modelContext.saveOrRollbackReportingFailure()
         if outcome.didSave == false {
             // The active workout remains recoverable after a persistence failure.
@@ -96,6 +123,18 @@ class WorkoutViewModel {
         // Recorded only once persistence has actually succeeded, so a
         // confirmation can never report a save that did not happen.
         lastSavedSummary = summary
+#if !GYMTRACKER_EXTENSION
+        if HealthKitWorkoutExportPreference.isEnabled() {
+            let healthKitAdapter = self.healthKitAdapter
+            Task { @MainActor in
+                await HealthKitWorkoutExportService.exportAfterCommittedSave(
+                    summary: healthKitSummary,
+                    adapter: healthKitAdapter,
+                    context: modelContext
+                )
+            }
+        }
+#endif
         NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         Task {
             await LiveActivityManager.shared.end()
@@ -120,6 +159,10 @@ class WorkoutViewModel {
                 .first { $0.status == .active }
             return
         }
+        try? WorkoutExecutionBlockSplitService.deleteWorkoutEvidence(
+            for: activeWorkout.id,
+            using: modelContext
+        )
         modelContext.delete(activeWorkout)
         if modelContext.saveOrRollback() {
             workout = nil

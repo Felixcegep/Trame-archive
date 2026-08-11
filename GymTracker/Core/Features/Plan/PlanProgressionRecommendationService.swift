@@ -4,6 +4,25 @@ import SwiftData
 #if !GYMTRACKER_EXTENSION
 @MainActor
 enum PlanProgressionRecommendationService {
+    /// Builds the exact read-only contract shown before a receipt decision.
+    /// This uses the same scoped-state lookup and due-state projection as
+    /// acceptance, but performs no persistence or mutation.
+    static func preview(
+        _ recommendation: PlanProgressionRecommendationRecord,
+        in run: PlanRun,
+        newEvidenceSinceDecline: Bool = false
+    ) -> ProgressionRecommendationPreview {
+        let currentPrescription = state(for: recommendation, in: run).map {
+            PlanProgressionCadenceService.projectedState(for: $0, in: run)
+        }
+        return ProgressionRecommendationPreviewPolicy.make(
+            for: recommendation,
+            currentPrescription: currentPrescription,
+            in: run,
+            newEvidenceSinceDecline: newEvidenceSinceDecline
+        )
+    }
+
     static func accept(
         _ recommendation: PlanProgressionRecommendationRecord,
         in run: PlanRun,

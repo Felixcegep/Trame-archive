@@ -21,6 +21,8 @@ enum UITestFixture: String {
     case activeAdvancedSet = "active-advanced-set"
     case activeComplexComponents = "active-complex-components"
     case historyBench = "history-bench"
+    case weightliftingDashboard = "weightlifting-dashboard"
+    case coachExchange = "coach-exchange"
     case exerciseInsights = "exercise-insights"
     case muscleBalance = "muscle-balance"
     case progressionIncrease = "progression-increase"
@@ -65,7 +67,7 @@ enum UITestFixture: String {
 
     var opensActiveWorkout: Bool {
         switch self {
-        case .historyBench, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .programPathFixed, .programPathRotation, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .mobilityAssessmentRecorded, .mobilityAssessmentInProgress, .mobilityAssessmentHistory, .mobilityAssessmentHistoryDetail, .nutritionToday, .trainingCalendar, .progressionReceipt, .linkedMobilityWorkout:
+        case .historyBench, .weightliftingDashboard, .coachExchange, .exerciseInsights, .muscleBalance, .performanceHistoryComparison, .homeActiveConflict, .planActiveRun, .planCalendar, .planRelaunchSchedule, .programPathFixed, .programPathRotation, .repeatingPlanActive, .backupImportTarget, .todayComplete, .todayWeightDue, .bodyWeightHistory, .mobilityActive, .mobilityAssessmentRecorded, .mobilityAssessmentInProgress, .mobilityAssessmentHistory, .mobilityAssessmentHistoryDetail, .nutritionToday, .trainingCalendar, .progressionReceipt, .linkedMobilityWorkout:
             false
         default:
             true
@@ -117,6 +119,12 @@ enum UITestFixture: String {
             try makeComplexComponentWorkout(using: context)
         case .historyBench:
             try makeCompletedBenchHistory(using: context)
+        case .weightliftingDashboard:
+            try makeWeightliftingDashboard(using: context)
+        case .coachExchange:
+            let squat = try exercise(named: "Squat", using: context)
+            context.insert(WorkoutTemplate(name: "Strength Day", exercises: [squat]))
+            try context.save()
         case .exerciseInsights:
             try makeExerciseInsightsHistory(using: context)
         case .muscleBalance:
@@ -187,7 +195,15 @@ enum UITestFixture: String {
             context.insert(BodyWeightEntry(day: LocalDay(date: recent), value: 179.8, unit: .lbs, measuredAt: recent))
             try context.save()
         case .mobilityActive:
-            guard let routine = try context.fetch(FetchDescriptor<MobilityRoutine>()).first else {
+            // SwiftData does not promise insertion order for an un-sorted
+            // fetch.  This fixture is intentionally a short, deterministic
+            // flow: the first movement is repetition-tracked and the second
+            // is the 45-second Couch Stretch used by the hold-feedback UI
+            // test.  Selecting by its stable seeded name keeps that contract
+            // intact as new routines are added to the catalogue.
+            let routine = try context.fetch(FetchDescriptor<MobilityRoutine>())
+                .first(where: { $0.name == "Daily mobility reset" })
+            guard let routine else {
                 throw FixtureError.invalidPlan
             }
             guard MobilitySessionService.start(routine: routine, using: context) != nil else {
@@ -676,6 +692,138 @@ enum UITestFixture: String {
         entry.executionBlockID = block.id
         entry.executionBlockComponentOrder = 0
         context.insert(workout)
+        try context.save()
+    }
+
+    /// Completed Olympic-lifting snapshots for the CE-06 dashboard. The
+    /// component roles intentionally remain unclassified: the production
+    /// dashboard has no authored role configuration at this route, so the
+    /// fixture proves that full-lift and component evidence remain visible
+    /// without inferring clean/jerk roles from display names.
+    private static func makeWeightliftingDashboard(using context: ModelContext) throws {
+        let fullLiftExercise = try exercise(named: "Clean and Jerk", using: context)
+        let snatch = try exercise(named: "Snatch", using: context)
+        // The bundled catalogue currently exposes the combined lift and jerk,
+        // but not a standalone clean row. Preserve authored component identity
+        // without inventing or matching a display-name-only exercise.
+        let clean = fullLiftExercise
+        let jerk = try exercise(named: "Jerk", using: context)
+        let sportRaw = SportDiscipline.olympicWeightlifting.rawValue
+        let componentIDs = [clean.id, jerk.id]
+        let attempts: [(daysAgo: Int, weight: Float, outcomes: [ComplexComponentOutcome], quality: LiftQuality)] = [
+            (14, 90, [.completed, .completed], .excellent),
+            (7, 95, [.completed, .partial], .technicallyPoor),
+            (2, 85, [.completed, .missed], .missed)
+        ]
+
+        let competitionProgram = ProgramDefinitionPayload(
+            programKey: "ui-test-olympic-competition",
+            name: "Olympic competition preparation",
+            goal: .generalStrength,
+            experienceLevel: .intermediate,
+            durationWeeks: 1,
+            supportedDaysPerWeek: [1],
+            requiredEquipment: [.barbell],
+            competitionDisciplineID: "olympicWeightlifting",
+            blocks: [
+                ProgramBlockDefinition(
+                    orderIndex: 0,
+                    name: "Competition week",
+                    phaseType: .peaking,
+                    weeks: [
+                        ProgramWeekDefinition(
+                            weekIndex: 0,
+                            name: "Competition",
+                            workouts: [
+                                ProgramWorkoutDefinition(
+                                    orderIndex: 0,
+                                    name: "Competition day",
+                                    dayOffset: 0,
+                                    role: "test",
+                                    plannedExercises: [
+                                        ProgramExerciseDefinition(
+                                            exerciseID: snatch.id,
+                                            exposureKey: "snatch",
+                                            role: .main,
+                                            orderIndex: 0,
+                                            plannedSets: [SetPrescriptionDefinition(orderIndex: 0, repetitions: .fixed(1))]
+                                        ),
+                                        ProgramExerciseDefinition(
+                                            exerciseID: fullLiftExercise.id,
+                                            exposureKey: "clean-jerk",
+                                            role: .main,
+                                            orderIndex: 1,
+                                            plannedSets: [
+                                                SetPrescriptionDefinition(
+                                                    orderIndex: 0,
+                                                    repetitions: .sequence([
+                                                        RepComponent(exerciseID: clean.id, repetitions: 1),
+                                                        RepComponent(exerciseID: jerk.id, repetitions: 1)
+                                                    ])
+                                                )
+                                            ]
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+        )
+        context.insert(try ProgramDefinitionRecord(payload: competitionProgram))
+
+        for (index, attempt) in attempts.enumerated() {
+            let snatchEntry = try inProgressEntry(named: snatch.name, orderIndex: 0, using: context)
+            snatchEntry.sportDisciplineSnapshotRaw = sportRaw
+            snatchEntry.progressionKey = "snatch"
+            guard let snatchSet = snatchEntry.orderedSets.first else { throw FixtureError.invalidPlan }
+            snatchSet.done = true
+            snatchSet.weight = attempt.weight - 15
+            snatchSet.repetitions = 1
+            snatchSet.liftQuality = attempt.quality
+            snatchSet.complexComponents = [
+                ComplexComponentResult(
+                    orderIndex: 0,
+                    exerciseID: snatch.id,
+                    exerciseNameSnapshot: snatch.name,
+                    prescribedRepetitions: 1,
+                    performedRepetitions: attempt.outcomes.allSatisfy { $0 == .completed } ? 1 : 0,
+                    outcome: attempt.outcomes.allSatisfy { $0 == .completed } ? .completed : .missed,
+                    liftQuality: attempt.quality
+                )
+            ]
+
+            let cleanAndJerkEntry = try inProgressEntry(named: fullLiftExercise.name, orderIndex: 1, using: context)
+            cleanAndJerkEntry.sportDisciplineSnapshotRaw = sportRaw
+            cleanAndJerkEntry.progressionKey = "clean-jerk"
+            guard let set = cleanAndJerkEntry.orderedSets.first else { throw FixtureError.invalidPlan }
+            set.done = true
+            set.weight = attempt.weight
+            set.repetitions = 2
+            set.liftQuality = attempt.quality
+            set.complexComponents = attempt.outcomes.enumerated().map { componentIndex, outcome in
+                ComplexComponentResult(
+                    orderIndex: componentIndex,
+                    exerciseID: componentIDs[componentIndex],
+                    exerciseNameSnapshot: componentIndex == 0 ? "Clean" : "Jerk",
+                    prescribedRepetitions: 1,
+                    performedRepetitions: outcome == .completed ? 1 : 0,
+                    outcome: outcome,
+                    liftQuality: outcome == .completed ? .acceptable : .missed
+                )
+            }
+
+            let start = Date.now.addingTimeInterval(TimeInterval(-attempt.daysAgo * 86_400))
+            let workout = Workout(
+                name: "Olympic Evidence \(index + 1)",
+                endTime: start.addingTimeInterval(1_200)
+            )
+            workout.startTime = start
+            workout.status = .completed
+            workout.exercises = [snatchEntry, cleanAndJerkEntry]
+            context.insert(workout)
+        }
         try context.save()
     }
 

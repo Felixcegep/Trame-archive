@@ -26,6 +26,10 @@ struct MobilityAssessmentFlowView: View {
     @State private var saveCount = 0
     @State private var error: String?
     @State private var isShowingStopConfirmation = false
+    @StateObject private var inclinometerCapture = MobilityInclinometerCaptureService()
+    @State private var sensorSide: MobilityAssessmentSide?
+    @State private var appliedSensorValue: Double?
+    @State private var sensorCapturedSides: Set<String> = []
 
     private enum Phase: Equatable {
         case instruction
@@ -79,7 +83,29 @@ struct MobilityAssessmentFlowView: View {
                             .padding(.top, Spacing.m)
                             .accessibilityHidden(true)
                     }
+
+                    if captureDefinition(for: definition) != nil {
+                        Button {
+                            startSensorCapture(definition: definition, side: side)
+                        } label: {
+                            Label(
+                                sensorSide == side && isSensorCaptureActive
+                                    ? String(localized: "Measuring selected side")
+                                    : String(localized: "Measure this side with device motion"),
+                                systemImage: AppIcon.mobilityAssessment
+                            )
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(Color.gymPrimary)
+                        .frame(minHeight: ComponentSize.minimumTouchTarget)
+                        .disabled(isSensorCaptureActive && sensorSide != side)
+                        .accessibilityIdentifier("mobility-assessment-device-motion-\(side.rawValue)")
+                    }
                 }
+            }
+
+            if let captureDefinition = captureDefinition(for: definition) {
+                sensorCaptureCard(definition: definition, captureDefinition: captureDefinition)
             }
 
             Text("Enter up to 3 trials per side for improved accuracy. Three trials allow repeated-measurement comparison.")
@@ -119,7 +145,19 @@ struct MobilityAssessmentFlowView: View {
             .toolbar { flowToolbar }
             .task { load() }
             .onChange(of: session.currentDefinitionIndex) { _, _ in
+                resetSensorCapture()
                 prepareDraftForCurrentStep()
+            }
+            .onChange(of: phase) { _, newPhase in
+                if newPhase != .entry {
+                    resetSensorCapture()
+                }
+            }
+            .onChange(of: inclinometerCapture.state) { _, newState in
+                applyCompletedSensorValue(newState)
+            }
+            .onDisappear {
+                resetSensorCapture()
             }
             // Fires only after a save is persisted — never on appearance, and
             // never during the entry itself.
@@ -143,7 +181,10 @@ struct MobilityAssessmentFlowView: View {
     @ToolbarContentBuilder
     private var flowToolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Close") { onFinished() }
+            Button("Close") {
+                resetSensorCapture()
+                onFinished()
+            }
                 .accessibilityIdentifier("close-mobility-assessment")
                 .accessibilityHint(Text("Leaves the assessment in progress. Saved observations are kept."))
         }
@@ -486,6 +527,7 @@ struct MobilityAssessmentFlowView: View {
             if skippedNames.isEmpty == false {
                 GymCard {
                     GymEyebrow("Skipped assessments")
+                        .accessibilityIdentifier("mobility-assessment-skipped-heading")
                     // Skipped is unknown, never a low value. It is listed by
                     // name so it can be recorded later on purpose.
                     ForEach(skippedNames, id: \.self) { name in
@@ -621,6 +663,7 @@ struct MobilityAssessmentFlowView: View {
                 }
                 list[index] = newValue
                 draft.trials[side.rawValue] = list
+                sensorCapturedSides.remove(side.rawValue)
 
                 let activeValues = list.compactMap { $0 }
                 if activeValues.isEmpty {
@@ -646,6 +689,186 @@ struct MobilityAssessmentFlowView: View {
                 }
             }
         )
+    }
+
+    // MARK: - Device capture
+
+    private func captureDefinition(
+        for definition: MobilityAssessmentDefinition
+    ) -> MobilityInclinometerDefinition? {
+        MobilityInclinometerDefinitionRegistry.definition(for: definition)
+    }
+
+    private var isSensorCaptureActive: Bool {
+        switch inclinometerCapture.state {
+        case .calibrating, .measuring, .rejected:
+            true
+        case .idle, .completed, .unavailable:
+            false
+        }
+    }
+
+    private func sensorCaptureCard(
+        definition: MobilityAssessmentDefinition,
+        captureDefinition: MobilityInclinometerDefinition
+    ) -> some View {
+        let side = sensorSide ?? definition.supportedSides.first ?? .combined
+        return GymCard(variant: .accent) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                GymEyebrow(
+                    captureDefinition.mode == .relativeRotation
+                        ? "Device axial rotation"
+                        : "Device inclinometer"
+                )
+                Text(captureDefinition.placementGuidance)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if sensorSide != nil {
+                    Text(String(format: String(localized: "Selected side: %@"), side.displayName))
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
+                }
+
+                GymArcGauge(
+                    axis: gaugeAxis(for: captureDefinition.axis),
+                    state: gaugeState,
+                    degreesText: gaugeDegreesText,
+                    holdProgress: gaugeHoldProgress
+                )
+
+                HStack(spacing: Spacing.s) {
+                    Button {
+                        if isSensorCaptureActive {
+                            inclinometerCapture.stopMeasurement()
+                        } else {
+                            startSensorCapture(definition: definition, side: side)
+                        }
+                    } label: {
+                        Label(
+                            isSensorCaptureActive
+                                ? String(localized: "Finish device measurement")
+                                : String(localized: "Measure selected side"),
+                            systemImage: isSensorCaptureActive ? AppIcon.checkmark : AppIcon.mobilityAssessment
+                        )
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.gymPrimary)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+
+                    if isSensorCaptureActive {
+                        Button(String(localized: "Cancel measurement")) {
+                            resetSensorCapture()
+                        }
+                        .buttonStyle(.bordered)
+                        .frame(minHeight: ComponentSize.minimumTouchTarget)
+                    }
+                }
+
+                if case .completed = inclinometerCapture.state {
+                    Text(String(localized: "This fills one trial only. Review it, then use Save observation to confirm the record."))
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if case .unavailable = inclinometerCapture.state {
+                    Text(String(localized: "Device motion is unavailable here. Enter the observation by hand below."))
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityIdentifier("mobility-assessment-device-motion-card")
+    }
+
+    private func gaugeAxis(for axis: MobilityInclinometerAxis) -> GymArcGauge.Axis {
+        switch axis {
+        case .pitch: .gravityPitch
+        case .roll: .gravityRoll
+        case .yaw: .relativeYaw
+        }
+    }
+
+    private var gaugeState: GymArcGauge.State {
+        switch inclinometerCapture.state {
+        case .idle: .calibrated
+        case .calibrating: .calibrated
+        case let .measuring(_, progress): progress >= 1 ? .stable : .measuring
+        case let .rejected(reason): .rejected(reason: rejectionCopy(reason))
+        case .completed: .completed
+        case let .unavailable(reason): .unavailable(reason: fallbackCopy(reason))
+        }
+    }
+
+    private var gaugeHoldProgress: Double? {
+        if case let .measuring(_, progress) = inclinometerCapture.state {
+            return progress
+        }
+        if case .completed = inclinometerCapture.state {
+            return 1
+        }
+        return nil
+    }
+
+    private var gaugeDegreesText: String? {
+        let value: Double?
+        switch inclinometerCapture.state {
+        case let .measuring(degrees, _), let .completed(_, degrees): value = degrees
+        default: value = nil
+        }
+        guard let value else { return nil }
+        return value.formatted(.number.precision(.fractionLength(1))) + "°"
+    }
+
+    private func rejectionCopy(_ rejection: MobilityInclinometerSampleRejection) -> String {
+        switch rejection {
+        case .nonFinite: String(localized: "The sensor returned an invalid value.")
+        case .userAcceleration, .rotationRate, .offAxis: String(localized: "Movement detected. Hold the device still and try again.")
+        case .unavailableAngle: String(localized: "The selected angle is unavailable. Enter it by hand.")
+        }
+    }
+
+    private func fallbackCopy(_ reason: MobilityInclinometerFallbackReason) -> String {
+        switch reason {
+        case .cancelled: String(localized: "Measurement cancelled. Enter the observation by hand if needed.")
+        case .timedOut, .noStableHold: String(localized: "A stable hold was not captured. Enter the observation by hand.")
+        default: String(localized: "Device motion is unavailable. Enter the observation by hand.")
+        }
+    }
+
+    private func startSensorCapture(
+        definition: MobilityAssessmentDefinition,
+        side: MobilityAssessmentSide
+    ) {
+        guard let capture = captureDefinition(for: definition) else { return }
+        resetSensorCapture()
+        sensorSide = side
+        appliedSensorValue = nil
+        inclinometerCapture.startMeasurement(configuration: capture.configuration)
+    }
+
+    private func applyCompletedSensorValue(_ state: InclinometerCaptureState) {
+        guard case let .completed(_, value) = state,
+              let side = sensorSide,
+              let definition = currentDefinition,
+              let capture = captureDefinition(for: definition),
+              appliedSensorValue == nil
+        else { return }
+        let resultValue = capture.resultDegrees(from: value)
+        var trials = draft.trials[side.rawValue] ?? [nil, nil, nil]
+        while trials.count < 3 { trials.append(nil) }
+        trials[0] = resultValue
+        draft.trials[side.rawValue] = trials
+        draft.numericValues[side.rawValue] = resultValue
+        sensorCapturedSides.insert(side.rawValue)
+        appliedSensorValue = resultValue
+    }
+
+    private func resetSensorCapture() {
+        inclinometerCapture.reset()
+        sensorSide = nil
+        appliedSensorValue = nil
     }
 
     // MARK: - Actions
@@ -685,6 +908,9 @@ struct MobilityAssessmentFlowView: View {
             }
             if let criteria = result.criteria {
                 newDraft.criteria[result.sideRaw] = criteria
+            }
+            if result.source == .deviceMotion {
+                sensorCapturedSides.insert(result.sideRaw)
             }
         }
         draft = newDraft
@@ -751,17 +977,19 @@ struct MobilityAssessmentFlowView: View {
             guard numericValue != nil else { return nil }
         }
 
+        let capture = captureDefinition(for: definition)
+        let usesDeviceMotion = sensorCapturedSides.contains(side.rawValue) && capture != nil
         return MobilityAssessmentResultInput(
             numericValue: definition.unit == .criteria ? nil : numericValue,
             criteria: definition.unit == .criteria ? criteria : nil,
             side: side,
             isWarm: draft.isWarm,
             setupKey: draft.setupKey,
-            method: definition.manualMode,
+            method: usesDeviceMotion ? (capture!.mode == .gravityReferenced ? .inclinometer : .axialRotation) : definition.manualMode,
             unit: definition.unit,
             isActiveRange: draft.isActiveRange,
             day: session.day,
-            source: .manual,
+            source: usesDeviceMotion ? .deviceMotion : .manual,
             confidence: .moderate,
             trials: definition.unit == .criteria || activeTrials.isEmpty ? nil : activeTrials
         )
@@ -797,6 +1025,7 @@ struct MobilityAssessmentFlowView: View {
             // view still believes it is confirming would restore the identifiers
             // that were just cleared.
             phase = .instruction
+            sensorCapturedSides.removeAll()
             prepareDraftForCurrentStep()
         }
     }
@@ -808,6 +1037,7 @@ struct MobilityAssessmentFlowView: View {
             self.error = MobilityAssessmentErrorCopy.message(for: error)
             return
         }
+        resetSensorCapture()
         onFinished()
     }
 
@@ -818,6 +1048,7 @@ struct MobilityAssessmentFlowView: View {
             self.error = MobilityAssessmentErrorCopy.message(for: error)
             return
         }
+        resetSensorCapture()
         onFinished()
     }
 }

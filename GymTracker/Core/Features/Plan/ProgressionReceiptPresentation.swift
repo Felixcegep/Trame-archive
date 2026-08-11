@@ -30,10 +30,12 @@ struct ProgressionReceiptPresentation: WhyExplainable {
     let performance: ProgressionPerformance?
     let isResolved: Bool
     let decisionOutcome: ProgressionDecisionOutcome?
+    let preview: ProgressionRecommendationPreview?
 
     init(
         record: PlanProgressionRecommendationRecord,
-        exerciseName: String
+        exerciseName: String,
+        preview: ProgressionRecommendationPreview? = nil
     ) {
         self.id = record.id
         self.exerciseName = exerciseName
@@ -46,6 +48,7 @@ struct ProgressionReceiptPresentation: WhyExplainable {
         self.performance = record.performance()
         self.isResolved = record.isResolved
         self.decisionOutcome = record.decisionOutcome
+        self.preview = preview
     }
 
     /// Only load-bearing recommendations can be accepted with an overridden
@@ -393,5 +396,156 @@ struct ProgressionReceiptPresentation: WhyExplainable {
             localized: "progression.receipt.why.confidence.solid",
             defaultValue: "Based on the recorded performance for this exercise."
         )
+    }
+}
+
+/// Localized, value-bearing copy for the pre-decision preview. Keeping this
+/// separate from the SwiftUI card makes the contract deterministic and keeps
+/// formatting from becoming a second progression engine.
+struct ProgressionReceiptPreviewPresentation: Equatable {
+    let changedFields: [String]
+    let futureScope: String
+    let unchangedGuarantees: [String]
+    let availabilityNote: String?
+
+    static func make(
+        preview: ProgressionRecommendationPreview,
+        unit: WeightType? = nil
+    ) -> Self {
+        let changedFields = preview.changedFields.map { field in
+            let title = fieldTitle(field)
+            let before = value(field, in: preview.currentPrescription, unit: unit)
+            let after = value(field, in: preview.proposedPrescription, unit: unit)
+            return "\(title): \(before) → \(after)"
+        }
+
+        let cadence = cadenceTitle(preview.cadence)
+        let futureScope: String
+        switch preview.cadence {
+        case .immediately:
+            futureScope = String(localized: "progression.receipt.preview.scope.immediate", defaultValue: "The current eligible prescription is in scope.")
+        case .nextSet:
+            futureScope = String(localized: "progression.receipt.preview.scope.nextSet", defaultValue: "The next eligible set is in scope.")
+        case .nextExerciseOccurrence:
+            futureScope = String(localized: "progression.receipt.preview.scope.nextExercise", defaultValue: "The next occurrence of this exercise is in scope.")
+        case .nextWorkout:
+            futureScope = String(localized: "progression.receipt.preview.scope.nextWorkout", defaultValue: "The next workout occurrence is in scope.")
+        case .nextWeek:
+            futureScope = String(localized: "progression.receipt.preview.scope.nextWeek", defaultValue: "The next week boundary is in scope.")
+        case .nextWave:
+            futureScope = String(localized: "progression.receipt.preview.scope.nextWave", defaultValue: "The next wave boundary is in scope.")
+        case .nextBlock:
+            futureScope = String(localized: "progression.receipt.preview.scope.nextBlock", defaultValue: "The next block boundary is in scope.")
+        case .nextCycle:
+            futureScope = String(localized: "progression.receipt.preview.scope.nextCycle", defaultValue: "The next cycle boundary is in scope.")
+        }
+        let occurrenceCount = preview.futureOccurrences.count
+        let countLine: String
+        if occurrenceCount == 0 {
+            countLine = String(localized: "progression.receipt.preview.scope.noOccurrences", defaultValue: "No future occurrences were resolved in this preview.")
+        } else {
+            let format = String(localized: "progression.receipt.preview.scope.occurrences", defaultValue: "%1$lld future workout occurrences are included (%2$@ cadence).")
+            countLine = String(format: format, Int64(occurrenceCount), cadence)
+        }
+
+        let unchangedGuarantees = preview.unchangedAreas.map(unchangedTitle)
+        let availabilityNote: String? = preview.insufficiencies.isEmpty
+            ? nil
+            : String(localized: "progression.receipt.preview.incomplete", defaultValue: "Some preview details are unavailable. The action remains governed by the saved progression decision.")
+
+        return Self(
+            changedFields: changedFields.isEmpty
+                ? [String(localized: "progression.receipt.preview.noFieldChanges", defaultValue: "No prescription fields change in this preview.")]
+                : changedFields,
+            futureScope: "\(futureScope) \(countLine)",
+            unchangedGuarantees: unchangedGuarantees,
+            availabilityNote: availabilityNote
+        )
+    }
+
+    private static func fieldTitle(_ field: ProgressionPreviewStateField) -> String {
+        switch field {
+        case .load: return String(localized: "progression.receipt.preview.field.load", defaultValue: "Load")
+        case .repetitions: return String(localized: "progression.receipt.preview.field.repetitions", defaultValue: "Repetitions")
+        case .setCount: return String(localized: "progression.receipt.preview.field.setCount", defaultValue: "Set count")
+        case .duration: return String(localized: "progression.receipt.preview.field.duration", defaultValue: "Duration")
+        case .distance: return String(localized: "progression.receipt.preview.field.distance", defaultValue: "Distance")
+        case .restDuration: return String(localized: "progression.receipt.preview.field.restDuration", defaultValue: "Rest duration")
+        case .calories: return String(localized: "progression.receipt.preview.field.calories", defaultValue: "Calories")
+        case .stage: return String(localized: "progression.receipt.preview.field.stage", defaultValue: "Stage")
+        case .variation: return String(localized: "progression.receipt.preview.field.variation", defaultValue: "Variation")
+        case .wave: return String(localized: "progression.receipt.preview.field.wave", defaultValue: "Wave")
+        case .block: return String(localized: "progression.receipt.preview.field.block", defaultValue: "Block")
+        case .trainingMax: return String(localized: "progression.receipt.preview.field.trainingMax", defaultValue: "Training max")
+        case .estimatedOneRepMax: return String(localized: "progression.receipt.preview.field.estimatedOneRepMax", defaultValue: "Estimated one-rep max")
+        case .actualOneRepMax: return String(localized: "progression.receipt.preview.field.actualOneRepMax", defaultValue: "Actual one-rep max")
+        case .deloading: return String(localized: "progression.receipt.preview.field.deloading", defaultValue: "Deload state")
+        case .velocityBaseline: return String(localized: "progression.receipt.preview.field.velocityBaseline", defaultValue: "Velocity baseline")
+        }
+    }
+
+    private static func value(
+        _ field: ProgressionPreviewStateField,
+        in state: ProgressionEvaluationState?,
+        unit: WeightType?
+    ) -> String {
+        guard let state else {
+            return String(localized: "progression.receipt.preview.value.unavailable", defaultValue: "Unavailable")
+        }
+        switch field {
+        case .load: return optionalNumber(state.currentLoad, unit: unit)
+        case .repetitions: return String(state.repetitionOffset)
+        case .setCount: return String(state.setCountOffset)
+        case .duration: return optionalNumber(state.durationOffset)
+        case .distance: return optionalNumber(state.distanceOffset)
+        case .restDuration: return String(state.restDurationOffset)
+        case .calories: return optionalNumber(state.caloriesOffset)
+        case .stage: return state.currentStageID ?? notSet
+        case .variation:
+            return state.currentVariationExerciseID == nil
+                ? notSet
+                : String(localized: "progression.receipt.preview.value.assigned", defaultValue: "Assigned")
+        case .wave: return String(state.currentWaveIndex)
+        case .block: return String(state.currentBlockIndex)
+        case .trainingMax: return optionalNumber(state.trainingMax, unit: unit)
+        case .estimatedOneRepMax: return optionalNumber(state.estimatedOneRepMax, unit: unit)
+        case .actualOneRepMax: return optionalNumber(state.actualOneRepMax, unit: unit)
+        case .deloading: return state.isDeloading ? String(localized: "progression.receipt.preview.value.on", defaultValue: "On") : String(localized: "progression.receipt.preview.value.off", defaultValue: "Off")
+        case .velocityBaseline: return optionalNumber(state.velocityBaseline)
+        }
+    }
+
+    private static var notSet: String {
+        String(localized: "progression.receipt.preview.value.notSet", defaultValue: "Not set")
+    }
+
+    private static func optionalNumber(_ value: Double?, unit: WeightType? = nil) -> String {
+        guard let value else { return notSet }
+        let formatted = Formatters.formatFloat(Float(value))
+        return unit.map { "\(formatted) \($0.rawValue)" } ?? formatted
+    }
+
+    private static func cadenceTitle(_ cadence: ProgressionCadence) -> String {
+        switch cadence {
+        case .immediately: return String(localized: "progression.receipt.preview.cadence.immediately", defaultValue: "immediately")
+        case .nextSet: return String(localized: "progression.receipt.preview.cadence.nextSet", defaultValue: "next set")
+        case .nextExerciseOccurrence: return String(localized: "progression.receipt.preview.cadence.nextExerciseOccurrence", defaultValue: "next exercise occurrence")
+        case .nextWorkout: return String(localized: "progression.receipt.preview.cadence.nextWorkout", defaultValue: "next workout")
+        case .nextWeek: return String(localized: "progression.receipt.preview.cadence.nextWeek", defaultValue: "next week")
+        case .nextWave: return String(localized: "progression.receipt.preview.cadence.nextWave", defaultValue: "next wave")
+        case .nextBlock: return String(localized: "progression.receipt.preview.cadence.nextBlock", defaultValue: "next block")
+        case .nextCycle: return String(localized: "progression.receipt.preview.cadence.nextCycle", defaultValue: "next cycle")
+        }
+    }
+
+    private static func unchangedTitle(_ area: ProgressionPreviewUnchangedArea) -> String {
+        switch area {
+        case .performedWorkoutHistory: return String(localized: "progression.receipt.preview.unchanged.history", defaultValue: "Completed workout history remains unchanged.")
+        case .recommendationEvidence: return String(localized: "progression.receipt.preview.unchanged.evidence", defaultValue: "The recommendation evidence remains unchanged.")
+        case .ruleAndVersion: return String(localized: "progression.receipt.preview.unchanged.rule", defaultValue: "The rule and version remain recorded.")
+        case .unrelatedProgressionScopes: return String(localized: "progression.receipt.preview.unchanged.scopes", defaultValue: "Other progression scopes remain unchanged.")
+        case .futureOccurrencesUntilCadenceBoundary: return String(localized: "progression.receipt.preview.unchanged.boundary", defaultValue: "Future occurrences before the cadence boundary remain unchanged.")
+        case .declinedPrescription: return String(localized: "progression.receipt.preview.unchanged.declined", defaultValue: "The declined prescription remains unchanged.")
+        }
     }
 }

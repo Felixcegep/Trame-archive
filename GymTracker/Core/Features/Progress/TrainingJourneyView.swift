@@ -15,6 +15,10 @@ struct TrainingJourneyView: View {
 
     @State private var years: [TrainingJourneyYear] = []
     @State private var loadState: LoadState = .loading
+    @State private var presentation: JourneyPresentation = .list
+    @State private var timelineProjection: TrainingJourneyTimelineProjection?
+    @State private var practiceTransitions = TrainingJourneyPracticeTransitionProjection(markers: [])
+    @State private var timelineDate = Date.now
 
     private enum LoadState: Equatable {
         case loading
@@ -22,7 +26,69 @@ struct TrainingJourneyView: View {
         case ready
     }
 
+    private enum JourneyPresentation: String, CaseIterable, Identifiable {
+        case list
+        case timeline
+
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .list: "List"
+            case .timeline: "Timeline"
+            }
+        }
+    }
+
     var body: some View {
+        VStack(spacing: 0) {
+            Picker("Journey view", selection: $presentation) {
+                ForEach(JourneyPresentation.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.s)
+            .accessibilityIdentifier("training-journey-presentation")
+
+            Group {
+                switch presentation {
+                case .list:
+                    listContent
+                case .timeline:
+                    timelineContent
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.gymBackground)
+        .navigationTitle("Journey")
+        .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("training-journey-screen")
+        .task {
+            do {
+                years = try TrainingJourneyBuilder(modelContext: modelContext).journey()
+                let chapters = years.flatMap(\.chapters)
+                let timeline = TrainingJourneyTimelineProjectionService.project(
+                    chapters: chapters,
+                    calendar: .current,
+                    referenceDate: .now
+                )
+                timelineProjection = timeline
+                practiceTransitions = TrainingJourneyPracticeTransitionProjectionService.project(
+                    chapters: chapters,
+                    timeline: timeline
+                )
+                timelineDate = chapters.first?.start ?? .now
+                loadState = .ready
+            } catch {
+                print("TrainingJourneyView: journey read failed: \(error)")
+                loadState = .failed
+            }
+        }
+    }
+
+    private var listContent: some View {
         List {
             switch loadState {
             case .loading:
@@ -35,9 +101,9 @@ struct TrainingJourneyView: View {
                 } else {
                     ForEach(years) { year in
                         Section(verbatim(year.year)) {
-                            ForEach(year.chapters) { chapter in
-                                chapterRow(chapter)
-                            }
+                    ForEach(year.chapters) { chapter in
+                        chapterRow(chapter)
+                    }
                         }
                     }
                 }
@@ -45,15 +111,34 @@ struct TrainingJourneyView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Journey")
-        .accessibilityIdentifier("training-journey-screen")
-        .task {
-            do {
-                years = try TrainingJourneyBuilder(modelContext: modelContext).journey()
-                loadState = .ready
-            } catch {
-                print("TrainingJourneyView: journey read failed: \(error)")
-                loadState = .failed
+    }
+
+    @ViewBuilder
+    private var timelineContent: some View {
+        switch loadState {
+        case .loading:
+            VStack {
+                ProgressView()
+                Text("Reading your history…")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("training-journey-loading")
+        case .failed:
+            failedRow
+                .padding(Spacing.l)
+        case .ready:
+            if let timelineProjection,
+               timelineProjection.lanes.contains(where: { $0.segments.isEmpty == false }) {
+                TrainingJourneyTimelineView(
+                    projection: timelineProjection,
+                    selectedDate: $timelineDate,
+                    practiceTransitions: practiceTransitions
+                )
+            } else {
+                emptyRow
+                    .padding(Spacing.l)
             }
         }
     }
@@ -61,37 +146,51 @@ struct TrainingJourneyView: View {
     // MARK: - Rows
 
     private func chapterRow(_ chapter: TrainingJourneyChapter) -> some View {
-        HStack(alignment: .top, spacing: Spacing.m) {
-            GymIconChip(systemImage: icon(for: chapter.kind), tint: tint(for: chapter.kind))
+        NavigationLink {
+            TrainingJourneyChapterEvidenceView(chapter: chapter)
+        } label: {
+            HStack(alignment: .top, spacing: Spacing.m) {
+                GymIconChip(systemImage: icon(for: chapter.kind), tint: tint(for: chapter.kind))
 
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(chapter.title)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(chapter.title)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.gymText)
 
-                Text(dateRangeText(chapter))
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-
-                if let statusText = chapter.statusText {
-                    // Status is a word, never a colour alone — a paused run and
-                    // a completed one must be distinguishable without relying
-                    // on the chip tint.
-                    Text(statusText)
+                    Text(dateRangeText(chapter))
                         .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
-                }
 
-                Text(summaryText(chapter))
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .fixedSize(horizontal: false, vertical: true)
+                    if let statusText = chapter.statusText {
+                        // Status is a word, never a colour alone — a paused run and
+                        // a completed one must be distinguishable without relying
+                        // on the chip tint.
+                        Text(statusText)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
+
+                    Text(summaryText(chapter))
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if let disciplineSummary = TrainingJourneyChapterEvidencePresentation.summary(
+                        distribution: chapter.disciplineDistribution
+                    ) {
+                        Text(disciplineSummary)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymDataEmphasis)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
             }
         }
         .padding(.vertical, Spacing.xxs)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel(chapter))
-        .accessibilityIdentifier("training-journey-chapter")
+        .accessibilityHint(String(localized: "training.journey.chapter.drilldown.hint", defaultValue: "Shows the recorded discipline and workout evidence for this chapter."))
+        .accessibilityIdentifier("training-journey-chapter-\(chapter.id)")
     }
 
     private var loadingRow: some View {
@@ -179,8 +278,215 @@ struct TrainingJourneyView: View {
     }
 
     private func accessibilityLabel(_ chapter: TrainingJourneyChapter) -> String {
-        [chapter.title, dateRangeText(chapter), chapter.statusText, summaryText(chapter)]
+        [
+            chapter.title,
+            dateRangeText(chapter),
+            chapter.statusText,
+            summaryText(chapter),
+            TrainingJourneyChapterEvidencePresentation.summary(distribution: chapter.disciplineDistribution)
+        ]
             .compactMap { $0 }
+            .joined(separator: ", ")
+    }
+}
+
+/// Evidence drill-down for one chapter. It remains read-only and resolves
+/// source references back to the existing completed workouts; no Journey or
+/// reporting data is persisted.
+struct TrainingJourneyChapterEvidenceView: View {
+    let chapter: TrainingJourneyChapter
+
+    @Query(sort: \Workout.startTime, order: .reverse)
+    private var workouts: [Workout]
+
+    private var presentation: TrainingJourneyChapterEvidencePresentation {
+        .make(distribution: chapter.disciplineDistribution)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.l) {
+                header
+
+                if presentation.hasEvidence {
+                    disciplineSection
+                    evidenceSection
+                } else {
+                    GymCard {
+                        ContentUnavailableView(
+                            String(localized: "training.journey.chapter.empty.title", defaultValue: "No completed exercise evidence"),
+                            systemImage: AppIcon.history,
+                            description: Text(String(localized: "training.journey.chapter.empty.detail", defaultValue: "This chapter has no completed exercise entries to classify."))
+                        )
+                    }
+                }
+
+                Text(String(localized: "training.journey.chapter.method.note", defaultValue: "Disciplines come from the completed entry snapshot. Unclassified entries remain unclassified instead of being inferred from the current exercise catalogue."))
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("training-journey-chapter-method-note")
+            }
+            .padding(.horizontal, Spacing.xl)
+            .padding(.vertical, Spacing.l)
+        }
+        .scrollIndicators(.hidden)
+        .background(Color.gymBackground)
+        .navigationTitle(String(localized: "training.journey.chapter.title", defaultValue: "Chapter evidence"))
+        .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("training-journey-chapter-evidence")
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text(chapter.title)
+                .font(AppFont.titleSmall)
+                .foregroundStyle(Color.gymText)
+            Text(dateRangeText)
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymSubduedText)
+            Text(summaryText)
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var disciplineSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            GymSectionHeader(
+                title: String(localized: "training.journey.chapter.disciplines.title", defaultValue: "Recorded disciplines"),
+                detail: String(localized: "training.journey.chapter.disciplines.detail", defaultValue: "Descriptive distribution from completed exercise entries.")
+            )
+
+            GymCard {
+                ForEach(presentation.slices) { slice in
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                            Text(slice.title)
+                                .font(AppFont.subheadlineSemibold)
+                                .foregroundStyle(Color.gymText)
+                            Spacer(minLength: Spacing.s)
+                            Text(slice.entryCountLabel)
+                                .font(AppFont.captionSemiboldMonospaced)
+                                .foregroundStyle(Color.gymDataEmphasis)
+                        }
+                        Text(slice.proportionLabel)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                        if slice.recordKindTitles.isEmpty == false {
+                            Text(slice.recordKindTitles.joined(separator: " · "))
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.gymSubduedText)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(slice.accessibilityLabel)
+                    .accessibilityIdentifier("training-journey-discipline-\(slice.id)")
+
+                    if slice.id != presentation.slices.last?.id {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("training-journey-discipline-section")
+    }
+
+    private var evidenceSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            GymSectionHeader(
+                title: String(localized: "training.journey.chapter.evidence.title", defaultValue: "Source evidence"),
+                detail: String(localized: "training.journey.chapter.evidence.detail", defaultValue: "Completed workouts contributing to each recorded slice.")
+            )
+
+            ForEach(presentation.slices) { slice in
+                GymCard {
+                    Text(slice.title)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.gymText)
+                    ForEach(slice.evidence) { source in
+                        if let workout = workouts.first(where: { $0.id == source.workoutID }) {
+                            NavigationLink {
+                                HistoryWorkoutView(workout: workout)
+                            } label: {
+                                sourceRow(workout: workout, source: source)
+                            }
+                            .accessibilityIdentifier("training-journey-source-\(source.id)")
+                        } else {
+                            sourceUnavailableRow(source)
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("training-journey-evidence-section")
+    }
+
+    private func sourceRow(workout: Workout, source: AnalyticsSourceReference) -> some View {
+        HStack(alignment: .top, spacing: Spacing.m) {
+            Image(systemName: AppIcon.history)
+                .foregroundStyle(Color.gymSubduedText)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(workout.displayTitle)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
+                Text(workout.startTime, format: .dateTime.month(.abbreviated).day().year())
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                if let entryID = source.entryID {
+                    Text(String(format: String(localized: "training.journey.chapter.evidence.entry", defaultValue: "Entry %@"), String(entryID.uuidString.prefix(8))))
+                        .font(AppFont.caption2)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private func sourceUnavailableRow(_ source: AnalyticsSourceReference) -> some View {
+        Label(
+            String(localized: "training.journey.chapter.evidence.unavailable", defaultValue: "Completed workout evidence is unavailable"),
+            systemImage: AppIcon.info
+        )
+        .font(AppFont.caption)
+        .foregroundStyle(Color.gymSubduedText)
+        .accessibilityLabel("\(String(localized: "training.journey.chapter.evidence.unavailable", defaultValue: "Completed workout evidence is unavailable")), \(source.workoutID.uuidString)")
+    }
+
+    private var dateRangeText: String {
+        let start = chapter.start.formatted(date: .abbreviated, time: .omitted)
+        guard let end = chapter.end else { return "\(start) — \(String(localized: "common.now", defaultValue: "now"))" }
+        let endText = end.formatted(date: .abbreviated, time: .omitted)
+        return start == endText ? start : "\(start) — \(endText)"
+    }
+
+    private var summaryText: String {
+        let count = chapter.completedWorkouts
+        return count == 1
+            ? String(localized: "training.journey.chapter.one.workout", defaultValue: "1 completed workout")
+            : String(format: String(localized: "training.journey.chapter.workouts", defaultValue: "%lld completed workouts"), Int64(count))
+    }
+}
+
+private extension TrainingJourneyChapterEvidencePresentation.DisciplineSlice {
+    var entryCountLabel: String {
+        entryCount == 1
+            ? String(localized: "training.journey.chapter.one.entry", defaultValue: "1 entry")
+            : String(format: String(localized: "training.journey.chapter.entries", defaultValue: "%lld entries"), Int64(entryCount))
+    }
+
+    var proportionLabel: String {
+        let percent = (proportion * 100).rounded()
+        return String(format: String(localized: "training.journey.chapter.percent", defaultValue: "%.0f%% of recorded entries"), percent)
+    }
+
+    var accessibilityLabel: String {
+        [title, entryCountLabel, proportionLabel, recordKindTitles.joined(separator: ", ")]
+            .filter { $0.isEmpty == false }
             .joined(separator: ", ")
     }
 }

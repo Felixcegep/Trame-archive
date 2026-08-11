@@ -260,16 +260,34 @@ enum UITestLaunch {
             destination.tab = .progress
             destination.progressPath = [.trainingJourney]
         }
+        if arguments.contains("-ui-testing-open-weightlifting") {
+            destination.tab = .progress
+            destination.progressPath = [.weightlifting]
+        }
+        if arguments.contains("-ui-testing-open-training-ledger") {
+            destination.tab = .progress
+            destination.progressPath = [.trainingLedger]
+        }
+        if arguments.contains("-ui-testing-coach-exchange-import-conflict") {
+            destination.tab = .progress
+            destination.progressPath = [.coachExchange]
+        }
+        if arguments.contains("-ui-testing-open-coach-exchange") {
+            destination.tab = .progress
+            destination.progressPath = [.coachExchange]
+        }
         if arguments.contains("-ui-testing-open-library") {
             destination.tab = .train
         }
         if arguments.contains("-ui-testing-open-settings") {
             destination.tab = .today
-            // The import fixtures act on the backup group, which is now its own
-            // screen. Landing on Settings and stopping short would present the
-            // importer's alert against a screen that does not own it.
             let opensImporter = arguments.contains { $0.hasPrefix("-ui-testing-import-") }
-            destination.todayPath = opensImporter ? [.settings, .settingsData] : [.settings]
+            // The valid-import payload is assembled later from the seeded
+            // store. Defer that destination until `seededDestination` so the
+            // importer cannot appear before its deterministic payload exists.
+            if !opensImporter {
+                destination.todayPath = [.settings]
+            }
         }
         return destination
     }
@@ -281,6 +299,12 @@ enum UITestLaunch {
         using context: ModelContext
     ) -> Destination {
         var destination = Destination()
+
+        if arguments.contains("-ui-testing-open-settings"),
+           arguments.contains(where: { $0.hasPrefix("-ui-testing-import-") }) {
+            destination.tab = .today
+            destination.todayPath = [.settings, .settingsData]
+        }
 
         if arguments.contains("-ui-testing-open-exercise-detail") {
             let descriptor = FetchDescriptor<Exercise>(
