@@ -8,6 +8,71 @@
 import Foundation
 import SwiftData
 
+/// The mutation boundary shared by every active-workout model. A completed
+/// workout is historical truth; attempts to edit its graph are rejected in
+/// Release builds as well as Debug builds.
+enum WorkoutMutationOperation: String, Codable, Equatable, Sendable {
+    case addWorkoutEntry
+    case removeWorkoutEntry
+    case updateWorkoutName
+    case updateWorkoutNotes
+    case normalizeWorkoutOrder
+    case addExerciseSet
+    case removeExerciseSet
+    case updateExerciseComment
+    case updateExerciseSnapshot
+    case applySubstitutionDecision
+    case copyLastSet
+    case normalizeExerciseOrder
+    case startExerciseDuration
+    case stopExerciseDuration
+    case applyStrongmanEvidence
+    case ensureSetSegments
+    case synchronizeSetSegmentCompletion
+    case clearSetPrescription
+    case ensureComplexComponents
+    case synchronizeComplexCompletion
+    case normalizeSegmentOrder
+    case startExecutionBlock
+    case pauseExecutionBlock
+    case updateExecutionBlock
+    case removeExecutionBlock
+    case completeExecutionBlock
+    case capExecutionBlock
+    case stopExecutionBlock
+    case updateExecutionBlockScore
+}
+
+enum WorkoutMutationError: Error, Equatable, LocalizedError, Sendable {
+    case completedWorkoutMutation(WorkoutMutationOperation)
+
+    var errorDescription: String? {
+        switch self {
+        case .completedWorkoutMutation(let operation):
+            return "Cannot perform \(operation.rawValue) on a completed workout."
+        }
+    }
+}
+
+enum WorkoutMutationResult: Equatable, Sendable {
+    case applied
+    case rejected(WorkoutMutationError)
+
+    var isApplied: Bool {
+        if case .applied = self { return true }
+        return false
+    }
+}
+
+enum WorkoutMutationGuard {
+    static func rejectionIfCompleted(
+        _ isCompleted: Bool,
+        operation: WorkoutMutationOperation
+    ) -> WorkoutMutationResult? {
+        isCompleted ? .rejected(.completedWorkoutMutation(operation)) : nil
+    }
+}
+
 @Model
 class Workout {
     /// Stable cross-process identity for the workout represented by a Live Activity
@@ -280,38 +345,63 @@ class Workout {
         })
     }
 
-    func addEntry(_ entry: ExerciseEntry) {
-        assert(!isCompleted, "Illegal write: Cannot add entry to a completed workout.")
+    @discardableResult
+    func addEntry(_ entry: ExerciseEntry) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .addWorkoutEntry
+        ) { return rejection }
         exercises.append(entry)
-        normalizeExerciseOrder()
+        _ = normalizeExerciseOrder()
+        return .applied
     }
 
-    func removeEntry(_ entry: ExerciseEntry) {
-        assert(!isCompleted, "Illegal write: Cannot remove entry from a completed workout.")
+    @discardableResult
+    func removeEntry(_ entry: ExerciseEntry) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .removeWorkoutEntry
+        ) { return rejection }
         exercises.removeAll(where: { $0.id == entry.id })
-        normalizeExerciseOrder()
+        _ = normalizeExerciseOrder()
+        return .applied
     }
 
-    func updateName(_ newName: String?) {
-        assert(!isCompleted, "Illegal write: Cannot update name on a completed workout.")
+    @discardableResult
+    func updateName(_ newName: String?) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .updateWorkoutName
+        ) { return rejection }
         self.name = newName
+        return .applied
     }
 
-    func updateNotes(_ newNotes: String?) {
-        assert(!isCompleted, "Illegal write: Cannot update notes on a completed workout.")
+    @discardableResult
+    func updateNotes(_ newNotes: String?) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .updateWorkoutNotes
+        ) { return rejection }
         self.notes = newNotes
+        return .applied
     }
 
-    func normalizeExerciseOrder() {
-        assert(!isCompleted, "Illegal write: Cannot normalize exercise order on a completed workout.")
+    @discardableResult
+    func normalizeExerciseOrder() -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .normalizeWorkoutOrder
+        ) { return rejection }
         for (index, exercise) in orderedExercises.enumerated() {
             exercise.orderIndex = index
-            exercise.normalizeSetOrder()
+            _ = exercise.normalizeSetOrder()
         }
         SupersetGrouping.dissolveInvalidGroups(in: orderedExercises)
         for (index, block) in orderedExecutionBlocks.enumerated() {
             block.orderIndex = index
         }
+        return .applied
     }
 
     private struct ExecutionBlockSnapshotSource {
@@ -345,7 +435,6 @@ class Workout {
         from sources: [ExecutionBlockSnapshotSource],
         sourceMembership: [ExecutionBlockMembershipSnapshotSource]
     ) {
-        assert(!isCompleted, "Illegal write: Cannot snapshot execution blocks on a completed workout.")
         guard !sources.isEmpty else { return }
         var snapshotIDs: [UUID: UUID] = [:]
         executionBlocks = sources.map { source in

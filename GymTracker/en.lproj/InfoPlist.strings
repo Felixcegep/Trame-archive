@@ -1,0 +1,2 @@
+"NSMotionUsageDescription" = "Trame uses this iPhone's motion sensors to measure an angle during mobility assessments you start.";
+"NSHealthShareUsageDescription" = "Trame reads body-mass measurements from Apple Health only when you choose to import them. Imported observations stay separate from your authored entries.";

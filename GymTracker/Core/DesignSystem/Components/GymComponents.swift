@@ -450,6 +450,7 @@ struct GymChoiceTile: View {
         }
         .buttonStyle(.gymPress)
         .accessibilityLabel(title)
+        .accessibilityIdentifier(title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

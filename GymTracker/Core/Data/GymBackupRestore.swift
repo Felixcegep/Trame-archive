@@ -222,8 +222,13 @@ extension BackupDTO {
                 },
                 postWorkoutMobilityRoutine: templateDTO.postWorkoutMobilityRoutineName.flatMap {
                     restoreCtx.mobilityRoutinesByName[$0]
-                }
+                },
+                isBuiltIn: templateDTO.isBuiltIn ?? false,
+                isArchived: templateDTO.isArchived ?? false
             )
+            if let id = templateDTO.id.flatMap(UUID.init(uuidString:)) {
+                newTemplate.id = id
+            }
             newTemplate.executionBlocks = (templateDTO.executionBlocks ?? []).compactMap { blockDTO in
                 guard let id = UUID(uuidString: blockDTO.id),
                       let kind = ExerciseBlockKind(rawValue: blockDTO.kind),
@@ -806,6 +811,24 @@ extension BackupDTO {
                 block.sourceTemplateBlockID = blockDTO.sourceTemplateBlockID.flatMap(UUID.init(uuidString:))
                 block.sourcePlannedBlockID = blockDTO.sourcePlannedBlockID.flatMap(UUID.init(uuidString:))
                 block.sourceDefinitionBlockKey = blockDTO.sourceDefinitionBlockKey
+                for splitDTO in blockDTO.splits ?? [] {
+                    guard let splitID = UUID(uuidString: splitDTO.id),
+                          let splitWorkoutID = UUID(uuidString: splitDTO.workoutID),
+                          let splitKind = WorkoutExecutionBlockSplitKind(rawValue: splitDTO.kind)
+                    else { continue }
+                    let split = WorkoutExecutionBlockSplit(
+                        blockID: blockID,
+                        workoutID: splitWorkoutID,
+                        sequenceIndex: splitDTO.sequenceIndex,
+                        kind: splitKind,
+                        roundIndex: splitDTO.roundIndex,
+                        componentOrder: splitDTO.componentOrder,
+                        elapsedDuration: splitDTO.elapsedDuration,
+                        recordedAt: splitDTO.recordedAt
+                    )
+                    split.id = splitID
+                    restoreCtx.context.insert(split)
+                }
                 return block
             }
             restoreCtx.context.insert(newWorkout)
@@ -1318,6 +1341,48 @@ extension BackupDTO {
                 createdAt: entryDTO.createdAt,
                 updatedAt: entryDTO.updatedAt,
                 id: try requiredUUID(entryDTO.id, named: "body weight entry")
+            ))
+        }
+
+        for provenanceDTO in healthKitBodyMassProvenance {
+            guard version >= BackupDTO.healthKitIntegrationVersion,
+                  let id = UUID(uuidString: provenanceDTO.id),
+                  let bodyWeightEntryID = UUID(uuidString: provenanceDTO.bodyWeightEntryID) else {
+                continue
+            }
+            restoreCtx.context.insert(HealthKitBodyMassProvenance(
+                healthKitSampleID: provenanceDTO.healthKitSampleID,
+                bodyWeightEntryID: bodyWeightEntryID,
+                sourceBundleIdentifier: provenanceDTO.sourceBundleIdentifier,
+                sourceVersion: provenanceDTO.sourceVersion,
+                sourceProductType: provenanceDTO.sourceProductType,
+                sampleStartDate: provenanceDTO.sampleStartDate,
+                sampleEndDate: provenanceDTO.sampleEndDate,
+                valueKilograms: provenanceDTO.valueKilograms,
+                importedAt: provenanceDTO.importedAt,
+                lastSeenAt: provenanceDTO.lastSeenAt,
+                id: id
+            ))
+        }
+
+        for receiptDTO in healthKitWorkoutExportReceipts {
+            guard version >= BackupDTO.healthKitIntegrationVersion,
+                  let id = UUID(uuidString: receiptDTO.id),
+                  let workoutID = UUID(uuidString: receiptDTO.workoutID),
+                  let status = HealthKitWorkoutExportStatus(rawValue: receiptDTO.status) else {
+                continue
+            }
+            restoreCtx.context.insert(HealthKitWorkoutExportReceipt(
+                workoutID: workoutID,
+                healthKitWorkoutID: receiptDTO.healthKitWorkoutID,
+                status: status,
+                attemptedAt: receiptDTO.attemptedAt,
+                workoutStartDate: receiptDTO.workoutStartDate,
+                workoutEndDate: receiptDTO.workoutEndDate,
+                completedExerciseCount: receiptDTO.completedExerciseCount,
+                completedSetCount: receiptDTO.completedSetCount,
+                errorMessage: receiptDTO.errorMessage,
+                id: id
             ))
         }
 

@@ -60,6 +60,7 @@ extension BackupDTO {
         let templates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
         let templateDTOs = templates.map { template in
             WorkoutTemplateDTO(
+                id: template.id.uuidString,
                 name: template.name,
                 templateExercises: template.templateExercises.map { te in
                     TemplateExerciseDTO(
@@ -102,6 +103,7 @@ extension BackupDTO {
                 },
                 preWorkoutMobilityRoutineName: template.preWorkoutMobilityRoutine?.name,
                 postWorkoutMobilityRoutineName: template.postWorkoutMobilityRoutine?.name,
+                isBuiltIn: template.isBuiltIn,
                 isArchived: template.isArchived
             )
         }
@@ -115,6 +117,10 @@ extension BackupDTO {
         }
 
         let workouts = try context.fetch(FetchDescriptor<Workout>())
+        let executionSplitsByBlockID = Dictionary(
+            grouping: try context.fetch(FetchDescriptor<WorkoutExecutionBlockSplit>()),
+            by: \.blockID
+        )
         let workoutDTOs = workouts.map { workout in
             WorkoutDTO(
                 id: workout.id.uuidString,
@@ -324,7 +330,25 @@ extension BackupDTO {
                         elapsedStartedAt: block.elapsedStartedAt,
                         sourceTemplateBlockID: block.sourceTemplateBlockID?.uuidString,
                         sourcePlannedBlockID: block.sourcePlannedBlockID?.uuidString,
-                        sourceDefinitionBlockKey: block.sourceDefinitionBlockKey
+                        sourceDefinitionBlockKey: block.sourceDefinitionBlockKey,
+                        splits: (executionSplitsByBlockID[block.id] ?? [])
+                            .sorted {
+                                $0.sequenceIndex == $1.sequenceIndex
+                                    ? $0.id.uuidString < $1.id.uuidString
+                                    : $0.sequenceIndex < $1.sequenceIndex
+                            }
+                            .map { split in
+                                WorkoutExecutionBlockSplitDTO(
+                                    id: split.id.uuidString,
+                                    workoutID: split.workoutID.uuidString,
+                                    sequenceIndex: split.sequenceIndex,
+                                    kind: split.kind.rawValue,
+                                    roundIndex: split.roundIndex,
+                                    componentOrder: split.componentOrder,
+                                    elapsedDuration: split.elapsedDuration,
+                                    recordedAt: split.recordedAt
+                                )
+                            }
                     )
                 }
             )
@@ -794,6 +818,35 @@ extension BackupDTO {
                 measuredAt: entry.measuredAt,
                 createdAt: entry.createdAt,
                 updatedAt: entry.updatedAt
+            )
+        }
+        let healthKitBodyMassProvenanceDTOs = try context.fetch(FetchDescriptor<HealthKitBodyMassProvenance>()).map { provenance in
+            HealthKitBodyMassProvenanceDTO(
+                id: provenance.id.uuidString,
+                healthKitSampleID: provenance.healthKitSampleID,
+                bodyWeightEntryID: provenance.bodyWeightEntryID.uuidString,
+                sourceBundleIdentifier: provenance.sourceBundleIdentifier,
+                sourceVersion: provenance.sourceVersion,
+                sourceProductType: provenance.sourceProductType,
+                sampleStartDate: provenance.sampleStartDate,
+                sampleEndDate: provenance.sampleEndDate,
+                valueKilograms: provenance.valueKilograms,
+                importedAt: provenance.importedAt,
+                lastSeenAt: provenance.lastSeenAt
+            )
+        }
+        let healthKitWorkoutExportReceiptDTOs = try context.fetch(FetchDescriptor<HealthKitWorkoutExportReceipt>()).map { receipt in
+            HealthKitWorkoutExportReceiptDTO(
+                id: receipt.id.uuidString,
+                workoutID: receipt.workoutID.uuidString,
+                healthKitWorkoutID: receipt.healthKitWorkoutID,
+                status: receipt.status.rawValue,
+                attemptedAt: receipt.attemptedAt,
+                workoutStartDate: receipt.workoutStartDate,
+                workoutEndDate: receipt.workoutEndDate,
+                completedExerciseCount: receipt.completedExerciseCount,
+                completedSetCount: receipt.completedSetCount,
+                errorMessage: receipt.errorMessage
             )
         }
         let supplementOccurrenceDTOs = try context.fetch(FetchDescriptor<SupplementOccurrence>()).map { occurrence in
@@ -1284,6 +1337,8 @@ extension BackupDTO {
             progressionRecommendations: progressionRecommendationDTOs,
             dailyLogEntries: dailyLogEntryDTOs,
             bodyWeightEntries: bodyWeightEntryDTOs,
+            healthKitBodyMassProvenance: healthKitBodyMassProvenanceDTOs,
+            healthKitWorkoutExportReceipts: healthKitWorkoutExportReceiptDTOs,
             supplementOccurrences: supplementOccurrenceDTOs,
             mobilityFamilies: mobilityFamilyDTOs,
             mobilityDefinitions: mobilityDefinitionDTOs,

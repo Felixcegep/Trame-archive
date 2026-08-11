@@ -17,7 +17,7 @@ public struct GymTrackerPersistenceConfiguration: Sendable {
         self.isInMemory = isInMemory
     }
 
-    public static let schema = Schema(versionedSchema: GymTrackerAdvancedMobilityEvidenceSchema.self)
+    public static let schema = Schema(versionedSchema: GymTrackerExecutionSplitSchema.self)
 
     private var cloudKitDatabaseSetting: ModelConfiguration.CloudKitDatabase {
         switch cloudEnvironment {

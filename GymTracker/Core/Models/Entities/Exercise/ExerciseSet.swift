@@ -241,11 +241,19 @@ final class ExerciseSet {
     /// The only supported way to attach strongman evidence to a set. Snapshots
     /// both the full implement profile and its load convention together, so
     /// the two can never drift apart on a single set.
-    func applyStrongmanEvidence(implementProfile: StrongmanImplementProfile, eventFamily: StrongmanEventFamily?) {
-        assert(!isCompleted, "Illegal write: Cannot apply strongman evidence to a set in a completed workout.")
+    @discardableResult
+    func applyStrongmanEvidence(
+        implementProfile: StrongmanImplementProfile,
+        eventFamily: StrongmanEventFamily?
+    ) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .applyStrongmanEvidence
+        ) { return rejection }
         strongmanImplementProfile = implementProfile
         strongmanLoadConvention = implementProfile.loadConvention
         strongmanEventFamily = eventFamily
+        return .applied
     }
 
     func copy() -> ExerciseSet {
@@ -348,11 +356,15 @@ final class ExerciseSet {
     /// Initializes internal evidence only when a segmented method is selected.
     /// Existing segments are never overwritten by a method change, preserving
     /// recorded work instead of silently fabricating or deleting history.
-    func ensureSegmentsForMethod() {
-        assert(!isCompleted, "Illegal write: Cannot ensure segments on a set in a completed workout.")
+    @discardableResult
+    func ensureSegmentsForMethod() -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .ensureSetSegments
+        ) { return rejection }
         let method = resolvedSetMethod
         let requiredCount = method.minimumSegmentCount
-        guard requiredCount > 0, segments.count < requiredCount else { return }
+        guard requiredCount > 0, segments.count < requiredCount else { return .applied }
         for index in segments.count..<requiredCount {
             segments.append(ExerciseSetSegment(
                 orderIndex: index,
@@ -362,22 +374,32 @@ final class ExerciseSet {
                 restAfterSeconds: index + 1 < requiredCount ? method.defaultInterSegmentRestSeconds : nil
             ))
         }
-        normalizeSegmentOrder()
+        _ = normalizeSegmentOrder()
+        return .applied
     }
 
     /// Segments are evidence inside this one set, so they share the parent
     /// completion transition and never become independently completable work.
-    func synchronizeSegmentCompletion() {
-        assert(!isCompleted, "Illegal write: Cannot synchronize segment completion on a set in a completed workout.")
+    @discardableResult
+    func synchronizeSegmentCompletion() -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .synchronizeSetSegmentCompletion
+        ) { return rejection }
         for segment in segments {
             segment.done = done
         }
+        return .applied
     }
 
     /// Removes prescription evidence when the user intentionally creates a
     /// new ad-hoc set rather than extending a generated set role.
-    func clearPrescription() {
-        assert(!isCompleted, "Illegal write: Cannot clear prescription on a set in a completed workout.")
+    @discardableResult
+    func clearPrescription() -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .clearSetPrescription
+        ) { return rejection }
         prescribedSetType = nil
         prescribedRepetitions = nil
         prescribedRepRangeMinimum = nil
@@ -400,6 +422,7 @@ final class ExerciseSet {
         isPrescribedOptional = nil
         prescriptionNotes = nil
         prescriptionDefinitionData = nil
+        return .applied
     }
 
     func displayText() -> String {
@@ -439,10 +462,16 @@ final class ExerciseSet {
         })
     }
 
-    func normalizeSegmentOrder() {
+    @discardableResult
+    func normalizeSegmentOrder() -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .normalizeSegmentOrder
+        ) { return rejection }
         for (index, segment) in orderedSegments.enumerated() {
             segment.orderIndex = index
         }
+        return .applied
     }
 
     var orderedComplexComponents: [ComplexComponentResult] {
@@ -457,9 +486,13 @@ final class ExerciseSet {
     /// Creates performed component rows only for a structured complex. Existing
     /// results are never replaced, preserving a partial active or historical
     /// attempt across reconciliation and relaunch.
-    func ensureComplexComponents(for components: [ComplexComponentSnapshot]) {
-        assert(!isCompleted, "Illegal write: Cannot ensure complex components on a set in a completed workout.")
-        guard complexComponents.isEmpty else { return }
+    @discardableResult
+    func ensureComplexComponents(for components: [ComplexComponentSnapshot]) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .ensureComplexComponents
+        ) { return rejection }
+        guard complexComponents.isEmpty else { return .applied }
         repetitions = Float(components.reduce(0) { $0 + $1.prescribedRepetitions })
         complexComponents = components.enumerated().map { index, component in
             ComplexComponentResult(
@@ -469,16 +502,21 @@ final class ExerciseSet {
                 prescribedRepetitions: component.prescribedRepetitions
             )
         }
+        return .applied
     }
 
-    func synchronizeComplexCompletion() {
-        assert(!isCompleted, "Illegal write: Cannot synchronize complex completion on a set in a completed workout.")
-        guard !complexComponents.isEmpty else { return }
+    @discardableResult
+    func synchronizeComplexCompletion() -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .synchronizeComplexCompletion
+        ) { return rejection }
+        guard !complexComponents.isEmpty else { return .applied }
         guard done else {
             // Reopening the parent returns the attempt to an editable state but
             // retains its component evidence. The lifter can amend an outcome
             // explicitly; Undo must not erase a partially recorded sequence.
-            return
+            return .applied
         }
         // Component outcomes must be recorded explicitly before parent
         // completion. Never turn an untouched lift into performed truth.
@@ -495,6 +533,7 @@ final class ExerciseSet {
         case .notStarted, .skipped, nil:
             liftQuality = nil
         }
+        return .applied
     }
 
     /// One result for the parent attempt, deterministically derived from its

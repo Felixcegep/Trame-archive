@@ -74,6 +74,9 @@ extension BackupDTO {
         try ProgramBackupValidator.validate(self)
         try MobilityBackupValidator.validate(self)
         try NutritionBackupValidator.validate(self)
+#if !GYMTRACKER_EXTENSION
+        try HealthKitBackupValidator.validate(self)
+#endif
         let currentArchive = CurrentBackupArchive(adapting: self)
         let workoutArchive = currentArchive.workout
 
@@ -196,6 +199,36 @@ extension BackupDTO {
                 memberships: workout.exercises.map { ($0.executionBlockID, $0.executionBlockComponentOrder) },
                 named: "workout execution block"
             )
+            if version >= Self.executionBlockSplitVersion {
+                let workoutID = workout.id
+                let splits = (workout.executionBlocks ?? []).flatMap { block in
+                    (block.splits ?? []).map { (block.id, $0) }
+                }
+                let splitIDs = splits.map { $0.1.id }
+                guard Set(splitIDs).count == splitIDs.count else {
+                    throw BackupValidationError.duplicateIdentifier("execution block split")
+                }
+                for (blockID, split) in splits {
+                    guard UUID(uuidString: split.id) != nil,
+                          UUID(uuidString: blockID) != nil,
+                          split.workoutID == workoutID,
+                          WorkoutExecutionBlockSplitKind(rawValue: split.kind) != nil,
+                          split.sequenceIndex >= 0,
+                          split.roundIndex >= 0,
+                          split.componentOrder >= 0,
+                          split.elapsedDuration.isFinite,
+                          split.elapsedDuration >= 0
+                    else {
+                        throw BackupValidationError.invalidIdentifier("execution block split")
+                    }
+                }
+                for block in workout.executionBlocks ?? [] {
+                    let indexes = (block.splits ?? []).map(\.sequenceIndex)
+                    guard Set(indexes).count == indexes.count else {
+                        throw BackupValidationError.duplicateIdentifier("execution block split sequence")
+                    }
+                }
+            }
             for entry in workout.exercises where !availableExerciseNames.contains(entry.exerciseName) {
                 throw BackupValidationError.missingExercise(entry.exerciseName)
             }
