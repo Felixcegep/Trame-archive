@@ -34,6 +34,14 @@ struct RestStatusStrip: View {
         VStack(spacing: Spacing.s) {
             summaryRow
 
+            // A determinate progress bar belongs here — the countdown is read at
+            // arm's length mid-set, where the question is "nearly done?" and
+            // answering it should not require parsing digits. It is deliberately
+            // *not* implemented yet: rendering elapsed-versus-total needs a rest
+            // duration, and nothing stores one. `Workout.restEndDate` is the only
+            // persisted rest state, and `RestTimerController` tracks an end date
+            // alone. Adding the total means changing a component CE-01 has just
+            // certified, so it waits for a pass that can run those tests.
             if !isCompact {
                 controlRow
             }
@@ -117,9 +125,23 @@ struct RestStatusStrip: View {
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("start-next-set")
         } else {
+            // Each control carries the touch-target minimum itself.
+            //
+            // These four are what a lifter reaches for between sets: one-handed,
+            // frequently with chalk or sweat on their fingers, sometimes without
+            // looking away from the rack. They were `.controlSize(.small)`, which
+            // renders around 28pt against a 44pt minimum — the tightest targets
+            // in the app, on the screen least able to afford them.
+            //
+            // The height is applied per button rather than to the row: unlike
+            // `buttonStyle` and `tint`, `frame` does not propagate to children,
+            // so sizing the `HStack` would have grown the strip and left every
+            // hit area exactly as small as it was.
             HStack(spacing: Spacing.s) {
                 Button("+15s") { viewModel.addRestTime(15) }
+                    .restControlSize()
                 Button("+30s") { viewModel.addRestTime(30) }
+                    .restControlSize()
 
                 Spacer(minLength: 0)
 
@@ -132,6 +154,7 @@ struct RestStatusStrip: View {
                 } label: {
                     Image(systemName: viewModel.isTimerPaused ? "play.fill" : "pause.fill")
                 }
+                .restControlSize()
                 .accessibilityLabel(viewModel.isTimerPaused ? "Resume rest" : "Pause rest")
 
                 Button {
@@ -140,11 +163,11 @@ struct RestStatusStrip: View {
                 } label: {
                     Image(systemName: AppIcon.fastForward)
                 }
+                .restControlSize()
                 .accessibilityLabel("Skip rest")
             }
             .buttonStyle(.bordered)
             .tint(Color.gymAccent)
-            .controlSize(.small)
         }
     }
 
@@ -176,5 +199,18 @@ struct RestStatusStrip: View {
     private func formattedRemaining(_ seconds: TimeInterval) -> String {
         let total = Int(seconds)
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+private extension View {
+    /// The rest controls' shared sizing: at least the minimum touch target in
+    /// both axes, with the tappable area filling the frame rather than hugging
+    /// the glyph.
+    func restControlSize() -> some View {
+        frame(
+            minWidth: ComponentSize.minimumTouchTarget,
+            minHeight: ComponentSize.minimumTouchTarget
+        )
+        .contentShape(Rectangle())
     }
 }

@@ -342,6 +342,12 @@
   "programDefinitions": [
     {
       "programKey": "foundation-barbell-5x5",
+      "supportedDisciplineIDs": ["generalStrength"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 45,
+      "estimatedSessionMinutesMaximum": 75,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [], "requiredCapabilityIDs": ["squatRack"], "optionalCapabilityIDs": []},
       "name": "Foundation Barbell 5\u00d75",
       "goal": "generalStrength",
       "experienceLevel": "beginner",
@@ -871,6 +877,12 @@
     },
     {
       "programKey": "double-progression-builder",
+      "supportedDisciplineIDs": ["bodybuilding", "generalStrength"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 45,
+      "estimatedSessionMinutesMaximum": 75,
+      "equipmentRequirement": {"allOf": ["Barbell", "Dumbbell"], "anyOf": [["Cable", "Machine"]], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Double Progression Builder",
       "goal": "hypertrophy",
       "experienceLevel": "beginner",
@@ -1398,6 +1410,12 @@
     },
     {
       "programKey": "tiered-stage-ladder",
+      "supportedDisciplineIDs": ["generalStrength"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 40,
+      "estimatedSessionMinutesMaximum": 65,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [["Cable", "Bodyweight"]], "requiredCapabilityIDs": ["squatRack"], "optionalCapabilityIDs": []},
       "name": "Tiered Stage Ladder",
       "goal": "generalStrength",
       "experienceLevel": "intermediate",
@@ -2008,6 +2026,12 @@
     },
     {
       "programKey": "heavy-light-medium-5x5",
+      "supportedDisciplineIDs": ["generalStrength"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 45,
+      "estimatedSessionMinutesMaximum": 70,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [], "requiredCapabilityIDs": ["squatRack"], "optionalCapabilityIDs": []},
       "name": "Heavy-Light-Medium 5\u00d75",
       "goal": "generalStrength",
       "experienceLevel": "intermediate",
@@ -2647,6 +2671,12 @@
     },
     {
       "programKey": "percent-cycle-4-week",
+      "supportedDisciplineIDs": ["generalStrength", "powerlifting"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 45,
+      "estimatedSessionMinutesMaximum": 75,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Percent Cycle 4-Week",
       "goal": "generalStrength",
       "experienceLevel": "intermediate",
@@ -4444,6 +4474,12 @@
     },
     {
       "programKey": "wave-builder-base-peak",
+      "supportedDisciplineIDs": ["powerlifting"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 45,
+      "estimatedSessionMinutesMaximum": 75,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [["Cable", "Machine"]], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Wave Builder",
       "goal": "powerlifting",
       "experienceLevel": "advanced",
@@ -5496,6 +5532,12 @@
     },
     {
       "programKey": "rpe-bridge-block",
+      "supportedDisciplineIDs": ["generalStrength", "powerlifting"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 50,
+      "estimatedSessionMinutesMaximum": 75,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "RPE Bridge Block",
       "goal": "generalStrength",
       "experienceLevel": "intermediate",
@@ -6783,6 +6825,12 @@
     },
     {
       "programKey": "undulating-upper-lower",
+      "supportedDisciplineIDs": ["generalStrength", "bodybuilding"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 45,
+      "estimatedSessionMinutesMaximum": 80,
+      "equipmentRequirement": {"allOf": ["Barbell", "Dumbbell"], "anyOf": [["Cable", "Machine"]], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Undulating Upper/Lower",
       "goal": "generalStrength",
       "experienceLevel": "intermediate",
@@ -7342,6 +7390,12 @@
     },
     {
       "programKey": "six-week-block-strength",
+      "supportedDisciplineIDs": ["powerlifting"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 40,
+      "estimatedSessionMinutesMaximum": 75,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Six-Week Block Strength",
       "goal": "powerlifting",
       "experienceLevel": "advanced",
@@ -8521,6 +8575,12 @@
     },
     {
       "programKey": "bench-specialization-matrix",
+      "supportedDisciplineIDs": ["powerlifting"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["chest"],
+      "estimatedSessionMinutesMinimum": 35,
+      "estimatedSessionMinutesMaximum": 60,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Bench Press Specialization Matrix",
       "goal": "powerlifting",
       "experienceLevel": "advanced",
@@ -8897,7 +8957,13 @@
       ]
     },
     {
-        "programKey": "bodyweight-ladder-foundations",
+      "programKey": "bodyweight-ladder-foundations",
+      "supportedDisciplineIDs": ["generalFitness", "generalStrength"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 30,
+      "estimatedSessionMinutesMaximum": 50,
+      "equipmentRequirement": {"allOf": ["Bodyweight"], "anyOf": [], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Bodyweight Ladder Foundations",
       "goal": "generalFitness",
       "experienceLevel": "beginner",
@@ -9271,6 +9337,12 @@
     },
     {
       "programKey": "accumulation-wave-upper-lower",
+      "supportedDisciplineIDs": ["bodybuilding"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 35,
+      "estimatedSessionMinutesMaximum": 60,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [["Cable", "Machine"]], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Accumulation Wave Upper/Lower",
       "goal": "hypertrophy",
       "experienceLevel": "intermediate",
@@ -9962,6 +10034,12 @@
     },
     {
       "programKey": "velocity-calibrated-strength",
+      "supportedDisciplineIDs": ["powerlifting", "generalStrength"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 45,
+      "estimatedSessionMinutesMaximum": 75,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [["Cable", "Machine"]], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Velocity-Calibrated Strength",
       "goal": "powerlifting",
       "experienceLevel": "advanced",
@@ -10950,6 +11028,12 @@
     },
     {
       "programKey": "powerlifting-double-exposure-practice",
+      "supportedDisciplineIDs": ["powerlifting"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 40,
+      "estimatedSessionMinutesMaximum": 65,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Powerlifting Double-Exposure Practice",
       "description": "A four-week synthetic conformance program with separately keyed competition, tempo, pause, and close-grip exposures. It is an original GymTracker engine fixture, not an official federation or coach program.",
       "goal": "powerlifting",
@@ -11719,6 +11803,12 @@
     },
     {
       "programKey": "skierg-1000m-progression",
+      "supportedDisciplineIDs": ["cardioEndurance", "generalFitness"],
+      "focusAreaApplicability": "notApplicable",
+      "focusAreaIDs": [],
+      "estimatedSessionMinutesMinimum": 15,
+      "estimatedSessionMinutesMaximum": 30,
+      "equipmentRequirement": {"allOf": ["Cardio Machine"], "anyOf": [], "requiredCapabilityIDs": ["skiErg"], "optionalCapabilityIDs": []},
       "name": "SkiErg 1,000 m Progression",
       "description": "Concept2's six-week, twice-weekly progression toward a 1,000 m SkiErg test. Complete a separate 500 m benchmark before starting and use that recorded pace to guide the intervals.",
       "goal": "generalFitness",
@@ -11957,6 +12047,13 @@
     },
     {
       "programKey": "weightlifting-complex-to-competition",
+      "supportedDisciplineIDs": ["olympicWeightlifting"],
+      "focusAreaApplicability": "notApplicable",
+      "focusAreaIDs": [],
+      "estimatedSessionMinutesMinimum": 30,
+      "estimatedSessionMinutesMaximum": 60,
+      "competitionDisciplineID": "olympicWeightlifting",
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [], "requiredCapabilityIDs": ["bumperPlates", "platform"], "optionalCapabilityIDs": []},
       "name": "Weightlifting Complex to Competition",
       "description": "An original eight-week, three-session progression from technical shared-load complexes toward competition-lift practice and a three-attempt Snatch and Clean & Jerk test.",
       "goal": "generalStrength",
@@ -14652,6 +14749,12 @@
     },
     {
       "programKey": "conjugate-rotation-wave",
+      "supportedDisciplineIDs": ["powerlifting"],
+      "focusAreaApplicability": "applicable",
+      "focusAreaIDs": ["balanced"],
+      "estimatedSessionMinutesMinimum": 35,
+      "estimatedSessionMinutesMaximum": 60,
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [], "requiredCapabilityIDs": [], "optionalCapabilityIDs": []},
       "name": "Conjugate Rotation Wave",
       "description": "A six-week original GymTracker adaptation of the max-effort / dynamic-effort conjugate method: a rotating max-effort exercise for squat and bench pattern each week, paired with fixed dynamic-effort speed work against compensatory-acceleration percentages. Each max-effort session is a ramp of three to five progressively heavier singles -- no more than three attempts above ninety percent -- stopping at a clean technical single, followed by three sets of three at eighty-five percent of that single.",
       "goal": "powerlifting",
@@ -15461,6 +15564,13 @@
     },
     {
       "programKey": "strongman-contest-preparation",
+      "supportedDisciplineIDs": ["strongman"],
+      "focusAreaApplicability": "notApplicable",
+      "focusAreaIDs": [],
+      "estimatedSessionMinutesMinimum": 35,
+      "estimatedSessionMinutesMaximum": 70,
+      "competitionDisciplineID": "strongman",
+      "equipmentRequirement": {"allOf": ["Barbell", "Other"], "anyOf": [], "requiredCapabilityIDs": ["log", "yoke", "farmersHandles", "sandbag", "throwingEquipment"], "optionalCapabilityIDs": []},
       "name": "Strongman Contest Preparation",
       "description": "A six-week original GymTracker strongman contest-preparation adaptation. Two base weeks build load tolerance on log press, farmer's hold, deadlift, yoke, sandbag loading and farmer's carry; two build weeks raise intensity and add a deadlift ladder, a sandbag medley and bag-toss practice; a simulation week rehearses a contest-style event sequence; a final week cuts volume in half at sixty to seventy percent loads for a technical assessment.",
       "goal": "generalStrength",
@@ -16505,6 +16615,13 @@
     },
     {
       "programKey": "fitness-racing-base-to-peak",
+      "supportedDisciplineIDs": ["hybridFitnessRacing"],
+      "focusAreaApplicability": "notApplicable",
+      "focusAreaIDs": [],
+      "estimatedSessionMinutesMinimum": 20,
+      "estimatedSessionMinutesMaximum": 65,
+      "competitionDisciplineID": "hybridFitnessRacing",
+      "equipmentRequirement": {"allOf": ["Cardio Machine", "Other"], "anyOf": [], "requiredCapabilityIDs": ["skiErg", "sled", "wallBallTarget", "farmersHandles"], "optionalCapabilityIDs": []},
       "name": "Fitness Racing Base to Peak",
       "description": "An eight-week original GymTracker adaptation for hybrid fitness-racing events: an aerobic base run, strength work, running intervals, station skill paired with compromised running, and a weekly race simulation that scales from a short rehearsal through a three-quarter and a full-distance simulation to a final race-day test.",
       "goal": "generalFitness",
@@ -18400,6 +18517,12 @@
     },
     {
       "programKey": "multi-erg-interval-rotation",
+      "supportedDisciplineIDs": ["cardioEndurance", "generalFitness"],
+      "focusAreaApplicability": "notApplicable",
+      "focusAreaIDs": [],
+      "estimatedSessionMinutesMinimum": 15,
+      "estimatedSessionMinutesMaximum": 55,
+      "equipmentRequirement": {"allOf": ["Cardio Machine"], "anyOf": [], "requiredCapabilityIDs": ["skiErg", "rowErg", "airBike"], "optionalCapabilityIDs": []},
       "name": "Multi-Erg Interval Rotation",
       "description": "A four-week original GymTracker rotation across SkiErg, RowErg, and BikeErg. Session A repeats a four-minute-per-machine rotation for two or three rounds; Session B is a fixed five-segment pyramid across the same three machines. Both sessions shorten their recovery and Session A adds a round as the weeks progress.",
       "goal": "generalFitness",
@@ -19133,6 +19256,8 @@
     },
     {
       "programKey": "powerlifting-foundations",
+      "focusAreaApplicability": "applicable",
+      "equipmentRequirement": {"allOf": ["Barbell"], "anyOf": [], "requiredCapabilityIDs": ["squatRack"], "optionalCapabilityIDs": []},
       "name": "Powerlifting Foundations",
       "goal": "powerlifting",
       "experienceLevel": "beginner",
@@ -19183,7 +19308,7 @@
         {
           "name": "Technique Base",
           "phaseType": "hypertrophy",
-          "repeat": 4,
+          "repeat": 12,
           "weeks": [
             {
               "weekIndex": 0,
@@ -19391,578 +19516,7 @@
           }
         ]
       }
-    },
-    {
-      "programKey": "powerlifting-volume-intensity",
-      "name": "Powerlifting Volume & Intensity",
-      "goal": "powerlifting",
-      "experienceLevel": "intermediate",
-      "durationWeeks": 10,
-      "supportedDaysPerWeek": [
-        4
-      ],
-      "scheduleMode": "fixedWeekdays",
-      "description": "A 10-week four-day periodized powerlifting program alternating heavy intensity days with higher-volume accessory days.",
-      "requiredEquipment": [
-        "Barbell"
-      ],
-      "prerequisites": [
-        "Consistent training history with main competition lifts"
-      ],
-      "supportedDisciplineIDs": [
-        "powerlifting"
-      ],
-      "focusAreaIDs": [
-        "balanced"
-      ],
-      "estimatedSessionMinutesMinimum": 75,
-      "estimatedSessionMinutesMaximum": 90,
-      "competitionDisciplineID": "powerlifting",
-      "provenance": {
-        "kind": "researchAnchoredOriginalProgram",
-        "statement": "An original GymTracker periodized program based on systematic review evidence for strength and volume distribution."
-      },
-      "blocks": [
-        {
-          "name": "Accumulation Phase",
-          "phaseType": "accumulation",
-          "repeat": 3,
-          "weeks": [
-            {
-              "weekIndex": 0,
-              "workouts": [
-                {
-                  "name": "Day 1 \u2014 Heavy Squat & Bench Volume",
-                  "dayOffset": 0,
-                  "exercises": [
-                    {
-                      "exercise": "Back Squat",
-                      "exposureKey": "squat-heavy",
-                      "restSeconds": 180,
-                      "setGroups": [
-                        {
-                          "count": 4,
-                          "reps": 4,
-                          "targetRPE": 8.0
-                        }
-                      ]
-                    },
-                    {
-                      "exercise": "Bench Press",
-                      "exposureKey": "bench-volume",
-                      "restSeconds": 150,
-                      "setGroups": [
-                        {
-                          "count": 4,
-                          "reps": 8,
-                          "targetRPE": 7.5
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "name": "Day 2 \u2014 Heavy Deadlift & Variation",
-                  "dayOffset": 1,
-                  "exercises": [
-                    {
-                      "exercise": "Deadlift",
-                      "exposureKey": "deadlift-heavy",
-                      "restSeconds": 180,
-                      "setGroups": [
-                        {
-                          "count": 4,
-                          "reps": 4,
-                          "targetRPE": 8.0
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "programKey": "powerlifting-meet-preparation",
-      "name": "Powerlifting Meet Preparation",
-      "goal": "powerlifting",
-      "experienceLevel": "advanced",
-      "durationWeeks": 10,
-      "supportedDaysPerWeek": [
-        4
-      ],
-      "scheduleMode": "fixedWeekdays",
-      "description": "A 10-week peak and taper program designed to prepare lifters for an IPF-spec competition meet test day.",
-      "requiredEquipment": [
-        "Barbell"
-      ],
-      "prerequisites": [
-        "Comfortable taking heavy single attempts under command"
-      ],
-      "supportedDisciplineIDs": [
-        "powerlifting"
-      ],
-      "focusAreaIDs": [
-        "balanced"
-      ],
-      "estimatedSessionMinutesMinimum": 90,
-      "estimatedSessionMinutesMaximum": 120,
-      "competitionDisciplineID": "powerlifting",
-      "provenance": {
-        "kind": "sourceBackedOriginalAdaptation",
-        "statement": "An original GymTracker taper program adapted to IPF Technical Rule Book competition format."
-      },
-      "blocks": [
-        {
-          "name": "Peak & Taper",
-          "phaseType": "peaking",
-          "repeat": 2,
-          "weeks": [
-            {
-              "weekIndex": 0,
-              "workouts": [
-                {
-                  "name": "Day 1 \u2014 Heavy Singles Rehearsal",
-                  "dayOffset": 0,
-                  "exercises": [
-                    {
-                      "exercise": "Back Squat",
-                      "exposureKey": "squat-single",
-                      "restSeconds": 240,
-                      "setGroups": [
-                        {
-                          "count": 1,
-                          "reps": 1,
-                          "targetRPE": 9.0
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "programKey": "weightlifting-technical-foundations",
-      "name": "Weightlifting Technical Foundations",
-      "goal": "generalStrength",
-      "experienceLevel": "beginner",
-      "durationWeeks": 8,
-      "supportedDaysPerWeek": [
-        3
-      ],
-      "scheduleMode": "sequential",
-      "scheduleIntervalDays": 2,
-      "description": "An 8-week positional foundation program for the snatch, clean, and jerk using light loads and position holds.",
-      "requiredEquipment": [
-        "Barbell"
-      ],
-      "prerequisites": [],
-      "supportedDisciplineIDs": [
-        "olympicWeightlifting"
-      ],
-      "focusAreaIDs": [
-        "balanced"
-      ],
-      "estimatedSessionMinutesMinimum": 60,
-      "estimatedSessionMinutesMaximum": 75,
-      "provenance": {
-        "kind": "guidelineAnchoredOriginalProgram",
-        "statement": "An original GymTracker technical program anchored in standard weightlifting progression principles."
-      },
-      "blocks": [
-        {
-          "name": "Positional Work",
-          "phaseType": "hypertrophy",
-          "repeat": 4,
-          "weeks": [
-            {
-              "weekIndex": 0,
-              "workouts": [
-                {
-                  "name": "Day 1 \u2014 Snatch Positions",
-                  "dayOffset": 0,
-                  "exercises": [
-                    {
-                      "exercise": "Muscle Snatch",
-                      "exposureKey": "muscle-snatch",
-                      "restSeconds": 120,
-                      "setGroups": [
-                        {
-                          "count": 3,
-                          "reps": 3
-                        }
-                      ]
-                    },
-                    {
-                      "exercise": "Overhead Squat",
-                      "exposureKey": "oh-squat",
-                      "restSeconds": 120,
-                      "setGroups": [
-                        {
-                          "count": 3,
-                          "reps": 5
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "programKey": "strongman-event-foundations",
-      "name": "Strongman Event Foundations",
-      "goal": "generalStrength",
-      "experienceLevel": "beginner",
-      "durationWeeks": 6,
-      "supportedDaysPerWeek": [
-        3
-      ],
-      "scheduleMode": "sequential",
-      "scheduleIntervalDays": 2,
-      "description": "A 6-week introduction to strongman event movement patterns including log press, carries, and loading.",
-      "requiredEquipment": [
-        "Other"
-      ],
-      "prerequisites": [
-        "Basic foundational resistance training experience"
-      ],
-      "supportedDisciplineIDs": [
-        "strongman"
-      ],
-      "focusAreaIDs": [
-        "balanced"
-      ],
-      "estimatedSessionMinutesMinimum": 60,
-      "estimatedSessionMinutesMaximum": 75,
-      "provenance": {
-        "kind": "guidelineAnchoredOriginalProgram",
-        "statement": "An original GymTracker strongman introduction program."
-      },
-      "blocks": [
-        {
-          "name": "Event Introduction",
-          "phaseType": "strength",
-          "repeat": 3,
-          "weeks": [
-            {
-              "weekIndex": 0,
-              "workouts": [
-                {
-                  "name": "Day 1 \u2014 Press & Carry",
-                  "dayOffset": 0,
-                  "exercises": [
-                    {
-                      "exercise": "Log Press",
-                      "exposureKey": "log-press-intro",
-                      "restSeconds": 150,
-                      "setGroups": [
-                        {
-                          "count": 3,
-                          "reps": 5
-                        }
-                      ]
-                    },
-                    {
-                      "exercise": "Farmer's Handles Carry",
-                      "exposureKey": "farmers-carry-intro",
-                      "restSeconds": 120,
-                      "setGroups": [
-                        {
-                          "count": 3,
-                          "distanceMeters": 20.0
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "programKey": "hybrid-race-foundations",
-      "name": "HYROX Race Foundations",
-      "displayName": "HYROX Race Foundations",
-      "goal": "generalFitness",
-      "experienceLevel": "beginner",
-      "durationWeeks": 8,
-      "supportedDaysPerWeek": [
-        4
-      ],
-      "scheduleMode": "fixedWeekdays",
-      "description": "An independent training plan designed to prepare athletes for the running and functional stations used in HYROX competition.",
-      "disclaimer": "HYROX is a registered trademark. This program is not affiliated with, endorsed by, or sponsored by HYROX.",
-      "requiredEquipment": [
-        "Bodyweight",
-        "Medicine Ball"
-      ],
-      "prerequisites": [
-        "Capable of 20 minutes continuous light jogging"
-      ],
-      "supportedDisciplineIDs": [
-        "hybridFitnessRacing",
-        "cardioEndurance"
-      ],
-      "focusAreaIDs": [
-        "balanced"
-      ],
-      "estimatedSessionMinutesMinimum": 45,
-      "estimatedSessionMinutesMaximum": 60,
-      "provenance": {
-        "kind": "guidelineAnchoredOriginalProgram",
-        "statement": "An original GymTracker fitness racing conditioning plan."
-      },
-      "blocks": [
-        {
-          "name": "Base Building",
-          "phaseType": "accumulation",
-          "repeat": 4,
-          "weeks": [
-            {
-              "weekIndex": 0,
-              "workouts": [
-                {
-                  "name": "Day 1 \u2014 Aerobic Run & Wall Ball",
-                  "dayOffset": 0,
-                  "exercises": [
-                    {
-                      "exercise": "Run",
-                      "exposureKey": "easy-run",
-                      "restSeconds": 60,
-                      "setGroups": [
-                        {
-                          "count": 1,
-                          "distanceMeters": 3000.0
-                        }
-                      ]
-                    },
-                    {
-                      "exercise": "Wall Ball",
-                      "exposureKey": "wall-ball-intro",
-                      "restSeconds": 90,
-                      "setGroups": [
-                        {
-                          "count": 3,
-                          "reps": 15
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "programKey": "couch-to-continuous-running",
-      "name": "Couch to Continuous Running",
-      "goal": "generalFitness",
-      "experienceLevel": "beginner",
-      "durationWeeks": 9,
-      "supportedDaysPerWeek": [
-        3
-      ],
-      "scheduleMode": "sequential",
-      "scheduleIntervalDays": 2,
-      "description": "A 9-week walk-run progression guiding beginners from interval walks to 30 minutes of continuous running. Adapted from public health running guidelines.",
-      "requiredEquipment": [
-        "Bodyweight"
-      ],
-      "prerequisites": [
-        "Cleared for light aerobic activity"
-      ],
-      "supportedDisciplineIDs": [
-        "cardioEndurance"
-      ],
-      "focusAreaIDs": [
-        "quadriceps",
-        "hamstringsAndGlutes"
-      ],
-      "estimatedSessionMinutesMinimum": 30,
-      "estimatedSessionMinutesMaximum": 40,
-      "provenance": {
-        "kind": "sourceBackedOriginalAdaptation",
-        "statement": "An original GymTracker adaptation based on NHS Couch to 5K progression intervals."
-      },
-      "blocks": [
-        {
-          "name": "Walk-Run Intervals",
-          "phaseType": "accumulation",
-          "repeat": 3,
-          "weeks": [
-            {
-              "weekIndex": 0,
-              "workouts": [
-                {
-                  "name": "Walk-Run Session",
-                  "dayOffset": 0,
-                  "exercises": [
-                    {
-                      "exercise": "Run",
-                      "exposureKey": "walk-run-interval",
-                      "restSeconds": 90,
-                      "setGroups": [
-                        {
-                          "count": 6,
-                          "durationSeconds": 60
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "programKey": "rowerg-2000m-builder",
-      "name": "RowErg 2,000 m Builder",
-      "goal": "generalFitness",
-      "experienceLevel": "intermediate",
-      "durationWeeks": 10,
-      "supportedDaysPerWeek": [
-        3
-      ],
-      "scheduleMode": "fixedWeekdays",
-      "description": "A 10-week rowing ergometer program designed to improve 2,000 m sprint performance through aerobic intervals and pace practice.",
-      "requiredEquipment": [
-        "Cardio Machine"
-      ],
-      "prerequisites": [
-        "Familiar with basic rowing stroke technique"
-      ],
-      "supportedDisciplineIDs": [
-        "cardioEndurance"
-      ],
-      "focusAreaIDs": [
-        "balanced"
-      ],
-      "estimatedSessionMinutesMinimum": 30,
-      "estimatedSessionMinutesMaximum": 45,
-      "provenance": {
-        "kind": "sourceBackedOriginalAdaptation",
-        "statement": "An original GymTracker rowing program informed by Concept2 public training guidelines."
-      },
-      "blocks": [
-        {
-          "name": "Pace Development",
-          "phaseType": "accumulation",
-          "repeat": 5,
-          "weeks": [
-            {
-              "weekIndex": 0,
-              "workouts": [
-                {
-                  "name": "Row Interval Session",
-                  "dayOffset": 0,
-                  "exercises": [
-                    {
-                      "exercise": "RowErg",
-                      "exposureKey": "row-intervals",
-                      "restSeconds": 180,
-                      "setGroups": [
-                        {
-                          "count": 4,
-                          "distanceMeters": 500.0
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "programKey": "kettlebell-foundations",
-      "name": "Kettlebell Foundations",
-      "goal": "generalStrength",
-      "experienceLevel": "beginner",
-      "durationWeeks": 6,
-      "supportedDaysPerWeek": [
-        3
-      ],
-      "scheduleMode": "sequential",
-      "scheduleIntervalDays": 2,
-      "description": "A 6-week introduction to core kettlebell movements: two-hand swing, Turkish get-up, goblet squat, and overhead press.",
-      "requiredEquipment": [
-        "Kettlebell"
-      ],
-      "prerequisites": [],
-      "supportedDisciplineIDs": [
-        "generalStrength",
-        "mixed"
-      ],
-      "focusAreaIDs": [
-        "balanced"
-      ],
-      "estimatedSessionMinutesMinimum": 40,
-      "estimatedSessionMinutesMaximum": 50,
-      "provenance": {
-        "kind": "guidelineAnchoredOriginalProgram",
-        "statement": "An original GymTracker kettlebell foundation program."
-      },
-      "blocks": [
-        {
-          "name": "Movement Foundation",
-          "phaseType": "strength",
-          "repeat": 3,
-          "weeks": [
-            {
-              "weekIndex": 0,
-              "workouts": [
-                {
-                  "name": "Day 1 \u2014 Swing & Squat",
-                  "dayOffset": 0,
-                  "exercises": [
-                    {
-                      "exercise": "Two-Hand Kettlebell Swing",
-                      "exposureKey": "kb-swing-base",
-                      "restSeconds": 90,
-                      "setGroups": [
-                        {
-                          "count": 5,
-                          "reps": 10
-                        }
-                      ]
-                    },
-                    {
-                      "exercise": "Goblet Squat",
-                      "exposureKey": "goblet-squat-base",
-                      "restSeconds": 120,
-                      "setGroups": [
-                        {
-                          "count": 3,
-                          "reps": 8
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
     }
-  ]
+  ],
+  "contentVersion": 18
 }

@@ -71,43 +71,58 @@ final class ActiveSessionRouter {
         isShowingActiveWorkout = workoutVM.hasActiveWorkout
     }
 
-    func startWorkout(from template: WorkoutTemplate, using modelContext: ModelContext, workoutVM: WorkoutViewModel) {
-        requestWorkoutStart(.template(template), using: modelContext, workoutVM: workoutVM)
+    @discardableResult
+    func startWorkout(from template: WorkoutTemplate, using modelContext: ModelContext, workoutVM: WorkoutViewModel) -> PendingWorkoutStart {
+        let start = PendingWorkoutStart.template(template)
+        requestWorkoutStart(start, using: modelContext, workoutVM: workoutVM)
+        return start
     }
 
+    @discardableResult
     func startPlannedWorkout(
         _ planRun: PlanRun,
         _ progress: PlanWorkoutProgress,
         using modelContext: ModelContext,
         workoutVM: WorkoutViewModel
-    ) {
-        guard let plannedWorkout = PlanCoordinator.plannedWorkout(for: progress, in: planRun) else { return }
-        requestWorkoutStart(.planned(PendingPlannedWorkout(
+    ) -> PendingWorkoutStart? {
+        guard let plannedWorkout = PlanCoordinator.plannedWorkout(for: progress, in: planRun) else { return nil }
+        let start = PendingWorkoutStart.planned(PendingPlannedWorkout(
             planRun: planRun,
             progress: progress,
             plannedWorkout: plannedWorkout
-        )), using: modelContext, workoutVM: workoutVM)
+        ))
+        requestWorkoutStart(start, using: modelContext, workoutVM: workoutVM)
+        return start
     }
 
-    func startRepeatingWorkout(_ run: RepeatingPlanRun, using modelContext: ModelContext, workoutVM: WorkoutViewModel) {
-        requestWorkoutStart(.repeating(run, .expected), using: modelContext, workoutVM: workoutVM)
+    @discardableResult
+    func startRepeatingWorkout(_ run: RepeatingPlanRun, using modelContext: ModelContext, workoutVM: WorkoutViewModel) -> PendingWorkoutStart {
+        let start = PendingWorkoutStart.repeating(run, .expected)
+        requestWorkoutStart(start, using: modelContext, workoutVM: workoutVM)
+        return start
     }
 
+    @discardableResult
     func startAlternateRepeatingWorkout(
         _ run: RepeatingPlanRun,
         _ slotIndex: Int,
         _ continuationMode: RepeatingPlanContinuationMode,
         using modelContext: ModelContext,
         workoutVM: WorkoutViewModel
-    ) {
-        requestWorkoutStart(.repeating(
+    ) -> PendingWorkoutStart {
+        let start = PendingWorkoutStart.repeating(
             run,
             .alternate(slotIndex: slotIndex, continuationMode: continuationMode)
-        ), using: modelContext, workoutVM: workoutVM)
+        )
+        requestWorkoutStart(start, using: modelContext, workoutVM: workoutVM)
+        return start
     }
 
-    func repeatRepeatingWorkout(_ run: RepeatingPlanRun, using modelContext: ModelContext, workoutVM: WorkoutViewModel) {
-        requestWorkoutStart(.repeating(run, .repeatLast), using: modelContext, workoutVM: workoutVM)
+    @discardableResult
+    func repeatRepeatingWorkout(_ run: RepeatingPlanRun, using modelContext: ModelContext, workoutVM: WorkoutViewModel) -> PendingWorkoutStart {
+        let start = PendingWorkoutStart.repeating(run, .repeatLast)
+        requestWorkoutStart(start, using: modelContext, workoutVM: workoutVM)
+        return start
     }
 
     func requestWorkoutStart(_ start: PendingWorkoutStart, using modelContext: ModelContext, workoutVM: WorkoutViewModel) {
@@ -125,10 +140,15 @@ final class ActiveSessionRouter {
             phase: .warmup,
             using: modelContext
         )
-        workoutPreparationRequest = WorkoutPreparationRequest(
-            start: start,
-            warmupRoutine: warmupRoutine
-        )
+        let activeSession = MobilitySessionService.activeSession(using: modelContext)
+        if warmupRoutine != nil || activeSession != nil {
+            workoutPreparationRequest = WorkoutPreparationRequest(
+                start: start,
+                warmupRoutine: warmupRoutine
+            )
+        } else {
+            workoutPreparationRequest = nil
+        }
     }
 
     func reset() {

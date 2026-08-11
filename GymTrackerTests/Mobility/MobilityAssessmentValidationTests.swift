@@ -114,6 +114,25 @@ final class MobilityAssessmentValidationTests: XCTestCase {
         )
     }
 
+    func testAuthoredDeviceMotionMethodIsAcceptedForASeededDefinition() {
+        let definition = MobilityAssessmentSeedData.definitions[0].makeDefinition()
+        let input = MobilityAssessmentResultInput(
+            numericValue: 42,
+            side: definition.supportedSides[0],
+            isWarm: false,
+            setupKey: definition.defaultSetupKey,
+            method: .axialRotation,
+            unit: .degrees,
+            isActiveRange: definition.defaultIsActiveRange,
+            day: LocalDay(rawValue: "2026-07-29"),
+            source: .deviceMotion,
+            confidence: .moderate,
+            trials: [42]
+        )
+
+        XCTAssertNil(MobilityAssessmentValidationService.validate(input, for: definition))
+    }
+
     private func makeInput(
         for definition: MobilityAssessmentDefinition,
         numericValue: Double? = 42,

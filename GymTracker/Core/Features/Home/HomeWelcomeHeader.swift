@@ -14,9 +14,16 @@ struct HomeWelcomeHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
+            // Subdued ink, not `gymAccent`.
+            //
+            // `Colors.swift` defines that token as "a running rest period, a
+            // warning, a blocked value, an estimate. Never data." A date is none
+            // of those — it was simply the most prominent coloured element on
+            // Today, which meant the screen's loudest signal pointed at the one
+            // thing on it that never changes and never needs acting on.
             Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
                 .font(AppFont.subheadlineMediumMonospaced)
-                .foregroundStyle(Color.gymAccent)
+                .foregroundStyle(Color.gymSubduedText)
 
             if let activePlanRun {
                 planChip(

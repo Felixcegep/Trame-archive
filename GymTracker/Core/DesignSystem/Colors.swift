@@ -65,18 +65,22 @@ extension Color {
     /// A performed or prescribed number that should be findable at a glance —
     /// today, the weight in a set row.
     ///
-    /// Deliberately its own hue rather than a reuse of an existing one: every
-    /// other token in this palette carries a *state* (primary action, success,
-    /// attention, destructive), and a weight is not a state. Borrowing one made
-    /// the weight column look like a warning.
+    /// **Resolved to `gymText`.** This was its own violet hue, on the reasoning
+    /// that every other token carries a *state* and a weight is not a state. The
+    /// reasoning was right and the conclusion was backwards: giving data a fifth
+    /// hue meant four colours competed on the Active Workout screen at once
+    /// (blue chrome, green completion, warm rest, violet weight), and nothing
+    /// that is always coloured can be emphasis.
     ///
-    /// If a fifth hue is unwanted, resolving this to `gymText` is a one-line
-    /// change — the column header and the surrounding subdued metadata already
-    /// provide the separation on their own.
-    static let gymDataEmphasis = dynamicColor(
-        light: UIColor(red: 0x6B / 255.0, green: 0x4E / 255.0, blue: 0x8F / 255.0, alpha: 1.0),
-        dark: UIColor(red: 0xB9 / 255.0, green: 0xA3 / 255.0, blue: 0xE0 / 255.0, alpha: 1.0)
-    )
+    /// A number leads by *weight*, not by hue — which is what Hevy, Apple
+    /// Fitness and Oura all do, and what the column header plus the surrounding
+    /// subdued metadata already achieve here. The separation that actually
+    /// matters on a set row is logged-versus-suggested, and that is carried by
+    /// `gymSubduedText` on unlogged values (see `SetRowFieldStack`).
+    ///
+    /// Kept as a named token rather than deleted so the intent stays greppable
+    /// and a future decision to re-introduce a data hue has one place to land.
+    static let gymDataEmphasis = gymText
     
     static let gymDestructive = dynamicColor(
         light: UIColor.red,

@@ -26,6 +26,50 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
         _ = try ProgramDefinitionRepository.compile(try XCTUnwrap(records.first), using: context)
     }
 
+    func testUnderAuthoredBundledProgramsAreAbsentAndLegacyRecordsAreRetired() throws {
+        let retiredKeys = [
+            "powerlifting-volume-intensity",
+            "powerlifting-meet-preparation",
+            "weightlifting-technical-foundations",
+            "strongman-event-foundations",
+            "hybrid-race-foundations",
+            "couch-to-continuous-running",
+            "rowerg-2000m-builder",
+            "kettlebell-foundations"
+        ]
+
+        let freshContext = try makeContext()
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: freshContext)
+        let freshRecords = try freshContext.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+        for key in retiredKeys {
+            XCTAssertFalse(
+                freshRecords.contains { (try? $0.payload().programKey) == key },
+                "Fresh bundled catalog must not create withheld \(key)."
+            )
+        }
+
+        let migrationContext = try makeContext()
+        let exercise = Exercise(name: "Legacy archive exercise", primaryMuscles: [.quadriceps])
+        migrationContext.insert(exercise)
+        try migrationContext.save()
+
+        var legacy = simpleDefinition(exerciseID: exercise.id)
+        legacy.programKey = "hybrid-race-foundations"
+        _ = try ProgramDefinitionRepository.save(legacy, isBuiltIn: true, in: migrationContext)
+        try migrationContext.save()
+
+        _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: migrationContext)
+        let migratedRecords = try migrationContext.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+        let migrated = try XCTUnwrap(
+            migratedRecords.first { (try? $0.payload().programKey) == "hybrid-race-foundations" },
+            "Existing installations must retain the stable key so it can be retired."
+        )
+        XCTAssertTrue(migrated.isArchived)
+
+        let active = try ProgramDefinitionRepository.activeDefinitions(in: migrationContext)
+        XCTAssertFalse(active.contains { retiredKeys.contains((try? $0.payload().programKey) ?? "") })
+    }
+
     @MainActor
     func testProgramLibrarySkipsMissingCapabilitiesAndRejectsNewerSchema() throws {
         let context = try makeContext()
@@ -312,6 +356,11 @@ final class ProgramCatalogIntegrationTests: XCTestCase {
                 ProgramDefinitionValidator.validate(payload, isBuiltIn: true).isEmpty,
                 "Validation failed for \(payload.programKey)"
             )
+            XCTAssertFalse(payload.supportedDisciplineIDs?.isEmpty ?? true, "Missing discipline metadata for \(payload.programKey)")
+            XCTAssertNotNil(payload.focusAreaApplicability, "Missing focus applicability for \(payload.programKey)")
+            XCTAssertNotNil(payload.equipmentRequirement, "Missing equipment expression for \(payload.programKey)")
+            XCTAssertNotNil(payload.estimatedSessionMinutesMinimum, "Missing session minimum for \(payload.programKey)")
+            XCTAssertNotNil(payload.estimatedSessionMinutesMaximum, "Missing session maximum for \(payload.programKey)")
             XCTAssertFalse(try ProgramDefinitionPreview.rows(for: payload).isEmpty)
             _ = try ProgramDefinitionRepository.compile(record, using: context)
         }

@@ -75,6 +75,7 @@ struct ActiveWorkoutView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
+                    viewModel.flushPendingTypedInputSave()
                     activeLoggingMetrics.workoutMinimized()
                     dismiss()
                 } label: {
@@ -182,8 +183,13 @@ struct ActiveWorkoutView: View {
             viewModel.trackActiveExercise(with: identifier)
         }
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
+            switch newPhase {
+            case .active:
                 viewModel.restorePersistedRestTimer()
+            case .inactive, .background:
+                viewModel.flushPendingTypedInputSave()
+            @unknown default:
+                viewModel.flushPendingTypedInputSave()
             }
         }
         // App Intents and Live Activity buttons mutate persisted rest state
@@ -404,7 +410,14 @@ struct ActiveWorkoutView: View {
             }
 
             ProgressView(value: Double(workout.completedSetCount), total: Double(max(workout.totalSetCount, 1)))
-                .tint(Color.gymSecondary)
+                // Ink, not green. Green is this palette's completion semantic —
+                // it means *this set is done*, on the checkmark and the row that
+                // carries it. A meter that is partly green the whole way through
+                // spends that meaning on decoration, and by the time a lifter has
+                // logged three sets the colour has told them nothing the bar's
+                // own length did not. Progress is a quantity; completion is a
+                // state.
+                .tint(Color.gymText.opacity(0.45))
                 // The summary line above states the same progress in words, so
                 // the bar is a visual restatement rather than a second stop.
                 .accessibilityHidden(true)
@@ -613,7 +626,13 @@ struct ActiveWorkoutView: View {
                         executionBlockToEdit = block
                     },
                     onRemove: {
-                        WorkoutExecutionBlockService.remove(block, from: workout)
+                        guard WorkoutExecutionBlockService.remove(block, from: workout).isApplied else {
+                            return
+                        }
+                        try? WorkoutExecutionBlockSplitService.deleteEvidence(
+                            for: block.id,
+                            using: modelContext
+                        )
                         modelContext.delete(block)
                         viewModel.persistChanges()
                     }
@@ -761,6 +780,7 @@ struct ActiveWorkoutView: View {
             let owesActiveDecision = activeDailyMaximumRecommendation(for: workout) != nil
             VStack {
                 Button {
+                    viewModel.flushPendingTypedInputSave()
                     viewModel.cancelTimer()
                     navigationPath.append(.saveWorkout)
                 } label: {

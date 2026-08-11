@@ -3,6 +3,7 @@ import SwiftData
 
 struct ExerciseEntryCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Bindable var exerciseEntry: ExerciseEntry
     let executionBlock: WorkoutExecutionBlock?
 
@@ -119,16 +120,15 @@ struct ExerciseEntryCard: View {
             }
         }
         .padding(isCurrentExercise ? Spacing.l : Spacing.m)
-        .background(
-            exerciseIsDone && !isCurrentExercise
-                ? Color.gymSecondarySurface
-                : (isCurrentExercise ? Color.gymPrimarySurface : Color.gymCard)
-        )
-        // One neutral hairline for every card. The expanded card used to get a
-        // primary-tinted stroke as well, which said "this is the one you are on"
-        // for a third time — the header already says it in words ("CURRENT
-        // EXERCISE") and the card already says it with `gymPrimarySurface`. A
-        // border's job here is to define an edge, not to carry state.
+        // Only a state gets a fill: done, or not. "Current" used to be a third
+        // one — `gymPrimarySurface` on top of a `gymBorder` stroke and a blue
+        // "CURRENT EXERCISE" label — three cues for one fact. The label,
+        // sized larger as `titleSmall` rather than `headlineSemibold`, and the
+        // set list's own current-row pointer already carry it; the card's own
+        // colour was tinting a fact the page had already stated twice.
+        .background(exerciseIsDone && !isCurrentExercise ? Color.gymSecondarySurface : Color.gymCard)
+        // One neutral hairline for every card, current or not. A border's job
+        // here is to define an edge, not to carry state.
         .overlay {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(Color.gymBorder, lineWidth: 1)
@@ -155,10 +155,16 @@ struct ExerciseEntryCard: View {
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 if isCurrentExercise && !exerciseIsDone {
+                    // Subdued, not blue. Blue is reserved for what can be acted
+                    // on right now — a control, a focused field, a selection —
+                    // and a status label is none of those. The card's larger
+                    // title size already carries "this is the one you are on";
+                    // the label states it in words for anyone landing on a
+                    // collapsed list without that size difference registering.
                     Label("CURRENT EXERCISE", systemImage: AppIcon.circleFill)
                         .font(AppFont.caption2Bold)
                         .tracking(0.55)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
 
                 Text(exerciseEntry.occurrenceDisplayName)
@@ -326,6 +332,15 @@ struct ExerciseEntryCard: View {
             Text("SET")
                 .frame(width: 45, alignment: .leading)
 
+            // Matches `SetRowView.previousValueColumn`'s width, and is gated
+            // on the same condition: that column only renders in the
+            // horizontal layout, so the header would otherwise promise a
+            // column the rows do not draw at accessibility sizes.
+            if !dynamicTypeSize.isAccessibilitySize {
+                Text("PREV")
+                    .frame(width: 52, alignment: .leading)
+            }
+
             ForEach(inputTitles, id: \.self) { title in
                 Text(title.uppercased())
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -360,17 +375,21 @@ struct ExerciseEntryCard: View {
     }
 
     private var setActions: some View {
-        Button {
-            viewModel.addSet(exerciseEntry)
-        } label: {
-            Label("Add set", systemImage: AppIcon.plus)
-                .frame(minHeight: ComponentSize.minimumTouchTarget)
-                .contentShape(Rectangle())
+        VStack(spacing: 0) {
+            Divider().overlay(Color.gymBorder)
+
+            Button {
+                viewModel.addSet(exerciseEntry)
+            } label: {
+                Label("Add set", systemImage: AppIcon.plus)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityIdentifier("add-set-\(exerciseEntry.exercise.name)")
+            .font(AppFont.subheadlineSemibold)
+            .foregroundStyle(Color.gymPrimary)
+            .buttonStyle(.borderless)
         }
-        .accessibilityIdentifier("add-set-\(exerciseEntry.exercise.name)")
-        .font(AppFont.subheadlineSemibold)
-        .foregroundStyle(Color.gymPrimary)
-        .buttonStyle(.borderless)
     }
 
     /// Revealed as the card translates. It names the set, not the exercise:

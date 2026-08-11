@@ -146,7 +146,7 @@ final class WorkoutIntentServiceTests: XCTestCase {
         XCTAssertEqual(projection.unit, .kg)
     }
 
-    func testAppShortcutsExposeTheExpandedWorkoutActions() {
+    func testAppShortcutsStayWithinThePlatformLimitAfterDailySupportPromotion() {
         // Apple caps the number of app shortcuts an `AppShortcutsProvider`
         // may vend at 10 (App Intents documentation: "provide up to ten
         // total App Shortcuts"). This literal encodes that hard platform

@@ -46,8 +46,19 @@ struct HomePrimaryWorkoutCard: View {
                 Color.gymCard
             }
         }
+        // Depth from the paper, not from a drop shadow.
+        //
+        // This drew a fill, a border *and* a shadow — three devices separating
+        // the card from the background, where one does the job. A near-white
+        // card on warm cream is already its own separation, which is the same
+        // trick Apple Fitness uses inverted on black: elevation comes from
+        // surface lightness. `GymCard`, the shared component every other card
+        // uses, has never had a shadow.
+        //
+        // Genuinely floating surfaces keep theirs — the set-input panel and the
+        // status banner sit *above* content rather than in it, and there the
+        // shadow is the thing saying so.
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .shadow(color: Color.gymText.opacity(0.03), radius: 6, x: 0, y: 3)
         .overlay {
             if !hasActiveWorkout && summary.kind != .unavailable {
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)

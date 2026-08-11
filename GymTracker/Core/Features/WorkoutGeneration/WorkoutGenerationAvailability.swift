@@ -20,7 +20,7 @@ enum WorkoutGenerationAvailability {
 
     static func status(
         locale: Locale = .current,
-        arguments: [String] = CommandLine.arguments,
+        arguments: [String] = AppLaunchArguments.current,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> WorkoutGenerationAvailabilityStatus {
         if let override = overrideStatus(arguments: arguments, environment: environment) {

@@ -13,7 +13,37 @@ enum SystemSeedCatalogCoordinator {
     // stale duplicate/misclassified records and need `needsInstallation`
     // to trigger a reinstall so `ExerciseSystemSeedInstaller` can apply
     // both the corrected fields and the duplicate retirement.
-    static let contentVersion = 16
+    // 18: withheld bundled programs whose current payload does not establish
+    // the advertised training schedule. Existing installs need this version
+    // so those records are archived rather than continuing to surface an
+    // incomplete Program Path.
+    static let contentVersion = 18
+
+    private static let retiredBundledProgramKeys: Set<String> = [
+        "powerlifting-volume-intensity",
+        "powerlifting-meet-preparation",
+        "weightlifting-technical-foundations",
+        "strongman-event-foundations",
+        "hybrid-race-foundations",
+        "couch-to-continuous-running",
+        "rowerg-2000m-builder",
+        "kettlebell-foundations"
+    ]
+
+    // Keep this separate from the current retirement set so a future content
+    // version can intentionally reintroduce a repaired definition and
+    // unarchive only that known key. Other built-in records must retain their
+    // archive state when they are refreshed.
+    private static let previouslyRetiredBundledProgramKeys: Set<String> = [
+        "powerlifting-volume-intensity",
+        "powerlifting-meet-preparation",
+        "weightlifting-technical-foundations",
+        "strongman-event-foundations",
+        "hybrid-race-foundations",
+        "couch-to-continuous-running",
+        "rowerg-2000m-builder",
+        "kettlebell-foundations"
+    ]
 
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.
@@ -82,6 +112,7 @@ enum SystemSeedCatalogCoordinator {
             bundle: bundle,
             saveChanges: false
         )
+        report += try reconcileUnderSpecifiedBundledPrograms(in: context)
         report += try registerPrograms(in: context, registry: registry)
 #endif
 
@@ -111,6 +142,33 @@ enum SystemSeedCatalogCoordinator {
 
         return report
     }
+
+#if !GYMTRACKER_EXTENSION
+    /// Keeps incomplete bundled definitions recoverable without presenting
+    /// them as real programs. A repaired definition may be reintroduced by
+    /// removing its stable key from `retiredBundledProgramKeys`; only keys in
+    /// `previouslyRetiredBundledProgramKeys` are then eligible for unarchiving.
+    private static func reconcileUnderSpecifiedBundledPrograms(
+        in context: ModelContext
+    ) throws -> SystemSeedInstallReport {
+        let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>())
+        var report = SystemSeedInstallReport()
+        for record in records where record.isBuiltIn {
+            let payload = try record.payload()
+            if retiredBundledProgramKeys.contains(payload.programKey) {
+                guard !record.isArchived else { continue }
+                record.isArchived = true
+                record.updatedAt = .now
+                report.updated += 1
+            } else if previouslyRetiredBundledProgramKeys.contains(payload.programKey), record.isArchived {
+                record.isArchived = false
+                record.updatedAt = .now
+                report.updated += 1
+            }
+        }
+        return report
+    }
+#endif
 
     private static func registerExerciseRelationships(
         in context: ModelContext,

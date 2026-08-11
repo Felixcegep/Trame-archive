@@ -58,7 +58,14 @@ extension ModelContext {
         // app uses for a real discard or deletion.
 #if !GYMTRACKER_EXTENSION
         for record in try fetch(FetchDescriptor<SystemSeedRecord>()) { delete(record) }
+        // HealthKit provenance and export receipts are scalar ownership rows,
+        // not children of their workout/body-weight records. Remove them
+        // before their referenced roots so a reset cannot leave identifiers
+        // that poison the next backup/import fixture.
+        for receipt in (try? fetch(FetchDescriptor<HealthKitWorkoutExportReceipt>())) ?? [] { delete(receipt) }
+        for provenance in (try? fetch(FetchDescriptor<HealthKitBodyMassProvenance>())) ?? [] { delete(provenance) }
 #endif
+        for split in (try? fetch(FetchDescriptor<WorkoutExecutionBlockSplit>())) ?? [] { delete(split) }
         for workout in workouts { delete(workout) }
         for session in try fetch(FetchDescriptor<MobilityAssessmentSession>()) { delete(session) }
         for definition in try fetch(FetchDescriptor<MobilityAssessmentDefinition>()) { delete(definition) }

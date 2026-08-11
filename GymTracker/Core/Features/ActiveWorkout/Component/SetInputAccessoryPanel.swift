@@ -110,12 +110,26 @@ struct SetInputAccessoryPanel: View {
         .padding(.horizontal, Spacing.l)
         .padding(.top, Spacing.s)
         .padding(.bottom, Spacing.s)
-        .background(Color.gymCard)
-        .clipShape(UnevenRoundedRectangle(
-            topLeadingRadius: Radius.card,
-            topTrailingRadius: Radius.card,
-            style: .continuous
-        ))
+        // The fill reaches the physical bottom edge; the controls above it do
+        // not. This panel is presented as a `.safeAreaInset`, which renders it
+        // down into the home-indicator zone, but `Spacing.s` of bottom padding
+        // is only 8pt against the ~34pt of that zone on a Face ID device. The
+        // remaining ~26pt were never painted, so whatever sat under the panel
+        // in the scrolling list — the next exercise card — showed through in a
+        // strip along the bottom of the screen.
+        //
+        // `ignoresSafeArea` is on the background shape alone, not on the
+        // content: the keypad and chips stay clear of the gesture area, only
+        // the card's own colour extends past it.
+        .background(
+            UnevenRoundedRectangle(
+                topLeadingRadius: Radius.card,
+                topTrailingRadius: Radius.card,
+                style: .continuous
+            )
+            .fill(Color.gymCard)
+            .ignoresSafeArea(edges: .bottom)
+        )
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(Color.gymBorder)
@@ -177,23 +191,53 @@ struct SetInputAccessoryPanel: View {
     /// lives in this same header rather than a separate row so the panel keeps
     /// as much of the screen free for the workout history above it as possible.
     private func contextHeader(exercise: ExerciseEntry, set: ExerciseSet) -> some View {
-        VStack(spacing: Spacing.xs) {
-            HStack(alignment: .center, spacing: Spacing.s) {
-                Text(exerciseIdentityText(exercise: exercise))
-                    .font(AppFont.captionBold)
-                    .tracking(0.8)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            // Identity, position, and the three controls that act on them —
+            // one line.
+            //
+            // This used to be two stacked rows: identity plus a dismiss
+            // button, then a large centered "Set N of M" row with its own
+            // prev/next controls. Collapsing them recovers the height that
+            // pays for the reference chip below without growing the panel.
+            HStack(spacing: Spacing.s) {
+                // Identity and position read as one VoiceOver stop — a lifter
+                // swiping through does not need "Bench Press" and "Set 1 of
+                // 2" as two separate stops to understand either of them. The
+                // three buttons that follow are deliberately siblings of this
+                // element rather than children of it: combining would fold
+                // them into the same spoken stop and make them untappable
+                // under VoiceOver, which is the one thing a floating panel's
+                // only route back to the workout list must never do.
+                HStack(spacing: Spacing.xxs) {
+                    Text(exerciseIdentityText(exercise: exercise))
+                        .font(AppFont.captionBold)
+                        .tracking(0.6)
+                        .textCase(.uppercase)
+                    Text("·")
+                    Text(setPositionText(exercise: exercise, set: set))
+                        .font(AppFont.caption)
+                }
+                .foregroundStyle(Color.gymSubduedText)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
 
+                navigationButton(systemImage: AppIcon.chevronLeft, offset: -1)
+                navigationButton(systemImage: AppIcon.chevronRight, offset: 1)
+
+                // Kept alongside set navigation rather than dropped to match
+                // the mockup literally: closing the keypad without completing
+                // the set or scrolling past the panel has no other affordance
+                // on screen, and the workout screen's own top chevron
+                // dismisses the whole session, not just this panel.
                 Button {
+                    viewModel.flushPendingTypedInputSave()
                     coordinator.focus = nil
                 } label: {
                     Image(systemName: AppIcon.minimize)
-                        .font(AppFont.captionBold)
+                        .font(AppFont.caption2Bold)
                         .foregroundStyle(Color.gymSubduedText)
-                        .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
+                        .frame(width: 26, height: 26)
                         .background(Color.gymRowSurface, in: Circle())
                         .frame(
                             width: ComponentSize.minimumTouchTarget,
@@ -206,27 +250,28 @@ struct SetInputAccessoryPanel: View {
                 .accessibilityIdentifier("panel-dismiss")
             }
 
-            HStack(spacing: Spacing.s) {
-                navigationButton(systemImage: AppIcon.chevronLeft, offset: -1)
-
-                VStack(spacing: Spacing.xxs) {
-                    Text(setPositionText(exercise: exercise, set: set))
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymText)
-                        .lineLimit(1)
-
-                    if let target = prescribedTargetText(exercise: exercise, set: set) {
-                        Text(target)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
-                            .lineLimit(1)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(setPositionText(exercise: exercise, set: set))
-
-                navigationButton(systemImage: AppIcon.chevronRight, offset: 1)
+            // What the plan asks for, and what the lifter actually did here
+            // last time — the two numbers a set is measured against, on its
+            // own row so it reads as a fact rather than a caption trailing
+            // the buttons above it.
+            //
+            // With the keypad raised the panel owns most of the screen and
+            // the set table is clipped to a couple of rows, so every other
+            // affordance carrying previous performance — the card-level
+            // summary, the field placeholder, the "use last time" button —
+            // is off screen at exactly the moment the number is being typed.
+            // The target already lived in this header; its counterpart did
+            // not, and the data was already loaded one view model away.
+            if let reference = referenceText(exercise: exercise, set: set) {
+                Text(reference)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymText)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Spacing.s)
+                    .padding(.vertical, Spacing.xs)
+                    .background(Color.gymRowSurface, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+                    .accessibilityLabel(reference)
             }
         }
     }
@@ -285,6 +330,52 @@ struct SetInputAccessoryPanel: View {
 
         guard !parts.isEmpty else { return nil }
         return String(localized: "Target \(parts.joined(separator: " · "))")
+    }
+
+    /// The prescription, what was lifted here last time, or both.
+    ///
+    /// One line rather than two: the panel's whole justification is leaving the
+    /// workout above it as much room as possible, and a lifter comparing a
+    /// target against last time is comparing two numbers, not reading two
+    /// sentences. Either half may be absent — a free workout has no target, a
+    /// first-ever session has no history — and the line simply carries whatever
+    /// is true.
+    private func referenceText(exercise: ExerciseEntry, set: ExerciseSet) -> String? {
+        let parts = [
+            prescribedTargetText(exercise: exercise, set: set),
+            previousSetText(exercise: exercise, set: set)
+        ].compactMap { $0 }
+        guard !parts.isEmpty else { return nil }
+        return parts.joined(separator: "  ·  ")
+    }
+
+    /// What this same set index produced in the last session that recorded one.
+    ///
+    /// Deliberately reuses the set's *current* unit via `UnitConversion` rather
+    /// than the historical one: the number exists to be compared against what
+    /// the lifter is about to type, and a comparison across units is not one.
+    private func previousSetText(exercise: ExerciseEntry, set: ExerciseSet) -> String? {
+        let index = setPosition(of: set, in: exercise)
+        guard let previous = viewModel.previousPerformance(for: exercise)?.set(at: index) else {
+            return nil
+        }
+
+        let tracking = exercise.trackingTypeSnapshot
+        if tracking.usesWeight {
+            let weight = UnitConversion.weight(
+                previous.weight,
+                from: previous.weightType,
+                to: set.weightType
+            )
+            return String(localized: "Last \(Formatters.formatFloat(previous.repetitions)) × \(Formatters.formatFloat(weight)) \(set.weightType.rawValue)")
+        }
+        if tracking.usesDuration, let duration = previous.duration {
+            return String(localized: "Last \(Int(duration)) sec")
+        }
+        if tracking.usesReps {
+            return String(localized: "Last \(Formatters.formatFloat(previous.repetitions)) reps")
+        }
+        return nil
     }
 
     // MARK: - Values
@@ -430,6 +521,7 @@ struct SetInputAccessoryPanel: View {
 
         return HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
             Button {
+                viewModel.flushPendingTypedInputSave()
                 coordinator.focusField(field)
             } label: {
                 Text(shown.isEmpty ? "—" : shown)
@@ -613,14 +705,24 @@ struct SetInputAccessoryPanel: View {
         let isEnabled = offset < 0 ? coordinator.previousInput != nil : coordinator.nextInput != nil
 
         return Button {
+            viewModel.flushPendingTypedInputSave()
             coordinator.moveFocus(by: offset)
         } label: {
+            // The visual chip is 26pt, matched to the compact header it now
+            // sits in alongside the identity/position text; the tap target
+            // stays at the 44pt minimum regardless, the same split the
+            // dismiss button and the exercise card's overflow menu already
+            // use.
             Image(systemName: systemImage)
-                .font(AppFont.subheadlineBold)
+                .font(AppFont.captionBold)
                 .foregroundStyle(isEnabled ? Color.gymPrimary : Color.gymSubduedText)
-                .frame(width: 44, height: 44)
-                .background(Color.gymRowSurface, in: Circle())
-                .contentShape(Circle())
+                .frame(width: 26, height: 26)
+                .background(isEnabled ? Color.gymPrimarySurface : Color.gymRowSurface, in: Circle())
+                .frame(
+                    width: ComponentSize.minimumTouchTarget,
+                    height: ComponentSize.minimumTouchTarget
+                )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
         .disabled(!isEnabled)

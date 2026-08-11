@@ -484,6 +484,7 @@ private extension SavedWorkoutTemplatePicker {
 
         return Button {
             onStartWorkout(item.template)
+            dismiss()
         } label: {
             HStack(spacing: Spacing.m) {
                 Image(systemName: item.summary.focus?.icon ?? AppIcon.workout)

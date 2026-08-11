@@ -97,17 +97,27 @@ final class WorkoutExecutionBlock {
         return Int(elapsedDuration(at: date) / Double(intervalSeconds)) + 1
     }
 
-    func start(at date: Date = .now) {
-        assert(!isCompleted, "Illegal write: Cannot start execution block on a completed workout.")
-        guard elapsedStartedAt == nil else { return }
+    @discardableResult
+    func start(at date: Date = .now) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .startExecutionBlock
+        ) { return rejection }
+        guard elapsedStartedAt == nil else { return .applied }
         status = .inProgress
         elapsedStartedAt = date
+        return .applied
     }
 
-    func pause(at date: Date = .now) {
-        assert(!isCompleted, "Illegal write: Cannot pause execution block on a completed workout.")
-        guard let elapsedStartedAt else { return }
+    @discardableResult
+    func pause(at date: Date = .now) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            isCompleted,
+            operation: .pauseExecutionBlock
+        ) { return rejection }
+        guard let elapsedStartedAt else { return .applied }
         accumulatedElapsedDuration += max(0, date.timeIntervalSince(elapsedStartedAt))
         self.elapsedStartedAt = nil
+        return .applied
     }
 }

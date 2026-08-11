@@ -38,10 +38,34 @@ enum CountPhrase {
             : String(localized: "\(count) sessions")
     }
 
+    static func completedWorkouts(_ count: Int) -> String {
+        count == 1
+            ? String(localized: "1 completed workout")
+            : String(localized: "\(count) completed workouts")
+    }
+
+    static func recordedSessions(_ count: Int) -> String {
+        count == 1
+            ? String(localized: "1 recorded session")
+            : String(localized: "\(count) recorded sessions")
+    }
+
     static func sessionsPerWeek(_ count: Int) -> String {
         count == 1
             ? String(localized: "1 session a week")
             : String(localized: "\(count) sessions a week")
+    }
+
+    /// The noun beside a count that is typeset separately.
+    ///
+    /// Unlike every other phrase here this one omits the digits: Today renders
+    /// the figure large and monospaced on its own, so repeating it in the label
+    /// would print the number twice. It still has to agree in number, which is
+    /// why it is a function and not a constant.
+    static func sessionsThisWeek(_ count: Int) -> String {
+        count == 1
+            ? String(localized: "session this week")
+            : String(localized: "sessions this week")
     }
 
     static func items(_ count: Int) -> String {
@@ -83,19 +107,19 @@ enum CountPhrase {
     static func observations(_ count: Int) -> String {
         count == 1
             ? String(localized: "1 observation")
-            : String(localized: "\(count) observations")
+            : String(format: String(localized: "%lld observations"), Int64(count))
     }
 
     static func assessments(_ count: Int) -> String {
         count == 1
             ? String(localized: "1 assessment")
-            : String(localized: "\(count) assessments")
+            : String(format: String(localized: "%lld assessments"), Int64(count))
     }
 
     static func recordedAssessments(_ count: Int) -> String {
         count == 1
             ? String(localized: "1 recorded assessment")
-            : String(localized: "\(count) recorded assessments")
+            : String(format: String(localized: "%lld recorded assessments"), Int64(count))
     }
 
     static func routines(_ count: Int) -> String {

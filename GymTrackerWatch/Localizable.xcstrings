@@ -1,0 +1,25 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%lld seconds remaining" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "%lld secondes restantes" } } } },
+    "Add 30 seconds" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ajouter 30 secondes" } } } },
+    "Connected to iPhone" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Connecté à l’iPhone" } } } },
+    "Finish on iPhone" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Terminer sur l’iPhone" } } } },
+    "Log current set" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Enregistrer la série" } } } },
+    "No active workout" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Aucun entraînement actif" } } } },
+    "Open iPhone to review the latest workout state" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ouvrez l’iPhone pour vérifier l’état récent de l’entraînement" } } } },
+    "Open Trame on iPhone to start a workout." : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Ouvrez Trame sur l’iPhone pour commencer un entraînement." } } } },
+    "Pause rest" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Mettre la récupération en pause" } } } },
+    "Queued until iPhone reconnects" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "En attente de la reconnexion de l’iPhone" } } } },
+    "Rest complete" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Récupération terminée" } } } },
+    "Resume rest" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Reprendre la récupération" } } } },
+    "Saved on iPhone" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Enregistré sur l’iPhone" } } } },
+    "Set %lld of %lld" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Série %1$lld sur %2$lld" } } } },
+    "Skip rest" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Passer la récupération" } } } },
+    "Waiting for iPhone" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "En attente de l’iPhone" } } } },
+    "Watch connectivity unavailable" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Connectivité avec l’Apple Watch indisponible" } } } },
+    "Workout complete on Watch" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Entraînement terminé sur l’Apple Watch" } } } },
+    "Workout elapsed time" : { "localizations" : { "fr" : { "stringUnit" : { "state" : "translated", "value" : "Durée écoulée de l’entraînement" } } } }
+  },
+  "version" : "1.0"
+}

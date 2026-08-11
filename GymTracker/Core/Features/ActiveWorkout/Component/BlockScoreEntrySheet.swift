@@ -69,13 +69,23 @@ struct BlockScoreEntrySheet: View {
     }
 
     private func save() {
+        let result: WorkoutMutationResult
         if block.scoreKind == .roundsAndRepetitions {
-            block.completedRounds = max(0, Int(completedRounds) ?? 0)
-            block.additionalRepetitions = max(0, Int(additionalRepetitions) ?? 0)
+            result = WorkoutExecutionBlockService.updateScore(
+                block,
+                completedRounds: Int(completedRounds) ?? 0,
+                additionalRepetitions: Int(additionalRepetitions) ?? 0
+            )
         } else if block.scoreKind != .none {
-            block.scoreValue = Double(scoreValue)
-            block.scoreTiebreakValue = Double(tiebreakValue)
+            result = WorkoutExecutionBlockService.updateScore(
+                block,
+                scoreValue: Double(scoreValue),
+                scoreTiebreakValue: Double(tiebreakValue)
+            )
+        } else {
+            result = .applied
         }
+        guard result.isApplied else { return }
         onPersist()
         dismiss()
     }

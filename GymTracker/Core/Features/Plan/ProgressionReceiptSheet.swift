@@ -92,9 +92,11 @@ struct ProgressionReceiptSheet: View {
     @ViewBuilder
     private func card(for record: PlanProgressionRecommendationRecord) -> some View {
         let plannedExercise = plannedExercisesByProgressionKey[record.progressionKey]
+        let preview = run.map { PlanProgressionRecommendationService.preview(record, in: $0) }
         let presentation = ProgressionReceiptPresentation(
             record: record,
-            exerciseName: plannedExercise?.exercise.name ?? String(localized: "Exercise")
+            exerciseName: plannedExercise?.exercise.name ?? String(localized: "Exercise"),
+            preview: preview
         )
         ProgressionReceiptCard(
             presentation: presentation,
@@ -177,6 +179,10 @@ private struct ProgressionReceiptCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
+                if let preview = presentation.preview {
+                    previewDetails(preview)
+                }
+
                 actions
             }
         }
@@ -237,6 +243,58 @@ private struct ProgressionReceiptCard: View {
     private var whyButton: some View {
         WhyButton(identifier: "progression-receipt-why-\(presentation.id.uuidString)") {
             isShowingWhy = true
+        }
+    }
+
+    @ViewBuilder
+    private func previewDetails(_ preview: ProgressionRecommendationPreview) -> some View {
+        let details = ProgressionReceiptPreviewPresentation.make(
+            preview: preview,
+            unit: presentation.unit
+        )
+
+        receiptSection("WHAT CHANGES") {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                ForEach(Array(details.changedFields.enumerated()), id: \.offset) { index, line in
+                    Label {
+                        Text(line)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: AppIcon.progression)
+                    }
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymText)
+                    .accessibilityIdentifier("progression-receipt-preview-change-\(index)-\(presentation.id.uuidString)")
+                }
+                Text(details.futureScope)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("progression-receipt-preview-scope-\(presentation.id.uuidString)")
+            }
+        }
+
+        receiptSection("WHAT STAYS UNCHANGED") {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                ForEach(Array(details.unchangedGuarantees.enumerated()), id: \.offset) { index, line in
+                    Label {
+                        Text(line)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: AppIcon.checkmark)
+                    }
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .accessibilityIdentifier("progression-receipt-preview-unchanged-\(index)-\(presentation.id.uuidString)")
+                }
+                if let availabilityNote = details.availabilityNote {
+                    Text(availabilityNote)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("progression-receipt-preview-incomplete-\(presentation.id.uuidString)")
+                }
+            }
         }
     }
 

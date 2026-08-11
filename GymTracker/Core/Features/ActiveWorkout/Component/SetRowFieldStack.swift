@@ -14,6 +14,10 @@ struct SetRowFieldStack: View {
     let coordinator: SetInputCoordinator
     let previousSet: PreviousSetPerformance?
     let isCompletedAndLocked: Bool
+    /// Whether this row is the next incomplete set — the one a fill marks as
+    /// "this is what you'd act on next", independent of whether any of its
+    /// fields are actively focused.
+    let isCurrentSet: Bool
     let isTimerRunning: Bool
     let isStacked: Bool
     /// Clears the row's validation message when a field is selected.
@@ -85,7 +89,7 @@ struct SetRowFieldStack: View {
             HStack(spacing: Spacing.xxs) {
                 Text(shown.isEmpty ? placeholder(for: field) : shown)
                     .font(AppFont.subheadlineSemiboldMonospaced)
-                    .foregroundStyle(shown.isEmpty ? Color.gymSubduedText : textColor)
+                    .foregroundStyle(valueColor(shown: shown, isActive: isActive, textColor: textColor))
                     .lineLimit(1)
 
                 if let unit {
@@ -97,18 +101,18 @@ struct SetRowFieldStack: View {
             }
             .frame(minWidth: 70, maxWidth: .infinity)
             .frame(minHeight: 44)
-            .background(isActive ? Color.gymPrimarySurface : Color.clear)
+            .background(cellFill(isActive: isActive))
             .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
-            // A locked value keeps no border, because it is not a control. It
-            // previously looked exactly like an editable field and silently did
-            // nothing when tapped — the "dimmed control that is still apparently
-            // enabled" the accessibility pass flags. Dropping the outline is a
-            // shape cue rather than another tint, and it quiets a completed row
-            // by three to five outlines it had no reason to draw.
+            // Border marks only the one field being typed into. Every field
+            // used to carry a grey outline unless locked, which drew a box
+            // around a set that had not happened yet as readily as one about
+            // to be logged — outline was doing the fill's job and doing it
+            // for rows that had not earned it. Blue is now the only stroke
+            // this cell ever wears, and only while it is the field with focus.
             .overlay {
-                if isCompletedAndLocked == false {
+                if isActive {
                     RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                        .stroke(isActive ? Color.gymPrimary : Color.gymBorder, lineWidth: isActive ? 1.5 : 1)
+                        .stroke(Color.gymPrimary, lineWidth: 1.5)
                 }
             }
             .contentShape(Rectangle())
@@ -122,15 +126,56 @@ struct SetRowFieldStack: View {
         .accessibilityIdentifier("\(identifierPrefix(field))-field-\(exerciseEntry.exercise.name)-\(index)")
     }
 
+    /// Ink for a fact or for what's next; subdued only for a further-out guess.
+    ///
+    /// A planned workout arrives with every cell prefilled, and those numbers
+    /// used to render exactly like the ones the lifter had actually
+    /// performed — same size, same weight, same colour, whether it was set 1
+    /// (done) or set 4 (three sets away). The rule the codebase already
+    /// applies to empty versus zero — "missing and zero stay distinct" — one
+    /// level up: a fact, an immediate target, and a distant guess stay
+    /// distinct from each other.
+    ///
+    /// Done and current both read as ink, not just done: the current set's
+    /// prefilled value is what the lifter is about to match, and dimming it
+    /// the same as a set three away would bury the one number that matters
+    /// most right now. `isCurrentSet` already marks that row with a fill
+    /// (`cellFill`, below); ink is the second half of the same signal. Only a
+    /// genuinely future set — one the lifter has not reached and is not
+    /// about to — stays subdued.
+    ///
+    /// The focused field is exempt regardless of row, because a value being
+    /// typed is the lifter's own input and dimming it under their thumb would
+    /// read as a fault.
+    ///
+    /// This is also what makes retiring the weight column's violet safe: the
+    /// separation a set row needs is fact/next-versus-later, not weight-
+    /// versus-everything, and contrast now carries it.
+    private func valueColor(shown: String, isActive: Bool, textColor: Color) -> Color {
+        if shown.isEmpty { return .gymSubduedText }
+        if isActive || isCompletedAndLocked { return textColor }
+        if exerciseSet.done { return textColor }
+        return isCurrentSet ? textColor : .gymSubduedText
+    }
+
+    /// A fill marks "the row you would act on next" — not "editable", and not
+    /// "focused". A completed field draws none (plain text stands on its own
+    /// once logged); a future set's field draws none (nothing to fill in
+    /// yet); the current set's fields fill whether or not the lifter has
+    /// tapped into one of them yet, so the eye finds where to go before the
+    /// keypad is even open.
+    private func cellFill(isActive: Bool) -> Color {
+        if isActive { return Color.gymRowSurface }
+        if isCompletedAndLocked { return .clear }
+        return isCurrentSet ? Color.gymRowSurface : .clear
+    }
+
     private var repsField: some View {
         valueButton(.repetitions)
     }
 
     private var weightField: some View {
-        // Data, not a warning. This is the number the lifter is about to put
-        // on the bar; it was the same hue as the rest timer and the validation
-        // messages.
-        valueButton(.weight, textColor: .gymDataEmphasis)
+        valueButton(.weight)
     }
 
     private var durationField: some View {

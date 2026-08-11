@@ -270,6 +270,50 @@ final class WorkoutPlanLifecycleTests: XCTestCase {
         XCTAssertTrue(PlanLifecycleService.activeRepeatingRuns(using: context).isEmpty)
     }
 
+    func testStartingFixedPlanAfterStagingConflictPauseLeavesOneActiveRun() throws {
+        let context = try makeContext()
+        let exercise = makeExercise()
+        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        let originalPlan = PlanCoordinator.createRepeatedPlan(
+            name: "Original",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            template: template,
+            dayOffsets: [0]
+        )
+        context.insert(exercise)
+        context.insert(template)
+        context.insert(originalPlan)
+        XCTAssertNotNil(PlanCoordinator.startRun(for: originalPlan, using: context))
+
+        // Mirrors catalogue activation: compilation inserts a new, unsaved
+        // definition graph before the root resolves the existing-run conflict.
+        let replacementPlan = PlanCoordinator.createRepeatedPlan(
+            name: "Replacement",
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            template: template,
+            dayOffsets: [0]
+        )
+        context.insert(replacementPlan)
+
+        PlanLifecycleService.stagePauseFixedRuns(using: context)
+        let outcome = PlanLifecycleService.perform(.start(replacementPlan, .now), using: context)
+
+        XCTAssertTrue(outcome.didCommit)
+        XCTAssertEqual(PlanLifecycleService.activeFixedRuns(using: context).count, 1)
+        XCTAssertEqual(PlanLifecycleService.activeFixedRuns(using: context).first?.plan?.name, "Replacement")
+        XCTAssertEqual(
+            CurrentPlanSummary.resolve(
+                planRuns: try context.fetch(FetchDescriptor<PlanRun>()),
+                repeatingPlanRuns: []
+            ).title,
+            "Replacement"
+        )
+    }
+
 
     private func makeContext() throws -> ModelContext {
         try GymTrackerTestStore.makeInMemoryContext()

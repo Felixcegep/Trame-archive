@@ -105,6 +105,7 @@ struct SubstitutionConfirmationView: View {
         }
         .navigationTitle("Confirm swap")
         .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("substitution-confirmation")
     }
 
     private var headline: String {

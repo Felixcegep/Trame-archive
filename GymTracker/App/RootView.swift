@@ -36,6 +36,9 @@ struct RootView: View {
     @State private var postWorkoutCoordinator = PostWorkoutRoutingCoordinator()
     @State private var mobilityLinkError: String?
     @State private var guidedSourceCoordinator = GuidedSourceConflictCoordinator()
+    /// A competition-day prescription waiting behind the same active-workout
+    /// conflict gate as every other workout source.
+    @State private var pendingCompetitionDayWorkout: Workout?
     /// Confirmations shown on Today. Owned here because the two events that
     /// raise them do not happen on Today: saving a workout dismisses its own
     /// screen, and a plan action can be taken from Train.
@@ -49,6 +52,8 @@ struct RootView: View {
     /// same flow after first launch has long since completed.
     @State private var isShowingOnboarding = false
     @State private var isShowingPersonalizedWorkoutBuilder = false
+    @State private var isShowingUITestDailyCheckIn = false
+    @State private var isShowingUITestCaffeineQuickLog = false
     @State private var personalizedWorkoutLaunchRequest: WorkoutGenerationLaunchRequest?
     @State private var isPreparingApp = true
     @State private var hasFinishedLaunchAnimation = false
@@ -121,6 +126,12 @@ struct RootView: View {
                             HistoryView(viewModel: workoutVM, onStartFreeWorkout: startFreeWorkout, initialTab: .progress)
                         case .muscleGroupVolume:
                             HistoryMuscleBalanceDestination()
+                        case .weightlifting:
+                            WeightliftingDashboardDestination(onStartCompetitionDay: startCompetitionDay)
+                        case .trainingLedger:
+                            ProgressionReceiptLedgerView()
+                        case .coachExchange:
+                            CoachExchangeView()
                         case .mobilityHistory:
                             MobilityHistoryView()
                         case .mobilityAssessmentHistory:
@@ -160,7 +171,10 @@ struct RootView: View {
         }
         .animation(AppMotion.compact, value: isShowingLaunchExperience)
         .fullScreenCover(isPresented: shouldShowWelcome) {
-            OnboardingFlowView(onFinish: handleOnboardingOutcome)
+            OnboardingFlowView(
+                onStartPlan: startOnboardingPlan,
+                onFinish: handleOnboardingOutcome
+            )
         }
         .fullScreenCover(isPresented: $activeSessionRouter.isShowingActiveWorkout, onDismiss: {
             activeSessionRouter.activeWorkoutPath.removeAll()
@@ -238,6 +252,12 @@ struct RootView: View {
                 onStart: startPersonalizedWorkout
             )
         }
+        .sheet(isPresented: $isShowingUITestDailyCheckIn) {
+            DailyCheckInSheet(day: .today) {}
+        }
+        .sheet(isPresented: $isShowingUITestCaffeineQuickLog) {
+            CaffeineQuickLogSheet()
+        }
         .confirmationDialog(
             "An active workout is already in progress",
             isPresented: $activeSessionRouter.isShowingActiveWorkoutConflictAlert,
@@ -246,20 +266,26 @@ struct RootView: View {
             Button("Resume Active Workout") {
                 activeSessionRouter.isShowingActiveWorkout = true
                 activeSessionRouter.pendingWorkoutStart = nil
+                pendingCompetitionDayWorkout = nil
             }
             Button("Discard & Start New", role: .destructive) {
                 let pendingStart = activeSessionRouter.pendingWorkoutStart
+                let pendingCompetition = pendingCompetitionDayWorkout
                 activeSessionRouter.pendingWorkoutStart = nil
+                pendingCompetitionDayWorkout = nil
                 activeLoggingMetrics.workoutDiscarded()
                 workoutVM.discardActiveWorkout(using: modelContext)
                 if workoutVM.hasActiveWorkout {
                     activeSessionRouter.isShowingActiveWorkout = true
                 } else if let pendingStart {
                     requestWorkoutPreparation(for: pendingStart)
+                } else if let pendingCompetition {
+                    startCompetitionDay(pendingCompetition)
                 }
             }
             Button("Cancel", role: .cancel) {
                 activeSessionRouter.pendingWorkoutStart = nil
+                pendingCompetitionDayWorkout = nil
             }
         } message: {
             Text("Do you want to continue your active workout, or discard it and start a new one?")
@@ -510,7 +536,12 @@ struct RootView: View {
     }
 
     private func handleScenePhaseChange(_ newPhase: ScenePhase) {
-        if newPhase == .background {
+        // Termination may deliver `.inactive` without a subsequent
+        // `.background` callback (notably when the process is stopped by the
+        // system or by UI automation).  Treat both non-active boundaries as
+        // durability points so a final keypad edit cannot be stranded in the
+        // in-memory SwiftData context.
+        if newPhase == .inactive || newPhase == .background {
             do {
                 try modelContext.save()
             } catch {
@@ -532,6 +563,7 @@ struct RootView: View {
                 BackgroundSaveFailureState.shared.recordFailure(error)
             }
             WidgetSnapshotService.refresh(using: modelContext)
+            if newPhase != .background { return }
             // Rest is the interval the phone spends in a pocket. The deadline
             // is already persisted on the workout, so scheduling here — and
             // only here — means the reminder can never arrive while the app is
@@ -545,6 +577,7 @@ struct RootView: View {
                 )
             }
         } else if newPhase == .active {
+            consumePendingMobilityWidgetCommand()
             workoutVM.reconcileLiveActivity()
             Task {
                 await RestNotificationScheduler.shared.cancel()
@@ -552,6 +585,28 @@ struct RootView: View {
                 await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
             }
         }
+    }
+
+    private func consumePendingMobilityWidgetCommand(now: Date = .now) {
+        guard let command = MobilityWidgetCommandStore.pending() else { return }
+        defer { MobilityWidgetCommandStore.acknowledge(commandID: command.commandID) }
+        guard now.timeIntervalSince(command.createdAt) >= 0,
+              now.timeIntervalSince(command.createdAt) <= 5 * 60 else {
+            WidgetSnapshotService.refresh(using: modelContext)
+            return
+        }
+        let result = MobilityIntentMutationService.completeCurrentNode(
+            expectedSessionID: command.sessionID,
+            expectedEntryID: command.entryID,
+            now: now,
+            using: modelContext
+        )
+        if case .applied = result {
+            activeSessionRouter.activeMobilitySession = MobilitySessionService.activeSession(using: modelContext)
+        } else if let active = MobilitySessionService.activeSession(using: modelContext) {
+            activeSessionRouter.activeMobilitySession = active
+        }
+        WidgetSnapshotService.refresh(using: modelContext)
     }
 
     /// "Next: Lat Pulldown · Set 2" for the rest reminder, derived from the same
@@ -583,12 +638,12 @@ struct RootView: View {
                 // setup and is now asking for it is choosing how their next
                 // workout gets decided, which is the first question.
                 if isShowingOnboarding { return true }
-                if CommandLine.arguments.contains("-ui-testing-show-welcome") {
+                if AppLaunchArguments.current.contains("-ui-testing-show-welcome") {
                     return !isPreparingApp
                 }
                 return !hasCompletedWelcome
                     && !isPreparingApp
-                    && !CommandLine.arguments.contains("-ui-testing")
+                    && !AppLaunchArguments.current.contains("-ui-testing")
             },
             set: {
                 if !$0 {
@@ -825,7 +880,10 @@ struct RootView: View {
                 // card now names the plan they just started. Replacing the stack
                 // avoids asking UIKit to pop the detail while its setup sheet is
                 // still completing its dismissal transition.
-                ProgramCatalogDetailView(record: record) {
+                ProgramCatalogDetailView(
+                    record: record,
+                    onStartPlan: startCatalogPlan
+                ) {
                     trainPath.removeAll()
                     trainNavigationID = UUID()
                 }
@@ -926,7 +984,7 @@ struct RootView: View {
     /// consumed.
     private func prepareApp() async {
         let fixture = UITestFixture.launchFixture
-        let isRebootVerificationFixture = CommandLine.arguments.contains("-ui-testing-reboot-rest-fixture")
+        let isRebootVerificationFixture = AppLaunchArguments.current.contains("-ui-testing-reboot-rest-fixture")
         let isResettingForUITesting = UITestLaunch.isResettingData(fixture: fixture)
             || isRebootVerificationFixture
 
@@ -974,7 +1032,15 @@ struct RootView: View {
         apply(UITestLaunch.seededDestination(using: modelContext))
         consumePendingPlanNotificationDestination()
         consumePendingAppIntentDestination()
+        consumePendingMobilityWidgetCommand()
+        WatchCompanionConnectivityCoordinator.shared.activate(container: modelContext.container)
         isPreparingApp = false
+        if AppLaunchArguments.current.contains("-ui-testing-open-daily-check-in") {
+            isShowingUITestDailyCheckIn = true
+        }
+        if AppLaunchArguments.current.contains("-ui-testing-open-caffeine-log") {
+            isShowingUITestCaffeineQuickLog = true
+        }
         WidgetSnapshotService.refresh(using: modelContext)
         await PlanNotificationScheduler.shared.reconcile(using: modelContext)
         await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
@@ -1075,12 +1141,43 @@ struct RootView: View {
         activeSessionRouter.startFreeWorkout(workoutVM: workoutVM, using: modelContext)
     }
 
+    /// Starts a compiled competition prescription through the root-owned
+    /// active-workout presentation. The workout is inserted only after the
+    /// conflict check, so declining or resuming an active run cannot leave a
+    /// second active workout behind.
+    private func startCompetitionDay(_ workout: Workout) {
+        guard !workoutVM.hasActiveWorkout else {
+            pendingCompetitionDayWorkout = workout
+            activeSessionRouter.isShowingActiveWorkoutConflictAlert = true
+            return
+        }
+        do {
+            try CompetitionDayStartService.persist(workout, using: modelContext)
+        } catch CompetitionDayStartService.Error.activeWorkoutInProgress {
+            pendingCompetitionDayWorkout = workout
+            activeSessionRouter.isShowingActiveWorkoutConflictAlert = true
+            return
+        } catch {
+            modelContext.rollback()
+            return
+        }
+        workoutVM.activeWorkout = workout
+        activeSessionRouter.showActiveWorkout()
+    }
+
     private func startWorkout(from template: WorkoutTemplate) {
-        activeSessionRouter.startWorkout(from: template, using: modelContext, workoutVM: workoutVM)
+        let start = activeSessionRouter.startWorkout(from: template, using: modelContext, workoutVM: workoutVM)
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func startPlannedWorkout(_ planRun: PlanRun, _ progress: PlanWorkoutProgress) {
-        activeSessionRouter.startPlannedWorkout(planRun, progress, using: modelContext, workoutVM: workoutVM)
+        guard let start = activeSessionRouter.startPlannedWorkout(
+            planRun,
+            progress,
+            using: modelContext,
+            workoutVM: workoutVM
+        ) else { return }
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func startFixedPlan(_ plan: WorkoutPlan, _ startDate: Date) {
@@ -1090,6 +1187,46 @@ struct RootView: View {
             return
         }
         _ = performFixedPlanAction(action)
+    }
+
+    /// Starting a freshly compiled catalogue plan, through the same guard every
+    /// other plan-start surface uses.
+    ///
+    /// `ProgramCatalogDetailView` used to call `PlanCoordinator.startRun`
+    /// directly, which made catalogue activation the one path that could not see
+    /// an existing run. Following one plan and activating another from the
+    /// catalogue left two active `PlanRun`s, and `HomeView.activePlanRun`
+    /// resolves a plan only when there is exactly one — so Today stopped showing
+    /// either of them.
+    private func startCatalogPlan(_ plan: WorkoutPlan, _ startDate: Date) -> ProgramActivationOutcome {
+        let action = FixedPlanAction.start(plan, startDate)
+        guard activeRepeatingPlanRuns().isEmpty, activeFixedPlanRuns().isEmpty else {
+            guidedSourceCoordinator.guidedSourceConflictRequest = .fixedPlan(action)
+            return .handledByOwner
+        }
+        // `performFixedPlanAction` reports its own failure through
+        // `guidedSourceActionError`, so the detail screen must not also
+        // report it — one failure, one message.
+        return performFixedPlanAction(action) ? .started : .handledByOwner
+    }
+
+    /// Onboarding runs in a `fullScreenCover`, so the conflict dialog this view
+    /// presents would sit behind it and never be seen. The flow is re-enterable
+    /// from the personalization offer, which makes an already-active plan a real
+    /// case here rather than a theoretical one, so the conflict is reported
+    /// inside the flow instead of deferred to a control the lifter cannot reach.
+    private func startOnboardingPlan(_ plan: WorkoutPlan, _ startDate: Date) -> ProgramActivationOutcome {
+        if let current = activeFixedPlanRuns().first {
+            return .refused(
+                String(localized: "You're already following \(current.sourcePlanName). Pause it in Train › Plans before starting another plan.")
+            )
+        }
+        if let rotation = activeRepeatingPlanRuns().first {
+            return .refused(
+                String(localized: "You're already following \(rotation.sourcePlanName). Pause it in Train › Plans before starting a plan.")
+            )
+        }
+        return performFixedPlanAction(.start(plan, startDate)) ? .started : .handledByOwner
     }
 
     private func resumeFixedPlan(_ run: PlanRun) {
@@ -1132,7 +1269,8 @@ struct RootView: View {
     }
 
     private func startRepeatingWorkout(_ run: RepeatingPlanRun) {
-        activeSessionRouter.startRepeatingWorkout(run, using: modelContext, workoutVM: workoutVM)
+        let start = activeSessionRouter.startRepeatingWorkout(run, using: modelContext, workoutVM: workoutVM)
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func startAlternateRepeatingWorkout(
@@ -1140,25 +1278,35 @@ struct RootView: View {
         _ slotIndex: Int,
         _ continuationMode: RepeatingPlanContinuationMode
     ) {
-        activeSessionRouter.startAlternateRepeatingWorkout(
+        let start = activeSessionRouter.startAlternateRepeatingWorkout(
             run,
             slotIndex,
             continuationMode,
             using: modelContext,
             workoutVM: workoutVM
         )
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func repeatRepeatingWorkout(_ run: RepeatingPlanRun) {
-        activeSessionRouter.repeatRepeatingWorkout(run, using: modelContext, workoutVM: workoutVM)
+        let start = activeSessionRouter.repeatRepeatingWorkout(run, using: modelContext, workoutVM: workoutVM)
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func requestWorkoutStart(_ start: PendingWorkoutStart) {
         activeSessionRouter.requestWorkoutStart(start, using: modelContext, workoutVM: workoutVM)
+        continueWorkoutStartIfNeeded(start)
     }
 
     private func requestWorkoutPreparation(for start: PendingWorkoutStart) {
         activeSessionRouter.requestWorkoutPreparation(for: start, using: modelContext)
+        continueWorkoutStartIfNeeded(start)
+    }
+
+    private func continueWorkoutStartIfNeeded(_ start: PendingWorkoutStart) {
+        guard activeSessionRouter.workoutPreparationRequest == nil,
+              activeSessionRouter.isShowingActiveWorkoutConflictAlert == false else { return }
+        continueWorkoutStart(WorkoutPreparationRequest(start: start))
     }
 
     private func continueWorkoutStart(_ request: WorkoutPreparationRequest) {
@@ -1400,9 +1548,14 @@ struct RootView: View {
                 .accessibilityIdentifier("resolve-guided-conflict-and-continue-plan")
             }
         }
-        Button("Cancel", role: .cancel) {
+        // Keep Cancel as an explicit action rather than relying on the
+        // confirmation dialog's implicit dismissal row. iOS 26 can omit a
+        // role-only cancel action from the accessibility hierarchy when the
+        // dialog is presented from a navigation-sheet handoff.
+        Button("Cancel") {
             guidedSourceCoordinator.guidedSourceConflictRequest = nil
         }
+        .accessibilityIdentifier("cancel-guided-source-conflict")
     }
 
     private func guidedConflictContinuationTitle(for start: PendingWorkoutStart) -> String {

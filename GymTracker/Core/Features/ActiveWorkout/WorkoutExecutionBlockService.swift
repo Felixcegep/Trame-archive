@@ -1,6 +1,7 @@
 import Foundation
 
 enum WorkoutExecutionBlockError: LocalizedError, Equatable {
+    case completedWorkoutMutation(WorkoutMutationOperation)
     case emptyBlock
     case duplicateEntry
     case entryAlreadyBelongsToBlock
@@ -10,6 +11,8 @@ enum WorkoutExecutionBlockError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
+        case .completedWorkoutMutation(let operation):
+            return WorkoutMutationError.completedWorkoutMutation(operation).errorDescription
         case .emptyBlock:
             return "An execution block needs at least one exercise."
         case .duplicateEntry:
@@ -113,7 +116,7 @@ enum WorkoutExecutionBlockService {
             repetitionStep: configuration.repetitionStep
         )
         workout.executionBlocks.append(block)
-        assign(entries: entries, to: block)
+        _ = assign(entries: entries, to: block)
         return block
     }
 
@@ -123,6 +126,9 @@ enum WorkoutExecutionBlockService {
         entries: [ExerciseEntry],
         in workout: Workout
     ) throws {
+        guard !workout.isCompleted, !block.isCompleted else {
+            throw WorkoutExecutionBlockError.completedWorkoutMutation(.updateExecutionBlock)
+        }
         try validate(configuration: configuration, entries: entries, in: workout, allowing: block)
         for entry in self.entries(in: block, workout: workout) {
             entry.executionBlockID = nil
@@ -142,17 +148,34 @@ enum WorkoutExecutionBlockService {
         block.repetitionStart = configuration.repetitionStart
         block.repetitionEnd = configuration.repetitionEnd
         block.repetitionStep = configuration.repetitionStep
-        assign(entries: entries, to: block)
+        _ = assign(entries: entries, to: block)
     }
 
-    static func assign(entries: [ExerciseEntry], to block: WorkoutExecutionBlock) {
+    @discardableResult
+    static func assign(
+        entries: [ExerciseEntry],
+        to block: WorkoutExecutionBlock
+    ) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            block.isCompleted || entries.contains(where: \.isCompleted),
+            operation: .updateExecutionBlock
+        ) { return rejection }
         for (index, entry) in entries.enumerated() {
             entry.executionBlockID = block.id
             entry.executionBlockComponentOrder = index
         }
+        return .applied
     }
 
-    static func remove(_ block: WorkoutExecutionBlock, from workout: Workout) {
+    @discardableResult
+    static func remove(
+        _ block: WorkoutExecutionBlock,
+        from workout: Workout
+    ) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            workout.isCompleted || block.isCompleted,
+            operation: .removeExecutionBlock
+        ) { return rejection }
         for entry in entries(in: block, workout: workout) {
             entry.executionBlockID = nil
             entry.executionBlockComponentOrder = nil
@@ -161,6 +184,7 @@ enum WorkoutExecutionBlockService {
         for (index, remaining) in workout.orderedExecutionBlocks.enumerated() {
             remaining.orderIndex = index
         }
+        return .applied
     }
 
     static func entries(in block: WorkoutExecutionBlock, workout: Workout) -> [ExerciseEntry] {
@@ -173,60 +197,129 @@ enum WorkoutExecutionBlockService {
             }
     }
 
-    static func start(_ block: WorkoutExecutionBlock, at date: Date = .now) {
+    @discardableResult
+    static func start(_ block: WorkoutExecutionBlock, at date: Date = .now) -> WorkoutMutationResult {
         block.start(at: date)
     }
 
-    static func pause(_ block: WorkoutExecutionBlock, at date: Date = .now) {
+    @discardableResult
+    static func pause(_ block: WorkoutExecutionBlock, at date: Date = .now) -> WorkoutMutationResult {
         block.pause(at: date)
     }
 
-    static func completeRound(in block: WorkoutExecutionBlock) {
-        guard block.status == .inProgress else { return }
+    @discardableResult
+    static func completeRound(in block: WorkoutExecutionBlock) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            block.isCompleted,
+            operation: .completeExecutionBlock
+        ) { return rejection }
+        guard block.status == .inProgress else { return .applied }
         block.completedRounds += 1
         if let targetRounds = block.targetRounds, block.completedRounds >= targetRounds {
-            complete(block, at: .now)
+            return complete(block, at: .now)
         }
+        return .applied
     }
 
-    static func recordAdditionalRepetitions(_ repetitions: Int, in block: WorkoutExecutionBlock) {
+    @discardableResult
+    static func recordAdditionalRepetitions(
+        _ repetitions: Int,
+        in block: WorkoutExecutionBlock
+    ) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            block.isCompleted,
+            operation: .updateExecutionBlockScore
+        ) { return rejection }
         block.additionalRepetitions = max(0, repetitions)
+        return .applied
     }
 
-    static func complete(_ block: WorkoutExecutionBlock, at date: Date = .now) {
-        block.pause(at: date)
+    @discardableResult
+    static func complete(_ block: WorkoutExecutionBlock, at date: Date = .now) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            block.isCompleted,
+            operation: .completeExecutionBlock
+        ) { return rejection }
+        _ = block.pause(at: date)
         block.status = .completed
         if block.scoreKind == .duration {
             block.scoreValue = block.accumulatedElapsedDuration
         }
+        return .applied
     }
 
-    static func cap(_ block: WorkoutExecutionBlock, at date: Date = .now) {
-        block.pause(at: date)
+    @discardableResult
+    static func cap(_ block: WorkoutExecutionBlock, at date: Date = .now) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            block.isCompleted,
+            operation: .capExecutionBlock
+        ) { return rejection }
+        _ = block.pause(at: date)
         block.status = .capped
         if block.scoreKind == .duration {
             block.scoreValue = block.accumulatedElapsedDuration
         }
+        return .applied
     }
 
-    static func stop(_ block: WorkoutExecutionBlock, at date: Date = .now) {
-        block.pause(at: date)
+    @discardableResult
+    static func stop(_ block: WorkoutExecutionBlock, at date: Date = .now) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            block.isCompleted,
+            operation: .stopExecutionBlock
+        ) { return rejection }
+        _ = block.pause(at: date)
         block.status = .stopped
+        return .applied
     }
 
     /// A completed workout cannot retain an active shared context. A started
     /// but unfinished block is preserved as partial evidence; an untouched
     /// prescribed block is explicitly skipped rather than silently erased.
-    static func finalizeForWorkoutSave(_ block: WorkoutExecutionBlock, at date: Date = .now) {
+    @discardableResult
+    static func finalizeForWorkoutSave(
+        _ block: WorkoutExecutionBlock,
+        at date: Date = .now
+    ) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            block.isCompleted,
+            operation: .completeExecutionBlock
+        ) { return rejection }
         switch block.status {
         case .inProgress:
-            block.pause(at: date)
+            _ = block.pause(at: date)
             block.status = .partial
         case .notStarted:
             block.status = .skipped
         case .completed, .capped, .partial, .stopped, .skipped:
             break
         }
+        return .applied
+    }
+
+    @discardableResult
+    static func updateScore(
+        _ block: WorkoutExecutionBlock,
+        completedRounds: Int? = nil,
+        additionalRepetitions: Int? = nil,
+        scoreValue: Double? = nil,
+        scoreTiebreakValue: Double? = nil
+    ) -> WorkoutMutationResult {
+        if let rejection = WorkoutMutationGuard.rejectionIfCompleted(
+            block.isCompleted,
+            operation: .updateExecutionBlockScore
+        ) { return rejection }
+        if let completedRounds {
+            block.completedRounds = max(0, completedRounds)
+        }
+        if let additionalRepetitions {
+            block.additionalRepetitions = max(0, additionalRepetitions)
+        }
+        if block.scoreKind != .none {
+            block.scoreValue = scoreValue
+            block.scoreTiebreakValue = scoreTiebreakValue
+        }
+        return .applied
     }
 
     /// Applies deterministic clock terminal states whenever an active block is
@@ -255,6 +348,9 @@ enum WorkoutExecutionBlockService {
         in workout: Workout,
         allowing currentBlock: WorkoutExecutionBlock?
     ) throws {
+        guard !workout.isCompleted else {
+            throw WorkoutExecutionBlockError.completedWorkoutMutation(.updateExecutionBlock)
+        }
         guard !entries.isEmpty else { throw WorkoutExecutionBlockError.emptyBlock }
         guard Set(entries.map(ObjectIdentifier.init)).count == entries.count else {
             throw WorkoutExecutionBlockError.duplicateEntry

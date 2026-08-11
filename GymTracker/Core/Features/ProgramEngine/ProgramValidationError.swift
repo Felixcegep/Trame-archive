@@ -47,6 +47,8 @@ nonisolated struct ProgramValidationIssue: Codable, Hashable, Identifiable {
         case invalidDisciplineID
         case invalidFocusAreaID
         case invalidCompetitionDisciplineID
+        case invalidEquipmentRequirement
+        case invalidEquipmentCapabilityID
     }
 
     var id: UUID = UUID()
@@ -100,6 +102,16 @@ nonisolated enum ProgramMatchVocabulary {
         "powerlifting", "olympicWeightlifting", "strongman", "bodybuilding",
         "hybridFitnessRacing", "endurance", "other", "undecided"
     ]
+
+    /// Mirrors the selectable specialized-equipment capabilities in
+    /// `TrainingProfilePreferences.swift` without importing Onboarding into the
+    /// widget-compatible program-definition target.
+    static let equipmentCapabilityIDs: Set<String> = [
+        "bumperPlates", "platform", "blocks", "jerkBlocks", "squatRack",
+        "log", "yoke", "farmersHandles", "sandbag", "sled", "atlasStones",
+        "throwingEquipment", "skiErg", "rowErg", "airBike", "wallBallTarget",
+        "bands", "straps", "yogaBlocks", "foamRoller", "wallSpace", "floorSpace"
+    ]
 }
 
 nonisolated enum ProgramDefinitionValidator {
@@ -116,8 +128,18 @@ nonisolated enum ProgramDefinitionValidator {
         }
         if definition.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { add("name", .emptyName, "A program name is required.") }
         if definition.durationWeeks < 1 { add("durationWeeks", .invalidDuration, "A program must contain at least one week.") }
+        let totalExpandedWeeks = definition.blocks.reduce(0) { $0 + $1.weeks.count }
+        if totalExpandedWeeks != definition.durationWeeks {
+            add("durationWeeks", .invalidDuration, "Expanded week count (\(totalExpandedWeeks)) does not match declared durationWeeks (\(definition.durationWeeks)).")
+        }
         if definition.supportedDaysPerWeek.isEmpty || definition.supportedDaysPerWeek.contains(where: { $0 < 1 || $0 > 7 }) {
             add("supportedDaysPerWeek", .invalidSchedule, "Supported days must be between one and seven.")
+        }
+        if definition.scheduleMode == .fixedWeekdays, definition.supportedDaysPerWeek.count == 1, let expectedDays = definition.supportedDaysPerWeek.first {
+            let maxWorkoutCountInWeek = definition.blocks.flatMap(\.weeks).map { Set($0.workouts.map(\.dayOffset)).count }.max() ?? 0
+            if maxWorkoutCountInWeek < expectedDays {
+                add("supportedDaysPerWeek", .invalidSchedule, "Fixed weekdays schedule advertises \(expectedDays) days/week, but max workouts in any expanded week is \(maxWorkoutCountInWeek).")
+            }
         }
         if definition.scheduleIntervalDays < 1 {
             add("scheduleIntervalDays", .invalidSchedule, "Schedule interval must be at least one day.")
@@ -154,6 +176,40 @@ nonisolated enum ProgramDefinitionValidator {
                 .invalidFocusAreaID,
                 "'\(focusAreaID)' is not a recognised focus area identifier."
             )
+        }
+        if definition.focusAreaApplicability == .notApplicable,
+           !(definition.focusAreaIDs ?? []).isEmpty {
+            add(
+                "focusAreaIDs",
+                .invalidFocusAreaID,
+                "A program whose focus area is not applicable cannot declare focus values."
+            )
+        }
+        if definition.focusAreaApplicability == .applicable,
+           (definition.focusAreaIDs ?? []).isEmpty {
+            add(
+                "focusAreaIDs",
+                .invalidFocusAreaID,
+                "An applicable focus area requires at least one explicit value."
+            )
+        }
+        if let requirement = definition.equipmentRequirement {
+            for (index, group) in requirement.anyOf.enumerated() where group.isEmpty {
+                add(
+                    "equipmentRequirement.anyOf[\(index)]",
+                    .invalidEquipmentRequirement,
+                    "An equipment alternative group cannot be empty."
+                )
+            }
+            let capabilityIDs = requirement.requiredCapabilityIDs + requirement.optionalCapabilityIDs
+            for (index, capabilityID) in capabilityIDs.enumerated()
+            where !ProgramMatchVocabulary.equipmentCapabilityIDs.contains(capabilityID) {
+                add(
+                    "equipmentRequirement.capabilityIDs[\(index)]",
+                    .invalidEquipmentCapabilityID,
+                    "'\(capabilityID)' is not a recognised equipment capability identifier."
+                )
+            }
         }
         if let competitionDisciplineID = definition.competitionDisciplineID,
            !ProgramMatchVocabulary.competitionDisciplineIDs.contains(competitionDisciplineID) {

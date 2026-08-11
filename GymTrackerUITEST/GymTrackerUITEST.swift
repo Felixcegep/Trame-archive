@@ -1,6 +1,34 @@
 import XCTest
 
 final class GymTrackerUITEST: GymTrackerUITestCase {
+    func testMirroredLaunchArgumentsOpenFixtureWhenProcessArgumentsAreMissing() {
+        let app = XCUIApplication()
+        app.launchArguments = []
+        app.launchWithGymTrackerUITestArguments(mirroring: [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-test-fixture",
+            "active-draft"
+        ])
+
+        let preparing = app.descendants(matching: .any)["app-preparing"]
+        XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 30))
+        XCTAssertFalse(app.descendants(matching: .any)["welcome"].exists)
+    }
+
+    func testMirroredLaunchArgumentsCanExplicitlyPresentWelcome() {
+        let app = XCUIApplication()
+        app.launchArguments = []
+        app.launchWithGymTrackerUITestArguments(mirroring: [
+            "-ui-testing",
+            "-reset-data",
+            "-ui-testing-show-welcome"
+        ])
+
+        XCTAssertTrue(app.descendants(matching: .any)["welcome"].waitForExistence(timeout: 30))
+    }
+
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -35,22 +63,15 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         selectTab(.settings, in: app)
         XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
-        // Settings is a lazy Form; the Shortcuts row is below the first
-        // viewport and does not exist in the accessibility hierarchy until
-        // it has been scrolled into view.
+        tapButton("settings-advanced", in: app)
         let shortcuts = app.descendants(matching: .any)["settings-shortcuts-link"]
-        var scrollAttempts = 0
-        while shortcuts.exists == false && scrollAttempts < 6 {
-            app.swipeUp()
-            scrollAttempts += 1
-        }
         XCTAssertTrue(shortcuts.waitForExistence(timeout: 5))
     }
 
     func testAppearanceMenuSupportsSystemDarkAndLightModes() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         let picker = app.buttons["settings-appearance-picker"]
         XCTAssertTrue(picker.waitForExistence(timeout: 45))
@@ -84,7 +105,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testStartFreeWorkout() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         let startButton = app.buttons["start-free-workout"]
         XCTAssertTrue(startButton.waitForExistence(timeout: 5))
@@ -133,10 +154,131 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(currentPlan.label.contains("Double Progression Builder"))
     }
 
+    func testCatalogActivationRequiresResolvingAnExistingPlanConflict() {
+        let app = launchFixture(
+            "plan-active-run",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+
+        openPlans(.readyMade, in: app)
+        app.searchFields["Search plans"].tap()
+        app.searchFields["Search plans"].typeText("Double Progression")
+        app.searchFields["Search plans"].typeText("\n")
+        tapButton("program-catalog-Double Progression Builder", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-catalog-detail"].waitForExistence(timeout: 5))
+        tapButton("use-program", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-intake"].waitForExistence(timeout: 5))
+        let load = app.textFields["Default starting load"]
+        XCTAssertTrue(load.waitForExistence(timeout: 5))
+        load.tap()
+        load.typeText("20")
+        if app.buttons["Done"].waitForExistence(timeout: 2) {
+            app.buttons["Done"].tap()
+        }
+        tapButton("start-program", in: app)
+
+        XCTAssertTrue(
+            app.buttons["resolve-guided-conflict-and-continue-plan"].waitForExistence(timeout: 8)
+        )
+        let cancel = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS[c] %@", "Cancel"))
+            .firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5))
+        cancel.tap()
+
+        let originalPlan = app.buttons["current-plan-card"]
+        XCTAssertTrue(originalPlan.waitForExistence(timeout: 5))
+        XCTAssertTrue(originalPlan.label.contains("Screenshot Plan Run"))
+    }
+
+    func testCatalogActivationConflictCanPauseThePriorPlanAndContinue() {
+        let app = launchFixture(
+            "plan-active-run",
+            expectsActiveWorkout: false,
+            expectedHomeControl: "start-planned-workout"
+        )
+
+        openPlans(.readyMade, in: app)
+        app.searchFields["Search plans"].tap()
+        app.searchFields["Search plans"].typeText("Double Progression")
+        app.searchFields["Search plans"].typeText("\n")
+        tapButton("program-catalog-Double Progression Builder", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-catalog-detail"].waitForExistence(timeout: 5))
+        tapButton("use-program", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-intake"].waitForExistence(timeout: 5))
+        let load = app.textFields["Default starting load"]
+        XCTAssertTrue(load.waitForExistence(timeout: 5))
+        load.tap()
+        load.typeText("20")
+        if app.buttons["Done"].waitForExistence(timeout: 2) {
+            app.buttons["Done"].tap()
+        }
+        tapButton("start-program", in: app)
+
+        XCTAssertTrue(
+            app.buttons["resolve-guided-conflict-and-continue-plan"].waitForExistence(timeout: 8)
+        )
+        tapButton("resolve-guided-conflict-and-continue-plan", in: app)
+
+        let replacementPlan = app.buttons["current-plan-card"]
+        XCTAssertTrue(replacementPlan.waitForExistence(timeout: 8))
+        XCTAssertTrue(replacementPlan.label.contains("Double Progression Builder"))
+    }
+
+    func testPlanSearchNoMatchDoesNotShowLibraryOrInstallFailureEmptyStates() {
+        let app = launchFreshApp()
+        openPlans(.readyMade, in: app)
+
+        let search = app.searchFields["Search plans"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("not-a-real-plan")
+
+        let noResults = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "No Results for")
+        ).firstMatch
+        XCTAssertTrue(noResults.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["The built-in plans could not be loaded."].exists)
+        XCTAssertFalse(app.buttons["Build a plan"].exists)
+
+        app.buttons["Clear text"].tap()
+        app.buttons["Following"].tap()
+        search.tap()
+        search.typeText("not-a-followed-plan")
+
+        XCTAssertTrue(noResults.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Not following a plan"].exists)
+        XCTAssertFalse(app.buttons["Build a plan"].exists)
+    }
+
+    func testProgramDiscoveryFiltersCombineWithSearchAndCanBeCleared() {
+        let app = launchFreshApp()
+        openPlans(.readyMade, in: app)
+
+        tapButton("program-discovery-filter-button", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["program-discovery-filters"].waitForExistence(timeout: 5))
+        tapButton("Powerlifting", in: app)
+        tapButton("Done", in: app)
+
+        let search = app.searchFields["Search plans"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("Foundation Barbell")
+        XCTAssertTrue(app.staticTexts["No plans match"].waitForExistence(timeout: 5))
+
+        tapButton("program-discovery-clear-filters", in: app)
+        XCTAssertTrue(app.buttons["program-catalog-Foundation Barbell 5×5"].waitForExistence(timeout: 5))
+
+        app.buttons["Clear text"].tap()
+        XCTAssertTrue(app.buttons["program-catalog-Powerlifting Foundations"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["program-catalog-Foundation Barbell 5×5"].waitForExistence(timeout: 5))
+    }
+
     func testResumesPersistedActiveWorkoutAfterRelaunch() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         startEmptyWorkout(in: app)
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
@@ -150,7 +292,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         app.terminate()
 
         app.launchArguments = ["-ui-testing"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         let resumeButton = app.buttons["resume-active-workout"]
         XCTAssertTrue(resumeButton.waitForExistence(timeout: 5))
@@ -208,7 +350,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testVerifiesRunningRestAfterSimulatorReboot() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-ui-testing-reboot-rest-fixture"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertEqual(app.state, .runningForeground)
 
         XCTAssertTrue(app.buttons["resume-active-workout"].waitForExistence(timeout: 15))
@@ -233,8 +375,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         enterValue("7", field: "reps", for: "Bench Press", set: 0, in: app)
         enterValue("42", field: "weight", for: "Bench Press", set: 0, in: app)
 
-        // Deliberately terminate with the keypad still open. Each keystroke must
-        // persist independently of dismissal or scene phase.
+        // Deliberately terminate with the keypad still open. The latest draft
+        // must flush at the lifecycle boundary even though keypresses are
+        // coalesced instead of saved one by one.
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
@@ -266,11 +409,20 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             scrollAttempts += 1
         }
         XCTAssertTrue(template.waitForExistence(timeout: 5))
+        while template.isHittable == false && scrollAttempts < 12 {
+            app.swipeUp()
+            scrollAttempts += 1
+        }
+        XCTAssertTrue(template.isHittable)
         let templateEnabled = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "isEnabled == true"),
             object: template
         )
         XCTAssertEqual(XCTWaiter().wait(for: [templateEnabled], timeout: 8), .completed)
+        // The picker keeps its search field docked above the bottom edge. A
+        // final scroll ensures the selected row's tap target is fully clear
+        // of that dock before synthesizing the tap.
+        app.swipeUp()
         template.tap()
 
         // This catalogue template has no linked warm-up. Keep the optional
@@ -287,10 +439,34 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         )
     }
 
+    func testLinkedWarmupStartsMobilityBeforeTheSameWorkout() {
+        let app = launchFixture("linked-mobility-workout", expectsActiveWorkout: false)
+
+        let startFreeWorkout = app.buttons["start-free-workout"]
+        scrollToElement(startFreeWorkout, in: app)
+        startFreeWorkout.tap()
+        let template = app.buttons["workout-template-Linked Mobility Screenshot"]
+        for _ in 0..<12 where !template.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(template.waitForExistence(timeout: 10))
+        XCTAssertTrue(template.isHittable)
+        template.tap()
+
+        tapButton("start-linked-warmup", in: app)
+        XCTAssertTrue(app.buttons["complete-mobility-movement"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["active-workout-title"].exists)
+
+        tapButton("stop-mobility-session", in: app)
+        tapButton("Stop Session", in: app)
+        XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
+        XCTAssertTrue(activeExerciseCard("Bench Press", in: app).waitForExistence(timeout: 5))
+    }
+
     func testPushFocusFiltersActiveExercisePicker() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         startEmptyWorkout(in: app)
 
@@ -303,7 +479,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(pushFilter.waitForExistence(timeout: 5))
         pushFilter.tap()
 
-        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["exercise-link-Arnold Press"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
     }
 
@@ -330,7 +506,10 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
-        let legPressExercise = activeExerciseCard("Leg Press", in: app)
+        // Target the disclosure label itself. The card's combined accessibility
+        // button also contains its nested menu button and can resolve to that
+        // child after a relaunch, which does not expand the exercise.
+        let legPressExercise = app.staticTexts["active-exercise-Leg Press"]
         scrollToElement(legPressExercise, in: app)
         legPressExercise.tap()
         tapButton("weight-field-Leg Press-0", in: app)
@@ -537,15 +716,13 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testDataSafetySectionReportsExportState() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-open-settings"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 45))
+        tapButton("settings-data", in: app)
         let lastExport = app.descendants(matching: .any)["settings-data-safety-last-export"]
         let restoreTested = app.descendants(matching: .any)["settings-data-safety-restore-tested"]
 
-        for _ in 0..<6 where lastExport.exists == false {
-            app.swipeUp()
-        }
-        XCTAssertTrue(lastExport.exists)
+        XCTAssertTrue(lastExport.waitForExistence(timeout: 5))
         XCTAssertTrue(lastExport.label.contains("Never") || (lastExport.value as? String) == "Never")
         XCTAssertTrue(
             restoreTested.label.contains("Not yet") || (restoreTested.value as? String) == "Not yet"
@@ -591,7 +768,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
         app.terminate()
         app.launchArguments = ["-ui-testing", "-ui-testing-open-history"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         let historyScreen = app.descendants(matching: .any)
             .matching(identifier: "history-screen")
@@ -644,7 +821,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
     func testCreatesCustomExercise() {
         let app = launchFreshApp()
-        app.tabBars.buttons.element(boundBy: 1).tap()
+        selectTab(.library, in: app)
         app.buttons["Create library item"].tap()
         XCTAssertTrue(app.buttons["New Exercise"].waitForExistence(timeout: 5))
         app.buttons["New Exercise"].tap()
@@ -676,7 +853,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
     func testCreatesPlanStartsRunAndLaunchesPlannedWorkout() {
         let app = launchFreshApp()
-        app.tabBars.buttons.element(boundBy: 1).tap()
+        selectTab(.library, in: app)
 
         app.buttons["Create library item"].tap()
         XCTAssertTrue(app.buttons["New Training Plan"].waitForExistence(timeout: 5))
@@ -775,14 +952,18 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             "-ui-test-fixture",
             "backup-import-target"
         ]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
-        XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 15))
+        // The launch route intentionally pushes through Settings to Data & Backup.
+        // Once pushed, the parent screen is no longer part of the accessibility tree.
+        XCTAssertTrue(app.descendants(matching: .any)["settings-data-screen"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.descendants(matching: .any)["import-preview"].waitForExistence(timeout: 15))
 
         tapButton("confirm-backup-restore", in: app)
         tapButton("restore-replace-all-data", in: app)
 
+        XCTAssertTrue(app.descendants(matching: .any)["settings-data-screen"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons["Settings"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["settings-screen"].waitForExistence(timeout: 5))
         assertUnitSystem("Imperial", in: app)
         assertRestDuration("120", in: app)
@@ -809,7 +990,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             "-ui-test-fixture",
             "backup-import-target"
         ]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
         XCTAssertTrue(app.alerts["Import Error"].waitForExistence(timeout: 15))
         tapButton("OK", in: app)
@@ -822,9 +1003,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
     func testDefaultCollectionSeededOnLaunch() {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-data"]
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
 
-        app.tabBars.buttons.element(boundBy: 1).tap()
+        selectTab(.library, in: app)
         // Saved workouts and their folders moved off the Train root into the
         // Workouts destination, so Train can state what you are following first.
         tapButton("workouts-browser", in: app)

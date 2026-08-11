@@ -134,11 +134,13 @@ nonisolated struct TemplateExerciseBlockDTO: Codable {
 }
 
 nonisolated struct WorkoutTemplateDTO: Codable {
+    var id: String? = nil
     let name: String
     let templateExercises: [TemplateExerciseDTO]
     var executionBlocks: [TemplateExerciseBlockDTO]? = nil
     var preWorkoutMobilityRoutineName: String? = nil
     var postWorkoutMobilityRoutineName: String? = nil
+    var isBuiltIn: Bool? = false
     var isArchived: Bool? = false
 }
 
@@ -369,6 +371,18 @@ nonisolated struct WorkoutExecutionBlockDTO: Codable {
     let sourceTemplateBlockID: String?
     let sourcePlannedBlockID: String?
     let sourceDefinitionBlockKey: String?
+    var splits: [WorkoutExecutionBlockSplitDTO]? = nil
+}
+
+nonisolated struct WorkoutExecutionBlockSplitDTO: Codable {
+    let id: String
+    let workoutID: String
+    let sequenceIndex: Int
+    let kind: String
+    let roundIndex: Int
+    let componentOrder: Int
+    let elapsedDuration: TimeInterval
+    let recordedAt: Date
 }
 
 nonisolated struct PlannedExerciseDTO: Codable {
@@ -775,6 +789,33 @@ nonisolated struct BodyWeightEntryDTO: Codable {
     let measuredAt: Date
     let createdAt: Date
     let updatedAt: Date
+}
+
+nonisolated struct HealthKitBodyMassProvenanceDTO: Codable {
+    let id: String
+    let healthKitSampleID: String
+    let bodyWeightEntryID: String
+    let sourceBundleIdentifier: String
+    let sourceVersion: String?
+    let sourceProductType: String?
+    let sampleStartDate: Date
+    let sampleEndDate: Date
+    let valueKilograms: Double
+    let importedAt: Date
+    let lastSeenAt: Date
+}
+
+nonisolated struct HealthKitWorkoutExportReceiptDTO: Codable {
+    let id: String
+    let workoutID: String
+    let healthKitWorkoutID: String?
+    let status: String
+    let attemptedAt: Date
+    let workoutStartDate: Date
+    let workoutEndDate: Date
+    let completedExerciseCount: Int
+    let completedSetCount: Int
+    let errorMessage: String?
 }
 
 nonisolated struct SupplementOccurrenceDTO: Codable {
@@ -1269,6 +1310,8 @@ nonisolated struct BackupDTO: Codable {
     let progressionRecommendations: [ProgressionRecommendationDTO]
     let dailyLogEntries: [DailyLogEntryDTO]
     let bodyWeightEntries: [BodyWeightEntryDTO]
+    var healthKitBodyMassProvenance: [HealthKitBodyMassProvenanceDTO] = []
+    var healthKitWorkoutExportReceipts: [HealthKitWorkoutExportReceiptDTO] = []
     let supplementOccurrences: [SupplementOccurrenceDTO]
     let mobilityFamilies: [MobilityFamilyDTO]
     let mobilityDefinitions: [MobilityDefinitionDTO]
@@ -1356,7 +1399,14 @@ nonisolated struct BackupDTO: Codable {
     /// with templates explicitly active, preserving fidelity since archiving
     /// didn't exist when they were exported.
     static let templateLifecycleVersion = 27
-    static let currentVersion = templateLifecycleVersion
+    /// Adds relaunch-safe execution-block component cursor evidence and
+    /// immutable split history. Older backups restore with no split evidence,
+    /// which truthfully means the cursor starts at the first component.
+    static let executionBlockSplitVersion = 28
+    /// Adds HealthKit source provenance and post-commit summary-export
+    /// receipts. Older backups restore with no HealthKit integration records.
+    static let healthKitIntegrationVersion = 29
+    static let currentVersion = healthKitIntegrationVersion
 
     init(
         version: Int,
@@ -1377,6 +1427,8 @@ nonisolated struct BackupDTO: Codable {
         progressionRecommendations: [ProgressionRecommendationDTO] = [],
         dailyLogEntries: [DailyLogEntryDTO] = [],
         bodyWeightEntries: [BodyWeightEntryDTO] = [],
+        healthKitBodyMassProvenance: [HealthKitBodyMassProvenanceDTO] = [],
+        healthKitWorkoutExportReceipts: [HealthKitWorkoutExportReceiptDTO] = [],
         supplementOccurrences: [SupplementOccurrenceDTO] = [],
         mobilityFamilies: [MobilityFamilyDTO] = [],
         mobilityDefinitions: [MobilityDefinitionDTO] = [],
@@ -1408,6 +1460,8 @@ nonisolated struct BackupDTO: Codable {
         self.progressionRecommendations = progressionRecommendations
         self.dailyLogEntries = dailyLogEntries
         self.bodyWeightEntries = bodyWeightEntries
+        self.healthKitBodyMassProvenance = healthKitBodyMassProvenance
+        self.healthKitWorkoutExportReceipts = healthKitWorkoutExportReceipts
         self.supplementOccurrences = supplementOccurrences
         self.mobilityFamilies = mobilityFamilies
         self.mobilityDefinitions = mobilityDefinitions
@@ -1423,7 +1477,7 @@ nonisolated struct BackupDTO: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, mobilityProgramDefinitions, mobilityProgramRuns, mobilityProgressionRecommendations, progressionRecommendations, dailyLogEntries, bodyWeightEntries, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets, trainingProfile
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, mobilityProgramDefinitions, mobilityProgramRuns, mobilityProgressionRecommendations, progressionRecommendations, dailyLogEntries, bodyWeightEntries, healthKitBodyMassProvenance, healthKitWorkoutExportReceipts, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets, trainingProfile
     }
 
     init(from decoder: Decoder) throws {
@@ -1446,6 +1500,8 @@ nonisolated struct BackupDTO: Codable {
         progressionRecommendations = try container.decodeIfPresent([ProgressionRecommendationDTO].self, forKey: .progressionRecommendations) ?? []
         dailyLogEntries = try container.decodeIfPresent([DailyLogEntryDTO].self, forKey: .dailyLogEntries) ?? []
         bodyWeightEntries = try container.decodeIfPresent([BodyWeightEntryDTO].self, forKey: .bodyWeightEntries) ?? []
+        healthKitBodyMassProvenance = try container.decodeIfPresent([HealthKitBodyMassProvenanceDTO].self, forKey: .healthKitBodyMassProvenance) ?? []
+        healthKitWorkoutExportReceipts = try container.decodeIfPresent([HealthKitWorkoutExportReceiptDTO].self, forKey: .healthKitWorkoutExportReceipts) ?? []
         supplementOccurrences = try container.decodeIfPresent([SupplementOccurrenceDTO].self, forKey: .supplementOccurrences) ?? []
         mobilityFamilies = try container.decodeIfPresent([MobilityFamilyDTO].self, forKey: .mobilityFamilies) ?? []
         mobilityDefinitions = try container.decodeIfPresent([MobilityDefinitionDTO].self, forKey: .mobilityDefinitions) ?? []

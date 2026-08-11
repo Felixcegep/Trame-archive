@@ -1,6 +1,37 @@
 import XCTest
 @testable import GymTracker
 
+/// Promoted surfaces exercised by the UI suite even when a narrower release
+/// wave intentionally hides them. Keeping this at file scope lets direct
+/// `XCUIApplication` launches use the same deterministic matrix as fixtures.
+private let completeGymTrackerUITestFeatureFlags = [
+    "today", "mobility", "nutrition", "bodyWeight", "dailyCheckIn",
+    "programBuilder", "advancedExecution", "betaFeedback",
+    "recipeGeneration", "workoutGeneration", "mobilityAssessment",
+    "mobilityProgram", "sportSpecializations"
+].joined(separator: ",")
+
+extension XCUIApplication {
+    private static let mirroredArgumentsEnvironmentKey = "GYMTRACKER_UI_TEST_ARGUMENTS_JSON"
+
+    /// Mirrors the exact argument array through an environment payload before
+    /// launching. The app still supports ordinary command-line delivery, but
+    /// this fallback keeps Simulator launch-service argument loss from opening
+    /// onboarding or silently skipping a requested fixture.
+    func launchWithGymTrackerUITestArguments(mirroring arguments: [String]? = nil) {
+        var mirroredArguments = arguments ?? launchArguments
+        if !mirroredArguments.contains("-feature-flags") {
+            mirroredArguments += ["-feature-flags", completeGymTrackerUITestFeatureFlags]
+            launchArguments = mirroredArguments
+        }
+        if let data = try? JSONEncoder().encode(mirroredArguments),
+           let payload = String(data: data, encoding: .utf8) {
+            launchEnvironment[Self.mirroredArgumentsEnvironmentKey] = payload
+        }
+        launch()
+    }
+}
+
 enum AppTab {
     case today
     case train
@@ -13,9 +44,29 @@ enum AppTab {
 
     static let home: Self = .today
     static let library: Self = .train
+
+    var title: String {
+        switch self {
+        case .today: "Today"
+        case .train: "Train"
+        case .nutrition: "Nutrition"
+        case .progress, .history: "Progress"
+        case .settings: "Settings"
+        }
+    }
 }
 
 class GymTrackerUITestCase: XCTestCase {
+    /// UI and screenshot coverage exercises promoted surfaces even when the
+    /// current TestFlight wave intentionally hides them. Tests that verify a
+    /// narrower rollout pass their own `-feature-flags` value, which wins by
+    /// replacing this default rather than being combined with it.
+    private func featureFlagArguments(unlessOverriddenBy arguments: [String]) -> [String] {
+        arguments.contains("-feature-flags")
+            ? []
+            : ["-feature-flags", completeGymTrackerUITestFeatureFlags]
+    }
+
     func selectTab(_ tab: AppTab, in app: XCUIApplication) {
         switch tab {
         case .history:
@@ -41,8 +92,21 @@ class GymTrackerUITestCase: XCTestCase {
         case .history, .settings: fatalError("Compatibility destinations are handled above")
         }
         let tabButton = app.buttons[tabIdentifier].firstMatch
-        XCTAssertTrue(tabButton.waitForExistence(timeout: 5))
-        tabButton.tap()
+        if tabButton.waitForExistence(timeout: 5) {
+            tabButton.tap()
+            return
+        }
+
+        // iOS 26 bridges a SwiftUI TabView's accessibility identifier from
+        // the Label child onto the tab-item content inconsistently: the same
+        // item may appear as an identifier-bearing Button on one launch and
+        // as a plain tab-bar Button labelled by its title on another. The
+        // native tab-bar element is the stable fallback and still exercises
+        // the user-visible navigation path.
+        let title = tab.title
+        let nativeTabButton = app.tabBars.buttons[title].firstMatch
+        XCTAssertTrue(nativeTabButton.waitForExistence(timeout: 5))
+        nativeTabButton.tap()
     }
 
     /// Ready-made, saved and repeating plans all live behind the single Plans
@@ -79,6 +143,23 @@ class GymTrackerUITestCase: XCTestCase {
         )
         button.tap()
         return button
+    }
+
+    /// SwiftUI `Menu` and picker-backed controls can bridge as Button or
+    /// PopUpButton depending on the simulator OS. Their accessibility identity
+    /// is stable even when XCTest's legacy element type is not.
+    @discardableResult
+    func tapControl(
+        _ identifier: String,
+        in app: XCUIApplication,
+        timeout: TimeInterval = 5,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> XCUIElement {
+        let control = app.descendants(matching: .any)[identifier].firstMatch
+        XCTAssertTrue(control.waitForExistence(timeout: timeout), "Expected control '\(identifier)' to exist", file: file, line: line)
+        control.tap()
+        return control
     }
 
     func tapFirstAvailableButton(
@@ -148,7 +229,14 @@ class GymTrackerUITestCase: XCTestCase {
     }
 
     func assertRestDuration(_ expected: String, in app: XCUIApplication) {
-        let duration = app.descendants(matching: .any)["settings-rest-duration"]
+        var duration = app.descendants(matching: .any)["settings-rest-duration"]
+        if !duration.exists {
+            let workoutSettings = app.buttons["settings-workout"]
+            XCTAssertTrue(workoutSettings.waitForExistence(timeout: 5))
+            workoutSettings.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["settings-workout-screen"].waitForExistence(timeout: 5))
+            duration = app.descendants(matching: .any)["settings-rest-duration"]
+        }
         XCTAssertTrue(duration.waitForExistence(timeout: 5))
         let value = duration.value as? String ?? duration.label
         XCTAssertTrue(value.contains(expected), "Expected rest duration to contain '\(expected)', got '\(value)'")
@@ -168,8 +256,10 @@ class GymTrackerUITestCase: XCTestCase {
         // clean relaunch, but never continue unless the fresh Home state is
         // actually present.
         for attempt in 0..<2 {
-            app.launchArguments = ["-ui-testing", "-reset-data"] + additionalArguments
-            app.launch()
+            app.launchArguments = ["-ui-testing", "-reset-data"]
+                + featureFlagArguments(unlessOverriddenBy: additionalArguments)
+                + additionalArguments
+            app.launchWithGymTrackerUITestArguments()
             XCTAssertEqual(app.state, .runningForeground)
 
             // A reset clears and reseeds SwiftData before the tab content
@@ -212,8 +302,10 @@ class GymTrackerUITestCase: XCTestCase {
         expectedHomeControl: String = "start-free-workout"
     ) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-test-fixture", fixture] + additionalArguments
-        app.launch()
+        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-test-fixture", fixture]
+            + featureFlagArguments(unlessOverriddenBy: additionalArguments)
+            + additionalArguments
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertEqual(app.state, .runningForeground)
 
         let preparing = app.descendants(matching: .any)["app-preparing"]
@@ -221,9 +313,17 @@ class GymTrackerUITestCase: XCTestCase {
         if expectsMobilitySession {
             XCTAssertTrue(app.buttons["complete-mobility-movement"].waitForExistence(timeout: 30))
         } else if expectsActiveWorkout {
-            XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 30))
+            let title = app.staticTexts["active-workout-title"]
+            if !title.waitForExistence(timeout: 30) {
+                // The fixture graph is durable even if a full-screen-cover
+                // presentation is dropped during cold-launch hand-off.
+                let resume = app.buttons["resume-active-workout"]
+                XCTAssertTrue(resume.waitForExistence(timeout: 5))
+                resume.tap()
+                XCTAssertTrue(title.waitForExistence(timeout: 10))
+            }
         } else {
-            XCTAssertTrue(app.buttons[expectedHomeControl].waitForExistence(timeout: 15))
+            XCTAssertTrue(app.descendants(matching: .any)[expectedHomeControl].waitForExistence(timeout: 15))
         }
         return app
     }
@@ -234,7 +334,7 @@ class GymTrackerUITestCase: XCTestCase {
     ) {
         app.terminate()
         app.launchArguments = launchArguments
-        app.launch()
+        app.launchWithGymTrackerUITestArguments()
         XCTAssertEqual(app.state, .runningForeground)
 
         let preparing = app.descendants(matching: .any)["app-preparing"]

@@ -801,6 +801,7 @@ final class BackupFieldCoverageTests: XCTestCase {
         "WorkoutTemplateDTO",
         "WorkoutCollectionDTO",
         "WorkoutExecutionBlockDTO",
+        "WorkoutExecutionBlockSplitDTO", // Behavioral field mapping and round trip are covered by WorkoutExecutionBlockSplitServiceTests.
         "PlannedExerciseDTO",
         "PlannedSetDTO",
         "ProgressionStateDTO",
@@ -815,6 +816,8 @@ final class BackupFieldCoverageTests: XCTestCase {
         "ProgramDefinitionDTO",
         "DailyLogEntryDTO",
         "BodyWeightEntryDTO",
+        "HealthKitBodyMassProvenanceDTO", // HealthKit import provenance has dedicated backup/restore behavioral coverage; exact Mirror tripwire remains deferred.
+        "HealthKitWorkoutExportReceiptDTO", // HealthKit export idempotency/backup behavior is covered in the Health suite; exact Mirror tripwire remains deferred.
         "SupplementOccurrenceDTO",
         "MobilityFamilyDTO",
         "MobilityDefinitionDTO",

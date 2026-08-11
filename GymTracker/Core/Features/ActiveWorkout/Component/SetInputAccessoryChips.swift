@@ -188,7 +188,16 @@ extension SetInputAccessoryPanel {
             .frame(minHeight: ComponentSize.minimumTouchTarget)
             .background(tint.map { $0.opacity(0.12) } ?? Color.gymRowSurface)
             .clipShape(Capsule())
-            .overlay { Capsule().stroke(tint.map { $0.opacity(0.3) } ?? Color.gymBorder, lineWidth: 1) }
+            // A border only where there is a tint to explain it — a recorded
+            // effort value, a marked set type. "Normal", "Plates", "Details"
+            // and an unrecorded effort chip are not states, and a grey outline
+            // on all four made every chip look selectable-but-unselected
+            // rather than letting the fill alone say "this is a control".
+            .overlay {
+                if let tint {
+                    Capsule().stroke(tint.opacity(0.3), lineWidth: 1)
+                }
+            }
             .contentShape(Capsule())
     }
 
@@ -204,7 +213,16 @@ extension SetInputAccessoryPanel {
             .frame(minHeight: ComponentSize.minimumTouchTarget)
             .background(tint.map { $0.opacity(0.12) } ?? Color.gymRowSurface)
             .clipShape(Capsule())
-            .overlay { Capsule().stroke(tint.map { $0.opacity(0.3) } ?? Color.gymBorder, lineWidth: 1) }
+            // A border only where there is a tint to explain it — a recorded
+            // effort value, a marked set type. "Normal", "Plates", "Details"
+            // and an unrecorded effort chip are not states, and a grey outline
+            // on all four made every chip look selectable-but-unselected
+            // rather than letting the fill alone say "this is a control".
+            .overlay {
+                if let tint {
+                    Capsule().stroke(tint.opacity(0.3), lineWidth: 1)
+                }
+            }
             .contentShape(Capsule())
     }
 }

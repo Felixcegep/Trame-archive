@@ -8,7 +8,7 @@ import SwiftData
 /// model's stored shape changes, so a beta feedback report can distinguish
 /// testers running different schema generations.
 enum GymTrackerAppSchema {
-    static let diagnosticVersion = "14"
+    static let diagnosticVersion = "15"
 
     /// What the shipped build actually does with iCloud. This is deliberately
     /// a literal, not derived from CloudSyncEnvironment: the point is that a
@@ -17,9 +17,28 @@ enum GymTrackerAppSchema {
     static let cloudSyncState = "disabled"
 }
 
-/// First additive schema after the verified baseline. The existing models are
-/// intentionally untouched; the transition only introduces mobility-owned
-/// prescription and performed-evidence records.
+/// Additive execution evidence. The frozen block model is not reshaped;
+/// cursor state is derived from ordered split records keyed by block UUID.
+enum GymTrackerExecutionSplitSchema: VersionedSchema {
+    static let versionIdentifier = Schema.Version(3, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        var types = GymTrackerAdvancedMobilityEvidenceSchema.models + [
+            WorkoutExecutionBlockSplit.self
+        ]
+#if !GYMTRACKER_EXTENSION
+        types.append(HealthKitBodyMassProvenance.self)
+        types.append(HealthKitWorkoutExportReceipt.self)
+#endif
+        return types
+    }
+}
+
+/// First additive schema after the verified baseline. Schema.Version(2, 0, 0)
+/// is formally frozen before first TestFlight distribution. The Mobility Program
+/// definition and runtime models listed here form the frozen initial V2 shape.
+/// Do not append another persistent model or otherwise change persistent shape under V2.
+/// Any future persistent shape change requires a new VersionedSchema generation.
 enum GymTrackerAdvancedMobilityEvidenceSchema: VersionedSchema {
     static let versionIdentifier = Schema.Version(2, 0, 0)
 
@@ -31,18 +50,9 @@ enum GymTrackerAdvancedMobilityEvidenceSchema: VersionedSchema {
             MobilityEntryEvidence.self
         ]
 #if !GYMTRACKER_EXTENSION
-        // The mobility program definition graph (Release 8 part 1) extends
-        // this same V2 generation in place, exactly like the four models
-        // above already did: additive, optional-decode, no new schema
-        // version. It is app-only, mirroring `ProgramDefinitionRecord`'s own
-        // extension gate on the baseline schema below.
+        // Part of the frozen initial V2 shape: App-only mobility program definition
+        // and runtime models. Appended here prior to V2 schema freeze.
         types.append(MobilityProgramDefinitionRecord.self)
-        // The mobility program runtime (Release 8 part 2) extends the same
-        // V2 generation in place again: a run, its per-session progress,
-        // its per-(progressionKey, side) progression state, and its
-        // recommendation receipts. All four are new tables with no existing
-        // column changes, so this stays additive under the frozen
-        // `Schema.Version(2, 0, 0)` identifier — neither part has shipped.
         types.append(MobilityProgramRun.self)
         types.append(MobilityProgramSessionProgress.self)
         types.append(MobilityProgressionState.self)
@@ -138,13 +148,18 @@ enum GymTrackerCurrentBaselineSchema: VersionedSchema {
 enum GymTrackerSchemaMigrationPlan: SchemaMigrationPlan {
     static let schemas: [any VersionedSchema.Type] = [
         GymTrackerCurrentBaselineSchema.self,
-        GymTrackerAdvancedMobilityEvidenceSchema.self
+        GymTrackerAdvancedMobilityEvidenceSchema.self,
+        GymTrackerExecutionSplitSchema.self
     ]
 
     static let stages: [MigrationStage] = [
         .lightweight(
             fromVersion: GymTrackerCurrentBaselineSchema.self,
             toVersion: GymTrackerAdvancedMobilityEvidenceSchema.self
+        ),
+        .lightweight(
+            fromVersion: GymTrackerAdvancedMobilityEvidenceSchema.self,
+            toVersion: GymTrackerExecutionSplitSchema.self
         )
     ]
 }
@@ -177,14 +192,14 @@ enum GymTrackerModelContainer {
         // screenshot. Capture-only: the argument is never passed by a shipped
         // launch, and the branch attaches no context, exactly like the real
         // failure path.
-        if CommandLine.arguments.contains("-ui-testing-storage-unavailable") {
+        if AppLaunchArguments.current.contains("-ui-testing-storage-unavailable") {
             return .unavailable("Simulated store failure for screenshot capture.")
         }
         let persistence = GymTrackerPersistenceConfiguration()
         // Build the configuration once and reuse it, so the store that gets
         // copied aside is provably the same one that is about to be opened.
         let configuration = persistence.makeModelConfiguration()
-        let currentVersion = GymTrackerAdvancedMobilityEvidenceSchema.versionIdentifier
+        let currentVersion = GymTrackerExecutionSplitSchema.versionIdentifier
 
         let backupOutcome = GymTrackerPreMigrationBackup.backUpIfSchemaVersionChanged(
             storeURL: configuration.url,
@@ -217,5 +232,5 @@ enum GymTrackerModelContainer {
     /// Retained for existing callers and test helpers that consume a `Schema`
     /// value directly. The model list now has one owner: the named current
     /// baseline above.
-    static let schema = Schema(versionedSchema: GymTrackerAdvancedMobilityEvidenceSchema.self)
+    static let schema = Schema(versionedSchema: GymTrackerExecutionSplitSchema.self)
 }

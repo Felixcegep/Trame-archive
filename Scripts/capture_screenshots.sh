@@ -7,7 +7,9 @@ SCREENSHOT_DIR="$WORKSPACE_DIR/Screenshots"
 # Override per process to allow independent scene groups to run on separate simulators.
 # The default remains the established screenshot simulator for local, single-device capture.
 SIMULATOR_ID="${SIMULATOR_ID:-11536E2C-BBE1-411D-AF6C-DF4ADCD332D1}"
-SIMULATOR_ID_2="${SIMULATOR_ID_2:-700D60D5-78C9-4E1E-9C66-A8B2280B1C4B}"
+# A second simulator is opt-in. The repository's host-stability rule defaults
+# screenshot work to one simulator and one UI-test stream.
+SIMULATOR_ID_2="${SIMULATOR_ID_2:-}"
 APP_BUNDLE_ID="felix.GymTracker"
 
 # Detect whether we should run tests on two simulators concurrently
@@ -39,7 +41,14 @@ Scenes:
   overview               Main Today, Train, empty Progress, and Settings screens
   settings-data-safety   Settings Data Safety section
   pages                  Today, Train, Nutrition, and Settings secondary page states
+  coach-exchange        Coach Exchange package builder and import decisions
+  journey                Training Journey list and timeline
+  weightlifting          Weightlifting evidence dashboard
+  ledger                 Progression receipt ledger and detail
+  mixed-workout          Eyes-up execution, round split, and complex evidence
   mobility               Mobility routine library and active execution
+  mobility-assessment    Assessment hub cards, capture flow, and history detail
+  mobility-profile       Read-only mobility profile with observations and side gap
   active                 Active Workout, tools, completed, discard, and review states
   rest                   Running, paused, and ready Rest Between Sets cards
   history                Saved-workout History list and detail
@@ -78,9 +87,15 @@ tests_for_scene() {
     brand) echo "testCaptureLaunchBrandScreenshot" ;;
     overview) echo "testCaptureOverviewAndLibraryTourScreenshots" ;;
     settings-data-safety) echo "testCaptureSettingsDataSafetyScreenshot" ;;
-    pages) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureHomeConflictScreenshot testCaptureTodayCompleteTourScreenshots testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCapturePlanActiveRunScreenshots testCaptureNotificationRescheduleScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsAndBetaFeedbackScreenshots testCaptureSettingsDataSafetyScreenshot testCaptureBetaFeedbackActiveLoggingScreenshot" ;;
-  mobility) echo "testCaptureTodayCompleteTourScreenshots testCaptureMobilityRoutinePurposeScreenshot testCaptureActiveMobilityScreenshot" ;;
+  pages) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureHomeConflictScreenshot testCaptureTodayCompleteTourScreenshots testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCapturePlanActiveRunScreenshots testCaptureNotificationRescheduleScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsAndBetaFeedbackScreenshots testCaptureSettingsDataSafetyScreenshot testCaptureBetaFeedbackActiveLoggingScreenshot" ;;
+    coach-exchange) echo "testCaptureCoachExchangeScreenshots testCaptureCoachExchangeImportScreenshots" ;;
+    journey) echo "testCaptureTrainingJourneyScreenshots" ;;
+    weightlifting) echo "testCaptureWeightliftingDashboardScreenshot" ;;
+    ledger) echo "testCaptureProgressionLedgerScreenshots" ;;
+    mixed-workout) echo "testCaptureMixedWorkoutScreenshots" ;;
+    mobility) echo "testCaptureTodayCompleteTourScreenshots testCaptureMobilityRoutinePurposeScreenshot testCaptureActiveMobilityScreenshot" ;;
     mobility-assessment) echo "MobilityAssessmentUITests/testCaptureMobilityHubCards MobilityAssessmentUITests/testCaptureAssessmentFlow MobilityAssessmentUITests/testCaptureAssessmentLandingAndHistoryDetail" ;;
+    mobility-profile) echo "MobilityAssessmentUITests/testCaptureMobilityAssessmentProfileScreenshot" ;;
     nutrition) echo "testCaptureNutritionTodayScreenshot testCaptureNutritionTargetsEmptyScreenshot testCaptureTodayCompleteTourScreenshots testCaptureRecipeGenerationControlsScreenshot testCaptureRecipeGeneratingScreenshot testCaptureRecipeGeneratedDraftScreenshot testCaptureRecipePartialMatchScreenshot testCaptureRecipeManualFallbackAndCatalogScreenshots" ;;
     active) echo "testCaptureActiveWorkoutStatesScreenshots testCaptureDecisionAwareSubstitutionScreenshots testCaptureDurationTimerScreenshots" ;;
     rest) echo "testCaptureRestScreenshots" ;;
@@ -109,11 +124,17 @@ tests_for_scene() {
 files_for_scene() {
   case "$1" in
     brand) echo "overview/00a_Launch_Brand.png" ;;
-    overview) echo "overview/01_Today.png overview/02_Train.png overview/03_Progress_Empty.png overview/04_Settings.png" ;;
+    overview) echo "overview/01_Today.png overview/02_Train.png overview/03_Progress_Empty.png overview/03a_Progress_Populated.png overview/04_Settings.png" ;;
     settings-data-safety) echo "overview/04g_Settings_Data_Safety.png" ;;
     pages) echo "overview/01b_Home_Template_Sheet.png overview/01c_Home_Workout_Conflict.png overview/01e_Daily_Check_In.png overview/01h_Daily_Check_In_Weight_Due.png overview/04a_Body_Weight_History.png overview/01f_Today_Reschedule_Workout.png overview/01g_Notification_Reschedule_Workout.png mobility/18_Mobility_Routines.png mobility/19_Active_Mobility.png nutrition/20_Nutrition_Today.png overview/02b_Train_Templates.png overview/02c_Train_Plans.png overview/02d_Train_Empty_Search.png overview/04b_Settings_Import_Error.png overview/04c_Settings_Import_Preview.png overview/04d_Settings_Shortcuts.png overview/04e_Settings_Beta_Feedback.png overview/04f_Settings_Beta_Feedback_Active_Logging.png overview/04g_Settings_Data_Safety.png" ;;
+    coach-exchange) echo "coach-exchange/23_Coach_Exchange_Empty.png coach-exchange/23a_Coach_Exchange_Package_Builder.png coach-exchange/23b_Coach_Exchange_Conflict_Preview.png coach-exchange/23c_Coach_Exchange_Import_Complete.png" ;;
+    journey) echo "journey/24_Training_Journey_List.png journey/24a_Training_Journey_Timeline.png" ;;
+    weightlifting) echo "progress/26_Weightlifting_Populated.png progress/26a_Competition_Day_Active.png" ;;
+    ledger) echo "progression/25_Training_Ledger.png progression/25a_Training_Ledger_Detail.png" ;;
+    mixed-workout) echo "mixed-workout/27_Mixed_Eyes_Up_Runtime.png mixed-workout/27a_Mixed_Runtime_Split.png mixed-workout/27b_Mixed_Complex_Component_Evidence.png" ;;
     mobility) echo "mobility/18_Mobility_Routines.png mobility/18b_Mobility_Routine_Purpose.png mobility/19_Active_Mobility.png" ;;
     mobility-assessment) echo "mobility/18e_Mobility_Hub_Card_Empty.png mobility/18f_Mobility_Hub_Card_Recorded.png mobility/18g_Mobility_Hub_Card_InProgress.png mobility-assessment/21_Assessment_Landing_Empty.png mobility-assessment/21a_Assessment_Landing_Recorded.png mobility-assessment/21b_Assessment_Selection.png mobility-assessment/21c_Assessment_Instruction.png mobility-assessment/21d_Assessment_Manual_Entry.png mobility-assessment/21e_Assessment_Confirmation.png mobility-assessment/21f_Assessment_Summary.png mobility-assessment/21g_Assessment_History_Detail.png" ;;
+    mobility-profile) echo "mobility-assessment/21h_Mobility_Assessment_Profile.png" ;;
     nutrition) echo "nutrition/20_Nutrition_Today.png nutrition/20a_Caffeine_Quick_Log.png nutrition/20b_Nutrition_Targets_Empty.png nutrition/20c_Recipe_Generation_Controls.png nutrition/20d_Recipe_Generating.png nutrition/20e_Recipe_Generated_Draft.png nutrition/20f_Recipe_Partial_Match.png nutrition/20g_Recipe_Manual_Fallback.png nutrition/20h_Food_Picker.png nutrition/20i_Recipe_Detail.png nutrition/20j_Log_Recipe.png" ;;
     active) echo "active-workout/05_Active_Workout_Empty.png overview/05_Home_With_Active_Workout.png active-workout/06_Add_Exercise_Sheet.png active-workout/07_Plate_Calculator.png active-workout/07b_Set_Details.png active-workout/07c_Execution_Block_Builder.png active-workout/07d_Execution_Block_Active.png active-workout/07e_Set_Method_Segments.png active-workout/07f_Complex_Component_Results.png active-workout/08j_Exercise_Swap.png active-workout/08o_Substitution_Why.png active-workout/08p_Substitution_Confirmation.png active-workout/08_Active_Workout_With_Set.png active-workout/08k_Active_Superset.png active-workout/08d_Completed_Exercise_Collapsed.png active-workout/08e_Discard_Workout.png active-workout/08f_Duration_Timer_Idle.png active-workout/08g_Duration_Timer_Running.png active-workout/08h_Duration_Timer_Paused.png active-workout/08i_Duration_Timer_Complete.png review/09_Save_Workout.png review/09b_Partial_Save_Confirmation.png" ;;
     rest) echo "active-workout/08_Rest_Countdown.png active-workout/08b_Rest_Paused.png active-workout/08c_Rest_Ready.png" ;;
@@ -125,7 +146,7 @@ files_for_scene() {
     workout-form) echo "templates/12b_New_Workout_Form.png templates/12c_Exercise_Filters.png" ;;
     plan-review) echo "plans/13_Plan_Day_Assignments.png plans/13c_Program_Equipment.png plans/13d_Plan_Deload_Schedule.png plans/13g_Plan_Exercise_Alternatives.png plans/13h_Plan_Per_Set_Prescription.png plans/13n_Plan_Execution_Block.png plans/13_Plan_Review.png plans/13i_Program_Prescription_Preview.png plans/13b_Plan_Active_Run.png overview/01d_Home_Active_Plan.png" ;;
     program-builder) echo "plans/13j_Program_Definition_Builder.png" ;;
-    program-catalog) echo "plans/13k_Program_Catalog.png plans/13l_Program_Catalog_Detail.png plans/13m_Program_Intake.png" ;;
+    program-catalog) echo "plans/13k_Program_Catalog.png plans/13ka_Program_Catalog_Filters.png plans/13kb_Program_Catalog_Filtered.png plans/13l_Program_Catalog_Detail.png plans/13m_Program_Intake.png" ;;
     plan-calendar) echo "plans/13e_Plan_Calendar.png plans/13f_Plan_Calendar_Day.png" ;;
     training-calendar) echo "calendar/21_Training_Calendar.png calendar/21b_Training_Calendar_Reschedule.png calendar/21c_Training_Calendar_Empty.png" ;;
     hidden) echo "exercises/16_Hidden_Exercises.png" ;;
@@ -139,7 +160,7 @@ files_for_scene() {
   esac
 }
 
-ALL_SCENES="brand overview pages settings-data-safety mobility mobility-assessment nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review t36"
+ALL_SCENES="brand overview pages settings-data-safety coach-exchange journey weightlifting ledger mixed-workout mobility mobility-assessment mobility-profile nutrition active rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review t36"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 
@@ -312,6 +333,7 @@ run_test_list() {
   local rb_dir="$3"
   shift 3
   local tests=("$@")
+  local failed_tests=()
 
   local xcode_args=(
     -quiet
@@ -338,11 +360,23 @@ run_test_list() {
     xcrun simctl terminate "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
     xcrun simctl uninstall "$sim_id" "$APP_BUNDLE_ID" 2>/dev/null || true
     rm -rf "$rb_dir/$CAPTURE_RUN_ID-$result_label.xcresult"
-    xcodebuild "${xcode_args[@]}" \
+    if ! xcodebuild "${xcode_args[@]}" \
       -resultBundlePath "$rb_dir/$CAPTURE_RUN_ID-$result_label.xcresult" \
       "-only-testing:GymTrackerUITEST/$test_target" \
-      test-without-building
+      test-without-building; then
+      if [[ "${CAPTURE_CONTINUE_ON_FAILURE:-false}" == true ]]; then
+        failed_tests+=("$test_name")
+      else
+        return 1
+      fi
+    fi
   done
+
+  if [[ ${#failed_tests[@]} -gt 0 ]]; then
+    echo "=== Screenshot tests failed after remaining scenes were attempted ===" >&2
+    printf '  %s\n' "${failed_tests[@]}" >&2
+    return 1
+  fi
 }
 
 export SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_DIR"
