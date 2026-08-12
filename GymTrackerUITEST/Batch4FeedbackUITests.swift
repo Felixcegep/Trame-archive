@@ -20,12 +20,9 @@ final class Batch4FeedbackUITests: GymTrackerUITestCase {
 
     func testSaveSuccessDismissesReviewAndShowsHistoryEntry() {
         let app = launchFixture("active-partial-save")
-        tapButton("Finish workout", in: app)
+        navigateToWorkoutFinish(in: app)
+        tapButton("finish-workout", in: app)
         tapButton("save-workout", in: app)
-        let partialSave = app.buttons["Save completed sets"]
-        if partialSave.waitForExistence(timeout: 3) {
-            partialSave.tap()
-        }
 
         XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
         let savedBanner = app.descendants(matching: .any)["gym-status-banner"]

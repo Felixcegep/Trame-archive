@@ -66,6 +66,10 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         tapButton("settings-advanced", in: app)
         let shortcuts = app.descendants(matching: .any)["settings-shortcuts-link"]
         XCTAssertTrue(shortcuts.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["settings-seed-two-years"].exists,
+            "Debug Advanced settings should expose the two-year training seed."
+        )
     }
 
     func testAppearanceMenuSupportsSystemDarkAndLightModes() {
@@ -301,13 +305,24 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.staticTexts["active-workout-title"].waitForExistence(timeout: 5))
     }
 
+    func testTodayShowsOneStartActionWhileWorkoutActive() {
+        let app = launchFixture("active-in-progress")
+        tapButton("minimize-workout", in: app)
+
+        let resumeActions = app.buttons.matching(identifier: "resume-active-workout")
+        XCTAssertTrue(resumeActions.firstMatch.waitForExistence(timeout: 10))
+        let duplicateWeekActions = app.buttons.matching(identifier: "today-week-start-session")
+
+        XCTAssertEqual(resumeActions.count + duplicateWeekActions.count, 1)
+    }
+
     func testResumesPersistedRestTimerAfterRelaunch() {
         let app = launchFixture("active-rest-running")
 
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
-        XCTAssertTrue(app.descendants(matching: .any)["Rest between sets"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
         XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "8")
         XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
     }
@@ -333,8 +348,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
             tapButton("+30s", in: app)
         }
 
-        XCTAssertTrue(app.descendants(matching: .any)["Rest between sets"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Pause rest"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["rest-pause-toggle"].exists)
 
         // Ensure the persisted deadline is flushed before the helper shuts
         // down and reboots the simulator. This mirrors the real lifecycle
@@ -356,17 +371,17 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["resume-active-workout"].waitForExistence(timeout: 15))
         resumeActiveWorkout(in: app)
 
-        XCTAssertTrue(app.descendants(matching: .any)["Rest between sets"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Pause rest"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["rest-pause-toggle"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Bench Press"].exists)
         XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "8")
         XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
 
         // Confirm the restored countdown is live, not merely a stale card.
-        tapButton("Pause rest", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["Rest paused"].waitForExistence(timeout: 5))
-        tapButton("Resume rest", in: app)
-        XCTAssertTrue(app.buttons["Pause rest"].waitForExistence(timeout: 5))
+        tapButton("rest-pause-toggle", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["rest-paused"].waitForExistence(timeout: 5))
+        tapButton("rest-pause-toggle", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
     }
 
     func testPersistsDraftSetValuesAfterTermination() {
@@ -391,8 +406,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         relaunchPreservingData(app)
         resumeActiveWorkout(in: app)
 
-        XCTAssertTrue(app.descendants(matching: .any)["Rest paused"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Resume rest"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["rest-paused"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["rest-pause-toggle"].exists)
     }
 
     func testStartSeededTemplateIncludesPrescription() {
@@ -470,9 +485,8 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         startEmptyWorkout(in: app)
 
-        let addExercise = app.buttons["add-active-exercise"]
-        XCTAssertTrue(addExercise.waitForExistence(timeout: 5))
-        addExercise.tap()
+        tapButton("active-workout-menu", in: app)
+        tapButton("add-active-exercise-menu", in: app)
         XCTAssertTrue(app.searchFields["Search exercises"].waitForExistence(timeout: 5))
 
         let pushFilter = app.buttons["exercise-focus-Push"]
@@ -494,9 +508,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         tapButton("Done", in: app)
         dismissKeypadIfPresent(in: app)
 
-        let dumbbellExercise = activeExerciseCard("Dumbbell Bench Press", in: app)
-        scrollToElement(dumbbellExercise, in: app)
-        dumbbellExercise.tap()
+        navigateToActiveExercise("Dumbbell Bench Press", in: app)
         tapButton("weight-field-Dumbbell Bench Press-0", in: app)
         XCTAssertTrue(app.buttons["panel-details"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["panel-chip-plates"].exists)
@@ -509,9 +521,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         // Target the disclosure label itself. The card's combined accessibility
         // button also contains its nested menu button and can resolve to that
         // child after a relaunch, which does not expand the exercise.
-        let legPressExercise = app.staticTexts["active-exercise-Leg Press"]
-        scrollToElement(legPressExercise, in: app)
-        legPressExercise.tap()
+        navigateToActiveExercise("Leg Press", in: app)
         tapButton("weight-field-Leg Press-0", in: app)
         XCTAssertTrue(app.buttons["panel-chip-plates"].waitForExistence(timeout: 5))
     }
@@ -652,7 +662,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["complete-set-Bench Press-4"].waitForExistence(timeout: 5))
         enterValidValues(for: "Bench Press", set: 0, in: app)
         app.buttons["complete-set-Bench Press-0"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["Rest between sets"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["rest-pill"].waitForExistence(timeout: 5))
 
         // Completing a set moves the keypad to the next one, which is the set
         // whose details the deletion below belongs to.
@@ -664,9 +674,6 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["complete-set-Bench Press-3"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["complete-set-Bench Press-4"].exists)
 
-        let exerciseMenu = app.buttons["exercise-menu-Bench Press"]
-        XCTAssertTrue(exerciseMenu.waitForExistence(timeout: 5))
-        exerciseMenu.tap()
         XCTAssertTrue(app.buttons["remove-exercise-Bench Press"].waitForExistence(timeout: 5))
         app.buttons["remove-exercise-Bench Press"].tap()
         app.buttons["confirm-remove-exercise-Bench Press"].firstMatch.tap()
@@ -747,23 +754,17 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let app = launchFreshApp()
         startEmptyWorkout(in: app)
 
-        let finishButton = app.buttons["Finish workout"]
+        let finishButton = app.buttons["finish-workout"]
         XCTAssertFalse(finishButton.exists)
     }
 
     func testSavesCompletedWorkoutToHistory() {
         let app = launchFixture("active-partial-save")
 
-        let finishButton = app.buttons["Finish workout"]
-        XCTAssertTrue(finishButton.waitForExistence(timeout: 5))
-        finishButton.tap()
+        navigateToWorkoutFinish(in: app)
+        tapButton("finish-workout", in: app)
         XCTAssertTrue(app.buttons["save-workout"].waitForExistence(timeout: 5))
         app.buttons["save-workout"].tap()
-
-        let partialSave = app.buttons["Save completed sets"]
-        if partialSave.waitForExistence(timeout: 2) {
-            partialSave.tap()
-        }
 
         XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
         app.terminate()
@@ -777,29 +778,45 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["history-workout-row"].waitForExistence(timeout: 15))
     }
 
-    func testShowsAndAppliesPreviousSessionPerformance() {
+    func testLogSetAcceptsAutofilledPreviousPerformance() {
         let app = launchFreshApp()
         startEmptyWorkout(in: app)
         addExercise("Bench Press", in: app)
         enterValidValues(for: "Bench Press", set: 0, in: app)
         app.buttons["complete-set-Bench Press-0"].tap()
         dismissKeypadIfPresent(in: app)
-        app.buttons["Finish workout"].tap()
+        navigateToWorkoutFinish(in: app)
+        app.buttons["finish-workout"].tap()
         app.buttons["save-workout"].tap()
-        if app.buttons["Save completed sets"].waitForExistence(timeout: 2) {
-            app.buttons["Save completed sets"].tap()
-        }
 
         startEmptyWorkout(in: app)
         addExercise("Bench Press", in: app)
 
         XCTAssertTrue(app.staticTexts["previous-performance-Bench Press"].waitForExistence(timeout: 5))
-        let usePrevious = app.buttons["copy-previous-set-Bench Press-0"]
-        XCTAssertTrue(usePrevious.waitForExistence(timeout: 5))
-        usePrevious.tap()
-
         XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "8")
         XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
+        app.buttons["complete-set-Bench Press-0"].tap()
+        XCTAssertTrue(app.images["editing-set-Bench Press-0"].waitForExistence(timeout: 5))
+    }
+
+    func testPartialSaveHasNoSecondConfirmation() {
+        let app = launchFixture("active-partial-save")
+        navigateToWorkoutFinish(in: app)
+        tapButton("finish-workout", in: app)
+        tapButton("save-workout", in: app)
+
+        XCTAssertFalse(app.buttons["Save completed sets"].waitForExistence(timeout: 1))
+        XCTAssertTrue(app.buttons["start-free-workout"].waitForExistence(timeout: 5))
+    }
+
+    func testProgressToolsDisclosureHidesSpecialistRows() {
+        let app = launchFixture("history-bench", expectsActiveWorkout: false)
+        selectTab(.progress, in: app)
+
+        XCTAssertTrue(app.descendants(matching: .any)["progress-tools-disclosure"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["progress-weightlifting"].exists)
+        tapButton("progress-tools-disclosure", in: app)
+        XCTAssertTrue(app.buttons["progress-weightlifting"].waitForExistence(timeout: 5))
     }
 
     func testDiscardsActiveWorkout() {
@@ -900,16 +917,9 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         let app = launchFixture("plan-partial-save")
         XCTAssertTrue(app.staticTexts["active-workout-title"].label.contains("Fixture Day 1"))
 
-        // Verify that cancelling the partial-save confirmation keeps the draft
-        // intact before exercising the committed path.
-        tapButton("Finish workout", in: app)
+        navigateToWorkoutFinish(in: app)
+        tapButton("finish-workout", in: app)
         tapButton("save-workout", in: app)
-        XCTAssertTrue(app.buttons["Save completed sets"].waitForExistence(timeout: 5))
-        tapButton("keep-editing-partial-save", in: app)
-        XCTAssertTrue(app.buttons["save-workout"].waitForExistence(timeout: 5))
-
-        tapButton("save-workout", in: app)
-        app.buttons["Save completed sets"].tap()
 
         relaunchPreservingData(app)
         selectTab(.history, in: app)

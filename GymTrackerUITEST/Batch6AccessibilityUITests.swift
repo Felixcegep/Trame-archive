@@ -1,16 +1,32 @@
 import XCTest
 
 final class Batch6AccessibilityUITests: GymTrackerUITestCase {
+    func testTrainRowsAndTabBarRemainReachableAtAccessibility3() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-ui-testing", "-reset-data",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityL"
+        ]
+        app.launchWithGymTrackerUITestArguments()
+
+        XCTAssertTrue(app.descendants(matching: .any)["app-preparing"].waitForNonExistence(timeout: 30))
+        selectTab(.train, in: app)
+
+        let plans = app.buttons["plans-browser"]
+        let workouts = app.buttons["workouts-browser"]
+        XCTAssertTrue(plans.waitForExistence(timeout: 10))
+        XCTAssertTrue(workouts.waitForExistence(timeout: 10))
+        XCTAssertGreaterThan(plans.frame.height, 0)
+        XCTAssertGreaterThan(workouts.frame.height, 0)
+        XCTAssertTrue(app.buttons["tab-train"].isHittable)
+    }
+
     func testExerciseReorderMenuPersistsOrderAndExposesOnlyValidDirections() {
         let app = launchFixture("active-superset")
-        tapButton("exercise-menu-Bench Press", in: app)
         XCTAssertFalse(app.buttons["move-exercise-up-Bench Press"].exists)
         XCTAssertTrue(app.buttons["move-exercise-down-Bench Press"].waitForExistence(timeout: 5))
         app.buttons["move-exercise-down-Bench Press"].tap()
 
-        let benchMenu = app.buttons["exercise-menu-Bench Press"]
-        XCTAssertTrue(benchMenu.waitForExistence(timeout: 5))
-        benchMenu.tap()
         XCTAssertTrue(app.buttons["move-exercise-up-Bench Press"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["move-exercise-down-Bench Press"].exists)
 

@@ -199,7 +199,17 @@ class GymTrackerUITestCase: XCTestCase {
         in app: XCUIApplication
     ) {
         tapButton("complete-set-\(exercise)-\(index)", in: app)
-        XCTAssertTrue(app.staticTexts["Rest between sets"].waitForExistence(timeout: 5))
+        let expandedRest = app.descendants(matching: .any)["rest-running"]
+        let collapsedRest = app.buttons["rest-pill"]
+        let restPresented = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in expandedRest.exists || collapsedRest.exists },
+            object: app
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [restPresented], timeout: 5),
+            .completed,
+            "Completing a set should present rest as either the takeover or its focused-input pill."
+        )
         if dismissRest {
             dismissRestIfPresent(in: app)
         }
@@ -380,9 +390,13 @@ class GymTrackerUITestCase: XCTestCase {
     }
 
     func addExercise(_ name: String, in app: XCUIApplication) {
-        let addExercise = app.buttons["add-active-exercise"]
-        XCTAssertTrue(addExercise.waitForExistence(timeout: 5))
-        addExercise.tap()
+        let emptyStateAction = app.buttons["add-active-exercise"]
+        if emptyStateAction.waitForExistence(timeout: 2) {
+            emptyStateAction.tap()
+        } else {
+            tapButton("active-workout-menu", in: app)
+            tapButton("add-active-exercise-menu", in: app)
+        }
 
         let search = app.searchFields["Search exercises"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
@@ -401,6 +415,43 @@ class GymTrackerUITestCase: XCTestCase {
         let closeExercisePicker = app.buttons["close-exercise-picker"]
         XCTAssertTrue(closeExercisePicker.waitForExistence(timeout: 5))
         closeExercisePicker.tap()
+    }
+
+    /// Stage presents one exercise or grouped unit per page. Move forward until
+    /// the requested exercise page is visible instead of scrolling a removed
+    /// all-exercises list.
+    func navigateToActiveExercise(_ name: String, in app: XCUIApplication) {
+        let exercise = app.descendants(matching: .any)["active-exercise-\(name)"]
+        if !exercise.exists {
+            let stageDot = app.buttons.matching(
+                NSPredicate(
+                    format: "identifier BEGINSWITH %@ AND label CONTAINS[c] %@",
+                    "stage-dot-",
+                    name
+                )
+            ).firstMatch
+            XCTAssertTrue(stageDot.waitForExistence(timeout: 5))
+            stageDot.tap()
+        }
+        XCTAssertTrue(exercise.waitForExistence(timeout: 5))
+    }
+
+    /// Finish is a terminal Stage page, not a toolbar action repeated on every
+    /// exercise page.
+    func navigateToWorkoutFinish(in app: XCUIApplication) {
+        let finish = app.buttons["finish-workout"]
+        if !finish.exists {
+            let finishDot = app.buttons.matching(
+                NSPredicate(
+                    format: "identifier BEGINSWITH %@ AND label == %@",
+                    "stage-dot-",
+                    "Finish and review"
+                )
+            ).firstMatch
+            XCTAssertTrue(finishDot.waitForExistence(timeout: 5))
+            finishDot.tap()
+        }
+        XCTAssertTrue(finish.waitForExistence(timeout: 5))
     }
 
     /// Set values are buttons that select themselves, and the panel's keypad is

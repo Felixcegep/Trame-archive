@@ -7,7 +7,6 @@ final class SubstitutionAccessibilityUITests: GymTrackerUITestCase {
             additionalArguments: ["-AppleLanguages", "(fr)", "-AppleLocale", "fr_CA"]
         )
 
-        tapButton("exercise-menu-Bench Press", in: app)
         tapButton("swap-exercise-Bench Press", in: app)
         XCTAssertTrue(app.buttons["swap-reason-preference"].waitForExistence(timeout: 5))
         tapButton("swap-reason-preference", in: app)

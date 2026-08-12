@@ -2,6 +2,19 @@ import XCTest
 @testable import GymTracker
 
 final class ScreenshotUITests: GymTrackerUITestCase {
+    func testCaptureWave1LightModeScreenshots() {
+        let overview = launchFreshApp()
+        saveScreenshot("overview/01_Today_Light")
+
+        selectTab(.train, in: overview)
+        saveScreenshot("overview/02_Train_Light")
+
+        let active = launchFixture("active-empty")
+        tapButton("minimize-workout", in: active)
+        XCTAssertTrue(active.buttons["resume-active-workout"].waitForExistence(timeout: 10))
+        saveScreenshot("overview/05_Home_With_Active_Workout_Light")
+    }
+
     func testCaptureLaunchBrandScreenshot() {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -366,10 +379,10 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     /// existing rest state), and explicit complex-component outcomes.
     func testCaptureMixedWorkoutScreenshots() {
         let eyesUp = launchFixture("active-execution-block")
-        let eyesUpSurface = eyesUp.descendants(matching: .any).matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "execution-block-eyes-up-")
-        ).firstMatch
-        XCTAssertTrue(eyesUpSurface.waitForExistence(timeout: 10))
+        // The Stage page contains the eyes-up card, but its container identifier
+        // is intentionally not flattened through SwiftUI's containment tree.
+        // Assert the visible hero identity and its primary action instead.
+        XCTAssertTrue(eyesUp.staticTexts["Power circuit"].waitForExistence(timeout: 10))
         XCTAssertTrue(eyesUp.buttons["Complete round"].waitForExistence(timeout: 5))
         saveScreenshot("mixed-workout/27_Mixed_Eyes_Up_Runtime")
 
@@ -434,7 +447,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("overview/05_Home_With_Active_Workout")
 
         let inProgress = launchFixture("active-in-progress")
-        tapButton("add-active-exercise", in: inProgress)
+        tapButton("active-workout-menu", in: inProgress)
+        tapButton("add-active-exercise-menu", in: inProgress)
         XCTAssertTrue(inProgress.descendants(matching: .any)["exercise-picker-screen"].waitForExistence(timeout: 5))
         XCTAssertTrue(inProgress.navigationBars["Add Exercise"].exists)
         saveScreenshot("active-workout/06_Add_Exercise_Sheet")
@@ -459,6 +473,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(inProgress.descendants(matching: .any)["set-details-screen"].waitForNonExistence(timeout: 5))
         dismissKeypadIfPresent(in: inProgress)
 
+        tapButton("active-workout-menu", in: inProgress)
         tapButton("add-execution-block", in: inProgress)
         XCTAssertTrue(inProgress.navigationBars["Execution Block"].waitForExistence(timeout: 5))
         XCTAssertTrue(inProgress.buttons["create-execution-block"].exists)
@@ -472,9 +487,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/08e_Discard_Workout")
 
         let executionBlockActive = launchFixture("active-execution-block")
-        XCTAssertTrue(executionBlockActive.staticTexts["EXECUTION BLOCKS"].waitForExistence(timeout: 5))
-        XCTAssertTrue(executionBlockActive.staticTexts["Power circuit"].exists)
-        XCTAssertTrue(executionBlockActive.buttons["Complete round"].exists)
+        XCTAssertTrue(executionBlockActive.staticTexts["Power circuit"].waitForExistence(timeout: 10))
+        XCTAssertTrue(executionBlockActive.buttons["Complete round"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/07d_Execution_Block_Active")
 
         let advancedSet = launchFixture("active-advanced-set")
@@ -507,11 +521,17 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("active-workout/08d_Completed_Exercise_Collapsed")
 
         let partial = launchFixture("active-partial-save")
-        tapButton("Finish workout", in: partial)
+        navigateToWorkoutFinish(in: partial)
+        tapButton("finish-workout", in: partial)
+        XCTAssertTrue(partial.descendants(matching: .any)["workout-sport-section"].waitForExistence(timeout: 5))
         saveScreenshot("review/09_Save_Workout")
-        tapButton("save-workout", in: partial)
-        XCTAssertTrue(partial.buttons["Save completed sets"].waitForExistence(timeout: 5))
-        saveScreenshot("review/09b_Partial_Save_Confirmation")
+
+        let bodyweight = launchFixture("active-bodyweight-save")
+        navigateToWorkoutFinish(in: bodyweight)
+        tapButton("finish-workout", in: bodyweight)
+        XCTAssertTrue(bodyweight.descendants(matching: .any)["body-weight-prompt"].waitForExistence(timeout: 5))
+        XCTAssertTrue(bodyweight.descendants(matching: .any)["workout-sport-section"].exists)
+        saveScreenshot("review/09d_Bodyweight_And_Sport")
     }
 
     /// Kept independent from the wide Active Workout tour: decision-aware
@@ -519,7 +539,6 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     /// its reason → option → explanation → confirmation path.
     func testCaptureDecisionAwareSubstitutionScreenshots() {
         let draft = launchFixture("active-draft")
-        tapButton("exercise-menu-Bench Press", in: draft)
         tapButton("swap-exercise-Bench Press", in: draft)
         XCTAssertTrue(draft.navigationBars["Why are you swapping?"].waitForExistence(timeout: 5))
         tapButton("swap-reason-preference", in: draft)
@@ -624,6 +643,97 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(app.descendants(matching: .any)["rest-ready"].waitForExistence(timeout: 60))
         XCTAssertTrue(app.buttons["Start next set"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/08c_Rest_Ready")
+    }
+
+    /// Captures the two new Stage transitions that persisted-state fixtures do
+    /// not prove: a freshly started rest (with its known-duration arc) and the
+    /// terminal summary reached through Stage navigation.
+    func testCaptureStageTransitionScreenshots() {
+        let rest = launchFixture("active-in-progress")
+        tapButton("complete-set-Bench Press-0", in: rest)
+        XCTAssertTrue(rest.buttons["rest-pill"].waitForExistence(timeout: 5))
+        rest.buttons["rest-pill"].tap()
+        XCTAssertTrue(rest.descendants(matching: .any)["rest-running"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/08u_Fresh_Rest_Transition")
+
+        let finish = launchFixture("active-partial-save")
+        navigateToWorkoutFinish(in: finish)
+        XCTAssertTrue(finish.descendants(matching: .any)["finish-summary"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/08v_Stage_Finish_Summary")
+    }
+
+    func testCaptureActiveWorkoutPanelAndGroupingStates() {
+        let expanded = launchFixture("active-warmup-expanded")
+        XCTAssertTrue(expanded.buttons["warm-up-section-Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertTrue(expanded.buttons["complete-set-Bench Press-0"].exists)
+        saveScreenshot("active-workout/07g_Warmup_Expanded")
+
+        let collapsed = launchFixture("active-warmup-collapsed")
+        XCTAssertTrue(collapsed.buttons["warm-up-section-Bench Press"].waitForExistence(timeout: 5))
+        XCTAssertFalse(collapsed.buttons["complete-set-Bench Press-0"].exists)
+        saveScreenshot("active-workout/07h_Warmup_Collapsed")
+
+        let badges = launchFixture("active-set-type-badges")
+        XCTAssertEqual(badges.staticTexts["set-type-badge-Bench Press-0"].label, "Top set badge T")
+        XCTAssertEqual(badges.staticTexts["set-type-badge-Bench Press-1"].label, "Technique badge Q")
+        saveScreenshot("active-workout/07i_Top_And_Technique_Badges")
+
+        let complex = launchFixture("active-complex-unresolved")
+        tapButton("reps-field-Three-Position Snatch-0", in: complex)
+        XCTAssertTrue(complex.descendants(matching: .any)["panel-component-readiness"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/07j_Complex_Readiness")
+        tapButton("panel-complete-set", in: complex)
+        XCTAssertTrue(complex.descendants(matching: .any)["panel-complex-components"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/07k_Complex_Resolver")
+    }
+
+    func testCaptureWorkoutPreparationLargeDetent() {
+        let app = launchFixture("linked-mobility-workout", expectsActiveWorkout: false)
+        tapButton("start-free-workout", in: app)
+        let template = app.buttons["workout-template-Linked Mobility Screenshot"]
+        for _ in 0..<12 where !template.isHittable { app.swipeUp() }
+        XCTAssertTrue(template.waitForExistence(timeout: 10))
+        template.tap()
+
+        let sheet = app.descendants(matching: .any)["workout-preparation-sheet"]
+        XCTAssertTrue(sheet.waitForExistence(timeout: 10))
+        let window = app.windows.firstMatch
+        let start = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
+        let end = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18))
+        start.press(forDuration: 0.1, thenDragTo: end)
+        // The sheet remains the asserted presentation identity. SwiftUI merges
+        // the pinned action labels into that container at the large detent, so
+        // they are not reliably exposed as separate XCUI elements.
+        XCTAssertTrue(sheet.exists)
+        saveScreenshot("active-workout/08q_Warmup_Preparation_Large")
+    }
+
+    func testCaptureRemainingActiveWorkoutCatalogStates() {
+        let more = launchFixture("active-in-progress")
+        tapButton("reps-field-Bench Press-0", in: more)
+        tapButton("panel-details", in: more)
+        XCTAssertTrue(more.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/07b_Set_Details")
+        tapButton("set-type-more-toggle", in: more)
+        XCTAssertTrue(more.buttons["set-type-option-dailyMaximum"].waitForExistence(timeout: 5))
+        saveScreenshot("active-workout/07g_Set_Details_More_Types")
+
+        let recent = launchFixture("active-recent-set-type")
+        tapButton("reps-field-Bench Press-0", in: recent)
+        tapButton("panel-details", in: recent)
+        XCTAssertTrue(recent.descendants(matching: .any)["set-type-group-recent"].waitForExistence(timeout: 5))
+        XCTAssertTrue(recent.buttons["set-type-recent-dailyMaximum"].exists)
+        saveScreenshot("active-workout/07h_Set_Details_Recent_Types")
+
+        let maximum = launchFixture("active-daily-maximum")
+        XCTAssertTrue(maximum.buttons["select-daily-maximum-Bench Press-0"].waitForExistence(timeout: 5))
+        XCTAssertEqual(maximum.buttons["select-daily-maximum-Bench Press-0"].label, "Selected daily maximum")
+        saveScreenshot("active-workout/08l_Selected_Daily_Maximum")
+
+        let backoff = launchFixture("active-generated-backoff")
+        XCTAssertTrue(backoff.descendants(matching: .any)["set-type-badge-Bench Press-1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(backoff.buttons["complete-set-Bench Press-1"].exists)
+        saveScreenshot("active-workout/08m_Generated_Back_Off")
     }
 
     func testCaptureHistoryScreenshots() {
@@ -787,6 +897,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         storage.launchArguments = ["-ui-testing", "-ui-testing-storage-unavailable"]
         storage.launchWithGymTrackerUITestArguments()
         XCTAssertTrue(storage.descendants(matching: .any)["storage-unavailable"].waitForExistence(timeout: 15))
+        XCTAssertTrue(storage.buttons["storage-export"].waitForExistence(timeout: 5))
+        XCTAssertFalse(storage.buttons["storage-remove"].exists)
         saveScreenshot("overview/00b_Storage_Unavailable")
         storage.terminate()
 
@@ -815,11 +927,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             "active-completed-set",
             additionalArguments: ["-ui-testing-fail-workout-save"]
         )
-        tapButton("Finish workout", in: failedSave)
+        navigateToWorkoutFinish(in: failedSave)
+        tapButton("finish-workout", in: failedSave)
         tapButton("save-workout", in: failedSave)
-        if failedSave.buttons["Save completed sets"].waitForExistence(timeout: 5) {
-            tapButton("Save completed sets", in: failedSave)
-        }
         XCTAssertTrue(failedSave.alerts.firstMatch.waitForExistence(timeout: 10))
         saveScreenshot("review/09c_Save_Failure_Alert")
         failedSave.terminate()
@@ -842,17 +952,16 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(linked.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
         enterValidValues(for: "Bench Press", set: 0, in: linked)
         completeSet("Bench Press", index: 0, dismissRest: true, in: linked)
-        tapButton("Finish workout", in: linked)
+        navigateToWorkoutFinish(in: linked)
+        tapButton("finish-workout", in: linked)
         tapButton("save-workout", in: linked)
-        if linked.buttons["Save completed sets"].waitForExistence(timeout: 5) {
-            tapButton("Save completed sets", in: linked)
-        }
         XCTAssertTrue(linked.buttons["start-linked-cooldown"].waitForExistence(timeout: 10))
         saveScreenshot("active-workout/08r_Cooldown_Prompt")
 
         let history = launchFixture("history-bench", expectsActiveWorkout: false)
         selectTab(.progress, in: history)
         let trendsLink = history.descendants(matching: .any)["progress-training-trends"]
+        scrollToElement(trendsLink, in: history)
         XCTAssertTrue(trendsLink.waitForExistence(timeout: 10))
         trendsLink.tap()
         XCTAssertTrue(history.navigationBars["History"].waitForExistence(timeout: 10))
@@ -915,7 +1024,8 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     func testCapturePerformanceComparisonReviewScreenshot() {
         let app = launchFixture("performance-comparison")
 
-        tapButton("Finish workout", in: app)
+        navigateToWorkoutFinish(in: app)
+        tapButton("finish-workout", in: app)
         let comparison = app.descendants(matching: .any)["performance-comparison"].firstMatch
         scrollToElement(comparison, in: app)
         app.swipeUp()
@@ -1633,66 +1743,77 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         }
     }
 
-    // MARK: - Manual keypad review (not part of the ScreenshotCoverage.md catalog)
+    // MARK: - Active-workout keypad matrix
 
-    /// Walks the `active-all-tracking-types` fixture — one exercise per
-    /// `TrackingType` — and captures its set-entry panel, the keypad it opens,
-    /// and Set Details with Advanced options both collapsed and expanded. This
-    /// is a debug aid for reviewing every keypad configuration in one pass, not
-    /// a canonical product screenshot: it is not wired into any
-    /// `capture_screenshots.sh` scene and is not listed in
-    /// `ScreenshotCoverage.md`. Run it directly:
-    /// `-only-testing:GymTrackerUITEST/ScreenshotUITests/testReviewKeypadForEveryTrackingType`.
-    func testReviewKeypadForEveryTrackingType() {
+    /// Captures every editable field exposed by every `TrackingType`.
+    func testCaptureEveryActiveWorkoutKeypad() {
         let app = launchFixture("active-all-tracking-types")
 
-        func review(_ exerciseName: String, field: String, slug: String) {
+        func capture(
+            _ exerciseName: String,
+            field: String,
+            slug: String,
+            typedDigits: String? = nil,
+            expectedValue: String? = nil
+        ) {
+            XCTAssertTrue(app.staticTexts["active-exercise-\(exerciseName)"].waitForExistence(timeout: 5))
             let target = app.buttons["\(field)-field-\(exerciseName)-0"]
-            if !target.exists {
-                // Target the disclosure label directly. The combined card
-                // accessibility element contains nested menu/disclosure
-                // controls whose XCTest type can vary across iOS runtimes.
-                let card = app.staticTexts["active-exercise-\(exerciseName)"]
-                scrollToElement(card, in: app)
-                card.tap()
-            }
             scrollToElement(target, in: app)
             target.tap()
 
             let pill = app.buttons["panel-value-\(field)"]
             XCTAssertTrue(pill.waitForExistence(timeout: 5), "Panel did not select \(field) for \(exerciseName)")
             XCTAssertTrue(pill.isSelected)
-            saveScreenshot("debug/keypad-\(slug)")
-
-            // Set Details — same destination the panel's "Details" chip and a
-            // set row's advanced entry paths both open — first with Advanced
-            // options collapsed, then expanded.
-            tapButton("panel-details", in: app)
-            XCTAssertTrue(app.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
-            saveScreenshot("debug/details-\(slug)")
-
-            tapButton("set-advanced-options", in: app)
-            XCTAssertTrue(app.buttons["record-set-velocity"].waitForExistence(timeout: 5))
-            saveScreenshot("debug/details-advanced-\(slug)")
-
-            tapButton("close-set-details", in: app)
-            // Wait for the sheet's dismissal animation to finish before acting
-            // again — a tap thrown immediately after can land on the closing
-            // sheet instead of the panel underneath it.
-            XCTAssertTrue(
-                app.descendants(matching: .any)["set-details-screen"].waitForNonExistence(timeout: 5)
-            )
+            if let typedDigits {
+                for digit in typedDigits {
+                    tapButton("keypad-key-\(digit)", in: app)
+                }
+            }
+            if let expectedValue {
+                XCTAssertEqual(
+                    pill.value as? String,
+                    expectedValue,
+                    "Expected \(field) entry to render as \(expectedValue)"
+                )
+            }
+            saveScreenshot("keyboards/\(slug)")
             dismissKeypadIfPresent(in: app)
         }
 
-        review("Bench Press", field: "reps", slug: "01-weight-and-reps")
-        review("Push-Up", field: "reps", slug: "02-reps-only")
-        review("Weighted Pull-Up", field: "reps", slug: "03-weighted-bodyweight")
-        review("Assisted Pull Up", field: "reps", slug: "04-assisted-bodyweight")
-        review("Plank", field: "duration", slug: "05-duration")
-        review("Treadmill Run", field: "duration", slug: "06-duration-and-distance-duration-field")
-        review("Treadmill Run", field: "distance", slug: "07-duration-and-distance-distance-field")
-        review("Stationary Bike", field: "calories", slug: "08-calories")
+        func advance(to exerciseName: String) {
+            tapButton("stage-next", in: app)
+            XCTAssertTrue(app.staticTexts["active-exercise-\(exerciseName)"].waitForExistence(timeout: 5))
+        }
+
+        capture("Bench Press", field: "reps", slug: "01_Weight_And_Reps_Reps")
+        capture("Bench Press", field: "weight", slug: "02_Weight_And_Reps_Weight")
+        advance(to: "Push-Up")
+        capture("Push-Up", field: "reps", slug: "03_Reps_Only")
+        advance(to: "Weighted Pull-Up")
+        capture("Weighted Pull-Up", field: "reps", slug: "04_Weighted_Bodyweight_Reps")
+        capture("Weighted Pull-Up", field: "weight", slug: "05_Weighted_Bodyweight_Weight")
+        advance(to: "Assisted Pull Up")
+        capture("Assisted Pull Up", field: "reps", slug: "06_Assisted_Bodyweight_Reps")
+        capture("Assisted Pull Up", field: "weight", slug: "07_Assisted_Bodyweight_Assistance")
+        advance(to: "Plank")
+        capture(
+            "Plank",
+            field: "duration",
+            slug: "08_Duration",
+            typedDigits: "130",
+            expectedValue: "1:30"
+        )
+        advance(to: "Treadmill Run")
+        capture(
+            "Treadmill Run",
+            field: "duration",
+            slug: "09_Duration_And_Distance_Duration",
+            typedDigits: "130",
+            expectedValue: "1:30"
+        )
+        capture("Treadmill Run", field: "distance", slug: "10_Duration_And_Distance_Distance")
+        advance(to: "Stationary Bike")
+        capture("Stationary Bike", field: "calories", slug: "11_Calories")
     }
 
     // MARK: - Manual caffeine-source review (not part of the ScreenshotCoverage.md catalog)
