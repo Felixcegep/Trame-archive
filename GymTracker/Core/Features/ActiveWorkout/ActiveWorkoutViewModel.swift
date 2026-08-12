@@ -616,6 +616,20 @@ class ActiveWorkoutViewModel {
         activeLoggingMetrics?.restStarted()
     }
 
+    /// The most recent recorded body weight, converted into `unit`.
+    ///
+    /// Used to bound the assistance slider — nothing can take more than all of
+    /// you off the bar. Returns `nil` when nothing has ever been recorded, and
+    /// callers fall back to a generous range rather than inventing a figure.
+    func latestBodyWeight(in unit: WeightType) -> Float? {
+        var descriptor = FetchDescriptor<BodyWeightEntry>(
+            sortBy: [SortDescriptor(\.measuredAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        guard let latest = try? modelContext.fetch(descriptor).first else { return nil }
+        return UnitConversion.weight(latest.value, from: latest.unit, to: unit)
+    }
+
     /// The set the lifter just finished, when its effort is worth asking about.
     ///
     /// Returns `nil` — and so hides the question entirely — unless the exercise

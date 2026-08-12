@@ -33,6 +33,12 @@ struct DefaultsKey {
     /// this value or on HealthKit availability/authorization.
     static let healthKitWorkoutExportEnabled = "healthKitWorkoutExportEnabled"
     static let effortMeasure = "effortMeasure"
+    /// The barbell the plate keypad loads onto, as a `BarKind.id`.
+    ///
+    /// Persisted rather than per-set: a gym has the bar it has, and a women's
+    /// 15 kg bar mistaken for a men's 20 kg one is wrong by five kilos on every
+    /// set of the session.
+    static let selectedBarKind = "selectedBarKind"
     /// How the ready-made catalogue is ordered. The *mode* is remembered; the
     /// ranked order itself never is — it is recomputed from the current profile
     /// on every appearance, so it cannot go stale the way a cached order could.

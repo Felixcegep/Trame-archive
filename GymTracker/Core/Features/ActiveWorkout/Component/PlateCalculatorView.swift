@@ -357,23 +357,14 @@ struct PlateCalculatorView: View {
     // design-system tokens because they identify physical plates.
     private static let barMetalColor = Color(red: 0.62, green: 0.63, blue: 0.66)
 
+    // Delegated to `PlateAppearance` so the calculator and the plate keypad
+    // cannot drift into showing the same disc in two different colours.
     private func plateColor(for plate: Float) -> Color {
-        let isMetric = preferredUnitSystem == .metric
-        switch (isMetric, plate) {
-        case (true, 25), (false, 55): return Color(red: 0.85, green: 0.16, blue: 0.16)
-        case (true, 20), (false, 45): return Color(red: 0.16, green: 0.36, blue: 0.83)
-        case (true, 15), (false, 35): return Color(red: 0.95, green: 0.77, blue: 0.06)
-        case (true, 10), (false, 25): return Color(red: 0.16, green: 0.62, blue: 0.33)
-        case (true, 5), (false, 10): return Color(red: 0.93, green: 0.93, blue: 0.91)
-        case (true, 2.5), (false, 5): return Color(red: 0.85, green: 0.16, blue: 0.16)
-        case (false, 2.5): return Color(red: 0.16, green: 0.62, blue: 0.33)
-        default: return Self.barMetalColor
-        }
+        PlateAppearance.color(for: plate, unitSystem: preferredUnitSystem)
     }
 
     private func plateTextColor(for plate: Float) -> Color {
-        let isLightPlate = (preferredUnitSystem == .metric && plate == 5)
-        return isLightPlate ? Color.gymText : .white
+        PlateAppearance.textColor(for: plate, unitSystem: preferredUnitSystem)
     }
 
     private func addPlatePair(_ plate: Float) {

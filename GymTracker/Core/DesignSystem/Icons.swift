@@ -35,6 +35,9 @@ struct AppIcon {
     static let copy = "doc.on.doc"
     static let duplicate = "plus.square.on.square"
     static let ellipsis = "ellipsis"
+    /// Switching an input surface to free typing — the escape hatch on the
+    /// duration keypad, where presets are the default.
+    static let keyboard = "keyboard"
     static let options = "ellipsis.circle"
     static let edit = "pencil"
     static let lock = "lock.fill"

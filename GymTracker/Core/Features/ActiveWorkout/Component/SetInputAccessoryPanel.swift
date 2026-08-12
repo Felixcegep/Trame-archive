@@ -25,6 +25,18 @@ struct SetInputAccessoryPanel: View {
     @State var isShowingPlateCalculator = false
     @State var isShowingSetDetails = false
     @State private var weightStepSelection: WeightStepSelection = .equipment
+    /// Set when the lifter asks for the digit pad on a duration field. Reset on
+    /// every focus change, so the presets are always what a timed set opens
+    /// with — the exception has to be asked for each time it is wanted.
+    @State private var isTypingExactValue = false
+    /// What the lifter actually put on the bar, in the order they put it there.
+    /// `nil` means the weight arrived some other way and the stack is derived.
+    @State private var plateComposition: PlateLoadComposition?
+    @State private var plateCompositionSetID: PersistentIdentifier?
+    /// The bar in use. Persisted across sessions because a lifter's gym has the
+    /// bar it has — re-picking it on every set would be the annoyance, not the
+    /// safeguard.
+    @AppStorage(DefaultsKey.selectedBarKind) private var selectedBarID: String = BarKind.mensOlympic.id
 
     private enum WeightStepSelection {
         case fine
@@ -49,6 +61,22 @@ struct SetInputAccessoryPanel: View {
         switch field {
         case .repetitions, .weight, .distance: true
         case .duration, .calories: false
+        }
+    }
+
+    private func handleDuration(_ key: DurationKey, set: ExerciseSet) {
+        switch key {
+        case .preset(let seconds):
+            setValue(seconds, field: .duration, set: set)
+        case .adjust(let seconds):
+            adjust(field: .duration, by: seconds, set: set)
+        case .backspace:
+            setValue(0, field: .duration, set: set)
+        case .digits:
+            isTypingExactValue = true
+            // The presets write straight to the model, so any half-typed text
+            // from an earlier digit session would now disagree with it.
+            coordinator.endEntry(ifEditing: .duration)
         }
     }
 
@@ -107,6 +135,36 @@ struct SetInputAccessoryPanel: View {
                     // they are already looking.
                     if isResolvingComponents(set) {
                         complexComponentResolver(set: set)
+                    } else if focusedField == .weight,
+                              exercise.trackingTypeSnapshot == .assistedBodyweight,
+                              !isTypingExactValue {
+                        // Assistance runs backwards from every other number in
+                        // the app. See `AssistKeypad` for why it gets a control
+                        // that states its direction instead of a digit pad.
+                        AssistKeypad(
+                            value: Double(set.weight),
+                            unitLabel: set.weightType.rawValue,
+                            maximum: assistMaximum(for: set),
+                            step: assistStep(for: set),
+                            onChange: { setValue($0, field: .weight, set: set) },
+                            onAdjust: { adjust(field: .weight, by: $0, set: set) },
+                            onDigits: {
+                                isTypingExactValue = true
+                                coordinator.endEntry(ifEditing: .weight)
+                            }
+                        )
+                    } else if focusedField == .weight,
+                              usesPerSidePlates(exercise),
+                              !isTypingExactValue {
+                        // Loading a bar is the one weight entry nobody does by
+                        // computing a total. See `PlateKeypad`.
+                        plateKeypad(exercise: exercise, set: set)
+                    } else if focusedField == .duration, !isTypingExactValue {
+                        // Timed work gets its own keyboard. See `DurationKeypad`
+                        // for why a digit pad is the wrong instrument here.
+                        DurationKeypad { key in
+                            handleDuration(key, set: set)
+                        }
                     } else {
                         NumericKeypad(
                             decimalSeparator: decimalSeparator,
@@ -148,6 +206,12 @@ struct SetInputAccessoryPanel: View {
         }
         .shadow(color: Color.gymText.opacity(0.03), radius: 6, y: -2)
         .animation(reduceMotion ? nil : AppMotion.compact, value: coordinator.focus)
+        // Moving to another field or another set puts the duration keypad back
+        // to its presets. The digit pad is the exception, and an exception that
+        // persists silently becomes the default nobody chose.
+        .onChange(of: coordinator.focus) { _, _ in
+            isTypingExactValue = false
+        }
         // The refusal is cleared by the coordinator's own focus setter, so the
         // blocked path can set focus first and record the message second
         // without the two racing. Nothing to reset here.
@@ -804,16 +868,18 @@ struct SetInputAccessoryPanel: View {
         .accessibilityIdentifier("quick-value-\(value.label)")
     }
 
+    /// The row's caption, when it has one.
+    ///
+    /// Always `nil` now. Both cases that used a caption — per-side plates and
+    /// assistance — hand their whole vocabulary to a dedicated keypad, so the
+    /// only chip left here is `Last …`, which needs no explaining. Keeping
+    /// "Add per side" or "Less assistance is harder" above a single
+    /// last-time shortcut would label the wrong control.
+    ///
+    /// Kept as a hook rather than deleted: the next field that grows a quick
+    /// row needing explanation has one place to add it.
     private func quickValueCaption(exercise: ExerciseEntry, set: ExerciseSet) -> String? {
-        switch focusedField {
-        case .weight:
-            if exercise.trackingTypeSnapshot == .assistedBodyweight {
-                return String(localized: "Less assistance is harder")
-            }
-            return usesPerSidePlates(exercise) ? String(localized: "Add per side") : nil
-        case .duration, .calories, .distance, .repetitions:
-            return nil
-        }
+        nil
     }
 
     private func quickValues(exercise: ExerciseEntry, set: ExerciseSet) -> [QuickValue] {
@@ -834,21 +900,18 @@ struct SetInputAccessoryPanel: View {
 
         switch focusedField {
         case .weight:
-            // Below the bar there is nothing to add plates *to*. Offering
-            // "+1.25 per side" at 15 kg on a 20 kg bar describes a bar that
-            // cannot exist, so the row falls back to plain increments until the
-            // weight clears the bar.
-            if usesPerSidePlates(exercise), Double(set.weight) >= barWeight(for: exercise, set: set) {
-                // A plate goes on both ends, so the bar gains twice the label.
-                for plate in plateValues(for: set) {
-                    values.append(
-                        QuickValue(
-                            label: "+\(Formatters.formatFloat(Float(plate)))",
-                            kind: .delta(plate * 2),
-                            accessibilityLabel: String(localized: "Add a \(Formatters.formatFloat(Float(plate))) \(set.weightType.rawValue) plate per side, \(Formatters.formatFloat(Float(plate * 2))) on the bar")
-                        )
-                    )
-                }
+            // A loaded bar has no quick values: `PlateKeypad` is the input
+            // surface there and its keys *are* the plates, in colour. Repeating
+            // them here would put the same discs on screen twice. `Last …`
+            // still applies above — it is the one shortcut the plate keys
+            // cannot express.
+            // Assisted work has no quick values either. `AssistKeypad` owns the
+            // whole range and moves in both directions; this row could only
+            // ever offer `+`, so it sat under the caption "less assistance is
+            // harder" while providing no way to get less. A control that
+            // contradicts its own label is worse than no control.
+            if usesPerSidePlates(exercise) || exercise.trackingTypeSnapshot == .assistedBodyweight {
+                break
             } else {
                 let step = coarseWeightStep(for: exercise, set: set)
                 for multiple in [1.0, 2.0, 4.0] {
@@ -864,17 +927,11 @@ struct SetInputAccessoryPanel: View {
             }
 
         case .duration:
-            // Absolute, and named the way a hold is named. Nobody adds eleven
-            // seconds to a plank; they do a minute.
-            for seconds in [30.0, 45.0, 60.0, 90.0, 120.0] {
-                values.append(
-                    QuickValue(
-                        label: ClockEntry.clockText(seconds: seconds),
-                        kind: .absolute(seconds),
-                        accessibilityLabel: String(localized: "Set duration to \(Int(seconds)) seconds")
-                    )
-                )
-            }
+            // Nothing. `DurationKeypad` *is* the presets for a timed set, so
+            // repeating them here would put the same six values on screen
+            // twice. The `Last …` chip above still applies, which is the one
+            // duration shortcut the grid cannot express.
+            break
 
         case .calories:
             for amount in [10.0, 25.0, 50.0] {
@@ -928,32 +985,145 @@ struct SetInputAccessoryPanel: View {
             && exercise.loggingSemanticsSnapshot.weightEntryStyle != .perLoadUnit
     }
 
-    /// The empty bar's weight in the set's own unit, or zero where there is no
-    /// bar (a plate-loaded machine carries its own resistance).
-    private func barWeight(for exercise: ExerciseEntry, set: ExerciseSet) -> Double {
-        let equipment = PlateEquipment(
+    // MARK: - Plate keypad
+
+    private func plateEquipment(for exercise: ExerciseEntry, set: ExerciseSet) -> PlateEquipment {
+        PlateEquipment(
             unitSystem: set.weightType == .kg ? .metric : .imperial,
-            selectedBarID: BarKind.mensOlympic.id,
+            selectedBarID: selectedBarID,
             usesBarbell: exercise.exercise.equipmentType == .barbell
         )
-        return Double(equipment.barWeight)
     }
 
-    /// The plates worth a dedicated key, drawn from the same rack the plate
-    /// calculator solves against so the two can never describe different gyms.
+    /// What is on the bar right now, one side.
     ///
-    /// Trimmed to the five lightest that fit a row — kg: 1.25 · 2.5 · 5 · 10 ·
-    /// 15, lb: 1 · 2.5 · 5 · 10 · 25. The two heaviest are dropped because a
-    /// jump of 40–50 on the bar is a weight you type rather than tap toward.
-    private func plateValues(for set: ExerciseSet) -> [Double] {
-        let rack = set.weightType == .kg
-            ? Constants.Barbell.metricPlates
-            : Constants.Barbell.imperialPlates
-        return rack
-            .sorted()
-            .prefix(5)
-            .map(Double.init)
+    /// The lifter's own loading order wins when there is one. Falling back to a
+    /// solve covers every way a weight can arrive without being loaded here — a
+    /// typed value, `Last 80`, a template's prescription — so the stack is
+    /// always populated even though nothing was pressed.
+    private func loadedPlates(equipment: PlateEquipment, set: ExerciseSet) -> [Float] {
+        if let composition = plateComposition,
+           plateCompositionSetID == set.persistentModelID,
+           abs(composition.totalWeight(barWeight: equipment.barWeight) - set.weight) < 0.001 {
+            return composition.plates
+        }
+        return solvedPlates(equipment: equipment, target: set.weight)
     }
+
+    private func solvedPlates(equipment: PlateEquipment, target: Float) -> [Float] {
+        PlateCalculation(
+            target: target,
+            barWeight: equipment.barWeight,
+            plates: equipment.plates
+        ).plates
+    }
+
+    private func plateKeypad(exercise: ExerciseEntry, set: ExerciseSet) -> some View {
+        let equipment = plateEquipment(for: exercise, set: set)
+        let loaded = loadedPlates(equipment: equipment, set: set)
+        let solved = solvedPlates(equipment: equipment, target: set.weight)
+        let remainder = PlateCalculation(
+            target: set.weight,
+            barWeight: equipment.barWeight,
+            plates: equipment.plates
+        ).remainingWeight
+
+        return PlateKeypad(
+            target: set.weight,
+            barWeight: equipment.barWeight,
+            availablePlates: equipment.plates,
+            loadedPerSide: loaded,
+            optimizedCount: solved.isEmpty ? nil : solved.count,
+            hasRemainder: remainder > 0.001,
+            unitSystem: set.weightType == .kg ? .metric : .imperial,
+            unitLabel: set.weightType.rawValue,
+            selectedBarID: $selectedBarID,
+            onKey: { handlePlate($0, exercise: exercise, set: set) }
+        )
+    }
+
+    /// Writes a composition and the total it produces, together, so the number
+    /// above the stack can never disagree with the discs under it.
+    private func commitComposition(
+        _ composition: PlateLoadComposition,
+        equipment: PlateEquipment,
+        set: ExerciseSet
+    ) {
+        plateComposition = composition
+        plateCompositionSetID = set.persistentModelID
+        setValue(Double(composition.totalWeight(barWeight: equipment.barWeight)), field: .weight, set: set)
+    }
+
+    private func handlePlate(_ key: PlateKey, exercise: ExerciseEntry, set: ExerciseSet) {
+        let equipment = plateEquipment(for: exercise, set: set)
+
+        // Start from what is on the bar, whether the lifter loaded it here or it
+        // arrived as a number and was solved for display.
+        var composition = PlateLoadComposition(
+            plates: loadedPlates(equipment: equipment, set: set)
+        )
+
+        switch key {
+        case .plate(let plate):
+            composition.add(plate)
+            commitComposition(composition, equipment: equipment, set: set)
+
+        case .bareBar:
+            commitComposition(PlateLoadComposition(), equipment: equipment, set: set)
+
+        case .removeLast:
+            // The *last one on*, not the largest. With loading order preserved
+            // this is a true undo: press 10, press 25, remove — and the 10 is
+            // still there, because that is what would happen at the rack.
+            guard let last = composition.plates.last else {
+                commitComposition(PlateLoadComposition(), equipment: equipment, set: set)
+                return
+            }
+            composition.remove(last)
+            commitComposition(composition, equipment: equipment, set: set)
+
+        case .optimize:
+            // Same total, fewest discs. Only ever reachable from a button that
+            // has already said how many it would save.
+            let solved = solvedPlates(equipment: equipment, target: set.weight)
+            commitComposition(PlateLoadComposition(plates: solved), equipment: equipment, set: set)
+
+        case .digits:
+            // A typed weight is no longer described by these discs, so the
+            // stack goes back to being derived rather than remembered.
+            plateComposition = nil
+            plateCompositionSetID = nil
+            isTypingExactValue = true
+            coordinator.endEntry(ifEditing: .weight)
+        }
+    }
+
+    /// How far one press of the assistance slider moves.
+    ///
+    /// Not `fineWeightStep`: that is a microplate, and an assistance stack does
+    /// not have microplates. It also made the slider draw a tick per kilogram —
+    /// a hundred of them across the track, which rendered as a dotted grey line
+    /// under the thumb and made the quick keys read `−1 / +1` on a machine whose
+    /// smallest real change is five.
+    private func assistStep(for set: ExerciseSet) -> Double {
+        set.weightType == .kg ? 5 : 10
+    }
+
+    /// The most assistance the slider will offer.
+    ///
+    /// Capped at body weight when it is known, because nothing can take more
+    /// than all of you off the bar — a pull-up assisted by more than you weigh
+    /// is not a rep. Without a recorded body weight it falls back to a machine-
+    /// sized range, which is generous rather than wrong: the digit pad is one
+    /// tap away for anything beyond it.
+    private func assistMaximum(for set: ExerciseSet) -> Double {
+        if let bodyWeight = viewModel.latestBodyWeight(in: set.weightType), bodyWeight > 0 {
+            return Double(bodyWeight)
+        }
+        return set.weightType == .kg ? 100 : 220
+    }
+
+
 
     private func quickLabel(_ value: Double) -> String {
         focusedField == .duration
