@@ -771,6 +771,7 @@ struct DataSettingsView: View {
 private struct AdvancedSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var isShowingResetConfirmation = false
+    @State private var isShowingTrainingSeedConfirmation = false
 
     var body: some View {
         Form {
@@ -785,6 +786,14 @@ private struct AdvancedSettingsView: View {
 
             #if DEBUG
             Section {
+                Button {
+                    isShowingTrainingSeedConfirmation = true
+                } label: {
+                    Label("Seed 2 Years of Training", systemImage: AppIcon.chart)
+                        .foregroundStyle(Color.gymPrimary)
+                }
+                .accessibilityIdentifier("settings-seed-two-years")
+
                 Button(role: .destructive) {
                     isShowingResetConfirmation = true
                 } label: {
@@ -795,7 +804,7 @@ private struct AdvancedSettingsView: View {
             } header: {
                 Text("Development")
             } footer: {
-                Text("Removes workout history, saved workouts, training plans, and custom exercises, then restores the built-in exercise catalogue.")
+                Text("The seed replaces development data with two years of completed training. Reset removes workout history, saved workouts, training plans, and custom exercises, then restores the built-in exercise catalogue.")
             }
             #endif
         }
@@ -811,6 +820,13 @@ private struct AdvancedSettingsView: View {
         } message: {
             Text("This cannot be undone.")
         }
+        .confirmationDialog("Seed two years of training?", isPresented: $isShowingTrainingSeedConfirmation, titleVisibility: .visible) {
+            Button("Seed training data") {
+                seedTwoYearsOfTraining()
+            }
+        } message: {
+            Text("This replaces the current development data with a realistic completed workout history. It cannot be undone.")
+        }
     }
 
     private func resetDevelopmentData() {
@@ -821,7 +837,128 @@ private struct AdvancedSettingsView: View {
             print("Failed to reset development data: \(error)")
         }
     }
+
+    private func seedTwoYearsOfTraining() {
+        do {
+            try modelContext.clearAllGymData()
+            _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: modelContext)
+            try DevelopmentTrainingSeeder.seed(in: modelContext)
+        } catch {
+            print("Failed to seed two years of training: \(error)")
+        }
+    }
 }
+
+#if DEBUG
+/// Creates enough completed, varied evidence to exercise History and Progress
+/// during development without becoming a second production catalogue.
+@MainActor
+enum DevelopmentTrainingSeeder {
+    private struct Phase {
+        let name: String
+        let weeks: Range<Int>
+        let sessions: [[String]]
+    }
+
+    private static let phases = [
+        Phase(
+            name: "Powerlifting",
+            weeks: 0..<26,
+            sessions: [
+                ["Back Squat", "Bench Press", "Deadlift", "Barbell Row"],
+                ["Bench Press", "Overhead Press", "Barbell Row", "Romanian Deadlift"],
+                ["Deadlift", "Back Squat", "Incline Bench Press", "Pull Up"]
+            ]
+        ),
+        Phase(
+            name: "Olympic Weightlifting",
+            weeks: 26..<52,
+            sessions: [
+                ["Snatch", "Snatch Pull", "Front Squat", "Overhead Press"],
+                ["Clean and Jerk", "Clean Pull", "Front Squat", "Jerk"],
+                ["Power Snatch", "Power Clean", "Jerk", "Romanian Deadlift"]
+            ]
+        ),
+        Phase(
+            name: "PPL",
+            weeks: 52..<78,
+            sessions: [
+                ["Bench Press", "Overhead Press", "Incline Bench Press", "Triceps Pushdown"],
+                ["Barbell Row", "Pull Up", "Lat Pulldown", "Barbell Curl"],
+                ["Back Squat", "Romanian Deadlift", "Leg Press", "Bulgarian Split Squat"]
+            ]
+        ),
+        Phase(
+            name: "Exploration",
+            weeks: 78..<92,
+            sessions: [
+                ["Hang Clean", "Front Squat", "Ring Dip", "Lateral Raise"],
+                ["Muscle-Up", "Pistol Squat", "Barbell Row", "Hollow Body Hold"],
+                ["Snatch Balance", "Jerk from Rack", "Clean High Pull", "Nordic Hamstring Curl"]
+            ]
+        ),
+        Phase(
+            name: "Strength & Hypertrophy",
+            weeks: 92..<104,
+            sessions: [
+                ["High-Bar Back Squat", "Bench Press", "Romanian Deadlift", "Barbell Row"],
+                ["Deadlift", "Overhead Press", "Pull Up", "Dumbbell Incline Press"],
+                ["Front Squat", "Incline Bench Press", "Lat Pulldown", "Bulgarian Split Squat"]
+            ]
+        )
+    ]
+
+    static func seed(in context: ModelContext, calendar: Calendar = .current, now: Date = .now) throws {
+        let exercises = try context.fetch(FetchDescriptor<Exercise>())
+        let fallback = Array(exercises.filter { $0.trackingType == .weightAndReps }.prefix(4))
+        func resolve(_ name: String) -> Exercise? {
+            exercises.first { $0.name.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame }
+                ?? fallback.first
+        }
+
+        let start = calendar.date(byAdding: .year, value: -2, to: now) ?? now.addingTimeInterval(-63115200)
+        for week in 0..<104 {
+            for day in 0..<3 {
+                guard let phase = phases.first(where: { $0.weeks.contains(week) }) else { continue }
+                let sessionNames = phase.sessions[day]
+                let usable = sessionNames.compactMap(resolve)
+                guard usable.count >= 3 else { continue }
+                let dayOffset = (week * 7) + [0, 2, 4][day]
+                guard let sessionStart = calendar.date(byAdding: .day, value: dayOffset, to: start) else { continue }
+                let duration = TimeInterval(48 * 60 + ((week + day) % 18) * 60)
+                let end = sessionStart.addingTimeInterval(duration)
+                let workout = Workout(name: "\(phase.name) · Day \(day + 1)", endTime: end)
+                workout.startTime = sessionStart
+                var entries: [ExerciseEntry] = []
+                for (index, exercise) in usable.enumerated() {
+                    let entry = ExerciseEntry(exercise: exercise, orderIndex: index, usedMetric: .metric)
+                    let base = Float(45 + (week * (index + 1)) / 5 + day * 5)
+                    var sets: [ExerciseSet] = []
+                    for setIndex in 0..<3 {
+                        let repetitions = Float(5 + ((week + setIndex + day) % 5))
+                        let weight = base + Float(setIndex * 2)
+                        let rpe = 7.0 + Double((week + setIndex) % 3) * 0.5
+                        let set = ExerciseSet(
+                            repetitions: repetitions,
+                            weight: weight,
+                            done: true,
+                            rpe: rpe,
+                            orderIndex: setIndex,
+                            usedMetric: .metric
+                        )
+                        sets.append(set)
+                    }
+                    entry.sets = sets
+                    entries.append(entry)
+                }
+                workout.exercises = entries
+                context.insert(workout)
+            }
+        }
+        try context.save()
+    }
+}
+#endif
 
 extension Notification.Name {
     static let gymDataRestored = Notification.Name("gymDataRestored")

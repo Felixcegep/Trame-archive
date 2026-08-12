@@ -7,6 +7,13 @@ import Foundation
 /// food, supplements, a daily questionnaire. This is the same space answering
 /// the question the screen is actually for: am I training this week.
 struct TrainingWeekSummary: Equatable, Sendable {
+    /// A session the schedule expects, reduced to the two facts the strip can
+    /// state: which day, and what it is called.
+    struct ScheduledDay: Equatable, Sendable {
+        let date: Date
+        let title: String
+    }
+
     struct Day: Equatable, Sendable, Identifiable {
         let date: Date
         /// One locale-aware letter, e.g. "M". Reinforcement for the marks; the
@@ -15,6 +22,14 @@ struct TrainingWeekSummary: Equatable, Sendable {
         let workoutCount: Int
         let isToday: Bool
         let isFuture: Bool
+        /// Whether the schedule expects a session here and it has not happened.
+        ///
+        /// Only ever true for today or a future day. A past day that was
+        /// scheduled and not trained is deliberately *not* marked: calling it
+        /// "missed" is a judgement `PlanCoordinator` already owns — it can be
+        /// rescheduled, skipped, or simply late — and a strip on Today is not
+        /// the place to assert it.
+        let isScheduled: Bool
 
         var isTrained: Bool { workoutCount > 0 }
         var id: Date { date }
@@ -23,6 +38,8 @@ struct TrainingWeekSummary: Equatable, Sendable {
     let days: [Day]
     let workoutCount: Int
     let setCount: Int
+    /// The next expected session from today onward, if the schedule names one.
+    let nextScheduled: ScheduledDay?
 
     var hasTraining: Bool { workoutCount > 0 }
 }
@@ -33,8 +50,12 @@ extension TrainingWeekSummary {
     ///   order is a requirement rather than an assumption because it lets this
     ///   stop at the week boundary instead of walking a lifetime of history on
     ///   every render.
+    /// - Parameter scheduled: sessions the plan expects, in any order. Days
+    ///   already trained still render as trained — a schedule entry is an
+    ///   expectation, and a completed session outranks one.
     static func make(
         recentWorkoutsNewestFirst workouts: [Workout],
+        scheduled: [ScheduledDay] = [],
         now: Date = .now,
         calendar: Calendar = .current
     ) -> TrainingWeekSummary {
@@ -58,20 +79,46 @@ extension TrainingWeekSummary {
             setCount += workout.completedSetCount
         }
 
+        // Earliest expectation per day. Two sessions on one date collapse to one
+        // mark, because the strip has one mark per day to give.
+        var scheduledByDay: [Date: ScheduledDay] = [:]
+        for entry in scheduled {
+            let dayStart = calendar.startOfDay(for: entry.date)
+            if scheduledByDay[dayStart] == nil {
+                scheduledByDay[dayStart] = ScheduledDay(date: dayStart, title: entry.title)
+            }
+        }
+
         let days = dayStarts.map { dayStart in
-            Day(
+            let workoutCount = countsByDay[dayStart] ?? 0
+            return Day(
                 date: dayStart,
                 initial: dayStart.formatted(.dateTime.weekday(.narrow)),
-                workoutCount: countsByDay[dayStart] ?? 0,
+                workoutCount: workoutCount,
                 isToday: dayStart == today,
-                isFuture: dayStart > today
+                isFuture: dayStart > today,
+                // Trained beats scheduled: once the session exists, what was
+                // expected is no longer the news. Past days are never marked —
+                // see `Day.isScheduled`.
+                isScheduled: workoutCount == 0
+                    && dayStart >= today
+                    && scheduledByDay[dayStart] != nil
             )
         }
+
+        // Read from the whole schedule rather than from `days`, so a session
+        // later this month still answers "what's next" in a week with nothing
+        // left in it.
+        let nextScheduled = scheduled
+            .map { ScheduledDay(date: calendar.startOfDay(for: $0.date), title: $0.title) }
+            .filter { $0.date >= today }
+            .min { $0.date < $1.date }
 
         return TrainingWeekSummary(
             days: days,
             workoutCount: weekWorkouts.count,
-            setCount: setCount
+            setCount: setCount,
+            nextScheduled: nextScheduled
         )
     }
 

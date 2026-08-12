@@ -107,8 +107,8 @@ struct SetRowStatusControl: View {
 
     @ViewBuilder
     private var setTypeAccessory: some View {
-        if exerciseSet.setType != .normal {
-            Image(systemName: exerciseSet.setType.icon)
+        if let shortLabel = exerciseSet.setType.shortLabel {
+            Text(shortLabel)
                 .font(AppFont.caption2Bold)
                 .foregroundStyle(exerciseSet.setType.accentColor ?? Color.gymSubduedText)
                 .frame(width: 18, height: 18)
@@ -117,8 +117,8 @@ struct SetRowStatusControl: View {
                 .overlay {
                     Circle().stroke(Color.gymBorder, lineWidth: 1)
                 }
-                .accessibilityHidden(true)
-                .accessibilityIdentifier("set-type-\(exerciseEntry.exercise.name)-\(index)")
+                .accessibilityLabel("\(exerciseSet.setType.title) badge \(shortLabel)")
+                .accessibilityIdentifier("set-type-badge-\(exerciseEntry.exercise.name)-\(index)")
         }
     }
 }

@@ -28,10 +28,43 @@ final class SetInputCoordinator {
             // visible and the first digit replaces it, which is how a lifter
             // retypes a load mid-set.
             entryText = nil
+            // Moving to another value means the lifter has moved on from
+            // whatever was refused. Clearing here — rather than in a view's
+            // `onChange` — is what lets the blocked path set focus first and
+            // record the refusal second without the two fighting.
+            blockedMessage = nil
         }
     }
 
     private var focusStorage: SetInputFocus?
+
+    /// Why the last completion attempt was refused, or `nil` if nothing has
+    /// been refused since the lifter last moved.
+    ///
+    /// This lives on the coordinator rather than inside the entry panel because
+    /// a set can be completed from three places — the panel's own button, the
+    /// command bar's "Log set", and a VoiceOver action on the row — and only
+    /// one of them used to be able to say why it failed. Tapping "Log set" and
+    /// getting a keypad with no explanation is the same dead end as a message
+    /// nobody sees, arrived at from the other direction.
+    private(set) var blockedMessage: String?
+
+    /// Bumped on every refusal, including repeats of the same one. Views drive
+    /// the shake and the haptic off this, so a second identical attempt is
+    /// answered as loudly as the first — that is exactly when the lifter is
+    /// most stuck.
+    private(set) var blockedAttemptCount = 0
+
+    /// Records a refused completion. Set `focus` to the blocking field *before*
+    /// calling this; the focus setter clears the message.
+    func recordBlockedAttempt(_ message: String) {
+        blockedMessage = message
+        blockedAttemptCount += 1
+    }
+
+    func clearBlockedAttempt() {
+        blockedMessage = nil
+    }
 
     /// Digits typed since the focused value was selected, or `nil` when nothing
     /// has been typed yet. The displayed value comes from the set until this
@@ -149,6 +182,13 @@ final class SetInputCoordinator {
     /// is the one being typed into, and the stored value otherwise.
     func displayText(for input: SetInputFocus, storedValue: String) -> String {
         guard focus == input, let entryText else { return storedValue }
+        // Duration is typed right-to-left as a clock, so the in-progress entry
+        // has to be formatted the same way the committed value is. Echoing the
+        // raw digits would show "130" for one keystroke and then "1:30" once
+        // focus moved — the field disagreeing with itself.
+        if input.field == .duration, let clock = ClockEntry.displayText(forTypedDigits: entryText) {
+            return clock
+        }
         return entryText
     }
 

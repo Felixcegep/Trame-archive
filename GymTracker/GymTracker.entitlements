@@ -3,9 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>com.apple.developer.healthkit</key>
-	<array>
-		<string>health-records</string>
-	</array>
+	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.felix.GymTracker</string>

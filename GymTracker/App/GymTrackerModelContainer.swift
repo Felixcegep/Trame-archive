@@ -171,7 +171,7 @@ enum GymTrackerSchemaMigrationPlan: SchemaMigrationPlan {
 enum GymTrackerModelContainer {
     enum BootstrapState {
         case ready(ModelContainer)
-        case unavailable(String)
+        case unavailable(message: String, storeURL: URL)
     }
 
     /// A failed store open should not terminate the process: the app renders a
@@ -193,7 +193,11 @@ enum GymTrackerModelContainer {
         // launch, and the branch attaches no context, exactly like the real
         // failure path.
         if AppLaunchArguments.current.contains("-ui-testing-storage-unavailable") {
-            return .unavailable("Simulated store failure for screenshot capture.")
+            let configuration = GymTrackerPersistenceConfiguration().makeModelConfiguration()
+            return .unavailable(
+                message: "Simulated store failure for screenshot capture.",
+                storeURL: configuration.url
+            )
         }
         let persistence = GymTrackerPersistenceConfiguration()
         // Build the configuration once and reuse it, so the store that gets
@@ -220,7 +224,10 @@ enum GymTrackerModelContainer {
         } catch {
             print("Unable to create GymTracker's persistent model container: \(error)")
             let recovery = backupOutcome.recoveryDescription.map { " \($0)" } ?? ""
-            return .unavailable("\(error.localizedDescription)\(recovery)")
+            return .unavailable(
+                message: "\(error.localizedDescription)\(recovery)",
+                storeURL: configuration.url
+            )
         }
     }()
 

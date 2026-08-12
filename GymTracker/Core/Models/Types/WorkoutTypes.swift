@@ -48,7 +48,10 @@ enum SetType: String, Codable, CaseIterable {
         case .backoff: "B"
         case .topSet: "T"
         case .amrap: "A"
-        case .technique: "T"
+        // Not "T": that is the top set, and a top set is close to the opposite
+        // of a technique set — the heaviest thing in the session versus a
+        // deliberately light one. Two set types cannot share a badge.
+        case .technique: "Q"
         case .dailyMaximum: "M"
         case .test: "X"
         case .recovery: "R"

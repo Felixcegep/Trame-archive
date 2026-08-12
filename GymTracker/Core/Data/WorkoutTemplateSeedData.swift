@@ -218,7 +218,8 @@ enum WorkoutTemplateSeedData {
         )
     ]
 
-    private static let definitions: [TemplateDefinition] = [
+    private static var definitions: [TemplateDefinition] {
+        var values: [TemplateDefinition] = [
         TemplateDefinition(
             seedKey: "workout-template.day-1--u2013--lower-body--u28-squat-focus-u29",
             name: "Day 1 – Lower Body (Squat Focus)",
@@ -549,7 +550,32 @@ enum WorkoutTemplateSeedData {
                 Prescription(exerciseName: "Plank", sets: 3, minimum: 20, maximum: 30, rpe: 6, restSeconds: 60, notes: "Stop before form breaks down.")
             ]
         )
-    ]
+        ]
+
+        #if DEBUG
+        // Manual counterpart of `active-all-tracking-types`: selectable from
+        // Train → Workouts so every Active Workout input surface can be tried
+        // without launching through UI-test arguments. It is debug-only and
+        // therefore never becomes part of the shipped built-in catalogue.
+        values.append(
+            TemplateDefinition(
+                seedKey: "workout-template.debug-test-workout",
+                name: "testWorkout",
+                prescriptions: [
+                    Prescription(exerciseName: "Bench Press", sets: 2, minimum: 8, maximum: 8, rpe: 7, restSeconds: 120, notes: "Weight and repetitions."),
+                    Prescription(exerciseName: "Push-Up", sets: 2, minimum: 10, maximum: 10, rpe: 7, restSeconds: 60, notes: "Repetitions only."),
+                    Prescription(exerciseName: "Weighted Pull-Up", sets: 2, minimum: 6, maximum: 6, rpe: 7, restSeconds: 90, notes: "Body weight plus added weight."),
+                    Prescription(exerciseName: "Assisted Pull Up", sets: 2, minimum: 8, maximum: 8, rpe: 7, restSeconds: 90, notes: "Body weight with assistance."),
+                    Prescription(exerciseName: "Plank", sets: 2, minimum: 90, maximum: 90, rpe: 7, restSeconds: 60, notes: "Duration; try typing 130 for 1:30."),
+                    Prescription(exerciseName: "Treadmill Run", sets: 2, minimum: 90, maximum: 90, rpe: 7, restSeconds: 60, notes: "Duration and distance."),
+                    Prescription(exerciseName: "Stationary Bike", sets: 2, minimum: 100, maximum: 100, rpe: 7, restSeconds: 60, notes: "Calories.")
+                ]
+            )
+        )
+        #endif
+
+        return values
+    }
 
     static func seededTemplates(using exercises: [Exercise]) -> [(seedKey: String, template: WorkoutTemplate)] {
         let exercisesByName = Dictionary(

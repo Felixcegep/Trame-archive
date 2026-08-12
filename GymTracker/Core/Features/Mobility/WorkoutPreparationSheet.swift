@@ -30,75 +30,129 @@ struct WorkoutPreparationSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xl) {
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                Label("OPTIONAL PREPARATION", systemImage: AppIcon.mobilityPurposePreparation)
-                    .font(AppFont.captionBold)
-                    .tracking(0.8)
-                    .foregroundStyle(Color.gymAccent)
-
-                title
-                    .font(AppFont.titleMedium)
-                    .foregroundStyle(Color.gymText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(explanation)
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if let routine, !hasActiveMobilitySession {
-                VStack(spacing: 0) {
-                    factRow("Movements", value: Text(routine.items.count, format: .number))
-
-                    LibraryGroupDivider()
-
-                    factRow(
-                        "Estimated time",
-                        value: Text(WorkoutMobilityPresentation.durationText(for: routine))
-                    )
-
-                    if let purpose = routine.purpose {
-                        LibraryGroupDivider()
-                        factRow("Purpose", value: Text(purpose.displayName))
-                    }
+            // Only the descriptive half scrolls. The actions stay pinned, so
+            // raising the text size can never push "Skip and start workout"
+            // below the detent — a sheet whose only forward action is off
+            // screen is a trap, and this one appears mid-flow between tapping
+            // Start and the workout opening.
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    header
+                    facts
                 }
-                .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
 
-            VStack(spacing: Spacing.m) {
-                if hasActiveMobilitySession {
-                    Button("Resume mobility", action: onResumeActive)
-                        .buttonStyle(.gymPrimaryProminent)
-                        .accessibilityIdentifier("resume-active-mobility-before-workout")
-                } else if routine != nil {
-                    Button("Start preparation", action: onStart)
-                        .buttonStyle(.gymPrimaryProminent)
-                        .accessibilityIdentifier("start-linked-warmup")
-                        .accessibilityHint("Starts the linked warm-up first. The workout begins after you leave mobility.")
-                }
-
-                Button("Skip and start workout", action: onSkip)
-                    .buttonStyle(.gymPrimary)
-                    .accessibilityIdentifier("skip-linked-warmup")
-                    .accessibilityHint("Starts the workout without the optional warm-up.")
-
-                // Kept as an explicit control rather than left to interactive
-                // dismissal, which VoiceOver and UI automation cannot reach as
-                // reliably as a button.
-                Button("Cancel", role: .cancel, action: onCancel)
-                    .font(AppFont.subheadlineSemibold)
-                    .frame(minHeight: ComponentSize.minimumTouchTarget)
-                    .accessibilityIdentifier("cancel-workout-preparation")
-            }
+            actions
         }
         .padding(.horizontal, Spacing.xl)
-        .padding(.vertical, Spacing.xxl)
+        // Clearance for the drag indicator, which the presentation draws inside
+        // the sheet's own top edge without reserving space for it.
+        //
+        // The padding alone was not what failed. The content — eyebrow, title,
+        // explanation, three fact rows and three actions — was taller than the
+        // `.medium` detent, and an unscrolled `VStack` has nothing to give, so
+        // it overflowed past the top edge and took its own top padding off
+        // screen with it. That is what put the grabber on the eyebrow and made
+        // it render with a line struck through. The `ScrollView` above is the
+        // actual fix; this is the clearance that should have been here anyway.
+        .padding(.top, Spacing.xxxl + Spacing.s)
+        .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.gymBackground)
         .tint(Color.gymPrimary)
-        .presentationDetents([.medium])
+        // Sized to the content rather than to half the screen.
+        //
+        // `.medium` was a half sheet holding an eyebrow, a title, two lines of
+        // explanation, three fact rows and three buttons — roughly 340pt of
+        // content in roughly 500pt of sheet, so the expanded state read as
+        // two-thirds empty and the buttons floated far below the text that
+        // justified them. A fixed height puts the actions directly under the
+        // facts.
+        //
+        // `.large` stays in the set because at accessibility text sizes the
+        // same content genuinely needs the room, and the `ScrollView` above
+        // handles everything in between.
+        .presentationDetents([.height(360), .large])
         .presentationDragIndicator(.visible)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("workout-preparation-sheet")
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Label("OPTIONAL PREPARATION", systemImage: AppIcon.mobilityPurposePreparation)
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(Color.gymAccent)
+
+            title
+                .font(AppFont.titleMedium)
+                .foregroundStyle(Color.gymText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(explanation)
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymSubduedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private var facts: some View {
+        if let routine, !hasActiveMobilitySession {
+            VStack(spacing: 0) {
+                factRow("Movements", value: Text(routine.items.count, format: .number))
+
+                LibraryGroupDivider()
+
+                factRow(
+                    "Estimated time",
+                    value: Text(WorkoutMobilityPresentation.durationText(for: routine))
+                )
+
+                if let purpose = routine.purpose {
+                    LibraryGroupDivider()
+                    factRow("Purpose", value: Text(purpose.displayName))
+                }
+            }
+            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+        }
+    }
+
+    private var actions: some View {
+        VStack(spacing: Spacing.m) {
+            if hasActiveMobilitySession {
+                Button("Resume mobility", action: onResumeActive)
+                    .buttonStyle(.gymPrimaryProminent)
+                    .accessibilityIdentifier("resume-active-mobility-before-workout")
+            } else if routine != nil {
+                Button("Start preparation", action: onStart)
+                    .buttonStyle(.gymPrimaryProminent)
+                    .accessibilityIdentifier("start-linked-warmup")
+                    .accessibilityHint("Starts the linked warm-up first. The workout begins after you leave mobility.")
+            }
+
+            // Outlined, not filled. It is still a full-width action — the sheet
+            // exists so the workout stays the obvious destination — but drawn
+            // in the same blue capsule as the button above it, the two read as
+            // one choice offered twice. The recommended path is the one the
+            // sheet was raised to offer; this is the alternative to it.
+            Button("Skip and start workout", action: onSkip)
+                .buttonStyle(.gymOutlineProminent)
+                .accessibilityIdentifier("skip-linked-warmup")
+                .accessibilityHint("Starts the workout without the optional warm-up.")
+
+            // Kept as an explicit control rather than left to interactive
+            // dismissal, which VoiceOver and UI automation cannot reach as
+            // reliably as a button.
+            Button("Cancel", role: .cancel, action: onCancel)
+                .font(AppFont.subheadlineSemibold)
+                .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+                .accessibilityIdentifier("cancel-workout-preparation")
+        }
     }
 
     /// A `Text`, not a `LocalizedStringKey`: the routine name is user data,

@@ -41,18 +41,31 @@ struct SetRowView: View {
                 isShowingSetDetails: $isShowingSetDetails
             )
         }
-        .padding(.horizontal, Spacing.s)
+        .padding(.horizontal, Spacing.m)
+        // Density, deliberately chosen rather than inherited.
+        //
+        // `Spacing.m` (12) put the rows on a ~78pt pitch, which fits three sets
+        // on screen. The reference this was calibrated against runs 7pt and
+        // fits six — but it is dark-on-dark with hairline dividers, while these
+        // rows are bordered cards on cream and go muddy much below 48pt total.
+        // `Spacing.s` (8) lands between the two at ~56pt, which is the point
+        // where the common 3× and 5× prescriptions both stop needing a scroll.
         .padding(.vertical, Spacing.s)
         .contentShape(Rectangle())
         .onTapGesture {
             beginEditingIfNeeded()
         }
         .background(rowSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                .stroke(isEditingCompletedSet ? Color.gymPrimary : .clear, lineWidth: 1)
+            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                .stroke(rowBorder, lineWidth: rowBorderWidth)
         }
+        // Cream on cream: `gymCard` sits only a few points of luminance above
+        // `gymBackground`, so in light mode the fill alone would not lift the
+        // row off the page. The outline does most of the work and this does the
+        // rest — at the design system's stated card weight, not more.
+        .shadow(color: Color.gymText.opacity(0.03), radius: 4, y: 1)
         // A shape, not a hue. The current row was previously marked by a tinted
         // fill, a tinted index, and this bar — three cues that are all the same
         // cue, and all of which vanish in grayscale, under Increase Contrast, or
@@ -64,6 +77,9 @@ struct SetRowView: View {
                 Image(systemName: AppIcon.currentPointer)
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(Color.gymPrimary)
+                    // Clear of the row's own outline, which it would otherwise
+                    // sit directly on top of now that every row draws one.
+                    .padding(.leading, Spacing.xs)
                     .accessibilityHidden(true)
             }
         }
@@ -82,7 +98,12 @@ struct SetRowView: View {
         }
         .onAppear {
             synchronizeIncompleteSetUnits()
+            // Order is the precedence. A prescribed duration is written first,
+            // which leaves the set filled and so takes the automatic
+            // previous-performance fill below out of play — the plan's opinion
+            // outranks last session's.
             prefillPrescribedDurationIfNeeded()
+            autofillFromPreviousPerformanceIfNeeded()
         }
         .sheet(isPresented: $isShowingSetDetails, onDismiss: {
             viewModel.persistChanges()
@@ -211,41 +232,62 @@ struct SetRowView: View {
         exerciseEntry.orderedSets.first(where: { !$0.done })?.persistentModelID == exerciseSet.persistentModelID
     }
 
-    /// Only a state gets a fill. A plain incomplete row draws none and inherits
-    /// the card's surface.
+    /// Every row is a card.
     ///
-    /// `gymRowSurface` was a third tone that bought no separation: in dark mode it
-    /// is `#26262B` against a current exercise card's `#222838`, near-identical in
-    /// luminance and merely different in hue, and a completed row's
-    /// `gymSecondarySurface` is already *exactly* the completed card's own fill —
-    /// so fills were demonstrably not what distinguished one row from the next.
-    /// Removing the ambient one leaves current, done, and editing as the only
-    /// filled rows in the list, which is what makes those fills read as meaning
-    /// rather than as texture. Rows stay separated by the list's spacing and by
-    /// the field outlines they contain.
-    /// The current row loses its fill too, for the reason the comment above
-    /// already establishes and then stops one step short of.
+    /// This previously returned `.clear` for a plain incomplete row, on the
+    /// reasoning that only a *state* should get a fill and that rows would stay
+    /// separated by list spacing and by the outlines of the value cells inside
+    /// them. Against the old dense card list that held. Against the paged stage
+    /// it does not, for a reason the old layout never exposed: a row is not one
+    /// line. It is a value line **plus** `SetRowSecondaryContent` — Olympic
+    /// complex components, a tempo note, an RPE badge, a duration countdown, a
+    /// "use last time" button. With no fill behind either part, that secondary
+    /// block floats in the gap between two rows and belongs, visually, to
+    /// whichever one the eye reaches first. A lifter looking at three snatch
+    /// singles cannot tell which set the "COMPLEX · Snatch ×1 · Not logged"
+    /// block is attached to, and that is the one thing the row has to make
+    /// unambiguous.
     ///
-    /// A current set inside a current exercise was three tinted surfaces
-    /// stacked: `gymPrimarySurface` on the card, `gymCurrentSetSurface` on the
-    /// row, and outlined cells inside that. The two tints differ by a few points
-    /// of luminance, so the inner one separated nothing — it just made the card
-    /// look quilted. "You are here" is already carried by the leading pointer
-    /// (a silhouette, which survives grayscale and Increase Contrast), by the
-    /// tinted index chip, and by the card's own heading.
-    ///
-    /// A completed row keeps its wash. That one is genuinely state, it is the
-    /// fastest way to scan which sets are behind you, and it is what the
-    /// closest domain reference does as well.
+    /// A fill is what makes a row *one object*. So the surface now answers
+    /// "which set is this" first and "what state is it in" second — the border
+    /// carries state alongside it (see `rowBorder`), which is a second channel
+    /// rather than a competing one.
     private var rowSurface: Color {
         if isEditingCompletedSet {
             return Color.gymPrimarySurface
         }
         if exerciseSet.done {
+            // A completed row keeps its wash. It is genuinely state, and it is
+            // the fastest way to scan which sets are behind you.
             return Color.gymSecondarySurface
         }
+        return Color.gymCard
+    }
 
-        return .clear
+    /// State, carried on the outline so it does not have to compete with the
+    /// fill that separates one row from the next.
+    ///
+    /// The current row is outlined in the same blue that marks a focused value
+    /// cell, which is the app's existing "this is what you can act on now"
+    /// signal — and it matches what the closest domain references do for an
+    /// active set.
+    private var rowBorder: Color {
+        if isEditingCompletedSet || isActiveSet {
+            return Color.gymPrimary
+        }
+        if exerciseSet.done {
+            return Color.gymSecondary.opacity(0.35)
+        }
+        return Color.gymBorder
+    }
+
+    private var rowBorderWidth: CGFloat {
+        isEditingCompletedSet || isActiveSet ? 1.5 : 1
+    }
+
+    /// The one row the lifter is on: next up, and not yet logged.
+    private var isActiveSet: Bool {
+        isCurrentSet && !exerciseSet.done
     }
 
     private var rowActions: some View {
@@ -348,6 +390,22 @@ struct SetRowView: View {
         if SetRowPreparation.prefillPrescribedDuration(for: exerciseSet, in: exerciseEntry) {
             viewModel.persistChanges()
         }
+    }
+
+    /// Commits the previous-performance value this row is already showing in
+    /// grey, so "Log set" accepts the set the screen is describing.
+    ///
+    /// Uses the row's own `previousSet` — the same value the PREV column and
+    /// the empty cells render — rather than looking one up, so what is written
+    /// can never differ from what was displayed. The view model owns the
+    /// refusals (completed, prescribed, already filled, already autofilled).
+    private func autofillFromPreviousPerformanceIfNeeded() {
+        guard let previousSet else { return }
+        viewModel.autofillPreviousPerformanceIfUnfilled(
+            previousSet,
+            to: exerciseSet,
+            in: exerciseEntry
+        )
     }
 
     private func synchronizeIncompleteSetUnits() {

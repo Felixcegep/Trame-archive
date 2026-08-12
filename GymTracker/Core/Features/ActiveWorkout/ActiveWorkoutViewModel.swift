@@ -16,8 +16,14 @@ class ActiveWorkoutViewModel {
     private let restTimer = RestTimerController()
     private var timerTask: Task<Void, Never>?
     private var pendingTypedInputSaveTask: Task<Void, Never>?
+    private var pendingActiveDurationSaveTask: Task<Void, Never>?
     private var hasPendingTypedInputSave = false
+    private var hasPendingActiveDurationSave = false
     private static let typedInputSaveDelay: Duration = .milliseconds(180)
+    // Exercise-page changes happen on the pager's gesture path. Give the
+    // native page animation a frame budget before touching SwiftData, while
+    // keeping the duration timestamp durable shortly after the change.
+    private static let activeDurationSaveDelay: Duration = .milliseconds(250)
     private(set) var previousPerformances: [PersistentIdentifier: PreviousExercisePerformance] = [:]
 
     var isTimerVisible: Bool { restTimer.isVisible }
@@ -91,6 +97,15 @@ class ActiveWorkoutViewModel {
         getNextExerciseToDo() != nil
     }
     
+    /// Adds an exercise mid-session, with warm-up sets when the movement is the
+    /// kind that wants them.
+    ///
+    /// Warm-ups used to exist only on exercises that arrived from a template, so
+    /// anything added mid-session started at the working weight — the app
+    /// quietly had two standards depending on where the exercise came from. The
+    /// default follows the movement rather than asking: a loaded compound gets
+    /// two ramp-up sets, an accessory gets none, and either can be changed from
+    /// the set's own type control afterwards.
     func addExercise(_ template: Exercise) {
         guard let activeWorkout = workoutVM.activeWorkout else { return }
 
@@ -100,6 +115,7 @@ class ActiveWorkoutViewModel {
             usedMetric: unitSystem
         )
         activeWorkout.exercises.append(newExercise)
+        addDefaultWarmUpSets(to: newExercise, template: template)
         persistChanges()
         loadPreviousPerformance(for: newExercise)
         workoutVM.reconcileLiveActivity()
@@ -137,6 +153,51 @@ class ActiveWorkoutViewModel {
     /// Adds a set pre-filled with the last set's values (reps, weight,
     /// duration, distance) so lifters rarely retype; RPE, RIR, lift quality,
     /// and set type reset because they describe one specific effort.
+    /// How many ramp-up sets a freshly added exercise should start with.
+    ///
+    /// Heavy compound patterns are the ones nobody walks up to cold; single-
+    /// joint accessory work is the one where a warm-up set is noise. Bodyweight
+    /// and cardio movements are excluded because "warm-up" there is a different
+    /// activity, not a lighter version of the same one.
+    private func defaultWarmUpSetCount(for template: Exercise) -> Int {
+        guard template.trackingType.usesWeight else { return 0 }
+        guard let equipment = template.equipmentType,
+              [EquipmentType.barbell, .dumbbell, .machine, .cable].contains(equipment)
+        else { return 0 }
+
+        let compoundPatterns: [MovementPattern] = [
+            .squat, .hinge, .horizontalPush, .verticalPush, .horizontalPull, .verticalPull, .lunge
+        ]
+        guard let pattern = template.movementPattern, compoundPatterns.contains(pattern) else {
+            return 0
+        }
+        return 2
+    }
+
+    private func addDefaultWarmUpSets(to entry: ExerciseEntry, template: Exercise) {
+        let count = defaultWarmUpSetCount(for: template)
+        guard count > 0 else { return }
+
+        // Captured before the append: existing sets have to be renumbered
+        // relative to each other, not to a list that already contains the
+        // warm-ups. Filtering inside `enumerated()` would keep counting the
+        // rows it skipped and scatter the working sets.
+        let existing = entry.orderedSets
+        for (offset, set) in existing.enumerated() {
+            set.orderIndex = count + offset
+        }
+
+        for index in 0..<count {
+            entry.sets.append(
+                ExerciseSet(
+                    setType: .warmup,
+                    orderIndex: index,
+                    usedMetric: unitSystem
+                )
+            )
+        }
+    }
+
     func addSet(_ exerciseEntry: ExerciseEntry) {
         guard
             let workout = workoutVM.activeWorkout,
@@ -191,13 +252,7 @@ class ActiveWorkoutViewModel {
             currentSet.recordRPE(previousSet.rpe)
         }
         currentSet.liftQuality = previousSet.liftQuality
-        currentSet.isUserOverridden = currentSet.prescribedSetType != nil
-            || currentSet.prescribedRepetitions != nil
-            || currentSet.prescribedRepRangeMinimum != nil
-            || currentSet.prescribedRepRangeMaximum != nil
-            || currentSet.prescribedSuggestedLoad != nil
-            || currentSet.prescribedCalories != nil
-            || currentSet.prescriptionDefinitionData != nil
+        currentSet.isUserOverridden = SetRowPreparation.hasPrescription(currentSet)
         persistChanges()
     }
 
@@ -212,14 +267,61 @@ class ActiveWorkoutViewModel {
         previousPerformances[exercise.persistentModelID]
     }
 
+    /// Sets already filled from previous performance without being asked.
+    ///
+    /// In memory only, and keyed by set rather than by row: a lifter who clears
+    /// a value and pages away must not find it refilled on the way back, and a
+    /// row is rebuilt every time its page scrolls into view. Cleared with the
+    /// workout, because the next session's sets are different objects.
+    private var autofilledSetIDs: Set<PersistentIdentifier> = []
+
+    /// Commits the previous-performance value the row is already showing.
+    ///
+    /// The cell renders last session's number in grey as a placeholder
+    /// (`SetRowFieldStack.placeholder`), but a placeholder is not a value: until
+    /// this runs, "Log set" refuses the set with "Enter reps and a load before
+    /// completing this set" while the numbers it wants sit on screen. Committing
+    /// them is what makes the displayed suggestion true.
+    ///
+    /// Refused for a set carrying any prescription of its own — see
+    /// `SetRowPreparation.hasPrescription`. Precedence overall is: what the
+    /// lifter typed, then the plan's prescription, then last time, then empty.
+    ///
+    /// - Returns: whether anything was written.
+    @discardableResult
+    func autofillPreviousPerformanceIfUnfilled(
+        _ previousSet: PreviousSetPerformance,
+        to set: ExerciseSet,
+        in exercise: ExerciseEntry
+    ) -> Bool {
+        guard !set.done,
+              !set.separatesProgramPerformedEvidence,
+              !autofilledSetIDs.contains(set.persistentModelID),
+              !SetRowPreparation.hasAnyPrescription(set, in: exercise),
+              SetRowPreparation.isUnfilled(set, for: exercise.trackingTypeSnapshot)
+        else {
+            return false
+        }
+        autofilledSetIDs.insert(set.persistentModelID)
+        applyPreviousPerformance(previousSet, to: set, in: exercise)
+        return true
+    }
+
     /// Applies the matching prior set only when the active set has not been
     /// completed. Historical units are converted into this set's stored unit.
-    func applyPreviousPerformance(to set: ExerciseSet, in exercise: ExerciseEntry, index: Int) {
-        guard !set.done,
-              let previousSet = previousPerformance(for: exercise)?.set(at: index)
-        else {
-            return
-        }
+    ///
+    /// Takes the resolved prior set rather than an index. The row already holds
+    /// the exact `PreviousSetPerformance` it renders in its PREV column, and
+    /// looking it up again here by row index risked writing a different set than
+    /// the one on screen: the paged stage addresses rows by their absolute
+    /// position in the exercise, while the previous-performance lookup is keyed
+    /// on `orderIndex`, and the two diverge once a set is removed.
+    func applyPreviousPerformance(
+        _ previousSet: PreviousSetPerformance,
+        to set: ExerciseSet,
+        in exercise: ExerciseEntry
+    ) {
+        guard !set.done else { return }
 
         if exercise.trackingTypeSnapshot.usesReps {
             set.repetitions = previousSet.repetitions
@@ -248,13 +350,10 @@ class ActiveWorkoutViewModel {
         if exercise.trackingTypeSnapshot.usesCalories {
             set.calories = previousSet.calories
         }
-        if set.prescribedSetType != nil
-            || set.prescribedRepetitions != nil
-            || set.prescribedRepRangeMinimum != nil
-            || set.prescribedRepRangeMaximum != nil
-            || set.prescribedSuggestedLoad != nil
-            || set.prescribedCalories != nil
-            || set.prescriptionDefinitionData != nil {
+        // Deviating from a prescription is the lifter's decision to record, and
+        // this is the path that records it. The automatic fill above never
+        // reaches here, because it refuses prescribed sets outright.
+        if SetRowPreparation.hasPrescription(set) {
             set.isUserOverridden = true
         }
         persistChanges()
@@ -353,7 +452,14 @@ class ActiveWorkoutViewModel {
         case .weight:
             set.weight = parsed.map(Float.init) ?? 0
         case .duration:
-            set.duration = parsed
+            // Duration is typed as a clock, not as a count of seconds.
+            //
+            // A plain numeric field means 1:30 is entered as "90", which is a
+            // conversion the lifter has to do in their head, mid-set, for every
+            // timed exercise in the app. Digits instead shift in from the right
+            // the way every stopwatch and oven timer behaves: 4·5 → 0:45,
+            // 1·3·0 → 1:30, 2·0·0 → 2:00. No separator key is needed.
+            set.duration = ClockEntry.seconds(fromTypedDigits: text) ?? parsed
         case .distance:
             let meters = WorkoutDistancePolicy.meters(of: set)
             let displayUnit = WorkoutDistancePolicy.preferredDisplayUnit(
@@ -377,14 +483,7 @@ class ActiveWorkoutViewModel {
     /// A typed value replaces a prescription, so the set stops tracking it.
     /// Sets with no prescription have nothing to override.
     private func markUserOverride(on set: ExerciseSet) {
-        guard set.prescribedSetType != nil
-            || set.prescribedRepetitions != nil
-            || set.prescribedRepRangeMinimum != nil
-            || set.prescribedRepRangeMaximum != nil
-            || set.prescribedSuggestedLoad != nil
-            || set.prescribedCalories != nil
-            || set.prescriptionDefinitionData != nil
-        else { return }
+        guard SetRowPreparation.hasPrescription(set) else { return }
         set.isUserOverridden = true
     }
 
@@ -435,17 +534,24 @@ class ActiveWorkoutViewModel {
     func trackActiveExercise(with identifier: PersistentIdentifier?) {
         guard let workout = activeWorkout else { return }
         let now = Date.now
+        var didChangeDurationState = false
 
         for exercise in workout.orderedExercises {
             let shouldRun = exercise.persistentModelID == identifier
                 && exercise.orderedSets.contains(where: { !$0.done })
+            let wasRunning = exercise.activeDurationStartedAt != nil
             if shouldRun {
                 exercise.startActiveDuration(at: now)
             } else {
                 exercise.stopActiveDuration(at: now)
             }
+            didChangeDurationState = didChangeDurationState
+                || wasRunning != (exercise.activeDurationStartedAt != nil)
         }
-        persistChanges()
+
+        if didChangeDurationState {
+            scheduleActiveDurationSave()
+        }
     }
     func getNextSet(in selectedExercise: ExerciseEntry) -> ExerciseSet? {
         guard let workout = workoutVM.activeWorkout,
@@ -503,7 +609,68 @@ class ActiveWorkoutViewModel {
         workout.pausedRemainingTime = nil
         persistChanges()
         runRestCountdown(until: timerEndDate)
+        // Only a freshly started rest knows its intended length. Restores and
+        // resumes inherit whatever is already recorded, which is `nil` after a
+        // cold launch — see `RestTimerController.plannedDuration`.
+        restTimer.planDuration(TimeInterval(seconds))
         activeLoggingMetrics?.restStarted()
+    }
+
+    /// The set the lifter just finished, when its effort is worth asking about.
+    ///
+    /// Returns `nil` — and so hides the question entirely — unless the exercise
+    /// actually prescribed an effort target. Asking after every accessory set
+    /// trains people to ignore the control, and an effort log nobody fills in
+    /// honestly is worse than no effort log at all.
+    ///
+    /// Deliberately *not* gated on the value being unset: a lifter who drags the
+    /// slider and then changes their mind must be able to drag it back, so the
+    /// card stays for the whole rest once it has appeared.
+    var lastCompletedSetAwaitingEffort: ExerciseSet? {
+        guard let workout = workoutVM.activeWorkout else { return nil }
+
+        let completed = workout.orderedExercises
+            .flatMap { entry -> [(ExerciseEntry, ExerciseSet)] in
+                entry.orderedSets.filter(\.done).map { (entry, $0) }
+            }
+
+        guard let (entry, set) = completed.last else { return nil }
+        // The prescription can live on either the set snapshot or the entry,
+        // depending on whether it came from a template or a plan.
+        let prescribesEffort = set.prescribedRPE != nil
+            || set.prescribedRIR != nil
+            || entry.prescribedRPE != nil
+            || entry.prescribedRIR != nil
+        return prescribesEffort ? set : nil
+    }
+
+    /// The full length of the rest period now running, when it is known.
+    ///
+    /// `nil` after a cold launch mid-rest: the deadline survives in SwiftData,
+    /// the intended total does not. Callers must degrade to a plain countdown
+    /// rather than assuming a denominator.
+    var restPlannedDuration: TimeInterval? {
+        if let planned = restTimer.plannedDuration { return planned }
+
+        // Fall back to the rest the *programme* asked for.
+        //
+        // `RestTimerController.plannedDuration` is in-memory only, so a cold
+        // launch mid-rest leaves it nil and the takeover drops the ring
+        // entirely — which is the state every rest screenshot captured so far
+        // shows. The original reasoning was that a ring with an invented
+        // denominator is a confident lie, and that is right about *inventing*
+        // one. This is not invented: it is the prescribed rest for the exercise
+        // being rested after, which is the same number `startRest` would have
+        // recorded had it run in this process.
+        //
+        // Still nil when nothing prescribed a rest — a free workout with no
+        // target. There the digits alone remain the honest fallback.
+        guard let workout = workoutVM.activeWorkout,
+              let next = WorkoutSetSelector.nextIncompleteSet(in: workout),
+              let seconds = next.entry.prescribedRestSeconds,
+              seconds > 0
+        else { return nil }
+        return TimeInterval(seconds)
     }
 
     var isTimerPaused: Bool {
@@ -586,6 +753,7 @@ class ActiveWorkoutViewModel {
     }
 
     func addRestTime(_ seconds: TimeInterval) {
+        restTimer.extendPlannedDuration(by: seconds)
         if isTimerPaused {
             if let currentPaused = workoutVM.activeWorkout?.pausedRemainingTime {
                 workoutVM.activeWorkout?.pausedRemainingTime = currentPaused + seconds
@@ -850,6 +1018,9 @@ class ActiveWorkoutViewModel {
         pendingTypedInputSaveTask?.cancel()
         pendingTypedInputSaveTask = nil
         hasPendingTypedInputSave = false
+        pendingActiveDurationSaveTask?.cancel()
+        pendingActiveDurationSaveTask = nil
+        hasPendingActiveDurationSave = false
         _ = saveNow()
     }
 
@@ -868,16 +1039,33 @@ class ActiveWorkoutViewModel {
     }
 
     /// Flushes the coalesced keypad edit at an explicit durability boundary.
-    /// Set completion intentionally does not call this first: its workflow
-    /// owns the single transaction that includes both the typed value and the
-    /// completion state.
+    /// It also flushes a deferred exercise-duration transition. Set completion
+    /// intentionally does not call this first: its workflow owns the single
+    /// transaction that includes both typed values and completion state.
     @discardableResult
     func flushPendingTypedInputSave() -> Bool {
         pendingTypedInputSaveTask?.cancel()
         pendingTypedInputSaveTask = nil
-        guard hasPendingTypedInputSave else { return true }
+        pendingActiveDurationSaveTask?.cancel()
+        pendingActiveDurationSaveTask = nil
+        guard hasPendingTypedInputSave || hasPendingActiveDurationSave else { return true }
         hasPendingTypedInputSave = false
+        hasPendingActiveDurationSave = false
         return saveNow()
+    }
+
+    private func scheduleActiveDurationSave() {
+        hasPendingActiveDurationSave = true
+        pendingActiveDurationSaveTask?.cancel()
+        pendingActiveDurationSaveTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: Self.activeDurationSaveDelay)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            self?.flushPendingTypedInputSave()
+        }
     }
 
     private func loadPreviousPerformance(for exercise: ExerciseEntry) {

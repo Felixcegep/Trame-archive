@@ -16,6 +16,17 @@ struct TodayWorkoutSummary {
     let title: String
     let subtitle: String
 
+    /// Whether the primary card already owns the screen's forward workout
+    /// action. The week card uses this instead of duplicating start/resume.
+    var offersStartAction: Bool {
+        switch kind {
+        case .active, .planned, .repeating, .free:
+            true
+        case .guidedConflict, .unavailable:
+            false
+        }
+    }
+
     static func resolve(
         activeWorkout: Workout?,
         activePlanRun: PlanRun?,

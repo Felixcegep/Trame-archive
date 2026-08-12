@@ -14,7 +14,23 @@ struct AppFont {
     // exactly would have meant keeping it fixed.
     static let displayLarge = Font.system(.largeTitle, design: .rounded).weight(.bold).monospacedDigit()
     static let displayMedium = Font.system(.title, design: .rounded).weight(.bold)
-    
+
+    /// The rest countdown when rest owns the screen.
+    ///
+    /// The one role in the app that is deliberately larger than `displayLarge`.
+    /// It is read at arm's length, across a rack, by someone who is not holding
+    /// the phone — the same reason a kitchen timer has big digits. Scaled from
+    /// `.largeTitle` rather than fixed at a point size so it still tracks
+    /// Dynamic Type; `relativeTo:` keeps the ratio while letting the base sit
+    /// well above any text style the system offers.
+    static let restCountdown = Font.system(size: 72, weight: .bold, design: .rounded)
+        .monospacedDigit()
+
+    /// The exercise name when one exercise owns the page. Between
+    /// `displayMedium` and `titleMedium`: it is the subject of the screen, but
+    /// it is also frequently two lines long ("Ab Wheel Rollout (Kneeling)").
+    static let stageTitle = Font.system(.title, design: .rounded).weight(.bold)
+
     // Titles
     static let title = Font.title
     static let titleMedium = Font.title2.weight(.bold)

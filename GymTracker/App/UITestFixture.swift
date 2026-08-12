@@ -10,6 +10,7 @@ enum UITestFixture: String {
     case activeCompletedSet = "active-completed-set"
     case activeCompletedExercise = "active-completed-exercise"
     case activePartialSave = "active-partial-save"
+    case activeBodyweightSave = "active-bodyweight-save"
     case activeRestRunning = "active-rest-running"
     case activeRestPaused = "active-rest-paused"
     case activeRestReady = "active-rest-ready"
@@ -20,6 +21,13 @@ enum UITestFixture: String {
     case activeExecutionBlock = "active-execution-block"
     case activeAdvancedSet = "active-advanced-set"
     case activeComplexComponents = "active-complex-components"
+    case activeComplexUnresolved = "active-complex-unresolved"
+    case activeWarmupExpanded = "active-warmup-expanded"
+    case activeWarmupCollapsed = "active-warmup-collapsed"
+    case activeSetTypeBadges = "active-set-type-badges"
+    case activeRecentSetType = "active-recent-set-type"
+    case activeDailyMaximum = "active-daily-maximum"
+    case activeGeneratedBackoff = "active-generated-backoff"
     case historyBench = "history-bench"
     case weightliftingDashboard = "weightlifting-dashboard"
     case coachExchange = "coach-exchange"
@@ -97,6 +105,9 @@ enum UITestFixture: String {
             try makeActiveWorkout(exercises: [bench, row], using: context)
         case .activePartialSave:
             try makeActiveWorkout(exercises: [completedSetEntry(named: "Bench Press", using: context)], using: context)
+        case .activeBodyweightSave:
+            UserDefaults.standard.set(BodyWeightPromptCadence.weekly.rawValue, forKey: DefaultsKey.bodyWeightPromptCadence)
+            try makeActiveWorkout(exercises: [completedSetEntry(named: "Push-Up", using: context)], using: context)
         case .activeRestRunning:
             try makeRestWorkout(state: .running, using: context)
         case .activeRestPaused:
@@ -117,6 +128,21 @@ enum UITestFixture: String {
             try makeAdvancedSetWorkout(using: context)
         case .activeComplexComponents:
             try makeComplexComponentWorkout(using: context)
+        case .activeComplexUnresolved:
+            try makeUnresolvedComplexComponentWorkout(using: context)
+        case .activeWarmupExpanded:
+            try makeWarmupWorkout(completed: false, using: context)
+        case .activeWarmupCollapsed:
+            try makeWarmupWorkout(completed: true, using: context)
+        case .activeSetTypeBadges:
+            try makeSetTypeBadgeWorkout(using: context)
+        case .activeRecentSetType:
+            UserDefaults.standard.set("dailyMaximum,dropSet", forKey: DefaultsKey.recentSetTypes)
+            try makeActiveWorkout(exercises: [inProgressEntry(named: "Bench Press", using: context)], using: context)
+        case .activeDailyMaximum:
+            try makeDailyMaximumWorkout(using: context)
+        case .activeGeneratedBackoff:
+            try makeGeneratedBackoffWorkout(using: context)
         case .historyBench:
             try makeCompletedBenchHistory(using: context)
         case .weightliftingDashboard:
@@ -621,6 +647,93 @@ enum UITestFixture: String {
         set.complexComponents[1].performedRepetitions = 0
         set.complexComponents[2].outcome = .missed
 
+        try makeActiveWorkout(exercises: [entry], using: context)
+    }
+
+    private static func makeUnresolvedComplexComponentWorkout(using context: ModelContext) throws {
+        let entry = try inProgressEntry(named: "Three-Position Snatch", using: context)
+        guard let set = entry.orderedSets.first else { throw FixtureError.invalidPlan }
+        set.prescribedRepetitions = 3
+        set.weight = 60
+        set.ensureComplexComponents(for: [
+            ComplexComponentSnapshot(
+                exerciseID: try exercise(named: "High-Hang Snatch", using: context).id,
+                exerciseNameSnapshot: "High-Hang Snatch",
+                prescribedRepetitions: 1
+            ),
+            ComplexComponentSnapshot(
+                exerciseID: try exercise(named: "Hang Snatch", using: context).id,
+                exerciseNameSnapshot: "Hang Snatch",
+                prescribedRepetitions: 1
+            ),
+            ComplexComponentSnapshot(
+                exerciseID: try exercise(named: "Snatch", using: context).id,
+                exerciseNameSnapshot: "Snatch",
+                prescribedRepetitions: 1
+            )
+        ])
+        try makeActiveWorkout(exercises: [entry], using: context)
+    }
+
+    private static func makeWarmupWorkout(completed: Bool, using context: ModelContext) throws {
+        let entry = try inProgressEntry(named: "Bench Press", using: context)
+        guard entry.orderedSets.count >= 3 else { throw FixtureError.invalidPlan }
+        entry.orderedSets[0].setType = .warmup
+        entry.orderedSets[0].weight = 20
+        entry.orderedSets[1].setType = .warmup
+        entry.orderedSets[1].weight = 35
+        if completed {
+            entry.orderedSets[0].done = true
+            entry.orderedSets[1].done = true
+        }
+        try makeActiveWorkout(exercises: [entry], using: context)
+    }
+
+    private static func makeSetTypeBadgeWorkout(using context: ModelContext) throws {
+        let entry = try inProgressEntry(named: "Bench Press", using: context)
+        guard entry.orderedSets.count >= 2 else { throw FixtureError.invalidPlan }
+        entry.orderedSets[0].setType = .topSet
+        entry.orderedSets[1].setType = .technique
+        try makeActiveWorkout(exercises: [entry], using: context)
+    }
+
+    private static func makeDailyMaximumWorkout(using context: ModelContext) throws {
+        let entry = try inProgressEntry(named: "Bench Press", using: context)
+        guard let attempt = entry.orderedSets.first else { throw FixtureError.invalidPlan }
+        attempt.repetitions = 1
+        attempt.weight = 120
+        attempt.done = true
+        attempt.setType = .dailyMaximum
+        attempt.prescribedSetType = .dailyMaximum
+        attempt.isSelectedDailyMaximum = true
+        try makeActiveWorkout(exercises: [entry], using: context)
+    }
+
+    private static func makeGeneratedBackoffWorkout(using context: ModelContext) throws {
+        let exercise = try exercise(named: "Bench Press", using: context)
+        let top = ExerciseSet(
+            repetitions: 5,
+            weight: 100,
+            done: true,
+            setType: .topSet,
+            orderIndex: 0,
+            usedMetric: .metric
+        )
+        top.prescribedSetType = .topSet
+        let generated = ExerciseSet(
+            repetitions: 0,
+            weight: 0,
+            done: false,
+            setType: .backoff,
+            orderIndex: 1,
+            usedMetric: .metric
+        )
+        generated.prescribedSetType = .backoff
+        generated.prescribedRepetitions = 5
+        generated.prescribedSuggestedLoad = 90
+        generated.prescribedSuggestedLoadType = .kg
+        generated.generatedBackOffDefinitionID = UUID()
+        let entry = ExerciseEntry(exercise: exercise, sets: [top, generated], usedMetric: .metric)
         try makeActiveWorkout(exercises: [entry], using: context)
     }
 

@@ -383,9 +383,10 @@ struct PlanDetailView: View {
         }.count > 1
     }
 
+    /// Delegates so this view and `PlanScreen`'s segments can never disagree
+    /// about which run is current — see `PlanRunResolver`.
     private func singularRun(with status: PlanRunStatus) -> PlanRun? {
-        let runs = plan.runs.filter { $0.status == status }
-        return runs.count == 1 ? runs[0] : nil
+        PlanRunResolver.singularRun(in: plan, with: status)
     }
 
     private var completedRun: PlanRun? {

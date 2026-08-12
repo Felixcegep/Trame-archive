@@ -82,6 +82,31 @@ extension Color {
     /// and a future decision to re-introduce a data hue has one place to land.
     static let gymDataEmphasis = gymText
     
+    /// Time is running out but there is still time. The middle band of the rest
+    /// dial, and nothing else yet.
+    ///
+    /// This could not reuse `gymAccent`: that brown *is* the rest surface's own
+    /// colour, so a rest dial cannot use it to mean "hurry" — the alarm and the
+    /// ground it sits on would be the same hue.
+    ///
+    /// Used as a graphic, not as text, so it is tuned for the 3:1 non-text
+    /// contrast minimum against `gymAccentSurface` rather than 4.5:1.
+    static let gymCaution = dynamicColor(
+        light: UIColor(red: 0xB8 / 255.0, green: 0x80 / 255.0, blue: 0x2A / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xE0 / 255.0, green: 0xA8 / 255.0, blue: 0x3E / 255.0, alpha: 1.0)
+    )
+
+    /// The last few seconds before a set. Deliberately *not* `gymDestructive`.
+    ///
+    /// Destructive red means "this deletes your data" everywhere else in the
+    /// app. Spending it on a countdown would teach the lifter that red is
+    /// ambient rather than dangerous, which is the one association a
+    /// destructive colour cannot afford to lose.
+    static let gymUrgent = dynamicColor(
+        light: UIColor(red: 0xC0 / 255.0, green: 0x39 / 255.0, blue: 0x2B / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xFF / 255.0, green: 0x7A / 255.0, blue: 0x6E / 255.0, alpha: 1.0)
+    )
+
     static let gymDestructive = dynamicColor(
         light: UIColor.red,
         dark: UIColor(red: 1.0, green: 0.35, blue: 0.35, alpha: 1.0)

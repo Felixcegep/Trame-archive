@@ -27,6 +27,18 @@ struct RootView: View {
     @State private var activeLoggingMetrics = ActiveLoggingMetricsRecorder()
     @State private var todayPath: [TodayRoute] = []
     @State private var trainPath: [LibraryRoute] = []
+    /// Which segment a `PlanScreen` is showing, one per stack.
+    ///
+    /// Held here rather than inside the screen because Overview's own "Plan
+    /// path" and "Weekly review" links have to move the picker, and they are
+    /// built as closures before the screen exists. One variable per stack is
+    /// enough: only one plan screen is ever on screen per stack.
+    ///
+    /// Not reset on push. Reaching a plan and finding the segment you left it
+    /// on is the behaviour a segmented screen implies, and `PlanScreen` falls
+    /// back to Overview on its own when a segment stops being available.
+    @State private var todayPlanSegment: PlanScreenSegment = .overview
+    @State private var trainPlanSegment: PlanScreenSegment = .overview
     @State private var trainNavigationID = UUID()
     @State private var nutritionPath: [NutritionRoute] = []
     @State private var progressPath: [ProgressRoute] = []
@@ -132,14 +144,10 @@ struct RootView: View {
                             ProgressionReceiptLedgerView()
                         case .coachExchange:
                             CoachExchangeView()
-                        case .mobilityHistory:
-                            MobilityHistoryView()
+                        case let .supportingHistory(scope):
+                            SupportingHistoryView(initialScope: scope)
                         case .mobilityAssessmentHistory:
                             MobilityAssessmentHistoryView()
-                        case .nutritionHistory:
-                            NutritionHistoryView()
-                        case .journalHistory:
-                            JournalHistoryView()
                         }
                     }
             }
@@ -764,11 +772,11 @@ struct RootView: View {
                 onOpenNutrition: openNutrition,
                 onOpenMobilityHistory: {
                     selectedTab = .progress
-                    progressPath = [.mobilityHistory]
+                    progressPath = [.supportingHistory(.mobility)]
                 },
                 onOpenJournalHistory: {
                     selectedTab = .progress
-                    progressPath = [.journalHistory]
+                    progressPath = [.supportingHistory(.journal)]
                 }
             )
         case .settings:
@@ -780,15 +788,33 @@ struct RootView: View {
             DataSettingsView()
         case .plan(let planID):
             if let plan = plan(id: planID) {
-                PlanDetailView(
-                    plan: plan,
-                    onStartPlannedWorkout: startPlannedWorkout,
-                    onStartPlan: startFixedPlan,
-                    onResumePlan: resumeFixedPlan,
-                    onStartTestDay: startFixedPlanTestDay,
-                    onOpenProgramPath: { todayPath.append(.programPath($0)) },
-                    onOpenWeeklyReview: { todayPath.append(.weeklyReview($0)) }
-                )
+                let run = PlanRunResolver.currentRun(for: plan)
+                PlanScreen(
+                    title: plan.name,
+                    availableSegments: run == nil ? [.overview] : [.overview, .path, .review],
+                    segment: $todayPlanSegment
+                ) {
+                    PlanDetailView(
+                        plan: plan,
+                        onStartPlannedWorkout: startPlannedWorkout,
+                        onStartPlan: startFixedPlan,
+                        onResumePlan: resumeFixedPlan,
+                        onStartTestDay: startFixedPlanTestDay,
+                        onOpenProgramPath: { _ in todayPlanSegment = .path },
+                        onOpenWeeklyReview: { _ in todayPlanSegment = .review }
+                    )
+                } path: {
+                    if let run {
+                        programPathDestination(
+                            .fixedRun(run.id),
+                            onOpenWeeklyReview: { _ in todayPlanSegment = .review }
+                        )
+                    }
+                } review: {
+                    if let run {
+                        weeklyReviewDestination(WeeklyProgramReviewRoute(runID: run.id))
+                    }
+                }
             } else {
                 ContentUnavailableView(
                     "Plan unavailable",
@@ -798,20 +824,38 @@ struct RootView: View {
             }
         case .repeatingPlan(let planID):
             if let plan = repeatingPlan(id: planID) {
-                RepeatingPlanDetailView(
-                    plan: plan,
-                    onStartRepeatingWorkout: startRepeatingWorkout,
-                    onActivateRepeatingPlan: activateRepeatingPlan,
-                    onPauseRepeatingPlan: pauseRepeatingPlan,
-                    onResumeRepeatingPlan: resumeRepeatingPlan,
-                    onStartAlternateRepeatingWorkout: startAlternateRepeatingWorkout,
-                    onRepeatRepeatingWorkout: repeatRepeatingWorkout,
-                    onSkipRepeatingWorkout: skipRepeatingWorkout,
-                    onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
-                    onRestartRepeatingPlan: restartRepeatingPlan,
-                    onEndRepeatingPlan: endRepeatingPlan,
-                    onOpenProgramPath: { todayPath.append(.programPath($0)) }
-                )
+                let openRuns = plan.runs.filter { $0.status == .active || $0.status == .paused }
+                let run = openRuns.count == 1 ? openRuns[0] : nil
+                PlanScreen(
+                    title: plan.name,
+                    // A rotation has no weekly review — it has no weeks.
+                    availableSegments: run == nil ? [.overview] : [.overview, .path],
+                    segment: $todayPlanSegment
+                ) {
+                    RepeatingPlanDetailView(
+                        plan: plan,
+                        onStartRepeatingWorkout: startRepeatingWorkout,
+                        onActivateRepeatingPlan: activateRepeatingPlan,
+                        onPauseRepeatingPlan: pauseRepeatingPlan,
+                        onResumeRepeatingPlan: resumeRepeatingPlan,
+                        onStartAlternateRepeatingWorkout: startAlternateRepeatingWorkout,
+                        onRepeatRepeatingWorkout: repeatRepeatingWorkout,
+                        onSkipRepeatingWorkout: skipRepeatingWorkout,
+                        onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
+                        onRestartRepeatingPlan: restartRepeatingPlan,
+                        onEndRepeatingPlan: endRepeatingPlan,
+                        onOpenProgramPath: { _ in todayPlanSegment = .path }
+                    )
+                } path: {
+                    if let run {
+                        programPathDestination(
+                            .rotationRun(run.id),
+                            onOpenWeeklyReview: { _ in }
+                        )
+                    }
+                } review: {
+                    EmptyView()
+                }
             } else {
                 ContentUnavailableView(
                     "Rotation unavailable",
@@ -896,15 +940,33 @@ struct RootView: View {
             }
         case .plan(let planID):
             if let plan = plan(id: planID) {
-                PlanDetailView(
-                    plan: plan,
-                    onStartPlannedWorkout: startPlannedWorkout,
-                    onStartPlan: startFixedPlan,
-                    onResumePlan: resumeFixedPlan,
-                    onStartTestDay: startFixedPlanTestDay,
-                    onOpenProgramPath: { trainPath.append(.programPath($0)) },
-                    onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) }
-                )
+                let run = PlanRunResolver.currentRun(for: plan)
+                PlanScreen(
+                    title: plan.name,
+                    availableSegments: run == nil ? [.overview] : [.overview, .path, .review],
+                    segment: $trainPlanSegment
+                ) {
+                    PlanDetailView(
+                        plan: plan,
+                        onStartPlannedWorkout: startPlannedWorkout,
+                        onStartPlan: startFixedPlan,
+                        onResumePlan: resumeFixedPlan,
+                        onStartTestDay: startFixedPlanTestDay,
+                        onOpenProgramPath: { _ in trainPlanSegment = .path },
+                        onOpenWeeklyReview: { _ in trainPlanSegment = .review }
+                    )
+                } path: {
+                    if let run {
+                        programPathDestination(
+                            .fixedRun(run.id),
+                            onOpenWeeklyReview: { _ in trainPlanSegment = .review }
+                        )
+                    }
+                } review: {
+                    if let run {
+                        weeklyReviewDestination(WeeklyProgramReviewRoute(runID: run.id))
+                    }
+                }
             } else {
                 ContentUnavailableView(
                     "Plan unavailable",
@@ -914,20 +976,38 @@ struct RootView: View {
             }
         case .repeatingPlan(let planID):
             if let plan = repeatingPlan(id: planID) {
-                RepeatingPlanDetailView(
-                    plan: plan,
-                    onStartRepeatingWorkout: startRepeatingWorkout,
-                    onActivateRepeatingPlan: activateRepeatingPlan,
-                    onPauseRepeatingPlan: pauseRepeatingPlan,
-                    onResumeRepeatingPlan: resumeRepeatingPlan,
-                    onStartAlternateRepeatingWorkout: startAlternateRepeatingWorkout,
-                    onRepeatRepeatingWorkout: repeatRepeatingWorkout,
-                    onSkipRepeatingWorkout: skipRepeatingWorkout,
-                    onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
-                    onRestartRepeatingPlan: restartRepeatingPlan,
-                    onEndRepeatingPlan: endRepeatingPlan,
-                    onOpenProgramPath: { trainPath.append(.programPath($0)) }
-                )
+                let openRuns = plan.runs.filter { $0.status == .active || $0.status == .paused }
+                let run = openRuns.count == 1 ? openRuns[0] : nil
+                PlanScreen(
+                    title: plan.name,
+                    // A rotation has no weekly review — it has no weeks.
+                    availableSegments: run == nil ? [.overview] : [.overview, .path],
+                    segment: $trainPlanSegment
+                ) {
+                    RepeatingPlanDetailView(
+                        plan: plan,
+                        onStartRepeatingWorkout: startRepeatingWorkout,
+                        onActivateRepeatingPlan: activateRepeatingPlan,
+                        onPauseRepeatingPlan: pauseRepeatingPlan,
+                        onResumeRepeatingPlan: resumeRepeatingPlan,
+                        onStartAlternateRepeatingWorkout: startAlternateRepeatingWorkout,
+                        onRepeatRepeatingWorkout: repeatRepeatingWorkout,
+                        onSkipRepeatingWorkout: skipRepeatingWorkout,
+                        onUndoRepeatingPlanAdvancement: undoRepeatingPlanAdvancement,
+                        onRestartRepeatingPlan: restartRepeatingPlan,
+                        onEndRepeatingPlan: endRepeatingPlan,
+                        onOpenProgramPath: { _ in trainPlanSegment = .path }
+                    )
+                } path: {
+                    if let run {
+                        programPathDestination(
+                            .rotationRun(run.id),
+                            onOpenWeeklyReview: { _ in }
+                        )
+                    }
+                } review: {
+                    EmptyView()
+                }
             } else {
                 ContentUnavailableView(
                     "Rotation unavailable",

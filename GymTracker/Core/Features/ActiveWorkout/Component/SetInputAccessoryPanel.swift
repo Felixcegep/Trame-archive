@@ -24,7 +24,6 @@ struct SetInputAccessoryPanel: View {
     @AppStorage(DefaultsKey.recentSetTypes) var recentSetTypesRaw: String = ""
     @State var isShowingPlateCalculator = false
     @State var isShowingSetDetails = false
-    @State private var validationMessage: String?
     @State private var weightStepSelection: WeightStepSelection = .equipment
 
     private enum WeightStepSelection {
@@ -56,7 +55,9 @@ struct SetInputAccessoryPanel: View {
     private func handle(_ key: KeypadKey, field: SetInputFocus.Field, set: ExerciseSet) {
         guard let text = coordinator.applyKey(key, decimalSeparator: decimalSeparator) else { return }
         viewModel.commitTypedValue(text, field: field, in: set)
-        validationMessage = nil
+        // Typing is the lifter answering the refusal; the message has served
+        // its purpose the moment they act on it.
+        coordinator.clearBlockedAttempt()
     }
 
     var body: some View {
@@ -82,13 +83,11 @@ struct SetInputAccessoryPanel: View {
 
                     valueRow(exercise: exercise, set: set)
 
-                    if let validationMessage {
-                        Text(validationMessage)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymAccent)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .accessibilityLabel(validationMessage)
-                    }
+                    quickValueRow(exercise: exercise, set: set)
+
+                    componentReadiness(set: set)
+
+                    validationBanner
 
                     chipRow(exercise: exercise, set: set)
 
@@ -98,11 +97,23 @@ struct SetInputAccessoryPanel: View {
                     // field's `inputView`. Nothing here is a first responder,
                     // so no system keyboard is raised and no keyboard-
                     // avoidance inset competes with the panel's own height.
-                    NumericKeypad(
-                        decimalSeparator: decimalSeparator,
-                        showsDecimalKey: fieldAllowsDecimals(focusedField)
-                    ) { key in
-                        handle(key, field: focusedField, set: set)
+                    //
+                    // It yields its space when the thing blocking completion is
+                    // the complex-component outcomes. At that moment the lifter
+                    // is not typing a number — they are recording whether each
+                    // lift was made — and a number pad is the one control that
+                    // cannot help them. Swapping in place keeps the panel the
+                    // same height and, more importantly, keeps the fix where
+                    // they are already looking.
+                    if isResolvingComponents(set) {
+                        complexComponentResolver(set: set)
+                    } else {
+                        NumericKeypad(
+                            decimalSeparator: decimalSeparator,
+                            showsDecimalKey: fieldAllowsDecimals(focusedField)
+                        ) { key in
+                            handle(key, field: focusedField, set: set)
+                        }
                     }
                 }
             }
@@ -137,7 +148,10 @@ struct SetInputAccessoryPanel: View {
         }
         .shadow(color: Color.gymText.opacity(0.03), radius: 6, y: -2)
         .animation(reduceMotion ? nil : AppMotion.compact, value: coordinator.focus)
-        .onChange(of: coordinator.focus) { _, _ in validationMessage = nil }
+        // The refusal is cleared by the coordinator's own focus setter, so the
+        // blocked path can set focus first and record the message second
+        // without the two racing. Nothing to reset here.
+        .gymFeedback(.validationBlocked, trigger: coordinator.blockedAttemptCount)
         // Both sheets can write the value the panel is displaying, so the typed
         // text has to be dropped when they close for the same reason a stepper
         // press drops it. The plate calculator only writes load; Set details can
@@ -433,7 +447,7 @@ struct SetInputAccessoryPanel: View {
         let longPressStep: Double? = field == .repetitions ? 5 : nil
 
         return VStack(spacing: Spacing.xs) {
-            Text(fieldCaption(field))
+            Text(fieldCaption(field, exercise: exercise))
                 .font(AppFont.captionBold)
                 .tracking(0.6)
                 .textCase(.uppercase)
@@ -496,10 +510,23 @@ struct SetInputAccessoryPanel: View {
             : coarseWeightStep(for: exercise, set: set)
     }
 
-    private func fieldCaption(_ field: SetInputFocus.Field) -> String {
+    /// The caption above a value.
+    ///
+    /// The weight field means three different things depending on how the
+    /// exercise is resisted, and "Weight" is only correct for one of them. On an
+    /// assisted movement the number is load being *taken off* the lifter, so a
+    /// caption reading "Weight · 20 kg" says the opposite of what happened —
+    /// more assistance looks like more work. Naming the field for what it holds
+    /// is the whole fix.
+    private func fieldCaption(_ field: SetInputFocus.Field, exercise: ExerciseEntry) -> String {
         switch field {
         case .repetitions: String(localized: "Reps")
-        case .weight: String(localized: "Weight")
+        case .weight:
+            switch exercise.trackingTypeSnapshot {
+            case .assistedBodyweight: String(localized: "Assist")
+            case .weightedBodyweight: String(localized: "Added")
+            default: String(localized: "Weight")
+            }
         case .duration: String(localized: "Duration")
         case .distance: String(localized: "Distance")
         case .calories: String(localized: "Calories")
@@ -515,9 +542,15 @@ struct SetInputAccessoryPanel: View {
         // While this field is the one being typed into, show the keys pressed so
         // far — including a lone "0," that is not yet a number — instead of the
         // stored value the entry will replace.
+        let stored = displayValue(field: field, set: set)
+        let input = SetInputFocus(
+            exerciseID: exercise.persistentModelID,
+            setID: set.persistentModelID,
+            field: field
+        )
         let shown = isActive
-            ? coordinator.entryText ?? displayValue(field: field, set: set)
-            : displayValue(field: field, set: set)
+            ? coordinator.displayText(for: input, storedValue: stored)
+            : stored
 
         return HStack(alignment: .firstTextBaseline, spacing: Spacing.xxs) {
             Button {
@@ -680,6 +713,439 @@ struct SetInputAccessoryPanel: View {
         )
     }
 
+    // MARK: - Quick values
+
+    /// One value a single tap can produce, and what that tap means.
+    private struct QuickValue: Identifiable {
+        enum Kind {
+            /// Move the current value by `amount`.
+            case delta(Double)
+            /// Replace the current value with `amount`.
+            case absolute(Double)
+        }
+
+        let label: String
+        let kind: Kind
+        /// Spoken instead of `label` where the shorthand would be read as
+        /// nonsense — "1.25" meaning "a 1.25 plate on each side".
+        let accessibilityLabel: String
+        var isProminent: Bool = false
+
+        var id: String { label }
+    }
+
+    /// The row that makes the common change a single tap.
+    ///
+    /// Stepping is the slowest route to the change that happens most often:
+    /// 80 → 92.5 kg costs five presses of `+2.5`, and nobody thinks "five
+    /// increments" — they think "a 2.5 and a 10 on each side", or "the same as
+    /// last time", or "make it a minute". Each field gets the vocabulary it is
+    /// actually spoken in, and the keypad stays underneath for everything these
+    /// buttons cannot say.
+    ///
+    /// Absolute and relative are deliberately mixed, because the fields are:
+    /// a plank is set *to* ninety seconds, while calories accumulate *by*
+    /// twenty-five.
+    @ViewBuilder
+    private func quickValueRow(exercise: ExerciseEntry, set: ExerciseSet) -> some View {
+        let values = quickValues(exercise: exercise, set: set)
+        if !values.isEmpty {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                if let caption = quickValueCaption(exercise: exercise, set: set) {
+                    Text(caption)
+                        .font(AppFont.caption2Bold)
+                        .tracking(0.6)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+
+                // Scrolls rather than compressing: at accessibility text sizes
+                // five capsules cannot share a phone width, and a quick value
+                // squeezed to three characters is no longer quick.
+                ScrollView(.horizontal) {
+                    HStack(spacing: Spacing.xs) {
+                        ForEach(values) { value in
+                            quickValueButton(value, set: set)
+                        }
+                    }
+                    .padding(.horizontal, Spacing.xxs)
+                }
+                .scrollIndicators(.hidden)
+                .scrollClipDisabled()
+            }
+            .accessibilityIdentifier("quick-value-row")
+        }
+    }
+
+    private func quickValueButton(_ value: QuickValue, set: ExerciseSet) -> some View {
+        Button {
+            switch value.kind {
+            case .delta(let amount):
+                adjust(field: focusedField, by: amount, set: set)
+            case .absolute(let amount):
+                setValue(amount, field: focusedField, set: set)
+            }
+        } label: {
+            Text(value.label)
+                .font(AppFont.footnoteMedium)
+                .monospacedDigit()
+                .lineLimit(1)
+                .foregroundStyle(value.isProminent ? Color.gymPrimary : Color.gymText)
+                .padding(.horizontal, Spacing.m)
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .background(
+                    value.isProminent ? Color.gymPrimarySurface : Color.gymRowSurface,
+                    in: Capsule()
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityLabel(Text(value.accessibilityLabel))
+        .accessibilityIdentifier("quick-value-\(value.label)")
+    }
+
+    private func quickValueCaption(exercise: ExerciseEntry, set: ExerciseSet) -> String? {
+        switch focusedField {
+        case .weight:
+            if exercise.trackingTypeSnapshot == .assistedBodyweight {
+                return String(localized: "Less assistance is harder")
+            }
+            return usesPerSidePlates(exercise) ? String(localized: "Add per side") : nil
+        case .duration, .calories, .distance, .repetitions:
+            return nil
+        }
+    }
+
+    private func quickValues(exercise: ExerciseEntry, set: ExerciseSet) -> [QuickValue] {
+        var values: [QuickValue] = []
+
+        // "Same as last time" is the single most common intention in the whole
+        // panel and was previously buried behind a chip. It leads the row.
+        if let previous = previousValue(exercise: exercise, set: set) {
+            values.append(
+                QuickValue(
+                    label: String(localized: "Last \(quickLabel(previous))"),
+                    kind: .absolute(previous),
+                    accessibilityLabel: String(localized: "Use last time's value, \(quickLabel(previous))"),
+                    isProminent: true
+                )
+            )
+        }
+
+        switch focusedField {
+        case .weight:
+            // Below the bar there is nothing to add plates *to*. Offering
+            // "+1.25 per side" at 15 kg on a 20 kg bar describes a bar that
+            // cannot exist, so the row falls back to plain increments until the
+            // weight clears the bar.
+            if usesPerSidePlates(exercise), Double(set.weight) >= barWeight(for: exercise, set: set) {
+                // A plate goes on both ends, so the bar gains twice the label.
+                for plate in plateValues(for: set) {
+                    values.append(
+                        QuickValue(
+                            label: "+\(Formatters.formatFloat(Float(plate)))",
+                            kind: .delta(plate * 2),
+                            accessibilityLabel: String(localized: "Add a \(Formatters.formatFloat(Float(plate))) \(set.weightType.rawValue) plate per side, \(Formatters.formatFloat(Float(plate * 2))) on the bar")
+                        )
+                    )
+                }
+            } else {
+                let step = coarseWeightStep(for: exercise, set: set)
+                for multiple in [1.0, 2.0, 4.0] {
+                    let amount = step * multiple
+                    values.append(
+                        QuickValue(
+                            label: "+\(Formatters.formatFloat(Float(amount)))",
+                            kind: .delta(amount),
+                            accessibilityLabel: String(localized: "Add \(Formatters.formatFloat(Float(amount))) \(set.weightType.rawValue)")
+                        )
+                    )
+                }
+            }
+
+        case .duration:
+            // Absolute, and named the way a hold is named. Nobody adds eleven
+            // seconds to a plank; they do a minute.
+            for seconds in [30.0, 45.0, 60.0, 90.0, 120.0] {
+                values.append(
+                    QuickValue(
+                        label: ClockEntry.clockText(seconds: seconds),
+                        kind: .absolute(seconds),
+                        accessibilityLabel: String(localized: "Set duration to \(Int(seconds)) seconds")
+                    )
+                )
+            }
+
+        case .calories:
+            for amount in [10.0, 25.0, 50.0] {
+                values.append(
+                    QuickValue(
+                        label: "+\(Int(amount))",
+                        kind: .delta(amount),
+                        accessibilityLabel: String(localized: "Add \(Int(amount)) calories")
+                    )
+                )
+            }
+
+        case .distance:
+            for amount in [100.0, 400.0, 1000.0] {
+                values.append(
+                    QuickValue(
+                        label: "+\(Int(amount))",
+                        kind: .delta(amount),
+                        accessibilityLabel: String(localized: "Add \(Int(amount))")
+                    )
+                )
+            }
+
+        case .repetitions:
+            // The ± keys already cover ±1 well. Only the jumps worth a
+            // dedicated target appear here.
+            for amount in [5.0, 10.0] {
+                values.append(
+                    QuickValue(
+                        label: "+\(Int(amount))",
+                        kind: .delta(amount),
+                        accessibilityLabel: String(localized: "Add \(Int(amount)) reps")
+                    )
+                )
+            }
+        }
+
+        return values
+    }
+
+    /// Whether per-side plate arithmetic is the right mental model.
+    ///
+    /// Reuses `supportsPlateCalculator` rather than testing for a barbell, so
+    /// the quick values and the plate calculator agree about what "per side"
+    /// means — a plate-loaded leg press has two ends to load and a stack does
+    /// not. Per-load-unit exercises are excluded on top of that: a pair of
+    /// dumbbells already logs one unit's weight, so doubling would be counted
+    /// twice.
+    private func usesPerSidePlates(_ exercise: ExerciseEntry) -> Bool {
+        exercise.exercise.supportsPlateCalculator
+            && exercise.loggingSemanticsSnapshot.weightEntryStyle != .perLoadUnit
+    }
+
+    /// The empty bar's weight in the set's own unit, or zero where there is no
+    /// bar (a plate-loaded machine carries its own resistance).
+    private func barWeight(for exercise: ExerciseEntry, set: ExerciseSet) -> Double {
+        let equipment = PlateEquipment(
+            unitSystem: set.weightType == .kg ? .metric : .imperial,
+            selectedBarID: BarKind.mensOlympic.id,
+            usesBarbell: exercise.exercise.equipmentType == .barbell
+        )
+        return Double(equipment.barWeight)
+    }
+
+    /// The plates worth a dedicated key, drawn from the same rack the plate
+    /// calculator solves against so the two can never describe different gyms.
+    ///
+    /// Trimmed to the five lightest that fit a row — kg: 1.25 · 2.5 · 5 · 10 ·
+    /// 15, lb: 1 · 2.5 · 5 · 10 · 25. The two heaviest are dropped because a
+    /// jump of 40–50 on the bar is a weight you type rather than tap toward.
+    private func plateValues(for set: ExerciseSet) -> [Double] {
+        let rack = set.weightType == .kg
+            ? Constants.Barbell.metricPlates
+            : Constants.Barbell.imperialPlates
+        return rack
+            .sorted()
+            .prefix(5)
+            .map(Double.init)
+    }
+
+    private func quickLabel(_ value: Double) -> String {
+        focusedField == .duration
+            ? ClockEntry.clockText(seconds: value)
+            : Formatters.formatFloat(Float(value))
+    }
+
+    /// Last session's value for *this* set position, in the units this set is
+    /// being logged in.
+    private func previousValue(exercise: ExerciseEntry, set: ExerciseSet) -> Double? {
+        let index = setPosition(of: set, in: exercise)
+        guard let previous = viewModel.previousPerformance(for: exercise)?.set(at: index) else {
+            return nil
+        }
+
+        switch focusedField {
+        case .repetitions:
+            return previous.repetitions > 0 ? Double(previous.repetitions) : nil
+        case .weight:
+            let converted = UnitConversion.weight(
+                previous.weight,
+                from: previous.weightType,
+                to: set.weightType
+            )
+            return converted > 0 ? Double(converted) : nil
+        case .duration:
+            return previous.duration.flatMap { $0 > 0 ? $0 : nil }
+        case .calories:
+            return previous.calories.flatMap { $0 > 0 ? $0 : nil }
+        case .distance:
+            // The snapshot stores distance in its own `distanceType`, and the
+            // display unit here may differ. Offering an unconverted number
+            // would be confidently wrong, which is worse than offering none.
+            return nil
+        }
+    }
+
+    /// Writes an absolute value through the same bookkeeping ``adjust`` uses, so
+    /// a quick value and a stepper press are indistinguishable to everything
+    /// downstream — the typed-text session, the override flag, the save.
+    private func setValue(_ value: Double, field: SetInputFocus.Field, set: ExerciseSet) {
+        switch field {
+        case .repetitions: set.repetitions = Float(max(0, value))
+        case .weight: set.weight = Float(max(0, value))
+        case .duration: set.duration = max(0, value)
+        case .calories: set.calories = max(0, value)
+        case .distance:
+            let displayUnit = WorkoutDistancePolicy.preferredDisplayUnit(
+                forMeters: WorkoutDistancePolicy.meters(of: set),
+                system: UserDefaults.standard.unitSystem
+            )
+            WorkoutDistancePolicy.storeDisplayValue(
+                Float(max(0, value)),
+                displayUnit: displayUnit,
+                on: set
+            )
+        }
+
+        // Mirrors `adjust(field:by:set:)` exactly: a quick value and a stepper
+        // press must be indistinguishable to everything downstream.
+        coordinator.endEntry(ifEditing: field)
+        coordinator.clearBlockedAttempt()
+        viewModel.persistChanges()
+    }
+
+    // MARK: - Validation
+
+    /// Why the set was refused, and — when the fix is not on this panel — the
+    /// way to get to it.
+    ///
+    /// This was a caption in `gymAccent` with no icon, no fill, and no route to
+    /// the thing it was describing. For a missing rep count that was survivable,
+    /// because `confirm` also moves focus to the offending field and the field
+    /// is six points away. For an unresolved complex component it was not: the
+    /// outcome controls are on the set row, the keypad is covering the set row,
+    /// and the sentence "record an outcome for every complex component" names a
+    /// control that is not on screen. The lifter is told they are wrong and left
+    /// to find out where.
+    @ViewBuilder
+    private var validationBanner: some View {
+        if let validationMessage = coordinator.blockedMessage {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                Image(systemName: AppIcon.warningCircle)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymAccent)
+                    .accessibilityHidden(true)
+
+                Text(validationMessage)
+                    .font(AppFont.footnoteMedium)
+                    .foregroundStyle(Color.gymText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+            }
+            .padding(.horizontal, Spacing.m)
+            .padding(.vertical, Spacing.s)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                Color.gymAccentSurface,
+                in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                    .stroke(Color.gymAccent.opacity(0.35), lineWidth: 1)
+            }
+            .gymShake(trigger: coordinator.blockedAttemptCount)
+            .accessibilityElement(children: .contain)
+            // Spoken the moment it appears, rather than waiting for the lifter
+            // to swipe back to it.
+            .accessibilityAddTraits(.isStaticText)
+            .accessibilityIdentifier("panel-validation-message")
+        }
+    }
+
+    // MARK: - Complex components
+
+    /// True while the panel is standing in for the set row's component controls.
+    ///
+    /// Derived from live state rather than latched in `@State`. A latch set
+    /// inside `confirm` would be wiped by this view's own focus observer on the
+    /// very next update — `confirm` moves focus, so the observer always runs
+    /// after it. Deriving also means the keypad returns on its own the moment
+    /// the last component is recorded: the lifter never dismisses anything.
+    private func isResolvingComponents(_ set: ExerciseSet) -> Bool {
+        coordinator.blockedMessage != nil && hasUnresolvedComponents(set)
+    }
+
+    private func hasUnresolvedComponents(_ set: ExerciseSet) -> Bool {
+        set.complexComponents.contains { $0.outcome == .notStarted }
+    }
+
+    private func complexComponentResolver(set: ExerciseSet) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            ComplexComponentResultsView(
+                components: set.orderedComplexComponents,
+                onChange: {
+                    set.liftQuality = set.orderedComplexComponents
+                        .contains { $0.outcome == .missed } ? .missed : nil
+                    viewModel.persistChanges()
+                    // The refusal has been answered. Retiring it here stops the
+                    // banner from still demanding outcomes that now all exist.
+                    if !hasUnresolvedComponents(set) {
+                        coordinator.clearBlockedAttempt()
+                    }
+                }
+            )
+
+            // An escape hatch back to the numbers, for a lifter who tapped
+            // Complete early and actually wanted to fix a rep count first.
+            Button("Back to keypad") {
+                coordinator.clearBlockedAttempt()
+            }
+            .font(AppFont.footnoteMedium)
+            .foregroundStyle(Color.gymPrimary)
+            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+            .contentShape(Rectangle())
+            .accessibilityIdentifier("panel-back-to-keypad")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("panel-complex-components")
+    }
+
+    /// Standing readiness, shown before the lifter taps anything.
+    ///
+    /// The shake and the message are a *reaction*; this is the part that stops
+    /// the reaction from being needed. A complex set carries evidence the value
+    /// fields do not show, so the panel states how much of it is recorded while
+    /// there is still time to act on it — the same reason the target line above
+    /// exists.
+    @ViewBuilder
+    private func componentReadiness(set: ExerciseSet) -> some View {
+        let components = set.orderedComplexComponents
+        if !components.isEmpty {
+            let recorded = components.filter { $0.outcome != .notStarted }.count
+            let isComplete = recorded == components.count
+
+            Label(
+                "Complex outcomes \(recorded)/\(components.count)",
+                systemImage: isComplete ? AppIcon.checkmarkCircle : AppIcon.circleDashed
+            )
+            .font(AppFont.caption)
+            .foregroundStyle(isComplete ? Color.gymSecondary : Color.gymAccent)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel(
+                isComplete
+                    ? String(localized: "All complex component outcomes recorded")
+                    : String(localized: "\(recorded) of \(components.count) complex component outcomes recorded")
+            )
+            .accessibilityIdentifier("panel-component-readiness")
+        }
+    }
+
     // MARK: - Footer
 
     private func footer(exercise: ExerciseEntry, set: ExerciseSet) -> some View {
@@ -696,6 +1162,10 @@ struct SetInputAccessoryPanel: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
+        // The button the lifter actually tapped shakes too, not just the
+        // message. The tap is the moment their attention is on the screen; a
+        // refusal that only renders somewhere else has already missed it.
+        .gymShake(trigger: coordinator.blockedAttemptCount)
         .accessibilityLabel("Complete set")
         .accessibilityHint("Marks this set done, starts rest, and moves to the next set.")
         .accessibilityIdentifier("panel-complete-set")
@@ -734,13 +1204,31 @@ struct SetInputAccessoryPanel: View {
     private func confirm(exercise: ExerciseEntry, set: ExerciseSet) {
         switch viewModel.completeSet(set, in: exercise) {
         case .blocked(let message, let focus):
-            validationMessage = message
+            // Focus first, message second: the coordinator's focus setter
+            // clears the message, so recording before moving would erase it.
             coordinator.focus = focus
+            coordinator.recordBlockedAttempt(message)
+            GymAnnouncement.post(message)
         case .completed(let nextFocus):
-            validationMessage = nil
+            coordinator.clearBlockedAttempt()
             onSetCompleted(exercise)
             coordinator.refreshOrder(in: viewModel.activeWorkout)
-            coordinator.focus = nextFocus
+            // A rest that starts behind the keypad is a rest the lifter never
+            // sees. `ActiveWorkoutView.isShowingRestTakeover` is gated on
+            // `focus == nil`, so holding focus here silently downgrades the
+            // full-screen takeover to the collapsed pill — and completing a set
+            // from the keypad ends up meaning something different from
+            // completing it from the command bar.
+            //
+            // Only yield the keypad when a rest is actually going to run.
+            // A superset mid-round and the final set of the workout both
+            // suppress rest, and there the fast path — straight to the next
+            // field — is still the right one.
+            if viewModel.isTimerVisible, viewModel.hasIncompleteSet {
+                coordinator.focus = nil
+            } else {
+                coordinator.focus = nextFocus
+            }
         case .reopened, .failed:
             break
         }
@@ -776,7 +1264,7 @@ struct SetInputAccessoryPanel: View {
         // while the stored value moves underneath it, so the first ± after
         // typing looks like it did nothing at all.
         coordinator.endEntry(ifEditing: field)
-        validationMessage = nil
+        coordinator.clearBlockedAttempt()
         viewModel.persistChanges()
     }
 
@@ -816,7 +1304,11 @@ struct SetInputAccessoryPanel: View {
         case .weight:
             return set.weight == 0 ? "—" : Formatters.formatFloat(set.weight)
         case .duration:
-            return (set.duration ?? 0) == 0 ? "—" : String(Int(set.duration ?? 0))
+            // Read back as a clock, matching how it is now typed. `90` would
+            // otherwise be entered as 1:30 and echoed as "90", so the field
+            // would disagree with the keypad that filled it.
+            let seconds = set.duration ?? 0
+            return seconds == 0 ? "—" : ClockEntry.clockText(seconds: seconds)
         case .distance:
             guard let measurement = WorkoutDistancePolicy.displayMeasurement(
                 for: set,
@@ -842,7 +1334,9 @@ struct SetInputAccessoryPanel: View {
             }
             return set.weightType.rawValue
         case .duration:
-            return "sec"
+            // The colon in "1:30" already says what the unit is; appending
+            // "sec" to a clock reads as a contradiction.
+            return ""
         case .distance:
             return WorkoutDistancePolicy.displayMeasurement(
                 for: set,

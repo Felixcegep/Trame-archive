@@ -525,3 +525,52 @@ extension ButtonStyle where Self == GymPrimaryButtonStyle {
         GymPrimaryButtonStyle(prominence: .prominent)
     }
 }
+
+/// The app's one *alternative* action: same shape and weight as the filled
+/// button, outlined instead of filled.
+///
+/// It exists because the app had no way to say "this is also a real choice, but
+/// it is not the recommended one". A screen offering two full-width actions had
+/// to draw both with `gymPrimary`, and two identical blue capsules stacked on
+/// top of each other is not a hierarchy — it is a coin toss. Reaching for
+/// `.bordered` instead would have solved the weight and broken the shape,
+/// leaving the pair looking like controls from two different apps.
+///
+/// Match `prominence` to the primary it sits beneath so the two capsules are
+/// the same height.
+///
+/// Named for the treatment rather than for rank: `Color.gymSecondary` is the
+/// palette's *green*, and a `gymSecondary` button style sitting next to it
+/// while rendering blue would be a trap for the next person to read either one.
+struct GymOutlineButtonStyle: ButtonStyle {
+    var prominence: GymPrimaryButtonStyle.Prominence = .standard
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(prominence == .prominent ? AppFont.headline : AppFont.bodyMedium)
+            .foregroundStyle(isEnabled ? Color.gymPrimary : Color.gymSubduedText)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: prominence == .prominent ? 54 : ComponentSize.minimumTouchTarget
+            )
+            .padding(.horizontal, Spacing.l)
+            .background {
+                RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                    .fill(Color.gymCard)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.button, style: .continuous)
+                    .stroke(isEnabled ? Color.gymPrimary.opacity(0.35) : Color.gymBorder, lineWidth: 1)
+            }
+            .weightedPulse(isPressed: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == GymOutlineButtonStyle {
+    static var gymOutline: GymOutlineButtonStyle { GymOutlineButtonStyle() }
+    static var gymOutlineProminent: GymOutlineButtonStyle {
+        GymOutlineButtonStyle(prominence: .prominent)
+    }
+}

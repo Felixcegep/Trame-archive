@@ -84,7 +84,11 @@ struct LibraryItemRow: View {
                     }
                 }
                 if let subtitle {
-                    Text(subtitle).font(AppFont.caption).foregroundStyle(Color.gymSubduedText).lineLimit(1)
+                    Text(subtitle)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer()

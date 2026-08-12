@@ -81,6 +81,17 @@ class Workout {
     var status: WorkoutStatus = WorkoutStatus.active
     var name: String?
     var notes: String?
+    /// What kind of training this session was, asked once on the save screen.
+    ///
+    /// Optional on purpose: saving without answering is allowed, and a `nil`
+    /// here means "not answered", never "Other". History and Progress both
+    /// treat it as a filter, so an invented value would quietly poison the
+    /// split rather than leave a gap.
+    var sportRawValue: String?
+    /// Whether ``sportRawValue`` came from ``SessionSportDetector`` and was left
+    /// untouched. Corrections are the only signal available for tuning the
+    /// detector later, and they are only legible next to what was guessed.
+    var sportWasAutoDetected: Bool = false
     var startTime: Date
     var endTime: Date?
     var restEndDate: Date?
@@ -321,6 +332,52 @@ class Workout {
             return "\(exerciseNames[0]) + \(exerciseNames[1])"
         default:
             return "\(exerciseNames[0]) + \(exerciseNames.count - 1) more"
+        }
+    }
+
+    /// Typed access to the persisted sport. Stored as a raw string so adding a
+    /// case later is not a schema migration, and an unrecognised value read back
+    /// from an older build degrades to `nil` rather than trapping.
+    var sport: SessionSport? {
+        get { sportRawValue.flatMap(SessionSport.init(rawValue:)) }
+        set {
+            sportRawValue = newValue?.rawValue
+            if newValue == nil { sportWasAutoDetected = false }
+        }
+    }
+
+    /// The session's exercises reduced to what ``SessionSportDetector`` reads.
+    ///
+    /// Only exercises with at least one completed set count: an exercise that
+    /// was added and then skipped says nothing about what the session was.
+    var sportDetectionInputs: [ExerciseDetectionInput] {
+        orderedExercises
+            .filter { $0.sets.contains(where: \.done) }
+            .map { entry in
+                // Category, equipment and resistance are all optional on
+                // `Exercise`. An unclassified exercise should contribute no
+                // signal rather than a wrong one, and `.other` is the value
+                // every rule ignores.
+                ExerciseDetectionInput(
+                    name: entry.nameSnapshot,
+                    category: entry.exercise.category ?? .other,
+                    equipment: entry.exercise.equipmentType ?? .other,
+                    resistance: entry.exercise.resistanceType ?? .other,
+                    tracking: entry.trackingTypeSnapshot,
+                    isInsideConditioningBlock: entry.executionBlockID != nil
+                )
+            }
+    }
+
+    /// Whether any completed work in this session was loaded by the lifter's own
+    /// body — the condition under which body weight stops being trivia and
+    /// starts being the denominator of the set.
+    var usesBodyweightLoading: Bool {
+        let bodyweightResistances: [ResistanceType] = [.bodyweight, .assistedBodyweight, .weightedBodyweight]
+        return orderedExercises.contains { entry in
+            guard entry.sets.contains(where: \.done) else { return false }
+            guard let resistance = entry.exercise.resistanceType else { return false }
+            return bodyweightResistances.contains(resistance)
         }
     }
 

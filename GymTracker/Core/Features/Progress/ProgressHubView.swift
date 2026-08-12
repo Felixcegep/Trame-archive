@@ -19,6 +19,11 @@ struct ProgressHubView: View {
 
     @State private var overviewRange: AnalyticsDateRange = .twelveWeeks
     @State private var overviewState: ProgressOverviewState = .loading
+    /// Collapsed on every appearance rather than remembered. The three rows
+    /// inside are visited rarely and deliberately; restoring an expansion from
+    /// a previous session would put them back at the weight this change exists
+    /// to take away.
+    @State private var isShowingTools = false
 
     var body: some View {
         List {
@@ -44,84 +49,90 @@ struct ProgressHubView: View {
                 Text("Overview")
             }
 
+            // Four rows, not seven.
+            //
+            // Training history, records, trends and volume are what a lifter
+            // opens Progress for. Weightlifting, the ledger and coach exchange
+            // are specialist instruments — a competition dashboard, a
+            // recommendation audit log, and a coach hand-off format — and
+            // presenting all seven at equal weight made the four common ones
+            // as hard to find as the three rare ones. Nothing is removed; the
+            // rare three moved one disclosure deeper.
             Section("Training") {
                 progressLink(
                     route: .workoutHistory,
                     title: "Training history",
-                    detail: countDescription(completedWorkouts.count, singular: "completed workout"),
-                    icon: AppIcon.history
+                    detail: countDescription(completedWorkouts.count, singular: "completed workout")
                 )
                 progressLink(
                     route: .records,
                     title: "Records",
-                    detail: "Best performed sets and exercise progress",
-                    icon: AppIcon.trophy
+                    detail: "Best performed sets and exercise progress"
                 )
                 progressLink(
                     route: .trainingTrends,
                     title: "Exercise trends",
-                    detail: "Completed load, volume, and repetition history",
-                    icon: AppIcon.progression
+                    detail: "Completed load, volume, and repetition history"
                 )
                 progressLink(
                     route: .muscleGroupVolume,
                     title: "Muscle-group volume",
-                    detail: "Estimated working-set distribution and evidence",
-                    icon: AppIcon.muscles
+                    detail: "Estimated working-set distribution and evidence"
                 )
-                progressLink(
-                    route: .weightlifting,
-                    title: "Weightlifting",
-                    detail: "Full lifts, components, and quality evidence",
-                    icon: AppIcon.trophy
-                )
-                progressLink(
-                    route: .trainingLedger,
-                    title: String(localized: "progression.ledger.title", defaultValue: "Training ledger"),
-                    detail: String(localized: "progression.ledger.entry.detail", defaultValue: "Recommendation decisions and evidence"),
-                    icon: AppIcon.progression
-                )
-                progressLink(
-                    route: .coachExchange,
-                    title: String(localized: "coach.exchange.title", defaultValue: "Coach exchange"),
-                    detail: String(localized: "coach.exchange.entry.detail", defaultValue: "Share selected training definitions and reports"),
-                    icon: AppIcon.export
-                )
+
+                DisclosureGroup(isExpanded: $isShowingTools) {
+                    progressLink(
+                        route: .weightlifting,
+                        title: "Weightlifting",
+                        detail: "Full lifts, components, and quality evidence"
+                    )
+                    progressLink(
+                        route: .trainingLedger,
+                        title: String(localized: "progression.ledger.title", defaultValue: "Training ledger"),
+                        detail: String(localized: "progression.ledger.entry.detail", defaultValue: "Recommendation decisions and evidence")
+                    )
+                    progressLink(
+                        route: .coachExchange,
+                        title: String(localized: "coach.exchange.title", defaultValue: "Coach exchange"),
+                        detail: String(localized: "coach.exchange.entry.detail", defaultValue: "Share selected training definitions and reports")
+                    )
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text("Tools")
+                                .font(AppFont.subheadlineSemibold)
+                            Text("Competition, progression evidence, and coach hand-off")
+                                .font(AppFont.caption)
+                                .foregroundStyle(Color.gymSubduedText)
+                        }
+                    } icon: {
+                        GymIconChip(systemImage: AppIcon.export, tint: .gymAccent)
+                    }
+                }
+                .tint(Color.gymPrimary)
+                .accessibilityIdentifier("progress-tools-disclosure")
             }
 
+            // One row, not three.
+            //
+            // Mobility routines, journal check-ins and logged meals were three
+            // rows opening three screens that differ only in which record they
+            // list. They are now scopes inside one History screen — the row
+            // still reports every count, so nothing became harder to find, and
+            // the section stopped being longer than the one above it.
             Section("Supporting history") {
-                // These two use inflected catalogue strings rather than
-                // `countDescription`, which builds its plural by appending "s"
-                // to an English singular and so cannot translate. The remaining
-                // rows still carry that older pattern.
                 progressLink(
-                    route: .mobilityHistory,
-                    title: "Mobility routines",
-                    detail: CountPhrase.completedSessions(completedMobilitySessions.count),
-                    icon: AppIcon.mobility
+                    route: .supportingHistory(.mobility),
+                    title: "History",
+                    detail: supportingHistoryDetail
                 )
                 if featureFlags.isEnabled(.mobilityAssessment) {
                     progressLink(
                         route: .mobilityAssessmentHistory,
                         title: "Mobility assessments",
-                        detail: CountPhrase.recordedAssessments(recordedAssessmentSessions.count),
-                        icon: AppIcon.mobilityAssessment
+                        detail: CountPhrase.recordedAssessments(recordedAssessmentSessions.count)
                     )
                 }
-                if featureFlags.isEnabled(.nutrition) {
-                    progressLink(
-                        route: .nutritionHistory,
-                        title: "Nutrition history",
-                        detail: countDescription(loggedMeals.count, singular: "logged meal"),
-                        icon: AppIcon.nutrition
-                    )
-                }
-                progressLink(
-                    route: .journalHistory,
-                    title: "Journal history",
-                    detail: countDescription(dailyLogEntries.count, singular: "daily check-in"),
-                    icon: AppIcon.routine
-                )
             }
         }
         .scrollContentBackground(.hidden)
@@ -261,7 +272,10 @@ struct ProgressHubView: View {
         assessmentSessions.filter { $0.results.isEmpty == false }
     }
 
-    private func progressLink(route: ProgressRoute, title: String, detail: String, icon: String) -> some View {
+    /// Icon and tint come from the route — see `ProgressRoute.tint`. They were
+    /// arguments, and `GymIconChip`'s default tint meant every row here was
+    /// blue while the Overview above tinted the same destinations by mood.
+    private func progressLink(route: ProgressRoute, title: String, detail: String) -> some View {
         NavigationLink(value: route) {
             Label {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
@@ -272,10 +286,27 @@ struct ProgressHubView: View {
                         .foregroundStyle(Color.gymSubduedText)
                 }
             } icon: {
-                GymIconChip(systemImage: icon)
+                GymIconChip(systemImage: route.icon, tint: route.tint)
             }
         }
         .accessibilityIdentifier("progress-\(route.accessibilityIdentifier)")
+    }
+
+    /// Every count the three rows used to report, on the one row that replaced
+    /// them — collapsing rows must not cost the lifter the ability to see, from
+    /// the hub, whether there is anything in there.
+    ///
+    /// Nutrition is omitted entirely when its flag is off, matching the scope
+    /// picker inside.
+    private var supportingHistoryDetail: String {
+        var parts = [
+            CountPhrase.completedSessions(completedMobilitySessions.count),
+            countDescription(dailyLogEntries.count, singular: "daily check-in")
+        ]
+        if featureFlags.isEnabled(.nutrition) {
+            parts.append(countDescription(loggedMeals.count, singular: "logged meal"))
+        }
+        return parts.joined(separator: " · ")
     }
 
     private func countDescription(_ count: Int, singular: String) -> String {
@@ -284,6 +315,44 @@ struct ProgressHubView: View {
 }
 
 extension ProgressRoute {
+    /// The glyph for a destination, wherever it is drawn.
+    var icon: String {
+        switch self {
+        case .workoutHistory: AppIcon.history
+        case .trainingJourney: AppIcon.journey
+        case .records: AppIcon.trophy
+        case .trainingTrends: AppIcon.progression
+        case .muscleGroupVolume: AppIcon.muscles
+        case .weightlifting: AppIcon.trophy
+        case .trainingLedger: AppIcon.progression
+        case .coachExchange: AppIcon.export
+        case .supportingHistory: AppIcon.routine
+        case .mobilityAssessmentHistory: AppIcon.mobilityAssessment
+        }
+    }
+
+    /// The tint for a destination, wherever it is drawn.
+    ///
+    /// One tint per route, resolved here rather than at each call site — the
+    /// Overview and the hub below it previously disagreed about the same
+    /// destinations, which spent the palette's meanings on decoration.
+    ///
+    /// The rule is the design system's own: `gymPrimary` is training data,
+    /// `gymSecondary` is something achieved, `gymAccent` is supporting
+    /// context. A reader should be able to infer the kind of screen from the
+    /// colour before reading the label.
+    var tint: Color {
+        switch self {
+        case .workoutHistory, .trainingTrends, .muscleGroupVolume:
+            .gymPrimary
+        case .records, .weightlifting:
+            .gymSecondary
+        case .trainingJourney, .trainingLedger, .coachExchange,
+             .supportingHistory, .mobilityAssessmentHistory:
+            .gymAccent
+        }
+    }
+
     var accessibilityIdentifier: String {
         switch self {
         case .workoutHistory: "workout-history"
@@ -294,10 +363,8 @@ extension ProgressRoute {
         case .weightlifting: "weightlifting"
         case .trainingLedger: "training-ledger"
         case .coachExchange: "coach-exchange"
-        case .mobilityHistory: "mobility-history"
+        case let .supportingHistory(scope): "supporting-history-\(scope.rawValue)"
         case .mobilityAssessmentHistory: "mobility-assessment-history"
-        case .nutritionHistory: "nutrition-history"
-        case .journalHistory: "journal-history"
         }
     }
 }
@@ -338,7 +405,6 @@ struct MobilityHistoryView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Mobility history")
     }
 
     private var mobilityEvidenceByResultID: [UUID: MobilityResultEvidence] {
@@ -493,7 +559,6 @@ struct NutritionHistoryView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Nutrition history")
     }
 
     private var daySummaries: [NutritionHistoryDay] {
@@ -538,6 +603,5 @@ struct JournalHistoryView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
-        .navigationTitle("Journal history")
     }
 }

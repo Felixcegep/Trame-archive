@@ -11,8 +11,12 @@ struct WorkoutSaveView: View {
     let onWorkoutSaved: (UUID) -> Void
     let onDiscardRequested: () -> Void
 
+    @AppStorage(DefaultsKey.bodyWeightPromptCadence) private var bodyWeightPromptCadence: BodyWeightPromptCadence = .off
+    @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var bodyWeightEntries: [BodyWeightEntry]
+    /// Declining is a decision about this screen, not a permanent one — the
+    /// cadence setting owns "never ask again".
+    @State private var hasDismissedBodyWeightPrompt = false
     @State private var isShowingDiscardConfirmation = false
-    @State private var isShowingPartialSaveConfirmation = false
     @State private var saveErrorMessage: String?
     /// Separate counters so success and failure can never fire together, and
     /// so neither can fire from anything except a completed attempt.
@@ -164,6 +168,10 @@ struct WorkoutSaveView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
                 }
 
+                bodyWeightPrompt(for: workout)
+
+                sportSection(for: workout)
+
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Text("NOTES")
                         .font(AppFont.captionBold)
@@ -207,18 +215,31 @@ struct WorkoutSaveView: View {
         .background(Color.gymBackground)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: Spacing.md) {
+                // The exclusion only. The button beneath now names what *is*
+                // being saved, so repeating it here would say the same thing
+                // twice in eight points of vertical space.
                 if workout.incompleteSetCount > 0 {
                     Label(
-                        "\(CountPhrase.completedSets(saveableSetCount(for: workout))) will be saved; \(CountPhrase.incompleteSets(workout.incompleteSetCount)) will be excluded",
+                        "\(CountPhrase.incompleteSets(workout.incompleteSetCount)) won't be included",
                         systemImage: AppIcon.warningCircle
                     )
                     .font(AppFont.footnote)
                     .foregroundStyle(Color.gymAccent)
-                    .accessibilityLabel("\(CountPhrase.completedSets(saveableSetCount(for: workout))) will be saved. \(CountPhrase.incompleteSets(workout.incompleteSetCount)) will be excluded from History.")
+                    .accessibilityLabel("\(CountPhrase.incompleteSets(workout.incompleteSetCount)) will be excluded from History.")
                 }
 
-                Button(action: requestSave) {
-                    Label("Save workout", systemImage: AppIcon.save)
+                // The label is the confirmation.
+                //
+                // This used to read "Save workout" and raise a dialog headed
+                // "Save only completed sets?" whose message repeated, word for
+                // word, the caption already printed directly above this button.
+                // Confirming a fact the screen is currently stating is not a
+                // safeguard; it is a second tap. Naming the count in the button
+                // makes the promise at the point of action, which is where the
+                // lifter is looking. Discard still confirms — that one destroys
+                // work and cannot be undone.
+                Button(action: saveWorkout) {
+                    Label(saveActionTitle(for: workout), systemImage: AppIcon.save)
                 }
                 .buttonStyle(.gymPrimaryProminent)
                 .accessibilityIdentifier("save-workout")
@@ -231,19 +252,6 @@ struct WorkoutSaveView: View {
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.m)
             .background(.ultraThinMaterial)
-        }
-        .confirmationDialog(
-            "Save only completed sets?",
-            isPresented: $isShowingPartialSaveConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Save completed sets", action: saveWorkout)
-            Button("Keep editing") {
-                isShowingPartialSaveConfirmation = false
-            }
-                .accessibilityIdentifier("keep-editing-partial-save")
-        } message: {
-            partialSaveConfirmationMessage(for: workout)
         }
         .confirmationDialog(
             "Discard this workout?",
@@ -283,12 +291,17 @@ struct WorkoutSaveView: View {
         return name
     }
 
-    @ViewBuilder
-    private func partialSaveConfirmationMessage(for workout: Workout) -> some View {
-        Text("\(CountPhrase.completedSets(saveableSetCount(for: workout))) will be saved to History. \(CountPhrase.incompleteSets(workout.incompleteSetCount)) will be excluded. Your workout name and notes will be saved.")
-        if let repeatingPlanName = repeatingPlanName(for: workout) {
-            Text("When the save succeeds, \(repeatingPlanName) advances to the next workout.")
+    /// What the button will do, stated on the button.
+    ///
+    /// Named with its count only when some sets are being left behind. A
+    /// workout with nothing incomplete has nothing to disambiguate, and
+    /// "Save 18 completed sets" there would imply a distinction that does not
+    /// exist.
+    private func saveActionTitle(for workout: Workout) -> String {
+        guard workout.incompleteSetCount > 0 else {
+            return String(localized: "Save workout")
         }
+        return String(localized: "Save \(CountPhrase.completedSets(saveableSetCount(for: workout)))")
     }
 
     private func discardConfirmationMessage(for workout: Workout) -> String {
@@ -408,16 +421,6 @@ struct WorkoutSaveView: View {
         }
     }
 
-    private func requestSave() {
-        guard let workout = workoutVM.activeWorkout else { return }
-
-        if workout.incompleteSetCount > 0 {
-            isShowingPartialSaveConfirmation = true
-        } else {
-            saveWorkout()
-        }
-    }
-
     private func hasNotes(for workout: Workout) -> Bool {
         !(workout.notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
     }
@@ -482,6 +485,212 @@ struct WorkoutSaveView: View {
     /// Reports what was actually written, using the counts recorded by the save
     /// itself. They cannot be recomputed here: the graph has been pruned and
     /// `activeWorkout` cleared by the time this runs.
+    // MARK: - Body weight
+
+    /// Asks for body weight after the session, and only when this session
+    /// actually needed it.
+    ///
+    /// Placement is the whole design here. A pull-up logged at 8 reps means
+    /// nothing without knowing what was being pulled, so the app wants this
+    /// number — but it must never stand between a lifter and logging a set.
+    /// Mid-workout the ask would land on the rest timer starting; here the
+    /// session is already over and a keyboard interrupts nothing.
+    ///
+    /// Skipped entirely when the lifter has turned the prompt off in Settings:
+    /// `BodyWeightPromptCadence.isDue(latest:)` already encodes both the
+    /// off switch and the staleness window.
+    @ViewBuilder
+    private func bodyWeightPrompt(for workout: Workout) -> some View {
+        if !hasDismissedBodyWeightPrompt,
+           workout.usesBodyweightLoading,
+           bodyWeightPromptCadence.isDue(latest: bodyWeightEntries.first) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                Label {
+                    Text("Add your body weight")
+                        .font(AppFont.subheadlineBold)
+                } icon: {
+                    Image(systemName: AppIcon.bodyWeight)
+                }
+                .foregroundStyle(Color.gymText)
+
+                Text(bodyWeightPromptDetail)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: Spacing.s) {
+                    if let latest = bodyWeightEntries.first {
+                        // The common case by far: weight has not meaningfully
+                        // moved, so confirming last week's number is one tap
+                        // and no keyboard.
+                        Button {
+                            recordBodyWeight(value: latest.value, unit: latest.unit)
+                        } label: {
+                            Text("Still \(Formatters.formatFloat(latest.value)) \(latest.unit.rawValue)")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.gymPrimary)
+                        .accessibilityIdentifier("confirm-body-weight")
+                    }
+
+                    Button("Not now") {
+                        hasDismissedBodyWeightPrompt = true
+                    }
+                    .buttonStyle(.gymOutline)
+                    .accessibilityIdentifier("dismiss-body-weight-prompt")
+                }
+            }
+            .padding(Spacing.l)
+            .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+            .accessibilityIdentifier("body-weight-prompt")
+        }
+    }
+
+    private var bodyWeightPromptDetail: String {
+        guard let latest = bodyWeightEntries.first else {
+            return String(localized: "This session included bodyweight work. Recording your weight lets the app show total load. You can add it in Settings.")
+        }
+        let days = Calendar.current.dateComponents([.day], from: latest.measuredAt, to: .now).day ?? 0
+        return String(localized: "This session included bodyweight work. Last recorded \(days) days ago — confirming keeps total load accurate.")
+    }
+
+    /// Writes today's entry. `dayKey` is the model's own uniquing key, so
+    /// re-confirming on a day that already has a reading updates it instead of
+    /// stacking a duplicate.
+    private func recordBodyWeight(value: Float, unit: WeightType) {
+        let today = LocalDay.today
+
+        if let existing = bodyWeightEntries.first(where: { $0.dayKey == today.rawValue }) {
+            existing.update(value: value, unit: unit, source: .checkIn, measuredAt: .now)
+        } else {
+            modelContext.insert(
+                BodyWeightEntry(
+                    day: today,
+                    value: value,
+                    unit: unit,
+                    source: .checkIn,
+                    measuredAt: .now
+                )
+            )
+        }
+        hasDismissedBodyWeightPrompt = true
+    }
+
+    // MARK: - Sport
+
+    /// Asks what kind of session this was, once, with the answer already filled
+    /// in when the exercises make it obvious.
+    ///
+    /// It is a row of chips rather than a picker because the whole point is that
+    /// correcting the guess costs one tap. A picker would make the common case
+    /// (the guess is right) free and the uncommon case (it is wrong) three taps
+    /// deep, which is backwards: a lifter only looks at this row *because*
+    /// something about it caught their eye.
+    @ViewBuilder
+    private func sportSection(for workout: Workout) -> some View {
+        let suggestion = sportSuggestion(for: workout)
+        let offered = offeredSports(for: workout, suggestion: suggestion)
+
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("SPORT")
+                .font(AppFont.captionBold)
+                .tracking(0.8)
+                .foregroundStyle(Color.gymSubduedText)
+
+            ChipFlowLayout(spacing: Spacing.xs) {
+                ForEach(offered) { sport in
+                    sportChip(sport, workout: workout)
+                }
+            }
+
+            Text(sportCaption(for: workout, suggestion: suggestion))
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+        }
+        .accessibilityIdentifier("workout-sport-section")
+        .onAppear {
+            // Pre-fill only a confident guess, only once, and never over an
+            // answer the lifter has already given.
+            guard workout.sport == nil, let selected = suggestion.selected else { return }
+            workout.sport = selected
+            workout.sportWasAutoDetected = true
+        }
+    }
+
+    private func sportChip(_ sport: SessionSport, workout: Workout) -> some View {
+        let isSelected = workout.sport == sport
+        return Button {
+            if isSelected {
+                workout.sport = nil
+            } else {
+                workout.sport = sport
+                // A tap is a correction, so the value is no longer the
+                // detector's. This is the only signal available for tuning the
+                // rules later.
+                workout.sportWasAutoDetected = false
+            }
+        } label: {
+            Label {
+                Text(sport.title)
+            } icon: {
+                if isSelected {
+                    Image(systemName: AppIcon.checkmark)
+                }
+            }
+            .font(AppFont.footnoteMedium)
+            .foregroundStyle(isSelected ? Color.white : Color.gymPrimary)
+            .padding(.horizontal, Spacing.m)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .background(isSelected ? Color.gymPrimaryDeep : Color.gymCard, in: Capsule())
+            .overlay {
+                Capsule().stroke(isSelected ? Color.clear : Color.gymBorder, lineWidth: 1)
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("workout-sport-\(sport.rawValue)")
+    }
+
+    private func sportSuggestion(for workout: Workout) -> SessionSportSuggestion {
+        SessionSportDetector.suggest(for: workout.sportDetectionInputs)
+    }
+
+    /// The chips to show: whatever is currently chosen, then the detector's
+    /// candidates, then `Mixed` and `Other` as explicit escapes. `Mixed` is
+    /// deliberately never inferred — some sessions really are two sports, and
+    /// that should be the lifter saying so rather than the app giving up.
+    private func offeredSports(
+        for workout: Workout,
+        suggestion: SessionSportSuggestion
+    ) -> [SessionSport] {
+        var sports: [SessionSport] = []
+        if let selected = workout.sport { sports.append(selected) }
+        if let detected = suggestion.selected { sports.append(detected) }
+        sports.append(contentsOf: suggestion.alternatives)
+        sports.append(contentsOf: [.mixed, .other])
+
+        var seen: Set<SessionSport> = []
+        return sports.filter { seen.insert($0).inserted }
+    }
+
+    private func sportCaption(
+        for workout: Workout,
+        suggestion: SessionSportSuggestion
+    ) -> String {
+        if workout.sport == nil {
+            return suggestion.isConfident
+                ? String(localized: "Optional — pick one, or save without it.")
+                : String(localized: "This session mixes a few things. Pick one, or save without it.")
+        }
+        if workout.sportWasAutoDetected {
+            return String(
+                localized: "Detected from \(suggestion.matchedExercises) of \(suggestion.totalExercises) exercises. Tap to change."
+            )
+        }
+        return String(localized: "Tap again to clear.")
+    }
+
     private var savedAnnouncement: String {
         guard let summary = workoutVM.lastSavedSummary else {
             return String(localized: "Workout saved.")

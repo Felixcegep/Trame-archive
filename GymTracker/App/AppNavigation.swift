@@ -48,6 +48,28 @@ enum TodayRoute: Hashable {
     case weeklyReview(WeeklyProgramReviewRoute)
 }
 
+/// Which record `ProgressRoute.supportingHistory` opens on.
+///
+/// Ordered as the picker presents them: the two always-available scopes first,
+/// then the gated one, so hiding nutrition never leaves a hole in the middle.
+enum SupportingHistoryScope: String, CaseIterable, Hashable, Identifiable {
+    case mobility
+    case journal
+    case nutrition
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .mobility: String(localized: "Mobility")
+        case .journal: String(localized: "Journal")
+        case .nutrition: String(localized: "Nutrition")
+        }
+    }
+
+    var accessibilityIdentifier: String { "supporting-history-scope-\(rawValue)" }
+}
+
 enum NutritionRoute: Hashable {
     case foodLibrary
     case mealTemplates
@@ -65,10 +87,13 @@ enum ProgressRoute: Hashable {
     case weightlifting
     case trainingLedger
     case coachExchange
-    case mobilityHistory
-    /// Recorded observations, kept separate from `mobilityHistory`: performed
-    /// routine work and measured evidence are two different kinds of record.
+    /// Mobility routines, journal check-ins and logged meals — one screen with
+    /// a scope picker rather than three rows opening three near-identical
+    /// lists. The scope travels in the route so a deep link (a calendar day, a
+    /// notification) still lands on the record it meant.
+    case supportingHistory(SupportingHistoryScope)
+    /// Recorded observations, kept separate from `supportingHistory`: performed
+    /// routine work and measured evidence are two different kinds of record,
+    /// and this one is feature-gated where those are not.
     case mobilityAssessmentHistory
-    case nutritionHistory
-    case journalHistory
 }

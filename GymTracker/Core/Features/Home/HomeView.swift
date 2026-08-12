@@ -48,6 +48,11 @@ struct HomeView: View {
     @State private var completedWorkoutCount = 0
     @State private var workoutStartCount = 0
     @State private var pendingTemplateStart: WorkoutTemplate?
+    /// Whether Today plays the Trame assembly on this appearance.
+    ///
+    /// Resolved once, in `onAppear`, and never in `body` — reading it during a
+    /// render would let a re-render mid-animation restart the sequence.
+    @State private var isPlayingAssembly = false
 
     private var activeFixedPlanRuns: [PlanRun] {
         planRuns
@@ -146,6 +151,7 @@ struct HomeView: View {
                     activeRepeatingPlanRun: activeRepeatingPlanRun,
                     onOpenPlan: onOpenPlan
                 )
+                .gymAssembly(index: 0, isActive: isPlayingAssembly)
                 HomePrimaryWorkoutCard(
                     activeWorkout: workoutVM.activeWorkout,
                     activePlanRun: activePlanRun,
@@ -156,6 +162,7 @@ struct HomeView: View {
                     onReschedule: beginRescheduling,
                     onSkip: { progressToSkip = $0 }
                 )
+                .gymAssembly(index: 1, isActive: isPlayingAssembly)
                 // Training data before navigation shortcuts.
                 //
                 // The week summary is the only thing on Today that reports what
@@ -165,14 +172,17 @@ struct HomeView: View {
                 // because "am I on track?" is the question the screen exists to
                 // answer and a shortcut list answers nothing.
                 HomeWeekSummaryCard(
-                    isPrimaryCardOfferingStart: todayWorkoutSummary.kind == .planned || todayWorkoutSummary.kind == .repeating,
+                    isPrimaryCardOfferingStart: todayWorkoutSummary.offersStartAction,
+                    isPlayingAssembly: isPlayingAssembly,
                     onStartWorkout: { isShowingTemplatePicker = true }
                 )
+                .gymAssembly(index: 2, isActive: isPlayingAssembly)
                 HomeTodaySection(
                     onOpenExercises: onOpenExercises,
                     onOpenMobility: onOpenMobility,
                     onResumeMobility: onResumeMobility
                 )
+                .gymAssembly(index: 3, isActive: isPlayingAssembly)
                 // Last in the page, after everything the lifter came for.
                 if isShowingPersonalizationPrompt {
                     PersonalizationPromptCard(
@@ -221,6 +231,7 @@ struct HomeView: View {
                 .accessibilityLabel("Settings")
             }
         }
+        .onAppear(perform: resolveAssembly)
         .onAppear(perform: presentRequestedRescheduleIfNeeded)
         .onAppear(perform: evaluatePersonalizationPrompt)
         .onChange(of: requestedRescheduleProgressID) { _, _ in
@@ -270,6 +281,25 @@ struct HomeView: View {
 }
 
 private extension HomeView {
+    /// Today assembles itself on a lifter's first look at it, and never again
+    /// that session.
+    ///
+    /// Gated on having no training history, because that is the state the
+    /// animation is *for*: an empty Today is three headings around a single
+    /// button, and the assembly is what turns it from a screen waiting for
+    /// data into a screen introducing itself. Someone with sessions behind
+    /// them opens Today to start training, and an animation between them and
+    /// the Start button is a toll, not a welcome.
+    func resolveAssembly() {
+        guard completedWorkoutCount == 0,
+              (try? modelContext.fetchCount(FetchDescriptor<Workout>())) ?? 0 == 0,
+              GymAssemblySession.claim("today")
+        else {
+            return
+        }
+        isPlayingAssembly = true
+    }
+
     func openPrimaryWorkout() {
         if workoutVM.hasActiveWorkout {
             isShowingActiveWorkout = true

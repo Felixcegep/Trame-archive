@@ -98,7 +98,7 @@ struct SetRowSecondaryContent: View {
 
     private func previousSetButton(_ previousSet: PreviousSetPerformance) -> some View {
         Button {
-            viewModel.applyPreviousPerformance(to: exerciseSet, in: exerciseEntry, index: index)
+            viewModel.applyPreviousPerformance(previousSet, to: exerciseSet, in: exerciseEntry)
             coordinator.focus = SetInputFocus(
                 exerciseID: exerciseEntry.persistentModelID,
                 setID: exerciseSet.persistentModelID,

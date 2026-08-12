@@ -12,7 +12,21 @@ extension SetInputAccessoryPanel {
                 effortChip(set: set)
 
                 if exercise.exercise.supportsPlateCalculator {
-                    chip(title: "Plates", systemImage: AppIcon.plateCalculator, identifier: "panel-chip-plates") {
+                    // The chip answers its own question. "What do I hang on the
+                    // bar" has one answer per weight, and printing it here
+                    // means the sheet only has to open when the lifter wants to
+                    // change the loading rather than read it.
+                    //
+                    // It leads the row while the weight differs from the last
+                    // set they completed — that is the moment the bar
+                    // physically changes — and settles back afterwards. A
+                    // reference tool that shouts on every set stops being read.
+                    chip(
+                        title: plateChipTitle(exercise: exercise, set: set),
+                        systemImage: AppIcon.plateCalculator,
+                        identifier: "panel-chip-plates",
+                        isProminent: needsPlateChange(exercise: exercise, set: set)
+                    ) {
                         viewModel.noteSetEntryTool(.plateCalculator)
                         isShowingPlateCalculator = true
                     }
@@ -174,6 +188,101 @@ extension SetInputAccessoryPanel {
         }
         .buttonStyle(.gymPress)
         .accessibilityIdentifier(identifier ?? "panel-chip-\(systemImage)")
+    }
+
+    /// A chip whose title is composed at runtime — the plate stack, which is a
+    /// number and cannot be a localisation key.
+    ///
+    /// `isProminent` is state, not decoration: it marks the one chip that is
+    /// worth looking at right now. Nothing else in the row ever sets it, so it
+    /// can only ever mean one thing.
+    private func chip(
+        title: String,
+        systemImage: String,
+        identifier: String? = nil,
+        isProminent: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label {
+                Text(verbatim: title)
+            } icon: {
+                Image(systemName: systemImage)
+            }
+            .font(AppFont.footnoteMedium)
+            .monospacedDigit()
+            .lineLimit(1)
+            .foregroundStyle(isProminent ? Color.gymPrimary : Color.gymText)
+            .padding(.horizontal, Spacing.m)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .background(isProminent ? Color.gymPrimarySurface : Color.gymRowSurface)
+            .clipShape(Capsule())
+            .overlay {
+                Capsule().stroke(
+                    isProminent ? Color.gymPrimary.opacity(0.35) : Color.clear,
+                    lineWidth: 1
+                )
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.gymPress)
+        .accessibilityIdentifier(identifier ?? "panel-chip-\(systemImage)")
+    }
+
+    // MARK: - Plate chip
+
+    /// The per-side stack, printed on the chip.
+    ///
+    /// Falls back to the bare word when the target is unreachable — below the
+    /// bar, or not divisible by the plates on hand — because a partial stack
+    /// shown as if it were complete is worse than no shortcut at all. The sheet
+    /// explains those cases properly.
+    private func plateChipTitle(exercise: ExerciseEntry, set: ExerciseSet) -> String {
+        guard let calculation = plateCalculation(exercise: exercise, set: set),
+              !calculation.plates.isEmpty,
+              calculation.remainingWeight <= 0.001
+        else {
+            return String(localized: "Plates")
+        }
+        let stack = calculation.plates
+            .map { Formatters.formatFloat($0) }
+            .joined(separator: "·")
+        return stack
+    }
+
+    /// Whether the bar has to be re-loaded before this set — the only moment
+    /// the calculator is worth a glance.
+    private func needsPlateChange(exercise: ExerciseEntry, set: ExerciseSet) -> Bool {
+        guard set.weight > 0 else { return false }
+        guard let lastCompleted = exercise.orderedSets
+            .filter({ $0.done && $0.persistentModelID != set.persistentModelID })
+            .last
+        else {
+            // Nothing logged yet on this exercise, so the bar is not yet
+            // loaded for it.
+            return true
+        }
+        let previous = UnitConversion.weight(
+            lastCompleted.weight,
+            from: lastCompleted.weightType,
+            to: set.weightType
+        )
+        return abs(previous - set.weight) > 0.001
+    }
+
+    private func plateCalculation(exercise: ExerciseEntry, set: ExerciseSet) -> PlateCalculation? {
+        guard set.weight > 0 else { return nil }
+        let equipment = PlateEquipment(
+            unitSystem: set.weightType == .kg ? .metric : .imperial,
+            selectedBarID: BarKind.mensOlympic.id,
+            usesBarbell: exercise.exercise.equipmentType == .barbell
+        )
+        let calculation = PlateCalculation(
+            target: set.weight,
+            barWeight: equipment.barWeight,
+            plates: equipment.plates
+        )
+        return calculation
     }
 
     private func chipLabel(

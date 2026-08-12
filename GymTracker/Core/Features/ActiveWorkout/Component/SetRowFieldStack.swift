@@ -211,19 +211,24 @@ struct SetRowFieldStack: View {
     private func placeholder(for field: SetInputFocus.Field) -> String {
         switch field {
         case .repetitions:
-            return previousSet.map { Formatters.formatFloat($0.repetitions) } ?? "\u{2014}"
+            return prescribedRepetitionsPrompt
+                ?? previousSet.map { Formatters.formatFloat($0.repetitions) }
+                ?? "\u{2014}"
         case .weight:
-            return previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) } ?? prescribedWeightPrompt
+            return prescribedWeightPrompt
+                ?? previousSet.map { Formatters.formatFloat(displayWeight(for: $0)) }
+                ?? "\u{2014}"
         case .duration:
-            return previousSet?.duration.map { String(Int($0)) }
-                ?? exerciseSet.prescribedDurationSecondsSnapshot.map { String(Int($0)) }
+            return exerciseSet.prescribedDurationSecondsSnapshot.map { String(Int($0)) }
+                ?? previousSet?.duration.map { String(Int($0)) }
                 ?? "\u{2014}"
         case .distance:
-            return previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) }
-                ?? prescribedDistancePrompt
+            return prescribedDistancePrompt
+                ?? previousSet.map { Formatters.formatFloat(displayDistance(for: $0)) }
+                ?? "\u{2014}"
         case .calories:
-            return previousSet?.calories.map { Formatters.formatFloat(Float($0)) }
-                ?? exerciseSet.prescribedCaloriesSnapshot.map { Formatters.formatFloat(Float($0)) }
+            return exerciseSet.prescribedCaloriesSnapshot.map { Formatters.formatFloat(Float($0)) }
+                ?? previousSet?.calories.map { Formatters.formatFloat(Float($0)) }
                 ?? "\u{2014}"
         }
     }
@@ -332,11 +337,22 @@ struct SetRowFieldStack: View {
         )
     }
 
-    private var prescribedWeightPrompt: String {
+    private var prescribedRepetitionsPrompt: String? {
+        if let repetitions = exerciseSet.prescribedRepetitions {
+            return String(repetitions)
+        }
+        if let minimum = exerciseSet.prescribedRepRangeMinimum,
+           let maximum = exerciseSet.prescribedRepRangeMaximum {
+            return minimum == maximum ? String(minimum) : "\(minimum)–\(maximum)"
+        }
+        return exerciseSet.prescribedRepRangeMaximum.map(String.init)
+            ?? exerciseSet.prescribedRepRangeMinimum.map(String.init)
+    }
+
+    private var prescribedWeightPrompt: String? {
         guard let load = exerciseSet.prescribedSuggestedLoad,
               let type = exerciseSet.prescribedSuggestedLoadType else {
-            // No prescription and nothing logged is a missing value, not a zero.
-            return "\u{2014}"
+            return nil
         }
         let converted = WorkoutLoadRounding.converted(
             Float(load),
@@ -347,9 +363,9 @@ struct SetRowFieldStack: View {
         return Formatters.formatFloat(converted)
     }
 
-    private var prescribedDistancePrompt: String {
+    private var prescribedDistancePrompt: String? {
         guard let meters = exerciseSet.prescribedDistanceMetersSnapshot else {
-            return "\u{2014}"
+            return nil
         }
         let unit = WorkoutDistancePolicy.preferredDisplayUnit(
             forMeters: Float(meters),

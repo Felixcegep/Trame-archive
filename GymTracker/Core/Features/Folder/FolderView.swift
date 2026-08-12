@@ -35,14 +35,19 @@ struct FolderView: View {
     let onResumeRepeatingPlan: (RepeatingPlanRun) -> Void
     let onEndRepeatingPlan: (RepeatingPlanRun) -> Void
 
+    /// Whether Train assembles itself on this appearance. See `resolveAssembly`.
+    @State private var isPlayingAssembly = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xxl) {
                 Text("Train")
                     .font(AppFont.displayMedium)
                     .foregroundStyle(Color.gymText)
+                    .gymAssembly(index: 0, isActive: isPlayingAssembly)
 
                 searchField
+                    .gymAssembly(index: 1, isActive: isPlayingAssembly)
 
                 if searchText.isEmpty {
                     browseSection
@@ -52,16 +57,15 @@ struct FolderView: View {
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.top, Spacing.s)
-            .padding(.bottom, 104)
+            .safeAreaPadding(.bottom)
         }
+        .onAppear(perform: resolveAssembly)
         .folderScreenStyle()
         // The tab is "Train". This was empty, so the screen had no name, pushed
         // screens' back buttons read "Back" instead of naming the parent, and
         // the first heading in the content said "Library" — three different
         // answers to what this tab is called, left over from a half-finished
         // rename.
-        .navigationTitle("Train")
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -157,9 +161,12 @@ struct FolderView: View {
                 onResumeRepeatingPlan: onResumeRepeatingPlan,
                 onEndRepeatingPlan: onEndRepeatingPlan
             )
+            .gymAssembly(index: 2, isActive: isPlayingAssembly)
             workoutLibrarySection
+                .gymAssembly(index: 3, isActive: isPlayingAssembly)
             if featureFlags.isEnabled(.mobility) {
                 mobilityLibrarySection
+                    .gymAssembly(index: 4, isActive: isPlayingAssembly)
             }
         }
     }
@@ -186,7 +193,7 @@ struct FolderView: View {
                 NavigationLink(value: LibraryRoute.plans) {
                     LibraryItemRow(
                         title: "Plans",
-                        subtitle: "Ready-made, yours, and what you follow",
+                        subtitle: "Ready-made and personal plans",
                         icon: AppIcon.plan,
                         color: Color.gymAccent,
                         surface: Color.gymAccentSurface,
@@ -438,6 +445,17 @@ struct FolderView: View {
 
     private var matchingRepeatingPlans: [RepeatingPlan] {
         repeatingPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    /// Train assembles itself the first time a lifter with no history opens it,
+    /// and never again that session.
+    private func resolveAssembly() {
+        guard (try? modelContext.fetchCount(FetchDescriptor<Workout>())) ?? 0 == 0,
+              GymAssemblySession.claim("train")
+        else {
+            return
+        }
+        isPlayingAssembly = true
     }
 }
 
