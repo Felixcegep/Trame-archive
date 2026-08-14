@@ -7,8 +7,9 @@ import SwiftUI
 /// catalogue is a synchronous pass over a few dozen records; staging a
 /// three-second "building your plan" sequence over it would be theatre, and the
 /// kind that costs trust the first time a lifter notices the same wait appears
-/// no matter what they answered. What the screen does instead is show the
-/// answers it used, then the results.
+/// no matter what they answered. What the screen does instead is reveal the
+/// ranked result immediately, then keep the answers available as an audit and
+/// tuning surface beneath it.
 struct OnboardingRecommendationsView: View {
     @Bindable var coordinator: OnboardingCoordinator
     let onOpenProgram: (UUID) -> Void
@@ -39,6 +40,7 @@ struct OnboardingRecommendationsView: View {
     /// list, and a stack of them would be the questionnaire again.
     @State private var activeRefinement: OnboardingStep?
     @State private var isShowingMobilityIntake = false
+    @State private var hasRevealedPayoff = false
     @AccessibilityFocusState private var isHeadingFocused: Bool
 
     /// Mobility plans are a separate, independent recommendation track (see
@@ -55,14 +57,12 @@ struct OnboardingRecommendationsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {
-                    profileSummary
-
-                    refinements
-
                     if results.isEmpty {
                         emptyState
                     } else {
                         resultsList
+
+                        tuningSection
                     }
 
                     mobilitySection
@@ -107,6 +107,7 @@ struct OnboardingRecommendationsView: View {
             if coordinator.draft.unitSystem == nil {
                 coordinator.update { $0.unitSystem = UnitSystemDefault.suggested }
             }
+            hasRevealedPayoff = true
             if UIAccessibility.isVoiceOverRunning {
                 isHeadingFocused = true
             }
@@ -164,7 +165,7 @@ struct OnboardingRecommendationsView: View {
             }
 
             VStack(alignment: .leading, spacing: Spacing.s) {
-                Text("Plans that fit your training")
+                Text("Your best matches")
                     .font(AppFont.displayMedium)
                     .foregroundStyle(Color.gymText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -185,6 +186,9 @@ struct OnboardingRecommendationsView: View {
         .padding(.top, Spacing.s)
         .padding(.bottom, Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .opacity(hasRevealedPayoff ? 1 : 0)
+        .offset(y: hasRevealedPayoff || reduceMotion ? 0 : Spacing.m)
+        .animation(reduceMotion ? nil : AppMotion.assemblyArrival(index: 0), value: hasRevealedPayoff)
     }
 
     private var headerSubtitle: String {
@@ -194,7 +198,7 @@ struct OnboardingRecommendationsView: View {
         if !hasRankingSignal {
             return String(localized: "You skipped the questions, so this is every plan in its default order. Refine anything below and the list re-ranks.")
         }
-        return String(localized: "Ranked from your answers. Refine anything below and the list re-ranks — every plan stays available either way.")
+        return String(localized: "Ranked from what you told us. You can tune the match or see every plan.")
     }
 
     /// The answers the ranking used, restated.
@@ -207,7 +211,7 @@ struct OnboardingRecommendationsView: View {
         let chips = summaryChips
         if !chips.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.s) {
-                Text("Based on")
+                Text("Your answers")
                     .font(AppFont.captionBold)
                     .tracking(0.8)
                     .foregroundStyle(Color.gymSubduedText)
@@ -252,15 +256,14 @@ struct OnboardingRecommendationsView: View {
     /// how long they train without opening anything. Tapping one opens the same
     /// control the old flow used, over the list it is about to reorder.
     ///
-    /// Deliberately below "Based on" and above the results: it explains the
-    /// order of what follows, and reads as a filter bar rather than as another
-    /// round of questions.
+    /// Deliberately grouped below the best match: it remains available for
+    /// correction without making setup controls compete with the payoff.
     @ViewBuilder
     private var refinements: some View {
         let steps = OnboardingStep.refinements(for: coordinator.draft)
         if !results.isEmpty, !steps.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.s) {
-                Text("Refine")
+                Text("Adjust")
                     .font(AppFont.captionBold)
                     .tracking(0.8)
                     .foregroundStyle(Color.gymSubduedText)
@@ -365,6 +368,28 @@ struct OnboardingRecommendationsView: View {
         )
     }
 
+    private var tuningSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Tune this match")
+                    .font(AppFont.headlineSemibold)
+                    .foregroundStyle(Color.gymText)
+                    .accessibilityAddTraits(.isHeader)
+                Text("Change a detail and the ranking updates. Nothing is locked in.")
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            profileSummary
+            refinements
+        }
+        .padding(Spacing.l)
+        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("onboarding-tune-match")
+    }
+
     // MARK: Results
 
     /// One ranked list, plus a separate tier only for plans this build cannot
@@ -377,18 +402,32 @@ struct OnboardingRecommendationsView: View {
     /// experience gap. Warnings now travel on the card, where they inform the
     /// decision, instead of in a header that overrules the ranking.
     private var resultsList: some View {
-        VStack(alignment: .leading, spacing: Spacing.xl) {
-            resultSection(
-                title: hasRankingSignal
-                    ? String(localized: "Ranked for you")
-                    : String(localized: "All plans"),
-                results: results.filter(\.isRunnable)
-            )
+        let runnable = results.filter(\.isRunnable)
+        return VStack(alignment: .leading, spacing: Spacing.xl) {
+            if let leadingResult {
+                resultSection(
+                    title: String(localized: "Best match"),
+                    results: [leadingResult],
+                    leadingID: leadingResult.programID
+                )
+                resultSection(
+                    title: String(localized: "Other matches"),
+                    results: runnable.filter { $0.programID != leadingResult.programID }
+                )
+            } else {
+                resultSection(
+                    title: String(localized: "All plans"),
+                    results: runnable
+                )
+            }
             resultSection(
                 title: String(localized: "Not supported by this version"),
                 results: results.filter { !$0.isRunnable }
             )
         }
+        .opacity(hasRevealedPayoff ? 1 : 0)
+        .offset(y: hasRevealedPayoff || reduceMotion ? 0 : Spacing.l)
+        .animation(reduceMotion ? nil : AppMotion.assemblyArrival(index: 1), value: hasRevealedPayoff)
     }
 
     /// Whether the lifter actually gave us anything to rank on. Drives every
@@ -398,7 +437,11 @@ struct OnboardingRecommendationsView: View {
     }
 
     @ViewBuilder
-    private func resultSection(title: String, results: [ProgramMatchResult]) -> some View {
+    private func resultSection(
+        title: String,
+        results: [ProgramMatchResult],
+        leadingID: UUID? = nil
+    ) -> some View {
         if !results.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 Text(title.uppercased())
@@ -407,19 +450,10 @@ struct OnboardingRecommendationsView: View {
                     .foregroundStyle(Color.gymSubduedText)
                     .accessibilityAddTraits(.isHeader)
 
-                ForEach(Array(results.enumerated()), id: \.element.id) { _, result in
+                ForEach(results) { result in
                     OnboardingRecommendationCard(
                         result: result,
-                        // No card carries the filled action any more; the bar
-                        // pinned to the bottom does, and it names the same plan
-                        // this used to promote. One prominent action per screen,
-                        // and one that cannot scroll out of reach.
-                        //
-                        // The rule it enforced still holds, and now holds
-                        // everywhere: the prominent action only exists when the
-                        // leading result can say why it leads. See
-                        // `leadingResult`.
-                        isLeading: false,
+                        isLeading: result.programID == leadingID,
                         action: { onOpenProgram(result.programID) }
                     )
                 }
@@ -586,6 +620,8 @@ struct OnboardingRecommendationsView: View {
                 .accessibilityIdentifier("onboarding-setup-leading-plan")
             }
             .background(Color.gymBackground)
+            .opacity(hasRevealedPayoff ? 1 : 0)
+            .animation(reduceMotion ? nil : AppMotion.assemblyArrival(index: 2), value: hasRevealedPayoff)
         }
     }
 
@@ -711,6 +747,7 @@ struct OnboardingRecommendationCard: View {
                     Text(summary)
                         .font(AppFont.subheadline)
                         .foregroundStyle(Color.gymSubduedText)
+                        .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, Spacing.xxs)
                 }
@@ -721,7 +758,7 @@ struct OnboardingRecommendationCard: View {
                     Text("Why it matches")
                         .font(AppFont.captionBold)
                         .foregroundStyle(Color.gymSubduedText)
-                    ForEach(result.reasons) { reason in
+                    ForEach(result.reasons.prefix(3)) { reason in
                         Label {
                             Text(reason.text)
                                 .font(AppFont.footnote)
@@ -733,12 +770,33 @@ struct OnboardingRecommendationCard: View {
                                 .foregroundStyle(Color.gymSecondary)
                         }
                     }
+
+                    if result.reasons.count > 3 {
+                        DisclosureGroup(
+                            result.reasons.count == 4
+                                ? "1 more match detail"
+                                : "\(result.reasons.count - 3) more match details"
+                        ) {
+                            VStack(alignment: .leading, spacing: Spacing.xs) {
+                                ForEach(result.reasons.dropFirst(3)) { reason in
+                                    Label {
+                                        Text(reason.text)
+                                            .font(AppFont.footnote)
+                                            .foregroundStyle(Color.gymText)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    } icon: {
+                                        Image(systemName: AppIcon.checkmark)
+                                            .font(AppFont.captionBold)
+                                            .foregroundStyle(Color.gymSecondary)
+                                    }
+                                }
+                            }
+                            .padding(.top, Spacing.xs)
+                        }
+                        .font(AppFont.footnote)
+                        .tint(Color.gymPrimary)
+                    }
                 }
-                // One VoiceOver stop for the whole block instead of one per
-                // bullet. Four reasons and six warnings turned a single card
-                // into twelve swipes with the action at the far end.
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(reasonsAccessibilityLabel)
             }
 
             // Renamed from "Before you start" — that heading now belongs to
@@ -800,7 +858,9 @@ struct OnboardingRecommendationCard: View {
                 .accessibilityIdentifier("onboarding-recommendation-prerequisites-\(result.programID.uuidString)")
             }
 
-            planAction
+            if !isLeading {
+                planAction
+            }
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -831,10 +891,6 @@ struct OnboardingRecommendationCard: View {
                 .font(AppFont.footnote)
                 .foregroundStyle(Color.gymSubduedText)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier(actionIdentifier)
-        } else if isLeading {
-            Button("Set up this plan", action: action)
-                .buttonStyle(.gymPrimary)
                 .accessibilityIdentifier(actionIdentifier)
         } else {
             Button(action: action) {

@@ -54,7 +54,10 @@ struct OnboardingScaffold<Content: View>: View {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: Spacing.s) {
                     Text(step.question)
-                        .font(AppFont.displayMedium)
+                        // Display type is reserved for the welcome, payoff and
+                        // completion moments. Questions stay prominent without
+                        // pushing most of their answers below the fold.
+                        .font(AppFont.titleMedium)
                         .foregroundStyle(Color.gymText)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
@@ -73,7 +76,7 @@ struct OnboardingScaffold<Content: View>: View {
                 }
                 .padding(.horizontal, Spacing.xl)
                 .padding(.top, Spacing.l)
-                .padding(.bottom, Spacing.xl)
+                .padding(.bottom, Spacing.l)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 ScrollView {
@@ -114,8 +117,8 @@ struct OnboardingScaffold<Content: View>: View {
         guard !reduceMotion else { return .opacity }
         let isForward = direction == .forward
         return .asymmetric(
-            insertion: .move(edge: isForward ? .trailing : .leading).combined(with: .opacity),
-            removal: .move(edge: isForward ? .leading : .trailing).combined(with: .opacity)
+            insertion: .offset(x: isForward ? Spacing.xxl : -Spacing.xxl).combined(with: .opacity),
+            removal: .offset(x: isForward ? -Spacing.xxl : Spacing.xxl).combined(with: .opacity)
         )
     }
 
@@ -161,8 +164,15 @@ struct OnboardingProgressHeader: View {
             .accessibilityIdentifier("onboarding-back")
             .accessibilityHidden(!canGoBack)
 
-            segments
-                .frame(maxWidth: .infinity)
+            VStack(spacing: Spacing.xs) {
+                Text("\(stepIndex + 1) of \(max(stepCount, 1))")
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .accessibilityHidden(true)
+
+                segments
+            }
+            .frame(maxWidth: .infinity)
 
             if let onSkip {
                 Button("Skip", action: onSkip)
@@ -365,7 +375,8 @@ struct OnboardingChoiceCard: View {
                     .padding(.top, Spacing.xxs)
                     .accessibilityHidden(true)
             }
-            .padding(Spacing.l)
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 isSelected ? Color.gymPrimarySurface : Color.gymCard,
@@ -373,7 +384,7 @@ struct OnboardingChoiceCard: View {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                    .stroke(isSelected ? Color.gymPrimary : Color.gymBorder, lineWidth: isSelected ? 1.5 : 1)
+                    .stroke(isSelected ? Color.gymPrimary : Color.clear, lineWidth: 1.5)
             }
             .contentShape(Rectangle())
         }
@@ -430,7 +441,7 @@ struct OnboardingMultiChoiceTile: View {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                    .stroke(isSelected ? Color.gymPrimary : Color.gymBorder, lineWidth: isSelected ? 1.5 : 1)
+                    .stroke(isSelected ? Color.gymPrimary : Color.clear, lineWidth: 1.5)
             }
             .contentShape(Rectangle())
         }

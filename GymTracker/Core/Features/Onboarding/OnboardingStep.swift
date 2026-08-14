@@ -57,13 +57,13 @@ enum OnboardingStep: String, CaseIterable, Hashable, Sendable {
     var explanation: String? {
         switch self {
         case .discipline:
-            String(localized: "This organises plans, exercises and progress around the way you train.")
+            String(localized: "This helps Trame organise plans and progress around your training.")
         case .goal:
-            String(localized: "Plans are ranked against this. It changes what we suggest, never what you have already done.")
+            String(localized: "Used to rank plans around your current priority.")
         case .experience:
-            String(localized: "This ranks plans by how much they assume. Nothing is hidden from you.")
+            String(localized: "Used to rank plans by how much programming experience they assume.")
         case .frequency:
-            String(localized: "Used to find plans that fit your week, not to hold you to a number.")
+            String(localized: "Used to find plans that fit a typical week. You can change it anytime.")
         case .weekdays:
             String(localized: "Sessions are scheduled on these days. You can move any of them later.")
         case .cadence:
@@ -73,7 +73,7 @@ enum OnboardingStep: String, CaseIterable, Hashable, Sendable {
         case .location:
             String(localized: "We’ll use this to pre-fill your equipment on the next screen.")
         case .equipment:
-            String(localized: "Plans that need something you don’t have will say so rather than disappear.")
+            String(localized: "We’ll flag anything a plan needs that you don’t have.")
         case .specializedEquipment:
             String(localized: "Only asked because of the training you selected.")
         case .units:
@@ -165,8 +165,9 @@ extension OnboardingStep {
             return draft.unitSystem == nil && !UnitSystemDefault.hasStoredPreference ? [.units] : []
         }
 
-        // The three questions that decide which plans are even in the running,
-        // and nothing else.
+        // The questions that make a recommendation honest before the app calls
+        // anything a match. Equipment and experience are not cosmetic filters:
+        // both affect ranking and can produce a warning on the leading plan.
         //
         // This list used to run to fifteen questions, and the cost was paid in
         // the wrong order: a lifter configured an operating system before
@@ -175,10 +176,10 @@ extension OnboardingStep {
         // that merely *refines* an ordering now happens on the results screen,
         // against a list the lifter can watch move — see `refinements(for:)`.
         //
-        // These three carry the ranking's three heaviest weights, and only these
-        // three can change which plans are plausible rather than which order
-        // plausible ones appear in.
-        var steps: [OnboardingStep] = [.discipline, .goal]
+        // Discipline, goal, experience, and equipment carry the ranking's
+        // heaviest weights. They can change which plans are plausible rather
+        // than only changing the order of plausible plans.
+        var steps: [OnboardingStep] = [.discipline, .goal, .experience]
 
         switch path {
         case .plan:
@@ -188,6 +189,8 @@ extension OnboardingStep {
         case .freeWorkout:
             break
         }
+
+        steps.append(.equipment)
 
         // `mobilityEnabled` no longer adds questions here. Mobility is a
         // separate plan track, and three questions about it were being charged
@@ -218,7 +221,7 @@ extension OnboardingStep {
     /// training profile, where they can be set once the lifter has a plan that
     /// gives them meaning.
     static func refinements(for draft: OnboardingDraft) -> [OnboardingStep] {
-        var refinements: [OnboardingStep] = [.experience, .sessionDuration, .equipment]
+        var refinements: [OnboardingStep] = [.sessionDuration]
 
         if draft.goal?.asksMuscleEmphasis == true {
             refinements.append(.focusAreas)

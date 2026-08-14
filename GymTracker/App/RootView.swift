@@ -57,7 +57,7 @@ struct RootView: View {
     @State private var todayStatusMessage: GymStatusMessage?
     /// Increments only when a plan or rotation action actually committed.
     @State private var planStateChangeCount = 0
-    @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .system
+    @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .light
     @AppStorage(DefaultsKey.darkMode) private var legacyDarkMode: Bool = false
     @AppStorage(DefaultsKey.hasCompletedWelcome) private var hasCompletedWelcome: Bool = false
     /// Set only by the personalization offer on Today, which re-presents the
@@ -124,7 +124,10 @@ struct RootView: View {
             }
 
             NavigationStack(path: $progressPath) {
-                ProgressHubView(onOpenPlan: openPlanFromProgress)
+                ProgressHubView(
+                    onOpenPlan: openPlanFromProgress,
+                    onNavigate: { progressPath.append($0) }
+                )
                     .navigationDestination(for: ProgressRoute.self) { route in
                         switch route {
                         case .workoutHistory:
@@ -417,7 +420,10 @@ struct RootView: View {
 
     private var effectiveAppearance: AppAppearance {
         guard UserDefaults.standard.object(forKey: DefaultsKey.appearance) != nil else {
-            return legacyDarkMode ? .dark : .system
+            // Trame's warm cream palette is the authored default. Existing
+            // explicit choices still win, and the legacy dark preference is
+            // honoured during migration.
+            return legacyDarkMode ? .dark : .light
         }
         return appearance
     }
@@ -658,17 +664,23 @@ struct RootView: View {
     private var shouldShowWelcome: Binding<Bool> {
         Binding(
             get: {
+                // Explicit capture intent wins first. Every other UI-test
+                // fixture owns a different destination and must not inherit a
+                // stale onboarding presentation above the tab interface.
+                if AppLaunchArguments.current.contains("-ui-testing-show-welcome") {
+                    return !isPreparingApp
+                }
+                if AppLaunchArguments.current.contains("-ui-testing") {
+                    return false
+                }
+
                 // Re-entry from the personalization offer. Deliberately the
                 // whole flow, welcome question included: a lifter who skipped
                 // setup and is now asking for it is choosing how their next
                 // workout gets decided, which is the first question.
                 if isShowingOnboarding { return true }
-                if AppLaunchArguments.current.contains("-ui-testing-show-welcome") {
-                    return !isPreparingApp
-                }
                 return !hasCompletedWelcome
                     && !isPreparingApp
-                    && !AppLaunchArguments.current.contains("-ui-testing")
             },
             set: {
                 if !$0 {
@@ -773,6 +785,8 @@ struct RootView: View {
             onOpenRoute: { trainPath.append($0) },
             onOpenProgramPath: { trainPath.append(.programPath($0)) },
             onOpenWeeklyReview: { trainPath.append(.weeklyReview($0)) },
+            onStartPlannedWorkout: startPlannedWorkout,
+            onStartRepeatingWorkout: startRepeatingWorkout,
             onResumePlan: resumeFixedPlan,
             onPauseRepeatingPlan: pauseRepeatingPlan,
             onResumeRepeatingPlan: resumeRepeatingPlan,

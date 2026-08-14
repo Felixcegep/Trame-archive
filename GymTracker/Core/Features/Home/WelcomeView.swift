@@ -38,78 +38,79 @@ struct WelcomeView: View {
     private static let commitDelay: Duration = .milliseconds(150)
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xl) {
-                VStack(alignment: .leading, spacing: Spacing.m) {
-                    VStack(spacing: Spacing.m) {
-                        TrameMarkView(height: 44)
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xxl) {
+                    welcomeHero
 
-                        Text("Welcome to Trame")
-                            .font(AppFont.displayMedium)
-                            .foregroundStyle(Color.gymText)
-                            .multilineTextAlignment(.center)
+                    VStack(alignment: .leading, spacing: Spacing.m) {
+                        GymEyebrow("Choose a starting point", tint: .gymPrimary)
+
+                        optionCard(
+                            title: "Follow a program",
+                            detail: "Train from a schedule that progresses across weeks.",
+                            icon: AppIcon.plan,
+                            identifier: "welcome-follow-plan",
+                            action: onChoosePlan
+                        )
+
+                        optionCard(
+                            title: "Use a rotation",
+                            detail: "Always do the next workout in a repeating sequence.",
+                            icon: AppIcon.routine,
+                            identifier: "welcome-follow-rotation",
+                            action: onChooseRotation
+                        )
+                    }
+
+                    VStack(alignment: .leading, spacing: Spacing.m) {
+                        GymEyebrow("Or start now")
+
+                        optionCard(
+                            title: "Start a free workout",
+                            detail: "Choose what you train today. No plan setup required.",
+                            icon: AppIcon.play,
+                            identifier: "welcome-skip",
+                            isProminent: false,
+                            action: onSkip
+                        )
+
+                        Text("Your choice is editable anytime. Completed training never changes.")
+                            .font(AppFont.footnote)
+                            .foregroundStyle(Color.gymSubduedText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, Spacing.s)
-
-                    Text("How do you want your next workout decided?")
-                        .font(AppFont.headlineSemibold)
-                        .foregroundStyle(Color.gymText)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityAddTraits(.isHeader)
-
-                    Text("You can change this at any time. Nothing you have already trained changes when you do.")
-                        .font(AppFont.body)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-
-                VStack(alignment: .leading, spacing: Spacing.m) {
-                    LibrarySectionTitle("Set up my training")
-
-                    optionCard(
-                        title: "Program (Plan)",
-                        detail: "My sessions are scheduled across weeks.",
-                        icon: AppIcon.plan,
-                        identifier: "welcome-follow-plan",
-                        action: onChoosePlan
-                    )
-
-                    optionCard(
-                        title: "Rotation (Repeating Plan)",
-                        detail: "I always do the next workout, regardless of weekday.",
-                        icon: AppIcon.routine,
-                        identifier: "welcome-follow-rotation",
-                        action: onChooseRotation
-                    )
-                }
-
-                VStack(alignment: .leading, spacing: Spacing.m) {
-                    LibrarySectionTitle("Or start now")
-
-                    optionCard(
-                        title: "Free Workout",
-                        detail: "I choose what I do today.",
-                        icon: AppIcon.play,
-                        identifier: "welcome-skip",
-                        isProminent: false,
-                        action: onSkip
-                    )
-                }
-
-                Text("Free workout asks you nothing. You can set up a plan whenever you want one.")
-                    .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.xxl)
+                .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .leading)
             }
-            .padding(.horizontal, Spacing.xl)
-            .padding(.vertical, Spacing.xxxl)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .scrollBounceBehavior(.basedOnSize)
         .background(Color.gymBackground)
         .accessibilityIdentifier("welcome")
+    }
+
+    private var welcomeHero: some View {
+        VStack(spacing: Spacing.m) {
+            TrameMarkView(height: 40)
+
+            GymEyebrow("Welcome to Trame", tint: .gymPrimary)
+
+            Text("Choose how you want to train")
+                .font(AppFont.displayMedium)
+                .foregroundStyle(Color.gymText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+
+            Text("Trame can guide your week or simply help you log what you do.")
+                .font(AppFont.body)
+                .foregroundStyle(Color.gymSubduedText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     /// One option, as a full-width row rather than a capsule button.

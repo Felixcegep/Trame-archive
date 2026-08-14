@@ -58,6 +58,7 @@ nonisolated struct ProgramMatchCriteria: Equatable, Sendable {
             scheduleFlexibility: draft.scheduleFlexibility,
             sessionDuration: draft.sessionDuration,
             availableEquipment: draft.equipment,
+            availableEquipmentCapabilityIDs: draft.specializedEquipment,
             focusAreas: draft.focusAreas,
             competitionDiscipline: draft.competition?.discipline,
             competitionDate: draft.competition?.eventDate

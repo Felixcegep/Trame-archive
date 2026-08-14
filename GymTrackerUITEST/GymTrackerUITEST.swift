@@ -84,7 +84,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         let picker = app.buttons["settings-appearance-picker"]
         XCTAssertTrue(picker.waitForExistence(timeout: 45))
-        XCTAssertTrue((picker.value as? String)?.contains("System Default") == true)
+        XCTAssertTrue((picker.value as? String)?.contains("Light") == true)
 
         picker.tap()
         app.buttons["Dark"].tap()

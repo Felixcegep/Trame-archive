@@ -83,9 +83,6 @@ struct OnboardingAnswerContent: View {
     /// for navigation it cannot see.
     var onAnswer: ((OnboardingStep) -> Void)? = nil
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isShowingLocationPresets = false
-
     var body: some View {
         content
     }
@@ -167,14 +164,6 @@ struct OnboardingAnswerContent: View {
                 .accessibilityIdentifier("onboarding-experience-\(level.rawValue)")
             }
 
-            // Stated rather than hidden behind the "Advanced" card, because the
-            // lifter deciding between two levels is exactly the person who
-            // needs to know the answer is not load-bearing.
-            Text("Experience ranks plans. It never hides one from you.")
-                .font(AppFont.footnote)
-                .foregroundStyle(Color.gymSubduedText)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, Spacing.xs)
         }
     }
 
@@ -195,7 +184,10 @@ struct OnboardingAnswerContent: View {
                     ) {
                         choose {
                             $0.preferredDaysPerWeek = days
-                            $0.scheduleFlexibility = .fixedWeekdays
+                            // A number of sessions does not say those sessions
+                            // happen on fixed weekdays. Keep schedule style
+                            // unknown until the lifter explicitly sets it.
+                            $0.scheduleFlexibility = nil
                         }
                     }
                     .accessibilityIdentifier("onboarding-frequency-\(days)")
@@ -321,50 +313,53 @@ struct OnboardingAnswerContent: View {
 
     // MARK: Location
 
-    /// Where the lifter trains, folded into the equipment question it exists to
-    /// serve.
-    ///
-    /// This used to be a screen of its own, which was a whole question asked in
-    /// order to pre-tick the next one — and the pre-ticking happened after the
-    /// screen that explained it had already gone. Collapsed by default, because
-    /// a preset is a shortcut and a shortcut that occupies the top third of the
-    /// sheet is not saving anyone anything; opened, it fills the grid below and
-    /// the ticks it made are immediately visible underneath.
+    /// Visible shortcuts make the equipment question fast without turning the
+    /// shortcut itself into another screen. A preset fills the checklist below,
+    /// where every inferred item remains visible and editable.
     @ViewBuilder
     private var locationPresets: some View {
-        DisclosureGroup(isExpanded: $isShowingLocationPresets) {
-            VStack(spacing: Spacing.s) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            Text("Quick fill")
+                .font(AppFont.captionBold)
+                .foregroundStyle(Color.gymSubduedText)
+
+            ChipFlowLayout(spacing: Spacing.s) {
                 ForEach(TrainingLocationPreference.allCases, id: \.self) { location in
-                    OnboardingChoiceCard(
-                        title: location.title,
-                        detail: location.detail,
-                        icon: location.icon,
-                        isSelected: coordinator.draft.location == location
-                    ) {
+                    let isSelected = coordinator.draft.location == location
+                    Button {
                         coordinator.update { draft in
                             let isChange = draft.location != location
                             draft.location = location
-                            // An explicitly tapped preset is a request to be
-                            // filled in, so it replaces what is there. Tapping
-                            // the preset already selected changes nothing,
-                            // which is what stops a stray tap from discarding
-                            // edits made since.
                             draft.applyLocationSuggestion(replacingExisting: isChange)
                         }
-                        withAnimation(reduceMotion ? .easeInOut(duration: 0.15) : AppMotion.compact) {
-                            isShowingLocationPresets = false
-                        }
+                    } label: {
+                        Label(location.title, systemImage: location.icon)
+                            .font(AppFont.footnoteMedium)
+                            .foregroundStyle(isSelected ? Color.white : Color.gymText)
+                            .padding(.horizontal, Spacing.m)
+                            .frame(minHeight: ComponentSize.minimumTouchTarget)
+                            .background(
+                                isSelected ? Color.gymPrimaryDeep : Color.gymCard,
+                                in: Capsule(style: .continuous)
+                            )
+                            .contentShape(Capsule(style: .continuous))
                     }
+                    .buttonStyle(.gymPress)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                    .accessibilityHint("Fills the equipment list with a starting selection.")
                     .accessibilityIdentifier("onboarding-location-\(location.rawValue)")
                 }
             }
-            .padding(.top, Spacing.s)
-        } label: {
-            Text("Fill from where I train")
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
+
+            if let location = coordinator.draft.location,
+               let detail = location.detail {
+                Text(detail)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .tint(Color.gymPrimary)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("onboarding-location-presets")
     }
 
@@ -425,8 +420,13 @@ struct OnboardingAnswerContent: View {
                 }
             }
 
+            specializedEquipmentContent
+
             Button("Clear all") {
-                coordinator.update { $0.equipmentIDs = [] }
+                coordinator.update {
+                    $0.equipmentIDs = []
+                    $0.specializedEquipment = []
+                }
             }
             .font(AppFont.subheadlineSemibold)
             .foregroundStyle(Color.gymSubduedText)
