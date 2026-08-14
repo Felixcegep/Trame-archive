@@ -20,35 +20,54 @@ struct StageFinishPage: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    GymEyebrow("End of session")
-                    Text("Ready to finish")
-                        .font(AppFont.stageTitle)
-                        .foregroundStyle(Color.gymText)
+                if workout.exercises.isEmpty {
+                    emptyWorkoutState
+                } else {
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        GymEyebrow("End of session")
+                        Text("Ready to finish")
+                            .font(AppFont.stageTitle)
+                            .foregroundStyle(Color.gymText)
+                    }
+
+                    summaryCard
+
+                    ForEach(blockers, id: \.self) { blocker in
+                        Label(blocker, systemImage: AppIcon.warning)
+                            .font(AppFont.footnote)
+                            .foregroundStyle(Color.gymText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(Spacing.m)
+                            .background(
+                                Color.gymAccentSurface,
+                                in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            )
+                            .accessibilityIdentifier("finish-blocker")
+                    }
+
+                    exerciseBreakdown
                 }
-
-                summaryCard
-
-                ForEach(blockers, id: \.self) { blocker in
-                    Label(blocker, systemImage: AppIcon.warning)
-                        .font(AppFont.footnote)
-                        .foregroundStyle(Color.gymText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(Spacing.m)
-                        .background(
-                            Color.gymAccentSurface,
-                            in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        )
-                        .accessibilityIdentifier("finish-blocker")
-                }
-
-                exerciseBreakdown
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.top, Spacing.l)
             .padding(.bottom, Spacing.xxxl)
         }
         .scrollIndicators(.hidden)
+    }
+
+    private var emptyWorkoutState: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            GymEyebrow("New workout")
+            Text("Add your first exercise")
+                .font(AppFont.stageTitle)
+                .foregroundStyle(Color.gymText)
+                .accessibilityAddTraits(.isHeader)
+            Text("Build today’s session one exercise at a time. You can add more or reorder them as you go.")
+                .font(AppFont.body)
+                .foregroundStyle(Color.gymSubduedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityIdentifier("empty-workout-state")
     }
 
     private var summaryCard: some View {

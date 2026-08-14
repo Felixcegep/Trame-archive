@@ -104,7 +104,12 @@ struct ActiveWorkoutStageHeader: View {
                 .accessibilityIdentifier("active-workout-menu")
             }
 
-            progressRail
+            // A workout with no exercises has no sequence to summarize. A
+            // lone finish checkmark suggested the empty session was already
+            // complete, directly contradicting the “Add exercise” action.
+            if workout.exercises.isEmpty == false {
+                progressRail
+            }
         }
         .padding(.horizontal, Spacing.l)
         .padding(.bottom, Spacing.s)

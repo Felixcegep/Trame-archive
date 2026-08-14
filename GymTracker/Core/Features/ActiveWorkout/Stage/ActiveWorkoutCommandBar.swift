@@ -26,6 +26,9 @@ struct ActiveWorkoutCommandBar: View {
         case nextExercise
         /// Every set is logged.
         case finish(isEnabled: Bool)
+        /// The workout has no exercises yet. This is the session's first and
+        /// only meaningful action, so it belongs in the fixed primary slot.
+        case addExercise
         /// Nothing to offer — an empty workout, or a page with no sets.
         ///
         /// Named `idle` rather than `none` so it can never be mistaken for
@@ -117,6 +120,15 @@ struct ActiveWorkoutCommandBar: View {
                 hint: isEnabled
                     ? nil
                     : String(localized: "Complete at least one set before finishing.")
+            )
+
+        case .addExercise:
+            primaryButton(
+                title: "Add exercise",
+                systemImage: AppIcon.plus,
+                identifier: "add-first-exercise",
+                isEnabled: true,
+                hint: String(localized: "Opens the exercise library for this workout.")
             )
 
         case .resting:

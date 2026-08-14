@@ -34,6 +34,7 @@ struct MobilitySessionView: View {
     @State private var supportLevelsByResult: [UUID: String] = [:]
     @State private var phaseDurationsByResult: [UUID: Int] = [:]
     @State private var phaseIntensityByResult: [UUID: String] = [:]
+    @State private var expandedResultDetailIDs: Set<UUID> = []
     @State private var isShowingStopConfirmation = false
     @State private var error: ValidationIssue?
 
@@ -452,7 +453,17 @@ struct MobilitySessionView: View {
                 }
 
                 if let resultID = session.currentEntry?.results.first(where: { $0.side == phase.side })?.id {
-                    mobilityEvidenceInputs(resultID: resultID)
+                    sensationSafetyButton(
+                        resultID: resultID,
+                        identifier: "mobility-phase-report-sensation"
+                    )
+                    resultDetailsDisclosure(
+                        resultID: resultID,
+                        identifier: "mobility-phase-details"
+                    ) {
+                        mobilitySensationInput(resultID: resultID)
+                        mobilityEvidenceInputs(resultID: resultID)
+                    }
                 }
             }
             .padding(Spacing.m)
@@ -512,16 +523,39 @@ struct MobilitySessionView: View {
                         .accessibilityIdentifier("mobility-load-unit-\(result.side.rawValue)")
                     }
 
-                    Picker("Perceived intensity", selection: intensityBinding(for: result)) {
-                        Text("Not recorded").tag(0)
-                        ForEach(1...5, id: \.self) { score in Text("\(score) of 5").tag(score) }
+                    sensationSafetyButton(
+                        resultID: result.id,
+                        identifier: "mobility-report-sensation-\(result.side.rawValue)"
+                    )
+
+                    resultDetailsDisclosure(
+                        resultID: result.id,
+                        identifier: "mobility-result-details-\(result.side.rawValue)"
+                    ) {
+                        mobilitySensationInput(resultID: result.id)
+
+                        LabeledContent {
+                            Picker("Perceived intensity", selection: intensityBinding(for: result)) {
+                                Text("Not recorded").tag(0)
+                                ForEach(1...5, id: \.self) { score in Text("\(score) of 5").tag(score) }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .tint(Color.gymText)
+                            .accessibilityIdentifier("mobility-intensity-\(result.id.uuidString)")
+                        } label: {
+                            Text("Perceived intensity")
+                                .font(AppFont.subheadline)
+                                .foregroundStyle(Color.gymSubduedText)
+                        }
+                        .frame(minHeight: ComponentSize.minimumTouchTarget)
+
+                        mobilityEvidenceInputs(resultID: result.id)
+
+                        TextField("Optional discomfort note", text: discomfortNoteBinding(for: result), axis: .vertical)
+                            .lineLimit(2...4)
+                            .accessibilityIdentifier("mobility-discomfort-note-\(result.side.rawValue)")
                     }
-
-                    TextField("Optional discomfort note", text: discomfortNoteBinding(for: result), axis: .vertical)
-                        .lineLimit(2...4)
-                        .accessibilityIdentifier("mobility-discomfort-note-\(result.side.rawValue)")
-
-                    mobilityEvidenceInputs(resultID: result.id)
                 }
                 .padding(Spacing.m)
                 .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
@@ -901,6 +935,9 @@ struct MobilitySessionView: View {
             phaseDurationsByResult = [:]
             phaseIntensityByResult = [:]
         }
+        expandedResultDetailIDs = Set(entry.results.compactMap { result in
+            hasRecordedDetails(resultID: result.id) ? result.id : nil
+        })
     }
 
     private func completeCurrent() {
@@ -1139,9 +1176,143 @@ struct MobilitySessionView: View {
         Binding(get: { discomfortNotesByResult[result.id] ?? "" }, set: { discomfortNotesByResult[result.id] = $0 })
     }
 
+    private func detailExpansionBinding(for resultID: UUID) -> Binding<Bool> {
+        Binding(
+            get: { expandedResultDetailIDs.contains(resultID) },
+            set: { isExpanded in
+                if isExpanded {
+                    expandedResultDetailIDs.insert(resultID)
+                } else {
+                    expandedResultDetailIDs.remove(resultID)
+                }
+            }
+        )
+    }
+
+    private func hasRecordedDetails(resultID: UUID) -> Bool {
+        (intensitiesByResult[resultID] ?? 0) > 0
+            || !(discomfortNotesByResult[resultID] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !(sensationsByResult[resultID] ?? "").isEmpty
+            || !(qualitiesByResult[resultID] ?? "").isEmpty
+            || !(compensationsByResult[resultID] ?? []).isEmpty
+            || (breathingCyclesByResult[resultID] ?? 0) > 0
+            || editedAssistanceResultIDs.contains(resultID)
+            || !(supportLevelsByResult[resultID] ?? "").isEmpty
+    }
+
+    private func resultDetailsDisclosure<Content: View>(
+        resultID: UUID,
+        identifier: String,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        DisclosureGroup(isExpanded: detailExpansionBinding(for: resultID)) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                content()
+            }
+            .padding(.top, Spacing.s)
+        } label: {
+            Label(
+                hasRecordedDetails(resultID: resultID) ? "Details recorded" : "Add details",
+                systemImage: hasRecordedDetails(resultID: resultID) ? AppIcon.checkmarkCircle : AppIcon.plus
+            )
+            .font(AppFont.subheadlineSemibold)
+            .foregroundStyle(Color.gymPrimary)
+            // Put the identifier on the disclosure control, not its ancestor.
+            // An identifier on DisclosureGroup is inherited by every expanded
+            // child and erases the Picker identifiers VoiceOver/XCTest need.
+            .accessibilityIdentifier(identifier)
+        }
+        .tint(Color.gymPrimary)
+    }
+
+    @ViewBuilder
+    private func sensationSafetyButton(resultID: UUID, identifier: String) -> some View {
+        let sensation = sensationsByResult[resultID].flatMap(MobilitySensation.init(rawValue:))
+        if sensation?.isStopSignal != true {
+            Button {
+                expandedResultDetailIDs.insert(resultID)
+            } label: {
+                Label("Report pain, numbness, or tingling", systemImage: AppIcon.warning)
+                    .font(AppFont.footnoteMedium)
+                    .foregroundStyle(Color.gymAccent)
+                    .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens the sensation field so the session can respond safely.")
+            .accessibilityIdentifier(identifier)
+        }
+    }
+
+    @ViewBuilder
+    private func mobilitySensationInput(resultID: UUID) -> some View {
+        LabeledContent {
+            Picker("Sensation", selection: Binding(
+                get: { sensationsByResult[resultID] ?? "" },
+                set: { sensationsByResult[resultID] = $0 }
+            )) {
+                Text("Not recorded").tag("")
+                ForEach(MobilitySensation.allCases) { sensation in
+                    Text(sensation.displayName).tag(sensation.rawValue)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .tint(Color.gymText)
+            .accessibilityIdentifier("mobility-sensation-\(resultID.uuidString)")
+        } label: {
+            Text("Sensation")
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymSubduedText)
+        }
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+    }
+
     @ViewBuilder
     private func mobilityEvidenceInputs(resultID: UUID) -> some View {
         let evidence = mobilityEvidenceByResultID[resultID]
+        LabeledContent {
+            Picker("Movement quality", selection: Binding(
+                get: { qualitiesByResult[resultID] ?? "" },
+                set: { qualitiesByResult[resultID] = $0 }
+            )) {
+                Text("Not recorded").tag("")
+                ForEach(MobilityMovementQuality.allCases) { quality in
+                    Text(quality.displayName).tag(quality.rawValue)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .tint(Color.gymText)
+            .accessibilityIdentifier("mobility-quality-\(resultID.uuidString)")
+        } label: {
+            Text("Movement quality")
+                .font(AppFont.subheadline)
+                .foregroundStyle(Color.gymSubduedText)
+        }
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+
+        if qualitiesByResult[resultID] == MobilityMovementQuality.compensationObserved.rawValue {
+            DisclosureGroup("Neutral observations") {
+                ForEach(MobilityCompensationKey.allCases) { key in
+                    Button {
+                        var selected = compensationsByResult[resultID] ?? []
+                        if selected.contains(key) { selected.remove(key) } else { selected.insert(key) }
+                        compensationsByResult[resultID] = selected
+                    } label: {
+                        Label(
+                            key.displayName,
+                            systemImage: (compensationsByResult[resultID] ?? []).contains(key)
+                                ? AppIcon.checkmarkCircle
+                                : AppIcon.circle
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+                }
+            }
+        }
+
         if evidence?.breathingPrescriptionSnapshot != nil
             || evidence?.assistancePrescriptionSnapshot != nil
             || evidence?.supportLevelSnapshot != nil {
@@ -1198,48 +1369,6 @@ struct MobilitySessionView: View {
                     Text("Support is saved as comparison context, not as a score.")
                         .font(AppFont.caption)
                         .foregroundStyle(Color.gymSubduedText)
-                }
-            }
-        }
-
-        Picker("Sensation", selection: Binding(
-            get: { sensationsByResult[resultID] ?? "" },
-            set: { sensationsByResult[resultID] = $0 }
-        )) {
-            Text("Not recorded").tag("")
-            ForEach(MobilitySensation.allCases) { sensation in
-                Text(sensation.displayName).tag(sensation.rawValue)
-            }
-        }
-        .accessibilityIdentifier("mobility-sensation-\(resultID.uuidString)")
-
-        Picker("Movement quality", selection: Binding(
-            get: { qualitiesByResult[resultID] ?? "" },
-            set: { qualitiesByResult[resultID] = $0 }
-        )) {
-            Text("Not recorded").tag("")
-            ForEach(MobilityMovementQuality.allCases) { quality in
-                Text(quality.displayName).tag(quality.rawValue)
-            }
-        }
-
-        if qualitiesByResult[resultID] == MobilityMovementQuality.compensationObserved.rawValue {
-            DisclosureGroup("Neutral observations") {
-                ForEach(MobilityCompensationKey.allCases) { key in
-                    Button {
-                        var selected = compensationsByResult[resultID] ?? []
-                        if selected.contains(key) { selected.remove(key) } else { selected.insert(key) }
-                        compensationsByResult[resultID] = selected
-                    } label: {
-                        Label(
-                            key.displayName,
-                            systemImage: (compensationsByResult[resultID] ?? []).contains(key)
-                                ? AppIcon.checkmarkCircle
-                                : AppIcon.circle
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .frame(minHeight: ComponentSize.minimumTouchTarget)
                 }
             }
         }

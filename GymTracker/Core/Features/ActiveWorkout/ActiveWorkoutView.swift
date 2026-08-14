@@ -505,6 +505,8 @@ struct ActiveWorkoutView: View {
     // MARK: - Primary action
 
     private func primaryAction(for workout: Workout) -> ActiveWorkoutCommandBar.PrimaryAction {
+        if workout.exercises.isEmpty { return .addExercise }
+
         if selection.isFinish {
             return .finish(
                 isEnabled: workout.completedSetCount > 0
@@ -524,7 +526,6 @@ struct ActiveWorkoutView: View {
             return .logSet(isEnabled: true)
         }
 
-        if workout.exercises.isEmpty { return .idle }
         return .nextExercise
     }
 
@@ -548,6 +549,9 @@ struct ActiveWorkoutView: View {
 
         case .nextExercise:
             turnPage(1, in: pages)
+
+        case .addExercise:
+            isShowingExercisePicker = true
 
         case .idle:
             isShowingExercisePicker = true
