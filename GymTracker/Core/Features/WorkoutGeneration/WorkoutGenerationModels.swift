@@ -3,7 +3,7 @@ import Foundation
 /// The explicit, user-editable constraints for one personalized workout
 /// request. This is intentionally a value type: generation must never hold a
 /// live SwiftData model or mutate an active workout, template, plan, or run.
-struct WorkoutGenerationRequest: Sendable {
+nonisolated struct WorkoutGenerationRequest: Sendable {
     var requestText: String?
     var desiredDurationMinutes: Int?
     var selectedEquipment: Set<EquipmentType>
@@ -17,7 +17,8 @@ struct WorkoutGenerationRequest: Sendable {
         excludedExerciseIDs: Set<UUID> = [],
         preferredStimulus: TrainingStimulus? = nil
     ) {
-        self.requestText = requestText?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let trimmedRequest = requestText?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.requestText = trimmedRequest?.isEmpty == false ? trimmedRequest : nil
         self.desiredDurationMinutes = desiredDurationMinutes
         self.selectedEquipment = selectedEquipment
         self.excludedExerciseIDs = excludedExerciseIDs
@@ -37,7 +38,7 @@ struct WorkoutGenerationRequest: Sendable {
 /// They deliberately live outside `TrainingProfile`: onboarding answers remain
 /// portable, while a lifter can remove these local drafting preferences without
 /// changing programs, templates, active workouts, or historical evidence.
-struct WorkoutGenerationPreferences: Codable, Sendable {
+nonisolated struct WorkoutGenerationPreferences: Codable, Sendable {
     var defaultDurationMinutes: Int?
     var preferredStimulus: TrainingStimulus?
     var avoidedExerciseIDs: Set<UUID>
@@ -55,7 +56,7 @@ struct WorkoutGenerationPreferences: Codable, Sendable {
 
 /// Immutable view of preferences the model may use. `nil` means the lifter
 /// did not tell the app that fact; it is never converted into a made-up default.
-struct WorkoutGenerationProfileSnapshot: Sendable {
+nonisolated struct WorkoutGenerationProfileSnapshot: Sendable {
     var experienceLevel: ProfileExperienceLevel?
     var primaryGoal: TrainingGoalPreference?
     var preferredDurationMinutes: Int?
@@ -76,7 +77,7 @@ struct WorkoutGenerationProfileSnapshot: Sendable {
 /// A compact exercise record the generator is allowed to select. The UUID is
 /// the only authoritative identity; names exist solely for model context and
 /// review copy.
-struct WorkoutGenerationExerciseOption: Sendable, Identifiable {
+nonisolated struct WorkoutGenerationExerciseOption: Sendable, Identifiable {
     var exerciseID: UUID
     var name: String
     var frenchName: String?
@@ -94,7 +95,7 @@ struct WorkoutGenerationExerciseOption: Sendable, Identifiable {
 /// Derived evidence from completed history. It is deliberately summary-only:
 /// generation may avoid obvious repetition, but it cannot reinterpret sets,
 /// loads, recovery, or progression from mutable source definitions.
-struct WorkoutGenerationRecentTrainingSummary: Sendable {
+nonisolated struct WorkoutGenerationRecentTrainingSummary: Sendable {
     struct ExerciseExposure: Sendable {
         var exerciseID: UUID
         var lastPerformedAt: Date
@@ -111,7 +112,7 @@ struct WorkoutGenerationRecentTrainingSummary: Sendable {
 
 /// Prompt-safe snapshot of an existing template. It teaches valid local
 /// prescription shape, not a command to duplicate a template or modify it.
-struct WorkoutGenerationExample: Sendable {
+nonisolated struct WorkoutGenerationExample: Sendable {
     struct Exercise: Sendable {
         var exerciseID: UUID
         var name: String
@@ -130,7 +131,7 @@ struct WorkoutGenerationExample: Sendable {
 
 /// Complete immutable payload for one model call. It contains no live model
 /// objects, which makes cancellation and validation independent of SwiftData.
-struct WorkoutGenerationInput: Sendable {
+nonisolated struct WorkoutGenerationInput: Sendable {
     var request: WorkoutGenerationRequest
     var profile: WorkoutGenerationProfileSnapshot
     var availableExercises: [WorkoutGenerationExerciseOption]
@@ -141,7 +142,7 @@ struct WorkoutGenerationInput: Sendable {
 /// Raw structured output from a `WorkoutDraftGenerator`. It is not safe to
 /// persist or start until `WorkoutDraftValidator` resolves it against the
 /// current, non-archived exercise catalogue.
-struct GeneratedWorkoutExercise: Sendable, Hashable {
+nonisolated struct GeneratedWorkoutExercise: Sendable, Hashable {
     var exerciseID: UUID
     var sets: Int
     var minimumRepetitions: Int?
@@ -153,7 +154,7 @@ struct GeneratedWorkoutExercise: Sendable, Hashable {
     var groupID: String?
 }
 
-struct GeneratedWorkoutDraft: Sendable, Hashable {
+nonisolated struct GeneratedWorkoutDraft: Sendable, Hashable {
     var name: String
     var estimatedDurationMinutes: Int
     var rationale: String
@@ -189,7 +190,7 @@ struct ValidatedWorkoutDraft {
     var validationWarnings: [WorkoutDraftValidationWarning]
 }
 
-enum WorkoutDraftValidationWarning: Hashable, Sendable {
+nonisolated enum WorkoutDraftValidationWarning: Hashable, Sendable {
     case ignoredUnknownOrArchivedExercise(UUID)
     case ignoredDuplicateExercise(UUID)
     case adjustedPrescription(UUID)

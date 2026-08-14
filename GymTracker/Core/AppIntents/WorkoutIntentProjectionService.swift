@@ -46,7 +46,20 @@ enum WorkoutIntentProjectionService {
         now: Date = .now,
         calendar: Calendar = .current
     ) -> TodayPlan {
-        if let workout = WorkoutIntentService.activeWorkout(using: modelContext) {
+        (try? todayPlanRequiringStore(using: modelContext, now: now, calendar: calendar))
+            ?? emptyTodayPlan
+    }
+
+    /// Throwing projection for durable process-boundary publication. Unlike an
+    /// App Intent dialog, a widget refresh must preserve the last valid value
+    /// when the store cannot be read instead of publishing a truthful-looking
+    /// empty state.
+    static func todayPlanRequiringStore(
+        using modelContext: ModelContext,
+        now: Date = .now,
+        calendar: Calendar = .current
+    ) throws -> TodayPlan {
+        if let workout = try WorkoutIntentService.activeWorkoutRequiringStore(using: modelContext) {
             let currentSet = WorkoutSetSelector.nextIncompleteSet(in: workout)
             let exercises = workout.orderedExercises.map { entry in
                 ExerciseSummary(
@@ -68,9 +81,11 @@ enum WorkoutIntentProjectionService {
             )
         }
 
-        let activeRuns = (try? modelContext.fetch(FetchDescriptor<PlanRun>()))?
+        let activeRuns = try modelContext.fetch(FetchDescriptor<PlanRun>(
+            predicate: #Predicate { $0.endDate == nil }
+        ))
             .filter { $0.status == .active }
-            .sorted { $0.updatedAt > $1.updatedAt } ?? []
+            .sorted { $0.updatedAt > $1.updatedAt }
 
         for run in activeRuns {
             guard let progress = run.orderedWorkoutProgress.first(where: {
@@ -121,15 +136,7 @@ enum WorkoutIntentProjectionService {
             )
         }
 
-        return TodayPlan(
-            state: .noWorkout,
-            title: "No workout scheduled",
-            planName: nil,
-            scheduledDate: nil,
-            exercises: [],
-            completedSetCount: 0,
-            totalSetCount: 0
-        )
+        return emptyTodayPlan
     }
 
     static func weeklyVolume(
@@ -141,11 +148,36 @@ enum WorkoutIntentProjectionService {
         calendar: Calendar = .current,
         preferredUnit: WeightType = .kg
     ) -> WeeklyVolume {
+        (try? weeklyVolumeRequiringStore(
+            using: modelContext,
+            scope: scope,
+            exerciseID: exerciseID,
+            muscleGroup: muscleGroup,
+            now: now,
+            calendar: calendar,
+            preferredUnit: preferredUnit
+        )) ?? emptyWeeklyVolume(now: now, calendar: calendar)
+    }
+
+    static func weeklyVolumeRequiringStore(
+        using modelContext: ModelContext,
+        scope: WeeklyVolumeScope = .total,
+        exerciseID: UUID? = nil,
+        muscleGroup: [Muscle]? = nil,
+        now: Date = .now,
+        calendar: Calendar = .current,
+        preferredUnit: WeightType = .kg
+    ) throws -> WeeklyVolume {
         let interval = calendar.dateInterval(of: .weekOfYear, for: now)
             ?? DateInterval(start: calendar.startOfDay(for: now), duration: 7 * 24 * 60 * 60)
-        let workouts = (try? modelContext.fetch(FetchDescriptor<Workout>()))?.filter {
-            $0.status == .completed && interval.contains($0.startTime)
-        } ?? []
+        let intervalStart = interval.start
+        let intervalEnd = interval.end
+        let workoutDescriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { workout in
+                workout.startTime >= intervalStart && workout.startTime < intervalEnd
+            }
+        )
+        let workouts = try modelContext.fetch(workoutDescriptor).filter { $0.status == .completed }
         let filteredEntries = workouts.flatMap { workout in
             workout.orderedExercises.compactMap { entry -> (Workout, ExerciseEntry)? in
                 switch scope {
@@ -166,7 +198,7 @@ enum WorkoutIntentProjectionService {
         }
         let qualifyingSets = filteredEntries.flatMap { workout, entry in
             entry.orderedSets.filter { set in
-                StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(set)
+                StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord(set, entry: entry)
             }.map { (workout, entry, $0) }
         }
         let loadSets = qualifyingSets.filter { $0.1.trackingTypeSnapshot.usesWeight && $0.1.trackingTypeSnapshot.usesReps }
@@ -179,12 +211,26 @@ enum WorkoutIntentProjectionService {
                 in: preferredUnit
             )
         }
-        let groupEstimate = scope == .muscleGroup
-            ? qualifyingSets.reduce(Float.zero) { partial, item in
-                partial + (item.1.exercise.primaryMuscles.contains(where: muscleGroup!.contains) ? 1 : 0)
-                    + ((item.1.exercise.secondaryMuscles ?? []).contains(where: muscleGroup!.contains) ? 0.5 : 0)
+        let groupEstimate: Float?
+        if scope == .muscleGroup, let muscleGroup {
+            groupEstimate = qualifyingSets.reduce(Float.zero) { partial, item in
+                partial + (item.1.exercise.primaryMuscles.contains(where: muscleGroup.contains) ? 1 : 0)
+                    + ((item.1.exercise.secondaryMuscles ?? []).contains(where: muscleGroup.contains) ? 0.5 : 0)
             }
-            : nil
+        } else {
+            groupEstimate = nil
+        }
+
+        let subjectName: String?
+        if scope == .exercise, let exerciseID {
+            var exerciseDescriptor = FetchDescriptor<Exercise>(
+                predicate: #Predicate { $0.id == exerciseID }
+            )
+            exerciseDescriptor.fetchLimit = 1
+            subjectName = try modelContext.fetch(exerciseDescriptor).first?.name
+        } else {
+            subjectName = nil
+        }
         return WeeklyVolume(
             weekStart: interval.start,
             weekEnd: interval.end,
@@ -193,7 +239,34 @@ enum WorkoutIntentProjectionService {
             loadVolume: loadSets.isEmpty ? nil : volume,
             unit: loadSets.isEmpty ? nil : preferredUnit,
             muscleGroupSetEstimate: groupEstimate,
-            subjectName: scope == .exercise ? (try? modelContext.fetch(FetchDescriptor<Exercise>()))?.first { $0.id == exerciseID }?.name : nil
+            subjectName: subjectName
+        )
+    }
+
+    private static var emptyTodayPlan: TodayPlan {
+        TodayPlan(
+            state: .noWorkout,
+            title: "No workout scheduled",
+            planName: nil,
+            scheduledDate: nil,
+            exercises: [],
+            completedSetCount: 0,
+            totalSetCount: 0
+        )
+    }
+
+    private static func emptyWeeklyVolume(now: Date, calendar: Calendar) -> WeeklyVolume {
+        let interval = calendar.dateInterval(of: .weekOfYear, for: now)
+            ?? DateInterval(start: calendar.startOfDay(for: now), duration: 7 * 24 * 60 * 60)
+        return WeeklyVolume(
+            weekStart: interval.start,
+            weekEnd: interval.end,
+            completedWorkoutCount: 0,
+            workingSetCount: 0,
+            loadVolume: nil,
+            unit: nil,
+            muscleGroupSetEstimate: nil,
+            subjectName: nil
         )
     }
 }

@@ -74,7 +74,7 @@ struct WeeklyProgramReviewHeader: View {
 
     private var accessibilityLabel: String {
         ([planName, weekPositionTitle, blockName]
-            + [phaseType.map(ProgramPathPresentation.phaseTitle)]
+            + [phaseType.map { ProgramPathPresentation.phaseTitle($0) }]
             + [statusTitle, statusNote, dateRangeTitle])
             .compactMap { $0 }
             .joined(separator: ", ")

@@ -263,7 +263,8 @@ private struct MuscleGroupVolumeChart: View {
             Chart(weeks) { week in
                 BarMark(
                     x: .value("Week", week.weekStart, unit: .weekOfYear),
-                    y: .value("Estimated sets", week.count(for: group))
+                    y: .value("Estimated sets", week.count(for: group)),
+                    width: .ratio(0.6)
                 )
                 .foregroundStyle(week.count(for: group) == 0 ? Color.gymRowSurface : Color.gymPrimary)
                 .cornerRadius(Radius.small)
@@ -278,14 +279,18 @@ private struct MuscleGroupVolumeChart: View {
             .chartXSelection(value: $selectedDate)
             .chartYAxis {
                 AxisMarks(position: .leading) { _ in
-                    AxisGridLine().foregroundStyle(Color.gymText.opacity(0.08))
-                    AxisValueLabel().font(AppFont.caption)
+                    AxisGridLine().foregroundStyle(Color.gymBorder)
+                    AxisTick().foregroundStyle(Color.gymBorder)
+                    AxisValueLabel().font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
                 }
             }
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                    AxisGridLine().foregroundStyle(Color.gymBorder)
+                    AxisTick().foregroundStyle(Color.gymBorder)
                     AxisValueLabel(format: .dateTime.month(.abbreviated).day())
                         .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
             }
             .accessibilityElement(children: .ignore)

@@ -15,8 +15,11 @@ struct SavedWorkoutTemplatePicker: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    let templates: [WorkoutTemplate]
-    let availableExercises: [Exercise]
+    @Query(filter: #Predicate<WorkoutTemplate> { !$0.isArchived })
+    private var templates: [WorkoutTemplate]
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived })
+    private var availableExercises: [Exercise]
+
     let onStartWorkout: (WorkoutTemplate) -> Void
     let onStartEmpty: () -> Void
     let onStartPersonalized: (ValidatedWorkoutDraft) -> Bool
@@ -51,7 +54,7 @@ struct SavedWorkoutTemplatePicker: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search workouts or exercises")
         .onAppear(perform: rebuildItems)
-        .onChange(of: templateIdentity) { _, _ in rebuildItems() }
+        .onChange(of: templateRevision) { _, _ in rebuildItems() }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
@@ -104,7 +107,9 @@ private extension SavedWorkoutTemplatePicker {
 
 private extension SavedWorkoutTemplatePicker {
     var list: some View {
-        List {
+        let sections = makeBrowseSections()
+
+        return List {
             Section {
                 if isGenerationOffered {
                     generateCard
@@ -120,12 +125,12 @@ private extension SavedWorkoutTemplatePicker {
 
             if templates.isEmpty {
                 emptyLibrarySection
-            } else if visibleItems.isEmpty {
+            } else if sections.visibleCount == 0 {
                 noMatchesSection
             } else {
-                templateSection("RECENTLY USED", items: recentItems, showsBuiltInBadge: true)
-                templateSection("YOUR WORKOUTS", items: ownItems, showsBuiltInBadge: false)
-                templateSection("STARTER WORKOUTS", items: starterItems, showsBuiltInBadge: false)
+                templateSection("RECENTLY USED", items: sections.recent, showsBuiltInBadge: true)
+                templateSection("YOUR WORKOUTS", items: sections.own, showsBuiltInBadge: false)
+                templateSection("STARTER WORKOUTS", items: sections.starter, showsBuiltInBadge: false)
             }
         }
         .listStyle(.insetGrouped)
@@ -554,12 +559,45 @@ private extension SavedWorkoutTemplatePicker {
         var id: PersistentIdentifier { template.persistentModelID }
     }
 
+    struct BrowseSections {
+        let visibleCount: Int
+        let recent: [BrowseItem]
+        let own: [BrowseItem]
+        let starter: [BrowseItem]
+    }
+
     var isGenerationOffered: Bool {
         FeatureFlags.current.isEnabled(.workoutGeneration)
     }
 
-    var templateIdentity: [PersistentIdentifier] {
-        templates.map(\.persistentModelID)
+    /// Covers every source consumed by `WorkoutTemplateSummary`. Persistent
+    /// identifiers alone miss edits to a template, its prescription, an
+    /// exercise name/muscle assignment, and newly started source workouts;
+    /// any of those would otherwise leave the cached rows and recency section
+    /// stale until the picker was reopened.
+    var templateRevision: Int {
+        var revision = Hasher()
+        for template in templates {
+            revision.combine(template.persistentModelID)
+            revision.combine(template.name)
+            revision.combine(template.isBuiltIn)
+            for templateExercise in template.templateExercises {
+                revision.combine(templateExercise.persistentModelID)
+                revision.combine(templateExercise.orderIndex)
+                revision.combine(templateExercise.targetSets)
+                revision.combine(templateExercise.restSeconds)
+                revision.combine(templateExercise.exercise.id)
+                revision.combine(templateExercise.exercise.name)
+                for muscle in templateExercise.exercise.primaryMuscles {
+                    revision.combine(muscle.rawValue)
+                }
+            }
+            for workout in template.sourceWorkouts {
+                revision.combine(workout.id)
+                revision.combine(workout.startTime)
+            }
+        }
+        return revision.finalize()
     }
 
     /// The cache, or a fresh derivation on the one frame that precedes
@@ -581,8 +619,11 @@ private extension SavedWorkoutTemplatePicker {
         items = makeItems()
     }
 
-    var visibleItems: [BrowseItem] {
-        browseItems.filter { item in
+    /// Builds the render's three mutually exclusive sections in one pass over
+    /// the filtered catalogue. Recency keeps only the three candidates the UI
+    /// can display instead of sorting every previously performed template.
+    func makeBrowseSections() -> BrowseSections {
+        let visible = browseItems.filter { item in
             guard selectedFocus == nil || item.summary.focus == selectedFocus else { return false }
             return SearchNormalization.matches(
                 query: searchText,
@@ -590,34 +631,43 @@ private extension SavedWorkoutTemplatePicker {
                 aliases: item.summary.searchAliases
             )
         }
-    }
 
-    /// Only offered on the unfiltered list. While searching or filtering, the
-    /// user has already said what they are looking for, and a recency section
-    /// would answer a question they stopped asking.
-    var recentItems: [BrowseItem] {
-        guard searchText.isEmpty, selectedFocus == nil else { return [] }
-        return visibleItems
-            .compactMap { item in item.summary.lastPerformed.map { (item, $0) } }
-            .sorted { $0.1 > $1.1 }
-            .prefix(Self.recentTemplateLimit)
-            .map(\.0)
-    }
+        var recentCandidates: [(item: BrowseItem, date: Date)] = []
+        if searchText.isEmpty, selectedFocus == nil {
+            for item in visible {
+                guard let date = item.summary.lastPerformed else { continue }
+                let insertionIndex = recentCandidates.firstIndex { date > $0.date }
+                    ?? recentCandidates.endIndex
+                guard insertionIndex < Self.recentTemplateLimit else { continue }
+                recentCandidates.insert((item, date), at: insertionIndex)
+                if recentCandidates.count > Self.recentTemplateLimit {
+                    recentCandidates.removeLast()
+                }
+            }
+        }
 
-    /// Recents are removed from the sections below rather than repeated. A
-    /// duplicated row is a second answer to the same question, and it also
-    /// makes the row's accessibility identifier ambiguous.
-    var remainingItems: [BrowseItem] {
-        let recentIDs = Set(recentItems.map(\.id))
-        return visibleItems.filter { !recentIDs.contains($0.id) }
-    }
+        let recent = recentCandidates.map(\.item)
+        let recentIDs = Set(recent.map(\.id))
+        var own: [BrowseItem] = []
+        var starter: [BrowseItem] = []
+        own.reserveCapacity(visible.count)
+        starter.reserveCapacity(visible.count)
 
-    var ownItems: [BrowseItem] {
-        remainingItems.filter { !$0.template.isBuiltIn }
-    }
+        // Recents are removed from the sections below rather than repeated.
+        for item in visible where !recentIDs.contains(item.id) {
+            if item.template.isBuiltIn {
+                starter.append(item)
+            } else {
+                own.append(item)
+            }
+        }
 
-    var starterItems: [BrowseItem] {
-        remainingItems.filter { $0.template.isBuiltIn }
+        return BrowseSections(
+            visibleCount: visible.count,
+            recent: recent,
+            own: own,
+            starter: starter
+        )
     }
 
     var showsFocusFilter: Bool {

@@ -27,7 +27,10 @@ enum ProgramDefinitionRepository {
         }
 
         let record = try ProgramDefinitionRecord(payload: payload, isBuiltIn: isBuiltIn)
-        if let existing = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>()).first(where: { $0.id == payload.id }) {
+        let payloadID = payload.id
+        var descriptor = FetchDescriptor<ProgramDefinitionRecord>(predicate: #Predicate { $0.id == payloadID })
+        descriptor.fetchLimit = 1
+        if let existing = try context.fetch(descriptor).first {
             existing.schemaVersion = record.schemaVersion
             existing.templateVersion = record.templateVersion
             existing.name = record.name
@@ -57,8 +60,10 @@ enum ProgramDefinitionRepository {
     }
 
     static func activeDefinitions(in context: ModelContext) throws -> [ProgramDefinitionRecord] {
-        try context.fetch(FetchDescriptor<ProgramDefinitionRecord>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]))
-            .filter { !$0.isArchived }
+        try context.fetch(FetchDescriptor<ProgramDefinitionRecord>(
+            predicate: #Predicate { !$0.isArchived },
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        ))
     }
 
     static func compile(

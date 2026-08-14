@@ -66,9 +66,8 @@ enum MobilityComparisonConditionDifference: String, Codable, CaseIterable, Hasha
 
 /// The one shipped mobility analytics policy. Reads only immutable snapshot
 /// evidence resolved by the caller — the exact `[UUID: MobilityResultEvidence]`
-/// dictionary `MobilityEvidenceService.resultEvidence(using:)` and
-/// `MobilityHistoryView.mobilityEvidenceByResultID` already build from a
-/// `MobilityResultEvidence` fetch/`@Query` — never a live catalog
+/// dictionary that history/session callers build from their already-scoped
+/// `MobilityResultEvidence` observation — never a live catalog
 /// relationship (`MobilityDefinition`, `MobilityRoutineItem`,
 /// `MobilityMovementOccurrenceDefinition`). A later catalog edit must never
 /// retroactively change what an already-completed occurrence's history

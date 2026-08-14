@@ -11,12 +11,17 @@ import UIKit
 enum RecipePhotoStore {
     /// Longest edge of a stored photo. A recognition thumbnail does not need
     /// more, and this keeps files in the ~150–250 KB target range.
-    static let maxDimension: CGFloat = 512
-    private static let compressionQuality: CGFloat = 0.7
-    private static let directoryName = "RecipePhotos"
-    private static let imageCache = NSCache<NSString, UIImage>()
+    nonisolated static let maxDimension: CGFloat = 512
+    nonisolated private static let compressionQuality: CGFloat = 0.7
+    nonisolated private static let directoryName = "RecipePhotos"
+    private static let imageCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.totalCostLimit = 24 * 1_024 * 1_024
+        cache.countLimit = 96
+        return cache
+    }()
 
-    private static var directoryURL: URL {
+    nonisolated private static var directoryURL: URL {
         let base = (try? FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
@@ -26,7 +31,7 @@ enum RecipePhotoStore {
         return base.appendingPathComponent(directoryName, isDirectory: true)
     }
 
-    private static func url(for identifier: String) -> URL {
+    nonisolated private static func url(for identifier: String) -> URL {
         directoryURL.appendingPathComponent(identifier)
     }
 
@@ -41,7 +46,7 @@ enum RecipePhotoStore {
     /// Writes already-encoded JPEG bytes (used by backup restore) under a fresh
     /// identifier. The bytes are trusted to already be reasonably sized.
     @discardableResult
-    static func store(_ data: Data) -> String? {
+    nonisolated static func store(_ data: Data) -> String? {
         let identifier = "\(UUID().uuidString).jpg"
         do {
             try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
@@ -59,12 +64,16 @@ enum RecipePhotoStore {
         guard let data = loadData(identifier) else { return nil }
         let image = UIImage(data: data)
         if let identifier, let image {
-            imageCache.setObject(image, forKey: identifier as NSString)
+            imageCache.setObject(
+                image,
+                forKey: identifier as NSString,
+                cost: cacheCost(of: image)
+            )
         }
         return image
     }
 
-    static func loadData(_ identifier: String?) -> Data? {
+    nonisolated static func loadData(_ identifier: String?) -> Data? {
         guard let identifier else { return nil }
         return try? Data(contentsOf: url(for: identifier))
     }
@@ -80,9 +89,19 @@ enum RecipePhotoStore {
         guard let data else { return nil }
         let image = UIImage(data: data)
         if let image {
-            imageCache.setObject(image, forKey: identifier as NSString)
+            imageCache.setObject(
+                image,
+                forKey: identifier as NSString,
+                cost: cacheCost(of: image)
+            )
         }
         return image
+    }
+
+    private static func cacheCost(of image: UIImage) -> Int {
+        let pixelsWide = image.size.width * image.scale
+        let pixelsHigh = image.size.height * image.scale
+        return max(1, Int(pixelsWide * pixelsHigh * 4))
     }
 
     /// Decodes, downscales, encodes, and writes a newly selected photo away
@@ -101,9 +120,13 @@ enum RecipePhotoStore {
 
     static func decodeImageAsync(_ data: Data?) async -> UIImage? {
         guard let data else { return nil }
-        return await Task.detached(priority: .utility) {
-            UIImage(data: data)
+        let previewData: Data? = await Task.detached(priority: .utility) { () -> Data? in
+            guard let image = UIImage(data: data) else { return nil }
+            return compressedData(from: image)
         }.value
+        // UIKit state never crosses the detached-task boundary. Only immutable
+        // encoded bytes return to the UI actor, which owns image construction.
+        return previewData.flatMap { UIImage(data: $0) }
     }
 
     /// Deletes the file for `identifier` only when no `MealTemplate` in the
@@ -111,8 +134,11 @@ enum RecipePhotoStore {
     /// revision still points at it.
     static func deleteIfUnreferenced(_ identifier: String?, in context: ModelContext) {
         guard let identifier else { return }
-        let stillReferenced = ((try? context.fetch(FetchDescriptor<MealTemplate>())) ?? [])
-            .contains { $0.photoIdentifier == identifier }
+        var descriptor = FetchDescriptor<MealTemplate>(
+            predicate: #Predicate { $0.photoIdentifier == identifier }
+        )
+        descriptor.fetchLimit = 1
+        let stillReferenced = ((try? context.fetch(descriptor)) ?? []).isEmpty == false
         guard stillReferenced == false else { return }
         try? FileManager.default.removeItem(at: url(for: identifier))
         imageCache.removeObject(forKey: identifier as NSString)
@@ -120,7 +146,7 @@ enum RecipePhotoStore {
 
     /// Reduces an image to a JPEG no larger than `maxDimension` on its longest
     /// edge. Returns `nil` if the image cannot be encoded.
-    static func compressedData(from image: UIImage) -> Data? {
+    nonisolated static func compressedData(from image: UIImage) -> Data? {
         let longest = max(image.size.width, image.size.height)
         let scale = longest > maxDimension ? maxDimension / longest : 1
         let targetSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)

@@ -4,17 +4,105 @@ import UIKit
 
 // MARK: - Food picker
 
+/// The food picker shows several overlapping views of the same catalogue.
+/// Build those views from one query snapshot so typing or selecting a food
+/// does not repeatedly filter the full catalogue and replay recent-meal
+/// traversal for each section.
+private struct FoodPickerCatalogSnapshot {
+    let availableFoods: [FoodItem]
+    let favoriteFoods: [FoodItem]
+    let recentFoods: [FoodItem]
+    let allFoods: [FoodItem]
+
+    init(foods: [FoodItem], loggedMeals: [LoggedMeal]) {
+        let available = foods
+        let favorites = available.filter(\.isFavorite)
+        let favoritesByID = Set(favorites.map(\.id))
+        let byID = Dictionary(uniqueKeysWithValues: available.map { ($0.id, $0) })
+
+        var seen = Set<UUID>()
+        var recent: [FoodItem] = []
+        recent.reserveCapacity(6)
+        mealLoop: for meal in loggedMeals {
+            for item in meal.orderedItems {
+                guard let id = item.sourceFoodID,
+                      seen.insert(id).inserted,
+                      let food = byID[id],
+                      favoritesByID.contains(id) == false
+                else { continue }
+                recent.append(food)
+                if recent.count == 6 { break mealLoop }
+            }
+        }
+        let recentIDs = Set(recent.map(\.id))
+
+        availableFoods = available
+        favoriteFoods = favorites
+        recentFoods = recent
+        allFoods = available.filter { favoritesByID.contains($0.id) == false && recentIDs.contains($0.id) == false }
+    }
+
+    func searchResults(query: String) -> [FoodItem] {
+        availableFoods.filter { food in
+            var extra: [String] = []
+            if let categoryName = food.categoryName { extra.append(categoryName) }
+            extra.append(contentsOf: food.searchAliases)
+            return SearchNormalization.matches(
+                query: query,
+                primaryName: food.name,
+                alternateName: food.frenchName,
+                aliases: extra
+            )
+        }
+    }
+}
+
 /// A searchable, multi-select food picker modeled on the exercise picker.
 /// Replaces the long scrolling `Menu` that recipe editing used before. Foods
 /// are grouped into Recent / Favorites / All; several can be selected in one
 /// visit and are handed back on Done.
 struct FoodPickerSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Query(sort: \FoodItem.name) private var foods: [FoodItem]
-    @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var loggedMeals: [LoggedMeal]
+    @Query(filter: #Predicate<FoodItem> { !$0.isArchived }, sort: \FoodItem.name)
+    private var foods: [FoodItem]
+    @Query private var loggedMeals: [LoggedMeal]
 
     /// Food ids already in the recipe. They appear selected and cannot be added
     /// twice.
+    let existingSelection: Set<UUID>
+    let onAdd: ([FoodItem]) -> Void
+
+    init(existingSelection: Set<UUID>, onAdd: @escaping ([FoodItem]) -> Void) {
+        self.existingSelection = existingSelection
+        self.onAdd = onAdd
+
+        var recentMeals = FetchDescriptor<LoggedMeal>(
+            sortBy: [SortDescriptor(\LoggedMeal.loggedAt, order: .reverse)]
+        )
+        // Six distinct foods normally resolve from far fewer rows. The same
+        // 100-meal ceiling is used by Nutrition Center and prevents a recipe
+        // picker from retaining the complete consumption history.
+        recentMeals.fetchLimit = 100
+        _loggedMeals = Query(recentMeals)
+    }
+
+    var body: some View {
+        FoodPickerContent(
+            catalog: FoodPickerCatalogSnapshot(foods: foods, loggedMeals: loggedMeals),
+            foods: foods,
+            existingSelection: existingSelection,
+            onAdd: onAdd
+        )
+    }
+}
+
+/// Owns only interaction state. Because the query-backed wrapper above has no
+/// search/selection state, typing and toggling rows do not rebuild the source
+/// catalogue or replay the logged-meal traversal.
+private struct FoodPickerContent: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let catalog: FoodPickerCatalogSnapshot
+    let foods: [FoodItem]
     let existingSelection: Set<UUID>
     let onAdd: ([FoodItem]) -> Void
 
@@ -23,12 +111,14 @@ struct FoodPickerSheet: View {
     @State private var isCreatingFood = false
 
     var body: some View {
+        let searchResults = searchText.isEmpty ? [] : catalog.searchResults(query: searchText)
+
         NavigationStack {
             List {
                 if searchText.isEmpty {
-                    section("Favorites", foods: favoriteFoods)
-                    section("Recent", foods: recentFoods)
-                    section("All foods", foods: allFoods)
+                    section("Favorites", foods: catalog.favoriteFoods)
+                    section("Recent", foods: catalog.recentFoods)
+                    section("All foods", foods: catalog.allFoods)
                 } else if searchResults.isEmpty {
                     ContentUnavailableView {
                         Label("No matching foods", systemImage: AppIcon.nutrition)
@@ -112,36 +202,6 @@ struct FoodPickerSheet: View {
         let additions = foods.filter { newlySelected.contains($0.id) && $0.isArchived == false }
         onAdd(additions)
         dismiss()
-    }
-
-    private var availableFoods: [FoodItem] { foods.filter { $0.isArchived == false } }
-    private var favoriteFoods: [FoodItem] { availableFoods.filter { $0.isFavorite } }
-
-    private var recentFoods: [FoodItem] {
-        let byID = Dictionary(uniqueKeysWithValues: availableFoods.map { ($0.id, $0) })
-        var seen = Set<UUID>()
-        return loggedMeals
-            .flatMap(\.orderedItems)
-            .compactMap { item -> FoodItem? in
-                guard let id = item.sourceFoodID, seen.insert(id).inserted, let food = byID[id] else { return nil }
-                return food.isFavorite ? nil : food
-            }
-            .prefix(6)
-            .map { $0 }
-    }
-
-    private var allFoods: [FoodItem] {
-        let excluded = Set(favoriteFoods.map(\.id)).union(recentFoods.map(\.id))
-        return availableFoods.filter { excluded.contains($0.id) == false }
-    }
-
-    private var searchResults: [FoodItem] {
-        availableFoods.filter { food in
-            var extra: [String] = []
-            if let cat = food.categoryName { extra.append(cat) }
-            extra.append(contentsOf: food.searchAliases)
-            return SearchNormalization.matches(query: searchText, primaryName: food.name, alternateName: food.frenchName, aliases: extra)
-        }
     }
 }
 

@@ -105,14 +105,17 @@ enum PlanSubstitutionPreviewService {
         id: UUID,
         modelContext: ModelContext
     ) throws -> PlannedExercise? {
-        try modelContext.fetch(FetchDescriptor<PlannedExercise>()).first { $0.id == id }
+        var descriptor = FetchDescriptor<PlannedExercise>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     private static func allPlannedExercises(
         progressionKey: String,
         modelContext: ModelContext
     ) throws -> [PlannedExercise] {
-        try modelContext.fetch(FetchDescriptor<PlannedExercise>())
-            .filter { $0.progressionKey == progressionKey }
+        try modelContext.fetch(FetchDescriptor<PlannedExercise>(
+            predicate: #Predicate { $0.progressionKey == progressionKey }
+        ))
     }
 }

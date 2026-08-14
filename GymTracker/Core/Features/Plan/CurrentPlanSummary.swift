@@ -77,7 +77,7 @@ struct CurrentPlanSummary: Equatable {
             return ambiguousSummary
         }
 
-        let openFixed = planRuns.filter(isOpen)
+        let openFixed = planRuns.filter { isOpen($0) }
         let openRepeating = repeatingPlanRuns.filter { $0.status == .active || $0.status == .paused }
 
         guard openFixed.count + openRepeating.count <= 1 else {

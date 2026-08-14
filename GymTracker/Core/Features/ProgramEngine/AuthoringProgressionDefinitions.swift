@@ -216,7 +216,7 @@ nonisolated struct AuthoringFormulaDefinition: Codable, Hashable {
     }
 
     func expand(exposureKey: String) throws -> ProgressionFormula {
-        let resolvedExposure = of == "$self" || of == nil ? exposureKey : of!
+        let resolvedExposure = of.flatMap { $0 == "$self" ? nil : $0 } ?? exposureKey
         if let constant { return .source(.constant(constant)) }
         if let source {
             switch source {

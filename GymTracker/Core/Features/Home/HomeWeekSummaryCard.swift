@@ -14,7 +14,27 @@ struct HomeWeekSummaryCard: View {
     let onStartWorkout: () -> Void
     
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
-    @Query private var planRuns: [PlanRun]
+    @Query(filter: #Predicate<PlanRun> { $0.endDate == nil }) private var planRuns: [PlanRun]
+
+    init(
+        isPrimaryCardOfferingStart: Bool,
+        isPlayingAssembly: Bool = false,
+        onStartWorkout: @escaping () -> Void
+    ) {
+        self.isPrimaryCardOfferingStart = isPrimaryCardOfferingStart
+        self.isPlayingAssembly = isPlayingAssembly
+        self.onStartWorkout = onStartWorkout
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let weekStart = calendar.dateInterval(of: .weekOfYear, for: today)?.start ?? today
+        _workouts = Query(
+            filter: #Predicate<Workout> {
+                $0.endTime != nil && $0.startTime >= weekStart
+            },
+            sort: [SortDescriptor(\Workout.startTime, order: .reverse)]
+        )
+    }
 
     private var summary: TrainingWeekSummary {
         TrainingWeekSummary.make(

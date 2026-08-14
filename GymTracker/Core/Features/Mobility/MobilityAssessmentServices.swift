@@ -137,33 +137,41 @@ enum MobilityAssessmentCatalogService {
         using context: ModelContext,
         includeArchived: Bool = false
     ) throws -> [MobilityAssessmentDefinition] {
-        let all = try context.fetch(FetchDescriptor<MobilityAssessmentDefinition>())
-        return all
-            .filter { includeArchived || !$0.isArchived }
-            .sorted {
-                if $0.sortOrder == $1.sortOrder {
-                    return $0.catalogueKey < $1.catalogueKey
-                }
-                return $0.sortOrder < $1.sortOrder
-            }
+        let sort = [
+            SortDescriptor(\MobilityAssessmentDefinition.sortOrder),
+            SortDescriptor(\MobilityAssessmentDefinition.catalogueKey)
+        ]
+        if includeArchived {
+            return try context.fetch(FetchDescriptor<MobilityAssessmentDefinition>(sortBy: sort))
+        }
+        return try context.fetch(FetchDescriptor<MobilityAssessmentDefinition>(
+            predicate: #Predicate { !$0.isArchived },
+            sortBy: sort
+        ))
     }
 
     static func definition(
         catalogueKey: String,
         using context: ModelContext
     ) throws -> MobilityAssessmentDefinition? {
-        try context.fetch(FetchDescriptor<MobilityAssessmentDefinition>())
-            .first { $0.catalogueKey == catalogueKey }
+        var descriptor = FetchDescriptor<MobilityAssessmentDefinition>(
+            predicate: #Predicate { $0.catalogueKey == catalogueKey }
+        )
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first
     }
 }
 
 @MainActor
 enum MobilityAssessmentSessionService {
     static func activeSession(using context: ModelContext) throws -> MobilityAssessmentSession? {
-        try context.fetch(FetchDescriptor<MobilityAssessmentSession>())
-            .filter { $0.status == .active }
-            .sorted { $0.updatedAt > $1.updatedAt }
-            .first
+        let activeStatus = MobilityAssessmentSessionStatus.active.rawValue
+        var descriptor = FetchDescriptor<MobilityAssessmentSession>(
+            predicate: #Predicate { $0.statusRaw == activeStatus },
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first
     }
 
     static func start(
@@ -551,8 +559,9 @@ struct MobilityAssessmentSessionProjection: Equatable, Sendable, Identifiable {
 @MainActor
 enum MobilityAssessmentHistoryQuery {
     static func sessions(using context: ModelContext) throws -> [MobilityAssessmentSessionProjection] {
-        try context.fetch(FetchDescriptor<MobilityAssessmentSession>())
-            .sorted { $0.startedAt > $1.startedAt }
+        try context.fetch(FetchDescriptor<MobilityAssessmentSession>(
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
+        ))
             .map {
                 MobilityAssessmentSessionProjection(
                     id: $0.id,
@@ -573,11 +582,21 @@ enum MobilityAssessmentHistoryQuery {
         side: MobilityAssessmentSide? = nil,
         using context: ModelContext
     ) throws -> [MobilityAssessmentResult] {
-        try context.fetch(FetchDescriptor<MobilityAssessmentResult>())
-            .filter { result in
-                result.definitionCatalogueKeySnapshot == definitionCatalogueKey
-                    && (side.map { requestedSide in requestedSide == result.side } ?? true)
-            }
-            .sorted { $0.createdAt > $1.createdAt }
+        if let side {
+            let sideRaw = side.rawValue
+            return try context.fetch(FetchDescriptor<MobilityAssessmentResult>(
+                predicate: #Predicate {
+                    $0.definitionCatalogueKeySnapshot == definitionCatalogueKey
+                        && $0.sideRaw == sideRaw
+                },
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            ))
+        }
+        return try context.fetch(FetchDescriptor<MobilityAssessmentResult>(
+            predicate: #Predicate {
+                $0.definitionCatalogueKeySnapshot == definitionCatalogueKey
+            },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        ))
     }
 }

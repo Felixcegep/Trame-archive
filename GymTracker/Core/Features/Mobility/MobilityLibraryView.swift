@@ -12,13 +12,22 @@ struct MobilityLibraryView: View {
     /// resulting session up to the root's single centralized presentation.
     let onStartProgramSession: (MobilitySession) -> Void
 
-    @Query(sort: \MobilityRoutine.updatedAt, order: .reverse) private var routines: [MobilityRoutine]
+    @Query(
+        filter: #Predicate<MobilityRoutine> { !$0.isArchived },
+        sort: \MobilityRoutine.updatedAt,
+        order: .reverse
+    ) private var routines: [MobilityRoutine]
     @Query(sort: \MobilityDefinition.name) private var definitions: [MobilityDefinition]
-    @Query(sort: \MobilitySession.startTime, order: .reverse) private var sessions: [MobilitySession]
-    @Query private var workouts: [Workout]
+    @Query(
+        filter: #Predicate<MobilitySession> { $0.statusRaw == "completed" },
+        sort: \MobilitySession.startTime,
+        order: .reverse
+    ) private var sessions: [MobilitySession]
+    @Query(filter: #Predicate<Workout> { $0.endTime == nil }) private var workouts: [Workout]
     @Query(sort: \MobilityAssessmentSession.startedAt, order: .reverse)
     private var assessmentSessions: [MobilityAssessmentSession]
-    @Query private var assessmentDefinitions: [MobilityAssessmentDefinition]
+    @Query(filter: #Predicate<MobilityAssessmentDefinition> { !$0.isArchived })
+    private var assessmentDefinitions: [MobilityAssessmentDefinition]
     @State private var selectedRoutine: MobilityRoutine?
     @State private var isShowingDefinitions = false
     @State private var isShowingAssessmentLanding = false
@@ -26,9 +35,20 @@ struct MobilityLibraryView: View {
     /// View-local. A filter is a momentary way of looking at the library, not
     /// a preference, so it is deliberately not persisted.
     @State private var purposeFilter: MobilityPurposeFilter = .all
+    @State private var recentMovementCache: MobilityRecentMovementCache?
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var body: some View {
+        let availableRoutines = routines
+        let visibleGroups = MobilityRoutinePurposeGrouping.groups(
+            for: MobilityRoutinePurposeGrouping.filtered(availableRoutines, by: purposeFilter)
+        )
+        let activeWorkoutID = workouts.first { $0.status == .active }?.id
+        let recentMovementInputID = makeRecentMovementInputID()
+        let recentMovementNames = recentMovementCache.flatMap {
+            $0.inputID == recentMovementInputID ? $0.names : nil
+        } ?? makeRecentMovementNames()
+
         List {
             // The hub leads with the assessment because it is the only surface
             // here that produces evidence; routines are the work it points at.
@@ -92,7 +112,7 @@ struct MobilityLibraryView: View {
                 // and it has exactly one possible value with no workout running.
                 // Offering a locked control there was a row that could only ever
                 // say "Standalone".
-                if activeWorkout != nil {
+                if activeWorkoutID != nil {
                     Picker("Session context", selection: $sessionContext) {
                         ForEach(MobilitySessionContext.allCases, id: \.self) { context in
                             Text(context.displayName).tag(context)
@@ -119,7 +139,7 @@ struct MobilityLibraryView: View {
             ForEach(visibleGroups) { group in
                 Section {
                     ForEach(group.routines) { routine in
-                        routineRow(routine)
+                        routineRow(routine, activeWorkoutID: activeWorkoutID)
                     }
                 } header: {
                     sectionHeader(groupTitle(for: group)) {
@@ -220,6 +240,36 @@ struct MobilityLibraryView: View {
                 MobilityDefinitionsView()
             }
         }
+        .task(id: recentMovementInputID) {
+            recentMovementCache = .init(
+                inputID: recentMovementInputID,
+                names: recentMovementNames
+            )
+        }
+    }
+
+    private func makeRecentMovementNames() -> [String] {
+        var seen = Set<String>()
+        var names: [String] = []
+        names.reserveCapacity(5)
+        sessionLoop: for session in sessions {
+            for entry in session.orderedEntries {
+                guard seen.insert(entry.definitionNameSnapshot).inserted else { continue }
+                names.append(entry.definitionNameSnapshot)
+                if names.count == 5 { break sessionLoop }
+            }
+        }
+        return names
+    }
+
+    private func makeRecentMovementInputID() -> Int {
+        var hasher = Hasher()
+        hasher.combine(sessions.count)
+        for session in sessions {
+            hasher.combine(session.id)
+            hasher.combine(session.updatedAt)
+        }
+        return hasher.finalize()
     }
 
     // MARK: - Assessment card
@@ -362,7 +412,7 @@ struct MobilityLibraryView: View {
     }
 
     private var availableAssessmentCount: Int {
-        assessmentDefinitions.filter { $0.isArchived == false }.count
+        assessmentDefinitions.count
     }
 
     private var routineHistoryDetail: String {
@@ -374,7 +424,7 @@ struct MobilityLibraryView: View {
     }
 
     private var completedSessionCount: Int {
-        sessions.filter { $0.status == .completed }.count
+        sessions.count
     }
 
     private var recordedAssessmentCount: Int {
@@ -403,9 +453,12 @@ struct MobilityLibraryView: View {
     }
 
     @ViewBuilder
-    private func routineRow(_ routine: MobilityRoutine) -> some View {
+    private func routineRow(
+        _ routine: MobilityRoutine,
+        activeWorkoutID: UUID?
+    ) -> some View {
         Button {
-            onStart(routine, sessionContext, sessionContext == .standalone ? nil : activeWorkout?.id)
+            onStart(routine, sessionContext, sessionContext == .standalone ? nil : activeWorkoutID)
         } label: {
             // The button combines the two text views into one accessibility
             // element, which reads "<name>, <n> movements · <purpose>" — the
@@ -517,32 +570,6 @@ struct MobilityLibraryView: View {
         case .development: AppIcon.mobilityPurposeDevelopment
         case .cooldown: AppIcon.mobilityPurposeCooldown
         }
-    }
-
-    /// Grouping, filtering, and ordering all belong to
-    /// `MobilityRoutinePurposeGrouping`. This composes that contract and adds
-    /// nothing — archival stays the caller's job, as the contract documents.
-    private var visibleGroups: [MobilityRoutineGroup] {
-        MobilityRoutinePurposeGrouping.groups(
-            for: MobilityRoutinePurposeGrouping.filtered(availableRoutines, by: purposeFilter)
-        )
-    }
-
-    private var availableRoutines: [MobilityRoutine] {
-        routines.filter { $0.isArchived == false }
-    }
-
-    private var activeWorkout: Workout? {
-        workouts.first { $0.status == .active }
-    }
-
-    private var recentMovementNames: [String] {
-        var seen = Set<String>()
-        return sessions
-            .flatMap(\.orderedEntries)
-            .compactMap { seen.insert($0.definitionNameSnapshot).inserted ? $0.definitionNameSnapshot : nil }
-            .prefix(5)
-            .map { $0 }
     }
 
     private func createRoutine() -> MobilityRoutine? {
@@ -959,7 +986,10 @@ struct MobilityRoutineEditorView: View {
         let ordered = routine.orderedItems
         for index in offsets {
             let item = ordered[index]
-            if let evidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)[item.id] {
+            if let evidence = MobilityEvidenceService.prescriptionEvidence(
+                for: item.id,
+                using: modelContext
+            ) {
                 modelContext.delete(evidence)
             }
             modelContext.delete(item)
@@ -990,6 +1020,11 @@ struct MobilityRoutineEditorView: View {
     }
 }
 
+private struct MobilityRecentMovementCache {
+    let inputID: Int
+    let names: [String]
+}
+
 private struct MobilityRoutineBlockEditorRow: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var block: MobilityRoutineBlock
@@ -1005,6 +1040,8 @@ private struct MobilityRoutineBlockEditorRow: View {
     @State private var restMinimumSeconds = 20
     @State private var restMaximumSeconds = 40
     @State private var isLoading = true
+    @State private var saveGeneration = 0
+    @State private var hasPendingSave = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
@@ -1058,15 +1095,41 @@ private struct MobilityRoutineBlockEditorRow: View {
                 isLoading = false
             }
         }
-        .onChange(of: name) { _, _ in save() }
-        .onChange(of: kind) { _, _ in save() }
-        .onChange(of: targetRounds) { _, _ in save() }
-        .onChange(of: hasCustomRest) { _, _ in save() }
-        .onChange(of: restScope) { _, _ in save() }
-        .onChange(of: restDirectiveKind) { _, _ in save() }
-        .onChange(of: restSeconds) { _, _ in save() }
-        .onChange(of: restMinimumSeconds) { _, _ in save() }
-        .onChange(of: restMaximumSeconds) { _, _ in save() }
+        .onChange(of: name) { _, _ in scheduleSave() }
+        .onChange(of: kind) { _, _ in scheduleSave() }
+        .onChange(of: targetRounds) { _, _ in scheduleSave() }
+        .onChange(of: hasCustomRest) { _, _ in scheduleSave() }
+        .onChange(of: restScope) { _, _ in scheduleSave() }
+        .onChange(of: restDirectiveKind) { _, _ in scheduleSave() }
+        .onChange(of: restSeconds) { _, _ in scheduleSave() }
+        .onChange(of: restMinimumSeconds) { _, _ in scheduleSave() }
+        .onChange(of: restMaximumSeconds) { _, _ in scheduleSave() }
+        // Text entry can produce one state change per character. Keep the
+        // draft responsive and coalesce those changes into one persistence
+        // transaction; disappearance still flushes the latest value.
+        .task(id: saveGeneration) {
+            guard saveGeneration > 0 else { return }
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+            } catch {
+                return
+            }
+            guard Task.isCancelled == false else { return }
+            flushPendingSave()
+        }
+        .onDisappear { flushPendingSave() }
+    }
+
+    private func scheduleSave() {
+        guard isLoading == false else { return }
+        hasPendingSave = true
+        saveGeneration &+= 1
+    }
+
+    private func flushPendingSave() {
+        guard hasPendingSave else { return }
+        hasPendingSave = false
+        save()
     }
 
     private func save() {
@@ -1121,6 +1184,15 @@ private struct MobilityRoutineItemEditorRow: View {
     @State private var restMinimumSeconds = 20
     @State private var restMaximumSeconds = 40
     @State private var isLoadingEvidence = true
+    @State private var pendingSaveKinds: Set<PendingSaveKind> = []
+    @State private var saveGeneration = 0
+
+    private enum PendingSaveKind: Hashable {
+        case model
+        case evidence
+        case metric
+        case structure
+    }
 
     init(item: MobilityRoutineItem, blocks: [MobilityRoutineBlock]) {
         self.item = item
@@ -1171,8 +1243,8 @@ private struct MobilityRoutineItemEditorRow: View {
                     set: { enabled in
                         item.targetLoadValue = enabled ? 5 : nil
                         item.targetLoadUnit = enabled ? (item.targetLoadUnit ?? .kilograms) : nil
-                        save()
-                        saveMetricEvidence()
+                        scheduleSave(.model)
+                        scheduleSave(.metric)
                     }
                 ))
                 if item.targetLoadValue != nil {
@@ -1182,8 +1254,8 @@ private struct MobilityRoutineItemEditorRow: View {
                             get: { item.targetLoadValue ?? 0 },
                             set: {
                                 item.targetLoadValue = $0
-                                save()
-                                saveMetricEvidence()
+                                scheduleSave(.model)
+                                scheduleSave(.metric)
                             }
                         ),
                         in: 0.5...1000,
@@ -1193,7 +1265,7 @@ private struct MobilityRoutineItemEditorRow: View {
                         get: { item.targetLoadUnit ?? .kilograms },
                         set: {
                             item.targetLoadUnit = $0
-                            save()
+                            scheduleSave(.model)
                         }
                     )) {
                         ForEach(MobilityLoadUnit.allCases, id: \.self) { unit in
@@ -1265,12 +1337,29 @@ private struct MobilityRoutineItemEditorRow: View {
         // body past the type-checker's time budget. Watching one combined
         // signature per save target keeps the behaviour identical with a flat
         // modifier chain.
-        .onChange(of: item.sideRaw) { _, _ in save() }
-        .onChange(of: evidenceSignature) { _, _ in saveEvidence() }
-        .onChange(of: completionRuleSelection) { _, _ in saveMetricEvidence() }
-        .onChange(of: structureSignature) { _, _ in saveStructure() }
+        .onChange(of: item.sideRaw) { _, _ in scheduleSave(.model) }
+        .onChange(of: evidenceSignature) { _, _ in scheduleSave(.evidence) }
+        .onChange(of: completionRuleSelection) { _, _ in scheduleSave(.metric) }
+        .onChange(of: structureSignature) { _, _ in scheduleSave(.structure) }
+        // Text entry can produce one state change per character. Coalesce the
+        // affected persistence targets, then flush when the row leaves the
+        // editor so dismissal cannot lose the latest draft.
+        .task(id: saveGeneration) {
+            guard saveGeneration > 0 else { return }
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+            } catch {
+                return
+            }
+            guard Task.isCancelled == false else { return }
+            flushPendingSaves()
+        }
+        .onDisappear { flushPendingSaves() }
         .onAppear {
-            let evidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)[item.id]
+            let evidence = MobilityEvidenceService.prescriptionEvidence(
+                for: item.id,
+                using: modelContext
+            )
             method = evidence?.method
             trainingPurpose = evidence?.purpose
             breathingTarget = evidence?.breathingPrescription?.targetBreaths
@@ -1367,8 +1456,8 @@ private struct MobilityRoutineItemEditorRow: View {
             get: { item.targetDurationSeconds ?? item.definition.defaultDurationSeconds ?? 30 },
             set: {
                 item.targetDurationSeconds = $0
-                save()
-                saveMetricEvidence()
+                scheduleSave(.model)
+                scheduleSave(.metric)
             }
         )
     }
@@ -1378,13 +1467,37 @@ private struct MobilityRoutineItemEditorRow: View {
             get: { item.targetRepetitions ?? item.definition.defaultRepetitions ?? 8 },
             set: {
                 item.targetRepetitions = $0
-                save()
-                saveMetricEvidence()
+                scheduleSave(.model)
+                scheduleSave(.metric)
             }
         )
     }
 
-    private func save() { _ = modelContext.saveOrRollback() }
+    private func scheduleSave(_ kind: PendingSaveKind) {
+        guard isLoadingEvidence == false else { return }
+        pendingSaveKinds.insert(kind)
+        saveGeneration &+= 1
+    }
+
+    private func flushPendingSaves() {
+        guard isLoadingEvidence == false, pendingSaveKinds.isEmpty == false else { return }
+        let pending = pendingSaveKinds
+        pendingSaveKinds.removeAll()
+
+        if pending.contains(.model) {
+            _ = modelContext.saveOrRollback()
+        }
+        if pending.contains(.evidence) {
+            saveEvidence()
+        } else if pending.contains(.metric) {
+            saveMetricEvidence()
+        }
+        if pending.contains(.structure) {
+            saveStructure()
+        }
+    }
+
+    private func save() { scheduleSave(.model) }
 
     private func optionalStepper(
         _ title: LocalizedStringKey,

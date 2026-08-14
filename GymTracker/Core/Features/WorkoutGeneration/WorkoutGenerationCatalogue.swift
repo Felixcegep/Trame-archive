@@ -17,19 +17,17 @@ enum WorkoutGenerationCatalogue {
             : request.selectedEquipment
         let excludedIDs = request.excludedExerciseIDs.union(profile.avoidedExerciseIDs)
 
-        return exercises
-            .filter { exercise in
+        let eligible = exercises.lazy.filter { exercise in
                 guard !exercise.isArchived, !excludedIDs.contains(exercise.id) else { return false }
                 guard !selectedEquipment.isEmpty else { return true }
                 return exercise.equipmentType.map(selectedEquipment.contains) ?? true
             }
-            .sorted { lhs, rhs in
+        return boundedSortedPrefix(eligible, limit: maximumOptions) { lhs, rhs in
                 if lhs.isFavorite != rhs.isFavorite { return lhs.isFavorite && !rhs.isFavorite }
                 let nameOrder = lhs.name.localizedStandardCompare(rhs.name)
                 if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
                 return lhs.id.uuidString < rhs.id.uuidString
             }
-            .prefix(maximumOptions)
             .map { exercise in
                 WorkoutGenerationExerciseOption(
                     exerciseID: exercise.id,
@@ -44,5 +42,34 @@ enum WorkoutGenerationCatalogue {
                     isFavorite: exercise.isFavorite
                 )
             }
+    }
+
+    private static func boundedSortedPrefix<Values: Sequence>(
+        _ values: Values,
+        limit: Int,
+        by areInIncreasingOrder: (Values.Element, Values.Element) -> Bool
+    ) -> [Values.Element] {
+        guard limit > 0 else { return [] }
+        var result: [Values.Element] = []
+        result.reserveCapacity(limit)
+        for value in values {
+            var lower = 0
+            var upper = result.count
+            while lower < upper {
+                let middle = lower + (upper - lower) / 2
+                if areInIncreasingOrder(value, result[middle]) {
+                    upper = middle
+                } else {
+                    lower = middle + 1
+                }
+            }
+            let insertionIndex = lower
+            guard insertionIndex < limit else { continue }
+            result.insert(value, at: insertionIndex)
+            if result.count > limit {
+                result.removeLast()
+            }
+        }
+        return result
     }
 }

@@ -2,6 +2,38 @@ import AppIntents
 import Foundation
 import SwiftData
 
+/// Applies the same ordering comparator while retaining at most the
+/// system-facing result limit. App Intent catalogues can grow with user data;
+/// Siri should not allocate and sort every eligible row to display 20 choices.
+private func boundedSortedPrefix<Values: Sequence>(
+    _ values: Values,
+    limit: Int,
+    by areInIncreasingOrder: (Values.Element, Values.Element) -> Bool
+) -> [Values.Element] {
+    guard limit > 0 else { return [] }
+    var result: [Values.Element] = []
+    result.reserveCapacity(limit)
+    for value in values {
+        var lower = 0
+        var upper = result.count
+        while lower < upper {
+            let middle = lower + (upper - lower) / 2
+            if areInIncreasingOrder(value, result[middle]) {
+                upper = middle
+            } else {
+                lower = middle + 1
+            }
+        }
+        let insertionIndex = lower
+        guard insertionIndex < limit else { continue }
+        result.insert(value, at: insertionIndex)
+        if result.count > limit {
+            result.removeLast()
+        }
+    }
+    return result
+}
+
 /// A deliberately small system-facing representation. The app remains the
 /// source of truth; this entity exists only so Siri and Shortcuts can resolve
 /// an exercise name when a lifter asks for prior performance.
@@ -23,10 +55,14 @@ struct ExerciseIntentQuery: EntityStringQuery {
         await MainActor.run {
             guard let container = GymTrackerModelContainer.shared else { return [] }
             let context = ModelContext(container)
-            let requested = Set(identifiers)
-            let exercises = (try? context.fetch(FetchDescriptor<Exercise>())) ?? []
+            let exercises = Set(identifiers).compactMap { id -> Exercise? in
+                var descriptor = FetchDescriptor<Exercise>(
+                    predicate: #Predicate { $0.id == id && !$0.isArchived }
+                )
+                descriptor.fetchLimit = 1
+                return try? context.fetch(descriptor).first
+            }
             return exercises
-                .filter { requested.contains($0.id) && !$0.isArchived }
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                 .map(ExerciseIntentEntity.init)
         }
@@ -36,18 +72,17 @@ struct ExerciseIntentQuery: EntityStringQuery {
         await MainActor.run {
             guard let container = GymTrackerModelContainer.shared else { return [] }
             let normalized = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            let exercises = (try? ModelContext(container)
-                .fetch(FetchDescriptor<Exercise>())) ?? []
-            return exercises
-                .filter { exercise in
-                    !exercise.isArchived && (
-                        normalized.isEmpty
+            let exercises = (try? ModelContext(container).fetch(FetchDescriptor<Exercise>(
+                predicate: #Predicate { !$0.isArchived }
+            ))) ?? []
+            let matches = exercises.lazy.filter { exercise in
+                    normalized.isEmpty
                         || exercise.name.localizedCaseInsensitiveContains(normalized)
                         || exercise.tags.contains { $0.localizedCaseInsensitiveContains(normalized) }
-                    )
                 }
-                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                .prefix(20)
+            return boundedSortedPrefix(matches, limit: 20) {
+                    $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                }
                 .map(ExerciseIntentEntity.init)
         }
     }
@@ -409,8 +444,12 @@ struct ViewPreviousPerformanceIntent: AppIntent {
         guard let selectedExercise else {
             return .result(dialog: "Choose an exercise to view its previous performance.")
         }
-        guard let exercise = (try? context.fetch(FetchDescriptor<Exercise>()))?
-            .first(where: { $0.id == selectedExercise.id && !$0.isArchived })
+        let exerciseID = selectedExercise.id
+        var descriptor = FetchDescriptor<Exercise>(
+            predicate: #Predicate { $0.id == exerciseID && !$0.isArchived }
+        )
+        descriptor.fetchLimit = 1
+        guard let exercise = try? context.fetch(descriptor).first
         else {
             return .result(dialog: "That exercise is no longer available.")
         }
@@ -567,10 +606,16 @@ struct MealTemplateIntentQuery: EntityStringQuery {
     func entities(for identifiers: [UUID]) async throws -> [MealTemplateIntentEntity] {
         await MainActor.run {
             guard let container = GymTrackerModelContainer.shared else { return [] }
-            let requested = Set(identifiers)
-            let templates = (try? ModelContext(container).fetch(FetchDescriptor<MealTemplate>())) ?? []
+            let context = ModelContext(container)
+            let templates = Set(identifiers).compactMap { id -> MealTemplate? in
+                var descriptor = FetchDescriptor<MealTemplate>(
+                    predicate: #Predicate { $0.id == id && !$0.isArchived && $0.isCurrent }
+                )
+                descriptor.fetchLimit = 1
+                return try? context.fetch(descriptor).first
+            }
             return templates
-                .filter { requested.contains($0.id) && eligible($0) }
+                .filter(eligible)
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                 .map { MealTemplateIntentEntity(id: $0.id, name: $0.name) }
         }
@@ -580,11 +625,15 @@ struct MealTemplateIntentQuery: EntityStringQuery {
         await MainActor.run {
             guard let container = GymTrackerModelContainer.shared else { return [] }
             let normalized = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            let templates = (try? ModelContext(container).fetch(FetchDescriptor<MealTemplate>())) ?? []
-            return templates
-                .filter { eligible($0) && (normalized.isEmpty || $0.name.localizedCaseInsensitiveContains(normalized)) }
-                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                .prefix(20)
+            let templates = (try? ModelContext(container).fetch(FetchDescriptor<MealTemplate>(
+                predicate: #Predicate { !$0.isArchived && $0.isCurrent }
+            ))) ?? []
+            let matches = templates.lazy.filter {
+                eligible($0) && (normalized.isEmpty || $0.name.localizedCaseInsensitiveContains(normalized))
+            }
+            return boundedSortedPrefix(matches, limit: 20) {
+                    $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                }
                 .map { MealTemplateIntentEntity(id: $0.id, name: $0.name) }
         }
     }
@@ -603,13 +652,14 @@ struct MealTemplateIntentQuery: EntityStringQuery {
 struct LogMealIntent: AppIntent {
     static let title: LocalizedStringResource = "Log a meal"
     static let description = IntentDescription("Logs a saved recipe to today's meals.")
+
+    @Parameter(title: "Recipe") var meal: MealTemplateIntentEntity
+
     static var parameterSummary: some ParameterSummary {
         Summary("Log a meal") {
             \.$meal
         }
     }
-
-    @Parameter(title: "Recipe") var meal: MealTemplateIntentEntity
 
     init() {}
 
@@ -626,8 +676,12 @@ struct LogMealIntent: AppIntent {
             return .result(dialog: "Nutrition logging is not available in this build.")
         }
         let context = ModelContext(container)
-        guard let template = (try? context.fetch(FetchDescriptor<MealTemplate>()))?
-            .first(where: { $0.id == meal.id && $0.isArchived == false && $0.isCurrent })
+        let mealID = meal.id
+        var descriptor = FetchDescriptor<MealTemplate>(
+            predicate: #Predicate { $0.id == mealID && !$0.isArchived && $0.isCurrent }
+        )
+        descriptor.fetchLimit = 1
+        guard let template = try? context.fetch(descriptor).first
         else {
             return .result(dialog: "\(meal.name) is no longer available.")
         }
@@ -658,10 +712,16 @@ struct MobilityRoutineIntentQuery: EntityStringQuery {
     func entities(for identifiers: [UUID]) async throws -> [MobilityRoutineIntentEntity] {
         await MainActor.run {
             guard let container = GymTrackerModelContainer.shared else { return [] }
-            let requested = Set(identifiers)
-            let routines = (try? ModelContext(container).fetch(FetchDescriptor<MobilityRoutine>())) ?? []
+            let context = ModelContext(container)
+            let routines = Set(identifiers).compactMap { id -> MobilityRoutine? in
+                var descriptor = FetchDescriptor<MobilityRoutine>(
+                    predicate: #Predicate { $0.id == id && !$0.isArchived }
+                )
+                descriptor.fetchLimit = 1
+                return try? context.fetch(descriptor).first
+            }
             return routines
-                .filter { requested.contains($0.id) && eligible($0) }
+                .filter(eligible)
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                 .map { MobilityRoutineIntentEntity(id: $0.id, name: $0.name) }
         }
@@ -671,11 +731,15 @@ struct MobilityRoutineIntentQuery: EntityStringQuery {
         await MainActor.run {
             guard let container = GymTrackerModelContainer.shared else { return [] }
             let normalized = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            let routines = (try? ModelContext(container).fetch(FetchDescriptor<MobilityRoutine>())) ?? []
-            return routines
-                .filter { eligible($0) && (normalized.isEmpty || $0.name.localizedCaseInsensitiveContains(normalized)) }
-                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                .prefix(20)
+            let routines = (try? ModelContext(container).fetch(FetchDescriptor<MobilityRoutine>(
+                predicate: #Predicate { !$0.isArchived }
+            ))) ?? []
+            let matches = routines.lazy.filter {
+                eligible($0) && (normalized.isEmpty || $0.name.localizedCaseInsensitiveContains(normalized))
+            }
+            return boundedSortedPrefix(matches, limit: 20) {
+                    $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                }
                 .map { MobilityRoutineIntentEntity(id: $0.id, name: $0.name) }
         }
     }
@@ -695,13 +759,14 @@ struct StartMobilityRoutineIntent: AppIntent {
     static let title: LocalizedStringResource = "Start mobility routine"
     static let description = IntentDescription("Starts a mobility routine, or resumes the current active session.")
     static let openAppWhenRun = true
+
+    @Parameter(title: "Routine") var routine: MobilityRoutineIntentEntity?
+
     static var parameterSummary: some ParameterSummary {
         Summary("Start mobility routine") {
             \.$routine
         }
     }
-
-    @Parameter(title: "Routine") var routine: MobilityRoutineIntentEntity?
 
     init() {}
 
@@ -726,10 +791,17 @@ struct StartMobilityRoutineIntent: AppIntent {
 
         let resolvedRoutine: MobilityRoutine?
         if let routine {
-            resolvedRoutine = (try? context.fetch(FetchDescriptor<MobilityRoutine>()))?
-                .first(where: { $0.id == routine.id && $0.isArchived == false && $0.orderedItems.isEmpty == false })
+            let routineID = routine.id
+            var descriptor = FetchDescriptor<MobilityRoutine>(
+                predicate: #Predicate { $0.id == routineID && !$0.isArchived }
+            )
+            descriptor.fetchLimit = 1
+            resolvedRoutine = (try? context.fetch(descriptor).first)
+                .flatMap { $0.orderedItems.isEmpty ? nil : $0 }
         } else {
-            resolvedRoutine = (try? context.fetch(FetchDescriptor<MobilityRoutine>()))?
+            resolvedRoutine = (try? context.fetch(FetchDescriptor<MobilityRoutine>(
+                predicate: #Predicate { !$0.isArchived }
+            )))?
                 .first(where: { $0.isArchived == false && $0.orderedItems.isEmpty == false })
         }
         guard let resolvedRoutine else {
@@ -810,14 +882,15 @@ struct CompleteCurrentMobilityNodeIntent: AppIntent {
     static let title: LocalizedStringResource = "Complete current mobility movement"
     static let description = IntentDescription("Completes the current mobility movement using Trame's active-session workflow.")
     static let openAppWhenRun = false
+
+    @Parameter(title: "Performed repetitions", requestValueDialog: "How many repetitions did you perform?")
+    var performedRepetitions: Int?
+
     static var parameterSummary: some ParameterSummary {
         Summary("Complete current mobility movement") {
             \.$performedRepetitions
         }
     }
-
-    @Parameter(title: "Performed repetitions", requestValueDialog: "How many repetitions did you perform?")
-    var performedRepetitions: Int?
 
     /// Widget/Watch callers set these identities. Ordinary Siri/Shortcut runs
     /// leave them nil and resolve the durable current node at execution time.

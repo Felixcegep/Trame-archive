@@ -180,7 +180,9 @@ struct OnboardingFlowView: View {
     }
 
     private func programRecord(_ id: UUID) -> ProgramDefinitionRecord? {
-        try? modelContext.fetch(FetchDescriptor<ProgramDefinitionRecord>()).first { $0.id == id }
+        var descriptor = FetchDescriptor<ProgramDefinitionRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.first
     }
 
     /// Mobility's own detail screen, unchanged, mirroring `programDestination`.
@@ -208,7 +210,9 @@ struct OnboardingFlowView: View {
     }
 
     private func mobilityProgramRecord(_ id: UUID) -> MobilityProgramDefinitionRecord? {
-        try? modelContext.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>()).first { $0.id == id }
+        var descriptor = FetchDescriptor<MobilityProgramDefinitionRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.first
     }
 
     /// Commits the answers to the profile and to the unit preference.

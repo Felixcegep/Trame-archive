@@ -1,4 +1,35 @@
+import Charts
 import SwiftUI
+
+extension View {
+    /// The chart chrome every `Chart` in the app should share: hairline,
+    /// recessive gridlines and axis lines in the app's own hairline token,
+    /// tick labels in muted text — never the plot's own accent color, and
+    /// never the un-styled system default, which draws full-strength axis
+    /// lines that outweigh the data they're supposed to be measuring.
+    ///
+    /// One modifier rather than each chart repeating the same `AxisMarks`
+    /// closure: every chart in Progress calling this is what makes them read
+    /// as one system instead of thirteen separately-tuned ones.
+    func gymChartAxisStyle() -> some View {
+        self
+            .chartXAxis {
+                AxisMarks { _ in
+                    AxisGridLine().foregroundStyle(Color.gymBorder)
+                    AxisTick().foregroundStyle(Color.gymBorder)
+                    AxisValueLabel().foregroundStyle(Color.gymSubduedText)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { _ in
+                    AxisGridLine().foregroundStyle(Color.gymBorder)
+                    AxisTick().foregroundStyle(Color.gymBorder)
+                    AxisValueLabel().foregroundStyle(Color.gymSubduedText)
+                }
+            }
+            .chartLegend(.automatic)
+    }
+}
 
 enum GymCardVariant {
     case standard

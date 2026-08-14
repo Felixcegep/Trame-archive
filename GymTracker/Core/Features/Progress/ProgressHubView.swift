@@ -5,9 +5,17 @@ import SwiftUI
 /// It deliberately links to domain-owned history instead of copying or
 /// reinterpreting their persisted truth.
 struct ProgressHubView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
-    @Query(sort: \MobilitySession.startTime, order: .reverse) private var mobilitySessions: [MobilitySession]
+    @AppStorage(DefaultsKey.useMetric) private var unitSystem: UnitSystem = .metric
+    @Query(
+        filter: #Predicate<Workout> { $0.endTime != nil },
+        sort: \Workout.startTime,
+        order: .reverse
+    ) private var workouts: [Workout]
+    @Query(
+        filter: #Predicate<MobilitySession> { $0.statusRaw == "completed" },
+        sort: \MobilitySession.startTime,
+        order: .reverse
+    ) private var mobilitySessions: [MobilitySession]
     @Query(sort: \MobilityAssessmentSession.startedAt, order: .reverse) private var assessmentSessions: [MobilityAssessmentSession]
     @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var loggedMeals: [LoggedMeal]
     @Query(sort: \DailyLogEntry.createdAt, order: .reverse) private var dailyLogEntries: [DailyLogEntry]
@@ -19,6 +27,8 @@ struct ProgressHubView: View {
 
     @State private var overviewRange: AnalyticsDateRange = .twelveWeeks
     @State private var overviewState: ProgressOverviewState = .loading
+    @State private var selectedLens: ProgressLens = .global
+    @State private var isEditingAthleteProfile = false
     /// Collapsed on every appearance rather than remembered. The three rows
     /// inside are visited rarely and deliberately; restoring an expansion from
     /// a previous session would put them back at the weight this change exists
@@ -27,6 +37,16 @@ struct ProgressHubView: View {
 
     var body: some View {
         List {
+            Section {
+                AthleteIntelligenceSection(
+                    selectedLens: $selectedLens,
+                    isEditingProfile: $isEditingAthleteProfile,
+                    range: overviewRange,
+                    workouts: workouts
+                )
+            }
+
+            if selectedLens == .global {
             Section {
                 // The range control is a list row rather than a toolbar menu:
                 // toolbar buttons do not reliably fire on pushed screens in
@@ -47,6 +67,7 @@ struct ProgressHubView: View {
                 ProgressOverviewSection(range: overviewRange, state: overviewState, onOpenPlan: onOpenPlan)
             } header: {
                 Text("Overview")
+            }
             }
 
             // Four rows, not seven.
@@ -139,91 +160,99 @@ struct ProgressHubView: View {
         .background(Color.gymBackground)
         .navigationTitle("Progress")
         .accessibilityIdentifier("progress-screen")
-        // Recomputed when the range changes rather than in `body`: these are
-        // store reads, and running them as computed properties re-ran them on
-        // every re-render. `task(id:)` also cancels a superseded load when the
-        // lifter changes range twice quickly.
-        .task(id: overviewRange) {
+        .sheet(isPresented: $isEditingAthleteProfile) {
+            NavigationStack {
+                TrainingProfileSettingsView()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { isEditingAthleteProfile = false }
+                        }
+                    }
+            }
+        }
+        // Recomputed from the already-observed records when the range or a
+        // contributing collection changes, rather than on every body pass.
+        .task(id: overviewInputID) {
             overviewState = loadOverview()
         }
     }
 
-    /// Reads the overview from the analytics services.
+    /// Projects the overview from the hub's existing SwiftData observations.
     ///
-    /// Synchronous on the main actor by design: these services hold a
-    /// `ModelContext`, which is not `Sendable`, so the work must not hop off
-    /// the actor that owns it.
+    /// Synchronous on the main actor by design: the inputs are SwiftData model
+    /// objects and must not cross to a detached task.
     private func loadOverview() -> ProgressOverviewState {
         guard completedWorkouts.isEmpty == false else { return .empty }
 
-        let displayWeightType: WeightType = UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
+        let displayWeightType: WeightType = unitSystem == .metric ? .kg : .lbs
         let calendar = Calendar.current
 
-        do {
-            let consistency = try TrainingConsistencyAnalyticsService(modelContext: modelContext)
-                .analytics(calendar: calendar)
-            let records = try PersonalRecordAnalyticsService(modelContext: modelContext)
-                .personalRecords(dateRange: overviewRange, displayWeightType: displayWeightType)
-            let series = try ExerciseProgressAnalyticsService(modelContext: modelContext)
-                .series(dateRange: overviewRange, displayWeightType: displayWeightType)
+        let consistency = TrainingConsistencyAnalyticsService.analytics(
+            workouts: workouts,
+            calendar: calendar
+        )
+        let workoutProjection = PersonalRecordAnalyticsService.overviewAnalytics(
+            workouts: workouts,
+            dateRange: overviewRange,
+            displayWeightType: displayWeightType
+        )
+        let records = workoutProjection.selectedRecords
+        let series = workoutProjection.exerciseSeries
 
-            // The journey preview reads the same projection the Journey screen
-            // renders, so the card can never disagree with the screen it opens.
-            let journey = try TrainingJourneyBuilder(modelContext: modelContext).journey(calendar: calendar)
-            let rangeInterval = overviewRange.dateInterval()
-            let weekInterval = calendar.dateInterval(of: .weekOfYear, for: .now)
+        let journey = TrainingJourneyBuilder().summary(
+            workouts: workouts,
+            fixedRuns: planRuns,
+            repeatingRuns: repeatingPlanRuns,
+            calendar: calendar
+        )
+        let rangeInterval = overviewRange.dateInterval()
+        let weekInterval = calendar.dateInterval(of: .weekOfYear, for: .now)
 
-            let activeFixed = planRuns.filter { $0.status == .active }
-            let activeRepeating = repeatingPlanRuns.filter { $0.status == .active }
-            var currentPlanID: UUID?
-            var currentPlanName: String?
-            var currentPlanPhaseText: String?
+        let activeFixed = planRuns.filter { $0.status == .active }
+        let activeRepeating = repeatingPlanRuns.filter { $0.status == .active }
+        var currentPlanID: UUID?
+        var currentPlanName: String?
+        var currentPlanPhaseText: String?
 
-            if activeFixed.count == 1 && activeRepeating.isEmpty {
-                let run = activeFixed[0]
-                currentPlanID = run.sourcePlanID
-                currentPlanName = run.sourcePlanName
-                currentPlanPhaseText = "Week \(run.currentWeekIndex + 1)"
-            } else if activeRepeating.count == 1 && activeFixed.isEmpty {
-                let run = activeRepeating[0]
-                currentPlanID = run.sourcePlanID
-                currentPlanName = run.sourcePlanName
-                currentPlanPhaseText = "Cycle \(run.completedCycleCount + 1)"
-            }
-
-            return .loaded(
-                ProgressOverviewSummary(
-                    workoutsThisWeek: consistency.weeklyFrequency.last?.workoutCount ?? 0,
-                    trainingTimeThisWeekText: trainingTimeText(in: weekInterval),
-                    consistencyTakeaway: consistency.takeawayText,
-                    currentPlanID: currentPlanID,
-                    currentPlanName: currentPlanName,
-                    currentPlanPhaseText: currentPlanPhaseText,
-                    latestRecord: records.max { $0.date < $1.date },
-                    featuredSeries: series.max { totalPoints($0) < totalPoints($1) },
-                    mobilitySessionsInRange: completedMobilitySessions.filter { session in
-                        rangeInterval.map { $0.contains(session.startTime) } ?? true
-                    }.count,
-                    assessmentRecencyText: assessmentRecencyText,
-                    latestChapterTitle: journey.first?.chapters.first?.title,
-                    journeySummaryText: journeySummaryText(journey)
-                )
-            )
-        } catch {
-            print("ProgressHubView: analytics read failed: \(error)")
-            return .failed
+        if activeFixed.count == 1 && activeRepeating.isEmpty {
+            let run = activeFixed[0]
+            currentPlanID = run.sourcePlanID
+            currentPlanName = run.sourcePlanName
+            currentPlanPhaseText = "Week \(run.currentWeekIndex + 1)"
+        } else if activeRepeating.count == 1 && activeFixed.isEmpty {
+            let run = activeRepeating[0]
+            currentPlanID = run.sourcePlanID
+            currentPlanName = run.sourcePlanName
+            currentPlanPhaseText = "Cycle \(run.completedCycleCount + 1)"
         }
+
+        return .loaded(
+            ProgressOverviewSummary(
+                workoutsThisWeek: consistency.weeklyFrequency.last?.workoutCount ?? 0,
+                trainingTimeThisWeekText: trainingTimeText(in: weekInterval),
+                consistencyTakeaway: consistency.takeawayText,
+                currentPlanID: currentPlanID,
+                currentPlanName: currentPlanName,
+                currentPlanPhaseText: currentPlanPhaseText,
+                latestRecord: records.max { $0.date < $1.date },
+                featuredSeries: series.max { totalPoints($0) < totalPoints($1) },
+                mobilitySessionsInRange: completedMobilitySessions.filter { session in
+                    rangeInterval.map { $0.contains(session.startTime) } ?? true
+                }.count,
+                assessmentRecencyText: assessmentRecencyText,
+                latestChapterTitle: journey.latestChapterTitle,
+                journeySummaryText: journeySummaryText(journey)
+            )
+        )
     }
 
     /// Counts chapters rather than naming a "milestone": a chapter count is a
     /// fact the records support, where "3 milestones" would be a category this
     /// app has never defined.
-    private func journeySummaryText(_ journey: [TrainingJourneyYear]) -> String {
-        let chapters = journey.reduce(0) { $0 + $1.chapters.count }
-        guard chapters > 0 else { return "Your training history appears here as you complete workouts." }
-        let years = journey.count
-        let chapterText = chapters == 1 ? "1 chapter" : "\(chapters) chapters"
-        let yearText = years == 1 ? "1 year" : "\(years) years"
+    private func journeySummaryText(_ journey: TrainingJourneySummary) -> String {
+        guard journey.chapterCount > 0 else { return "Your training history appears here as you complete workouts." }
+        let chapterText = journey.chapterCount == 1 ? "1 chapter" : "\(journey.chapterCount) chapters"
+        let yearText = journey.yearCount == 1 ? "1 year" : "\(journey.yearCount) years"
         return "\(chapterText) across \(yearText)"
     }
 
@@ -235,12 +264,11 @@ struct ProgressHubView: View {
     /// zero-length session are different facts.
     private func trainingTimeText(in interval: DateInterval?) -> String? {
         guard let interval else { return nil }
-        let seconds = completedWorkouts
-            .filter { interval.contains($0.startTime) }
-            .reduce(into: TimeInterval.zero) { total, workout in
-                guard let end = workout.endTime else { return }
-                total += end.timeIntervalSince(workout.startTime)
-            }
+        var seconds = TimeInterval.zero
+        for workout in completedWorkouts where interval.contains(workout.startTime) {
+            guard let end = workout.endTime else { continue }
+            seconds += end.timeIntervalSince(workout.startTime)
+        }
         guard seconds > 0 else { return nil }
         let minutes = Int(seconds / 60)
         return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
@@ -260,6 +288,45 @@ struct ProgressHubView: View {
 
     private var completedWorkouts: [Workout] {
         workouts.filter { $0.status == .completed }
+    }
+
+    /// A compact revision over the roots consumed by the overview. Completed
+    /// workout graphs are immutable by domain contract; additions, deletions,
+    /// and restores change their UUID set, so traversing every exercise and set
+    /// here would duplicate the analytics cost on every unrelated body update.
+    /// The remaining domains expose `updatedAt` for their mutable projections.
+    private var overviewInputID: Int {
+        var revision = Hasher()
+        revision.combine(overviewRange)
+        revision.combine(LocalDay.today.rawValue)
+        revision.combine(unitSystem.rawValue)
+        for workout in completedWorkouts {
+            revision.combine(workout.id)
+            revision.combine(workout.startTime)
+            revision.combine(workout.endTime)
+            revision.combine(workout.sportRawValue)
+        }
+        for session in completedMobilitySessions {
+            revision.combine(session.id)
+            revision.combine(session.updatedAt)
+        }
+        for session in recordedAssessmentSessions {
+            revision.combine(session.id)
+            revision.combine(session.updatedAt)
+            for result in session.results {
+                revision.combine(result.id)
+                revision.combine(result.updatedAt)
+            }
+        }
+        for run in planRuns {
+            revision.combine(run.id)
+            revision.combine(run.updatedAt)
+        }
+        for run in repeatingPlanRuns {
+            revision.combine(run.id)
+            revision.combine(run.updatedAt)
+        }
+        return revision.finalize()
     }
 
     private var completedMobilitySessions: [MobilitySession] {
@@ -370,13 +437,25 @@ extension ProgressRoute {
 }
 
 struct MobilityHistoryView: View {
-    @Query(sort: \MobilitySession.startTime, order: .reverse) private var sessions: [MobilitySession]
+    @Query(
+        filter: #Predicate<MobilitySession> { $0.statusRaw == "completed" },
+        sort: \MobilitySession.startTime,
+        order: .reverse
+    ) private var sessions: [MobilitySession]
     @Query private var workouts: [Workout]
     @Query private var mobilityEvidenceRecords: [MobilityResultEvidence]
 
     var body: some View {
-        // Resolved once per render rather than scanned per row.
+        // Resolve both indexes once per render rather than rebuilding either
+        // dictionary for every history row/evidence policy call.
         let workoutTitles = workoutTitlesByID
+        let evidenceByResultID = Dictionary(
+            mobilityEvidenceRecords.map { ($0.resultID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let analyticsPolicy = StandardMobilityAnalyticsPolicy(
+            evidenceByResultID: evidenceByResultID
+        )
 
         return List {
             if completedSessions.isEmpty {
@@ -392,7 +471,11 @@ struct MobilityHistoryView: View {
                         Text(historyDetail(for: session, workoutTitles: workoutTitles))
                             .font(AppFont.caption)
                             .foregroundStyle(Color.gymSubduedText)
-                        if let evidenceDetail = evidenceDetail(for: session) {
+                        if let evidenceDetail = evidenceDetail(
+                            for: session,
+                            evidenceByResultID: evidenceByResultID,
+                            analyticsPolicy: analyticsPolicy
+                        ) {
                             Text(evidenceDetail)
                                 .font(AppFont.caption)
                                 .foregroundStyle(Color.gymSubduedText)
@@ -407,21 +490,14 @@ struct MobilityHistoryView: View {
         .background(Color.gymBackground)
     }
 
-    private var mobilityEvidenceByResultID: [UUID: MobilityResultEvidence] {
-        Dictionary(mobilityEvidenceRecords.map { ($0.resultID, $0) }, uniquingKeysWith: { first, _ in first })
-    }
-
-    /// Routes this existing history surface through the mobility analytics
-    /// policy rather than adding a parallel analytics screen — see
-    /// `MobilityAnalyticsPolicy.swift`.
-    private var analyticsPolicy: MobilityAnalyticsPolicy {
-        StandardMobilityAnalyticsPolicy(evidenceByResultID: mobilityEvidenceByResultID)
-    }
-
-    private func evidenceDetail(for session: MobilitySession) -> String? {
+    private func evidenceDetail(
+        for session: MobilitySession,
+        evidenceByResultID: [UUID: MobilityResultEvidence],
+        analyticsPolicy: MobilityAnalyticsPolicy
+    ) -> String? {
         let records = session.orderedEntries
             .flatMap(\.orderedResults)
-            .compactMap { mobilityEvidenceByResultID[$0.id] }
+            .compactMap { evidenceByResultID[$0.id] }
         guard records.isEmpty == false else { return nil }
 
         var labels: [String] = []
@@ -460,7 +536,10 @@ struct MobilityHistoryView: View {
         if assistances.isEmpty == false { labels.append(String(localized: "Assistance: \(assistances.joined(separator: ", "))")) }
         if breathing.isEmpty == false { labels.append(String(localized: "Breathing cycles: \(breathing.map(String.init).joined(separator: ", "))")) }
         if tempos.isEmpty == false { labels.append(String(localized: "Tempo: \(tempos.joined(separator: ", ")) sec")) }
-        if let developmentVolumeSummary = developmentVolumeSummary(for: session) {
+        if let developmentVolumeSummary = developmentVolumeSummary(
+            for: session,
+            analyticsPolicy: analyticsPolicy
+        ) {
             labels.append(developmentVolumeSummary)
         }
         return labels.isEmpty ? nil : labels.joined(separator: " · ")
@@ -473,11 +552,15 @@ struct MobilityHistoryView: View {
     /// them; a session that does mix the two (a user-authored routine, or a
     /// future plan) gets an explicit, policy-driven breakdown rather than a
     /// silently inflated volume count.
-    private func developmentVolumeSummary(for session: MobilitySession) -> String? {
+    private func developmentVolumeSummary(
+        for session: MobilitySession,
+        analyticsPolicy: MobilityAnalyticsPolicy
+    ) -> String? {
         let entries = session.orderedEntries.filter { $0.orderedResults.isEmpty == false }
         guard entries.isEmpty == false else { return nil }
-        let policy = analyticsPolicy
-        let developmentCount = entries.filter { policy.contributesToDevelopmentVolume(entry: $0) }.count
+        let developmentCount = entries.filter {
+            analyticsPolicy.contributesToDevelopmentVolume(entry: $0)
+        }.count
         guard developmentCount > 0, developmentCount < entries.count else { return nil }
         return String(localized: "Development volume: \(developmentCount) of \(entries.count) exercises")
     }
@@ -562,10 +645,31 @@ struct NutritionHistoryView: View {
     }
 
     private var daySummaries: [NutritionHistoryDay] {
-        let selectedKeys = Set(meals.map(\.dayKey))
-            .sorted(by: >)
-            .prefix(7)
-        let mealsByDay = Dictionary(grouping: meals, by: \.dayKey)
+        let dayLimit = 7
+        var selectedKeys: [String] = []
+        selectedKeys.reserveCapacity(dayLimit)
+
+        // Keep only the seven greatest day keys while scanning. Building a
+        // set of every historical day and sorting all of it made this bounded
+        // summary grow with the lifetime of the nutrition log.
+        for meal in meals {
+            let key = meal.dayKey
+            guard selectedKeys.contains(key) == false else { continue }
+            let insertionIndex = selectedKeys.firstIndex { key > $0 }
+                ?? selectedKeys.endIndex
+            guard insertionIndex < dayLimit else { continue }
+            selectedKeys.insert(key, at: insertionIndex)
+            if selectedKeys.count > dayLimit {
+                selectedKeys.removeLast()
+            }
+        }
+
+        let selectedKeySet = Set(selectedKeys)
+        var mealsByDay: [String: [LoggedMeal]] = [:]
+        for meal in meals where selectedKeySet.contains(meal.dayKey) {
+            mealsByDay[meal.dayKey, default: []].append(meal)
+        }
+
         return selectedKeys.map { key in
             let day = LocalDay(rawValue: key)
             return NutritionHistoryDay(

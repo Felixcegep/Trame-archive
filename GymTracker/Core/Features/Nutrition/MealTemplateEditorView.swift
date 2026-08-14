@@ -25,7 +25,8 @@ private struct IngredientEditContext: Identifiable {
 struct MealTemplateEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \FoodItem.name) private var foods: [FoodItem]
+    @Query(filter: #Predicate<FoodItem> { !$0.isArchived }, sort: \FoodItem.name)
+    private var foods: [FoodItem]
     let template: MealTemplate?
     let generator: RecipeDraftGenerator
 
@@ -130,27 +131,15 @@ struct MealTemplateEditorView: View {
             .onDisappear { generationTask?.cancel() }
             .task(id: recipePhotoIdentifier) {
                 guard pendingRecipePhotoData == nil else { return }
-                recipePhotoPreview = await RecipePhotoStore.loadImageAsync(recipePhotoIdentifier)
+                let preview = await RecipePhotoStore.loadImageAsync(recipePhotoIdentifier)
+                guard !Task.isCancelled, pendingRecipePhotoData == nil else { return }
+                recipePhotoPreview = preview
             }
-            .onChange(of: selectedPhotoItem) { _, newValue in
-                guard let newValue else { return }
-                Task {
-                    if let data = try? await newValue.loadTransferable(type: Data.self) {
-                        guard !Task.isCancelled else { return }
-                        selectedImageData = data
-                        selectedImagePreview = await RecipePhotoStore.decodeImageAsync(data)
-                    }
-                }
+            .task(id: selectedPhotoItem) {
+                await loadGenerationPhoto(from: selectedPhotoItem)
             }
-            .onChange(of: recipePhotoPickerItem) { _, newValue in
-                guard let newValue else { return }
-                Task {
-                    if let data = try? await newValue.loadTransferable(type: Data.self) {
-                        guard !Task.isCancelled else { return }
-                        pendingRecipePhotoData = data
-                        recipePhotoPreview = await RecipePhotoStore.decodeImageAsync(data)
-                    }
-                }
+            .task(id: recipePhotoPickerItem) {
+                await loadRecipePhoto(from: recipePhotoPickerItem)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -475,6 +464,32 @@ struct MealTemplateEditorView: View {
         name = template.name; preparation = template.preparationState; recipeYield = template.finalCookedWeightGrams
         recipePhotoIdentifier = template.photoIdentifier
         selected = template.orderedItems.map { ($0.food, $0.servingID, $0.quantity) }
+    }
+
+    private func loadGenerationPhoto(from item: PhotosPickerItem?) async {
+        guard let item,
+              let data = try? await item.loadTransferable(type: Data.self)
+        else {
+            return
+        }
+
+        let preview = await RecipePhotoStore.decodeImageAsync(data)
+        guard !Task.isCancelled else { return }
+        selectedImageData = data
+        selectedImagePreview = preview
+    }
+
+    private func loadRecipePhoto(from item: PhotosPickerItem?) async {
+        guard let item,
+              let data = try? await item.loadTransferable(type: Data.self)
+        else {
+            return
+        }
+
+        let preview = await RecipePhotoStore.decodeImageAsync(data)
+        guard !Task.isCancelled else { return }
+        pendingRecipePhotoData = data
+        recipePhotoPreview = preview
     }
 
     private func save() {

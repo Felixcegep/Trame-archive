@@ -179,7 +179,7 @@ enum TrainingReportProjection {
             .filter { selection.selectedWorkoutIDs.contains($0.id) }
             .filter { selection.dateRange.contains($0.startTime) }
             .filter { selection.selectedPlanIDs.isEmpty || $0.sourcePlanID.map(selection.selectedPlanIDs.contains) == true }
-            .sorted(by: workoutOrder)
+            .sorted { workoutOrder(lhs: $0, rhs: $1) }
 
         let selectedWorkoutIDs = Set(selectedWorkouts.map(\.id))
 

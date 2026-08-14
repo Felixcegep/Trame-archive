@@ -173,7 +173,7 @@ struct CaffeineQuickLogSheet: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var foods: [FoodItem]
+    @Query(filter: #Predicate<FoodItem> { !$0.isArchived }) private var foods: [FoodItem]
     @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var loggedMeals: [LoggedMeal]
     @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var bodyWeightEntries: [BodyWeightEntry]
     @AppStorage(DefaultsKey.caffeineBirthdateTimestamp) private var caffeineBirthdateTimestamp: Double?
@@ -187,6 +187,20 @@ struct CaffeineQuickLogSheet: View {
     @State private var exactMilligramsText = ""
     @State private var npnText = ""
     @State private var errorMessage: String?
+
+    init() {
+        let todayKey = LocalDay.today.rawValue
+        _loggedMeals = Query(
+            filter: #Predicate<LoggedMeal> { $0.dayKey == todayKey },
+            sort: [SortDescriptor(\LoggedMeal.loggedAt, order: .reverse)]
+        )
+
+        var latestWeight = FetchDescriptor<BodyWeightEntry>(
+            sortBy: [SortDescriptor(\BodyWeightEntry.measuredAt, order: .reverse)]
+        )
+        latestWeight.fetchLimit = 1
+        _bodyWeightEntries = Query(latestWeight)
+    }
 
     private var birthdate: Date? {
         caffeineBirthdateTimestamp.map { Date(timeIntervalSince1970: $0) }

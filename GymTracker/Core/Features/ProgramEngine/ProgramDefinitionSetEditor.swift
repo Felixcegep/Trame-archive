@@ -454,7 +454,10 @@ struct ProgramDefinitionSetEditor: View {
         )
     }
 
-    private func textBinding(_ get: @escaping () -> String, _ setValue: @escaping (String) -> Void) -> Binding<String> {
+    private func textBinding(
+        _ get: @escaping @MainActor @Sendable () -> String,
+        _ setValue: @escaping @MainActor @Sendable (String) -> Void
+    ) -> Binding<String> {
         Binding(get: get, set: setValue)
     }
 

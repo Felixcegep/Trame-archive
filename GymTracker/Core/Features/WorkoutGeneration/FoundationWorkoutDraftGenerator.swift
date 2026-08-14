@@ -92,10 +92,10 @@ struct FoundationWorkoutDraftGenerator: WorkoutDraftGenerator {
             "Allowed exercise catalogue:",
         ]
 
-        lines += input.availableExercises.map(exerciseText)
+        lines += input.availableExercises.map { exerciseText($0) }
         if !input.examples.isEmpty {
             lines.append("Examples of valid existing local workout structures. Demonstrate shape only; do not copy them blindly:")
-            lines += input.examples.map(exampleText)
+            lines += input.examples.map { exampleText($0) }
         }
         return lines.joined(separator: "\n")
     }
@@ -213,5 +213,5 @@ private struct WorkoutDraftExerciseResponse: Sendable {
 }
 
 private extension String {
-    var nilIfEmpty: String? { isEmpty ? nil : self }
+    nonisolated var nilIfEmpty: String? { isEmpty ? nil : self }
 }

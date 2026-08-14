@@ -134,9 +134,10 @@ extension ProgramMatchCandidate {
     /// it can stand behind.
     @MainActor
     static func candidates(using context: ModelContext) -> [ProgramMatchCandidate] {
-        let records = (try? context.fetch(FetchDescriptor<ProgramDefinitionRecord>())) ?? []
+        let records = (try? context.fetch(FetchDescriptor<ProgramDefinitionRecord>(
+            predicate: #Predicate { !$0.isArchived }
+        ))) ?? []
         return records
-            .filter { !$0.isArchived }
             .compactMap { record in
                 guard let payload = try? record.payload() else { return nil }
                 return ProgramMatchCandidate(payload: payload)

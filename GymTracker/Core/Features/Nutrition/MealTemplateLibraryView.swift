@@ -3,8 +3,13 @@ import SwiftUI
 
 struct MealTemplateLibraryView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \MealTemplate.updatedAt, order: .reverse) private var templates: [MealTemplate]
-    @Query(sort: \FoodItem.name) private var foods: [FoodItem]
+    @Query(
+        filter: #Predicate<MealTemplate> { $0.isCurrent && !$0.isArchived },
+        sort: \MealTemplate.updatedAt,
+        order: .reverse
+    ) private var templates: [MealTemplate]
+    @Query(filter: #Predicate<FoodItem> { !$0.isArchived }, sort: \FoodItem.name)
+    private var foods: [FoodItem]
     @State private var isCreatingTemplate = false
 
     var body: some View {
@@ -32,7 +37,7 @@ struct MealTemplateLibraryView: View {
         .scrollContentBackground(.hidden).background(Color.gymBackground)
         .navigationTitle("Recipes")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { Button { isCreatingTemplate = true } label: { Label("New recipe", systemImage: AppIcon.plus) }.disabled(foods.filter { !$0.isArchived }.isEmpty).accessibilityIdentifier("create-meal-template") }
+            ToolbarItem(placement: .topBarTrailing) { Button { isCreatingTemplate = true } label: { Label("New recipe", systemImage: AppIcon.plus) }.disabled(foods.isEmpty).accessibilityIdentifier("create-meal-template") }
         }
         .sheet(isPresented: $isCreatingTemplate) { MealTemplateEditorView() }
     }
@@ -53,5 +58,5 @@ struct MealTemplateLibraryView: View {
         })
     }
 
-    private var currentTemplates: [MealTemplate] { templates.filter { $0.isCurrent && !$0.isArchived } }
+    private var currentTemplates: [MealTemplate] { templates }
 }

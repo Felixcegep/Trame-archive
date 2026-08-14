@@ -15,7 +15,7 @@ enum WeeklyProgramReviewBuilder {
         let weekIndex = reviewedWeekIndex ?? run.currentWeekIndex
         let progress = run.orderedWorkoutProgress
             .filter { $0.weekIndex == weekIndex }
-            .sorted(by: progressOrder)
+            .sorted { progressOrder($0, $1) }
         let sourceWeekIndex = progress.first?.sourceWeekIndex ?? weekIndex
         let sourceWeek = run.plan?.orderedWeeks.first { $0.weekIndex == sourceWeekIndex }
         var warnings: [WeeklyProgramReviewProjection.Warning] = []
@@ -86,7 +86,7 @@ enum WeeklyProgramReviewBuilder {
         today: Date,
         calendar: Calendar
     ) -> WeeklyProgramReviewProjection.Session {
-        .init(
+        return .init(
             id: progress.id,
             plannedWorkoutID: progress.plannedWorkoutID,
             workoutName: progress.plannedWorkoutName,
@@ -107,15 +107,37 @@ enum WeeklyProgramReviewBuilder {
     private static func sessionSummary(
         for sessions: [WeeklyProgramReviewProjection.Session]
     ) -> WeeklyProgramReviewProjection.SessionSummary {
-        .init(
+        var completedCount = 0
+        var inProgressCount = 0
+        var skippedCount = 0
+        var missedCount = 0
+        var availableCount = 0
+        var upcomingCount = 0
+        var unscheduledCount = 0
+
+        for session in sessions {
+            switch session.displayState {
+            case .completed: completedCount += 1
+            case .inProgress: inProgressCount += 1
+            case .skipped: skippedCount += 1
+            case .missed: missedCount += 1
+            case .available: availableCount += 1
+            case .upcoming: upcomingCount += 1
+            }
+            if session.scheduledDate == nil {
+                unscheduledCount += 1
+            }
+        }
+
+        return .init(
             plannedCount: sessions.count,
-            completedCount: sessions.filter { $0.displayState == .completed }.count,
-            inProgressCount: sessions.filter { $0.displayState == .inProgress }.count,
-            skippedCount: sessions.filter { $0.displayState == .skipped }.count,
-            missedCount: sessions.filter { $0.displayState == .missed }.count,
-            availableCount: sessions.filter { $0.displayState == .available }.count,
-            upcomingCount: sessions.filter { $0.displayState == .upcoming }.count,
-            unscheduledCount: sessions.filter { $0.scheduledDate == nil }.count
+            completedCount: completedCount,
+            inProgressCount: inProgressCount,
+            skippedCount: skippedCount,
+            missedCount: missedCount,
+            availableCount: availableCount,
+            upcomingCount: upcomingCount,
+            unscheduledCount: unscheduledCount
         )
     }
 
@@ -280,7 +302,7 @@ enum WeeklyProgramReviewBuilder {
         let nextRunWeekIndex = reviewedWeekIndex + 1
         let progress = run.orderedWorkoutProgress
             .filter { $0.weekIndex == nextRunWeekIndex }
-            .sorted(by: progressOrder)
+            .sorted { progressOrder($0, $1) }
         guard !progress.isEmpty else { return nil }
         let sourceWeekIndex = progress.first?.sourceWeekIndex ?? nextRunWeekIndex
         let sourceWeek = run.plan?.orderedWeeks.first { $0.weekIndex == sourceWeekIndex }

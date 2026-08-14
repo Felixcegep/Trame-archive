@@ -72,6 +72,41 @@ final class TrainingProfile {
         primaryDisciplineRaw.flatMap(TrainingDisciplinePreference.init(rawValue:))
     }
 
+    /// Typed secondary disciplines. Unknown identifiers remain in the raw
+    /// backup field for forward compatibility but are intentionally absent
+    /// from this projection until this build understands them.
+    var secondaryDisciplines: [TrainingDisciplinePreference] {
+        get { secondaryDisciplineIDs.compactMap(TrainingDisciplinePreference.init(rawValue:)) }
+        set {
+            let knownRawValues = Set(TrainingDisciplinePreference.allCases.map(\.rawValue))
+            let unknownRawValues = secondaryDisciplineIDs.filter { !knownRawValues.contains($0) }
+            secondaryDisciplineIDs = newValue.map(\.rawValue) + unknownRawValues
+        }
+    }
+
+    /// Stored as a reserved forward-compatible secondary identifier instead
+    /// of a new SwiftData column. Progress organization is presentation state,
+    /// and does not justify changing the frozen historical store shape.
+    var progressOrganizationModeRaw: String? {
+        get {
+            secondaryDisciplineIDs
+                .first { $0.hasPrefix(Self.progressOrganizationPrefix) }
+                .map { String($0.dropFirst(Self.progressOrganizationPrefix.count)) }
+        }
+        set {
+            secondaryDisciplineIDs.removeAll { $0.hasPrefix(Self.progressOrganizationPrefix) }
+            if let newValue {
+                secondaryDisciplineIDs.append(Self.progressOrganizationPrefix + newValue)
+            }
+        }
+    }
+
+    var progressOrganizationMode: ProgressOrganizationMode? {
+        progressOrganizationModeRaw.flatMap(ProgressOrganizationMode.init(rawValue:))
+    }
+
+    private static let progressOrganizationPrefix = "progressOrganization:"
+
     var primaryGoal: TrainingGoalPreference? {
         primaryGoalRaw.flatMap(TrainingGoalPreference.init(rawValue:))
     }
@@ -167,7 +202,9 @@ enum TrainingProfileService {
     /// anything. Callers must treat `nil` as "no preferences", never as a
     /// reason to prompt.
     static func current(using context: ModelContext) -> TrainingProfile? {
-        try? context.fetch(FetchDescriptor<TrainingProfile>()).first
+        var descriptor = FetchDescriptor<TrainingProfile>()
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first
     }
 
     /// Writes the answers from a finished onboarding run.

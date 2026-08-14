@@ -38,7 +38,7 @@ struct TrainingJourneyChapterEvidencePresentation: Equatable, Sendable {
                     ),
                     entryCount: slice.entryCount,
                     proportion: slice.proportion,
-                    recordKindTitles: slice.recordKinds.map(recordKindTitle),
+                    recordKindTitles: slice.recordKinds.map { recordKindTitle($0) },
                     evidence: slice.evidence
                 )
             }

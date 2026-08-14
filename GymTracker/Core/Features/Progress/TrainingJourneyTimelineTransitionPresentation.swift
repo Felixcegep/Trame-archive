@@ -9,7 +9,7 @@ enum TrainingJourneyTimelineTransitionPresentation {
         _ markers: [TrainingJourneyPracticeTransitionMarker]
     ) -> [[TrainingJourneyPracticeTransitionMarker]] {
         var rows: [[TrainingJourneyPracticeTransitionMarker]] = []
-        for marker in markers.sorted(by: order) {
+        for marker in markers.sorted(by: { order($0, $1) }) {
             if let lastIndex = rows.indices.last,
                let lastMarker = rows[lastIndex].last,
                lastMarker.normalizedDate == marker.normalizedDate {

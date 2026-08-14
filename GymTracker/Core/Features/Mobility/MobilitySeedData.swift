@@ -28,11 +28,15 @@ enum MobilitySeedData {
             existingFamilies.map { ($0.name, $0) },
             uniquingKeysWith: { first, _ in first }
         )
+        var familiesByID = Dictionary(
+            existingFamilies.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         func family(_ name: String) throws -> MobilityFamily {
             let key = SystemSeedKey.make(namespace: "mobility-family", legacyName: name)
             if let record = try registry.record(for: key, expectedKind: .mobilityFamily) {
-                guard let existing = existingFamilies.first(where: { $0.id == record.entityID }) else {
+                guard let existing = familiesByID[record.entityID] else {
                     throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
                 }
                 existing.name = name
@@ -54,6 +58,7 @@ enum MobilitySeedData {
             let f = MobilityFamily(name: name)
             context.insert(f)
             existingFamilies.append(f)
+            familiesByID[f.id] = f
             familyMap[name] = f
             try registry.register(
                 key: key,
@@ -67,6 +72,10 @@ enum MobilitySeedData {
         }
 
         var existingDefs = try context.fetch(FetchDescriptor<MobilityDefinition>())
+        var definitionsByID = Dictionary(
+            existingDefs.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         let seedItems: [(name: String, instructions: String, tracking: MobilityTrackingType, duration: Int?, reps: Int?, familyName: String)] = [
             // Hip mobility (20)
@@ -160,7 +169,7 @@ enum MobilitySeedData {
             let fam = try family(item.familyName)
             let definition: MobilityDefinition
             if let record = try registry.record(for: key, expectedKind: .mobilityDefinition) {
-                guard let existing = existingDefs.first(where: { $0.id == record.entityID }) else {
+                guard let existing = definitionsByID[record.entityID] else {
                     throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
                 }
                 definition = existing
@@ -185,6 +194,7 @@ enum MobilitySeedData {
                     definition = MobilityDefinition(name: item.name, isCustom: false)
                     context.insert(definition)
                     existingDefs.append(definition)
+                    definitionsByID[definition.id] = definition
                     try registry.register(
                         key: key,
                         kind: .mobilityDefinition,
@@ -196,6 +206,11 @@ enum MobilitySeedData {
                     didInsert = true
                 }
             }
+            // Keep the entity's stable movement identity aligned with the
+            // manifest key so downstream value projections can resolve
+            // authored assessment-to-movement relationships without relying
+            // on mutable display names.
+            definition.catalogueKey = key
             definition.name = item.name
             definition.instructions = item.instructions
             definition.trackingType = item.tracking
@@ -492,6 +507,10 @@ enum MobilitySeedData {
         ]
 
         let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
+        let routinesByID = Dictionary(
+            routines.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let allDefs = try context.fetch(FetchDescriptor<MobilityDefinition>())
         // MobilityDefinition.name lost its @Attribute(.unique) constraint, so
         // two definitions can now share a name; Dictionary(uniqueKeysWithValues:)
@@ -508,9 +527,10 @@ enum MobilitySeedData {
 
         for spec in routineSpecs {
             if let record = try registry.record(for: spec.key, expectedKind: .mobilityRoutine) {
-                guard let routine = routines.first(where: { $0.id == record.entityID }) else {
+                guard let routine = routinesByID[record.entityID] else {
                     throw SystemSeedError.danglingEntity(key: spec.key, entityID: record.entityID)
                 }
+                routine.catalogueKey = spec.key
                 if record.sourceKind == .bundled,
                    routine.purposeRaw == nil,
                    let purpose = spec.purpose {
@@ -523,6 +543,7 @@ enum MobilitySeedData {
                     throw SystemSeedError.ambiguousLegacyMatch(key: spec.key, count: candidates.count)
                 }
                 if let adopted = candidates.first {
+                    adopted.catalogueKey = spec.key
                     try registry.register(
                         key: spec.key,
                         kind: .mobilityRoutine,
@@ -544,6 +565,7 @@ enum MobilitySeedData {
                     }
                     if !routineItems.isEmpty {
                         let routine = MobilityRoutine(name: spec.name, purpose: spec.purpose)
+                        routine.catalogueKey = spec.key
                         routine.items = routineItems
                         context.insert(routine)
                         try registry.register(

@@ -4,25 +4,28 @@ import SwiftUI
 /// Read-only profile over immutable observations. It deliberately applies no
 /// population band until a cited, protocol-specific band is authored.
 struct MobilityAssessmentProfileView: View {
-    @Query(sort: \MobilityAssessmentDefinition.sortOrder)
+    @Query(
+        filter: #Predicate<MobilityAssessmentDefinition> { !$0.isArchived },
+        sort: \MobilityAssessmentDefinition.sortOrder
+    )
     private var definitions: [MobilityAssessmentDefinition]
     @Query(sort: \MobilityAssessmentResult.createdAt, order: .reverse)
     private var results: [MobilityAssessmentResult]
 
-    private var profile: MobilityAssessmentProfile {
+    private func makeProfile() -> MobilityAssessmentProfile {
         MobilityAssessmentProfileProjectionService.project(
-            protocols: definitions
-                .filter { !$0.isArchived }
-                .flatMap(MobilityAssessmentProfileProtocolAdapter.protocols),
+            protocols: definitions.flatMap { MobilityAssessmentProfileProtocolAdapter.protocols($0) },
             results: results,
             bands: []
         )
     }
 
     var body: some View {
+        let profile = makeProfile()
+
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.l) {
-                coverageCard
+                coverageCard(profile)
 
                 if profile.measurements.isEmpty {
                     GymCard {
@@ -33,8 +36,8 @@ struct MobilityAssessmentProfileView: View {
                         )
                     }
                 } else {
-                    measurementSection
-                    if profile.sideGaps.isEmpty == false { sideSection }
+                    measurementSection(profile)
+                    if profile.sideGaps.isEmpty == false { sideSection(profile) }
                 }
 
                 Text(String(localized: "mobility.profile.scope", defaultValue: "This profile describes protocol-bound observations. It is not a score, diagnosis, injury-risk estimate, or universal normal range."))
@@ -52,7 +55,7 @@ struct MobilityAssessmentProfileView: View {
         .accessibilityIdentifier("mobility-assessment-profile")
     }
 
-    private var coverageCard: some View {
+    private func coverageCard(_ profile: MobilityAssessmentProfile) -> some View {
         GymCard(variant: .current) {
             Text(String(localized: "mobility.profile.coverage", defaultValue: "Observation coverage"))
                 .font(AppFont.caption2Bold)
@@ -70,18 +73,20 @@ struct MobilityAssessmentProfileView: View {
         .accessibilityIdentifier("mobility-profile-coverage")
     }
 
-    private var measurementSection: some View {
+    private func measurementSection(_ profile: MobilityAssessmentProfile) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             GymSectionHeader(
                 title: String(localized: "mobility.profile.observations", defaultValue: "Latest observations"),
                 detail: String(localized: "mobility.profile.observations.detail", defaultValue: "Values and comparisons use the recorded setup and method."))
-            ForEach(orderedMeasurements) { measurement in
+            ForEach(orderedMeasurements(in: profile)) { measurement in
                 GymCard { measurementRow(measurement) }
             }
         }
     }
 
-    private var orderedMeasurements: [MobilityAssessmentProfileMeasurement] {
+    private func orderedMeasurements(
+        in profile: MobilityAssessmentProfile
+    ) -> [MobilityAssessmentProfileMeasurement] {
         profile.measurements.sorted { lhs, rhs in
             if (lhs.resultID != nil) != (rhs.resultID != nil) {
                 return lhs.resultID != nil
@@ -91,7 +96,7 @@ struct MobilityAssessmentProfileView: View {
         }
     }
 
-    private var sideSection: some View {
+    private func sideSection(_ profile: MobilityAssessmentProfile) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             GymSectionHeader(
                 title: String(localized: "mobility.profile.sides", defaultValue: "Side differences"),

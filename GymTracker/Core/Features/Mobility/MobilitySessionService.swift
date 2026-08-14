@@ -99,7 +99,10 @@ enum MobilitySessionService {
             createdAt: now,
             updatedAt: now
         )
-        let prescriptionEvidence = MobilityEvidenceService.prescriptionEvidence(using: modelContext)
+        let prescriptionEvidence = MobilityEvidenceService.prescriptionEvidence(
+            for: routine.orderedItems.map(\.id),
+            using: modelContext
+        )
         guard routine.orderedItems.allSatisfy({ item in
             isValidMetricPrescription(for: item, evidence: prescriptionEvidence[item.id])
         }) else { return nil }
@@ -175,10 +178,13 @@ enum MobilitySessionService {
     }
 
     static func activeSession(using modelContext: ModelContext) -> MobilitySession? {
-        (try? modelContext.fetch(FetchDescriptor<MobilitySession>()))?
-            .filter { $0.status == .active }
-            .sorted { $0.updatedAt > $1.updatedAt }
-            .first
+        let activeStatus = MobilitySessionStatus.active.rawValue
+        var descriptor = FetchDescriptor<MobilitySession>(
+            predicate: #Predicate { $0.statusRaw == activeStatus },
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.first
     }
 
     /// Restores one active session only when its performed-evidence graph has
@@ -194,7 +200,10 @@ enum MobilitySessionService {
     ) -> MobilitySessionRestorationOutcome {
         let sessions: [MobilitySession]
         do {
-            sessions = try modelContext.fetch(FetchDescriptor<MobilitySession>())
+            let activeStatus = MobilitySessionStatus.active.rawValue
+            sessions = try modelContext.fetch(FetchDescriptor<MobilitySession>(
+                predicate: #Predicate { $0.statusRaw == activeStatus }
+            ))
         } catch {
             return .invalid
         }
@@ -938,7 +947,7 @@ enum MobilitySessionService {
             performedAssistanceLevel: 0,
             performedSupportLevel: .unsupported,
             movementQuality: .unableToAssess,
-            sensation: .none,
+            sensation: MobilitySensation.none,
             phaseSequenceCompleted: true
         )
         return MobilityCompletionValidator.validate(probe).isValid
@@ -1304,10 +1313,14 @@ enum MobilitySessionService {
         for session: MobilitySession,
         using modelContext: ModelContext
     ) -> MobilityFlowSnapshot {
-        let entryEvidence = MobilityEvidenceService.entryEvidence(using: modelContext)
+        let orderedEntries = session.orderedEntries
+        let entryEvidence = MobilityEvidenceService.entryEvidence(
+            for: orderedEntries.map(\.id),
+            using: modelContext
+        )
         return MobilityFlowSnapshot(
             currentEntryIndex: session.currentEntryIndex,
-            entries: session.orderedEntries.map { entry in
+            entries: orderedEntries.map { entry in
                 var phaseIndexByGroup: [String: Int] = [:]
                 let nodes = entry.orderedPhaseResults.map { phase -> MobilityFlowNodeSnapshot in
                     let groupKey = "\(phase.side.rawValue)|\(phase.cycleIndex)"

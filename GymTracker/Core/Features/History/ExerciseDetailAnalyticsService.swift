@@ -17,6 +17,9 @@ struct ExerciseSessionSet: Equatable, Sendable {
     /// `StandardStrengthAnalyticsPolicy`, itself unconditionally `true` for a
     /// set with no Olympic complex components).
     let contributesToE1RM: Bool
+    /// Whether the historical sport policy allows this set to contribute to
+    /// conventional load/repetition/volume projections.
+    let contributesToStrengthVolume: Bool
 
     init(
         orderIndex: Int,
@@ -26,7 +29,8 @@ struct ExerciseSessionSet: Equatable, Sendable {
         setType: SetType,
         setMethod: SetMethod = .standard,
         hasSegments: Bool = false,
-        contributesToE1RM: Bool = true
+        contributesToE1RM: Bool = true,
+        contributesToStrengthVolume: Bool = true
     ) {
         self.orderIndex = orderIndex
         self.repetitions = repetitions
@@ -36,6 +40,7 @@ struct ExerciseSessionSet: Equatable, Sendable {
         self.setMethod = setMethod
         self.hasSegments = hasSegments
         self.contributesToE1RM = contributesToE1RM
+        self.contributesToStrengthVolume = contributesToStrengthVolume
     }
 }
 
@@ -67,7 +72,12 @@ struct ExerciseSession: Equatable, Sendable {
 
     /// Sets that count toward strength metrics; a warm-up never does.
     var workingSets: [ExerciseSessionSet] {
-        sets.filter { $0.setType != .warmup && $0.setMethod == .standard && !$0.hasSegments }
+        sets.filter {
+            $0.setType != .warmup
+                && $0.setMethod == .standard
+                && !$0.hasSegments
+                && $0.contributesToStrengthVolume
+        }
     }
 }
 
@@ -198,8 +208,9 @@ struct ExerciseDetailAnalyticsService {
         weekCount: Int = 8
     ) throws -> ExerciseDetailAnalytics {
         let workouts = try completedWorkouts(before: referenceDate)
-        let sessions = sessions(from: workouts, for: exercise)
-        let notes = notes(from: workouts, for: exercise)
+        let history = history(from: workouts, for: exercise)
+        let sessions = history.sessions
+        let notes = history.notes
         let policy = SportAnalyticsPolicyResolver.policy(for: exercise)
 
         guard let latestSession = sessions.last else {
@@ -295,13 +306,22 @@ struct ExerciseDetailAnalyticsService {
         return try modelContext.fetch(descriptor).filter { $0.status == .completed }
     }
 
-    /// Chronological (oldest first) sessions so the latest is always `.last`.
-    private func sessions(from workouts: [Workout], for exercise: Exercise) -> [ExerciseSession] {
-        workouts.flatMap { workout in
-            HistoricalExerciseIdentityPolicy.entries(
-                for: exercise,
-                in: workout
-            ).compactMap { entry -> ExerciseSession? in
+    /// Resolves historical identity once per workout for both sessions and
+    /// notes. Workouts arrive chronologically, so both outputs retain their
+    /// prior oldest-first order and the latest session remains `.last`.
+    private func history(
+        from workouts: [Workout],
+        for exercise: Exercise
+    ) -> (sessions: [ExerciseSession], notes: [ExerciseNote]) {
+        var sessions: [ExerciseSession] = []
+        var notes: [ExerciseNote] = []
+        for workout in workouts {
+            for entry in HistoricalExerciseIdentityPolicy.entries(for: exercise, in: workout) {
+                let comment = entry.comment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if !comment.isEmpty {
+                    notes.append(ExerciseNote(workoutDate: workout.startTime, text: comment))
+                }
+
                 let policy = SportAnalyticsPolicyResolver.policy(for: entry)
                 let sets = entry.orderedSets
                     .filter(\.done)
@@ -314,32 +334,24 @@ struct ExerciseDetailAnalyticsService {
                             setType: $0.setType,
                             setMethod: $0.resolvedSetMethod,
                             hasSegments: !$0.segments.isEmpty,
-                            contributesToE1RM: policy.contributesToE1RM(set: $0, entry: entry)
+                            contributesToE1RM: policy.contributesToE1RM(set: $0, entry: entry),
+                            contributesToStrengthVolume: policy.contributesToStrengthVolume(set: $0, entry: entry)
                         )
                     }
-                guard !sets.isEmpty else { return nil }
-                return ExerciseSession(
-                    workoutID: workout.id,
-                    workoutDate: workout.startTime,
-                    sets: sets,
-                    semantics: entry.loggingSemanticsSnapshot,
-                    trackingTypeSnapshot: entry.trackingTypeSnapshot
-                )
+                if !sets.isEmpty {
+                    sessions.append(
+                        ExerciseSession(
+                            workoutID: workout.id,
+                            workoutDate: workout.startTime,
+                            sets: sets,
+                            semantics: entry.loggingSemanticsSnapshot,
+                            trackingTypeSnapshot: entry.trackingTypeSnapshot
+                        )
+                    )
+                }
             }
         }
-    }
-
-    private func notes(from workouts: [Workout], for exercise: Exercise) -> [ExerciseNote] {
-        workouts.flatMap { workout in
-            HistoricalExerciseIdentityPolicy.entries(
-                for: exercise,
-                in: workout
-            ).compactMap { entry -> ExerciseNote? in
-                let text = entry.comment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                guard !text.isEmpty else { return nil }
-                return ExerciseNote(workoutDate: workout.startTime, text: text)
-            }
-        }
+        return (sessions, notes)
     }
 
     // MARK: Metrics
@@ -353,13 +365,19 @@ struct ExerciseDetailAnalyticsService {
 
     private func volume(of sets: [ExerciseSessionSet], semantics: LoggingSemantics, in unit: WeightType) -> Float {
         sets.reduce(Float(0)) { partial, set in
-            partial + VolumeCalculator.setVolume(
+            guard set.weight.isFinite,
+                  set.weight > 0,
+                  set.repetitions.isFinite,
+                  set.repetitions > 0
+            else { return partial }
+            let volume = VolumeCalculator.setVolume(
                 weight: set.weight,
                 weightType: set.weightType,
                 repetitions: set.repetitions,
                 semantics: semantics,
                 in: unit
             )
+            return partial + (volume.isFinite && volume > 0 ? volume : 0)
         }
     }
 
@@ -377,10 +395,18 @@ struct ExerciseDetailAnalyticsService {
         let previousVolume = volume(of: previous.workingSets, semantics: previous.semantics, in: unit)
         let latestVolume = volume(of: latest.workingSets, semantics: latest.semantics, in: unit)
         let previousBestLoad = previous.workingSets
-            .map { UnitConversion.weight($0.weight, from: $0.weightType, to: unit) }
+            .compactMap { set -> Float? in
+                guard set.weight.isFinite, set.weight > 0 else { return nil }
+                let value = UnitConversion.weight(set.weight, from: set.weightType, to: unit)
+                return value.isFinite ? value : nil
+            }
             .max() ?? 0
         let latestBestLoad = latest.workingSets
-            .map { UnitConversion.weight($0.weight, from: $0.weightType, to: unit) }
+            .compactMap { set -> Float? in
+                guard set.weight.isFinite, set.weight > 0 else { return nil }
+                let value = UnitConversion.weight(set.weight, from: set.weightType, to: unit)
+                return value.isFinite ? value : nil
+            }
             .max() ?? 0
 
         return SessionComparison(
@@ -417,7 +443,7 @@ struct ExerciseDetailAnalyticsService {
                     unit: unit
                 )
             }
-            .filter { $0.weight > 0 }
+            .filter { $0.weight.isFinite && $0.weight > 0 }
             .max { lhs, rhs in
                 lhs.weight == rhs.weight ? lhs.workoutDate > rhs.workoutDate : lhs.weight < rhs.weight
             }
@@ -434,6 +460,7 @@ struct ExerciseDetailAnalyticsService {
                     unit: unit
                 )
             }
+            .filter { $0.repetitions.isFinite && $0.repetitions > 0 && $0.weight.isFinite }
             .max { lhs, rhs in
                 lhs.repetitions == rhs.repetitions ? lhs.workoutDate > rhs.workoutDate : lhs.repetitions < rhs.repetitions
             }
@@ -491,7 +518,9 @@ struct ExerciseDetailAnalyticsService {
     private func estimatedOneRepMax(in sessions: [ExerciseSession], unit: WeightType) -> OneRepMaxEstimate? {
         workingSets(in: sessions)
             .filter {
-                $0.set.repetitions > 0
+                $0.set.repetitions.isFinite
+                    && $0.set.repetitions > 0
+                    && $0.set.weight.isFinite
                     && $0.set.repetitions <= Self.e1RMMaxRepetitions
                     && $0.set.weight > 0
                     && $0.set.contributesToE1RM
@@ -507,6 +536,7 @@ struct ExerciseDetailAnalyticsService {
                     workoutDate: entry.date
                 )
             }
+            .filter { $0.estimatedLoad.isFinite }
             .max { lhs, rhs in
                 lhs.estimatedLoad == rhs.estimatedLoad ? lhs.workoutDate > rhs.workoutDate : lhs.estimatedLoad < rhs.estimatedLoad
             }
@@ -523,19 +553,34 @@ struct ExerciseDetailAnalyticsService {
             return []
         }
 
-        return (0..<count).reversed().compactMap { offset -> ExerciseVolumeWeek? in
-            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -offset, to: currentWeekStart),
-                  let interval = calendar.dateInterval(of: .weekOfYear, for: weekStart)
-            else { return nil }
+        struct WeekAggregate {
+            var totalVolume: Float = 0
+            var workingSetCount = 0
+            var sessionCount = 0
+        }
+        var aggregates: [Date: WeekAggregate] = [:]
+        for session in sessions {
+            guard let weekStart = calendar.dateInterval(of: .weekOfYear, for: session.workoutDate)?.start else {
+                continue
+            }
+            let workingSets = session.workingSets
+            var aggregate = aggregates[weekStart] ?? WeekAggregate()
+            aggregate.totalVolume += volume(of: workingSets, semantics: session.semantics, in: unit)
+            aggregate.workingSetCount += workingSets.count
+            aggregate.sessionCount += 1
+            aggregates[weekStart] = aggregate
+        }
 
-            let weekSessions = sessions.filter { interval.contains($0.workoutDate) }
-            let totalVolume = weekSessions
-                .reduce(Float(0)) { $0 + volume(of: $1.workingSets, semantics: $1.semantics, in: unit) }
+        return (0..<count).reversed().compactMap { offset -> ExerciseVolumeWeek? in
+            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -offset, to: currentWeekStart) else {
+                return nil
+            }
+            let aggregate = aggregates[weekStart] ?? WeekAggregate()
             return ExerciseVolumeWeek(
                 weekStart: weekStart,
-                totalVolume: totalVolume,
-                workingSetCount: weekSessions.reduce(0) { $0 + $1.workingSets.count },
-                sessionCount: weekSessions.count
+                totalVolume: aggregate.totalVolume,
+                workingSetCount: aggregate.workingSetCount,
+                sessionCount: aggregate.sessionCount
             )
         }
     }

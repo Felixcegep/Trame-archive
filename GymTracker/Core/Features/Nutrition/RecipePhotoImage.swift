@@ -29,7 +29,9 @@ struct RecipePhotoImage<Content: View, Placeholder: View>: View {
             }
         }
         .task(id: identifier) {
-            image = await RecipePhotoStore.loadImageAsync(identifier)
+            let loadedImage = await RecipePhotoStore.loadImageAsync(identifier)
+            guard !Task.isCancelled else { return }
+            image = loadedImage
         }
     }
 }

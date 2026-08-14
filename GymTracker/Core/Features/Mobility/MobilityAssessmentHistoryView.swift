@@ -158,7 +158,7 @@ struct MobilityAssessmentSessionDetailView: View {
 
     private var skippedNames: [String] {
         session.skippedDefinitionKeys.compactMap { key in
-            definitions.first { $0.catalogueKey == key }.map(MobilityAssessmentCopy.name(for:))
+            definitions.first { $0.catalogueKey == key }.map { MobilityAssessmentCopy.name(for: $0) }
         }
     }
 

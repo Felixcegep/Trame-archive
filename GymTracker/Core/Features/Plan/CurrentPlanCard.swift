@@ -9,8 +9,8 @@ import SwiftUI
 struct CurrentPlanCard: View {
     @Environment(\.modelContext) private var modelContext
 
-    @Query private var planRuns: [PlanRun]
-    @Query private var repeatingPlanRuns: [RepeatingPlanRun]
+    @Query(filter: #Predicate<PlanRun> { $0.endDate == nil }) private var planRuns: [PlanRun]
+    @Query(filter: #Predicate<RepeatingPlanRun> { $0.endedAt == nil }) private var repeatingPlanRuns: [RepeatingPlanRun]
 
     let onOpenPlan: (CurrentPlanSummary.Target) -> Void
     let onOpenProgramPath: (ProgramPathRoute) -> Void
@@ -317,7 +317,7 @@ private extension CurrentPlanCard {
 
 private extension CurrentPlanCard {
     var openFixedRun: PlanRun? {
-        planRuns.first(where: CurrentPlanSummary.isOpen)
+        planRuns.first { CurrentPlanSummary.isOpen($0) }
     }
 
     var openRepeatingRun: RepeatingPlanRun? {

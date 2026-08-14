@@ -14,8 +14,12 @@ enum MobilityProgramDefinitionRepository {
         in context: ModelContext
     ) throws -> MobilityProgramDefinitionRecord {
         let record = try MobilityProgramDefinitionRecord(payload: payload, isBuiltIn: isBuiltIn)
-        if let existing = try context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>())
-            .first(where: { $0.id == payload.id }) {
+        let payloadID = payload.id
+        var descriptor = FetchDescriptor<MobilityProgramDefinitionRecord>(
+            predicate: #Predicate { $0.id == payloadID }
+        )
+        descriptor.fetchLimit = 1
+        if let existing = try context.fetch(descriptor).first {
             existing.programKey = record.programKey
             existing.schemaVersion = record.schemaVersion
             existing.templateVersion = record.templateVersion
@@ -45,8 +49,11 @@ enum MobilityProgramDefinitionRepository {
 
     static func activeDefinitions(in context: ModelContext) throws -> [MobilityProgramDefinitionRecord] {
         try context.fetch(
-            FetchDescriptor<MobilityProgramDefinitionRecord>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
-        ).filter { !$0.isArchived }
+            FetchDescriptor<MobilityProgramDefinitionRecord>(
+                predicate: #Predicate { !$0.isArchived },
+                sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+            )
+        )
     }
 }
 

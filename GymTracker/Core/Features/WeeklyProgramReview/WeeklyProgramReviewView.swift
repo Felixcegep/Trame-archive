@@ -50,7 +50,9 @@ struct WeeklyProgramReviewView: View {
                     statusTitle: ProgramPathPresentation.runStatusTitle(projection.runStatus),
                     statusNote: WeeklyProgramReviewPresentation.runStatusNote(projection.runStatus),
                     isMuted: projection.runStatus != .active,
-                    dateRangeTitle: projection.week.scheduledDateRange.map(WeeklyProgramReviewPresentation.dateRangeTitle)
+                    dateRangeTitle: projection.week.scheduledDateRange.map {
+                        WeeklyProgramReviewPresentation.dateRangeTitle($0)
+                    }
                 )
             }
 

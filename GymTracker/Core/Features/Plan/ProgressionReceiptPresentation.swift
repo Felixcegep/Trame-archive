@@ -448,7 +448,7 @@ struct ProgressionReceiptPreviewPresentation: Equatable {
             countLine = String(format: format, Int64(occurrenceCount), cadence)
         }
 
-        let unchangedGuarantees = preview.unchangedAreas.map(unchangedTitle)
+        let unchangedGuarantees = preview.unchangedAreas.map { unchangedTitle($0) }
         let availabilityNote: String? = preview.insufficiencies.isEmpty
             ? nil
             : String(localized: "progression.receipt.preview.incomplete", defaultValue: "Some preview details are unavailable. The action remains governed by the saved progression decision.")

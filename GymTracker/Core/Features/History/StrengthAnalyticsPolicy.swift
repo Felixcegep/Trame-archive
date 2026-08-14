@@ -5,6 +5,26 @@ import Foundation
 /// policy prevents format-specific evidence from being misread as a normal
 /// load, rep, or e1RM record.
 enum StrengthAnalyticsPolicy {
+    /// Eligibility for a traditional strength projection must use the
+    /// performed entry's historical policy.  Relying only on the set's
+    /// inverse relationship is fragile for detached/restored graphs and can
+    /// let a warm-up, complex, or specialized set leak into a PR projection.
+    static func isEligibleForTraditionalSetRecord(
+        _ set: ExerciseSet,
+        entry: ExerciseEntry
+    ) -> Bool {
+        guard set.done,
+              set.setType != .warmup,
+              set.resolvedSetMethod == .standard,
+              set.segments.isEmpty,
+              set.complexComponents.isEmpty,
+              set.resolvedSpecializedMetricKind == .none,
+              !set.isVelocityProbe
+        else { return false }
+        return SportAnalyticsPolicyResolver.policy(for: entry)
+            .contributesToStrengthVolume(set: set, entry: entry)
+    }
+
     /// The `entry`/`policy` gate below is additive: every set that satisfied
     /// this check before `SportAnalyticsPolicy` existed still does, because
     /// `StandardStrengthAnalyticsPolicy.contributesToStrengthVolume` always
@@ -13,16 +33,16 @@ enum StrengthAnalyticsPolicy {
     /// `exerciseEntry` was already released (nil) also passes unconditionally
     /// rather than being silently excluded.
     static func isEligibleForTraditionalSetRecord(_ set: ExerciseSet) -> Bool {
-        guard set.done
-            && set.setType != .warmup
-            && set.resolvedSetMethod == .standard
-            && set.segments.isEmpty
-            && set.complexComponents.isEmpty
-            && set.resolvedSpecializedMetricKind == .none
-            && !set.isVelocityProbe
-        else { return false }
-        guard let entry = set.exerciseEntry else { return true }
-        return SportAnalyticsPolicyResolver.policy(for: entry).contributesToStrengthVolume(set: set, entry: entry)
+        guard let entry = set.exerciseEntry else {
+            return set.done
+                && set.setType != .warmup
+                && set.resolvedSetMethod == .standard
+                && set.segments.isEmpty
+                && set.complexComponents.isEmpty
+                && set.resolvedSpecializedMetricKind == .none
+                && !set.isVelocityProbe
+        }
+        return isEligibleForTraditionalSetRecord(set, entry: entry)
     }
 
     /// The grouping key a load/record comparison must use so a strongman
@@ -39,7 +59,10 @@ enum StrengthAnalyticsPolicy {
               let source = set.velocityMeasurementSource,
               source != .estimated
         else { return false }
-        return (set.meanVelocity ?? 0) > 0 || (set.peakVelocity ?? 0) > 0
+        return [set.meanVelocity, set.peakVelocity].contains {
+            guard let value = $0 else { return false }
+            return value.isFinite && value > 0
+        }
     }
 
     static func isEligibleForSpecializedMetricRecord(_ set: ExerciseSet) -> Bool {
@@ -48,6 +71,7 @@ enum StrengthAnalyticsPolicy {
               let source = set.specializedMetricMeasurementSource,
               source != .estimated,
               let metric = specializedMetricValue(for: set),
+              metric.value.isFinite,
               metric.value > 0
         else { return false }
         return true
@@ -94,7 +118,7 @@ enum StrengthAnalyticsPolicy {
                 date: workout.startTime
             )
         case .duration:
-            guard let value = block.scoreValue, value > 0 else { return nil }
+            guard let value = block.scoreValue, value.isFinite, value > 0 else { return nil }
             return BlockRecordCandidate(
                 comparisonKey: key,
                 title: block.name ?? block.kind.title,
@@ -105,7 +129,7 @@ enum StrengthAnalyticsPolicy {
                 date: workout.startTime
             )
         case .completedWork, .distance, .calories, .load, .points:
-            guard let value = block.scoreValue, value > 0 else { return nil }
+            guard let value = block.scoreValue, value.isFinite, value > 0 else { return nil }
             return BlockRecordCandidate(
                 comparisonKey: key,
                 title: block.name ?? block.kind.title,

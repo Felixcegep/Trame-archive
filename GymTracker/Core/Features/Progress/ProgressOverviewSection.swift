@@ -257,11 +257,9 @@ struct ProgressOverviewSection: View {
 
     // MARK: - Current plan
 
+    @ViewBuilder
     private func currentPlanCard(_ summary: ProgressOverviewSummary) -> some View {
-        guard let planID = summary.currentPlanID, let name = summary.currentPlanName else {
-            return AnyView(EmptyView())
-        }
-        return AnyView(
+        if let planID = summary.currentPlanID, let name = summary.currentPlanName {
             Button {
                 onOpenPlan?(planID)
             } label: {
@@ -294,7 +292,7 @@ struct ProgressOverviewSection: View {
             .listRowSeparator(.hidden)
             .listRowInsets(EdgeInsets(top: Spacing.xs, leading: 0, bottom: Spacing.xs, trailing: 0))
             .accessibilityIdentifier("progress-overview-current-plan")
-        )
+        }
     }
 
     private func sessionCountText(_ series: ExerciseProgressSeries) -> String {

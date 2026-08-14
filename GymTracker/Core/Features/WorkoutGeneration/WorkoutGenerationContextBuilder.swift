@@ -91,33 +91,49 @@ enum WorkoutGenerationContextBuilder {
         from templates: [WorkoutTemplate],
         allowedExerciseIDs: Set<UUID>
     ) -> [WorkoutGenerationExample] {
-        templates
-            .filter { !$0.orderedTemplateExercises.isEmpty }
-            .sorted { lhs, rhs in
-                if lhs.isBuiltIn != rhs.isBuiltIn { return !lhs.isBuiltIn && rhs.isBuiltIn }
-                let nameOrder = lhs.name.localizedStandardCompare(rhs.name)
-                if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
-                return lhs.id.uuidString < rhs.id.uuidString
+        var selected: [(template: WorkoutTemplate, example: WorkoutGenerationExample)] = []
+        selected.reserveCapacity(maximumExamples)
+
+        for template in templates {
+            let templateExercises = template.orderedTemplateExercises
+            guard !templateExercises.isEmpty else { continue }
+            let exercises = templateExercises.compactMap { templateExercise -> WorkoutGenerationExample.Exercise? in
+                guard allowedExerciseIDs.contains(templateExercise.exercise.id) else { return nil }
+                return WorkoutGenerationExample.Exercise(
+                    exerciseID: templateExercise.exercise.id,
+                    name: templateExercise.exercise.name,
+                    sets: templateExercise.targetSets,
+                    minimumRepetitions: templateExercise.repRangeMinimum,
+                    maximumRepetitions: templateExercise.repRangeMaximum,
+                    restSeconds: templateExercise.restSeconds,
+                    targetRIR: templateExercise.targetRIR,
+                    targetRPE: templateExercise.targetRPE,
+                    supersetGroupID: templateExercise.supersetGroupID?.uuidString
+                )
             }
-            .compactMap { template -> WorkoutGenerationExample? in
-                let exercises = template.orderedTemplateExercises.compactMap { templateExercise -> WorkoutGenerationExample.Exercise? in
-                    guard allowedExerciseIDs.contains(templateExercise.exercise.id) else { return nil }
-                    return WorkoutGenerationExample.Exercise(
-                        exerciseID: templateExercise.exercise.id,
-                        name: templateExercise.exercise.name,
-                        sets: templateExercise.targetSets,
-                        minimumRepetitions: templateExercise.repRangeMinimum,
-                        maximumRepetitions: templateExercise.repRangeMaximum,
-                        restSeconds: templateExercise.restSeconds,
-                        targetRIR: templateExercise.targetRIR,
-                        targetRPE: templateExercise.targetRPE,
-                        supersetGroupID: templateExercise.supersetGroupID?.uuidString
-                    )
-                }
-                guard !exercises.isEmpty else { return nil }
-                return WorkoutGenerationExample(name: template.name, exercises: exercises)
+            guard !exercises.isEmpty else { continue }
+
+            let candidate = (
+                template: template,
+                example: WorkoutGenerationExample(name: template.name, exercises: exercises)
+            )
+            let insertionIndex = selected.firstIndex {
+                templatePrecedes(candidate.template, $0.template)
+            } ?? selected.endIndex
+            guard insertionIndex < maximumExamples else { continue }
+            selected.insert(candidate, at: insertionIndex)
+            if selected.count > maximumExamples {
+                selected.removeLast()
             }
-            .prefix(maximumExamples)
-            .map { $0 }
+        }
+
+        return selected.map(\.example)
+    }
+
+    private static func templatePrecedes(_ lhs: WorkoutTemplate, _ rhs: WorkoutTemplate) -> Bool {
+        if lhs.isBuiltIn != rhs.isBuiltIn { return !lhs.isBuiltIn && rhs.isBuiltIn }
+        let nameOrder = lhs.name.localizedStandardCompare(rhs.name)
+        if nameOrder != .orderedSame { return nameOrder == .orderedAscending }
+        return lhs.id.uuidString < rhs.id.uuidString
     }
 }

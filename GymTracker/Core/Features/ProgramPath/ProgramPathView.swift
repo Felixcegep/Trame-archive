@@ -26,9 +26,37 @@ struct ProgramPathView: View {
     @Query private var repeatingPlanRuns: [RepeatingPlanRun]
 
     @State private var reschedulingProgress: PlanWorkoutProgress?
+    @State private var projectionCache: ProgramPathProjectionCache?
+
+    init(
+        route: ProgramPathRoute,
+        onStartPlannedWorkout: @escaping (PlanRun, PlanWorkoutProgress) -> Void,
+        onStartRepeatingWorkout: @escaping (RepeatingPlanRun) -> Void,
+        onResumeActiveWorkout: @escaping () -> Void,
+        onOpenWeeklyReview: @escaping (WeeklyProgramReviewRoute) -> Void
+    ) {
+        self.route = route
+        self.onStartPlannedWorkout = onStartPlannedWorkout
+        self.onStartRepeatingWorkout = onStartRepeatingWorkout
+        self.onResumeActiveWorkout = onResumeActiveWorkout
+        self.onOpenWeeklyReview = onOpenWeeklyReview
+
+        let runID: UUID
+        switch route {
+        case .fixedRun(let id):
+            runID = id
+        case .rotationRun(let id):
+            runID = id
+        }
+        // Keep both entity observations bounded to the route UUID. The route
+        // branch below consumes only the matching run type; avoiding a captured
+        // boolean here also keeps the SwiftData predicate translation simple.
+        _planRuns = Query(filter: #Predicate { $0.id == runID })
+        _repeatingPlanRuns = Query(filter: #Predicate { $0.id == runID })
+    }
 
     var body: some View {
-        content
+        content(inputID: projectionInputID)
             .navigationTitle(ProgramPathPresentation.screenTitle)
             .navigationBarTitleDisplayMode(.inline)
             .sheet(item: $reschedulingProgress) { progress in
@@ -60,14 +88,53 @@ struct ProgramPathView: View {
     }
 
     @ViewBuilder
-    private var content: some View {
+    private func content(inputID: Int) -> some View {
         if let run = fixedRun {
-            fixedPath(run: run, projection: FixedProgramPathBuilder.build(for: run))
+            let projection: FixedProgramPathProjection = {
+                guard projectionCache?.inputID == inputID,
+                      case .fixed(let cached)? = projectionCache?.projection
+                else { return FixedProgramPathBuilder.build(for: run) }
+                return cached
+            }()
+            fixedPath(run: run, projection: projection)
+                .task(id: inputID) {
+                    projectionCache = .init(inputID: inputID, projection: .fixed(projection))
+                }
         } else if let run = rotationRun {
-            rotationPath(run: run, projection: RotationProgramPathBuilder.build(run: run))
+            let projection: RotationProgramPathProjection = {
+                guard projectionCache?.inputID == inputID,
+                      case .rotation(let cached)? = projectionCache?.projection
+                else { return RotationProgramPathBuilder.build(run: run) }
+                return cached
+            }()
+            rotationPath(run: run, projection: projection)
+                .task(id: inputID) {
+                    projectionCache = .init(inputID: inputID, projection: .rotation(projection))
+                }
         } else {
             ProgramPathUnavailableView()
         }
+    }
+
+    private var projectionInputID: Int {
+        var revision = Hasher()
+        switch route {
+        case .fixedRun(let id):
+            revision.combine(0)
+            revision.combine(id)
+            revision.combine(fixedRun?.updatedAt)
+            revision.combine(fixedRun?.plan?.updatedAt)
+            revision.combine(LocalDay.today)
+        case .rotationRun(let id):
+            revision.combine(1)
+            revision.combine(id)
+            revision.combine(rotationRun?.updatedAt)
+            rotationRun?.orderedSlots.forEach {
+                revision.combine($0.id)
+                revision.combine($0.workoutTemplate?.id)
+            }
+        }
+        return revision.finalize()
     }
 
     private var fixedRun: PlanRun? {
@@ -79,6 +146,16 @@ struct ProgramPathView: View {
         guard case .rotationRun(let runID) = route else { return nil }
         return repeatingPlanRuns.first { $0.id == runID }
     }
+}
+
+private struct ProgramPathProjectionCache {
+    enum Projection {
+        case fixed(FixedProgramPathProjection)
+        case rotation(RotationProgramPathProjection)
+    }
+
+    let inputID: Int
+    let projection: Projection
 }
 
 // MARK: - Fixed plan

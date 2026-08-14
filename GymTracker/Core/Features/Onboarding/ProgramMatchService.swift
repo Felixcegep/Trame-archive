@@ -5,7 +5,7 @@ import Foundation
 /// A value type with no store access so the ranking can be argued with in
 /// isolation: every recommendation the app shows must be reproducible from
 /// these fields alone.
-struct ProgramMatchCriteria: Equatable, Sendable {
+nonisolated struct ProgramMatchCriteria: Equatable, Sendable {
     var discipline: TrainingDisciplinePreference?
     var goal: TrainingGoalPreference?
     var experience: ProfileExperienceLevel?
@@ -47,6 +47,7 @@ struct ProgramMatchCriteria: Equatable, Sendable {
         self.competitionDate = competitionDate
     }
 
+    @MainActor
     init(draft: OnboardingDraft) {
         self.init(
             discipline: draft.discipline,

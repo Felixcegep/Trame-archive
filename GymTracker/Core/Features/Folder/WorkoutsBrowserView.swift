@@ -24,9 +24,15 @@ struct WorkoutsBrowserView: View {
     let onStartWorkout: (WorkoutTemplate) -> Void
 
     var body: some View {
+        // Both the empty-state check and the two sections need these ordered
+        // collections. Compute them once per query update rather than sorting
+        // the same library again for every branch of the view tree.
+        let collections = sortedCollections
+        let templates = sortedTemplates
+
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xxl) {
-                if sortedCollections.isEmpty && sortedTemplates.isEmpty {
+            LazyVStack(alignment: .leading, spacing: Spacing.xxl) {
+                if collections.isEmpty && templates.isEmpty {
                     if catalogInstallState.failure != nil {
                         SystemCatalogUnavailableView {
                             AppBootstrap.seedSystemCatalog(using: modelContext)
@@ -37,11 +43,11 @@ struct WorkoutsBrowserView: View {
                         emptyState
                     }
                 } else {
-                    if !sortedCollections.isEmpty {
-                        foldersSection
+                    if !collections.isEmpty {
+                        foldersSection(collections)
                     }
-                    if !sortedTemplates.isEmpty {
-                        workoutsSection
+                    if !templates.isEmpty {
+                        workoutsSection(templates)
                     }
                 }
             }
@@ -79,12 +85,12 @@ struct WorkoutsBrowserView: View {
         .padding(.top, 56)
     }
 
-    private var foldersSection: some View {
+    private func foldersSection(_ collections: [WorkoutCollection]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            LibraryListSectionHeader(title: "Folders", count: sortedCollections.count)
+            LibraryListSectionHeader(title: "Folders", count: collections.count)
 
             LibraryGroupCard {
-                ForEach(Array(sortedCollections.enumerated()), id: \.offset) { index, collection in
+                ForEach(Array(collections.enumerated()), id: \.element.id) { index, collection in
                     if index > 0 {
                         LibraryGroupDivider()
                     }
@@ -106,12 +112,12 @@ struct WorkoutsBrowserView: View {
         }
     }
 
-    private var workoutsSection: some View {
+    private func workoutsSection(_ templates: [WorkoutTemplate]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            LibraryListSectionHeader(title: "Workouts", count: sortedTemplates.count)
+            LibraryListSectionHeader(title: "Workouts", count: templates.count)
 
             LibraryGroupCard {
-                ForEach(Array(sortedTemplates.enumerated()), id: \.offset) { index, template in
+                ForEach(Array(templates.enumerated()), id: \.element.id) { index, template in
                     if index > 0 {
                         LibraryGroupDivider()
                     }

@@ -21,7 +21,11 @@ enum SupplementOccurrenceService {
 
     private static func existingOrNewOccurrence(kind: SupplementKind, day: LocalDay, using context: ModelContext) -> SupplementOccurrence {
         let occurrenceKey = "\(day.rawValue)|\(kind.rawValue)"
-        if let existing = (try? context.fetch(FetchDescriptor<SupplementOccurrence>()))?.first(where: { $0.occurrenceKey == occurrenceKey }) {
+        var descriptor = FetchDescriptor<SupplementOccurrence>(
+            predicate: #Predicate { $0.occurrenceKey == occurrenceKey }
+        )
+        descriptor.fetchLimit = 1
+        if let existing = (try? context.fetch(descriptor))?.first {
             return existing
         }
         let occurrence = SupplementOccurrence(kind: kind, day: day, status: .skipped, completedAt: nil)

@@ -12,8 +12,13 @@ struct HomeTodaySection: View {
     let onOpenMobility: () -> Void
     let onResumeMobility: (MobilitySession) -> Void
 
-    @Query(sort: \MobilitySession.updatedAt, order: .reverse) private var mobilitySessions: [MobilitySession]
-    @Query private var mobilityProgramRuns: [MobilityProgramRun]
+    @Query(
+        filter: #Predicate<MobilitySession> { $0.statusRaw == "active" },
+        sort: \MobilitySession.updatedAt,
+        order: .reverse
+    ) private var mobilitySessions: [MobilitySession]
+    @Query(filter: #Predicate<MobilityProgramRun> { $0.statusRaw == "active" })
+    private var mobilityProgramRuns: [MobilityProgramRun]
 
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 

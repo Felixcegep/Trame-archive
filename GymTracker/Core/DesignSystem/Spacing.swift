@@ -1,13 +1,13 @@
 import Foundation
 
 struct Spacing {
-    static let xxs: CGFloat = 2
-    static let xs: CGFloat = 4
-    static let s: CGFloat = 8
-    static let md: CGFloat = 10
-    static let m: CGFloat = 12
-    static let l: CGFloat = 16
-    static let xl: CGFloat = 20
-    static let xxl: CGFloat = 24
-    static let xxxl: CGFloat = 32
+    nonisolated static let xxs: CGFloat = 2
+    nonisolated static let xs: CGFloat = 4
+    nonisolated static let s: CGFloat = 8
+    nonisolated static let md: CGFloat = 10
+    nonisolated static let m: CGFloat = 12
+    nonisolated static let l: CGFloat = 16
+    nonisolated static let xl: CGFloat = 20
+    nonisolated static let xxl: CGFloat = 24
+    nonisolated static let xxxl: CGFloat = 32
 }

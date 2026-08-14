@@ -21,7 +21,10 @@ enum GeneratedWorkoutStartService {
     ) throws -> Workout {
         guard !draft.exercises.isEmpty else { throw GeneratedWorkoutStartError.emptyDraft }
         do {
-            guard try modelContext.fetch(FetchDescriptor<Workout>()).contains(where: { $0.status == .active }) == false else {
+            let descriptor = FetchDescriptor<Workout>(
+                predicate: #Predicate { $0.endTime == nil }
+            )
+            guard try modelContext.fetch(descriptor).contains(where: { $0.status == .active }) == false else {
                 throw GeneratedWorkoutStartError.activeWorkoutExists
             }
         } catch let error as GeneratedWorkoutStartError {

@@ -131,8 +131,11 @@ enum ExerciseDetailInsightsBuilder {
         for exercise: Exercise,
         using context: ModelContext
     ) -> ExerciseDetailProgression? {
+            let descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { $0.endTime == nil }
+        )
         guard
-            let workout = try? context.fetch(FetchDescriptor<Workout>()).first(where: { $0.status == .active }),
+            let workout = (try? context.fetch(descriptor))?.first(where: { $0.status == .active }),
             // An active entry, not completed history — but the identity
             // question is the same one, and the snapshot is written at entry
             // creation, so this uses the one matcher rather than reintroducing

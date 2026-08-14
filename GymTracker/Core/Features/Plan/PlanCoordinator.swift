@@ -155,34 +155,66 @@ enum PlanCoordinator {
         return run
     }
 
-    static func refreshAvailability(for run: PlanRun) {
-        guard run.status == .active || run.status == .paused else { return }
+    @discardableResult
+    static func refreshAvailability(
+        for run: PlanRun,
+        touchUpdatedAt: Bool = true
+    ) -> Bool {
+        guard run.status == .active || run.status == .paused else { return false }
 
-        let inProgress = run.orderedWorkoutProgress.filter { $0.status == .inProgress }
+        let orderedProgress = run.orderedWorkoutProgress
+        let inProgress = orderedProgress.filter { $0.status == .inProgress }
 
-        let unfinished = run.orderedWorkoutProgress.filter {
+        let unfinished = orderedProgress.filter {
             $0.status != .completed && $0.status != .skipped && $0.status != .inProgress
         }
 
+        let activeProgress = inProgress.min(by: isOrderedByAvailability)
+        let nextProgress = activeProgress == nil
+            ? unfinished.min(by: isOrderedByAvailability)
+            : nil
+        var didChange = false
+
         for progress in unfinished {
-            progress.status = .upcoming
+            let desiredStatus: PlanWorkoutStatus = progress.id == nextProgress?.id
+                ? .available
+                : .upcoming
+            if progress.status != desiredStatus {
+                progress.status = desiredStatus
+                didChange = true
+            }
         }
 
-        if let activeProgress = inProgress.sorted(by: isOrderedByAvailability).first {
+        if let activeProgress {
             // An active workout is the current truth. Relaunch and schedule
             // refreshes must not make a second future session available while
             // that workout is still in progress.
-            run.currentWeekIndex = activeProgress.weekIndex
-            run.currentWorkoutIndex = activeProgress.workoutIndex
-        } else if let next = unfinished.sorted(by: isOrderedByAvailability).first {
-            next.status = .available
-            run.currentWeekIndex = next.weekIndex
-            run.currentWorkoutIndex = next.workoutIndex
+            if run.currentWeekIndex != activeProgress.weekIndex {
+                run.currentWeekIndex = activeProgress.weekIndex
+                didChange = true
+            }
+            if run.currentWorkoutIndex != activeProgress.workoutIndex {
+                run.currentWorkoutIndex = activeProgress.workoutIndex
+                didChange = true
+            }
+        } else if let nextProgress {
+            if run.currentWeekIndex != nextProgress.weekIndex {
+                run.currentWeekIndex = nextProgress.weekIndex
+                didChange = true
+            }
+            if run.currentWorkoutIndex != nextProgress.workoutIndex {
+                run.currentWorkoutIndex = nextProgress.workoutIndex
+                didChange = true
+            }
         } else if run.status == .active {
             run.status = .completed
             run.endDate = .now
+            didChange = true
         }
-        run.updatedAt = .now
+        if didChange || touchUpdatedAt {
+            run.updatedAt = .now
+        }
+        return didChange
     }
 
     /// Scheduling edits are allowed while a run is active or paused. Terminal

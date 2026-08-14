@@ -66,9 +66,10 @@ final class OnboardingCoordinator {
     /// isolated. Resolving `nil` inside this already-isolated initializer keeps
     /// both the live default and the explicit override available.
     init(
-        store: OnboardingDraftStore = OnboardingDraftStore(),
+        store suppliedStore: OnboardingDraftStore? = nil,
         isMobilityMatchingEnabled: Bool? = nil
     ) {
+        let store = suppliedStore ?? OnboardingDraftStore()
         self.store = store
         self.isMobilityMatchingEnabled = isMobilityMatchingEnabled
             ?? FeatureFlags.current.isEnabled(.mobilityProgram)

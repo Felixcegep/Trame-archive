@@ -81,9 +81,10 @@ extension MobilityMatchCandidate {
     /// surfaced as a broken card, mirroring `ProgramMatchCandidate.candidates`.
     @MainActor
     static func candidates(using context: ModelContext) -> [MobilityMatchCandidate] {
-        let records = (try? context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>())) ?? []
+        let records = (try? context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>(
+            predicate: #Predicate { !$0.isArchived }
+        ))) ?? []
         return records
-            .filter { !$0.isArchived }
             .compactMap { record in
                 guard let payload = try? record.payload() else { return nil }
                 return MobilityMatchCandidate(payload: payload)

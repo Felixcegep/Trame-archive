@@ -37,6 +37,14 @@ struct WeightliftingComponentOutcomeSummary: Equatable, Identifiable {
     let skipped: WeightliftingEvidenceCount
 }
 
+struct WeightliftingRecentAttempt: Equatable, Identifiable {
+    let id: UUID
+    let date: Date
+    let load: String
+    let outcome: OlympicAttemptOutcome
+    let components: [ComplexComponentOutcome]
+}
+
 /// Presentation state for the specialist dashboard. CE6.1 supplies these
 /// facts from completed snapshots; CE6.2 only decides hierarchy and wording.
 struct WeightliftingDashboardPresentation: Equatable {
@@ -48,6 +56,7 @@ struct WeightliftingDashboardPresentation: Equatable {
     let componentOutcomes: [WeightliftingComponentOutcomeSummary]
     let qualityTrend: String?
     let evidenceNote: String?
+    var recentAttempts: [WeightliftingRecentAttempt] = []
 
     static let empty = Self(
         availability: .empty,
@@ -57,7 +66,8 @@ struct WeightliftingDashboardPresentation: Equatable {
         attemptSummary: nil,
         componentOutcomes: [],
         qualityTrend: nil,
-        evidenceNote: nil
+        evidenceNote: nil,
+        recentAttempts: []
     )
 
     var hasFullLiftEvidence: Bool {
@@ -125,7 +135,16 @@ struct WeightliftingDashboardPresentation: Equatable {
             qualityTrend: quality,
             evidenceNote: projection.bestCompleteSuccessfulLiftsByUnit.count > 1
                 ? String(localized: "Best lifts are kept separate by weight unit and are not ranked against each other.")
-                : String(localized: "Component outcomes are evidence inside a lift; they are never labelled as full-lift records.")
+                : String(localized: "Component outcomes are evidence inside a lift; they are never labelled as full-lift records."),
+            recentAttempts: projection.complexOutcomes.suffix(5).reversed().map { attempt in
+                WeightliftingRecentAttempt(
+                    id: attempt.setID,
+                    date: attempt.date,
+                    load: String(format: String(localized: "%.1f %@"), Double(attempt.weight), attempt.weightType.rawValue),
+                    outcome: attempt.outcome,
+                    components: attempt.components.map(\.outcome)
+                )
+            }
         )
     }
 

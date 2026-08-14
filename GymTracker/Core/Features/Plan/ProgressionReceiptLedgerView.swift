@@ -1,3 +1,4 @@
+import Charts
 import SwiftData
 import SwiftUI
 
@@ -21,8 +22,16 @@ struct ProgressionReceiptLedgerView: View {
     @Query(sort: \PlanProgressionRecommendationRecord.createdAt, order: .reverse)
     private var records: [PlanProgressionRecommendationRecord]
     @State private var filter: Filter = .all
+    @State private var projectionCache: ProgressionReceiptLedgerProjectionCache?
 
     var body: some View {
+        let inputID = projectionInputID
+        let entries = projectionCache.flatMap {
+            $0.inputID == inputID ? $0.entries : nil
+        } ?? ProgressionReceiptLedgerProjection.project(records: records)
+        let filteredEntries = filteredEntries(from: entries)
+        let decisionSummary = ProgressionReceiptLedgerProjection.decisionSummary(entries: entries)
+
         List {
             Picker(
                 String(localized: "progression.ledger.filter.label", defaultValue: "Show"),
@@ -35,6 +44,14 @@ struct ProgressionReceiptLedgerView: View {
             .pickerStyle(.segmented)
             .accessibilityIdentifier("progression-ledger-filter")
             .listRowBackground(Color.clear)
+
+            if !entries.isEmpty {
+                Section {
+                    decisionSummaryChart(decisionSummary)
+                } header: {
+                    Text(String(localized: "progression.ledger.summary.title", defaultValue: "Recommendation outcomes"))
+                }
+            }
 
             if filteredEntries.isEmpty {
                 ContentUnavailableView(
@@ -64,14 +81,83 @@ struct ProgressionReceiptLedgerView: View {
         .background(Color.gymBackground)
         .navigationTitle(String(localized: "progression.ledger.title", defaultValue: "Training ledger"))
         .accessibilityIdentifier("progression-ledger-screen")
+        .task(id: inputID) {
+            projectionCache = .init(inputID: inputID, entries: entries)
+        }
     }
 
-    private var filteredEntries: [ProgressionReceiptLedgerProjection.Entry] {
-        let entries = ProgressionReceiptLedgerProjection.project(records: records)
+    private var projectionInputID: Int {
+        var revision = Hasher()
+        for record in records {
+            revision.combine(record.id)
+            revision.combine(record.isResolved)
+            revision.combine(record.resolvedAt)
+            revision.combine(record.decisionOutcome?.rawValue)
+            revision.combine(record.appliedLoad)
+        }
+        return revision.finalize()
+    }
+
+    private func filteredEntries(
+        from entries: [ProgressionReceiptLedgerProjection.Entry]
+    ) -> [ProgressionReceiptLedgerProjection.Entry] {
         switch filter {
         case .all: return entries
         case .pending: return entries.filter { $0.decision == .pending }
         case .resolved: return entries.filter { $0.isResolved }
+        }
+    }
+
+    private func decisionSummaryChart(
+        _ decisionSummary: [ProgressionReceiptLedgerProjection.DecisionSummary]
+    ) -> some View {
+        Chart(decisionSummary) { item in
+            BarMark(
+                x: .value(
+                    String(localized: "progression.ledger.summary.axis.count", defaultValue: "Recommendations"),
+                    item.count
+                ),
+                y: .value(
+                    String(localized: "progression.ledger.summary.axis.outcome", defaultValue: "Outcome"),
+                    ProgressionReceiptLedgerPresentation.decisionLabel(item.decision)
+                )
+            )
+            .foregroundStyle(summaryColor(item.decision))
+            .annotation(position: .trailing) {
+                Text(item.count, format: .number)
+                    .font(AppFont.captionSemiboldMonospaced)
+                    .foregroundStyle(Color.gymText)
+            }
+        }
+        .chartXAxis(.hidden)
+        .chartYAxis {
+            AxisMarks(position: .leading)
+        }
+        .frame(minHeight: CGFloat(decisionSummary.count) * (Spacing.xxl + Spacing.xs))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            String(localized: "progression.ledger.summary.accessibility.label", defaultValue: "Recommendation outcome summary")
+        )
+        .accessibilityValue(summaryAccessibilityValue(decisionSummary))
+        .accessibilityIdentifier("progression-ledger-summary-chart")
+    }
+
+    private func summaryAccessibilityValue(
+        _ decisionSummary: [ProgressionReceiptLedgerProjection.DecisionSummary]
+    ) -> String {
+        decisionSummary
+            .map {
+                "\(ProgressionReceiptLedgerPresentation.decisionLabel($0.decision)): \($0.count.formatted())"
+            }
+            .joined(separator: ", ")
+    }
+
+    private func summaryColor(_ decision: ProgressionReceiptLedgerProjection.DecisionState) -> Color {
+        switch decision {
+        case .accepted: return .gymSuccess
+        case .acceptedWithModifiedValue: return .gymPrimary
+        case .declined, .outcomeNotRecorded: return .gymSubduedText
+        case .pending: return .gymAccent
         }
     }
 
@@ -90,6 +176,11 @@ struct ProgressionReceiptLedgerView: View {
         case .resolved: return String(localized: "progression.ledger.empty.resolved.description", defaultValue: "Resolved recommendation history will appear here.")
         }
     }
+}
+
+private struct ProgressionReceiptLedgerProjectionCache {
+    let inputID: Int
+    let entries: [ProgressionReceiptLedgerProjection.Entry]
 }
 
 private struct ProgressionReceiptLedgerRow: View {

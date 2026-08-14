@@ -10,6 +10,45 @@ struct MobilityAssessmentMovementMapping: Codable, Equatable, Hashable, Sendable
     let movementName: String
     let relevance: MobilityTargetedRoutineRelevance
     let priority: Int
+    /// When present, limits this authored relationship to these stable routine
+    /// catalogue keys. An empty list preserves the general-purpose kernel's
+    /// movement-membership behavior for callers that supply their own catalog.
+    let routineCatalogueKeys: [String]
+
+    init(
+        protocolID: String,
+        protocolVersion: Int,
+        movementID: String,
+        movementName: String,
+        relevance: MobilityTargetedRoutineRelevance,
+        priority: Int,
+        routineCatalogueKeys: [String] = []
+    ) {
+        self.protocolID = protocolID
+        self.protocolVersion = protocolVersion
+        self.movementID = movementID
+        self.movementName = movementName
+        self.relevance = relevance
+        self.priority = priority
+        self.routineCatalogueKeys = routineCatalogueKeys
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case protocolID, protocolVersion, movementID, movementName, relevance, priority, routineCatalogueKeys
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            protocolID: try values.decode(String.self, forKey: .protocolID),
+            protocolVersion: try values.decode(Int.self, forKey: .protocolVersion),
+            movementID: try values.decode(String.self, forKey: .movementID),
+            movementName: try values.decode(String.self, forKey: .movementName),
+            relevance: try values.decode(MobilityTargetedRoutineRelevance.self, forKey: .relevance),
+            priority: try values.decode(Int.self, forKey: .priority),
+            routineCatalogueKeys: try values.decodeIfPresent([String].self, forKey: .routineCatalogueKeys) ?? []
+        )
+    }
 
     var id: String {
         [protocolID, String(protocolVersion), movementID].joined(separator: "|")
@@ -109,6 +148,164 @@ struct MobilityTargetedRoutineSurface: Codable, Equatable, Sendable {
 /// numeric value and an exact, authored `.below` band position. Missing,
 /// criteria, above/within, and incompatible observations return no suggestion.
 enum MobilityTargetedRoutineSurfacingService {
+    private struct ProtocolRevision: Hashable {
+        let id: String
+        let version: Int
+    }
+
+    private struct MappingIdentity: Hashable {
+        let protocolID: String
+        let protocolVersion: Int
+        let movementID: String
+    }
+
+    /// The authored assessment-to-routine relationships used by the
+    /// production adapter. IDs intentionally match the current system seed
+    /// keys; they are not inferred from display names or measurement values.
+    static let authoredMappings: [MobilityAssessmentMovementMapping] = [
+        mapping(
+            protocolID: "mobility-assessment.thoracic-rotation-seated",
+            movementName: "Thoracic Rotation",
+            relevance: .direct,
+            routineKeys: [
+                "mobility-routine.upper-body-bench-warmup",
+                "mobility-routine.lower-back-decompression",
+                "mobility-routine.front-rack-and-wrist-preparation",
+                "mobility-routine.bench-preparation-v2",
+                "mobility-routine.snatch-preparation-v2",
+                "mobility-routine.strongman-overhead-preparation-v2"
+            ]
+        ),
+        mapping(
+            protocolID: "mobility-assessment.open-book-rotation",
+            movementName: "Thread the Needle",
+            relevance: .supporting,
+            routineKeys: ["mobility-routine.lower-back-decompression"]
+        ),
+        mapping(
+            protocolID: "mobility-assessment.active-straight-leg-raise",
+            movementName: "Active Straight Leg Raise",
+            relevance: .direct,
+            routineKeys: ["mobility-routine.deadlift-preparation-v2"]
+        ),
+        mapping(
+            protocolID: "mobility-assessment.knee-to-wall-dorsiflexion",
+            movementName: "Knee-to-Wall Ankle Mobilization",
+            relevance: .direct,
+            routineKeys: [
+                "mobility-routine.ankle-foot-mobilization",
+                "mobility-routine.loaded-mobility-foundations",
+                "mobility-routine.squat-preparation",
+                "mobility-routine.olympic-lifting-preparation",
+                "mobility-routine.squat-preparation-v2",
+                "mobility-routine.snatch-preparation-v2",
+                "mobility-routine.clean-and-jerk-preparation-v2",
+                "mobility-routine.strongman-carry-preparation-v2",
+                "mobility-routine.fitness-racing-preparation-v2"
+            ]
+        ),
+        mapping(
+            protocolID: "mobility-assessment.soleus-wall-stretch",
+            movementName: "Soleus Wall Stretch",
+            relevance: .direct,
+            routineKeys: ["mobility-routine.ankle-foot-mobilization"]
+        ),
+        mapping(
+            protocolID: "mobility-assessment.90-90-hip-rotation",
+            movementName: "90/90 Hip Switch",
+            relevance: .direct,
+            routineKeys: [
+                "mobility-routine.daily-mobility-reset",
+                "mobility-routine.post-leg-day-reset",
+                "mobility-routine.strongman-event-preparation",
+                "mobility-routine.squat-preparation-v2",
+                "mobility-routine.snatch-preparation-v2",
+                "mobility-routine.clean-and-jerk-preparation-v2",
+                "mobility-routine.strongman-carry-preparation-v2"
+            ]
+        ),
+        mapping(
+            protocolID: "mobility-assessment.straddle-frog-abduction",
+            movementName: "Tactical Frog",
+            relevance: .supporting,
+            routineKeys: ["mobility-routine.squat-preparation"]
+        ),
+        mapping(
+            protocolID: "mobility-assessment.sleeper-shoulder-rotation",
+            movementName: "Shoulder Pass-Throughs",
+            relevance: .supporting,
+            routineKeys: [
+                "mobility-routine.upper-body-bench-warmup",
+                "mobility-routine.bench-preparation-v2"
+            ]
+        ),
+        mapping(
+            protocolID: "mobility-assessment.wall-slide-arm-elevation",
+            movementName: "Wall Slides",
+            relevance: .direct,
+            routineKeys: [
+                "mobility-routine.upper-body-bench-warmup",
+                "mobility-routine.overhead-shoulder-saver",
+                "mobility-routine.bench-preparation-v2",
+                "mobility-routine.snatch-preparation-v2",
+                "mobility-routine.strongman-overhead-preparation-v2"
+            ]
+        )
+    ]
+
+    /// Builds the production surface from persisted assessment data and the
+    /// real seeded routine graph. Bands remain caller-supplied because no
+    /// population bands are authored in the current catalogue.
+    @MainActor
+    static func surface(
+        definitions: [MobilityAssessmentDefinition],
+        results: [MobilityAssessmentResult],
+        routines: [MobilityRoutine],
+        bands: [MobilityReferenceBand] = [],
+        timeBudgetMinutes: Int? = nil
+    ) -> MobilityTargetedRoutineSurface {
+        let activeDefinitions = definitions.filter { !$0.isArchived }
+        let protocols = activeDefinitions.flatMap(protocols(for:))
+        let profile = MobilityAssessmentProfileProjectionService.project(
+            protocols: protocols,
+            results: results,
+            bands: bands
+        )
+        return surface(
+            profile: profile,
+            mappings: authoredMappings,
+            routines: candidates(from: routines),
+            timeBudgetMinutes: timeBudgetMinutes
+        )
+    }
+
+    /// Converts live routines into the value-only candidate shape consumed by
+    /// the pure ranker. User-created routines without a stable catalogue key
+    /// are deliberately excluded from this authored recommendation surface.
+    @MainActor
+    static func candidates(from routines: [MobilityRoutine]) -> [MobilityTargetedRoutineCandidate] {
+        routines
+            .filter { !$0.isArchived }
+            .compactMap { routine in
+                guard let routineKey = routine.catalogueKey,
+                      routineKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                else { return nil }
+                let movementIDs = routine.orderedItems.compactMap { $0.definition.catalogueKey }
+                guard movementIDs.isEmpty == false else { return nil }
+                let estimate = MobilityRoutineDurationEstimate.estimate(for: routine)
+                let duration: Int? = estimate.completeness == .unknown
+                    ? nil
+                    : Int(ceil(Double(estimate.knownDurationSeconds) / 60.0))
+                return MobilityTargetedRoutineCandidate(
+                    routineID: routineKey,
+                    routineName: routine.name,
+                    movementIDs: movementIDs,
+                    estimatedDurationMinutes: duration,
+                    priority: 0
+                )
+            }
+    }
+
     static func surface(
         profile: MobilityAssessmentProfile,
         mappings: [MobilityAssessmentMovementMapping],
@@ -121,19 +318,46 @@ enum MobilityTargetedRoutineSurfacingService {
 
         let validMappings = mappings.filter { isValidMapping($0) }
         let validRoutines = routines.filter { isValidRoutine($0) }
+        var mappingsByProtocol: [ProtocolRevision: [MobilityAssessmentMovementMapping]] = [:]
+        var mappingPriorityByID: [MappingIdentity: Int] = [:]
+        for mapping in validMappings {
+            let key = ProtocolRevision(id: mapping.protocolID, version: mapping.protocolVersion)
+            mappingsByProtocol[key, default: []].append(mapping)
+            // Preserve `first(where:)` semantics if malformed input repeats a
+            // stable mapping identity.
+            let identity = MappingIdentity(
+                protocolID: mapping.protocolID,
+                protocolVersion: mapping.protocolVersion,
+                movementID: mapping.movementID
+            )
+            if mappingPriorityByID[identity] == nil {
+                mappingPriorityByID[identity] = mapping.priority
+            }
+        }
+        for key in Array(mappingsByProtocol.keys) {
+            mappingsByProtocol[key]?.sort { mappingPrecedes($0, $1) }
+        }
+
+        var routinePriorityByID: [String: Int] = [:]
+        for routine in validRoutines where routinePriorityByID[routine.routineID] == nil {
+            routinePriorityByID[routine.routineID] = routine.priority
+        }
+
+        var measurementByID: [String: MobilityAssessmentProfileMeasurement] = [:]
+        for measurement in profile.measurements where measurementByID[measurement.id] == nil {
+            measurementByID[measurement.id] = measurement
+        }
         var recommendationsByMeasurement: [String: [MobilityTargetedRoutineRecommendation]] = [:]
 
         for measurement in profile.measurements {
             guard let measurementEligibility = eligibility(for: measurement) else { continue }
-            let matchingMappings = validMappings
-                .filter {
-                    $0.protocolID == measurement.protocolID
-                        && $0.protocolVersion == measurement.protocolVersion
-                }
-                .sorted { mappingPrecedes($0, $1) }
+            let key = ProtocolRevision(id: measurement.protocolID, version: measurement.protocolVersion)
+            let matchingMappings = mappingsByProtocol[key] ?? []
 
             for mapping in matchingMappings {
-                for routine in validRoutines where routine.movementIDs.contains(mapping.movementID) {
+                for routine in validRoutines where routine.movementIDs.contains(mapping.movementID)
+                    && (mapping.routineCatalogueKeys.isEmpty
+                        || mapping.routineCatalogueKeys.contains(routine.routineID)) {
                     guard let timeFit = timeFit(
                         for: routine.estimatedDurationMinutes,
                         budget: timeBudgetMinutes
@@ -175,12 +399,17 @@ enum MobilityTargetedRoutineSurfacingService {
 
         let measurementGroups: [MobilityTargetedRoutineMeasurementGroup] = recommendationsByMeasurement.compactMap { element in
             let (measurementID, _) = element
-            guard let measurement = profile.measurements.first(where: { $0.id == measurementID }),
+            guard let measurement = measurementByID[measurementID],
                   let eligibility = eligibility(for: measurement)
             else { return nil }
             let ordered = (recommendationsByMeasurement[measurementID] ?? [])
                 .sorted { lhs, rhs in
-                    recommendationPrecedes(lhs, rhs, routines: validRoutines, mappings: validMappings)
+                    recommendationPrecedes(
+                        lhs,
+                        rhs,
+                        routinePriorityByID: routinePriorityByID,
+                        mappingPriorityByID: mappingPriorityByID
+                    )
                 }
             let ranked = ordered.enumerated().map { offset, recommendation in
                 MobilityTargetedRoutineRecommendation(
@@ -245,6 +474,59 @@ enum MobilityTargetedRoutineSurfacingService {
             && mapping.movementID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
             && mapping.movementName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
             && mapping.priority >= 0
+            && mapping.routineCatalogueKeys.allSatisfy {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            }
+    }
+
+    private static func mapping(
+        protocolID: String,
+        movementName: String,
+        relevance: MobilityTargetedRoutineRelevance,
+        routineKeys: [String]
+    ) -> MobilityAssessmentMovementMapping {
+        MobilityAssessmentMovementMapping(
+            protocolID: protocolID,
+            protocolVersion: 1,
+            movementID: SystemSeedKey.make(namespace: "mobility-definition", legacyName: movementName),
+            movementName: movementName,
+            relevance: relevance,
+            priority: 0,
+            routineCatalogueKeys: routineKeys
+        )
+    }
+
+    private static func protocols(
+        for definition: MobilityAssessmentDefinition
+    ) -> [MobilityAssessmentProtocol] {
+        definition.supportedSides.map { side in
+            MobilityAssessmentProtocol(
+                protocolID: definition.catalogueKey,
+                protocolVersion: definition.definitionVersion,
+                measurement: definition.measurementDescriptionLocalizationKey,
+                testName: definition.name,
+                position: definition.defaultSetupKey,
+                setupKey: definition.defaultSetupKey,
+                side: side,
+                unit: definition.unit,
+                activePassive: definition.defaultIsActiveRange ? .active : .passive,
+                recordsWarmCold: true,
+                preferredMethod: method(for: definition.preferredMode),
+                manualFallback: true,
+                reliabilitySource: "App-authored assessment protocol",
+                limitations: definition.measurementLimitationsLocalizationKey
+            )
+        }
+    }
+
+    private static func method(
+        for mode: MobilityMeasurementMode
+    ) -> MobilityAssessmentProtocol.Method {
+        switch mode {
+        case .manualAngle, .manualLinear, .manualCriteria, .cameraPose: .manual
+        case .inclinometer: .inclinometer
+        case .axialRotation, .twoSegmentAngle, .dynamicRange: .deviceMotion
+        }
     }
 
     private static func isValidRoutine(_ routine: MobilityTargetedRoutineCandidate) -> Bool {
@@ -284,24 +566,26 @@ enum MobilityTargetedRoutineSurfacingService {
     private static func recommendationPrecedes(
         _ lhs: MobilityTargetedRoutineRecommendation,
         _ rhs: MobilityTargetedRoutineRecommendation,
-        routines: [MobilityTargetedRoutineCandidate],
-        mappings: [MobilityAssessmentMovementMapping]
+        routinePriorityByID: [String: Int],
+        mappingPriorityByID: [MappingIdentity: Int]
     ) -> Bool {
         if lhs.relevance.sortRank != rhs.relevance.sortRank {
             return lhs.relevance.sortRank < rhs.relevance.sortRank
         }
-        let lhsMapping = mappings.first {
-            $0.protocolID == lhs.why.protocolID
-                && $0.protocolVersion == lhs.why.protocolVersion
-                && $0.movementID == lhs.movementID
-        }
-        let rhsMapping = mappings.first {
-            $0.protocolID == rhs.why.protocolID
-                && $0.protocolVersion == rhs.why.protocolVersion
-                && $0.movementID == rhs.movementID
-        }
-        if lhsMapping?.priority != rhsMapping?.priority {
-            return (lhsMapping?.priority ?? Int.max) < (rhsMapping?.priority ?? Int.max)
+        let lhsMappingID = MappingIdentity(
+            protocolID: lhs.why.protocolID,
+            protocolVersion: lhs.why.protocolVersion,
+            movementID: lhs.movementID
+        )
+        let rhsMappingID = MappingIdentity(
+            protocolID: rhs.why.protocolID,
+            protocolVersion: rhs.why.protocolVersion,
+            movementID: rhs.movementID
+        )
+        let lhsMappingPriority = mappingPriorityByID[lhsMappingID] ?? Int.max
+        let rhsMappingPriority = mappingPriorityByID[rhsMappingID] ?? Int.max
+        if lhsMappingPriority != rhsMappingPriority {
+            return lhsMappingPriority < rhsMappingPriority
         }
         let lhsTimeRank = timeFitRank(lhs.timeFit)
         let rhsTimeRank = timeFitRank(rhs.timeFit)
@@ -316,8 +600,8 @@ enum MobilityTargetedRoutineSurfacingService {
             case (.none, .none): break
             }
         }
-        let lhsPriority = routines.first { $0.routineID == lhs.routineID }?.priority ?? Int.max
-        let rhsPriority = routines.first { $0.routineID == rhs.routineID }?.priority ?? Int.max
+        let lhsPriority = routinePriorityByID[lhs.routineID] ?? Int.max
+        let rhsPriority = routinePriorityByID[rhs.routineID] ?? Int.max
         if lhsPriority != rhsPriority {
             return lhsPriority < rhsPriority
         }

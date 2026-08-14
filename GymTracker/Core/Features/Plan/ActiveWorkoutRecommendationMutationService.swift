@@ -44,12 +44,16 @@ enum ActiveWorkoutRecommendationMutationService {
             throw MutationError.insufficientRecommendationEvidence
         }
 
-        let workouts = try context.fetch(FetchDescriptor<Workout>())
-        guard let workout = workouts.first(where: {
-            $0.id == recommendation.workoutID
-                && $0.sourcePlanRunID == recommendation.planRunID
-                && $0.status == .active
-        }) else {
+        let workoutID = recommendation.workoutID
+        let planRunID = recommendation.planRunID
+        var descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate {
+                $0.id == workoutID && $0.sourcePlanRunID == planRunID && $0.endTime == nil
+            }
+        )
+        descriptor.fetchLimit = 1
+        guard let workout = try context.fetch(descriptor).first,
+              workout.status == .active else {
             throw MutationError.activeWorkoutNotFound
         }
         guard let entry = workout.orderedExercises.first(where: {

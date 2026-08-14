@@ -107,6 +107,54 @@ extension Color {
         dark: UIColor(red: 0xFF / 255.0, green: 0x7A / 255.0, blue: 0x6E / 255.0, alpha: 1.0)
     )
 
+    // MARK: - Chart-only categorical colors
+    //
+    // A distinct family from every token above: those describe a *role* in
+    // the interface (primary action, completion, contextual attention) and
+    // are chosen for how they read as fills, strokes, and text. These seven
+    // exist for exactly one job — standing apart from up to six neighbors in
+    // a chart legend — and are validated against that job specifically
+    // (fixed hue order, OKLCH lightness/chroma bands, CVD separation under
+    // simulated color blindness, a normal-vision floor, contrast versus the
+    // chart surface). See `SportDisciplinePalette` for the assignment and the
+    // exact validator invocation. Never reuse one of these for a UI role, and
+    // never reuse a UI role token — `gymSecondary` included — for a chart
+    // series: a color tuned for a checkmark and a color tuned to survive
+    // sitting next to seven others are different jobs.
+    static let chartOrange = dynamicColor(
+        light: UIColor(red: 0xEB / 255.0, green: 0x68 / 255.0, blue: 0x34 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xD9 / 255.0, green: 0x59 / 255.0, blue: 0x26 / 255.0, alpha: 1.0)
+    )
+    static let chartAqua = dynamicColor(
+        light: UIColor(red: 0x1B / 255.0, green: 0xAF / 255.0, blue: 0x7A / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x19 / 255.0, green: 0x9E / 255.0, blue: 0x70 / 255.0, alpha: 1.0)
+    )
+    static let chartYellow = dynamicColor(
+        light: UIColor(red: 0xED / 255.0, green: 0xA1 / 255.0, blue: 0x00 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xC9 / 255.0, green: 0x85 / 255.0, blue: 0x00 / 255.0, alpha: 1.0)
+    )
+    static let chartMagenta = dynamicColor(
+        light: UIColor(red: 0xE8 / 255.0, green: 0x7B / 255.0, blue: 0xA4 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xD5 / 255.0, green: 0x51 / 255.0, blue: 0x81 / 255.0, alpha: 1.0)
+    )
+    /// Deliberately not derived from `gymSecondary`. A boosted-chroma variant
+    /// of it passed the chroma floor but then failed CVD separation against
+    /// this palette's magenta neighbor — this exact hex is the dataviz
+    /// method's own pre-validated green, kept as documented rather than
+    /// retuned toward Trame's brand green.
+    static let chartGreen = dynamicColor(
+        light: UIColor(red: 0x00 / 255.0, green: 0x83 / 255.0, blue: 0x00 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x00 / 255.0, green: 0x83 / 255.0, blue: 0x00 / 255.0, alpha: 1.0)
+    )
+    static let chartViolet = dynamicColor(
+        light: UIColor(red: 0x4A / 255.0, green: 0x3A / 255.0, blue: 0xA7 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x90 / 255.0, green: 0x85 / 255.0, blue: 0xE9 / 255.0, alpha: 1.0)
+    )
+    static let chartRed = dynamicColor(
+        light: UIColor(red: 0xE3 / 255.0, green: 0x49 / 255.0, blue: 0x48 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xE6 / 255.0, green: 0x67 / 255.0, blue: 0x67 / 255.0, alpha: 1.0)
+    )
+
     static let gymDestructive = dynamicColor(
         light: UIColor.red,
         dark: UIColor(red: 1.0, green: 0.35, blue: 0.35, alpha: 1.0)

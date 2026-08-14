@@ -114,7 +114,9 @@ enum ActiveWorkoutProgressionService {
     }
 
     private static func planRun(id: UUID, in modelContext: ModelContext) -> PlanRun? {
-        try? modelContext.fetch(FetchDescriptor<PlanRun>()).first { $0.id == id }
+        var descriptor = FetchDescriptor<PlanRun>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.first
     }
 
     private static func hasRecommendation(

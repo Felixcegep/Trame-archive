@@ -36,11 +36,14 @@ enum MobilityProgressionRecommendationService {
         // Split into explicit steps with a stated element type: the single
         // chained `try?` + optional-chained `filter` + `??` expression is the
         // shape that pushes Swift's type-checker into a timeout.
-        let allRecommendations: [MobilityProgressionRecommendationRecord] =
-            (try? modelContext.fetch(FetchDescriptor<MobilityProgressionRecommendationRecord>())) ?? []
-        let existingUnresolved = allRecommendations.filter { record in
-            record.sessionProgressID == progress.id && record.isResolved == false
-        }
+        let progressID = progress.id
+        let existingUnresolved = (try? modelContext.fetch(
+            FetchDescriptor<MobilityProgressionRecommendationRecord>(
+                predicate: #Predicate {
+                    $0.sessionProgressID == progressID && !$0.isResolved
+                }
+            )
+        )) ?? []
         var created: [MobilityProgressionRecommendationRecord] = []
 
         for occurrence in sessionDefinition.recipe.occurrences {
@@ -111,11 +114,13 @@ enum MobilityProgressionRecommendationService {
         using modelContext: ModelContext
     ) -> [MobilityProgressionRecommendationRecord] {
         guard progress.status == .completed,
-              let sessionID = progress.mobilitySessionID,
-              let session = try? modelContext.fetch(
-                FetchDescriptor<MobilitySession>(predicate: #Predicate { $0.id == sessionID })
-              ).first
+              let sessionID = progress.mobilitySessionID
         else { return [] }
+        var descriptor = FetchDescriptor<MobilitySession>(
+            predicate: #Predicate { $0.id == sessionID }
+        )
+        descriptor.fetchLimit = 1
+        guard let session = try? modelContext.fetch(descriptor).first else { return [] }
         return evaluateAfterCompletion(progress: progress, run: run, session: session, userApproved: true, using: modelContext)
     }
 
@@ -165,16 +170,22 @@ enum MobilityProgressionRecommendationService {
         for session: MobilitySession,
         using modelContext: ModelContext
     ) -> [GroupKey: [(result: MobilityResult, evidence: MobilityResultEvidence)]] {
-        let resultsByID = Dictionary(uniqueKeysWithValues: session.entries.flatMap(\.results).map { ($0.id, $0) })
-        guard resultsByID.isEmpty == false else { return [:] }
-        let allEvidence = (try? modelContext.fetch(FetchDescriptor<MobilityResultEvidence>())) ?? []
-
         var grouped: [GroupKey: [(MobilityResult, MobilityResultEvidence)]] = [:]
-        for evidence in allEvidence {
-            guard let progressionKey = evidence.progressionKeySnapshot,
-                  let result = resultsByID[evidence.resultID]
-            else { continue }
-            grouped[GroupKey(progressionKey: progressionKey, side: evidence.side), default: []].append((result, evidence))
+        for entry in session.entries {
+            let entryID = entry.id
+            let evidenceRecords = (try? modelContext.fetch(
+                FetchDescriptor<MobilityResultEvidence>(
+                    predicate: #Predicate { $0.entryIDSnapshot == entryID }
+                )
+            )) ?? []
+            let resultsByID = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.id, $0) })
+            for evidence in evidenceRecords {
+                guard let progressionKey = evidence.progressionKeySnapshot,
+                      let result = resultsByID[evidence.resultID]
+                else { continue }
+                grouped[GroupKey(progressionKey: progressionKey, side: evidence.side), default: []]
+                    .append((result, evidence))
+            }
         }
         return grouped
     }

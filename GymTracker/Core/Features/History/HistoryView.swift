@@ -12,7 +12,11 @@ struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
+    @Query(
+        filter: #Predicate<Workout> { $0.endTime != nil },
+        sort: \Workout.startTime,
+        order: .reverse
+    ) private var workouts: [Workout]
     let viewModel: WorkoutViewModel
     var onStartFreeWorkout: (() -> Void)? = nil
     @State private var selectedTab: HistoryTab
@@ -37,6 +41,12 @@ struct HistoryView: View {
     }
 
     var body: some View {
+        // Evaluate the SwiftData graph once for this render. The same completed
+        // snapshot is then shared by the empty state, list, and analytics tabs
+        // so a deletion or completed-set update cannot make one branch render
+        // against a different in-memory filter result.
+        let completedWorkouts = self.completedWorkouts
+
         Group {
             if completedWorkouts.isEmpty {
                 ContentUnavailableView {
@@ -64,8 +74,9 @@ struct HistoryView: View {
 
                     switch selectedTab {
                     case .workouts:
+                        let sections = historySections(for: completedWorkouts)
                         List {
-                            ForEach(historySections) { section in
+                            ForEach(sections) { section in
                                 Section(section.title) {
                                     ForEach(section.workouts) { workout in
                                         NavigationLink(destination: HistoryWorkoutView(workout: workout)) {
@@ -235,7 +246,7 @@ struct HistoryView: View {
         committedDeletionCount += 1
     }
 
-    private var historySections: [HistorySection] {
+    private func historySections(for workouts: [Workout]) -> [HistorySection] {
         let calendar = Calendar.autoupdatingCurrent
         let now = Date.now
         let weekInterval = calendar.dateInterval(of: .weekOfYear, for: now)
@@ -243,7 +254,7 @@ struct HistoryView: View {
         var thisWeek: [Workout] = []
         var months: [Date: [Workout]] = [:]
 
-        for workout in completedWorkouts {
+        for workout in workouts {
             if calendar.isDateInToday(workout.startTime) {
                 today.append(workout)
             } else if weekInterval?.contains(workout.startTime) == true {

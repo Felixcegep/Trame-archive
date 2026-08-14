@@ -346,12 +346,12 @@ struct ProgramDefinitionBuilderView: View {
             isLoadingImport = true
             Task {
                 defer { isLoadingImport = false }
+                defer { url.stopAccessingSecurityScopedResource() }
                 do {
-                    let importedDefinition = try await Task.detached(priority: .utility) {
-                        defer { url.stopAccessingSecurityScopedResource() }
-                        let data = try Data(contentsOf: url)
-                        return try ProgramDefinitionCodec.decode(data)
+                    let data = try await Task.detached(priority: .utility) {
+                        try Data(contentsOf: url)
                     }.value
+                    let importedDefinition = try ProgramDefinitionCodec.decode(data)
                     guard !Task.isCancelled else { return }
                     definition = importedDefinition
                     validationMessages = []

@@ -674,7 +674,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Trame reads body-mass measurements from Apple Health only when you choose to import them.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Trame saves a completed workout summary to Apple Health after you explicitly enable Health access.";
-				INFOPLIST_KEY_NSMotionUsageDescription = "Trame uses this iPhone's motion sensors to measure an angle during mobility assessments you start.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Trame uses this iPhone's motion sensors to measure an angle during mobility assessments, and to show an optional steadiness indicator during timed mobility holds.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -691,6 +691,7 @@
 				PRODUCT_MODULE_NAME = GymTracker;
 				PRODUCT_NAME = Trame;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "GymTracker/GymTracker-Bridging-Header.h";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -717,7 +718,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Trame reads body-mass measurements from Apple Health only when you choose to import them.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Trame saves a completed workout summary to Apple Health after you explicitly enable Health access.";
-				INFOPLIST_KEY_NSMotionUsageDescription = "Trame uses this iPhone's motion sensors to measure an angle during mobility assessments you start.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Trame uses this iPhone's motion sensors to measure an angle during mobility assessments, and to show an optional steadiness indicator during timed mobility holds.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -734,6 +735,7 @@
 				PRODUCT_MODULE_NAME = GymTracker;
 				PRODUCT_NAME = Trame;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "GymTracker/GymTracker-Bridging-Header.h";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;

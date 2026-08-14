@@ -51,42 +51,38 @@ enum PortableTrainingPackageImportError: LocalizedError, Equatable {
 /// are deliberately descriptive only and never participate in ownership.
 @MainActor
 enum PortableLocalComponentInventory {
-    static func build(using context: ModelContext) -> [PortableLocalComponent] {
+    static func build(using context: ModelContext) throws -> [PortableLocalComponent] {
         var result: [PortableLocalComponent] = []
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
 
-        for record in (try? context.fetch(FetchDescriptor<ProgramDefinitionRecord>())) ?? [] {
-            if let source = try? PortableTrainingPackageAssemblyProjection.source(record: record) {
-                result.append(component(id: source.componentID, contentID: source.contentID, kind: source.kind,
-                                        name: source.name, version: source.contentVersion, payload: source.payload))
-            }
+        for record in try context.fetch(FetchDescriptor<ProgramDefinitionRecord>()) {
+            let source = try PortableTrainingPackageAssemblyProjection.source(record: record)
+            result.append(component(id: source.componentID, contentID: source.contentID, kind: source.kind,
+                                    name: source.name, version: source.contentVersion, payload: source.payload))
         }
-        for record in (try? context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>())) ?? [] {
-            if let source = try? PortableTrainingPackageAssemblyProjection.source(record: record) {
-                result.append(component(id: source.componentID, contentID: source.contentID, kind: source.kind,
-                                        name: source.name, version: source.contentVersion, payload: source.payload))
-            }
+        for record in try context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>()) {
+            let source = try PortableTrainingPackageAssemblyProjection.source(record: record)
+            result.append(component(id: source.componentID, contentID: source.contentID, kind: source.kind,
+                                    name: source.name, version: source.contentVersion, payload: source.payload))
         }
-        for template in (try? context.fetch(FetchDescriptor<WorkoutTemplate>())) ?? [] {
-            if let source = try? PortableTrainingPackageAssemblyProjection.source(template: template) {
-                result.append(component(id: source.componentID, contentID: source.contentID, kind: source.kind,
-                                        name: source.name, version: source.contentVersion, payload: source.payload))
-            }
+        for template in try context.fetch(FetchDescriptor<WorkoutTemplate>()) {
+            let source = try PortableTrainingPackageAssemblyProjection.source(template: template)
+            result.append(component(id: source.componentID, contentID: source.contentID, kind: source.kind,
+                                    name: source.name, version: source.contentVersion, payload: source.payload))
         }
-        for plan in (try? context.fetch(FetchDescriptor<RepeatingPlan>())) ?? [] {
-            if let source = try? PortableTrainingPackageAssemblyProjection.source(repeatingPlan: plan) {
-                result.append(component(id: source.componentID, contentID: source.contentID, kind: source.kind,
-                                        name: source.name, version: source.contentVersion, payload: source.payload))
-            }
+        for plan in try context.fetch(FetchDescriptor<RepeatingPlan>()) {
+            let source = try PortableTrainingPackageAssemblyProjection.source(repeatingPlan: plan)
+            result.append(component(id: source.componentID, contentID: source.contentID, kind: source.kind,
+                                    name: source.name, version: source.contentVersion, payload: source.payload))
         }
-        for exercise in (try? context.fetch(FetchDescriptor<Exercise>())) ?? [] {
+        for exercise in try context.fetch(FetchDescriptor<Exercise>()) {
             result.append(component(id: exercise.id, kind: .exerciseDefinition, name: exercise.name,
-                                    version: 1, payload: (try? encoder.encode(exercise.id)) ?? Data()))
+                                    version: 1, payload: try encoder.encode(exercise.id)))
         }
-        for routine in (try? context.fetch(FetchDescriptor<MobilityRoutine>())) ?? [] {
+        for routine in try context.fetch(FetchDescriptor<MobilityRoutine>()) {
             result.append(component(id: routine.id, kind: .mobilityRoutine, name: routine.name,
-                                    version: 1, payload: (try? encoder.encode(routine.id)) ?? Data()))
+                                    version: 1, payload: try encoder.encode(routine.id)))
         }
         return result.sorted { $0.componentID.uuidString < $1.componentID.uuidString }
     }
@@ -124,7 +120,12 @@ enum PortableTrainingPackageImportService {
         beforeCommit: (() throws -> Void)? = nil,
         using context: ModelContext
     ) throws -> PortableImportApplicationResult {
-        let inventory = PortableLocalComponentInventory.build(using: context)
+        let inventory: [PortableLocalComponent]
+        do {
+            inventory = try PortableLocalComponentInventory.build(using: context)
+        } catch {
+            throw PortableTrainingPackageImportError.persistenceFailed
+        }
         let preview = PortableImportPreviewPolicy.preview(
             package: package,
             localComponents: inventory,
@@ -187,7 +188,7 @@ enum PortableTrainingPackageImportService {
                     try materialize(component, targetID: newID, updateExisting: false, copiedIDs: copiedIDs, using: context)
                     inserted.append(newID)
                 case .updateExisting:
-                    guard canSafelyUpdate(
+                    guard try canSafelyUpdate(
                         component: component,
                         classification: item.classification,
                         packageProvenance: package.provenance,
@@ -270,24 +271,29 @@ enum PortableTrainingPackageImportService {
         classification: PortableImportClassification,
         packageProvenance: PortableTrainingProvenance,
         using context: ModelContext
-    ) -> Bool {
+    ) throws -> Bool {
         guard case .safeUpdate = classification,
               packageProvenance.kind == .bundled,
               packageProvenance.sourceIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
         else { return false }
+        let contentID = component.contentID
         switch component.kind {
         case .planDefinition:
-            return ((try? context.fetch(FetchDescriptor<ProgramDefinitionRecord>())) ?? [])
-                .first(where: { $0.id == component.contentID })?.isBuiltIn == true
+            return try context.fetch(FetchDescriptor<ProgramDefinitionRecord>(
+                predicate: #Predicate { $0.id == contentID }
+            )).first?.isBuiltIn == true
         case .mobilityProgram:
-            return ((try? context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>())) ?? [])
-                .first(where: { $0.id == component.contentID })?.isBuiltIn == true
+            return try context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>(
+                predicate: #Predicate { $0.id == contentID }
+            )).first?.isBuiltIn == true
         case .workoutTemplate:
-            return ((try? context.fetch(FetchDescriptor<WorkoutTemplate>())) ?? [])
-                .first(where: { $0.id == component.contentID })?.isBuiltIn == true
+            return try context.fetch(FetchDescriptor<WorkoutTemplate>(
+                predicate: #Predicate { $0.id == contentID }
+            )).first?.isBuiltIn == true
         case .repeatingPlan:
-            return ((try? context.fetch(FetchDescriptor<RepeatingPlan>())) ?? [])
-                .first(where: { $0.id == component.contentID })?.isBuiltIn == true
+            return try context.fetch(FetchDescriptor<RepeatingPlan>(
+                predicate: #Predicate { $0.id == contentID }
+            )).first?.isBuiltIn == true
         case .exerciseDefinition, .mobilityRoutine:
             return false
         }
@@ -304,14 +310,26 @@ enum PortableTrainingPackageImportService {
         case .planDefinition:
             var payload = try ProgramDefinitionCodec.decode(component.payload)
             if targetID != payload.id { payload = try remapped(payload, to: targetID) }
-            let preservesTrustedOwnership = updateExisting && (((try? context.fetch(FetchDescriptor<ProgramDefinitionRecord>())) ?? [])
-                .first(where: { $0.id == targetID })?.isBuiltIn == true)
+            let preservesTrustedOwnership: Bool
+            if updateExisting {
+                preservesTrustedOwnership = try context.fetch(
+                    FetchDescriptor<ProgramDefinitionRecord>(predicate: #Predicate { $0.id == targetID })
+                ).first?.isBuiltIn == true
+            } else {
+                preservesTrustedOwnership = false
+            }
             _ = try ProgramDefinitionRepository.save(payload, isBuiltIn: preservesTrustedOwnership, in: context)
         case .mobilityProgram:
             var payload = try MobilityProgramDefinitionCodec.decode(component.payload)
             if targetID != payload.id { payload = try remapped(payload, to: targetID) }
-            let preservesTrustedOwnership = updateExisting && (((try? context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>())) ?? [])
-                .first(where: { $0.id == targetID })?.isBuiltIn == true)
+            let preservesTrustedOwnership: Bool
+            if updateExisting {
+                preservesTrustedOwnership = try context.fetch(
+                    FetchDescriptor<MobilityProgramDefinitionRecord>(predicate: #Predicate { $0.id == targetID })
+                ).first?.isBuiltIn == true
+            } else {
+                preservesTrustedOwnership = false
+            }
             _ = try MobilityProgramDefinitionRepository.save(payload, isBuiltIn: preservesTrustedOwnership, in: context)
         case .workoutTemplate:
             let snapshot = try JSONDecoder().decode(PortableWorkoutTemplateSnapshot.self, from: component.payload)
@@ -331,9 +349,9 @@ enum PortableTrainingPackageImportService {
         copiedIDs: [UUID: UUID],
         using context: ModelContext
     ) throws {
-        let exercises = (try? context.fetch(FetchDescriptor<Exercise>())) ?? []
+        let exercises = try context.fetch(FetchDescriptor<Exercise>())
         let exerciseByID = Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0) })
-        let routines = (try? context.fetch(FetchDescriptor<MobilityRoutine>())) ?? []
+        let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
         let routineByID = Dictionary(uniqueKeysWithValues: routines.map { ($0.id, $0) })
         let blockIDMap = Dictionary(uniqueKeysWithValues: snapshot.executionBlocks.map { row in
             (row.id, updateExisting ? row.id : UUID())
@@ -376,8 +394,10 @@ enum PortableTrainingPackageImportService {
         }
         let preID = snapshot.preWorkoutMobilityRoutineID.map { copiedIDs[$0] ?? $0 }
         let postID = snapshot.postWorkoutMobilityRoutineID.map { copiedIDs[$0] ?? $0 }
-        let templates = (try? context.fetch(FetchDescriptor<WorkoutTemplate>())) ?? []
-        if updateExisting, let existing = templates.first(where: { $0.id == targetID }) {
+        let existingTemplate = try context.fetch(FetchDescriptor<WorkoutTemplate>(
+            predicate: #Predicate { $0.id == targetID }
+        )).first
+        if updateExisting, let existing = existingTemplate {
             existing.name = snapshot.name
             existing.templateExercises = rows
             existing.executionBlocks = blocks
@@ -403,9 +423,9 @@ enum PortableTrainingPackageImportService {
         copiedIDs: [UUID: UUID],
         using context: ModelContext
     ) throws {
-        let templates = (try? context.fetch(FetchDescriptor<WorkoutTemplate>())) ?? []
+        let templates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
         let templateByID = Dictionary(uniqueKeysWithValues: templates.map { ($0.id, $0) })
-        let routines = (try? context.fetch(FetchDescriptor<MobilityRoutine>())) ?? []
+        let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
         let routineByID = Dictionary(uniqueKeysWithValues: routines.map { ($0.id, $0) })
         let slots = try snapshot.slots.map { row -> RepeatingPlanSlot in
             let templateID = copiedIDs[row.templateID] ?? row.templateID
@@ -422,8 +442,10 @@ enum PortableTrainingPackageImportService {
             slot.id = updateExisting ? row.id : UUID()
             return slot
         }
-        let plans = (try? context.fetch(FetchDescriptor<RepeatingPlan>())) ?? []
-        if updateExisting, let existing = plans.first(where: { $0.id == targetID }) {
+        let existingPlan = try context.fetch(FetchDescriptor<RepeatingPlan>(
+            predicate: #Predicate { $0.id == targetID }
+        )).first
+        if updateExisting, let existing = existingPlan {
             existing.name = snapshot.name
             existing.goal = snapshot.goal
             existing.experienceLevel = snapshot.experienceLevel

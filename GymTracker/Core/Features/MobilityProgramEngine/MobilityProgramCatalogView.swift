@@ -11,32 +11,26 @@ struct MobilityProgramCatalogView: View {
     /// never presents its own mobility session UI.
     let onStartProgramSession: (MobilitySession) -> Void
 
-    @Query(sort: \MobilityProgramDefinitionRecord.updatedAt, order: .reverse) private var definitions: [MobilityProgramDefinitionRecord]
+    @Query(
+        filter: #Predicate<MobilityProgramDefinitionRecord> { !$0.isArchived },
+        sort: \MobilityProgramDefinitionRecord.updatedAt,
+        order: .reverse
+    ) private var definitions: [MobilityProgramDefinitionRecord]
     @Query private var runs: [MobilityProgramRun]
 
-    private var followedRuns: [MobilityProgramRun] {
-        runs
-            .filter { $0.status == .active || $0.status == .paused }
-            .sorted { $0.updatedAt > $1.updatedAt }
-    }
-
-    private var pastRuns: [MobilityProgramRun] {
-        runs
-            .filter { $0.status == .completed || $0.status == .archived }
-            .sorted { $0.updatedAt > $1.updatedAt }
-    }
-
-    private var readyMadeDefinitions: [MobilityProgramDefinitionRecord] {
-        definitions
-            .filter { !$0.isArchived }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    private struct CatalogueSections {
+        let followedRuns: [MobilityProgramRun]
+        let pastRuns: [MobilityProgramRun]
+        let readyMadeDefinitions: [MobilityProgramDefinitionRecord]
     }
 
     var body: some View {
+        let sections = makeCatalogueSections()
+
         List {
-            if !followedRuns.isEmpty {
+            if !sections.followedRuns.isEmpty {
                 Section("Following") {
-                    ForEach(followedRuns) { run in
+                    ForEach(sections.followedRuns) { run in
                         NavigationLink {
                             MobilityProgramRunView(run: run, onStartProgramSession: onStartProgramSession)
                         } label: {
@@ -48,7 +42,7 @@ struct MobilityProgramCatalogView: View {
             }
 
             Section {
-                if readyMadeDefinitions.isEmpty {
+                if sections.readyMadeDefinitions.isEmpty {
                     ContentUnavailableView(
                         "No mobility plans available",
                         systemImage: AppIcon.mobility,
@@ -56,7 +50,7 @@ struct MobilityProgramCatalogView: View {
                     )
                     .listRowBackground(Color.clear)
                 } else {
-                    ForEach(readyMadeDefinitions) { record in
+                    ForEach(sections.readyMadeDefinitions) { record in
                         NavigationLink {
                             MobilityProgramDetailView(record: record)
                         } label: {
@@ -69,9 +63,9 @@ struct MobilityProgramCatalogView: View {
                 Text("Ready-made")
             }
 
-            if !pastRuns.isEmpty {
+            if !sections.pastRuns.isEmpty {
                 Section("History") {
-                    ForEach(pastRuns) { run in
+                    ForEach(sections.pastRuns) { run in
                         NavigationLink {
                             MobilityProgramRunView(run: run, onStartProgramSession: onStartProgramSession)
                         } label: {
@@ -86,6 +80,36 @@ struct MobilityProgramCatalogView: View {
         .background(Color.gymBackground)
         .navigationTitle("Mobility Plans")
         .accessibilityIdentifier("mobility-program-catalog")
+    }
+
+    /// Partitions the run query once, then orders each mutually exclusive
+    /// section once for this render. The previous computed properties were
+    /// each evaluated for both `isEmpty` and `ForEach`.
+    private func makeCatalogueSections() -> CatalogueSections {
+        var followedRuns: [MobilityProgramRun] = []
+        var pastRuns: [MobilityProgramRun] = []
+        followedRuns.reserveCapacity(runs.count)
+        pastRuns.reserveCapacity(runs.count)
+
+        for run in runs {
+            switch run.status {
+            case .active, .paused:
+                followedRuns.append(run)
+            case .completed, .archived:
+                pastRuns.append(run)
+            }
+        }
+
+        followedRuns.sort { $0.updatedAt > $1.updatedAt }
+        pastRuns.sort { $0.updatedAt > $1.updatedAt }
+        let readyMadeDefinitions = definitions.sorted {
+            $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+        return CatalogueSections(
+            followedRuns: followedRuns,
+            pastRuns: pastRuns,
+            readyMadeDefinitions: readyMadeDefinitions
+        )
     }
 
     private func runRow(_ run: MobilityProgramRun) -> some View {
@@ -112,7 +136,10 @@ struct MobilityProgramCatalogView: View {
     }
 
     private func runDetail(_ run: MobilityProgramRun) -> String {
-        let completed = run.sessionProgress.filter { $0.status == .completed }.count
+        var completed = 0
+        for progress in run.sessionProgress where progress.status == .completed {
+            completed += 1
+        }
         let total = run.sessionProgress.count
         return String(localized: "\(completed) of \(total) sessions")
     }

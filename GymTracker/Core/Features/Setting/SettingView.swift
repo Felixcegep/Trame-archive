@@ -39,6 +39,19 @@ struct SettingView: View {
     @AppStorage(DefaultsKey.lastBackupExportTimestamp) private var lastBackupExportTimestamp: Double?
     @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var bodyWeightEntries: [BodyWeightEntry]
 
+    init(
+        currentScreen: AppScreen = .settings,
+        activeLoggingMetrics: ActiveLoggingMetricsRecorder
+    ) {
+        self.currentScreen = currentScreen
+        self.activeLoggingMetrics = activeLoggingMetrics
+        var latestWeight = FetchDescriptor<BodyWeightEntry>(
+            sortBy: [SortDescriptor(\BodyWeightEntry.measuredAt, order: .reverse)]
+        )
+        latestWeight.fetchLimit = 1
+        _bodyWeightEntries = Query(latestWeight)
+    }
+
     var body: some View {
         Form {
             Section("General") {
@@ -234,6 +247,14 @@ private struct PersonalDetailsSettingsView: View {
     @AppStorage(DefaultsKey.bodyWeightPromptCadence) private var bodyWeightPromptCadence: BodyWeightPromptCadence = .off
     @AppStorage(DefaultsKey.caffeineBirthdateTimestamp) private var caffeineBirthdateTimestamp: Double?
     @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var bodyWeightEntries: [BodyWeightEntry]
+
+    init() {
+        var latestWeight = FetchDescriptor<BodyWeightEntry>(
+            sortBy: [SortDescriptor(\BodyWeightEntry.measuredAt, order: .reverse)]
+        )
+        latestWeight.fetchLimit = 1
+        _bodyWeightEntries = Query(latestWeight)
+    }
 
     var body: some View {
         Form {
@@ -839,6 +860,7 @@ private struct AdvancedSettingsView: View {
     }
 
     private func seedTwoYearsOfTraining() {
+#if DEBUG
         do {
             try modelContext.clearAllGymData()
             _ = try SystemSeedCatalogCoordinator.installBundledCatalog(in: modelContext)
@@ -846,6 +868,7 @@ private struct AdvancedSettingsView: View {
         } catch {
             print("Failed to seed two years of training: \(error)")
         }
+#endif
     }
 }
 
@@ -911,9 +934,12 @@ enum DevelopmentTrainingSeeder {
     static func seed(in context: ModelContext, calendar: Calendar = .current, now: Date = .now) throws {
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
         let fallback = Array(exercises.filter { $0.trackingType == .weightAndReps }.prefix(4))
+        let exercisesByNormalizedName = Dictionary(
+            exercises.map { (normalizedName($0.name), $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         func resolve(_ name: String) -> Exercise? {
-            exercises.first { $0.name.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame }
-                ?? fallback.first
+            exercisesByNormalizedName[normalizedName(name)] ?? fallback.first
         }
 
         let start = calendar.date(byAdding: .year, value: -2, to: now) ?? now.addingTimeInterval(-63115200)
@@ -956,6 +982,13 @@ enum DevelopmentTrainingSeeder {
             }
         }
         try context.save()
+    }
+
+    private static func normalizedName(_ name: String) -> String {
+        name.folding(
+            options: [.caseInsensitive, .diacriticInsensitive],
+            locale: nil
+        )
     }
 }
 #endif

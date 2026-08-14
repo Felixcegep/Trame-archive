@@ -306,17 +306,21 @@ enum MobilityProgramRunCoordinator {
     /// `fullScreenCover` dismissal), so it must be cheap and idempotent when
     /// there is nothing to reconcile.
     static func reconcileTerminalSessions(using modelContext: ModelContext) {
-        guard let runs = try? modelContext.fetch(FetchDescriptor<MobilityProgramRun>()) else { return }
-        let activeRuns = runs.filter { $0.status == .active }
+        let activeStatus = MobilityProgramRunStatus.active.rawValue
+        guard let activeRuns = try? modelContext.fetch(FetchDescriptor<MobilityProgramRun>(
+            predicate: #Predicate { $0.statusRaw == activeStatus }
+        )) else { return }
         guard activeRuns.isEmpty == false else { return }
 
         var didChange = false
         for run in activeRuns {
             for progress in run.sessionProgress where progress.status == .pending {
                 guard let sessionID = progress.mobilitySessionID else { continue }
-                guard let session = try? modelContext.fetch(
-                    FetchDescriptor<MobilitySession>(predicate: #Predicate { $0.id == sessionID })
-                ).first else { continue }
+                var descriptor = FetchDescriptor<MobilitySession>(
+                    predicate: #Predicate { $0.id == sessionID }
+                )
+                descriptor.fetchLimit = 1
+                guard let session = try? modelContext.fetch(descriptor).first else { continue }
 
                 switch session.status {
                 case .completed:

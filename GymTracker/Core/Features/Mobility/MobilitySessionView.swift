@@ -1,62 +1,22 @@
 import SwiftData
 import SwiftUI
 
-/// The elapsed/target readout for a duration-tracked hold.
-///
-/// A hold used to be a bare counter that ran past its target and changed
-/// nothing. A lifter in a floor stretch, often with their eyes shut, had no way
-/// to know the hold was over except to keep watching the number — the one thing
-/// that position makes hardest. Reaching the target is now a state: stated in
-/// words, announced, and felt.
-///
-/// Its own view rather than a builder on `MobilitySessionView` because it is
-/// rebuilt once a second inside a `TimelineView` nested in that view's already
-/// large `body`, and this file is close to the type-checker's budget.
-private struct MobilityHoldProgressLabel: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let elapsedSeconds: Int
-    let targetSeconds: Int
-    let movementName: String
-
-    private var hasReachedTarget: Bool { elapsedSeconds >= targetSeconds }
-
-    var body: some View {
-        label
-            .foregroundStyle(hasReachedTarget ? Color.gymSecondary : Color.gymAccent)
-            .animation(reduceMotion ? nil : AppMotion.compact, value: hasReachedTarget)
-            // A Bool trigger never fires on its initial value, so re-entering a
-            // movement whose target already passed stays silent: reaching the
-            // target is the event, not observing that it was reached.
-            .gymFeedback(.timedTargetReached, trigger: hasReachedTarget) { _, reached in
-                reached
-            }
-            .onChange(of: hasReachedTarget) { _, reached in
-                guard reached else { return }
-                GymAnnouncement.post(
-                    String(localized: "Target duration reached for \(movementName).")
-                )
-            }
-    }
-
-    @ViewBuilder
-    private var label: some View {
-        if hasReachedTarget {
-            Label("Target reached · \(elapsedSeconds) sec", systemImage: AppIcon.checkmarkCircle)
-                .font(AppFont.titleMedium)
-                .monospacedDigit()
-        } else {
-            Text("\(elapsedSeconds) / \(targetSeconds) sec")
-                .font(AppFont.titleMedium)
-                .monospacedDigit()
-        }
-    }
-}
+// The elapsed/target readout used to be a private struct here
+// (`MobilityHoldProgressLabel`) rendering bare text. It is now
+// `MobilityHoldRingView`, its own file: a ring reads "how much is left"
+// without the subtraction a stretch held eyes-shut cannot do, and this file
+// was already close to the type-checker's budget without adding a ring's
+// worth of geometry to it.
 
 struct MobilitySessionView: View {
     @Environment(\.modelContext) private var modelContext
     let session: MobilitySession
     let onFinished: () -> Void
-    @Query(sort: \MobilitySession.startTime, order: .reverse) private var mobilitySessions: [MobilitySession]
+    @Query(
+        filter: #Predicate<MobilitySession> { $0.statusRaw != "active" },
+        sort: \MobilitySession.startTime,
+        order: .reverse
+    ) private var mobilitySessions: [MobilitySession]
     @Query private var mobilityEvidenceRecords: [MobilityResultEvidence]
 
     @State private var durationsByResult: [UUID: Int] = [:]
@@ -128,7 +88,8 @@ struct MobilitySessionView: View {
     @ViewBuilder
     private var activeSessionContent: some View {
         if session.currentEntry != nil {
-            scrollContent
+            let evidenceByResultID = mobilityEvidenceByResultID
+            scrollContent(evidenceByResultID: evidenceByResultID)
                 .safeAreaInset(edge: .bottom) {
                     actions
                 }
@@ -136,11 +97,16 @@ struct MobilitySessionView: View {
     }
 
     @ViewBuilder
-    private var scrollContent: some View {
+    private func scrollContent(
+        evidenceByResultID: [UUID: MobilityResultEvidence]
+    ) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
                 progressHeader
-                entriesList
+                if let current = session.currentEntry {
+                    activeMovementRow(current, evidenceByResultID: evidenceByResultID)
+                }
+                routineDisclosure
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.l)
@@ -148,34 +114,83 @@ struct MobilitySessionView: View {
     }
 
     @ViewBuilder
-    private var entriesList: some View {
-        VStack(spacing: Spacing.m) {
-            ForEach(Array(session.orderedEntries.enumerated()), id: \.element.id) { tuple in
-                listRow(for: tuple.element, at: tuple.offset)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func listRow(for loopEntry: MobilityEntry, at index: Int) -> some View {
-        if index < session.currentEntryIndex {
-            completedMovementRow(loopEntry, index: index)
-        } else if index == session.currentEntryIndex {
-            activeMovementRow(loopEntry)
-        } else {
-            upcomingMovementRow(loopEntry, index: index)
-        }
-    }
-
-    @ViewBuilder
-    private func activeMovementRow(_ loopEntry: MobilityEntry) -> some View {
+    private func activeMovementRow(
+        _ loopEntry: MobilityEntry,
+        evidenceByResultID: [UUID: MobilityResultEvidence]
+    ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xl) {
-            currentEntry(loopEntry)
+            currentEntry(loopEntry, evidenceByResultID: evidenceByResultID)
             resultInputs(loopEntry)
             if loopEntry.isPhaseDriven == false {
-                previousPerformance(loopEntry)
+                previousPerformance(loopEntry, evidenceByResultID: evidenceByResultID)
             }
         }
+    }
+
+    // MARK: - Routine overview
+    //
+    // Every movement used to render at once — completed, current, and
+    // upcoming, all full-width rows stacked in one scroll. The one row that
+    // mattered mid-movement, the current one, had to compete for space with
+    // however many others the routine happened to have; a twelve-movement
+    // session buried its own hero under eleven rows nobody was acting on.
+    // The current movement now renders unconditionally as the page's actual
+    // subject, and the rest of the routine collapses into a disclosure a
+    // lifter opens only when they want to see what is behind or ahead of it.
+
+    @ViewBuilder
+    private var routineDisclosure: some View {
+        if session.entries.count > 1 {
+            DisclosureGroup {
+                VStack(spacing: Spacing.s) {
+                    ForEach(Array(session.orderedEntries.enumerated()), id: \.element.id) { tuple in
+                        routineRow(for: tuple.element, at: tuple.offset)
+                    }
+                }
+                .padding(.top, Spacing.s)
+            } label: {
+                Text("ROUTINE · \(session.entries.count) MOVEMENTS")
+                    .font(AppFont.captionBold)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
+            .tint(Color.gymSubduedText)
+            .accessibilityIdentifier("mobility-routine-disclosure")
+        }
+    }
+
+    @ViewBuilder
+    private func routineRow(for entry: MobilityEntry, at index: Int) -> some View {
+        if index < session.currentEntryIndex {
+            completedMovementRow(entry, index: index)
+        } else if index == session.currentEntryIndex {
+            currentRoutineRow(entry)
+        } else {
+            upcomingMovementRow(entry, index: index)
+        }
+    }
+
+    /// A compact stand-in for the current movement inside the collapsed list —
+    /// not a second hero. Someone opening the disclosure already has the real
+    /// one on screen above it; this row exists only so scanning the whole
+    /// routine still shows where "here" is.
+    private func currentRoutineRow(_ entry: MobilityEntry) -> some View {
+        HStack(spacing: Spacing.m) {
+            Image(systemName: AppIcon.circleFill)
+                .font(AppFont.caption2)
+                .foregroundStyle(Color.gymPrimary)
+            Text(entry.definitionNameSnapshot)
+                .font(AppFont.subheadlineSemibold)
+                .foregroundStyle(Color.gymText)
+            Spacer(minLength: Spacing.s)
+            Text("Current")
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymPrimary)
+        }
+        .padding(Spacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.gymCurrentSetSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 
     private func completedMovementRow(_ entry: MobilityEntry, index: Int) -> some View {
@@ -207,22 +222,62 @@ struct MobilitySessionView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// One dot per movement — the same vocabulary Active Workout's stage rail
+    /// uses for the same fact (secondary once done, accent while current,
+    /// subdued before it), so a lifter who knows one screen already knows how
+    /// to read the other.
+    ///
+    /// Unlike that rail, these dots do not jump to a movement on tap: a
+    /// mobility session has no mechanism to reorder itself mid-run the way the
+    /// exercise pager does, so a dot that looked tappable would promise
+    /// something `MobilitySessionService` cannot do. This one only reports.
     private var progressHeader: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             Text("MOBILITY SESSION")
                 .font(AppFont.captionBold)
                 .tracking(0.8)
                 .foregroundStyle(Color.gymSubduedText)
+
+            ScrollView(.horizontal) {
+                HStack(spacing: Spacing.xs) {
+                    ForEach(Array(session.orderedEntries.enumerated()), id: \.element.id) { index, _ in
+                        progressDot(at: index)
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+
             Text("Movement \(min(session.currentEntryIndex + 1, session.entries.count)) of \(session.entries.count)")
-                .font(AppFont.subheadline)
+                .font(AppFont.caption)
                 .foregroundStyle(Color.gymSubduedText)
-            ProgressView(value: Double(session.currentEntryIndex), total: Double(max(session.entries.count, 1)))
-                .tint(Color.gymSecondary)
-                .accessibilityHidden(true)
         }
+        .accessibilityElement(children: .combine)
     }
 
-    private func currentEntry(_ entry: MobilityEntry) -> some View {
+    private func progressDot(at index: Int) -> some View {
+        let isCurrent = index == session.currentEntryIndex
+        return ZStack {
+            Circle()
+                .stroke(isCurrent ? Color.gymText : .clear, lineWidth: 1.5)
+                .frame(width: 14, height: 14)
+            Circle()
+                .fill(progressDotColor(at: index))
+                .frame(width: 7, height: 7)
+        }
+        .frame(width: 20, height: 20)
+        .accessibilityHidden(true)
+    }
+
+    private func progressDotColor(at index: Int) -> Color {
+        if index < session.currentEntryIndex { return Color.gymSecondary }
+        if index == session.currentEntryIndex { return Color.gymAccent }
+        return Color.gymSubduedText.opacity(0.35)
+    }
+
+    private func currentEntry(
+        _ entry: MobilityEntry,
+        evidenceByResultID: [UUID: MobilityResultEvidence]
+    ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             // Says "you are here" in words, the way Active Workout's exercise
             // card does, so the state does not rest on the tinted surface
@@ -243,7 +298,10 @@ struct MobilitySessionView: View {
                     .foregroundStyle(Color.gymSubduedText)
             }
 
-            if let context = prescriptionContext(for: entry) {
+            if let context = prescriptionContext(
+                for: entry,
+                evidenceByResultID: evidenceByResultID
+            ) {
                 Text(context)
                     .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
@@ -257,49 +315,50 @@ struct MobilitySessionView: View {
             }
 
             if let phase = entry.currentPhaseResult {
-                VStack(alignment: .leading, spacing: Spacing.s) {
+                VStack(alignment: .leading, spacing: Spacing.m) {
                     Label(phase.phaseType.title, systemImage: AppIcon.timer)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.gymPrimary)
                     Text(phaseProgressLabel(phase, in: entry))
+                        .font(AppFont.subheadlineSemibold)
                         .foregroundStyle(Color.gymSubduedText)
+
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
-                        if entry.isTimerPaused {
-                            pausedTimerLabel(for: entry)
-                        } else {
-                            MobilityHoldProgressLabel(
-                                elapsedSeconds: elapsedSeconds(for: entry),
-                                targetSeconds: phase.prescribedDurationSeconds,
-                                movementName: "\(entry.definitionNameSnapshot), \(phase.phaseType.title)"
-                            )
-                        }
+                        holdHero(
+                            entry: entry,
+                            elapsedSeconds: elapsedSeconds(for: entry),
+                            targetSeconds: phase.prescribedDurationSeconds,
+                            movementName: "\(entry.definitionNameSnapshot), \(phase.phaseType.title)"
+                        )
                     }
+
                     if let intensity = phase.prescribedIntensity {
                         Text("Prescribed effort: \(intensity.title)")
+                            .font(AppFont.subheadlineSemibold)
                             .foregroundStyle(Color.gymSubduedText)
                     }
                 }
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymPrimary)
             } else {
-                HStack(spacing: Spacing.s) {
+                VStack(alignment: .leading, spacing: Spacing.m) {
                     Label(entry.side.displayName, systemImage: AppIcon.mobility)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.gymPrimary)
+
                     if entry.trackingType == .duration, let target = entry.targetDurationSeconds {
                         TimelineView(.periodic(from: .now, by: 1)) { _ in
-                            if entry.isTimerPaused {
-                                pausedTimerLabel(for: entry)
-                            } else {
-                                MobilityHoldProgressLabel(
-                                    elapsedSeconds: elapsedSeconds(for: entry),
-                                    targetSeconds: target,
-                                    movementName: entry.definitionNameSnapshot
-                                )
-                            }
+                            holdHero(
+                                entry: entry,
+                                elapsedSeconds: elapsedSeconds(for: entry),
+                                targetSeconds: target,
+                                movementName: entry.definitionNameSnapshot
+                            )
                         }
                     } else if let target = entry.targetRepetitions {
                         Text("Target \(target) reps")
+                            .font(AppFont.subheadlineSemibold)
+                            .foregroundStyle(Color.gymPrimary)
                     }
                 }
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymPrimary)
             }
             if let load = entry.prescribedLoadValue,
                let unit = entry.prescribedLoadUnit {
@@ -325,11 +384,33 @@ struct MobilitySessionView: View {
         .accessibilityLabel(entryAccessibilityLabel(entry))
     }
 
-    private func pausedTimerLabel(for entry: MobilityEntry) -> some View {
-        Label("Paused at \(elapsedSeconds(for: entry)) sec", systemImage: AppIcon.pause)
-            .font(AppFont.titleMedium)
-            .monospacedDigit()
-            .foregroundStyle(Color.gymAccent)
+    /// The full hold display: a ring sized and positioned identically whether
+    /// running or paused, so pausing changes what the digits say rather than
+    /// how much of the card they occupy. The steadiness panel only exists
+    /// while the hold is actually running — there is nothing to hold steady
+    /// through if the clock isn't moving, and it would otherwise keep
+    /// CoreMotion running on a paused screen for no reason.
+    private func holdHero(
+        entry: MobilityEntry,
+        elapsedSeconds: Int,
+        targetSeconds: Int,
+        movementName: String
+    ) -> some View {
+        VStack(spacing: Spacing.l) {
+            MobilityHoldRingView(
+                elapsedSeconds: elapsedSeconds,
+                targetSeconds: targetSeconds,
+                movementName: movementName,
+                isPaused: entry.isTimerPaused
+            )
+
+            if !entry.isTimerPaused {
+                MobilitySteadinessPanel(targetSeconds: targetSeconds)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, Spacing.s)
     }
 
     @ViewBuilder
@@ -605,8 +686,21 @@ struct MobilitySessionView: View {
     }
 
     @ViewBuilder
-    private func previousPerformance(_ entry: MobilityEntry) -> some View {
-        if entry.orderedResults.contains(where: { previousResult(for: $0, matching: entry) != nil }) {
+    private func previousPerformance(
+        _ entry: MobilityEntry,
+        evidenceByResultID: [UUID: MobilityResultEvidence]
+    ) -> some View {
+        let previousResultsByCurrentID = Dictionary(
+            uniqueKeysWithValues: entry.orderedResults.compactMap { result in
+                previousResult(
+                    for: result,
+                    matching: entry,
+                    evidenceByResultID: evidenceByResultID
+                ).map { (result.id, $0) }
+            }
+        )
+
+        if previousResultsByCurrentID.isEmpty == false {
             VStack(alignment: .leading, spacing: Spacing.s) {
                 Text("PREVIOUS RESULT")
                     .font(AppFont.captionBold)
@@ -614,7 +708,7 @@ struct MobilitySessionView: View {
                     .foregroundStyle(Color.gymSubduedText)
 
                 ForEach(entry.orderedResults) { result in
-                    if let previousResult = previousResult(for: result, matching: entry) {
+                    if let previousResult = previousResultsByCurrentID[result.id] {
                         Text(previousResultLabel(previousResult, side: result.side, trackingType: entry.trackingType))
                             .font(AppFont.subheadline)
                             .foregroundStyle(Color.gymSubduedText)
@@ -631,8 +725,12 @@ struct MobilitySessionView: View {
         MobilitySessionService.elapsedSeconds(for: entry)
     }
 
-    private func previousResult(for result: MobilityResult, matching entry: MobilityEntry) -> MobilityResult? {
-        let currentEvidence = mobilityEvidenceByResultID[result.id]
+    private func previousResult(
+        for result: MobilityResult,
+        matching entry: MobilityEntry,
+        evidenceByResultID: [UUID: MobilityResultEvidence]
+    ) -> MobilityResult? {
+        let currentEvidence = evidenceByResultID[result.id]
         for priorSession in mobilitySessions where priorSession.id != session.id {
             guard let priorEntry = priorSession.orderedEntries.first(where: {
                 $0.definitionIDSnapshot == entry.definitionIDSnapshot && $0.trackingType == entry.trackingType
@@ -641,7 +739,7 @@ struct MobilitySessionView: View {
                 guard $0.side == result.side && ($0.status == .completed || $0.status == .partial) else {
                     return false
                 }
-                let priorEvidence = mobilityEvidenceByResultID[$0.id]
+                let priorEvidence = evidenceByResultID[$0.id]
                 // The parentheses are required, not stylistic: `??` binds
                 // tighter than `==`, so without them this coalesces a Bool
                 // with a MobilityResultEvidence. A prior result with no
@@ -659,8 +757,11 @@ struct MobilitySessionView: View {
         Dictionary(mobilityEvidenceRecords.map { ($0.resultID, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
-    private func prescriptionContext(for entry: MobilityEntry) -> String? {
-        guard let evidence = entry.orderedResults.compactMap({ mobilityEvidenceByResultID[$0.id] }).first else {
+    private func prescriptionContext(
+        for entry: MobilityEntry,
+        evidenceByResultID: [UUID: MobilityResultEvidence]
+    ) -> String? {
+        guard let evidence = entry.orderedResults.compactMap({ evidenceByResultID[$0.id] }).first else {
             return nil
         }
         var labels = [evidence.methodSnapshot?.displayName, evidence.purposeSnapshot?.displayName]
@@ -763,7 +864,10 @@ struct MobilitySessionView: View {
         })
         intensitiesByResult = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.id, $0.perceivedIntensity ?? 0) })
         discomfortNotesByResult = Dictionary(uniqueKeysWithValues: entry.results.map { ($0.id, $0.discomfortNote ?? "") })
-        let evidence = MobilityEvidenceService.resultEvidence(using: modelContext)
+        // Reuse the observed evidence graph already resident in this view.
+        // Fetching the complete sidecar table again on every pause, resume,
+        // phase transition, or undo duplicated both store I/O and indexing.
+        let evidence = mobilityEvidenceByResultID
         sensationsByResult = Dictionary(uniqueKeysWithValues: entry.results.map {
             ($0.id, evidence[$0.id]?.sensationRaw ?? "")
         })

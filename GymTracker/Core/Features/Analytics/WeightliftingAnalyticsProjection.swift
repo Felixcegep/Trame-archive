@@ -151,7 +151,7 @@ struct WeightliftingAnalyticsProjection: Equatable {
                             .map { set in Attempt(workout: workout, entry: entry, exerciseSet: set, configuration: configuration) }
                     }
             }
-            .sorted(by: Attempt.order)
+            .sorted { Attempt.order(lhs: $0, rhs: $1) }
 
         let outcomes = attempts.map(\.outcome)
         let bestByUnit = bestSuccessfulLifts(from: attempts)
@@ -174,9 +174,24 @@ struct WeightliftingAnalyticsProjection: Equatable {
         let workout: Workout
         let entry: ExerciseEntry
         let exerciseSet: ExerciseSet
+        /// Cache the sorted SwiftData children at the projection boundary.
+        /// Several analytics below inspect the same attempt.
+        let orderedComponents: [ComplexComponentResult]
         let configuration: WeightliftingAnalyticsConfiguration
 
-        var orderedComponents: [ComplexComponentResult] { exerciseSet.orderedComplexComponents }
+        init(
+            workout: Workout,
+            entry: ExerciseEntry,
+            exerciseSet: ExerciseSet,
+            configuration: WeightliftingAnalyticsConfiguration
+        ) {
+            self.workout = workout
+            self.entry = entry
+            self.exerciseSet = exerciseSet
+            self.orderedComponents = exerciseSet.orderedComplexComponents
+            self.configuration = configuration
+        }
+
         var outcome: WeightliftingComplexOutcome {
             let mapped = orderedComponents.map {
                 WeightliftingComponentOutcomeEvidence(
@@ -227,16 +242,29 @@ struct WeightliftingAnalyticsProjection: Equatable {
     }
 
     private static func bestSuccessfulLifts(from attempts: [Attempt]) -> [WeightliftingBestLift] {
-        let successful = attempts.filter {
-            $0.isCompleteSuccess && $0.exerciseSet.weight.isFinite && $0.exerciseSet.weight > 0
+        var bestByUnit: [String: Attempt] = [:]
+        for attempt in attempts where
+            attempt.isCompleteSuccess
+                && attempt.exerciseSet.weight.isFinite
+                && attempt.exerciseSet.weight > 0 {
+            let key = attempt.exerciseSet.weightType.rawValue
+            guard let current = bestByUnit[key] else {
+                bestByUnit[key] = attempt
+                continue
+            }
+            let isBetter: Bool
+            if attempt.exerciseSet.weight != current.exerciseSet.weight {
+                isBetter = attempt.exerciseSet.weight > current.exerciseSet.weight
+            } else if attempt.workout.startTime != current.workout.startTime {
+                isBetter = attempt.workout.startTime > current.workout.startTime
+            } else {
+                isBetter = attempt.exerciseSet.id.uuidString < current.exerciseSet.id.uuidString
+            }
+            if isBetter {
+                bestByUnit[key] = attempt
+            }
         }
-        let grouped = Dictionary(grouping: successful, by: { $0.exerciseSet.weightType.rawValue })
-        return grouped.values.compactMap { candidates in
-            guard let best = candidates.sorted(by: { lhs, rhs in
-                if lhs.exerciseSet.weight != rhs.exerciseSet.weight { return lhs.exerciseSet.weight > rhs.exerciseSet.weight }
-                if lhs.workout.startTime != rhs.workout.startTime { return lhs.workout.startTime > rhs.workout.startTime }
-                return lhs.exerciseSet.id.uuidString < rhs.exerciseSet.id.uuidString
-            }).first else { return nil }
+        return bestByUnit.values.map { best in
             return WeightliftingBestLift(
                 workoutID: best.workout.id,
                 setID: best.exerciseSet.id,

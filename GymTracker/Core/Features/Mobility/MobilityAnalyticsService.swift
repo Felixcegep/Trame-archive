@@ -127,7 +127,74 @@ enum MobilityAnalyticsService {
         Dictionary(grouping: occurrences, by: { $0.result.side }).mapValues(\.count)
     }
 
-    // MARK: 6. Weekly frequency
+    // MARK: 6. Side symmetry
+
+    /// A paired left/right observation for one movement occurrence.
+    ///
+    /// This deliberately keeps the two sides separate. `absoluteDifference`
+    /// is a descriptive distance between the recorded values, not a score or
+    /// a diagnosis. An entry with only one side, or with a missing performed
+    /// value on either side, does not produce a point: missing evidence stays
+    /// missing rather than becoming zero.
+    struct SideSymmetryPoint: Identifiable, Equatable {
+        var id: UUID
+        var date: Date
+        var trackingType: MobilityTrackingType
+        var leftValue: Int
+        var rightValue: Int
+        var absoluteDifference: Int
+    }
+
+    static func sideSymmetryHistory(_ occurrences: [MobilityAnalyticsOccurrence]) -> [SideSymmetryPoint] {
+        struct Pair {
+            var session: MobilitySession
+            var entry: MobilityEntry
+            var left: MobilityAnalyticsOccurrence?
+            var right: MobilityAnalyticsOccurrence?
+        }
+
+        var pairs: [UUID: Pair] = [:]
+        for occurrence in occurrences where occurrence.session.status == .completed {
+            guard occurrence.result.status == .completed,
+                  occurrence.result.side == .left || occurrence.result.side == .right else { continue }
+            var pair = pairs[occurrence.entry.id] ?? Pair(
+                session: occurrence.session,
+                entry: occurrence.entry,
+                left: nil,
+                right: nil
+            )
+            if occurrence.result.side == .left {
+                pair.left = occurrence
+            } else {
+                pair.right = occurrence
+            }
+            pairs[occurrence.entry.id] = pair
+        }
+
+        return pairs.values.compactMap { pair in
+            guard let left = pair.left,
+                  let right = pair.right else { return nil }
+            let values: (Int?, Int?)
+            switch pair.entry.trackingType {
+            case .duration:
+                values = (left.result.performedDurationSeconds, right.result.performedDurationSeconds)
+            case .repetitions:
+                values = (left.result.performedRepetitions, right.result.performedRepetitions)
+            }
+            guard let leftValue = values.0, let rightValue = values.1 else { return nil }
+            return SideSymmetryPoint(
+                id: pair.entry.id,
+                date: pair.session.startTime,
+                trackingType: pair.entry.trackingType,
+                leftValue: leftValue,
+                rightValue: rightValue,
+                absoluteDifference: abs(leftValue - rightValue)
+            )
+        }
+        .sorted { $0.date == $1.date ? $0.id.uuidString < $1.id.uuidString : $0.date < $1.date }
+    }
+
+    // MARK: 7. Weekly frequency
 
     /// Completed sessions per calendar week, keyed by each week's start
     /// date. A session that contains more than one occurrence in the input
@@ -148,7 +215,7 @@ enum MobilityAnalyticsService {
         return counts
     }
 
-    // MARK: 7. Support history
+    // MARK: 8. Support history
 
     struct SupportPoint: Identifiable, Equatable {
         var id: UUID
@@ -171,7 +238,7 @@ enum MobilityAnalyticsService {
             .sorted { $0.date < $1.date }
     }
 
-    // MARK: 8. Assistance history
+    // MARK: 9. Assistance history
 
     struct AssistancePoint: Identifiable, Equatable {
         var id: UUID
@@ -195,7 +262,7 @@ enum MobilityAnalyticsService {
             .sorted { $0.date < $1.date }
     }
 
-    // MARK: 9. Load history
+    // MARK: 10. Load history
 
     struct LoadPoint: Identifiable, Equatable {
         var id: UUID
@@ -213,7 +280,7 @@ enum MobilityAnalyticsService {
             .sorted { $0.date < $1.date }
     }
 
-    // MARK: 10. Comparable range history (assessment bridge)
+    // MARK: 11. Comparable range history (assessment bridge)
 
     /// Read-only bridge into assessment history for informational display —
     /// never training evidence, never mutated by anything here. Reuses
@@ -248,7 +315,7 @@ enum MobilityAnalyticsService {
             .map { MobilityAssessmentComparisonService.latestComparison(for: $0, among: history) }
     }
 
-    // MARK: 11. Movement quality observations
+    // MARK: 12. Movement quality observations
 
     struct QualityPoint: Identifiable, Equatable {
         var id: UUID
@@ -265,7 +332,7 @@ enum MobilityAnalyticsService {
             .sorted { $0.date < $1.date }
     }
 
-    // MARK: 12. Stop-signal history
+    // MARK: 13. Stop-signal history
 
     struct StopSignalPoint: Identifiable, Equatable {
         var id: UUID

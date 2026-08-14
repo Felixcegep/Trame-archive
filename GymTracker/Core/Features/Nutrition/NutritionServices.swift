@@ -48,13 +48,18 @@ enum FoodLibraryService {
             FoodPortion(id: $0.id, name: $0.name, amount: $0.amount, unit: $0.unit, equivalentReferenceAmount: $0.equivalentReferenceAmount)
         }
         if saved.isEmpty {
-            return [FoodPortion(id: nil, name: "(format(food.referenceAmount)) \(food.referenceUnit.displayName)", amount: food.referenceAmount, unit: food.referenceUnit, equivalentReferenceAmount: food.referenceAmount)]
+            return [FoodPortion(id: nil, name: "\(format(food.referenceAmount)) \(food.referenceUnit.displayName)", amount: food.referenceAmount, unit: food.referenceUnit, equivalentReferenceAmount: food.referenceAmount)]
         }
         return saved
     }
 
     static func archiveOrDelete(_ food: FoodItem, using context: ModelContext) throws {
-        let isReferencedByHistory = try context.fetch(FetchDescriptor<LoggedMealItem>()).contains { $0.sourceFoodID == food.id }
+        let foodID = food.id
+        var historyDescriptor = FetchDescriptor<LoggedMealItem>(
+            predicate: #Predicate { $0.sourceFoodID == foodID }
+        )
+        historyDescriptor.fetchLimit = 1
+        let isReferencedByHistory = try context.fetch(historyDescriptor).isEmpty == false
         if isReferencedByHistory || food.mealTemplateItems.isEmpty == false {
             food.isArchived = true
             food.updatedAt = .now
@@ -92,7 +97,22 @@ enum FoodLibraryService {
     /// The most meaningful default portion for a newly added food: the first
     /// saved serving if one exists, otherwise the reference-amount portion.
     static func defaultPortion(for food: FoodItem) -> FoodPortion {
-        portions(for: food).first!
+        if let saved = food.orderedServings.first {
+            return FoodPortion(
+                id: saved.id,
+                name: saved.name,
+                amount: saved.amount,
+                unit: saved.unit,
+                equivalentReferenceAmount: saved.equivalentReferenceAmount
+            )
+        }
+        return FoodPortion(
+            id: nil,
+            name: "\(format(food.referenceAmount)) \(food.referenceUnit.displayName)",
+            amount: food.referenceAmount,
+            unit: food.referenceUnit,
+            equivalentReferenceAmount: food.referenceAmount
+        )
     }
 }
 
@@ -109,7 +129,7 @@ enum NutritionLoggingService {
         using context: ModelContext
     ) -> LoggedMeal? {
         guard quantity > 0, food.isArchived == false else { return nil }
-        let selected = portion ?? FoodLibraryService.portions(for: food).first!
+        let selected = portion ?? FoodLibraryService.defaultPortion(for: food)
         let meal = LoggedMeal(day: day ?? .today, slot: slot, loggedAt: loggedAt, nameSnapshot: food.name)
         meal.items = [snapshot(food: food, portion: selected, quantity: quantity, orderIndex: 0)]
         context.insert(meal)
@@ -129,7 +149,9 @@ enum NutritionLoggingService {
         let meal = LoggedMeal(day: day ?? .today, slot: slot, loggedAt: loggedAt, nameSnapshot: template.name, sourceMealTemplateID: template.id, sourceMealTemplateName: template.name)
         meal.items = template.orderedItems.enumerated().compactMap { index, item in
             guard item.quantity > 0, item.food.isArchived == false else { return nil }
-            let portion = FoodLibraryService.portions(for: item.food).first { $0.id == item.servingID } ?? FoodLibraryService.portions(for: item.food).first!
+            let portions = FoodLibraryService.portions(for: item.food)
+            let portion = portions.first { $0.id == item.servingID }
+                ?? FoodLibraryService.defaultPortion(for: item.food)
             return snapshot(food: item.food, portion: portion, quantity: item.quantity * fraction, orderIndex: index)
         }
         guard meal.items.isEmpty == false else { return nil }
@@ -222,7 +244,9 @@ enum CaffeineLoggingService {
     }
 
     private static func existingOrNewFood(name: String, defaultMediumMilligrams: Double, using context: ModelContext) -> FoodItem {
-        if let existing = (try? context.fetch(FetchDescriptor<FoodItem>()))?.first(where: { $0.name == name }) {
+        var descriptor = FetchDescriptor<FoodItem>(predicate: #Predicate { $0.name == name })
+        descriptor.fetchLimit = 1
+        if let existing = (try? context.fetch(descriptor))?.first {
             existing.isArchived = false
             existing.updatedAt = .now
             return existing

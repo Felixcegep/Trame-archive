@@ -1,6 +1,42 @@
 import SwiftData
 import SwiftUI
 
+/// The catalogue's Codable payload is the expensive part of discovery. Keep
+/// one decoded candidate alongside its record for the duration of a render so
+/// filtering, ranking, and filter-sheet metadata all read the same snapshot.
+///
+/// This is deliberately derived from the live query rather than stored in
+/// `@State`: a profile/catalogue edit must be reflected immediately, and a
+/// cached payload would otherwise introduce a second invalidation protocol.
+private struct ReadyMadeProgramSnapshot {
+    struct Entry {
+        let record: ProgramDefinitionRecord
+        let candidate: ProgramMatchCandidate
+    }
+
+    let entries: [Entry]
+    let candidates: [ProgramMatchCandidate]
+    let candidatesByRecordID: [UUID: ProgramMatchCandidate]
+    let hasActiveBuiltInRecords: Bool
+
+    init(records: [ProgramDefinitionRecord]) {
+        let activeBuiltIns = records.filter { $0.isBuiltIn && !$0.isArchived }
+        hasActiveBuiltInRecords = !activeBuiltIns.isEmpty
+        let decodedEntries: [Entry] = activeBuiltIns.compactMap { record -> Entry? in
+            guard let payload = try? record.payload() else { return nil }
+            return Entry(
+                record: record,
+                candidate: ProgramMatchCandidate(payload: payload)
+            )
+        }
+        entries = decodedEntries
+        candidates = decodedEntries.map { $0.candidate }
+        candidatesByRecordID = Dictionary(
+            uniqueKeysWithValues: decodedEntries.map { ($0.record.id, $0.candidate) }
+        )
+    }
+}
+
 /// One destination for every kind of plan.
 ///
 /// Train used to offer "Ready-Made Plans", "My Plans" and "Rotations" as three
@@ -86,7 +122,20 @@ struct PlansBrowserView: View {
     /// against — see `effectiveOrdering`.
     @AppStorage(DefaultsKey.catalogueOrdering) private var storedOrdering: Ordering = .rankedForYou
 
+    init() {
+        var descriptor = FetchDescriptor<TrainingProfile>()
+        descriptor.fetchLimit = 1
+        _trainingProfiles = Query(descriptor)
+    }
+
     var body: some View {
+        // Do not decode the catalogue while the user is browsing Following or
+        // Mine. The snapshot is created only for the scope that needs it and
+        // is captured by the filter sheet when that sheet is presented.
+        let readyMadeSnapshot: ReadyMadeProgramSnapshot? = scope == .readyMade
+            ? ReadyMadeProgramSnapshot(records: programDefinitions)
+            : nil
+
         // The scope control sits outside the scroll rather than in its first
         // row: as a scrolling row it shared the same strip as the searchable
         // drawer and the two drew on top of each other. Pinned, it also stays
@@ -116,13 +165,16 @@ struct PlansBrowserView: View {
             // actions, no `onDelete`, and no `onMove`, so `List` was providing
             // styling and nothing else.
             ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.xl) {
+                LazyVStack(alignment: .leading, spacing: Spacing.xl) {
                     strengthPathsHeader
 
                     switch scope {
                     case .following: followingSections
                     case .mine: mineSections
-                    case .readyMade: readyMadeSection
+                    case .readyMade:
+                        if let readyMadeSnapshot {
+                            readyMadeSection(snapshot: readyMadeSnapshot)
+                        }
                     }
                 }
                 .padding(.horizontal, Spacing.xl)
@@ -157,16 +209,18 @@ struct PlansBrowserView: View {
             }
         }
         .sheet(isPresented: $isShowingDiscoveryFilters) {
+            let snapshot = readyMadeSnapshot
+                ?? ReadyMadeProgramSnapshot(records: programDefinitions)
             ProgramDiscoveryFilterSheet(
                 filters: $discoveryFilters,
-                disciplines: availableDisciplines,
-                goals: availableGoals,
-                experienceLevels: availableExperienceLevels,
-                daysPerWeek: availableDaysPerWeek,
-                durationWeeks: availableDurations,
-                scheduleModes: availableScheduleModes,
-                equipment: availableEquipment,
-                capabilityIDs: availableCapabilityIDs
+                disciplines: availableDisciplines(in: snapshot),
+                goals: availableGoals(in: snapshot),
+                experienceLevels: availableExperienceLevels(in: snapshot),
+                daysPerWeek: availableDaysPerWeek(in: snapshot),
+                durationWeeks: availableDurations(in: snapshot),
+                scheduleModes: availableScheduleModes(in: snapshot),
+                equipment: availableEquipment(in: snapshot),
+                capabilityIDs: availableCapabilityIDs(in: snapshot)
             )
         }
     }
@@ -244,7 +298,7 @@ struct PlansBrowserView: View {
     /// what the lifter already has, where "which fits me best" is not the
     /// question being asked.
     @ViewBuilder
-    private var orderingControl: some View {
+    private func orderingControl(hasUnfilteredReadyMadeDefinitions: Bool) -> some View {
         if scope == .readyMade, canRank, hasUnfilteredReadyMadeDefinitions {
             Picker("Order", selection: $storedOrdering) {
                 ForEach(Ordering.allCases) { ordering in
@@ -467,50 +521,47 @@ private extension PlansBrowserView {
 
 private extension PlansBrowserView {
     /// Filters narrow, then search narrows, then the chosen ordering sorts what
-    /// is left.
+    /// is left. The decoded candidates come from the render's shared snapshot;
+    /// this path must not decode the same payload a second time for ranking.
     ///
     /// The order of those three stages is not cosmetic. Ranking may only
     /// *reorder*; an explicit filter is the only thing allowed to remove a plan
     /// from view. Running the rank before the filters would leave a low-scoring
     /// plan excluded at the end anyway, and would invite counts that describe a
     /// universe the lifter is not actually looking at.
-    var readyMadeRecords: [ProgramDefinitionRecord] {
-        let narrowed = programDefinitions
-            .filter { $0.isBuiltIn && !$0.isArchived }
-            .filter { searchText.isEmpty || $0.name.localizedCaseInsensitiveContains(searchText) }
-            .filter { record in
-                guard let payload = try? record.payload() else { return false }
-                return discoveryFilters.matches(ProgramMatchCandidate(payload: payload))
+    func readyMadeRecords(in snapshot: ReadyMadeProgramSnapshot) -> [ProgramDefinitionRecord] {
+        let narrowed = snapshot.entries
+            .filter { entry in
+                searchText.isEmpty || entry.record.name.localizedCaseInsensitiveContains(searchText)
             }
+            .filter { discoveryFilters.matches($0.candidate) }
+            .map(\.record)
 
         switch effectiveOrdering {
         case .alphabetical:
             return narrowed.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         case .rankedForYou:
-            return rankedOrder(of: narrowed)
+            return rankedOrder(of: narrowed, candidatesByRecordID: snapshot.candidatesByRecordID)
         }
     }
 
     /// The narrowed set, ordered by `ProgramMatchService`.
     ///
     /// Ranks only what survived filtering and search, so the ordering describes
-    /// the list actually on screen. A record whose payload will not decode keeps
-    /// its place at the end rather than vanishing: it already passed the filters
-    /// above, and silently dropping a plan the lifter can see in A–Z mode would
-    /// make ranking look like it hides things — the one thing it must never do.
-    func rankedOrder(of records: [ProgramDefinitionRecord]) -> [ProgramDefinitionRecord] {
+    /// the list actually on screen. Every record here already has a decoded
+    /// candidate in the render snapshot; the missing-position cases remain
+    /// defensive so ranking can never silently hide a record if the snapshot
+    /// and narrowed records diverge.
+    func rankedOrder(
+        of records: [ProgramDefinitionRecord],
+        candidatesByRecordID: [UUID: ProgramMatchCandidate]
+    ) -> [ProgramDefinitionRecord] {
         guard let criteria = matchingCriteria else {
             return records.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         }
 
-        var candidatesByID: [UUID: ProgramMatchCandidate] = [:]
-        for record in records {
-            guard let payload = try? record.payload() else { continue }
-            candidatesByID[record.id] = ProgramMatchCandidate(payload: payload)
-        }
-
         let ranked = ProgramMatchService.rank(
-            programs: Array(candidatesByID.values),
+            programs: records.compactMap { candidatesByRecordID[$0.id] },
             criteria: criteria
         )
         let position = Dictionary(
@@ -531,51 +582,42 @@ private extension PlansBrowserView {
         }
     }
 
-    var unfilteredReadyMadeCandidates: [ProgramMatchCandidate] {
-        programDefinitions
-            .filter { $0.isBuiltIn && !$0.isArchived }
-            .compactMap { record in
-                guard let payload = try? record.payload() else { return nil }
-                return ProgramMatchCandidate(payload: payload)
-            }
-    }
-
-    var availableDisciplines: [TrainingDisciplinePreference] {
-        let ids = Set(unfilteredReadyMadeCandidates.flatMap(\.supportedDisciplineIDs))
+    func availableDisciplines(in snapshot: ReadyMadeProgramSnapshot) -> [TrainingDisciplinePreference] {
+        let ids = Set(snapshot.candidates.flatMap(\.supportedDisciplineIDs))
         return TrainingDisciplinePreference.allCases.filter { ids.contains($0.rawValue) }
     }
 
-    var availableGoals: [PlanGoal] {
-        let values = Set(unfilteredReadyMadeCandidates.map(\.goal))
+    func availableGoals(in snapshot: ReadyMadeProgramSnapshot) -> [PlanGoal] {
+        let values = Set(snapshot.candidates.map(\.goal))
         return PlanGoal.allCases.filter(values.contains)
     }
 
-    var availableExperienceLevels: [PlanExperienceLevel] {
-        let values = Set(unfilteredReadyMadeCandidates.map(\.experienceLevel))
+    func availableExperienceLevels(in snapshot: ReadyMadeProgramSnapshot) -> [PlanExperienceLevel] {
+        let values = Set(snapshot.candidates.map(\.experienceLevel))
         return PlanExperienceLevel.allCases.filter(values.contains)
     }
 
-    var availableDaysPerWeek: [Int] {
-        Set(unfilteredReadyMadeCandidates.flatMap(\.supportedDaysPerWeek)).sorted()
+    func availableDaysPerWeek(in snapshot: ReadyMadeProgramSnapshot) -> [Int] {
+        Set(snapshot.candidates.flatMap(\.supportedDaysPerWeek)).sorted()
     }
 
-    var availableDurations: [Int] {
-        Set(unfilteredReadyMadeCandidates.map(\.durationWeeks)).sorted()
+    func availableDurations(in snapshot: ReadyMadeProgramSnapshot) -> [Int] {
+        Set(snapshot.candidates.map(\.durationWeeks)).sorted()
     }
 
-    var availableScheduleModes: [PlanScheduleMode] {
-        let values = Set(unfilteredReadyMadeCandidates.map(\.scheduleMode))
+    func availableScheduleModes(in snapshot: ReadyMadeProgramSnapshot) -> [PlanScheduleMode] {
+        let values = Set(snapshot.candidates.map(\.scheduleMode))
         return PlanScheduleMode.allCases.filter(values.contains)
     }
 
-    var availableEquipment: [EquipmentType] {
-        let candidates = unfilteredReadyMadeCandidates.map(\.equipmentRequirement)
+    func availableEquipment(in snapshot: ReadyMadeProgramSnapshot) -> [EquipmentType] {
+        let candidates = snapshot.candidates.map(\.equipmentRequirement)
         let values = Set(candidates.flatMap { $0.allOf + $0.anyOf.flatMap { $0 } })
         return EquipmentType.onboardingOrder.filter(values.contains)
     }
 
-    var availableCapabilityIDs: [String] {
-        Set(unfilteredReadyMadeCandidates.flatMap(\.equipmentRequirement.requiredCapabilityIDs))
+    func availableCapabilityIDs(in snapshot: ReadyMadeProgramSnapshot) -> [String] {
+        Set(snapshot.candidates.flatMap(\.equipmentRequirement.requiredCapabilityIDs))
             .sorted { SpecializedEquipmentCapability.title(for: $0) < SpecializedEquipmentCapability.title(for: $1) }
     }
 
@@ -595,14 +637,6 @@ private extension PlansBrowserView {
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
-    var hasReadyMadeContent: Bool {
-        hasUnfilteredReadyMadeDefinitions || !seededPlans.isEmpty || !seededRepeatingPlans.isEmpty
-    }
-
-    var hasUnfilteredReadyMadeDefinitions: Bool {
-        programDefinitions.contains { $0.isBuiltIn && !$0.isArchived }
-    }
-
     /// Names the ordering actually in effect, so the list never claims to be
     /// personalised when it is alphabetical — the same honesty
     /// `OnboardingRecommendationsView.headerSubtitle` already enforces when it
@@ -613,7 +647,14 @@ private extension PlansBrowserView {
     }
 
     @ViewBuilder
-    var readyMadeSection: some View {
+    func readyMadeSection(snapshot: ReadyMadeProgramSnapshot) -> some View {
+        let readyMadeRecords = readyMadeRecords(in: snapshot)
+        let seededPlans = self.seededPlans
+        let seededRepeatingPlans = self.seededRepeatingPlans
+        let hasReadyMadeContent = snapshot.hasActiveBuiltInRecords
+            || !seededPlans.isEmpty
+            || !seededRepeatingPlans.isEmpty
+
         if !hasReadyMadeContent {
             // Order matters. A search that matched nothing was previously
             // indistinguishable from a catalogue that failed to install, so
@@ -639,7 +680,7 @@ private extension PlansBrowserView {
             }
         } else {
             if readyMadeRecords.isEmpty,
-               hasUnfilteredReadyMadeDefinitions,
+               snapshot.hasActiveBuiltInRecords,
                (!discoveryFilters.isEmpty || isSearching) {
                 if discoveryFilters.isEmpty {
                     ContentUnavailableView.search(text: searchText)
@@ -663,7 +704,7 @@ private extension PlansBrowserView {
             // screen the catalogue exists to show, and this one applies to a
             // single scope, so pinning it would also make that strip change
             // height as the lifter switches tabs.
-            orderingControl
+            orderingControl(hasUnfilteredReadyMadeDefinitions: snapshot.hasActiveBuiltInRecords)
 
             if !readyMadeRecords.isEmpty {
                 planSection(readyMadeSectionTitle) {

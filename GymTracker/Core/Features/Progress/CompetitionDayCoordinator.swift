@@ -451,7 +451,10 @@ enum CompetitionDayStartService {
 
     @MainActor
     static func persist(_ workout: Workout, using context: ModelContext) throws {
-        let existing = try context.fetch(FetchDescriptor<Workout>())
+        let descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { $0.endTime == nil }
+        )
+        let existing = try context.fetch(descriptor)
         guard existing.contains(where: { $0.status == .active }) == false else {
             throw Error.activeWorkoutInProgress
         }
@@ -463,7 +466,7 @@ enum CompetitionDayStartService {
 }
 
 extension CompetitionLift {
-    var displayName: String {
+    nonisolated var displayName: String {
         switch self {
         case .snatch: String(localized: "Snatch")
         case .cleanAndJerk: String(localized: "Clean and jerk")

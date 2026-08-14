@@ -183,6 +183,10 @@ enum MobilityAssessmentSeedData {
     ) throws -> SystemSeedInstallReport {
         try registry.validateUniqueKeys(definitions.map(\.key))
         var existing = try context.fetch(FetchDescriptor<MobilityAssessmentDefinition>())
+        var existingByID = Dictionary(
+            existing.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         var report = SystemSeedInstallReport()
 
         for spec in definitions {
@@ -192,7 +196,7 @@ enum MobilityAssessmentSeedData {
                 for: spec.key,
                 expectedKind: .mobilityAssessmentDefinition
             ) {
-                guard let matched = existing.first(where: { $0.id == record.entityID }) else {
+                guard let matched = existingByID[record.entityID] else {
                     throw SystemSeedError.danglingEntity(key: spec.key, entityID: record.entityID)
                 }
                 entity = matched
@@ -211,6 +215,7 @@ enum MobilityAssessmentSeedData {
                     entity = spec.makeDefinition()
                     context.insert(entity)
                     existing.append(entity)
+                    existingByID[entity.id] = entity
                     sourceKind = .bundled
                     report.inserted += 1
                 }

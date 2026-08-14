@@ -252,13 +252,13 @@ struct PortableTrainingPackage: Codable, Equatable, Hashable {
                 $0.kind.rawValue, $0.name, String($0.contentVersion), String($0.selectionOrder),
                 $0.dependencyIDs.map { $0.uuidString.lowercased() }.sorted().joined(separator: ","),
                 $0.payload.base64EncodedString()
-            ].map(escape).joined(separator: "|")
+            ].map { escape($0) }.joined(separator: "|")
         }.joined(separator: "\n")
         let dependencyLines = dependencies.sorted { $0.dependencyID.uuidString < $1.dependencyID.uuidString }.map {
             [
                 $0.dependencyID.uuidString.lowercased(), $0.kind.rawValue, $0.name,
                 String($0.minimumContentVersion ?? 0), String($0.isRequired)
-            ].map(escape).joined(separator: "|")
+            ].map { escape($0) }.joined(separator: "|")
         }.joined(separator: "\n")
         return [
             "packageID=\(packageID.uuidString.lowercased())",
@@ -271,7 +271,7 @@ struct PortableTrainingPackage: Codable, Equatable, Hashable {
             "compatibility=\(compatibility.minimumAppBuild ?? "")|\(compatibility.minimumSchemaVersion)|\(compatibility.requiredCapabilityIDs.sorted().joined(separator: ","))",
             "components=\(componentLines)",
             "dependencies=\(dependencyLines)"
-        ].map(escape).joined(separator: "\n")
+        ].map { escape($0) }.joined(separator: "\n")
     }
 
     private static func escape(_ value: String) -> String {

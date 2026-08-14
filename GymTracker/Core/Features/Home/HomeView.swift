@@ -27,10 +27,8 @@ struct HomeView: View {
     /// ends up.
     @Binding var statusMessage: GymStatusMessage?
 
-    @Query private var workoutTemplates: [WorkoutTemplate]
-    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
-    @Query private var planRuns: [PlanRun]
-    @Query private var repeatingPlanRuns: [RepeatingPlanRun]
+    @Query(filter: #Predicate<PlanRun> { $0.endDate == nil }) private var planRuns: [PlanRun]
+    @Query(filter: #Predicate<RepeatingPlanRun> { $0.endedAt == nil }) private var repeatingPlanRuns: [RepeatingPlanRun]
     @State private var isShowingTemplatePicker = false
     @State private var reschedulingProgress: PlanWorkoutProgress?
     @State private var rescheduleDate = Date.now
@@ -241,7 +239,7 @@ struct HomeView: View {
 
     private var templatePicker: some View {
         NavigationStack {
-            SavedWorkoutTemplatePicker(templates: workoutTemplates, availableExercises: exerciseTemplates) { template in
+            SavedWorkoutTemplatePicker { template in
                 pendingTemplateStart = template
                 isShowingTemplatePicker = false
             } onStartEmpty: {

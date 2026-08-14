@@ -105,7 +105,6 @@ struct BodyWeightEditorDestination: Identifiable {
 struct BodyWeightEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query private var entries: [BodyWeightEntry]
 
     let entry: BodyWeightEntry?
     let source: BodyWeightSource
@@ -171,7 +170,15 @@ struct BodyWeightEditorSheet: View {
     private func save() {
         guard let parsedValue else { return }
         let day = LocalDay(date: measuredAt)
-        let sameDay = entries.first { $0.dayKey == day.rawValue && $0.id != entry?.id }
+        let dayKey = day.rawValue
+        var descriptor = FetchDescriptor<BodyWeightEntry>(
+            predicate: #Predicate { $0.dayKey == dayKey }
+        )
+        // Two rows cover the edit case where the first match is the entry
+        // itself while still keeping this collision check bounded.
+        descriptor.fetchLimit = entry == nil ? 1 : 2
+        let sameDay = (try? modelContext.fetch(descriptor))?
+            .first { $0.id != entry?.id }
         let target = entry ?? sameDay ?? BodyWeightEntry(day: day, value: parsedValue, unit: unit, source: source, measuredAt: measuredAt)
         if entry != nil, let sameDay { modelContext.delete(sameDay) }
         target.dayKey = day.rawValue

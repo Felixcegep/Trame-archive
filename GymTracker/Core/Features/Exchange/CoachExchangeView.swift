@@ -665,7 +665,7 @@ struct CoachExchangeView: View {
             importedPackage = package
             importPreview = PortableImportPreviewPolicy.preview(
                 package: package,
-                localComponents: PortableLocalComponentInventory.build(using: modelContext),
+                localComponents: try PortableLocalComponentInventory.build(using: modelContext),
                 supportedCapabilityIDs: EngineCapabilities.current,
                 minimumSchemaVersion: 1
             )
@@ -734,10 +734,17 @@ struct CoachExchangeView: View {
             provenance: .init(kind: .imported, sourceIdentifier: "ui-test", statement: nil),
             compatibility: .init(minimumAppBuild: nil, minimumSchemaVersion: 1, requiredCapabilityIDs: [])
         ) else { return }
+        guard let localComponents = try? PortableLocalComponentInventory.build(using: modelContext) else {
+            importError = String(
+                localized: "coach.exchange.package.import.error",
+                defaultValue: "Local training definitions could not be read. No import was applied."
+            )
+            return
+        }
         importedPackage = package
         importPreview = PortableImportPreviewPolicy.preview(
             package: package,
-            localComponents: PortableLocalComponentInventory.build(using: modelContext),
+            localComponents: localComponents,
             supportedCapabilityIDs: EngineCapabilities.current,
             minimumSchemaVersion: 1
         )

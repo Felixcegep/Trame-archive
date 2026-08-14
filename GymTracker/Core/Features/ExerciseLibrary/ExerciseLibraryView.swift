@@ -10,7 +10,7 @@ import SwiftData
 
 struct ExerciseLibraryView : View {
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
+    @Query private var workouts: [Workout]
     
     let isSelectingExercise: Bool
     var selectedExercise: Exercise?
@@ -19,6 +19,7 @@ struct ExerciseLibraryView : View {
 
     @State private var searchText = ""
     @State private var filter = ExerciseFilterState()
+    @State private var recentExerciseRanks: [UUID: Int] = [:]
     /// Exercises already in the destination. This picker only ever adds to it:
     /// an entry here can never be tapped back out. Removal belongs to the
     /// exercise's own card, which is the only place the sets that would be
@@ -37,6 +38,12 @@ struct ExerciseLibraryView : View {
         self.availableExercises = availableExercises
         self.onSelect = onSelect
         _addedExerciseIDs = State(initialValue: addedExerciseIDs)
+        _workouts = Query(
+            filter: #Predicate<Workout> {
+                $0.endTime != nil && isSelectingExercise
+            },
+            sort: [SortDescriptor(\Workout.startTime, order: .reverse)]
+        )
     }
 
     var body: some View {
@@ -56,6 +63,12 @@ struct ExerciseLibraryView : View {
             }
         }
         .searchable(text: $searchText, prompt: "Search exercises")
+        // Recent ranking depends on workout history, not on the search query.
+        // Project it once per history change so typing does not rescan every
+        // completed workout and relationship for each character.
+        .task(id: recentRankInputID) {
+            recentExerciseRanks = buildRecentExerciseRanks()
+        }
         .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
         .navigationTitle("Add Exercise")
@@ -79,8 +92,8 @@ struct ExerciseLibraryView : View {
         let recentRanks = recentExerciseRanks
         return filtered.sorted { first, second in
             if isSelectingExercise {
-                let firstRank = recentRanks[first.name] ?? Int.max
-                let secondRank = recentRanks[second.name] ?? Int.max
+                let firstRank = recentRanks[first.id] ?? Int.max
+                let secondRank = recentRanks[second.id] ?? Int.max
                 if firstRank != secondRank { return firstRank < secondRank }
             }
             return first.name.localizedCaseInsensitiveCompare(second.name) == .orderedAscending
@@ -99,17 +112,30 @@ struct ExerciseLibraryView : View {
         }
     }
 
-    private var recentExerciseRanks: [String: Int] {
+    private func buildRecentExerciseRanks() -> [UUID: Int] {
         guard isSelectingExercise else { return [:] }
-        var ranks: [String: Int] = [:]
+        var ranks: [UUID: Int] = [:]
         var nextRank = 0
         for workout in workouts where workout.status == .completed {
-            for exercise in workout.orderedExercises where ranks[exercise.exercise.name] == nil {
-                ranks[exercise.exercise.name] = nextRank
+            for exercise in workout.orderedExercises where ranks[exercise.historicalExerciseID] == nil {
+                ranks[exercise.historicalExerciseID] = nextRank
                 nextRank += 1
             }
         }
         return ranks
+    }
+
+    private var recentRankInputID: Int {
+        guard isSelectingExercise else { return 0 }
+        var revision = Hasher()
+        // Completed workout graphs are immutable. Hashing every root catches
+        // a delete/restore that keeps the same count and newest workout, while
+        // still avoiding a second traversal of every exercise during body.
+        for workout in workouts {
+            revision.combine(workout.id)
+            revision.combine(workout.startTime)
+        }
+        return revision.finalize()
     }
 
 }

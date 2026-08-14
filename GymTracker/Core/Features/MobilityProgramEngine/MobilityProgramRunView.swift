@@ -11,8 +11,7 @@ struct MobilityProgramRunView: View {
     let onStartProgramSession: (MobilitySession) -> Void
 
     @Query(sort: \MobilityDefinition.name) private var mobilityDefinitions: [MobilityDefinition]
-    @Query(sort: \MobilityProgressionRecommendationRecord.createdAt, order: .reverse)
-    private var allRecommendations: [MobilityProgressionRecommendationRecord]
+    @Query private var unresolvedRecommendations: [MobilityProgressionRecommendationRecord]
 
     @State private var errorMessage: String?
     @State private var reschedulingProgress: MobilityProgramSessionProgress?
@@ -20,8 +19,19 @@ struct MobilityProgramRunView: View {
     @State private var isShowingRestartChoice = false
     @State private var refreshToken = UUID()
 
-    private var mobilityDefinitionsByID: [UUID: MobilityDefinition] {
-        Dictionary(uniqueKeysWithValues: mobilityDefinitions.map { ($0.id, $0) })
+    init(
+        run: MobilityProgramRun,
+        onStartProgramSession: @escaping (MobilitySession) -> Void
+    ) {
+        self.run = run
+        self.onStartProgramSession = onStartProgramSession
+        let runID = run.id
+        _unresolvedRecommendations = Query(
+            filter: #Predicate<MobilityProgressionRecommendationRecord> {
+                $0.runID == runID && $0.isResolved == false
+            },
+            sort: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
     }
 
     private var nextSession: MobilityProgramSessionProgress? {
@@ -29,18 +39,19 @@ struct MobilityProgramRunView: View {
         return MobilityProgramRunCoordinator.nextSessionProgress(in: run)
     }
 
-    private var unresolvedRecommendations: [MobilityProgressionRecommendationRecord] {
-        allRecommendations.filter { $0.runID == run.id && $0.isResolved == false }
-    }
-
     var body: some View {
+        let progress = sessionProgress
+        let mobilityDefinitionsByID = Dictionary(
+            uniqueKeysWithValues: mobilityDefinitions.map { ($0.id, $0) }
+        )
+
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
-                header
+                header(progress: progress)
                 if !unresolvedRecommendations.isEmpty {
                     recommendationsSection
                 }
-                nextSessionCard
+                nextSessionCard(mobilityDefinitionsByID: mobilityDefinitionsByID)
                 sessionsSection
             }
             .padding(.horizontal, Spacing.xl)
@@ -79,36 +90,47 @@ struct MobilityProgramRunView: View {
 
     // MARK: - Header
 
-    private var header: some View {
+    private struct SessionProgress {
+        let completed: Int
+        let total: Int
+
+        var fraction: Double {
+            guard total > 0 else { return 0 }
+            return Double(completed) / Double(total)
+        }
+    }
+
+    private var sessionProgress: SessionProgress {
+        var completed = 0
+        for progress in run.sessionProgress where progress.status == .completed {
+            completed += 1
+        }
+        return SessionProgress(completed: completed, total: run.sessionProgress.count)
+    }
+
+    private func header(progress: SessionProgress) -> some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(run.sourceProgramName)
                         .font(AppFont.displayMedium)
                         .foregroundStyle(Color.gymText)
-                    Text(statusText)
+                    Text(statusText(progress: progress))
                         .font(AppFont.subheadline)
                         .foregroundStyle(Color.gymSubduedText)
                 }
                 Spacer()
                 manageMenu
             }
-            ProgressView(value: progressFraction)
+            ProgressView(value: progress.fraction)
                 .tint(Color.gymPrimary)
                 .accessibilityIdentifier("mobility-program-progress")
         }
     }
 
-    private var progressFraction: Double {
-        let total = run.sessionProgress.count
-        guard total > 0 else { return 0 }
-        let completed = run.sessionProgress.filter { $0.status == .completed }.count
-        return Double(completed) / Double(total)
-    }
-
-    private var statusText: String {
-        let completed = run.sessionProgress.filter { $0.status == .completed }.count
-        let total = run.sessionProgress.count
+    private func statusText(progress: SessionProgress) -> String {
+        let completed = progress.completed
+        let total = progress.total
         switch run.status {
         case .active: return String(localized: "Following · \(completed) of \(total) sessions")
         case .paused: return String(localized: "Paused · \(completed) of \(total) sessions")
@@ -205,7 +227,9 @@ struct MobilityProgramRunView: View {
     // MARK: - Next session
 
     @ViewBuilder
-    private var nextSessionCard: some View {
+    private func nextSessionCard(
+        mobilityDefinitionsByID: [UUID: MobilityDefinition]
+    ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Text("Next session")
                 .font(AppFont.titleSmall)
@@ -229,7 +253,10 @@ struct MobilityProgramRunView: View {
                     }
                     if run.status == .active {
                         Button {
-                            startSession(nextSession)
+                            startSession(
+                                nextSession,
+                                mobilityDefinitionsByID: mobilityDefinitionsByID
+                            )
                         } label: {
                             Label("Start session", systemImage: AppIcon.play)
                                 .frame(maxWidth: .infinity)
@@ -359,7 +386,10 @@ struct MobilityProgramRunView: View {
         refreshToken = UUID()
     }
 
-    private func startSession(_ progress: MobilityProgramSessionProgress) {
+    private func startSession(
+        _ progress: MobilityProgramSessionProgress,
+        mobilityDefinitionsByID: [UUID: MobilityDefinition]
+    ) {
         do {
             guard let session = try MobilityProgramRunCoordinator.startSession(
                 progress,

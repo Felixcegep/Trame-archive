@@ -119,14 +119,16 @@ struct MuscleBalanceAnalyticsService {
             return MuscleBalanceAnalytics(weeks: [], summaries: [], callouts: [])
         }
 
+        let lowerBound = weeks[0].weekStart
         let workouts = try modelContext.fetch(
             FetchDescriptor<Workout>(
+                predicate: #Predicate {
+                    $0.startTime >= lowerBound && $0.startTime <= referenceDate
+                },
                 sortBy: [SortDescriptor(\Workout.startTime, order: .forward)]
             )
         )
-        let completedWorkouts = workouts.filter {
-            $0.status == .completed && $0.startTime <= referenceDate
-        }
+        let completedWorkouts = workouts.filter { $0.status == .completed }
 
         var counts = weeks.map { _ in [MuscleBalanceGroup: Double]() }
         for workout in completedWorkouts {
@@ -139,7 +141,9 @@ struct MuscleBalanceAnalyticsService {
 
             for entry in workout.orderedExercises {
                 let weights = groupWeights(for: entry.exercise)
-                let workingSetCount = entry.orderedSets.filter { $0.done && $0.setType != .warmup }.count
+                let workingSetCount = entry.orderedSets.filter {
+                    StrengthAnalyticsPolicy.isEligibleForTraditionalSetRecord($0, entry: entry)
+                }.count
                 for (group, weight) in weights {
                     counts[weekIndex][group, default: 0] += Double(workingSetCount) * weight
                 }

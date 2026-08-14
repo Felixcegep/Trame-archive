@@ -152,10 +152,18 @@ enum TrainingCalendarBuilder {
         let finalWeekStart = calendar.dateInterval(of: .weekOfYear, for: finalDay)?.start ?? finalDay
         let visibleEnd = calendar.date(byAdding: .day, value: 7, to: finalWeekStart) ?? monthEnd
         let dates = dates(from: visibleStart, until: visibleEnd, calendar: calendar)
+        let visibleStartDay = calendar.startOfDay(for: visibleStart)
+        let visibleEndDay = calendar.startOfDay(for: visibleEnd)
+        let visibleDayKeys = Set(dates.map { LocalDay(date: $0, calendar: calendar).rawValue })
+
+        func isVisible(_ date: Date) -> Bool {
+            let startOfDay = calendar.startOfDay(for: date)
+            return startOfDay >= visibleStartDay && startOfDay < visibleEndDay
+        }
 
         let plannedByDay = Dictionary(grouping: planRuns.flatMap { run in
             schedulableProgress(in: run).compactMap { progress -> (String, TrainingCalendarPlannedWorkout)? in
-                guard let scheduledDate = progress.scheduledDate else { return nil }
+                guard let scheduledDate = progress.scheduledDate, isVisible(scheduledDate) else { return nil }
                 let day = LocalDay(date: scheduledDate, calendar: calendar)
                 return (
                     day.rawValue,
@@ -176,11 +184,18 @@ enum TrainingCalendarBuilder {
                 )
             }
         }, by: \.0)
-        let workoutsByDay = Dictionary(grouping: workouts) { LocalDay(date: $0.startTime, calendar: calendar).rawValue }
-        let mobilityByDay = Dictionary(grouping: mobilitySessions) { LocalDay(date: $0.startTime, calendar: calendar).rawValue }
+        // The view receives query-backed arrays that may contain years of
+        // history. Only the visible calendar window can contribute to this
+        // month, so discard older rows before grouping and projecting them.
+        let workoutsByDay = Dictionary(grouping: workouts.lazy.filter { isVisible($0.startTime) }) {
+            LocalDay(date: $0.startTime, calendar: calendar).rawValue
+        }
+        let mobilityByDay = Dictionary(grouping: mobilitySessions.lazy.filter { isVisible($0.startTime) }) {
+            LocalDay(date: $0.startTime, calendar: calendar).rawValue
+        }
         let programSessionsByDay = Dictionary(grouping: mobilityProgramRuns.flatMap { run in
             schedulableSessionProgress(in: run).compactMap { progress -> (String, TrainingCalendarProgramMobilitySession)? in
-                guard progress.scheduledDate != nil else { return nil }
+                guard let scheduledDate = progress.scheduledDate, isVisible(scheduledDate) else { return nil }
                 return (
                     progress.scheduledDay.rawValue,
                     TrainingCalendarProgramMobilitySession(
@@ -195,9 +210,9 @@ enum TrainingCalendarBuilder {
                 )
             }
         }, by: \.0)
-        let mealsByDay = Dictionary(grouping: meals, by: \.dayKey)
-        let checkInsByDay = Dictionary(grouping: checkIns, by: \.dayKey)
-        let supplementsByDay = Dictionary(grouping: supplementOccurrences, by: \.dayKey)
+        let mealsByDay = Dictionary(grouping: meals.lazy.filter { visibleDayKeys.contains($0.dayKey) }, by: \.dayKey)
+        let checkInsByDay = Dictionary(grouping: checkIns.lazy.filter { visibleDayKeys.contains($0.dayKey) }, by: \.dayKey)
+        let supplementsByDay = Dictionary(grouping: supplementOccurrences.lazy.filter { visibleDayKeys.contains($0.dayKey) }, by: \.dayKey)
 
         let days = dates.map { date in
             let day = LocalDay(date: date, calendar: calendar)

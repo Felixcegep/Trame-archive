@@ -20,6 +20,12 @@ struct TrainingProfileSettingsView: View {
 
     private var profile: TrainingProfile? { profiles.first }
 
+    init() {
+        var descriptor = FetchDescriptor<TrainingProfile>()
+        descriptor.fetchLimit = 1
+        _profiles = Query(descriptor)
+    }
+
     /// Independent of every other section on this screen: a mobility answer
     /// changed here only ever affects mobility matching, never the workout
     /// plan currently ranked or running. Only shown when a mobility plan is
@@ -37,8 +43,14 @@ struct TrainingProfileSettingsView: View {
             }
 
             if let profile {
-                trainingSection(profile)
-                scheduleSection(profile)
+                trainingLinkSection(profile)
+                progressOrganizationSection(profile)
+                if profile.primaryDiscipline == .powerlifting
+                    || profile.secondaryDisciplines.contains(.powerlifting)
+                    || profile.competition?.discipline == .powerlifting {
+                    competitionLiftsLinkSection(profile)
+                }
+                scheduleLinkSection(profile)
                 equipmentSection(profile)
                 emphasisSection(profile)
                 if isMobilityMatchingEnabled {
@@ -46,6 +58,15 @@ struct TrainingProfileSettingsView: View {
                 }
             }
         }
+        // `Form` paints its own opaque system background underneath its
+        // content — a `.background()` alone doesn't reach it the way it does
+        // on a `ScrollView`, which is why this screen's own sub-screens
+        // (Equipment, Weekdays, Specialised equipment — all plain
+        // `ScrollView`s) were themed correctly while this one, the screen
+        // people actually land on, rendered in the system's default grey.
+        // Same fix `SettingView` already uses for its own `Form`.
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
         .navigationTitle("Training profile")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-profile-settings")
@@ -67,84 +88,101 @@ struct TrainingProfileSettingsView: View {
 
     // MARK: Sections
 
-    private func trainingSection(_ profile: TrainingProfile) -> some View {
-        Section("Training") {
-            optionalPicker(
-                label: String(localized: "Discipline"),
-                identifier: "training-profile-discipline",
-                selection: rawBinding(profile, \.primaryDisciplineRaw),
-                options: TrainingDisciplinePreference.allCases,
-                titleKeyPath: \.title
-            )
-
-            optionalPicker(
-                label: String(localized: "Goal"),
-                identifier: "training-profile-goal",
-                selection: rawBinding(profile, \.primaryGoalRaw),
-                options: TrainingGoalPreference.allCases,
-                titleKeyPath: \.title
-            )
-
-            optionalPicker(
-                label: String(localized: "Experience"),
-                identifier: "training-profile-experience",
-                selection: rawBinding(profile, \.experienceLevelRaw),
-                options: ProfileExperienceLevel.allCases,
-                titleKeyPath: \.title
-            )
+    /// Discipline, Goal, and Experience used to sit here as three always-open
+    /// pickers, immediately followed by a fourth section — a toggle list for
+    /// secondary disciplines — that answers the closely related question "what
+    /// *else* do you train." Three picker rows plus a toggle list is most of
+    /// what made this screen read as a wall of menus before a single answer
+    /// was even in view. They are one identity, asked in one place now,
+    /// exactly the way Equipment and Weekdays already worked below.
+    private func trainingLinkSection(_ profile: TrainingProfile) -> some View {
+        Section {
+            NavigationLink {
+                TrainingProfileIdentityView(profile: profile)
+            } label: {
+                LabeledContent("Training", value: trainingSummary(profile))
+            }
+            .accessibilityIdentifier("training-profile-training-link")
         }
     }
 
-    private func scheduleSection(_ profile: TrainingProfile) -> some View {
-        Section {
-            Stepper(
-                value: Binding(
-                    get: { profile.preferredDaysPerWeek ?? 0 },
-                    set: { newValue in
-                        // Zero is how "not answered" is expressed, so the
-                        // stepper can return to unset rather than trapping the
-                        // lifter into having named a number.
-                        profile.preferredDaysPerWeek = newValue == 0 ? nil : newValue
-                        touch(profile)
-                    }
-                ),
-                in: 0...7
-            ) {
-                LabeledContent("Days per week", value: daysPerWeekText(profile))
-            }
-            .accessibilityIdentifier("training-profile-days")
+    private func trainingSummary(_ profile: TrainingProfile) -> String {
+        var parts: [String] = []
+        if let discipline = profile.primaryDiscipline { parts.append(discipline.title) }
+        if let goal = profile.primaryGoal { parts.append(goal.title) }
+        if let experience = profile.experienceLevel { parts.append(experience.title) }
+        return parts.isEmpty ? String(localized: "Not set") : parts.joined(separator: " · ")
+    }
 
+    private func progressOrganizationSection(_ profile: TrainingProfile) -> some View {
+        Section {
             optionalPicker(
-                label: String(localized: "Week shape"),
-                identifier: "training-profile-flexibility",
-                selection: rawBinding(profile, \.scheduleFlexibilityRaw),
-                options: ScheduleFlexibility.allCases,
+                label: String(localized: "Progress organization"),
+                identifier: "training-profile-progress-organization",
+                selection: rawBinding(profile, \.progressOrganizationModeRaw, onChange: { touch(profile) }),
+                options: ProgressOrganizationMode.allCases,
                 titleKeyPath: \.title
             )
 
-            optionalPicker(
-                label: String(localized: "Session length"),
-                identifier: "training-profile-duration",
-                selection: rawBinding(profile, \.sessionDurationRaw),
-                options: SessionDurationPreference.allCases,
-                titleKeyPath: \.summaryTitle
-            )
-
-            // Onboarding no longer asks which weekdays work — it never reached
-            // the ranking, so it was a screen charged to every lifter before
-            // they had a plan for those days to belong to. It lives here
-            // instead, where it can be set once there is something to schedule.
-            NavigationLink {
-                TrainingProfileWeekdaysView(profile: profile)
-            } label: {
-                LabeledContent("Usual training days", value: weekdaySummary(profile))
+            if let mode = profile.progressOrganizationMode {
+                Text(mode.detail)
+                    .font(AppFont.footnote)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .accessibilityIdentifier("training-profile-weekdays")
         } header: {
-            Text("Schedule")
+            Text("Progress")
+        } footer: {
+            Text("This controls which training lenses Progress puts first. It never changes your completed history.")
+        }
+    }
+
+    /// Three exercise pickers, previously always visible the moment a
+    /// powerlifter's discipline was set — now the same one-tap-away pattern
+    /// as everything else that isn't the first thing someone opens this
+    /// screen to change.
+    private func competitionLiftsLinkSection(_ profile: TrainingProfile) -> some View {
+        Section {
+            NavigationLink {
+                TrainingProfileCompetitionLiftsView(profile: profile)
+            } label: {
+                LabeledContent("Competition lifts", value: competitionLiftsSummary(profile))
+            }
+            .accessibilityIdentifier("training-profile-competition-lifts-link")
+        } footer: {
+            Text("Choose the exact exercise identities used for Estimated SBD. Trame never guesses these roles from exercise names.")
+        }
+    }
+
+    private func competitionLiftsSummary(_ profile: TrainingProfile) -> String {
+        let setCount = [
+            profile.competition?.squatExerciseID,
+            profile.competition?.benchExerciseID,
+            profile.competition?.deadliftExerciseID
+        ].compactMap { $0 }.count
+        guard setCount > 0 else { return String(localized: "Not set") }
+        return String(localized: "\(setCount) of 3 set")
+    }
+
+    private func scheduleLinkSection(_ profile: TrainingProfile) -> some View {
+        Section {
+            NavigationLink {
+                TrainingProfileScheduleView(profile: profile)
+            } label: {
+                LabeledContent("Schedule", value: scheduleSummary(profile))
+            }
+            .accessibilityIdentifier("training-profile-schedule-link")
         } footer: {
             Text("A preference for ranking, not a commitment. Sessions you have already scheduled keep their dates.")
         }
+    }
+
+    private func scheduleSummary(_ profile: TrainingProfile) -> String {
+        var parts: [String] = []
+        if let days = profile.preferredDaysPerWeek { parts.append(CountPhrase.daysPerWeekAbbreviated(days)) }
+        if let flexibility = profile.scheduleFlexibility { parts.append(flexibility.title) }
+        if let duration = profile.sessionDuration { parts.append(duration.summaryTitle) }
+        return parts.isEmpty ? String(localized: "Not set") : parts.joined(separator: " · ")
     }
 
     private func equipmentSection(_ profile: TrainingProfile) -> some View {
@@ -152,7 +190,7 @@ struct TrainingProfileSettingsView: View {
             optionalPicker(
                 label: String(localized: "Usual location"),
                 identifier: "training-profile-location",
-                selection: rawBinding(profile, \.trainingLocationRaw),
+                selection: rawBinding(profile, \.trainingLocationRaw, onChange: { touch(profile) }),
                 options: TrainingLocationPreference.allCases,
                 titleKeyPath: \.title
             )
@@ -215,7 +253,7 @@ struct TrainingProfileSettingsView: View {
             optionalPicker(
                 label: String(localized: "Mobility goal"),
                 identifier: "training-profile-mobility-goal",
-                selection: rawBinding(profile, \.mobilityGoalRaw),
+                selection: rawBinding(profile, \.mobilityGoalRaw, onChange: { touch(profile) }),
                 options: MobilityGoalPreference.allCases,
                 titleKeyPath: \.title
             )
@@ -223,7 +261,7 @@ struct TrainingProfileSettingsView: View {
             optionalPicker(
                 label: String(localized: "Mobility experience"),
                 identifier: "training-profile-mobility-experience",
-                selection: rawBinding(profile, \.mobilityExperienceRaw),
+                selection: rawBinding(profile, \.mobilityExperienceRaw, onChange: { touch(profile) }),
                 options: MobilityExperiencePreference.allCases,
                 titleKeyPath: \.title
             )
@@ -231,7 +269,7 @@ struct TrainingProfileSettingsView: View {
             optionalPicker(
                 label: String(localized: "Mobility frequency"),
                 identifier: "training-profile-mobility-frequency",
-                selection: rawBinding(profile, \.mobilityFrequencyRaw),
+                selection: rawBinding(profile, \.mobilityFrequencyRaw, onChange: { touch(profile) }),
                 options: MobilityFrequencyPreference.allCases,
                 titleKeyPath: \.title
             )
@@ -243,41 +281,6 @@ struct TrainingProfileSettingsView: View {
     }
 
     // MARK: Controls
-
-    /// A picker whose first row is "Not set".
-    ///
-    /// Every preference has to be un-answerable. A settings screen that can
-    /// only move between answers turns a question the lifter skipped on purpose
-    /// into one they are now forced to answer.
-    private func optionalPicker<Option: RawRepresentable & Hashable>(
-        label: String,
-        identifier: String,
-        selection: Binding<String?>,
-        options: [Option],
-        titleKeyPath: KeyPath<Option, String>
-    ) -> some View where Option.RawValue == String {
-        Picker(label, selection: selection) {
-            Text("Not set").tag(String?.none)
-            ForEach(options, id: \.self) { option in
-                Text(option[keyPath: titleKeyPath]).tag(String?.some(option.rawValue))
-            }
-        }
-        .pickerStyle(.menu)
-        .accessibilityIdentifier(identifier)
-    }
-
-    private func rawBinding(
-        _ profile: TrainingProfile,
-        _ keyPath: ReferenceWritableKeyPath<TrainingProfile, String?>
-    ) -> Binding<String?> {
-        Binding(
-            get: { profile[keyPath: keyPath] },
-            set: { newValue in
-                profile[keyPath: keyPath] = newValue
-                touch(profile)
-            }
-        )
-    }
 
     private func toggleFocusArea(_ area: FocusArea, on profile: TrainingProfile) {
         var selection = profile.focusAreaIDs
@@ -298,11 +301,6 @@ struct TrainingProfileSettingsView: View {
 
     // MARK: Summaries
 
-    private func daysPerWeekText(_ profile: TrainingProfile) -> String {
-        guard let days = profile.preferredDaysPerWeek else { return String(localized: "Not set") }
-        return CountPhrase.days(days)
-    }
-
     private func equipmentSummary(_ profile: TrainingProfile) -> String {
         let count = profile.equipmentCapabilityIDs.count
         guard count > 0 else { return String(localized: "Not set") }
@@ -315,7 +313,304 @@ struct TrainingProfileSettingsView: View {
         return CountPhrase.items(count)
     }
 
-    private func weekdaySummary(_ profile: TrainingProfile) -> String {
+    private func touch(_ profile: TrainingProfile) {
+        profile.updatedAt = .now
+        save()
+    }
+
+    private func save() {
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+        }
+    }
+}
+
+/// A picker whose first row is "Not set".
+///
+/// Every preference has to be un-answerable. A settings screen that can only
+/// move between answers turns a question the lifter skipped on purpose into
+/// one they are now forced to answer.
+///
+/// Free-standing rather than a method on one view: every training-profile
+/// screen in this file — the main one and every sub-screen below — asks a
+/// version of this same question, using this exact control every time.
+private func optionalPicker<Option: RawRepresentable & Hashable>(
+    label: String,
+    identifier: String,
+    selection: Binding<String?>,
+    options: [Option],
+    titleKeyPath: KeyPath<Option, String>
+) -> some View where Option.RawValue == String {
+    Picker(label, selection: selection) {
+        Text("Not set").tag(String?.none)
+        ForEach(options, id: \.self) { option in
+            Text(option[keyPath: titleKeyPath]).tag(String?.some(option.rawValue))
+        }
+    }
+    .pickerStyle(.menu)
+    .accessibilityIdentifier(identifier)
+}
+
+/// `onChange` rather than a shared `touch(profile:)` because persistence is
+/// each screen's own responsibility here — every sub-screen below already
+/// owns its own `modelContext` and its own save/rollback, matching
+/// `TrainingProfileEquipmentView`'s established pattern rather than routing
+/// every edit back through the main view.
+private func rawBinding(
+    _ profile: TrainingProfile,
+    _ keyPath: ReferenceWritableKeyPath<TrainingProfile, String?>,
+    onChange: @escaping () -> Void
+) -> Binding<String?> {
+    Binding(
+        get: { profile[keyPath: keyPath] },
+        set: { newValue in
+            profile[keyPath: keyPath] = newValue
+            onChange()
+        }
+    )
+}
+
+/// Discipline, Goal, Experience, and secondary disciplines — one identity,
+/// asked in one place. These four questions used to render as three always-
+/// open pickers immediately followed by a fourth section (a toggle list for
+/// "what else do you train"), which was most of what made the main screen
+/// read as a wall of menus before a single answer was even in view.
+struct TrainingProfileIdentityView: View {
+    @Bindable var profile: TrainingProfile
+
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        Form {
+            Section {
+                optionalPicker(
+                    label: String(localized: "Discipline"),
+                    identifier: "training-profile-discipline",
+                    selection: rawBinding(profile, \.primaryDisciplineRaw, onChange: touch),
+                    options: TrainingDisciplinePreference.allCases,
+                    titleKeyPath: \.title
+                )
+                optionalPicker(
+                    label: String(localized: "Goal"),
+                    identifier: "training-profile-goal",
+                    selection: rawBinding(profile, \.primaryGoalRaw, onChange: touch),
+                    options: TrainingGoalPreference.allCases,
+                    titleKeyPath: \.title
+                )
+                optionalPicker(
+                    label: String(localized: "Experience"),
+                    identifier: "training-profile-experience",
+                    selection: rawBinding(profile, \.experienceLevelRaw, onChange: touch),
+                    options: ProfileExperienceLevel.allCases,
+                    titleKeyPath: \.title
+                )
+            }
+
+            if secondaryDisciplineOptions.isEmpty == false {
+                Section {
+                    ForEach(secondaryDisciplineOptions, id: \.self) { discipline in
+                        Button {
+                            toggleSecondaryDiscipline(discipline)
+                        } label: {
+                            HStack {
+                                Text(discipline.title)
+                                    .foregroundStyle(Color.gymText)
+                                Spacer()
+                                if profile.secondaryDisciplines.contains(discipline) {
+                                    Image(systemName: AppIcon.checkmark)
+                                        .foregroundStyle(Color.gymPrimary)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .accessibilityIdentifier("training-profile-secondary-\(discipline.rawValue)")
+                        .accessibilityAddTraits(profile.secondaryDisciplines.contains(discipline) ? .isSelected : [])
+                    }
+                } header: {
+                    Text("Other training")
+                } footer: {
+                    Text("Add other sports you train. Progress uses them as context without replacing your primary sport.")
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
+        .navigationTitle("Training")
+        .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("training-profile-identity")
+    }
+
+    private var secondaryDisciplineOptions: [TrainingDisciplinePreference] {
+        TrainingDisciplinePreference.allCases.filter { discipline in
+            discipline != profile.primaryDiscipline
+                && discipline != .mixed
+                && discipline != .unspecified
+        }
+    }
+
+    private func toggleSecondaryDiscipline(_ discipline: TrainingDisciplinePreference) {
+        var selection = profile.secondaryDisciplines
+        if let index = selection.firstIndex(of: discipline) {
+            selection.remove(at: index)
+        } else {
+            selection.append(discipline)
+        }
+        profile.secondaryDisciplines = selection
+        touch()
+    }
+
+    private func touch() {
+        profile.updatedAt = .now
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+        }
+    }
+}
+
+/// The three competition-lift identities behind Estimated SBD — its own
+/// screen because it is a specialised, powerlifting-only question, reachable
+/// only once a powerlifting discipline is already in play.
+struct TrainingProfileCompetitionLiftsView: View {
+    @Bindable var profile: TrainingProfile
+
+    @Environment(\.modelContext) private var modelContext
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }, sort: \Exercise.name)
+    private var availableExercises: [Exercise]
+
+    var body: some View {
+        Form {
+            Section {
+                exercisePicker(
+                    label: String(localized: "Competition squat"),
+                    identifier: "training-profile-powerlifting-squat",
+                    selection: exerciseBinding(\.squatExerciseID)
+                )
+                exercisePicker(
+                    label: String(localized: "Competition bench"),
+                    identifier: "training-profile-powerlifting-bench",
+                    selection: exerciseBinding(\.benchExerciseID)
+                )
+                exercisePicker(
+                    label: String(localized: "Competition deadlift"),
+                    identifier: "training-profile-powerlifting-deadlift",
+                    selection: exerciseBinding(\.deadliftExerciseID)
+                )
+            } footer: {
+                Text("Choose the exact exercise identities used for Estimated SBD. Trame never guesses these roles from exercise names, and this does not create a competition total.")
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
+        .navigationTitle("Competition lifts")
+        .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("training-profile-competition-lifts")
+    }
+
+    private func exercisePicker(label: String, identifier: String, selection: Binding<UUID?>) -> some View {
+        Picker(label, selection: selection) {
+            Text("Not set").tag(UUID?.none)
+            ForEach(availableExercises) { exercise in
+                Text(exercise.name).tag(Optional(exercise.id))
+            }
+        }
+        .accessibilityIdentifier(identifier)
+    }
+
+    private func exerciseBinding(_ keyPath: WritableKeyPath<CompetitionProfileDraft, UUID?>) -> Binding<UUID?> {
+        Binding(
+            get: { profile.competition?[keyPath: keyPath] },
+            set: { newValue in
+                var competition = profile.competition ?? CompetitionProfileDraft()
+                competition[keyPath: keyPath] = newValue
+                profile.competitionProfileData = competition.isEmpty ? nil : try? JSONEncoder().encode(competition)
+                profile.updatedAt = .now
+                do {
+                    try modelContext.save()
+                } catch {
+                    modelContext.rollback()
+                }
+            }
+        )
+    }
+}
+
+/// Days per week, week shape, session length, and usual training days — every
+/// question about *when* training happens, in one place, with the existing
+/// weekdays screen nested one level deeper since it is its own multi-select
+/// rather than a single answer.
+struct TrainingProfileScheduleView: View {
+    @Bindable var profile: TrainingProfile
+
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        Form {
+            Section {
+                Stepper(
+                    value: Binding(
+                        get: { profile.preferredDaysPerWeek ?? 0 },
+                        set: { newValue in
+                            // Zero is how "not answered" is expressed, so the
+                            // stepper can return to unset rather than
+                            // trapping the lifter into having named a number.
+                            profile.preferredDaysPerWeek = newValue == 0 ? nil : newValue
+                            touch()
+                        }
+                    ),
+                    in: 0...7
+                ) {
+                    LabeledContent("Days per week", value: daysPerWeekText)
+                }
+                .accessibilityIdentifier("training-profile-days")
+
+                optionalPicker(
+                    label: String(localized: "Week shape"),
+                    identifier: "training-profile-flexibility",
+                    selection: rawBinding(profile, \.scheduleFlexibilityRaw, onChange: touch),
+                    options: ScheduleFlexibility.allCases,
+                    titleKeyPath: \.title
+                )
+
+                optionalPicker(
+                    label: String(localized: "Session length"),
+                    identifier: "training-profile-duration",
+                    selection: rawBinding(profile, \.sessionDurationRaw, onChange: touch),
+                    options: SessionDurationPreference.allCases,
+                    titleKeyPath: \.summaryTitle
+                )
+
+                // Onboarding no longer asks which weekdays work — it never
+                // reached the ranking, so it was a screen charged to every
+                // lifter before they had a plan for those days to belong to.
+                // It lives here instead, where it can be set once there is
+                // something to schedule.
+                NavigationLink {
+                    TrainingProfileWeekdaysView(profile: profile)
+                } label: {
+                    LabeledContent("Usual training days", value: weekdaySummary)
+                }
+                .accessibilityIdentifier("training-profile-weekdays")
+            } footer: {
+                Text("A preference for ranking, not a commitment. Sessions you have already scheduled keep their dates.")
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.gymBackground)
+        .navigationTitle("Schedule")
+        .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("training-profile-schedule")
+    }
+
+    private var daysPerWeekText: String {
+        guard let days = profile.preferredDaysPerWeek else { return String(localized: "Not set") }
+        return CountPhrase.days(days)
+    }
+
+    private var weekdaySummary: String {
         let days = profile.preferredWeekdays.sorted()
         guard !days.isEmpty else { return String(localized: "Not set") }
         let symbols = Calendar.current.shortWeekdaySymbols
@@ -324,12 +619,8 @@ struct TrainingProfileSettingsView: View {
             .formatted(.list(type: .and, width: .narrow))
     }
 
-    private func touch(_ profile: TrainingProfile) {
+    private func touch() {
         profile.updatedAt = .now
-        save()
-    }
-
-    private func save() {
         do {
             try modelContext.save()
         } catch {

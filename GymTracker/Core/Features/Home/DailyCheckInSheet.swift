@@ -27,7 +27,8 @@ struct DailyCheckInSheet: View {
     let onSaved: () -> Void
 
     @Query private var entries: [DailyLogEntry]
-    @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var weightEntries: [BodyWeightEntry]
+    @Query private var latestWeightEntries: [BodyWeightEntry]
+    @Query private var dayWeightEntries: [BodyWeightEntry]
     @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
     @State private var sleepQuality = 0
     @State private var energy = 0
@@ -39,6 +40,40 @@ struct DailyCheckInSheet: View {
     @State private var hasLoaded = false
     @State private var saveError: ValidationIssue?
     @State private var detent: PresentationDetent = .medium
+
+    init(day: LocalDay, onSaved: @escaping () -> Void) {
+        self.day = day
+        self.onSaved = onSaved
+
+        let dayKey = day.rawValue
+        _entries = Query(filter: #Predicate<DailyLogEntry> { $0.dayKey == dayKey })
+        _dayWeightEntries = Query(filter: #Predicate<BodyWeightEntry> { $0.dayKey == dayKey })
+
+        var latestWeight = FetchDescriptor<BodyWeightEntry>(
+            sortBy: [SortDescriptor(\BodyWeightEntry.measuredAt, order: .reverse)]
+        )
+        latestWeight.fetchLimit = 1
+        _latestWeightEntries = Query(latestWeight)
+
+        let parts = dayKey.split(separator: "-").compactMap { Int($0) }
+        let calendar = Calendar.current
+        let dayStart: Date
+        if parts.count == 3,
+           let resolved = calendar.date(
+               from: DateComponents(year: parts[0], month: parts[1], day: parts[2])
+           ) {
+            dayStart = resolved
+        } else {
+            dayStart = calendar.startOfDay(for: .now)
+        }
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+        _workouts = Query(
+            filter: #Predicate<Workout> {
+                $0.endTime != nil && $0.startTime >= dayStart && $0.startTime < dayEnd
+            },
+            sort: [SortDescriptor(\Workout.startTime, order: .reverse)]
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -306,8 +341,8 @@ struct DailyCheckInSheet: View {
 
     // MARK: - Derived state
 
-    private var entryForDay: DailyLogEntry? { entries.first { $0.dayKey == day.rawValue } }
-    private var latestWeight: BodyWeightEntry? { weightEntries.first }
+    private var entryForDay: DailyLogEntry? { entries.first }
+    private var latestWeight: BodyWeightEntry? { latestWeightEntries.first }
     private var shouldShowWeightPrompt: Bool { !hidesWeightPrompt && weightCadence.isDue(latest: latestWeight) }
     private var hasWorkoutForDay: Bool {
         workouts.contains { $0.status == .completed && LocalDay(date: $0.startTime).rawValue == day.rawValue }
@@ -349,7 +384,7 @@ struct DailyCheckInSheet: View {
 
         if status == .completed, shouldShowWeightPrompt, let parsedWeight {
             let measuredAt = Date.now
-            let existing = weightEntries.first { $0.dayKey == day.rawValue }
+            let existing = dayWeightEntries.first
             let weight = existing ?? BodyWeightEntry(day: day, value: parsedWeight, unit: weightUnit, source: .checkIn, measuredAt: measuredAt)
             weight.update(value: parsedWeight, unit: weightUnit, source: .checkIn, measuredAt: measuredAt)
             if existing == nil { modelContext.insert(weight) }

@@ -65,6 +65,20 @@ struct ProgramCatalogDetailView: View {
 
     private var payload: ProgramDefinitionPayload? { try? record.payload() }
 
+    init(
+        record: ProgramDefinitionRecord,
+        onStartPlan: @escaping (WorkoutPlan, Date) -> ProgramActivationOutcome,
+        onActivated: @escaping () -> Void
+    ) {
+        self.record = record
+        self.onStartPlan = onStartPlan
+        self.onActivated = onActivated
+
+        var descriptor = FetchDescriptor<TrainingProfile>()
+        descriptor.fetchLimit = 1
+        _trainingProfiles = Query(descriptor)
+    }
+
     private var exerciseNamesByID: [UUID: String] {
         Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0.name) })
     }

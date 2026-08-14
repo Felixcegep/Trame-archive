@@ -14,6 +14,10 @@ enum NutritionSeedData {
 
     static func stage(using context: ModelContext, registry: SystemSeedRegistry) throws {
         var existing = try context.fetch(FetchDescriptor<FoodItem>())
+        var existingByID = Dictionary(
+            existing.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
 
         struct FoodSeed {
@@ -454,7 +458,7 @@ enum NutritionSeedData {
             let food: FoodItem
             let ownsSystemFields: Bool
             if let record = try registry.record(for: key, expectedKind: .foodItem) {
-                guard let matched = existing.first(where: { $0.id == record.entityID }) else {
+                guard let matched = existingByID[record.entityID] else {
                     throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
                 }
                 food = matched
@@ -477,6 +481,7 @@ enum NutritionSeedData {
                 food = FoodItem(name: seed.name, sourceKind: .curated, confidence: .verified)
                 context.insert(food)
                 existing.append(food)
+                existingByID[food.id] = food
                 ownsSystemFields = true
                 try registry.register(
                     key: key,

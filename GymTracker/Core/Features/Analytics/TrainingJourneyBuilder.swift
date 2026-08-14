@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 /// One chapter of a lifter's training history.
 ///
@@ -37,38 +36,84 @@ struct TrainingJourneyYear: Identifiable, Equatable, Sendable {
     let chapters: [TrainingJourneyChapter]
 }
 
+struct TrainingJourneySummary: Equatable, Sendable {
+    let latestChapterTitle: String?
+    let chapterCount: Int
+    let yearCount: Int
+}
+
+/// Sorted timestamp index for repeated chapter-range counts. `DateInterval`
+/// includes its start and excludes its end; two lower bounds preserve that
+/// contract without rescanning every historical row for every chapter.
+private struct TrainingJourneyDateCountIndex {
+    let dates: [Date]
+
+    init<S: Sequence>(_ dates: S) where S.Element == Date {
+        self.dates = dates.sorted()
+    }
+
+    func count(in interval: DateInterval) -> Int {
+        lowerBound(of: interval.end) - lowerBound(of: interval.start)
+    }
+
+    private func lowerBound(of value: Date) -> Int {
+        var lower = 0
+        var upper = dates.count
+        while lower < upper {
+            let middle = lower + (upper - lower) / 2
+            if dates[middle] < value {
+                lower = middle + 1
+            } else {
+                upper = middle
+            }
+        }
+        return lower
+    }
+}
+
 /// Projects the journey from records that already exist.
 ///
 /// Deliberately not backed by persisted timeline rows: every fact here is
 /// derivable from the runs, workouts and sessions already stored, and a
-/// duplicate event table would be one more thing to keep true. If profiling
-/// ever shows the projection is too slow, that is the moment to cache it —
-/// not before.
-struct TrainingJourneyBuilder: Sendable {
-    let modelContext: ModelContext
-
-    func journey(calendar: Calendar = .current) throws -> [TrainingJourneyYear] {
-        let completedWorkouts = try modelContext
-            .fetch(FetchDescriptor<Workout>(sortBy: [SortDescriptor(\Workout.startTime, order: .forward)]))
-            .filter { $0.status == .completed }
-        let fixedRuns = try modelContext.fetch(FetchDescriptor<PlanRun>())
-        let repeatingRuns = try modelContext.fetch(FetchDescriptor<RepeatingPlanRun>())
-        let mobilitySessions = try modelContext
-            .fetch(FetchDescriptor<MobilitySession>())
-            .filter { $0.status == .completed }
-        let assessments = try modelContext
-            .fetch(FetchDescriptor<MobilityAssessmentSession>())
-            .filter { $0.results.isEmpty == false }
-
-        // Records are read once and bucketed by date rather than recomputed per
-        // chapter, which would refetch the whole history for every run.
-        let records = try PersonalRecordAnalyticsService(modelContext: modelContext)
-            .personalRecords(dateRange: .allTime)
+/// duplicate event table would be one more thing to keep true. Callers own
+/// observation and invalidation; this builder never reaches back into the
+/// store or creates a second persistence boundary.
+@MainActor
+struct TrainingJourneyBuilder {
+    /// Projects from already-observed records so a dashboard can share one
+    /// persistence read across consistency, records, series, and Journey.
+    func journey(
+        workouts: [Workout],
+        fixedRuns: [PlanRun],
+        repeatingRuns: [RepeatingPlanRun],
+        mobilitySessions: [MobilitySession],
+        assessments: [MobilityAssessmentSession],
+        records suppliedRecords: [PersonalRecordItem]? = nil,
+        calendar: Calendar = .current
+    ) -> [TrainingJourneyYear] {
+        let completedWorkouts = workouts.filter { $0.status == .completed }
+        let completedMobilitySessions = mobilitySessions.filter { $0.status == .completed }
+        let recordedAssessments = assessments.filter { $0.results.isEmpty == false }
+        // Records are projected once and reused by every chapter. A caller
+        // that already needs records can supply the same result directly.
+        let records = suppliedRecords ?? PersonalRecordAnalyticsService.personalRecords(
+            workouts: completedWorkouts,
+            dateRange: .allTime
+        )
+        let fixedWorkoutsByRun = Dictionary(grouping: completedWorkouts.compactMap { workout in
+            workout.sourcePlanRunID.map { ($0, workout) }
+        }, by: \.0).mapValues { $0.map(\.1) }
+        let repeatingWorkoutsByRun = Dictionary(grouping: completedWorkouts.compactMap { workout in
+            workout.sourceRepeatingPlanRunID.map { ($0, workout) }
+        }, by: \.0).mapValues { $0.map(\.1) }
+        let recordDates = TrainingJourneyDateCountIndex(records.map(\.date))
+        let mobilityDates = TrainingJourneyDateCountIndex(completedMobilitySessions.map(\.startTime))
+        let assessmentDates = TrainingJourneyDateCountIndex(recordedAssessments.map(\.startedAt))
 
         var chapters: [TrainingJourneyChapter] = []
 
         for run in fixedRuns {
-            let runWorkouts = completedWorkouts.filter { $0.sourcePlanRunID == run.id }
+            let runWorkouts = fixedWorkoutsByRun[run.id, default: []]
             chapters.append(
                 chapter(
                     id: "fixed-\(run.id)",
@@ -78,16 +123,16 @@ struct TrainingJourneyBuilder: Sendable {
                     end: run.endDate,
                     statusText: fixedStatusText(run.status),
                     workouts: runWorkouts,
-                    records: records,
-                    mobilitySessions: mobilitySessions,
-                    assessments: assessments,
+                    recordDates: recordDates,
+                    mobilityDates: mobilityDates,
+                    assessmentDates: assessmentDates,
                     calendar: calendar
                 )
             )
         }
 
         for run in repeatingRuns {
-            let runWorkouts = completedWorkouts.filter { $0.sourceRepeatingPlanRunID == run.id }
+            let runWorkouts = repeatingWorkoutsByRun[run.id, default: []]
             chapters.append(
                 chapter(
                     id: "repeating-\(run.id)",
@@ -97,9 +142,9 @@ struct TrainingJourneyBuilder: Sendable {
                     end: run.endedAt,
                     statusText: repeatingStatusText(run.status),
                     workouts: runWorkouts,
-                    records: records,
-                    mobilitySessions: mobilitySessions,
-                    assessments: assessments,
+                    recordDates: recordDates,
+                    mobilityDates: mobilityDates,
+                    assessmentDates: assessmentDates,
                     calendar: calendar
                 )
             )
@@ -130,15 +175,58 @@ struct TrainingJourneyBuilder: Sendable {
                     end: end,
                     statusText: nil,
                     workouts: monthWorkouts,
-                    records: records,
-                    mobilitySessions: mobilitySessions,
-                    assessments: assessments,
+                    recordDates: recordDates,
+                    mobilityDates: mobilityDates,
+                    assessmentDates: assessmentDates,
                     calendar: calendar
                 )
             )
         }
 
         return group(chapters.sorted { $0.start > $1.start }, calendar: calendar)
+    }
+
+    /// The Progress hub needs chapter identity and counts, not per-chapter
+    /// evidence or discipline distributions. Derive that compact answer from
+    /// the same chapter roots without constructing the complete timeline.
+    func summary(
+        workouts: [Workout],
+        fixedRuns: [PlanRun],
+        repeatingRuns: [RepeatingPlanRun],
+        calendar: Calendar = .current
+    ) -> TrainingJourneySummary {
+        var roots: [(start: Date, title: String)] = fixedRuns.map {
+            ($0.startDate, $0.sourcePlanName)
+        }
+        roots.append(contentsOf: repeatingRuns.map {
+            ($0.startedAt, $0.sourcePlanName)
+        })
+
+        let freeWorkouts = workouts.filter {
+            $0.status == .completed
+                && $0.sourcePlanRunID == nil
+                && $0.sourceRepeatingPlanRunID == nil
+        }
+        let freeByMonth = Dictionary(grouping: freeWorkouts) {
+            calendar.dateInterval(of: .month, for: $0.startTime)?.start
+                ?? $0.startTime
+        }
+        roots.append(contentsOf: freeByMonth.values.compactMap { monthWorkouts in
+            monthWorkouts.map(\.startTime).min().map {
+                ($0, String(localized: "Free training"))
+            }
+        })
+
+        let latest = roots.max {
+            if $0.start != $1.start { return $0.start < $1.start }
+            return $0.title.localizedStandardCompare($1.title) == .orderedAscending
+        }
+        let years = Set(roots.map { calendar.component(.year, from: $0.start) })
+        return TrainingJourneySummary(
+            latestChapterTitle: latest?.title,
+            chapterCount: roots.count,
+            yearCount: years.count
+        )
     }
 
     // MARK: - Assembly
@@ -151,9 +239,9 @@ struct TrainingJourneyBuilder: Sendable {
         end: Date?,
         statusText: String?,
         workouts: [Workout],
-        records: [PersonalRecordItem],
-        mobilitySessions: [MobilitySession],
-        assessments: [MobilityAssessmentSession],
+        recordDates: TrainingJourneyDateCountIndex,
+        mobilityDates: TrainingJourneyDateCountIndex,
+        assessmentDates: TrainingJourneyDateCountIndex,
         calendar: Calendar
     ) -> TrainingJourneyChapter {
         // Mobility and assessments carry no plan-run link, so they are the one
@@ -168,9 +256,9 @@ struct TrainingJourneyBuilder: Sendable {
             end: end,
             statusText: statusText,
             completedWorkouts: workouts.count,
-            personalRecords: records.filter { span.contains($0.date) }.count,
-            mobilitySessions: mobilitySessions.filter { span.contains($0.startTime) }.count,
-            assessments: assessments.filter { span.contains($0.startedAt) }.count,
+            personalRecords: recordDates.count(in: span),
+            mobilitySessions: mobilityDates.count(in: span),
+            assessments: assessmentDates.count(in: span),
             disciplineDistribution: TrainingJourneyDisciplineDistribution.project(workouts: workouts)
         )
     }

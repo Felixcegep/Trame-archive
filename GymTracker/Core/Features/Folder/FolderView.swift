@@ -11,11 +11,12 @@ import SwiftUI
 struct FolderView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var workoutCollections: [WorkoutCollection]
-    @Query private var workoutTemplates: [WorkoutTemplate]
+    @Query(filter: #Predicate<WorkoutTemplate> { !$0.isArchived }) private var workoutTemplates: [WorkoutTemplate]
     @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exerciseTemplates: [Exercise]
-    @Query private var workoutPlans: [WorkoutPlan]
-    @Query private var repeatingPlans: [RepeatingPlan]
-    @Query private var programDefinitions: [ProgramDefinitionRecord]
+    @Query(filter: #Predicate<WorkoutPlan> { !$0.isArchived }) private var workoutPlans: [WorkoutPlan]
+    @Query(filter: #Predicate<RepeatingPlan> { !$0.isArchived }) private var repeatingPlans: [RepeatingPlan]
+    @Query(filter: #Predicate<ProgramDefinitionRecord> { $0.isBuiltIn && !$0.isArchived })
+    private var programDefinitions: [ProgramDefinitionRecord]
     @Query(filter: #Predicate<MobilityRoutine> { !$0.isArchived })
     private var mobilityRoutines: [MobilityRoutine]
     @Query(filter: #Predicate<MobilityProgramDefinitionRecord> { !$0.isArchived })
@@ -39,8 +40,9 @@ struct FolderView: View {
     @State private var isPlayingAssembly = false
 
     var body: some View {
+        let searchResults = searchText.isEmpty ? nil : makeSearchResults()
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xxl) {
+            LazyVStack(alignment: .leading, spacing: Spacing.xxl) {
                 Text("Train")
                     .font(AppFont.displayMedium)
                     .foregroundStyle(Color.gymText)
@@ -51,8 +53,8 @@ struct FolderView: View {
 
                 if searchText.isEmpty {
                     browseSection
-                } else {
-                    globalResults
+                } else if let searchResults {
+                    globalResults(searchResults)
                 }
             }
             .padding(.horizontal, Spacing.xl)
@@ -313,15 +315,15 @@ struct FolderView: View {
     /// Plans destination actually lists.
     private var planCount: Int {
         readyMadePlanCount
-            + workoutPlans.filter { !$0.isArchived }.count
-            + repeatingPlans.filter { !$0.isArchived }.count
+            + workoutPlans.count
+            + repeatingPlans.count
     }
 
     /// Not gated on `.programBuilder`. Bundled plans are shipped *content*, and
     /// hiding them behind an authoring capability also hid the destination that
     /// onboarding's recommendations send people to. See `PlansBrowserView`.
     private var readyMadePlanCount: Int {
-        programDefinitions.filter { $0.isBuiltIn && !$0.isArchived }.count
+        programDefinitions.count
     }
 
     private func presentPendingSheet() {
@@ -331,16 +333,16 @@ struct FolderView: View {
     }
 
     @ViewBuilder
-    private var globalResults: some View {
-        if matchingCollections.isEmpty && matchingTemplates.isEmpty && matchingPlans.isEmpty && matchingExercises.isEmpty {
+    private func globalResults(_ results: FolderSearchResults) -> some View {
+        if results.isEmpty {
             ContentUnavailableView.search(text: searchText)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 56)
         } else {
-            VStack(alignment: .leading, spacing: Spacing.xl) {
-                if !matchingCollections.isEmpty {
+            LazyVStack(alignment: .leading, spacing: Spacing.xl) {
+                if !results.collections.isEmpty {
                     searchResultsCard(title: "Folders") {
-                        ForEach(matchingCollections) { collection in
+                        ForEach(results.collections) { collection in
                             NavigationLink(value: LibraryRoute.workoutCollection(collection.id)) {
                                 RecentLibraryRow(
                                     title: collection.name,
@@ -353,9 +355,9 @@ struct FolderView: View {
                         }
                     }
                 }
-                if !matchingTemplates.isEmpty {
+                if !results.templates.isEmpty {
                     searchResultsCard(title: "Workouts") {
-                        ForEach(matchingTemplates) { template in
+                        ForEach(results.templates) { template in
                             NavigationLink(value: LibraryRoute.workoutTemplate(template.id)) {
                                 RecentLibraryRow(
                                     title: template.name,
@@ -368,9 +370,9 @@ struct FolderView: View {
                         }
                     }
                 }
-                if !matchingPlans.isEmpty {
+                if !results.plans.isEmpty {
                     searchResultsCard(title: "Training Plans") {
-                        ForEach(matchingPlans) { plan in
+                        ForEach(results.plans) { plan in
                             NavigationLink(value: LibraryRoute.plan(plan.id)) {
                                 RecentLibraryRow(
                                     title: plan.name,
@@ -383,9 +385,9 @@ struct FolderView: View {
                         }
                     }
                 }
-                if !matchingRepeatingPlans.isEmpty {
+                if !results.repeatingPlans.isEmpty {
                     searchResultsCard(title: "Repeating Plans") {
-                        ForEach(matchingRepeatingPlans) { plan in
+                        ForEach(results.repeatingPlans) { plan in
                             NavigationLink(value: LibraryRoute.repeatingPlan(plan.id)) {
                                 RecentLibraryRow(
                                     title: plan.name,
@@ -398,9 +400,9 @@ struct FolderView: View {
                         }
                     }
                 }
-                if !matchingExercises.isEmpty {
+                if !results.exercises.isEmpty {
                     searchResultsCard(title: "Exercises") {
-                        ForEach(matchingExercises) { exercise in
+                        ForEach(results.exercises) { exercise in
                             NavigationLink(value: LibraryRoute.exercise(exercise.id)) {
                                 RecentLibraryRow(
                                     title: exercise.name,
@@ -427,24 +429,14 @@ struct FolderView: View {
         }
     }
 
-    private var matchingCollections: [WorkoutCollection] {
-        workoutCollections.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-    }
-
-    private var matchingTemplates: [WorkoutTemplate] {
-        workoutTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-    }
-
-    private var matchingExercises: [Exercise] {
-        exerciseTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-    }
-
-    private var matchingPlans: [WorkoutPlan] {
-        workoutPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-    }
-
-    private var matchingRepeatingPlans: [RepeatingPlan] {
-        repeatingPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    private func makeSearchResults() -> FolderSearchResults {
+        FolderSearchResults(
+            collections: workoutCollections.filter { $0.name.localizedCaseInsensitiveContains(searchText) },
+            templates: workoutTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) },
+            exercises: exerciseTemplates.filter { $0.name.localizedCaseInsensitiveContains(searchText) },
+            plans: workoutPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) },
+            repeatingPlans: repeatingPlans.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        )
     }
 
     /// Train assembles itself the first time a lifter with no history opens it,
@@ -456,6 +448,19 @@ struct FolderView: View {
             return
         }
         isPlayingAssembly = true
+    }
+}
+
+private struct FolderSearchResults {
+    let collections: [WorkoutCollection]
+    let templates: [WorkoutTemplate]
+    let exercises: [Exercise]
+    let plans: [WorkoutPlan]
+    let repeatingPlans: [RepeatingPlan]
+
+    var isEmpty: Bool {
+        collections.isEmpty && templates.isEmpty && exercises.isEmpty
+            && plans.isEmpty && repeatingPlans.isEmpty
     }
 }
 

@@ -8,7 +8,7 @@ enum MovementRequirementRegistry {
             MovementRequirement(
                 exerciseCatalogueKey: "barbell_back_squat",
                 jointZone: .ankles,
-                assessmentCatalogueKey: "knee_to_wall_dorsiflexion",
+                assessmentCatalogueKey: "mobility-assessment.knee-to-wall-dorsiflexion",
                 minRequiredValue: 10.0,
                 unit: .centimetres,
                 requirementDescription: "Requires 10.0cm knee-to-wall dorsiflexion for depth without heel lift."
@@ -16,7 +16,7 @@ enum MovementRequirementRegistry {
             MovementRequirement(
                 exerciseCatalogueKey: "barbell_back_squat",
                 jointZone: .hips,
-                assessmentCatalogueKey: "hip_flexion_90_90",
+                assessmentCatalogueKey: "mobility-assessment.90-90-hip-rotation",
                 minRequiredValue: 110.0,
                 unit: .degrees,
                 requirementDescription: "Requires 110° passive hip flexion for a parallel squat position."
@@ -26,7 +26,7 @@ enum MovementRequirementRegistry {
             MovementRequirement(
                 exerciseCatalogueKey: "overhead_press",
                 jointZone: .shoulders,
-                assessmentCatalogueKey: "shoulder_flexion_supine",
+                assessmentCatalogueKey: "mobility-assessment.wall-slide-arm-elevation",
                 minRequiredValue: 170.0,
                 unit: .degrees,
                 requirementDescription: "Requires 170° shoulder flexion for lock-out over midfoot."
@@ -36,13 +36,22 @@ enum MovementRequirementRegistry {
             MovementRequirement(
                 exerciseCatalogueKey: "romanian_deadlift",
                 jointZone: .hips,
-                assessmentCatalogueKey: "active_straight_leg_raise",
+                assessmentCatalogueKey: "mobility-assessment.active-straight-leg-raise",
                 minRequiredValue: 70.0,
                 unit: .degrees,
                 requirementDescription: "Requires 70° active straight leg raise for posterior chain hinge."
             )
         ]
     ]
+
+    /// Assessment catalogue keys referenced by the requirements table.
+    /// Keeping this derived from the table prevents the test-facing inventory
+    /// from drifting away from the evaluator's actual lookup keys.
+    static var assessmentCatalogueKeys: Set<String> {
+        Set(requirementsByExercise.values.flatMap { requirements in
+            requirements.map(\.assessmentCatalogueKey)
+        })
+    }
 
     static func requirements(for exerciseKey: String) -> [MovementRequirement] {
         requirementsByExercise[exerciseKey] ?? []

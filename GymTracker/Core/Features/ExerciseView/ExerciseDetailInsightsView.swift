@@ -97,9 +97,11 @@ struct ExerciseDetailInsightsView: View {
     }
 
     private func completedWorkout(id: UUID) -> Workout? {
-        try? modelContext.fetch(FetchDescriptor<Workout>()).first {
-            $0.id == id && $0.status == .completed
-        }
+        var descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { $0.id == id }
+        )
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.first.flatMap { $0.status == .completed ? $0 : nil }
     }
 }
 
@@ -247,12 +249,26 @@ private struct ExerciseVolumeChartSection: View {
             }
 
             Chart(points) { point in
+                AreaMark(
+                    x: .value("Week", point.date),
+                    y: .value("Volume", point.value)
+                )
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.gymPrimary.opacity(0.16), Color.gymPrimary.opacity(0)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .interpolationMethod(.linear)
+
                 LineMark(
                     x: .value("Week", point.date),
                     y: .value("Volume", point.value)
                 )
                 .foregroundStyle(Color.gymPrimary)
                 .interpolationMethod(.linear)
+                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
 
                 PointMark(
                     x: .value("Week", point.date),
@@ -260,6 +276,7 @@ private struct ExerciseVolumeChartSection: View {
                 )
                 .symbol(point.sessionCount == 0 ? .diamond : .circle)
                 .foregroundStyle(point.sessionCount == 0 ? Color.gymSubduedText : Color.gymPrimary)
+                .symbolSize(64)
 
                 if selectedPoint?.id == point.id {
                     RuleMark(x: .value("Selected week", point.date))
@@ -272,9 +289,11 @@ private struct ExerciseVolumeChartSection: View {
             .chartYAxis(.hidden)
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                    AxisGridLine().foregroundStyle(Color.gymText.opacity(0.08))
+                    AxisGridLine().foregroundStyle(Color.gymBorder)
+                    AxisTick().foregroundStyle(Color.gymBorder)
                     AxisValueLabel(format: .dateTime.month(.abbreviated).day())
                         .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
                 }
             }
             .accessibilityElement(children: .ignore)

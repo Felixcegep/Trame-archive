@@ -4,7 +4,7 @@ import Foundation
 
 /// The two competition lifts are named explicitly so an opener can never be
 /// inferred from a generic strength set or a component-only result.
-enum CompetitionLift: String, Codable, CaseIterable, Hashable {
+nonisolated enum CompetitionLift: String, Codable, CaseIterable, Hashable, Sendable {
     case snatch
     case cleanAndJerk
 }

@@ -11,7 +11,20 @@ import SwiftUI
 /// representation that survives Dynamic Type and reads correctly under
 /// VoiceOver, so it is the one that ships first and stays.
 struct TrainingJourneyView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Query(
+        filter: #Predicate<Workout> { $0.endTime != nil },
+        sort: \Workout.startTime,
+        order: .forward
+    ) private var workouts: [Workout]
+    @Query private var fixedRuns: [PlanRun]
+    @Query private var repeatingRuns: [RepeatingPlanRun]
+    @Query(
+        filter: #Predicate<MobilitySession> { $0.statusRaw == "completed" },
+        sort: \MobilitySession.startTime,
+        order: .forward
+    ) private var mobilitySessions: [MobilitySession]
+    @Query(sort: \MobilityAssessmentSession.startedAt, order: .forward)
+    private var assessments: [MobilityAssessmentSession]
 
     @State private var years: [TrainingJourneyYear] = []
     @State private var loadState: LoadState = .loading
@@ -65,27 +78,64 @@ struct TrainingJourneyView: View {
         .navigationTitle("Journey")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-journey-screen")
-        .task {
-            do {
-                years = try TrainingJourneyBuilder(modelContext: modelContext).journey()
-                let chapters = years.flatMap(\.chapters)
-                let timeline = TrainingJourneyTimelineProjectionService.project(
-                    chapters: chapters,
-                    calendar: .current,
-                    referenceDate: .now
-                )
-                timelineProjection = timeline
-                practiceTransitions = TrainingJourneyPracticeTransitionProjectionService.project(
-                    chapters: chapters,
-                    timeline: timeline
-                )
+        .task(id: journeyInputID) {
+            let projectedYears = TrainingJourneyBuilder().journey(
+                workouts: workouts,
+                fixedRuns: fixedRuns,
+                repeatingRuns: repeatingRuns,
+                mobilitySessions: mobilitySessions,
+                assessments: assessments
+            )
+            years = projectedYears
+            let chapters = projectedYears.flatMap(\.chapters)
+            let timeline = TrainingJourneyTimelineProjectionService.project(
+                chapters: chapters,
+                calendar: .current,
+                referenceDate: .now
+            )
+            timelineProjection = timeline
+            practiceTransitions = TrainingJourneyPracticeTransitionProjectionService.project(
+                chapters: chapters,
+                timeline: timeline
+            )
+            if loadState == .loading
+                || timelineDate < timeline.domain.start
+                || timelineDate >= timeline.domain.endExclusive {
                 timelineDate = chapters.first?.start ?? .now
-                loadState = .ready
-            } catch {
-                print("TrainingJourneyView: journey read failed: \(error)")
-                loadState = .failed
             }
+            loadState = .ready
         }
+    }
+
+    /// Root revisions are sufficient because completed workout/session graphs
+    /// are immutable evidence. Mutable runs and assessment sittings expose
+    /// `updatedAt`, so Journey refreshes without traversing every child merely
+    /// to form the task identity.
+    private var journeyInputID: Int {
+        var revision = Hasher()
+        for workout in workouts {
+            revision.combine(workout.id)
+            revision.combine(workout.startTime)
+            revision.combine(workout.endTime)
+        }
+        for run in fixedRuns {
+            revision.combine(run.id)
+            revision.combine(run.updatedAt)
+        }
+        for run in repeatingRuns {
+            revision.combine(run.id)
+            revision.combine(run.updatedAt)
+        }
+        for session in mobilitySessions {
+            revision.combine(session.id)
+            revision.combine(session.updatedAt)
+        }
+        for assessment in assessments {
+            revision.combine(assessment.id)
+            revision.combine(assessment.updatedAt)
+        }
+        revision.combine(LocalDay.today)
+        return revision.finalize()
     }
 
     private var listContent: some View {
@@ -304,13 +354,15 @@ struct TrainingJourneyChapterEvidenceView: View {
     }
 
     var body: some View {
+        let workoutsByID = Dictionary(uniqueKeysWithValues: workouts.map { ($0.id, $0) })
+
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 header
 
                 if presentation.hasEvidence {
                     disciplineSection
-                    evidenceSection
+                    evidenceSection(workoutsByID: workoutsByID)
                 } else {
                     GymCard {
                         ContentUnavailableView(
@@ -394,7 +446,7 @@ struct TrainingJourneyChapterEvidenceView: View {
         .accessibilityIdentifier("training-journey-discipline-section")
     }
 
-    private var evidenceSection: some View {
+    private func evidenceSection(workoutsByID: [UUID: Workout]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             GymSectionHeader(
                 title: String(localized: "training.journey.chapter.evidence.title", defaultValue: "Source evidence"),
@@ -407,7 +459,7 @@ struct TrainingJourneyChapterEvidenceView: View {
                         .font(AppFont.subheadlineSemibold)
                         .foregroundStyle(Color.gymText)
                     ForEach(slice.evidence) { source in
-                        if let workout = workouts.first(where: { $0.id == source.workoutID }) {
+                        if let workout = workoutsByID[source.workoutID] {
                             NavigationLink {
                                 HistoryWorkoutView(workout: workout)
                             } label: {

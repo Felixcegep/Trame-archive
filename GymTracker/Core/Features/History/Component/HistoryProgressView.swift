@@ -6,8 +6,12 @@ struct HistoryProgressView: View {
     let workouts: [Workout]
 
     var body: some View {
-        let series = exerciseSeries
-        let frequency = frequencyPoints
+        let projection = HistoryProgressProjection.make(
+            workouts: workouts,
+            displayWeightType: UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
+        )
+        let series = projection.exerciseSeries
+        let frequency = projection.frequencyPoints
 
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
@@ -48,90 +52,6 @@ struct HistoryProgressView: View {
         .background(Color.gymBackground)
     }
 
-    private var exerciseSeries: [HistoryExerciseSeries] {
-        // Keyed by `HistoricalExerciseIdentityPolicy.identity(of:)`, not by
-        // `nameSnapshot`. Two catalogue exercises that happen to share a
-        // display name must not merge into one trend, and one exercise that
-        // was renamed mid-history must not split into two. This is the same
-        // identity `ExerciseDetailAnalyticsService` already resolves entries
-        // under (`HistoricalExerciseIdentityPolicy.entries(for:in:)`); this
-        // view has its own workout-major loop rather than a per-exercise
-        // fetch, so it calls the same policy directly per entry instead of
-        // reusing that method.
-        var byIdentity: [UUID: HistoryExerciseSeries] = [:]
-        let displayWeightType: WeightType = UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
-
-        for workout in workouts.sorted(by: { $0.startTime < $1.startTime }) {
-            for exercise in workout.orderedExercises {
-                let completedSets = exercise.orderedSets.filter(\.done)
-                let trackingType = exercise.trackingTypeSnapshot
-                let weightedSets = completedSets.filter { _ in trackingType.usesWeight }
-                let load = weightedSets
-                    .map { UnitConversion.weight($0.weight, from: $0.weightType, to: displayWeightType) }
-                    .max()
-                let semantics = exercise.loggingSemanticsSnapshot
-                let volume = trackingType.usesWeight && trackingType.usesReps
-                    ? completedSets.reduce(Float.zero) { total, set in
-                        total + VolumeCalculator.setVolume(
-                            weight: set.weight,
-                            weightType: set.weightType,
-                            repetitions: set.repetitions,
-                            semantics: semantics,
-                            in: displayWeightType
-                        )
-                    }
-                    : 0
-                let reps = completedSets.reduce(Float.zero) { $0 + (trackingType.usesReps ? $1.repetitions : 0) }
-
-                guard load != nil || volume > 0 || reps > 0 else { continue }
-                let identity = HistoricalExerciseIdentityPolicy.identity(of: exercise)
-                var series = byIdentity[identity] ?? HistoryExerciseSeries(
-                    id: identity,
-                    name: exercise.nameSnapshot,
-                    unit: trackingType.usesWeight ? displayWeightType.rawValue : ""
-                )
-                // `workouts` is sorted ascending above, so the last entry
-                // processed for this identity is the most recent occurrence.
-                // Re-stamping the name on every occurrence means a series
-                // that spans a rename displays the exercise's current name,
-                // not the name it happened to have the first time it was
-                // logged.
-                series.name = exercise.nameSnapshot
-                if let load {
-                    series.loadPoints.append(HistoryMetricPoint(date: workout.startTime, value: load))
-                }
-                if volume > 0 {
-                    series.volumePoints.append(HistoryMetricPoint(date: workout.startTime, value: volume))
-                }
-                if reps > 0 {
-                    series.repsPoints.append(HistoryMetricPoint(date: workout.startTime, value: reps))
-                }
-                byIdentity[identity] = series
-            }
-        }
-
-        return byIdentity.values.sorted { $0.totalPointCount > $1.totalPointCount }
-    }
-
-    private var frequencyPoints: [HistoryFrequencyPoint] {
-        let calendar = Calendar.autoupdatingCurrent
-        guard let currentStart = calendar.dateInterval(of: .weekOfYear, for: Date.now)?.start else { return [] }
-        let starts: [(start: Date, end: Date)] = (0..<8).compactMap { offset in
-            guard let start = calendar.date(byAdding: .weekOfYear, value: offset - 7, to: currentStart),
-                  let end = calendar.date(byAdding: .weekOfYear, value: 1, to: start) else { return nil }
-            return (start, end)
-        }
-        var counts = Array(repeating: 0, count: starts.count)
-        for workout in workouts {
-            for (index, interval) in starts.enumerated() where workout.startTime >= interval.0 && workout.startTime < interval.1 {
-                counts[index] += 1
-                break
-            }
-        }
-        return starts.enumerated().map { index, interval in
-            HistoryFrequencyPoint(start: interval.0, count: counts[index])
-        }
-    }
 }
 
 private struct HistoryFrequencyChart: View {
@@ -166,7 +86,8 @@ private struct HistoryFrequencyChart: View {
             Chart(points) { point in
                 BarMark(
                     x: .value("Week", point.start, unit: .weekOfYear),
-                    y: .value("Workouts", point.count)
+                    y: .value("Workouts", point.count),
+                    width: .ratio(0.6)
                 )
                 .foregroundStyle(point.count == 0 ? Color.gymRowSurface : Color.gymPrimary)
                 .cornerRadius(Radius.small)
@@ -178,12 +99,18 @@ private struct HistoryFrequencyChart: View {
             }
             .chartXSelection(value: $selectedDate)
             .chartYAxis {
-                AxisMarks(position: .leading, values: .stride(by: 1))
+                AxisMarks(position: .leading, values: .stride(by: 1)) { _ in
+                    AxisGridLine().foregroundStyle(Color.gymBorder)
+                    AxisTick().foregroundStyle(Color.gymBorder)
+                    AxisValueLabel().foregroundStyle(Color.gymSubduedText)
+                }
             }
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                    AxisGridLine().foregroundStyle(Color.gymText.opacity(0.08))
+                    AxisGridLine().foregroundStyle(Color.gymBorder)
+                    AxisTick().foregroundStyle(Color.gymBorder)
                     AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                        .foregroundStyle(Color.gymSubduedText)
                 }
             }
             .frame(height: ComponentSize.compactChartHeight)
@@ -198,7 +125,9 @@ private struct HistoryFrequencyChart: View {
         let previous = points.prefix(4).reduce(0) { $0 + $1.count }
         let recent = points.suffix(4).reduce(0) { $0 + $1.count }
         if previous == recent { return "Training frequency was the same across the two four-week windows." }
-        return "You completed \(abs(recent - previous)) \(recent > previous ? "more" : "fewer") workouts in the recent four weeks."
+        let diff = abs(recent - previous)
+        let noun = diff == 1 ? "workout" : "workouts"
+        return "You completed \(diff) \(recent > previous ? "more" : "fewer") \(noun) in the recent four weeks."
     }
 
     private var insight: AnalyticsInsight {
@@ -267,17 +196,31 @@ struct HistoryExerciseProgressCard: View {
                     )
                 }
                 Chart(series.points(for: metric)) { point in
+                    AreaMark(
+                        x: .value("Date", point.date),
+                        y: .value(metric.title, point.value)
+                    )
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.gymPrimary.opacity(0.16), Color.gymPrimary.opacity(0)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .interpolationMethod(.catmullRom)
                     LineMark(
                         x: .value("Date", point.date),
                         y: .value(metric.title, point.value)
                     )
                     .foregroundStyle(Color.gymPrimary)
                     .interpolationMethod(.catmullRom)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                     PointMark(
                         x: .value("Date", point.date),
                         y: .value(metric.title, point.value)
                     )
                     .foregroundStyle(Color.gymPrimary)
+                    .symbolSize(64)
                     if selectedPoint?.id == point.id {
                         RuleMark(x: .value("Selected session", point.date))
                             .foregroundStyle(Color.gymPrimary.opacity(0.42))
@@ -285,9 +228,19 @@ struct HistoryExerciseProgressCard: View {
                     }
                 }
                 .chartXSelection(value: $selectedDate)
+                .chartYAxis {
+                    AxisMarks { _ in
+                        AxisGridLine().foregroundStyle(Color.gymBorder)
+                        AxisTick().foregroundStyle(Color.gymBorder)
+                        AxisValueLabel().foregroundStyle(Color.gymSubduedText)
+                    }
+                }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 3)) { value in
+                    AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                        AxisGridLine().foregroundStyle(Color.gymBorder)
+                        AxisTick().foregroundStyle(Color.gymBorder)
                         AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                            .foregroundStyle(Color.gymSubduedText)
                     }
                 }
                 .frame(height: ComponentSize.compactChartHeight)

@@ -21,6 +21,7 @@ struct ProgressionReceiptSheet: View {
     let workoutID: UUID
 
     @Query private var records: [PlanProgressionRecommendationRecord]
+    @Query private var runs: [PlanRun]
     @State private var actionErrorMessage: String?
 
     init(planRunID: UUID, workoutID: UUID) {
@@ -30,14 +31,22 @@ struct ProgressionReceiptSheet: View {
             record.planRunID == planRunID && record.workoutID == workoutID && record.isResolved == false
         }
         _records = Query(filter: predicate, sort: [SortDescriptor(\.createdAt)])
+        _runs = Query(filter: #Predicate<PlanRun> { $0.id == planRunID })
     }
 
     var body: some View {
+        let run = runs.first
+        let plannedExercises = plannedExercisesByProgressionKey(in: run)
+
         NavigationStack {
             ScrollView {
                 VStack(spacing: Spacing.l) {
                     ForEach(records) { record in
-                        card(for: record)
+                        card(
+                            for: record,
+                            run: run,
+                            plannedExercisesByProgressionKey: plannedExercises
+                        )
                     }
                 }
                 .padding(Spacing.l)
@@ -67,20 +76,13 @@ struct ProgressionReceiptSheet: View {
         }
     }
 
-    // MARK: - Row lookup
-
-    /// The run the receipts belong to. Fetched by id rather than passed in
-    /// so the sheet stays a thin, self-contained reader over persisted
-    /// state — the same run reference the resolution service itself needs.
-    private var run: PlanRun? {
-        (try? modelContext.fetch(FetchDescriptor<PlanRun>()))?.first { $0.id == planRunID }
-    }
-
     /// Exercise identity for each receipt. The record only carries a
     /// `progressionKey` string; the exercise name and its load unit live on
     /// the plan's `PlannedExercise`, looked up here for display only — never
     /// used to recompute the recommendation itself.
-    private var plannedExercisesByProgressionKey: [String: PlannedExercise] {
+    private func plannedExercisesByProgressionKey(
+        in run: PlanRun?
+    ) -> [String: PlannedExercise] {
         guard let run else { return [:] }
         var map: [String: PlannedExercise] = [:]
         for planned in (run.plan?.orderedWeeks.flatMap(\.orderedPlannedWorkouts).flatMap(\.orderedPlannedExercises) ?? []) {
@@ -90,7 +92,11 @@ struct ProgressionReceiptSheet: View {
     }
 
     @ViewBuilder
-    private func card(for record: PlanProgressionRecommendationRecord) -> some View {
+    private func card(
+        for record: PlanProgressionRecommendationRecord,
+        run: PlanRun?,
+        plannedExercisesByProgressionKey: [String: PlannedExercise]
+    ) -> some View {
         let plannedExercise = plannedExercisesByProgressionKey[record.progressionKey]
         let preview = run.map { PlanProgressionRecommendationService.preview(record, in: $0) }
         let presentation = ProgressionReceiptPresentation(
@@ -109,7 +115,7 @@ struct ProgressionReceiptSheet: View {
     // MARK: - Actions
 
     private func apply(_ record: PlanProgressionRecommendationRecord) {
-        guard let run else {
+        guard let run = runs.first else {
             actionErrorMessage = String(localized: "This plan run could not be found.")
             return
         }
@@ -121,7 +127,7 @@ struct ProgressionReceiptSheet: View {
     }
 
     private func applyDifferent(_ record: PlanProgressionRecommendationRecord, load: Double) {
-        guard let run else {
+        guard let run = runs.first else {
             actionErrorMessage = String(localized: "This plan run could not be found.")
             return
         }

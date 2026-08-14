@@ -14,7 +14,7 @@ struct LibraryBrowserList<Content: View>: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.md) {
+            LazyVStack(alignment: .leading, spacing: Spacing.md) {
                 HStack(spacing: Spacing.s) {
                     Image(systemName: AppIcon.search)
                         .foregroundStyle(Color.gymSubduedText)
@@ -24,7 +24,7 @@ struct LibraryBrowserList<Content: View>: View {
                 .frame(height: 46)
                 .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
 
-                VStack(alignment: .leading, spacing: Spacing.md) {
+                LazyVStack(alignment: .leading, spacing: Spacing.md) {
                     content
                 }
             }

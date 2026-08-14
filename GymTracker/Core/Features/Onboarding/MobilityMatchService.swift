@@ -2,7 +2,7 @@ import Foundation
 
 /// What the lifter said about mobility, reduced to the facts ranking uses.
 /// Mirrors `ProgramMatchCriteria`'s role on the workout side.
-struct MobilityMatchCriteria: Equatable, Sendable {
+nonisolated struct MobilityMatchCriteria: Equatable, Sendable {
     var goal: MobilityGoalPreference?
     var experience: MobilityExperiencePreference?
     var frequency: MobilityFrequencyPreference?
@@ -17,6 +17,7 @@ struct MobilityMatchCriteria: Equatable, Sendable {
         self.frequency = frequency
     }
 
+    @MainActor
     init(draft: OnboardingDraft) {
         self.init(
             goal: draft.mobilityGoal,

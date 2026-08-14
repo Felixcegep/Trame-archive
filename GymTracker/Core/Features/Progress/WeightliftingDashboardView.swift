@@ -5,9 +5,18 @@ import SwiftUI
 /// presentation from the authored CE6.1 projection and never manufactures a
 /// best lift or treats missing evidence as zero.
 struct WeightliftingDashboardDestination: View {
-    @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
+    @Query(
+        filter: #Predicate<Workout> { $0.endTime != nil },
+        sort: \Workout.startTime,
+        order: .reverse
+    ) private var workouts: [Workout]
+    @Query(filter: #Predicate<ProgramDefinitionRecord> { !$0.isArchived })
+    private var programDefinitions: [ProgramDefinitionRecord]
+    @Query private var planRuns: [PlanRun]
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exercises: [Exercise]
     private let presentationOverride: WeightliftingDashboardPresentation?
     private let onStartCompetitionDay: ((Workout) -> Void)?
+    @State private var presentationCache: WeightliftingPresentationCache?
 
     init(
         presentation: WeightliftingDashboardPresentation? = nil,
@@ -18,40 +27,90 @@ struct WeightliftingDashboardDestination: View {
     }
 
     var body: some View {
+        let inputID = presentationInputID
+        let presentation = presentationOverride
+            ?? presentationCache.flatMap { $0.inputID == inputID ? $0.presentation : nil }
+            ?? .make(projection: .project(workouts: workouts))
+
         WeightliftingDashboardView(
-            presentation: presentationOverride ?? .make(
-                projection: .project(workouts: workouts)
-            ),
+            presentation: presentation,
+            workouts: workouts,
+            programDefinitions: programDefinitions,
+            planRuns: planRuns,
+            exercises: exercises,
             onStartCompetitionDay: onStartCompetitionDay
         )
+        .task(id: inputID) {
+            guard presentationOverride == nil else { return }
+            presentationCache = .init(inputID: inputID, presentation: presentation)
+        }
     }
+
+    /// Completed workout graphs are immutable historical evidence. Their root
+    /// identity changes when History is added, deleted, or restored, so this
+    /// avoids traversing every performed set merely to decide whether the
+    /// expensive weightlifting projection can be reused.
+    private var presentationInputID: Int {
+        var revision = Hasher()
+        for workout in workouts {
+            revision.combine(workout.id)
+            revision.combine(workout.startTime)
+            revision.combine(workout.endTime)
+        }
+        return revision.finalize()
+    }
+}
+
+private struct WeightliftingPresentationCache {
+    let inputID: Int
+    let presentation: WeightliftingDashboardPresentation
 }
 
 struct WeightliftingDashboardView: View {
     @Environment(\.calendar) private var calendar
-    @Query(sort: \Workout.startTime, order: .reverse) private var workouts: [Workout]
-    @Query private var programDefinitions: [ProgramDefinitionRecord]
-    @Query private var planRuns: [PlanRun]
-    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var exercises: [Exercise]
     let presentation: WeightliftingDashboardPresentation
+    let workouts: [Workout]
+    let programDefinitions: [ProgramDefinitionRecord]
+    let planRuns: [PlanRun]
+    let exercises: [Exercise]
     let onStartCompetitionDay: ((Workout) -> Void)?
     @State private var eventDate = Date.now
     @State private var buildError: String?
+    @State private var preparationCache: CompetitionPreparationCache?
 
     init(
         presentation: WeightliftingDashboardPresentation,
+        workouts: [Workout],
+        programDefinitions: [ProgramDefinitionRecord],
+        planRuns: [PlanRun],
+        exercises: [Exercise],
         onStartCompetitionDay: ((Workout) -> Void)? = nil
     ) {
         self.presentation = presentation
+        self.workouts = workouts
+        self.programDefinitions = programDefinitions
+        self.planRuns = planRuns
+        self.exercises = exercises
         self.onStartCompetitionDay = onStartCompetitionDay
     }
 
     var body: some View {
+        let inputID = preparationInputID
+        let preparation = preparationCache.flatMap {
+            $0.inputID == inputID ? $0.preparation : nil
+        } ?? CompetitionDayPreparationService.prepare(
+            workouts: workouts,
+            definitions: programDefinitions,
+            planRuns: planRuns,
+            eventDate: eventDate,
+            asOfDate: calendar.startOfDay(for: .now)
+        )
+
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 introduction
 
-                competitionDaySection
+                competitionDaySection(preparation: preparation)
 
                 switch presentation.availability {
                 case .empty:
@@ -78,18 +137,15 @@ struct WeightliftingDashboardView: View {
         } message: {
             Text(buildError ?? String(localized: "The competition day could not be prepared."))
         }
+        .task(id: inputID) {
+            preparationCache = .init(inputID: inputID, preparation: preparation)
+        }
     }
 
-    private var competitionDaySection: some View {
-        let preparation = CompetitionDayPreparationService.prepare(
-            workouts: workouts,
-            definitions: programDefinitions,
-            planRuns: planRuns,
-            eventDate: eventDate,
-            asOfDate: calendar.startOfDay(for: .now)
-        )
-
-        return GymCard {
+    private func competitionDaySection(
+        preparation: CompetitionDayPreparation
+    ) -> some View {
+        GymCard {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 GymSectionHeader(
                     title: String(localized: "Competition day"),
@@ -117,6 +173,33 @@ struct WeightliftingDashboardView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("competition-day-section")
+    }
+
+    /// Covers every root field used to select a program, resolve its start,
+    /// and produce attempt evidence. The evidence graphs themselves are
+    /// completed snapshots and therefore do not need to be walked here.
+    private var preparationInputID: Int {
+        var revision = Hasher()
+        revision.combine(calendar.startOfDay(for: eventDate))
+        revision.combine(calendar.startOfDay(for: .now))
+        for workout in workouts {
+            revision.combine(workout.id)
+            revision.combine(workout.startTime)
+            revision.combine(workout.sourceProgramDefinitionID)
+            revision.combine(workout.sourcePlanRunID)
+        }
+        for definition in programDefinitions {
+            revision.combine(definition.id)
+            revision.combine(definition.updatedAt)
+            revision.combine(definition.isArchived)
+        }
+        for run in planRuns {
+            revision.combine(run.id)
+            revision.combine(run.startDate)
+            revision.combine(run.updatedAt)
+            revision.combine(run.plan?.sourceProgramDefinitionID)
+        }
+        return revision.finalize()
     }
 
     private func competitionProposal(
@@ -221,6 +304,7 @@ struct WeightliftingDashboardView: View {
     private var dashboardContent: some View {
         fullLiftSection
         componentSection
+        attemptMatrix
         if let qualityTrend = presentation.qualityTrend {
             GymCard {
                 GymEyebrow("Quality trend")
@@ -238,6 +322,82 @@ struct WeightliftingDashboardView: View {
                 .foregroundStyle(Color.gymSubduedText)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("weightlifting-evidence-note")
+        }
+    }
+
+    @ViewBuilder
+    private var attemptMatrix: some View {
+        if presentation.recentAttempts.isEmpty == false {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                GymSectionHeader(
+                    title: String(localized: "Recent attempt matrix"),
+                    detail: String(localized: "Latest recorded complex attempts; component outcomes stay separate from the full-lift result.")
+                )
+                ForEach(presentation.recentAttempts) { attempt in
+                    HStack(spacing: Spacing.s) {
+                        Text(attempt.date.formatted(date: .abbreviated, time: .omitted))
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                            .frame(minWidth: 66, alignment: .leading)
+                        Text(attempt.load)
+                            .font(AppFont.captionSemiboldMonospaced)
+                            .foregroundStyle(Color.gymText)
+                        Spacer(minLength: 0)
+                        HStack(spacing: Spacing.xs) {
+                            ForEach(Array(attempt.components.enumerated()), id: \.offset) { _, outcome in
+                                Text(attemptSymbol(outcome))
+                                    .font(AppFont.captionBold)
+                                    .foregroundStyle(attemptColor(outcome))
+                            }
+                            Text(attemptSymbol(attempt.outcome))
+                                .font(AppFont.captionBold)
+                                .foregroundStyle(attemptColor(attempt.outcome))
+                        }
+                    }
+                    .padding(.vertical, Spacing.xs)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(attempt.date.formatted(date: .abbreviated, time: .omitted)), \(attempt.load), \(attempt.outcome.title)")
+                }
+            }
+            .accessibilityIdentifier("weightlifting-attempt-matrix")
+        }
+    }
+
+    private func attemptSymbol(_ outcome: ComplexComponentOutcome) -> String {
+        switch outcome {
+        case .completed: "✓"
+        case .partial: "◐"
+        case .missed: "×"
+        case .skipped: "–"
+        case .notStarted: "·"
+        }
+    }
+
+    private func attemptSymbol(_ outcome: OlympicAttemptOutcome) -> String {
+        switch outcome {
+        case .made: "✓"
+        case .partial: "◐"
+        case .missed: "×"
+        case .skipped: "–"
+        case .notStarted: "·"
+        }
+    }
+
+    private func attemptColor(_ outcome: ComplexComponentOutcome) -> Color {
+        switch outcome {
+        case .completed: .gymSuccess
+        case .partial: .gymAccent
+        case .missed: .gymAccent
+        case .skipped, .notStarted: .gymSubduedText
+        }
+    }
+
+    private func attemptColor(_ outcome: OlympicAttemptOutcome) -> Color {
+        switch outcome {
+        case .made: .gymSuccess
+        case .partial: .gymAccent
+        case .missed: .gymAccent
+        case .skipped, .notStarted: .gymSubduedText
         }
     }
 
@@ -376,4 +536,9 @@ struct WeightliftingDashboardView: View {
             String(format: String(localized: "Skipped %@"), summary.skipped.displayText)
         ].joined(separator: ", ")
     }
+}
+
+private struct CompetitionPreparationCache {
+    let inputID: Int
+    let preparation: CompetitionDayPreparation
 }

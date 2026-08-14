@@ -12,13 +12,16 @@ enum WeeklyProgramReviewRepository {
         today: Date = .now,
         calendar: Calendar = .current
     ) throws -> WeeklyProgramReviewProjection? {
-        guard let run = try context.fetch(FetchDescriptor<PlanRun>())
-            .first(where: { $0.id == route.runID })
+        let runID = route.runID
+        var runDescriptor = FetchDescriptor<PlanRun>(predicate: #Predicate { $0.id == runID })
+        runDescriptor.fetchLimit = 1
+        guard let run = try context.fetch(runDescriptor).first
         else {
             return nil
         }
-        let records = try context.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>())
-            .filter { $0.planRunID == route.runID }
+        let records = try context.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>(
+            predicate: #Predicate { $0.planRunID == runID }
+        ))
 
         return WeeklyProgramReviewBuilder.build(
             for: run,

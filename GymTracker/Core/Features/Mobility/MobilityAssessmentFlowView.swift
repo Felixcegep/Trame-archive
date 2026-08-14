@@ -597,7 +597,7 @@ struct MobilityAssessmentFlowView: View {
 
     private var skippedNames: [String] {
         session.skippedDefinitionKeys.compactMap { key in
-            definitions.first { $0.catalogueKey == key }.map(MobilityAssessmentCopy.name(for:))
+            definitions.first { $0.catalogueKey == key }.map { MobilityAssessmentCopy.name(for: $0) }
         }
     }
 
@@ -977,15 +977,18 @@ struct MobilityAssessmentFlowView: View {
             guard numericValue != nil else { return nil }
         }
 
-        let capture = captureDefinition(for: definition)
-        let usesDeviceMotion = sensorCapturedSides.contains(side.rawValue) && capture != nil
+        let captureMode = captureDefinition(for: definition)?.mode
+        let usesDeviceMotion = sensorCapturedSides.contains(side.rawValue) && captureMode != nil
         return MobilityAssessmentResultInput(
             numericValue: definition.unit == .criteria ? nil : numericValue,
             criteria: definition.unit == .criteria ? criteria : nil,
             side: side,
             isWarm: draft.isWarm,
             setupKey: draft.setupKey,
-            method: usesDeviceMotion ? (capture!.mode == .gravityReferenced ? .inclinometer : .axialRotation) : definition.manualMode,
+            method: usesDeviceMotion
+                ? captureMode.map { $0 == .gravityReferenced ? .inclinometer : .axialRotation }
+                    ?? definition.manualMode
+                : definition.manualMode,
             unit: definition.unit,
             isActiveRange: draft.isActiveRange,
             day: session.day,

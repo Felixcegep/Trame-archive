@@ -12,7 +12,8 @@ struct WorkoutSaveView: View {
     let onDiscardRequested: () -> Void
 
     @AppStorage(DefaultsKey.bodyWeightPromptCadence) private var bodyWeightPromptCadence: BodyWeightPromptCadence = .off
-    @Query(sort: \BodyWeightEntry.measuredAt, order: .reverse) private var bodyWeightEntries: [BodyWeightEntry]
+    @Query private var latestBodyWeightEntries: [BodyWeightEntry]
+    @Query private var todayBodyWeightEntries: [BodyWeightEntry]
     /// Declining is a decision about this screen, not a permanent one — the
     /// cadence setting owns "never ask again".
     @State private var hasDismissedBodyWeightPrompt = false
@@ -23,6 +24,33 @@ struct WorkoutSaveView: View {
     @State private var saveSucceededCount = 0
     @State private var saveFailedCount = 0
     @FocusState private var isNotesFocused: Bool
+
+    init(
+        workoutVM: WorkoutViewModel,
+        navigationPath: Binding<[ActiveWorkoutRoute]>,
+        isPresented: Binding<Bool>,
+        activeLoggingMetrics: ActiveLoggingMetricsRecorder,
+        onWorkoutSaved: @escaping (UUID) -> Void,
+        onDiscardRequested: @escaping () -> Void
+    ) {
+        self.workoutVM = workoutVM
+        _navigationPath = navigationPath
+        _isPresented = isPresented
+        self.activeLoggingMetrics = activeLoggingMetrics
+        self.onWorkoutSaved = onWorkoutSaved
+        self.onDiscardRequested = onDiscardRequested
+
+        var latestWeight = FetchDescriptor<BodyWeightEntry>(
+            sortBy: [SortDescriptor(\BodyWeightEntry.measuredAt, order: .reverse)]
+        )
+        latestWeight.fetchLimit = 1
+        _latestBodyWeightEntries = Query(latestWeight)
+
+        let todayKey = LocalDay.today.rawValue
+        _todayBodyWeightEntries = Query(
+            filter: #Predicate<BodyWeightEntry> { $0.dayKey == todayKey }
+        )
+    }
 
     var body: some View {
         Group {
@@ -71,11 +99,12 @@ struct WorkoutSaveView: View {
         .gymFeedback(.saveFailed, trigger: saveFailedCount)
     }
 
+    @ViewBuilder
     private func saveReview(for workout: Workout) -> some View {
         if workout.completedSetCount == 0 {
-            return AnyView(emptySaveReview(for: workout))
+            emptySaveReview(for: workout)
         } else {
-            return AnyView(standardSaveReview(for: workout))
+            standardSaveReview(for: workout)
         }
     }
 
@@ -133,6 +162,7 @@ struct WorkoutSaveView: View {
     private func standardSaveReview(for workout: Workout) -> some View {
         @Bindable var workout = workout
         let hasIncomplete = workout.incompleteSetCount > 0
+        let review = makeSaveReviewProjection(for: workout)
 
         return ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xxl - 2) {
@@ -204,8 +234,8 @@ struct WorkoutSaveView: View {
                     }
                 }
 
-                summaryCard(for: workout)
-                exerciseReview(for: workout)
+                summaryCard(for: workout, review: review)
+                exerciseReview(review)
             }
             .padding(Spacing.xl)
             .padding(.bottom, 98)
@@ -239,7 +269,13 @@ struct WorkoutSaveView: View {
                 // lifter is looking. Discard still confirms — that one destroys
                 // work and cannot be undone.
                 Button(action: saveWorkout) {
-                    Label(saveActionTitle(for: workout), systemImage: AppIcon.save)
+                    Label(
+                        saveActionTitle(
+                            for: workout,
+                            completedSetCount: review.completedSetCount
+                        ),
+                        systemImage: AppIcon.save
+                    )
                 }
                 .buttonStyle(.gymPrimaryProminent)
                 .accessibilityIdentifier("save-workout")
@@ -297,11 +333,14 @@ struct WorkoutSaveView: View {
     /// workout with nothing incomplete has nothing to disambiguate, and
     /// "Save 18 completed sets" there would imply a distinction that does not
     /// exist.
-    private func saveActionTitle(for workout: Workout) -> String {
+    private func saveActionTitle(
+        for workout: Workout,
+        completedSetCount: Int
+    ) -> String {
         guard workout.incompleteSetCount > 0 else {
             return String(localized: "Save workout")
         }
-        return String(localized: "Save \(CountPhrase.completedSets(saveableSetCount(for: workout)))")
+        return String(localized: "Save \(CountPhrase.completedSets(completedSetCount))")
     }
 
     private func discardConfirmationMessage(for workout: Workout) -> String {
@@ -320,13 +359,16 @@ struct WorkoutSaveView: View {
         return String(localized: "\(minutes) min")
     }
 
-    private func summaryCard(for workout: Workout) -> some View {
+    private func summaryCard(
+        for workout: Workout,
+        review: SaveReviewProjection
+    ) -> some View {
         HStack(spacing: 0) {
             summaryMetric(value: workoutDuration(for: workout), label: "Duration")
             Divider().frame(height: 38)
-            summaryMetric(value: "\(saveableExercises(for: workout).count)", label: "Exercises")
+            summaryMetric(value: "\(review.exercises.count)", label: "Exercises")
             Divider().frame(height: 38)
-            summaryMetric(value: "\(saveableSetCount(for: workout))", label: "Sets saved")
+            summaryMetric(value: "\(review.completedSetCount)", label: "Sets saved")
         }
         .padding(.vertical, Spacing.xl - 2)
         .background(Color.gymMutedSurface)
@@ -344,28 +386,25 @@ struct WorkoutSaveView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func exerciseReview(for workout: Workout) -> some View {
+    private func exerciseReview(_ review: SaveReviewProjection) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("SESSION SUMMARY")
                 .font(AppFont.captionBold)
                 .tracking(0.8)
                 .foregroundStyle(Color.gymSubduedText)
 
-            ForEach(workout.orderedExercises.filter { $0.orderedSets.contains(where: \.done) }, id: \.persistentModelID) { exercise in
-                let savedSets = exercise.orderedSets.filter(\.done)
-                let incompleteCount = exercise.orderedSets.filter { !$0.done }.count
-
+            ForEach(review.exercises) { item in
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: Spacing.m) {
                         Image(systemName: AppIcon.checkmarkCircle)
                             .foregroundStyle(Color.gymSecondary)
 
-                        Text(exercise.exercise.name)
+                        Text(item.exercise.exercise.name)
                             .font(AppFont.subheadlineSemibold)
 
                         Spacer()
 
-                        Text("\(savedSets.count) saved")
+                        Text("\(item.savedSets.count) saved")
                             .font(AppFont.subheadlineMonospaced)
                             .foregroundStyle(Color.gymSubduedText)
                     }
@@ -375,14 +414,14 @@ struct WorkoutSaveView: View {
                         .padding(.horizontal, Spacing.m)
 
                     VStack(alignment: .leading, spacing: Spacing.xs) {
-                        let comparison = WorkoutPerformanceComparison(exercise: exercise)
+                        let comparison = WorkoutPerformanceComparison(exercise: item.exercise)
                         if comparison.hasTargets {
                             PerformanceComparisonView(comparison: comparison)
                                 .padding(.horizontal, Spacing.m)
                                 .padding(.top, Spacing.s)
                         }
 
-                        ForEach(Array(savedSets.enumerated()), id: \.element.persistentModelID) { index, set in
+                        ForEach(Array(item.savedSets.enumerated()), id: \.element.persistentModelID) { index, set in
                             HStack(spacing: Spacing.s) {
                                 Text("Set \(index + 1)")
                                     .font(AppFont.caption)
@@ -403,8 +442,8 @@ struct WorkoutSaveView: View {
                     }
                     .padding(.vertical, Spacing.s)
 
-                    if incompleteCount > 0 {
-                        Label("\(incompleteCount) incomplete • excluded from History", systemImage: AppIcon.warningCircle)
+                    if item.incompleteSetCount > 0 {
+                        Label("\(item.incompleteSetCount) incomplete • excluded from History", systemImage: AppIcon.warningCircle)
                             .font(AppFont.caption)
                             .foregroundStyle(Color.gymAccent)
                             .padding(.horizontal, Spacing.m + 2)
@@ -429,16 +468,53 @@ struct WorkoutSaveView: View {
         hasNotes(for: workout) || isNotesFocused ? 104 : 44
     }
 
-    private func saveableExercises(for workout: Workout) -> [ExerciseEntry] {
-        workout.orderedExercises.filter { exercise in
-            exercise.orderedSets.contains(where: \.done)
+    private struct SaveReviewProjection {
+        struct ExerciseReview: Identifiable {
+            let exercise: ExerciseEntry
+            let savedSets: [ExerciseSet]
+            let incompleteSetCount: Int
+
+            var id: PersistentIdentifier { exercise.persistentModelID }
         }
+
+        let exercises: [ExerciseReview]
+        let completedSetCount: Int
     }
 
-    private func saveableSetCount(for workout: Workout) -> Int {
-        saveableExercises(for: workout).reduce(0) { total, exercise in
-            total + exercise.orderedSets.filter(\.done).count
+    /// Resolves the saved/excluded set partition once for every consumer in
+    /// this render: summary metrics, detailed rows, and the save action label.
+    private func makeSaveReviewProjection(for workout: Workout) -> SaveReviewProjection {
+        var exercises: [SaveReviewProjection.ExerciseReview] = []
+        exercises.reserveCapacity(workout.exercises.count)
+        var completedSetCount = 0
+
+        for exercise in workout.orderedExercises {
+            var savedSets: [ExerciseSet] = []
+            var incompleteSetCount = 0
+            let orderedSets = exercise.orderedSets
+            savedSets.reserveCapacity(orderedSets.count)
+
+            for exerciseSet in orderedSets {
+                if exerciseSet.done {
+                    savedSets.append(exerciseSet)
+                } else {
+                    incompleteSetCount += 1
+                }
+            }
+
+            guard savedSets.isEmpty == false else { continue }
+            completedSetCount += savedSets.count
+            exercises.append(SaveReviewProjection.ExerciseReview(
+                exercise: exercise,
+                savedSets: savedSets,
+                incompleteSetCount: incompleteSetCount
+            ))
         }
+
+        return SaveReviewProjection(
+            exercises: exercises,
+            completedSetCount: completedSetCount
+        )
     }
 
     private func saveWorkout() {
@@ -503,7 +579,7 @@ struct WorkoutSaveView: View {
     private func bodyWeightPrompt(for workout: Workout) -> some View {
         if !hasDismissedBodyWeightPrompt,
            workout.usesBodyweightLoading,
-           bodyWeightPromptCadence.isDue(latest: bodyWeightEntries.first) {
+           bodyWeightPromptCadence.isDue(latest: latestBodyWeightEntries.first) {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 Label {
                     Text("Add your body weight")
@@ -519,7 +595,7 @@ struct WorkoutSaveView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: Spacing.s) {
-                    if let latest = bodyWeightEntries.first {
+                    if let latest = latestBodyWeightEntries.first {
                         // The common case by far: weight has not meaningfully
                         // moved, so confirming last week's number is one tap
                         // and no keyboard.
@@ -547,7 +623,7 @@ struct WorkoutSaveView: View {
     }
 
     private var bodyWeightPromptDetail: String {
-        guard let latest = bodyWeightEntries.first else {
+        guard let latest = latestBodyWeightEntries.first else {
             return String(localized: "This session included bodyweight work. Recording your weight lets the app show total load. You can add it in Settings.")
         }
         let days = Calendar.current.dateComponents([.day], from: latest.measuredAt, to: .now).day ?? 0
@@ -560,7 +636,7 @@ struct WorkoutSaveView: View {
     private func recordBodyWeight(value: Float, unit: WeightType) {
         let today = LocalDay.today
 
-        if let existing = bodyWeightEntries.first(where: { $0.dayKey == today.rawValue }) {
+        if let existing = todayBodyWeightEntries.first {
             existing.update(value: value, unit: unit, source: .checkIn, measuredAt: .now)
         } else {
             modelContext.insert(

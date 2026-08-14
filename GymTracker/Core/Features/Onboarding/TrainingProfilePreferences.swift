@@ -20,7 +20,7 @@ import Foundation
 
 /// How the lifter wants their next workout decided. The one question the app
 /// genuinely cannot infer, and the only one asked before any training happens.
-enum TrainingStructureChoice: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum TrainingStructureChoice: String, Codable, CaseIterable, Hashable, Sendable {
     case plan
     case rotation
     case freeWorkout
@@ -38,7 +38,7 @@ enum TrainingStructureChoice: String, Codable, CaseIterable, Hashable, Sendable 
 
 // MARK: - Discipline
 
-enum TrainingDisciplinePreference: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum TrainingDisciplinePreference: String, Codable, CaseIterable, Hashable, Sendable {
     case generalStrength
     case bodybuilding
     case powerlifting
@@ -114,9 +114,36 @@ enum TrainingDisciplinePreference: String, Codable, CaseIterable, Hashable, Send
     }
 }
 
+/// How Progress should prioritize the athlete's training identity.
+///
+/// This is an explicit presentation preference, not a classification of the
+/// user's history. A mixed or undecided athlete can still see sport lenses
+/// when completed-workout evidence exists; this value only controls priority.
+nonisolated enum ProgressOrganizationMode: String, Codable, CaseIterable, Hashable, Sendable {
+    case sportPriority
+    case mixed
+    case undecided
+
+    var title: String {
+        switch self {
+        case .sportPriority: String(localized: "Prioritize my sports")
+        case .mixed: String(localized: "Keep Progress mixed")
+        case .undecided: String(localized: "I’m not sure yet")
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .sportPriority: String(localized: "Use my primary and secondary sports to organize Progress.")
+        case .mixed: String(localized: "Keep one combined Progress view without a primary sport.")
+        case .undecided: String(localized: "Leave the organization unchanged until I choose.")
+        }
+    }
+}
+
 // MARK: - Goal
 
-enum TrainingGoalPreference: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum TrainingGoalPreference: String, Codable, CaseIterable, Hashable, Sendable {
     case buildMuscle
     case getStronger
     case techniqueAndPower
@@ -157,7 +184,7 @@ enum TrainingGoalPreference: String, Codable, CaseIterable, Hashable, Sendable {
 
 /// Four answers rather than three, because "I don't know" is a real answer and
 /// forcing a guess produces a worse ranking input than an honest nil.
-enum ProfileExperienceLevel: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum ProfileExperienceLevel: String, Codable, CaseIterable, Hashable, Sendable {
     case new
     case experienced
     case advanced
@@ -202,7 +229,7 @@ enum ProfileExperienceLevel: String, Codable, CaseIterable, Hashable, Sendable {
 /// How firm the week is. A lifter whose days move is not a lifter who trains
 /// less, and a plan that pins sessions to weekdays is the wrong recommendation
 /// for them even when the frequency matches.
-enum ScheduleFlexibility: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum ScheduleFlexibility: String, Codable, CaseIterable, Hashable, Sendable {
     case fixedWeekdays
     case variable
 
@@ -216,7 +243,7 @@ enum ScheduleFlexibility: String, Codable, CaseIterable, Hashable, Sendable {
 
 /// Rotation users answer cadence, not weekdays. Asking someone who trains
 /// "whenever I show up" to commit to Tuesdays is asking them to lie.
-enum RotationCadencePreference: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum RotationCadencePreference: String, Codable, CaseIterable, Hashable, Sendable {
     case daily
     case everyOtherDay
     case twoToThree
@@ -251,7 +278,7 @@ enum RotationCadencePreference: String, Codable, CaseIterable, Hashable, Sendabl
 
 // MARK: - Session duration
 
-enum SessionDurationPreference: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum SessionDurationPreference: String, Codable, CaseIterable, Hashable, Sendable {
     case underThirty
     case thirtyToFortyFive
     case fortyFiveToSixty
@@ -305,7 +332,7 @@ enum SessionDurationPreference: String, Codable, CaseIterable, Hashable, Sendabl
 /// A location is a shortcut for an equipment list, not a fact about the user.
 /// It preselects; it never asserts. The equipment screen that follows always
 /// shows what was assumed and invites correction.
-enum TrainingLocationPreference: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum TrainingLocationPreference: String, Codable, CaseIterable, Hashable, Sendable {
     case commercialGym
     case smallGym
     case homeGym
@@ -504,7 +531,7 @@ nonisolated struct SpecializedEquipmentCapability: Identifiable, Hashable, Senda
 
 // MARK: - Emphasis
 
-enum FocusArea: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum FocusArea: String, Codable, CaseIterable, Hashable, Sendable {
     case balanced
     case chest
     case back
@@ -537,7 +564,7 @@ enum FocusArea: String, Codable, CaseIterable, Hashable, Sendable {
 
 // MARK: - Competition
 
-enum CompetitionDiscipline: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum CompetitionDiscipline: String, Codable, CaseIterable, Hashable, Sendable {
     case powerlifting
     case olympicWeightlifting
     case strongman
@@ -581,7 +608,7 @@ enum CompetitionDiscipline: String, Codable, CaseIterable, Hashable, Sendable {
 /// app asks anyone. Federations publish different loads, divisions, and weight
 /// classes; that is a property of the competition, not of the person entering
 /// it, and the app only needs it when it changes what is shown.
-enum CompetitionStandards: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum CompetitionStandards: String, Codable, CaseIterable, Hashable, Sendable {
     case womens
     case mens
     case open
@@ -601,13 +628,19 @@ enum CompetitionStandards: String, Codable, CaseIterable, Hashable, Sendable {
     }
 }
 
-struct CompetitionProfileDraft: Codable, Equatable, Hashable, Sendable {
-    var discipline: CompetitionDiscipline?
-    var eventDate: Date?
-    var standards: CompetitionStandards?
+nonisolated struct CompetitionProfileDraft: Codable, Equatable, Hashable, Sendable {
+    var discipline: CompetitionDiscipline? = nil
+    var eventDate: Date? = nil
+    var standards: CompetitionStandards? = nil
+    /// Explicit historical exercise identities used by the Powerlifting lens.
+    /// They are never inferred from names or movement patterns.
+    var squatExerciseID: UUID? = nil
+    var benchExerciseID: UUID? = nil
+    var deadliftExerciseID: UUID? = nil
 
     var isEmpty: Bool {
         discipline == nil && eventDate == nil && standards == nil
+            && squatExerciseID == nil && benchExerciseID == nil && deadliftExerciseID == nil
     }
 }
 
@@ -621,7 +654,7 @@ struct CompetitionProfileDraft: Codable, Equatable, Hashable, Sendable {
 
 /// What the lifter wants a mobility plan to do for them, in plain language —
 /// never "PNF", "end-range control" or any other engine vocabulary.
-enum MobilityGoalPreference: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum MobilityGoalPreference: String, Codable, CaseIterable, Hashable, Sendable {
     case generalFlexibility
     case recovery
     case targetedPosition
@@ -637,7 +670,7 @@ enum MobilityGoalPreference: String, Codable, CaseIterable, Hashable, Sendable {
 
 /// Separate from `ProfileExperienceLevel`: a lifter can be advanced in the
 /// weight room and brand new to structured mobility work, or the reverse.
-enum MobilityExperiencePreference: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum MobilityExperiencePreference: String, Codable, CaseIterable, Hashable, Sendable {
     case new
     case someExperience
     case experienced
@@ -680,7 +713,7 @@ enum MobilityExperiencePreference: String, Codable, CaseIterable, Hashable, Send
 
 /// How often the lifter wants to do mobility work, asked the same plain way
 /// as the strength-training frequency question.
-enum MobilityFrequencyPreference: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum MobilityFrequencyPreference: String, Codable, CaseIterable, Hashable, Sendable {
     case onceOrTwice
     case twoToThree
     case threeOrMore

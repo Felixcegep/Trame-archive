@@ -4,10 +4,14 @@ import SwiftUI
 struct NutritionCenterView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var loggedMeals: [LoggedMeal]
-    @Query(sort: \FoodItem.name) private var foods: [FoodItem]
-    @Query(sort: \MealTemplate.updatedAt, order: .reverse) private var mealTemplates: [MealTemplate]
-    @Query(sort: \NutritionTarget.effectiveStartDayKey, order: .reverse) private var targets: [NutritionTarget]
-    @Query private var planRuns: [PlanRun]
+    @Query(filter: #Predicate<FoodItem> { !$0.isArchived }, sort: \FoodItem.name)
+    private var foods: [FoodItem]
+    @Query(
+        filter: #Predicate<NutritionTarget> { !$0.isArchived },
+        sort: \NutritionTarget.effectiveStartDayKey,
+        order: .reverse
+    ) private var targets: [NutritionTarget]
+    @Query(filter: #Predicate<PlanRun> { $0.endDate == nil }) private var planRuns: [PlanRun]
     @State private var selectedFood: FoodItem?
     @State private var selectedMealToRepeat: LoggedMeal?
     @State private var recentFoodIDs: [UUID] = []
@@ -128,11 +132,17 @@ struct NutritionCenterView: View {
     }
 
     private var favoriteFoods: [FoodItem] {
-        foods.filter { $0.isArchived == false && $0.isFavorite }.prefix(4).map { $0 }
+        var result: [FoodItem] = []
+        result.reserveCapacity(4)
+        for food in foods where food.isFavorite {
+            result.append(food)
+            if result.count == 4 { break }
+        }
+        return result
     }
 
     private var recentFoods: [FoodItem] {
-        let available = Dictionary(uniqueKeysWithValues: foods.filter { $0.isArchived == false }.map { ($0.id, $0) })
+        let available = Dictionary(uniqueKeysWithValues: foods.map { ($0.id, $0) })
         return recentFoodIDs
             .compactMap { available[$0] }
             .filter { $0.isFavorite == false }
@@ -147,14 +157,16 @@ struct NutritionCenterView: View {
         descriptor.fetchLimit = 100
         let meals = (try? modelContext.fetch(descriptor)) ?? []
         var seen = Set<UUID>()
-        recentFoodIDs = meals
-            .flatMap(\.orderedItems)
-            .compactMap { item in
-                guard let id = item.sourceFoodID, seen.insert(id).inserted else { return nil }
-                return id
+        var recentIDs: [UUID] = []
+        recentIDs.reserveCapacity(4)
+        mealLoop: for meal in meals {
+            for item in meal.orderedItems {
+                guard let id = item.sourceFoodID, seen.insert(id).inserted else { continue }
+                recentIDs.append(id)
+                if recentIDs.count == 4 { break mealLoop }
             }
-            .prefix(4)
-            .map { $0 }
+        }
+        recentFoodIDs = recentIDs
     }
 
     private func foodLogButton(_ food: FoodItem, detail: String) -> some View {

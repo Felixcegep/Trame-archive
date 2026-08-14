@@ -203,7 +203,7 @@ extension MobilityMovementOccurrenceDefinition {
     /// `progressionRules ?? []` in one place, so every reader (validator,
     /// coordinator, evaluator) treats an absent key and an authored-empty
     /// array identically.
-    var resolvedProgressionRules: [MobilityProgressionRuleDefinition] {
+    nonisolated var resolvedProgressionRules: [MobilityProgressionRuleDefinition] {
         progressionRules ?? []
     }
 }

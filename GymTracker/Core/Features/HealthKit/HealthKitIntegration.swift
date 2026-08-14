@@ -7,13 +7,13 @@ import SwiftData
 import HealthKit
 #endif
 
-struct HealthKitSourceRevision: Equatable, Hashable, Sendable {
+nonisolated struct HealthKitSourceRevision: Equatable, Hashable, Sendable {
     let bundleIdentifier: String
     let version: String?
     let productType: String?
 }
 
-struct HealthKitBodyMassSample: Equatable, Hashable, Sendable {
+nonisolated struct HealthKitBodyMassSample: Equatable, Hashable, Sendable {
     let sampleID: UUID
     let externalID: String
     let valueKilograms: Double
@@ -160,11 +160,11 @@ struct UnavailableHealthKitAdapter: HealthKitAdapter {
 
 /// Thin production adapter. It maps HealthKit into value snapshots and never
 /// exposes HKQuantitySample/HKWorkout to the local domain.
-final class LiveHealthKitAdapter: HealthKitAdapter, @unchecked Sendable {
+actor LiveHealthKitAdapter: HealthKitAdapter {
     private let store: HKHealthStore
 
-    init(store: HKHealthStore = HKHealthStore()) {
-        self.store = store
+    init() {
+        self.store = HKHealthStore()
     }
 
     func requestAuthorization() async throws {
@@ -406,7 +406,7 @@ struct HealthKitBodyMassImportService {
             } else if let authored = existingEntries.first(where: { $0.dayKey == dayKey && $0.source != .healthKit }) {
                 status = .sameDayUserAuthored(existingEntryID: authored.id)
                 authoredDays.insert(dayKey)
-            } else if let imported = existingEntries.first(where: { $0.dayKey == dayKey && $0.source == .healthKit }) {
+            } else if existingEntries.contains(where: { $0.dayKey == dayKey && $0.source == .healthKit }) {
                 status = .sameDayImported
                 importedDays.insert(dayKey)
             } else if authoredDays.contains(dayKey) {
@@ -522,7 +522,12 @@ enum HealthKitWorkoutExportService {
         context: ModelContext,
         attemptedAt: Date = .now
     ) async {
-        let existing = (try? context.fetch(FetchDescriptor<HealthKitWorkoutExportReceipt>()))?.first { $0.workoutID == summary.workoutID }
+        let workoutID = summary.workoutID
+        var descriptor = FetchDescriptor<HealthKitWorkoutExportReceipt>(
+            predicate: #Predicate { $0.workoutID == workoutID }
+        )
+        descriptor.fetchLimit = 1
+        let existing = (try? context.fetch(descriptor))?.first
         if existing?.status == .exported { return }
 
         guard await adapter.workoutAuthorizationState() == .authorized else {
@@ -540,7 +545,7 @@ enum HealthKitWorkoutExportService {
             receipt.attemptedAt = attemptedAt
             receipt.errorMessage = HealthKitIntegrationError.authorizationRequired.localizedDescription
             if existing == nil { context.insert(receipt) }
-            try? context.save()
+            _ = context.saveOrRollback()
             return
         }
 

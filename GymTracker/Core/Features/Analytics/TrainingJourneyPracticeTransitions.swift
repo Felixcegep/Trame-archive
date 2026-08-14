@@ -95,30 +95,42 @@ enum TrainingJourneyPracticeTransitionProjectionService {
                 }
                 return $0.0.id < $1.0.id
             }
+            .map { chapter, segment in
+                (
+                    chapter: chapter,
+                    segment: segment,
+                    evidence: chapterEvidence(chapter)
+                )
+            }
 
         var markers: [TrainingJourneyPracticeTransitionMarker] = []
+        var seenDominantDisciplines = Set<SportDiscipline>()
         for index in ordered.indices.dropFirst() {
             let previous = ordered[index - 1]
             let current = ordered[index]
-            let previousChapter = previous.0
-            let currentChapter = current.0
-            let previousEvidence = chapterEvidence(previousChapter)
-            let currentEvidence = chapterEvidence(currentChapter)
-            let overlaps = current.1.normalizedStart < previous.1.normalizedEndExclusive
+            let previousChapter = previous.chapter
+            let currentChapter = current.chapter
+            let previousEvidence = previous.evidence
+            let currentEvidence = current.evidence
+            if let previousDominant = dominantDiscipline(previousEvidence.discipline) {
+                seenDominantDisciplines.insert(previousDominant)
+            }
+            let overlaps = current.segment.normalizedStart < previous.segment.normalizedEndExclusive
             let state: TrainingJourneyPracticeTransitionEvidenceState = overlaps
                 ? .concurrentIntervals
                 : evidenceState(from: previousEvidence, to: currentEvidence)
 
-            if previous.1.lane != current.1.lane {
+            if previous.segment.lane != current.segment.lane {
                 markers.append(
                     makeMarker(
-                        kind: .structureChange(from: previous.1.lane, to: current.1.lane),
+                        kind: .structureChange(from: previous.segment.lane, to: current.segment.lane),
                         state: state,
                         from: previousChapter,
                         to: currentChapter,
                         fromEvidence: previousEvidence,
                         toEvidence: currentEvidence,
-                        timeline: timeline
+                        toSegment: current.segment,
+                        timelineDomain: timeline.domain
                     )
                 )
             }
@@ -127,10 +139,7 @@ enum TrainingJourneyPracticeTransitionProjectionService {
             switch (previousEvidence.discipline, currentEvidence.discipline) {
             case let (.dominant(previousDiscipline), .dominant(currentDiscipline))
                 where previousDiscipline != currentDiscipline:
-                let earlierDisciplines = ordered[..<index].compactMap { item in
-                    dominantDiscipline(chapterEvidence(item.0).discipline)
-                }
-                let kind: TrainingJourneyPracticeTransitionKind = earlierDisciplines.contains(currentDiscipline)
+                let kind: TrainingJourneyPracticeTransitionKind = seenDominantDisciplines.contains(currentDiscipline)
                     ? .returnToEarlierDiscipline
                     : .dominantDisciplineChange
                 markers.append(
@@ -141,7 +150,8 @@ enum TrainingJourneyPracticeTransitionProjectionService {
                         to: currentChapter,
                         fromEvidence: previousEvidence,
                         toEvidence: currentEvidence,
-                        timeline: timeline
+                        toSegment: current.segment,
+                        timelineDomain: timeline.domain
                     )
                 )
             case (.ambiguous, _), (_, .ambiguous):
@@ -153,7 +163,8 @@ enum TrainingJourneyPracticeTransitionProjectionService {
                         to: currentChapter,
                         fromEvidence: previousEvidence,
                         toEvidence: currentEvidence,
-                        timeline: timeline
+                        toSegment: current.segment,
+                        timelineDomain: timeline.domain
                     )
                 )
             case (.unknown, _), (_, .unknown):
@@ -165,7 +176,8 @@ enum TrainingJourneyPracticeTransitionProjectionService {
                         to: currentChapter,
                         fromEvidence: previousEvidence,
                         toEvidence: currentEvidence,
-                        timeline: timeline
+                        toSegment: current.segment,
+                        timelineDomain: timeline.domain
                     )
                 )
             case (.noCompletedEvidence, _), (_, .noCompletedEvidence):
@@ -262,20 +274,17 @@ enum TrainingJourneyPracticeTransitionProjectionService {
         to: TrainingJourneyChapter,
         fromEvidence: TrainingJourneyPracticeTransitionChapterEvidence,
         toEvidence: TrainingJourneyPracticeTransitionChapterEvidence,
-        timeline: TrainingJourneyTimelineProjection
+        toSegment: TrainingJourneyTimelineSegment,
+        timelineDomain: TrainingJourneyTimelineDomain
     ) -> TrainingJourneyPracticeTransitionMarker {
-        let date = timeline.lanes
-            .flatMap(\.segments)
-            .first(where: { $0.chapterID == to.id })?.normalizedStart ?? to.start
+        let date = toSegment.normalizedStart
         let position: Double
-        if timeline.domain.duration > 0 {
-            position = min(1, max(0, date.timeIntervalSince(timeline.domain.start) / timeline.domain.duration))
+        if timelineDomain.duration > 0 {
+            position = min(1, max(0, date.timeIntervalSince(timelineDomain.start) / timelineDomain.duration))
         } else {
             position = 0
         }
-        let normalizedDate = timeline.lanes
-            .flatMap(\.segments)
-            .first(where: { $0.chapterID == to.id })?.normalizedStart ?? date
+        let normalizedDate = toSegment.normalizedStart
         let id = [
             "transition",
             kind.stableKey,

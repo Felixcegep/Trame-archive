@@ -43,10 +43,17 @@ enum WorkoutIntentService {
             return workoutViewModel.activeWorkout
         }
 
-        let activeRun = (try? modelContext.fetch(FetchDescriptor<PlanRun>()))?
-            .filter { $0.status == .active }
-            .sorted { $0.updatedAt > $1.updatedAt }
-            .first
+        let activeRun: PlanRun?
+        do {
+            activeRun = try modelContext.fetch(FetchDescriptor<PlanRun>(
+                predicate: #Predicate { $0.endDate == nil }
+            ))
+                .filter { $0.status == .active }
+                .sorted { $0.updatedAt > $1.updatedAt }
+                .first
+        } catch {
+            return nil
+        }
 
         if let activeRun,
            let progress = activeRun.orderedWorkoutProgress.first(where: {
@@ -67,10 +74,19 @@ enum WorkoutIntentService {
     }
 
     static func activeWorkout(using modelContext: ModelContext) -> Workout? {
-        (try? modelContext.fetch(FetchDescriptor<Workout>()))?
-            .filter { $0.status == .active }
-            .sorted { $0.startTime > $1.startTime }
-            .first
+        try? activeWorkoutRequiringStore(using: modelContext)
+    }
+
+    /// Store-sensitive callers such as widget snapshot publication must be
+    /// able to distinguish "no active workout" from "the fetch failed" so
+    /// they do not replace last-known-good data with an empty projection.
+    static func activeWorkoutRequiringStore(using modelContext: ModelContext) throws -> Workout? {
+        var descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { $0.endTime == nil },
+            sortBy: [SortDescriptor(\.startTime, order: .reverse)]
+        )
+        descriptor.fetchLimit = 10
+        return try modelContext.fetch(descriptor).first(where: { $0.status == .active })
     }
 
     static func reconcile(_ result: ActiveWorkoutMutationService.Result) async {

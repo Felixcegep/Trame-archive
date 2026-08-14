@@ -24,8 +24,9 @@ struct TrainingCalendarView: View {
     @State private var reschedulingWorkout: TrainingCalendarPlannedWorkout?
     @State private var workoutToSkip: TrainingCalendarPlannedWorkout?
     @State private var errorMessage: String?
+    @State private var projectionCache: TrainingCalendarProjectionCache?
 
-    private var calendarMonth: TrainingCalendarMonth {
+    private func makeCalendarMonth() -> TrainingCalendarMonth {
         TrainingCalendarBuilder.month(
             containing: displayedMonth,
             planRuns: planRuns,
@@ -44,8 +45,18 @@ struct TrainingCalendarView: View {
     }
 
     var body: some View {
-        let month = calendarMonth
+        let inputID = projectionInputID
+        let month = projectionCache.flatMap {
+            $0.inputID == inputID ? $0.month : nil
+        } ?? makeCalendarMonth()
         let selectedCalendarDay = selectedCalendarDay(in: month)
+        // Resolve links through one render-scoped index. A selected day can
+        // contain several planned/free workouts; each row must not rescan a
+        // multi-year history to recover the corresponding model.
+        let workoutsByID = Dictionary(
+            workouts.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
@@ -57,7 +68,7 @@ struct TrainingCalendarView: View {
                 if let selectedCalendarDay {
                     TrainingCalendarDayAgenda(
                         day: selectedCalendarDay,
-                        workout: workout,
+                        workout: { workoutsByID[$0] },
                         onStart: start,
                         onReschedule: { reschedulingWorkout = $0 },
                         onSkip: { workoutToSkip = $0 },
@@ -128,6 +139,54 @@ struct TrainingCalendarView: View {
         } message: {
             Text(errorMessage ?? "The calendar could not be updated.")
         }
+        // The first render after a source revision builds the exact current
+        // projection synchronously, preserving the existing no-loading-state
+        // behavior. Store that value after the render so selection, sheets,
+        // and alerts reuse it instead of regrouping every observed history.
+        .task(id: inputID) {
+            projectionCache = TrainingCalendarProjectionCache(inputID: inputID, month: month)
+        }
+    }
+
+    /// Tracks only fields whose changes can alter the month projection.
+    /// Building this identity is linear in root records but never traverses
+    /// workout sets, plan progress, meal items, or mobility result graphs.
+    private var projectionInputID: Int {
+        var revision = Hasher()
+        revision.combine(LocalDay(date: displayedMonth))
+        revision.combine(LocalDay.today)
+        for run in planRuns {
+            revision.combine(run.id)
+            revision.combine(run.updatedAt)
+        }
+        for workout in workouts {
+            revision.combine(workout.id)
+            revision.combine(workout.status.rawValue)
+            revision.combine(workout.name)
+            revision.combine(workout.startTime)
+            revision.combine(workout.endTime)
+        }
+        for session in mobilitySessions {
+            revision.combine(session.id)
+            revision.combine(session.updatedAt)
+        }
+        for run in mobilityProgramRuns {
+            revision.combine(run.id)
+            revision.combine(run.updatedAt)
+        }
+        for meal in meals {
+            revision.combine(meal.id)
+            revision.combine(meal.updatedAt)
+        }
+        for checkIn in checkIns {
+            revision.combine(checkIn.id)
+            revision.combine(checkIn.updatedAt)
+        }
+        for occurrence in supplementOccurrences {
+            revision.combine(occurrence.id)
+            revision.combine(occurrence.updatedAt)
+        }
+        return revision.finalize()
     }
 
     private var monthControls: some View {
@@ -255,9 +314,11 @@ struct TrainingCalendarView: View {
         onStartPlannedWorkout(resolved.run, resolved.progress)
     }
 
-    private func workout(id: UUID) -> Workout? {
-        workouts.first { $0.id == id }
-    }
+}
+
+private struct TrainingCalendarProjectionCache {
+    let inputID: Int
+    let month: TrainingCalendarMonth
 }
 
 private struct TrainingCalendarDayButton: View {

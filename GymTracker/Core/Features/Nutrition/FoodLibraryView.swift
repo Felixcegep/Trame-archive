@@ -11,6 +11,11 @@ struct FoodLibraryView: View {
     @State private var isCreatingFood = false
 
     var body: some View {
+        // Search changes invalidate the body; keep the filtered catalogue for
+        // the empty-state check and rows in one render projection instead of
+        // scanning every food twice per keystroke.
+        let visibleFoods = self.visibleFoods
+
         List {
             if visibleFoods.isEmpty {
                 ContentUnavailableView(showsArchived ? "No archived foods" : "No foods found", systemImage: AppIcon.nutrition, description: Text(showsArchived ? "Archived foods stay available to historical meals." : "Create a custom food to log it offline."))

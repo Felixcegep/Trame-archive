@@ -18,6 +18,8 @@ struct WorkoutCollectionDetailView: View {
     @State private var isShowingTemplatePicker = false
 
     var body: some View {
+        let templatesToAdd = makeTemplatesToAdd()
+
         List {
             Section("Workouts") {
                 if collection.workoutTemplates.isEmpty {
@@ -65,11 +67,12 @@ struct WorkoutCollectionDetailView: View {
         }
     }
 
-    private var templatesToAdd: [WorkoutTemplate] {
-        availableTemplates.filter { template in
-            !collection.workoutTemplates.contains {
-                $0.persistentModelID == template.persistentModelID
-            }
+    private func makeTemplatesToAdd() -> [WorkoutTemplate] {
+        let existingTemplateIDs = Set(
+            collection.workoutTemplates.map(\.persistentModelID)
+        )
+        return availableTemplates.filter { template in
+            existingTemplateIDs.contains(template.persistentModelID) == false
         }
     }
 

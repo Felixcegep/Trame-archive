@@ -2,14 +2,14 @@ import Foundation
 
 #if !GYMTRACKER_EXTENSION
 
-enum ProgramDefinitionCodecError: Error, Equatable {
+nonisolated enum ProgramDefinitionCodecError: Error, Equatable {
     case validation([ProgramValidationIssue])
     case malformed
 }
 
 /// Safe, versioned JSON interchange for one program definition. The payload is
 /// typed Codable data; it never evaluates executable code or closures.
-enum ProgramDefinitionCodec {
+nonisolated enum ProgramDefinitionCodec {
     static func encode(_ definition: ProgramDefinitionPayload) throws -> Data {
         let issues = ProgramDefinitionValidator.validate(definition)
         guard issues.isEmpty else { throw ProgramDefinitionCodecError.validation(issues) }

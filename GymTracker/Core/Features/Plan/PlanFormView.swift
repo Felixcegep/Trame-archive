@@ -152,7 +152,7 @@ private extension PlanFormView {
                                     .font(AppFont.caption)
                                     .foregroundStyle(Color.gymSubduedText)
                             }
-                            .tag(template.persistentModelID)
+                            .tag(Optional(template.persistentModelID))
                         }
                     } label: {
                         Text(WeekdayStrip.shortName(for: dayOffset))
@@ -376,13 +376,19 @@ private extension PlanFormView {
         )
     }
 
-    func templateBinding(for dayOffset: Int) -> Binding<PersistentIdentifier> {
+    func templateBinding(for dayOffset: Int) -> Binding<PersistentIdentifier?> {
         Binding(
             get: {
                 templateIDByDay[dayOffset]
-                    ?? availableTemplates.first!.persistentModelID
+                    ?? availableTemplates.first?.persistentModelID
             },
-            set: { templateIDByDay[dayOffset] = $0 }
+            set: { selectedID in
+                if let selectedID {
+                    templateIDByDay[dayOffset] = selectedID
+                } else {
+                    templateIDByDay.removeValue(forKey: dayOffset)
+                }
+            }
         )
     }
 

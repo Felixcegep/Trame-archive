@@ -75,6 +75,39 @@ struct ProgressionReceiptLedgerProjection {
         var isResolved: Bool { decision != .pending }
     }
 
+    /// A descriptive census of recorded recommendation outcomes. Legacy rows
+    /// without a persisted outcome stay separate instead of being inferred as
+    /// accepted or declined.
+    struct DecisionSummary: Equatable, Identifiable {
+        let decision: DecisionState
+        let count: Int
+
+        var id: String {
+            switch decision {
+            case .pending: "pending"
+            case .accepted: "accepted"
+            case .acceptedWithModifiedValue: "modified"
+            case .declined: "declined"
+            case .outcomeNotRecorded: "unrecorded"
+            }
+        }
+    }
+
+    static func decisionSummary(entries: [Entry]) -> [DecisionSummary] {
+        let orderedDecisions: [DecisionState] = [
+            .pending,
+            .accepted,
+            .acceptedWithModifiedValue,
+            .declined,
+            .outcomeNotRecorded
+        ]
+
+        return orderedDecisions.compactMap { decision in
+            let count = entries.lazy.filter { $0.decision == decision }.count
+            return count > 0 ? DecisionSummary(decision: decision, count: count) : nil
+        }
+    }
+
     static func project(
         records: [PlanProgressionRecommendationRecord],
         decoder: JSONDecoder = JSONDecoder()

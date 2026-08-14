@@ -1,6 +1,6 @@
 import Foundation
 
-struct AppIcon {
+nonisolated struct AppIcon {
     // Navigation & Global Action Icons
     static let home = "house.fill"
     static let folders = "folder.fill"
@@ -77,6 +77,9 @@ struct AppIcon {
     // Specific Features
     static let workout = "dumbbell.fill"
     static let mobility = "figure.flexibility"
+    /// The live device-steadiness panel during a mobility hold — reuses the
+    /// system symbol literally named for the sensor behind the feature.
+    static let gyroscope = "gyroscope"
     // Mobility routine purpose. Reinforcement only — the purpose name always
     // accompanies these, so meaning never rests on the glyph.
     static let mobilityPurposePreparation = "figure.run"

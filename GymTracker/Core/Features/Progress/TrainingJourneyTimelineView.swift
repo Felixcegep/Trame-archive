@@ -375,7 +375,7 @@ struct TrainingJourneyTimelineView: View {
         let normalizedDate = Calendar.current.startOfDay(for: date)
         return practiceTransitions.markers
             .filter { $0.normalizedDate == normalizedDate }
-            .sorted(by: TrainingJourneyTimelineTransitionPresentation.order)
+            .sorted { TrainingJourneyTimelineTransitionPresentation.order($0, $1) }
     }
 
     private func tickLabel(_ tick: TrainingJourneyTimelineTick) -> String {

@@ -11,7 +11,7 @@ struct PersonalizedWorkoutBuilderView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [TrainingProfile]
     @Query private var completedWorkouts: [Workout]
-    @Query private var templates: [WorkoutTemplate]
+    @Query(filter: #Predicate<WorkoutTemplate> { !$0.isArchived }) private var templates: [WorkoutTemplate]
 
     let availableExercises: [Exercise]
     let generator: any WorkoutDraftGenerator
@@ -39,6 +39,20 @@ struct PersonalizedWorkoutBuilderView: View {
         self.generator = generator
         self.onApply = onApply
         self.onStart = onStart
+        let recentHistoryStart = Calendar.current.date(
+            byAdding: .day,
+            value: -WorkoutGenerationContextBuilder.recentHistoryDays,
+            to: .now
+        ) ?? .now
+        _completedWorkouts = Query(
+            filter: #Predicate<Workout> {
+                $0.endTime != nil && $0.startTime >= recentHistoryStart
+            },
+            sort: [SortDescriptor(\Workout.startTime, order: .reverse)]
+        )
+        var profileDescriptor = FetchDescriptor<TrainingProfile>()
+        profileDescriptor.fetchLimit = 1
+        _profiles = Query(profileDescriptor)
         _requestText = State(initialValue: launchRequest?.request ?? launchRequest?.focus ?? "")
         _durationMinutes = State(initialValue: launchRequest?.durationMinutes)
         _selectedEquipment = State(initialValue: [])

@@ -2,13 +2,17 @@ import SwiftData
 import SwiftUI
 
 struct NutritionTargetsView: View {
-    @Query(sort: \NutritionTarget.effectiveStartDayKey, order: .reverse) private var targets: [NutritionTarget]
+    @Query(
+        filter: #Predicate<NutritionTarget> { !$0.isArchived },
+        sort: \NutritionTarget.effectiveStartDayKey,
+        order: .reverse
+    ) private var targets: [NutritionTarget]
     @State private var editingTarget: NutritionTarget?
     @State private var isCreatingTarget = false
 
     var body: some View {
         List {
-            if targets.filter({ !$0.isArchived }).isEmpty {
+            if targets.isEmpty {
                 ContentUnavailableView {
                     Label("No targets", systemImage: AppIcon.chart)
                 } description: {
@@ -21,7 +25,7 @@ struct NutritionTargetsView: View {
                     .accessibilityIdentifier("create-nutrition-target-empty")
                 }
             } else {
-                ForEach(targets.filter { !$0.isArchived }) { target in
+                ForEach(targets) { target in
                     Button { editingTarget = target } label: {
                         VStack(alignment: .leading, spacing: Spacing.xxs) {
                             Text(target.phase.displayName).font(AppFont.subheadlineSemibold).foregroundStyle(Color.gymText)
