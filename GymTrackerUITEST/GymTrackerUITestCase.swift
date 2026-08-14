@@ -26,7 +26,14 @@ extension XCUIApplication {
         }
         if let data = try? JSONEncoder().encode(mirroredArguments),
            let payload = String(data: data, encoding: .utf8) {
-            launchEnvironment[Self.mirroredArgumentsEnvironmentKey] = payload
+            // A previous screenshot process can still be foregrounded between
+            // separately-invoked xcodebuild runs. Terminating explicitly keeps
+            // launch services from reactivating it with its old onboarding
+            // payload instead of creating the fixture process requested here.
+            if state != .notRunning {
+                terminate()
+            }
+            launchEnvironment = [Self.mirroredArgumentsEnvironmentKey: payload]
         }
         launch()
     }
@@ -320,6 +327,10 @@ class GymTrackerUITestCase: XCTestCase {
 
         let preparing = app.descendants(matching: .any)["app-preparing"]
         XCTAssertTrue(preparing.waitForNonExistence(timeout: 30))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["onboarding"].waitForNonExistence(timeout: 5),
+            "Ordinary fixture launches must not be covered by onboarding."
+        )
         if expectsMobilitySession {
             XCTAssertTrue(app.buttons["complete-mobility-movement"].waitForExistence(timeout: 30))
         } else if expectsActiveWorkout {
@@ -561,6 +572,33 @@ class GymTrackerUITestCase: XCTestCase {
         }
         XCTAssertTrue(element.waitForExistence(timeout: 5), file: file, line: line)
         XCTAssertTrue(element.isHittable, file: file, line: line)
+    }
+
+    /// Scrolls static evidence into the viewport without requiring it to be
+    /// hittable. Small lazy-list rows can be skipped by a full `swipeUp()`, and
+    /// labels intentionally never become hittable even when plainly visible.
+    func scrollToVisibleElement(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let window = app.windows.firstMatch
+        for _ in 0..<12 {
+            if element.exists,
+               !element.frame.isEmpty,
+               app.frame.intersects(element.frame) {
+                break
+            }
+            window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
+                .press(
+                    forDuration: 0.05,
+                    thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.48))
+                )
+        }
+        XCTAssertTrue(element.waitForExistence(timeout: 5), file: file, line: line)
+        XCTAssertFalse(element.frame.isEmpty, file: file, line: line)
+        XCTAssertTrue(app.frame.intersects(element.frame), file: file, line: line)
     }
 
 }

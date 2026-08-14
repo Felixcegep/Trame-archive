@@ -38,6 +38,7 @@ Capture all screenshots (the default) or only selected scene groups.
 
 Scenes:
   brand                  Completed cold-launch brand frame
+  onboarding             First-run path, core questions, equipment, and recommendations
   overview               Main Today, Train, empty Progress, and Settings screens
   settings-data-safety   Settings Data Safety section
   pages                  Today, Train, Nutrition, and Settings secondary page states
@@ -90,6 +91,7 @@ EOF
 tests_for_scene() {
   case "$1" in
     brand) echo "testCaptureLaunchBrandScreenshot" ;;
+    onboarding) echo "testCaptureOnboardingJourneyScreenshots" ;;
     overview) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureWave1LightModeScreenshots" ;;
     settings-data-safety) echo "testCaptureSettingsDataSafetyScreenshot" ;;
   pages) echo "testCaptureOverviewAndLibraryTourScreenshots testCaptureHomeConflictScreenshot testCaptureTodayCompleteTourScreenshots testCaptureDailyCheckInWeightDueScreenshot testCaptureBodyWeightHistoryScreenshot testCapturePlanActiveRunScreenshots testCaptureNotificationRescheduleScreenshot testCaptureActiveMobilityScreenshot testCaptureNutritionTodayScreenshot testCaptureSettingsImportErrorScreenshot testCaptureSettingsImportPreviewScreenshot testCaptureSettingsShortcutsAndBetaFeedbackScreenshots testCaptureSettingsDataSafetyScreenshot testCaptureBetaFeedbackActiveLoggingScreenshot" ;;

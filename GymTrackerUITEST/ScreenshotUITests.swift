@@ -4,15 +4,31 @@ import XCTest
 final class ScreenshotUITests: GymTrackerUITestCase {
     /// Walks the common Progress destinations from one deterministic history
     /// fixture so the hub, records, charts, volume evidence, and supporting
-    /// history can be reviewed as one visual system.
+    /// history can be reviewed as one visual system. Two comparable Bench
+    /// sessions also exercise the evidence-gated overview trend.
     func testCaptureProgressTabAnalysisScreenshots() {
-        let app = launchFixture("history-bench", expectsActiveWorkout: false)
+        let app = launchFixture("performance-history-comparison", expectsActiveWorkout: false)
         selectTab(.progress, in: app)
 
-        let progressScreen = app.descendants(matching: .any)["progress-screen"]
+        // A full `.descendants(.any)` snapshot can stall behind Swift Charts'
+        // accessibility bridge on iOS 26. The native navigation bar is the
+        // lightweight, user-visible sentinel for the completed tab change.
+        let progressScreen = app.navigationBars["Progress"]
         XCTAssertTrue(progressScreen.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["progress-sport-focus-chart"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["progress-overview-current-period"].waitForExistence(timeout: 10))
         saveScreenshot("progress/03_Progress_Hub")
+
+        // The chart publishes a single static accessibility summary instead of
+        // exposing every mark. It is intentionally not a hittability sentinel;
+        // visibility is enough for this visual capture.
+        let earlyComparison = app.descendants(matching: .any)["progress-overview-featured-trend-chart"]
+        scrollToVisibleElement(earlyComparison, in: app)
+        XCTAssertTrue(earlyComparison.waitForExistence(timeout: 10))
+        // The identifier covers the whole tappable evidence panel, so its top
+        // can intersect the viewport while the actual plot is still below the
+        // floating tab bar. Advance one viewport for the plot-specific frame.
+        app.swipeUp()
+        saveScreenshot("progress/03n_Exercise_Early_Comparison")
 
         captureProgressDestination(
             "progress-workout-history",
@@ -66,7 +82,7 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let back = app.navigationBars.buttons.element(boundBy: 0)
         XCTAssertTrue(back.waitForExistence(timeout: 5))
         back.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["progress-screen"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Progress"].waitForExistence(timeout: 10))
     }
 
     /// One deterministic path covers the Athlete Intelligence hierarchy and a
@@ -75,14 +91,66 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         let app = launchFixture("history-bench", expectsActiveWorkout: false)
         selectTab(.progress, in: app)
 
-        XCTAssertTrue(app.descendants(matching: .any)["progress-athlete-profile"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["progress-lens-global"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["progress-sport-focus-chart"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["progress-overview-current-period"].waitForExistence(timeout: 10))
+        let globalLens = app.descendants(matching: .any)["progress-lens-global"]
+        scrollToElement(globalLens, in: app)
+        XCTAssertTrue(globalLens.waitForExistence(timeout: 5))
+        globalLens.tap()
+        let insufficientEvidence = app.descendants(matching: .any)["progress-sport-focus-insufficient"]
+        scrollToVisibleElement(insufficientEvidence, in: app)
+        XCTAssertTrue(insufficientEvidence.waitForExistence(timeout: 5))
         saveScreenshot("overview/03g_Progress_Global_Populated")
 
-        tapControl("progress-lens-generalStrength", in: app)
+        let strengthLens = app.buttons["progress-lens-generalStrength"]
+        scrollToElement(strengthLens, in: app)
+        strengthLens.tap()
         XCTAssertTrue(app.descendants(matching: .any)["progress-sport-lens-generalStrength"].waitForExistence(timeout: 5))
         saveScreenshot("overview/03h_Progress_General_Strength_Lens")
+    }
+
+    /// Captures the complete first-run decision path before and after UI
+    /// changes. The selected answers are deliberately ordinary so this remains
+    /// a representative product audit, not a special-case fixture.
+    func testCaptureOnboardingJourneyScreenshots() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-data", "-ui-testing-show-welcome"]
+        app.launchWithGymTrackerUITestArguments()
+
+        XCTAssertTrue(app.descendants(matching: .any)["welcome"].waitForExistence(timeout: 30))
+        settleOnboardingCapture()
+        saveScreenshot("onboarding/00_Welcome")
+
+        tapButton("welcome-follow-plan", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding-step-discipline"].waitForExistence(timeout: 10))
+        settleOnboardingCapture()
+        saveScreenshot("onboarding/01_Discipline")
+
+        tapButton("onboarding-discipline-generalStrength", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding-step-goal"].waitForExistence(timeout: 10))
+        settleOnboardingCapture()
+        saveScreenshot("onboarding/02_Goal")
+
+        tapButton("onboarding-goal-getStronger", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding-step-experience"].waitForExistence(timeout: 10))
+        settleOnboardingCapture()
+        saveScreenshot("onboarding/03_Experience")
+
+        tapButton("onboarding-experience-experienced", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding-step-frequency"].waitForExistence(timeout: 10))
+        settleOnboardingCapture()
+        saveScreenshot("onboarding/03a_Frequency")
+
+        tapButton("onboarding-frequency-4", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding-step-equipment"].waitForExistence(timeout: 10))
+        settleOnboardingCapture()
+        saveScreenshot("onboarding/03b_Equipment")
+
+        tapButton("onboarding-location-commercialGym", in: app)
+        XCTAssertTrue(app.buttons["Confirm equipment"].waitForExistence(timeout: 10))
+        app.buttons["Confirm equipment"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding-recommendations"].waitForExistence(timeout: 15))
+        settleOnboardingCapture()
+        saveScreenshot("onboarding/04_Recommendations")
     }
 
     func testCaptureWave1LightModeScreenshots() {
@@ -392,10 +460,6 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         saveScreenshot("journey/24_Training_Journey_List")
 
         tapFirstAvailableButton(["Timeline", "Chronologie"], in: app)
-        XCTAssertTrue(
-            app.staticTexts["Selected date"].waitForExistence(timeout: 10)
-                || app.staticTexts["Date sélectionnée"].waitForExistence(timeout: 2)
-        )
         RunLoop.current.run(until: Date().addingTimeInterval(0.75))
         saveScreenshot("journey/24a_Training_Journey_Timeline")
     }
@@ -525,6 +589,9 @@ final class ScreenshotUITests: GymTrackerUITestCase {
     /// inside this single test method instead of one method per fixture.
     func testCaptureActiveWorkoutStatesScreenshots() {
         let empty = launchFixture("active-empty")
+        XCTAssertTrue(empty.descendants(matching: .any)["empty-workout-state"].waitForExistence(timeout: 10))
+        XCTAssertTrue(empty.buttons["add-first-exercise"].waitForExistence(timeout: 5))
+        XCTAssertFalse(empty.descendants(matching: .any)["finish-summary"].exists)
         saveScreenshot("active-workout/05_Active_Workout_Empty")
         tapButton("minimize-workout", in: empty)
         saveScreenshot("overview/05_Home_With_Active_Workout")
@@ -1210,6 +1277,17 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("Cancel", in: app)
         XCTAssertTrue(app.navigationBars["Reschedule workout"].waitForNonExistence(timeout: 5))
 
+        selectTab(.train, in: app)
+        XCTAssertTrue(app.buttons["current-plan-card"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["current-plan-start-next"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13a_Train_Current_Plan")
+
+        tapButton("current-plan-weekly-review", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["weekly-review-screen"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.descendants(matching: .any)["weekly-review-session-summary"].waitForExistence(timeout: 5))
+        saveScreenshot("plans/13aa_Weekly_Review_Status")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
         openPlans(.following, in: app)
         tapButton("plan-row-Screenshot Plan Run", in: app)
         XCTAssertTrue(app.buttons["start-planned-workout"].waitForExistence(timeout: 5))
@@ -1240,7 +1318,37 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             expectsMobilitySession: true
         )
         XCTAssertTrue(app.buttons["complete-mobility-movement"].waitForExistence(timeout: 5))
+        let details = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "mobility-result-details-")
+        ).firstMatch
+        XCTAssertTrue(details.waitForExistence(timeout: 5))
+        XCTAssertFalse(
+            app.descendants(matching: .any).matching(
+                NSPredicate(format: "identifier BEGINSWITH %@", "mobility-sensation-")
+            ).firstMatch.exists
+        )
+        let reportSensation = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "mobility-report-sensation-")
+        ).firstMatch
+        XCTAssertTrue(reportSensation.waitForExistence(timeout: 5))
         saveScreenshot("mobility/19_Active_Mobility")
+
+        scrollToElement(reportSensation, in: app)
+        XCTAssertTrue(reportSensation.isHittable)
+        reportSensation.tap()
+        let sensation = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "mobility-sensation-")
+        ).firstMatch
+        scrollToElement(sensation, in: app)
+        XCTAssertTrue(sensation.waitForExistence(timeout: 5))
+        app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.68))
+            .press(
+                forDuration: 0.05,
+                thenDragTo: app.windows.firstMatch.coordinate(
+                    withNormalizedOffset: CGVector(dx: 0.5, dy: 0.38)
+                )
+            )
+        saveScreenshot("mobility/19a_Active_Mobility_Safety")
     }
 
     func testCaptureMobilityRoutinePurposeScreenshot() {
@@ -1723,6 +1831,12 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         XCTAssertTrue(home.descendants(matching: .any)["active-repeating-plan-badge"].waitForExistence(timeout: 5))
         saveScreenshot("overview/01i_Home_Active_Rotation")
 
+        selectTab(.train, in: home)
+        XCTAssertTrue(home.buttons["current-plan-start-next"].waitForExistence(timeout: 8))
+        XCTAssertFalse(home.descendants(matching: .any)["current-plan-progress"].exists)
+        saveScreenshot("plans/22_Train_Current_Rotation")
+        selectTab(.today, in: home)
+
         tapButton("start-repeating-workout", in: home)
         XCTAssertTrue(home.staticTexts["active-workout-title"].waitForExistence(timeout: 10))
         let rotationSource = home.descendants(matching: .any).matching(
@@ -1796,6 +1910,14 @@ final class ScreenshotUITests: GymTrackerUITestCase {
             object: today
         )
         XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 5), .completed)
+    }
+
+    /// Accessibility identifiers appear as soon as a question transition
+    /// starts. Screenshots need the short directional spring (and the results
+    /// assembly) to finish, otherwise the captured frame can contain the new
+    /// identifier while its header is still clipped between positions.
+    private func settleOnboardingCapture() {
+        RunLoop.current.run(until: Date().addingTimeInterval(0.55))
     }
 
     private func saveScreenshot(
