@@ -41,4 +41,53 @@ final class WeightliftingDashboardPresentationTests: XCTestCase {
         XCTAssertEqual(WeightliftingEvidenceCount.observed(0).displayText, "0")
         XCTAssertEqual(WeightliftingEvidenceCount.unavailable.displayText, "Not recorded")
     }
+
+    func testRecentAttemptMatrixPreservesParentAndComponentOutcomes() {
+        let attempt = WeightliftingComplexOutcome(
+            workoutID: UUID(),
+            setID: UUID(),
+            date: Date(timeIntervalSince1970: 100),
+            weight: 95,
+            weightType: .kg,
+            outcome: .missed,
+            liftQuality: .missed,
+            components: [
+                WeightliftingComponentOutcomeEvidence(
+                    exerciseID: UUID(),
+                    exerciseNameSnapshot: "Clean",
+                    orderIndex: 0,
+                    role: .clean,
+                    prescribedRepetitions: 1,
+                    performedRepetitions: 1,
+                    outcome: .completed,
+                    liftQuality: .acceptable
+                ),
+                WeightliftingComponentOutcomeEvidence(
+                    exerciseID: UUID(),
+                    exerciseNameSnapshot: "Jerk",
+                    orderIndex: 1,
+                    role: .jerk,
+                    prescribedRepetitions: 1,
+                    performedRepetitions: 0,
+                    outcome: .missed,
+                    liftQuality: .missed
+                )
+            ]
+        )
+        let projection = WeightliftingAnalyticsProjection(
+            bestCompleteSuccessfulLift: nil,
+            bestCompleteSuccessfulLiftsByUnit: [],
+            cleanSuccess: nil,
+            jerkAfterCleanSuccess: nil,
+            componentFailureDistribution: [],
+            successRatesByIntensityGroup: [],
+            complexOutcomes: [attempt],
+            qualityTrend: []
+        )
+
+        let presentation = WeightliftingDashboardPresentation.make(projection: projection)
+
+        XCTAssertEqual(presentation.recentAttempts.first?.outcome, .missed)
+        XCTAssertEqual(presentation.recentAttempts.first?.components, [.completed, .missed])
+    }
 }

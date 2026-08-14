@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class WorkoutTemplateLifecycleTests: XCTestCase {
     func testRenameTemplateTrimsNameAndSaves() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let template = WorkoutTemplate(name: "Push Day", exercises: [])
         context.insert(template)
         try context.save()
@@ -16,7 +16,7 @@ final class WorkoutTemplateLifecycleTests: XCTestCase {
     }
 
     func testRenameTemplateRejectsEmptyName() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let template = WorkoutTemplate(name: "Push Day", exercises: [])
         context.insert(template)
         try context.save()
@@ -30,7 +30,7 @@ final class WorkoutTemplateLifecycleTests: XCTestCase {
     }
 
     func testDuplicateTemplateCreatesDeepCopy() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let exercise = Exercise(name: "Bench Press", primaryMuscles: [.middleChest])
         let template = WorkoutTemplate(
             name: "Hypertrophy Push",
@@ -53,7 +53,7 @@ final class WorkoutTemplateLifecycleTests: XCTestCase {
     }
 
     func testDeleteUnreferencedTemplateDeletesFromStore() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let template = WorkoutTemplate(name: "Custom Unused Template", exercises: [])
         context.insert(template)
         try context.save()
@@ -66,7 +66,7 @@ final class WorkoutTemplateLifecycleTests: XCTestCase {
     }
 
     func testDeleteReferencedTemplateArchivesWithReason() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let exercise = Exercise(name: "Squat", primaryMuscles: [.quadriceps])
         let template = WorkoutTemplate(name: "Leg Day", exercises: [exercise])
         let workout = Workout(name: "Leg Day History")
@@ -92,7 +92,7 @@ final class WorkoutTemplateLifecycleTests: XCTestCase {
     }
 
     func testRestoreArchivedTemplateClearsArchivedFlag() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let template = WorkoutTemplate(name: "Archived Template", exercises: [], isArchived: true)
         context.insert(template)
         try context.save()
@@ -100,9 +100,5 @@ final class WorkoutTemplateLifecycleTests: XCTestCase {
         try WorkoutTemplateArchiveService.restore(template, using: context)
 
         XCTAssertFalse(template.isArchived)
-    }
-
-    private func makeContext() throws -> ModelContext {
-        try GymTrackerTestStore.makeInMemoryContext()
     }
 }

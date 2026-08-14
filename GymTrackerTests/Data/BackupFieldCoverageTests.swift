@@ -683,6 +683,40 @@ final class BackupFieldCoverageTests: XCTestCase {
         XCTAssertEqual(restoredItem.caffeineMilligramsSnapshot, 40)
     }
 
+    func testTrainingProfileRoundTripsTypedSecondaryDisciplinesAndProgressOrganization() throws {
+        let source = try makeContext()
+        let profile = TrainingProfile()
+        profile.primaryDisciplineRaw = TrainingDisciplinePreference.powerlifting.rawValue
+        profile.secondaryDisciplines = [.olympicWeightlifting, .bodybuilding]
+        profile.progressOrganizationModeRaw = ProgressOrganizationMode.sportPriority.rawValue
+        let squatID = UUID()
+        let benchID = UUID()
+        let deadliftID = UUID()
+        profile.competitionProfileData = try JSONEncoder().encode(
+            CompetitionProfileDraft(
+                discipline: .powerlifting,
+                squatExerciseID: squatID,
+                benchExerciseID: benchID,
+                deadliftExerciseID: deadliftID
+            )
+        )
+        source.insert(profile)
+        try source.save()
+
+        let restored = try XCTUnwrap(
+            roundTrip(source)
+                .fetch(FetchDescriptor<TrainingProfile>())
+                .first
+        )
+
+        XCTAssertEqual(restored.primaryDiscipline, .powerlifting)
+        XCTAssertEqual(restored.secondaryDisciplines, [.olympicWeightlifting, .bodybuilding])
+        XCTAssertEqual(restored.progressOrganizationMode, .sportPriority)
+        XCTAssertEqual(restored.competition?.squatExerciseID, squatID)
+        XCTAssertEqual(restored.competition?.benchExerciseID, benchID)
+        XCTAssertEqual(restored.competition?.deadliftExerciseID, deadliftID)
+    }
+
     // MARK: - DTO coverage guards
 
     /// A DTO field that nobody maps is invisible: it encodes as its default and
@@ -710,6 +744,7 @@ final class BackupFieldCoverageTests: XCTestCase {
         assertFieldCount(of: MobilityAssessmentSampleDTO.self, equals: 9)
         assertFieldCount(of: MobilityAssessmentResultDTO.self, equals: 24)
         assertFieldCount(of: MobilityAssessmentSessionDTO.self, equals: 11)
+        assertFieldCount(of: TrainingProfileDTO.self, equals: 29)
     }
 
     /// The count guard above only protects the eight DTO types it already
@@ -775,7 +810,8 @@ final class BackupFieldCoverageTests: XCTestCase {
         "MobilityAssessmentDefinitionDTO",
         "MobilityAssessmentSampleDTO",
         "MobilityAssessmentResultDTO",
-        "MobilityAssessmentSessionDTO"
+        "MobilityAssessmentSessionDTO",
+        "TrainingProfileDTO"
     ]
 
     /// DTO types with no Mirror-based field-count guard *in this file* yet.
@@ -847,7 +883,6 @@ final class BackupFieldCoverageTests: XCTestCase {
         "MobilityTempoPrescriptionDTO",
         "MobilityAssistancePrescriptionDTO",
         "MobilityBreathingPrescriptionDTO",
-        "TrainingProfileDTO"
     ]
 
     private func assertFieldCount<T>(
@@ -994,6 +1029,8 @@ final class BackupFieldCoverageTests: XCTestCase {
                 updatedAt: .now,
                 items: []
             )
+        case "TrainingProfileDTO":
+            return TrainingProfileDTO()
         case "MobilityRoutineDTO":
             return MobilityRoutineDTO(
                 id: UUID().uuidString,

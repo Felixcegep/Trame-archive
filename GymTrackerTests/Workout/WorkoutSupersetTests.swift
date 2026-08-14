@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class WorkoutSupersetTests: XCTestCase {
     func testSupersetSelectorAlternatesUnevenSetsAndStartsRestAfterRounds() throws {
-        let exerciseA = makeExercise()
+        let exerciseA = WorkoutTestFixture.makeExercise()
         let exerciseB = Exercise(name: "Cable Row", primaryMuscles: [.latissimusDorsi])
         let groupID = UUID()
         let entryA = ExerciseEntry(
@@ -64,8 +64,8 @@ final class WorkoutSupersetTests: XCTestCase {
     }
 
     func testActiveWorkoutViewModelOnlyOffersTheSelectorCurrentSupersetSet() throws {
-        let context = try makeContext()
-        let exerciseA = makeExercise()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exerciseA = WorkoutTestFixture.makeExercise()
         let exerciseB = Exercise(name: "Cable Row", primaryMuscles: [.latissimusDorsi])
         let groupID = UUID()
         let entryA = ExerciseEntry(
@@ -105,7 +105,7 @@ final class WorkoutSupersetTests: XCTestCase {
     }
 
     func testSupersetNormalizationDissolvesSingletonAndNonContiguousGroups() {
-        let exercise = makeExercise()
+        let exercise = WorkoutTestFixture.makeExercise()
         let groupID = UUID()
         let first = ExerciseEntry(exercise: exercise, orderIndex: 0, usedMetric: .metric, supersetGroupID: groupID)
         let middle = ExerciseEntry(exercise: exercise, orderIndex: 1, usedMetric: .metric)
@@ -120,7 +120,7 @@ final class WorkoutSupersetTests: XCTestCase {
     }
 
     func testRemovingSupersetMemberDissolvesTheRemainingSingleton() {
-        let exercise = makeExercise()
+        let exercise = WorkoutTestFixture.makeExercise()
         let groupID = UUID()
         let first = ExerciseEntry(exercise: exercise, orderIndex: 0, usedMetric: .metric, supersetGroupID: groupID)
         let second = ExerciseEntry(exercise: exercise, orderIndex: 1, usedMetric: .metric, supersetGroupID: groupID)
@@ -135,7 +135,7 @@ final class WorkoutSupersetTests: XCTestCase {
     }
 
     func testTemplateWorkoutSnapshotUsesFreshSupersetIdentity() throws {
-        let exerciseA = makeExercise()
+        let exerciseA = WorkoutTestFixture.makeExercise()
         let exerciseB = Exercise(name: "Cable Row", primaryMuscles: [.latissimusDorsi])
         let templateGroupID = UUID()
         let template = WorkoutTemplate(
@@ -155,13 +155,5 @@ final class WorkoutSupersetTests: XCTestCase {
         XCTAssertEqual(firstWorkout.orderedExercises.map(\.supersetGroupID), [firstGroupID, firstGroupID])
         XCTAssertNotEqual(firstGroupID, templateGroupID)
         XCTAssertNotEqual(firstGroupID, secondGroupID)
-    }
-
-    private func makeContext() throws -> ModelContext {
-        try GymTrackerTestStore.makeInMemoryContext()
-    }
-
-    private func makeExercise() -> Exercise {
-        WorkoutTestFixture.makeExercise()
     }
 }

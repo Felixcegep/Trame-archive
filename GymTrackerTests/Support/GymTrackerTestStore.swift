@@ -7,6 +7,12 @@ import SwiftData
 /// cases.
 @MainActor
 enum GymTrackerTestStore {
+    /// Schema metadata is immutable for the duration of a test process. Keep
+    /// one copy so every isolated container pays only the container-open cost;
+    /// sharing a container itself would allow SwiftData state to leak between
+    /// tests and is intentionally not supported.
+    private static let schema = GymTrackerPersistenceConfiguration.schema
+
     static func makeInMemoryContext() throws -> ModelContext {
         ModelContext(try makeInMemoryContainer())
     }
@@ -29,63 +35,6 @@ enum GymTrackerTestStore {
     }
 
     private static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {
-        try ModelContainer(
-            for: SystemSeedRecord.self,
-            Workout.self,
-            WorkoutExecutionBlock.self,
-            Exercise.self,
-            ExerciseRelationship.self,
-            ExerciseEntry.self,
-            ExerciseSet.self,
-            ExerciseSetSegment.self,
-            ComplexComponentResult.self,
-            WorkoutTemplate.self,
-            TemplateExercise.self,
-            TemplateExerciseBlock.self,
-            WorkoutCollection.self,
-            PlanRun.self,
-            PlanWorkoutProgress.self,
-            PlanExerciseProgressionState.self,
-            RepeatingPlan.self,
-            RepeatingPlanSlot.self,
-            RepeatingPlanRun.self,
-            RepeatingPlanRunSlot.self,
-            RepeatingPlanOccurrence.self,
-            DailyLogEntry.self,
-            BodyWeightEntry.self,
-            SupplementOccurrence.self,
-            MobilityFamily.self,
-            MobilityDefinition.self,
-            MobilityRoutine.self,
-            MobilityRoutineItem.self,
-            MobilitySession.self,
-            MobilityEntry.self,
-            MobilityResult.self,
-            MobilityResultEvidence.self,
-            MobilityAssessmentDefinition.self,
-            MobilityAssessmentSession.self,
-            MobilityAssessmentResult.self,
-            MobilityAssessmentSample.self,
-            FoodItem.self,
-            FoodServing.self,
-            MealTemplate.self,
-            MealTemplateItem.self,
-            LoggedMeal.self,
-            LoggedMealItem.self,
-            NutritionTarget.self,
-            ProgramDefinitionRecord.self,
-            PlanProgressionRecommendationRecord.self,
-            HealthKitBodyMassProvenance.self,
-            HealthKitWorkoutExportReceipt.self,
-            WorkoutPlan.self,
-            PlanBlock.self,
-            PlanWeek.self,
-            PlannedWorkout.self,
-            PlannedExercise.self,
-            PlannedExerciseBlock.self,
-            PlannedExerciseAlternative.self,
-            PlannedSet.self,
-            configurations: configuration
-        )
+        try ModelContainer(for: schema, configurations: [configuration])
     }
 }

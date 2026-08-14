@@ -97,6 +97,42 @@ final class ProgressionReceiptLedgerProjectionTests: XCTestCase {
         XCTAssertEqual(entries.map(\.createdAt), [Date(timeIntervalSince1970: 200), Date(timeIntervalSince1970: 100)])
     }
 
+    func testDecisionSummaryKeepsEveryRecordedOutcomeDistinctAndOmitsZeroBuckets() throws {
+        let pending = try makeRecord()
+        let accepted = try makeRecord()
+        accepted.isResolved = true
+        accepted.decisionOutcome = .accepted
+        let modified = try makeRecord()
+        modified.isResolved = true
+        modified.decisionOutcome = .acceptedWithModifiedValue
+        let declined = try makeRecord()
+        declined.isResolved = true
+        declined.decisionOutcome = .declined
+        let legacy = try makeRecord()
+        legacy.isResolved = true
+        legacy.decisionOutcome = nil
+
+        let entries = ProgressionReceiptLedgerProjection.project(
+            records: [pending, accepted, modified, declined, legacy, accepted]
+        )
+        let summary = ProgressionReceiptLedgerProjection.decisionSummary(entries: entries)
+
+        XCTAssertEqual(
+            summary,
+            [
+                .init(decision: .pending, count: 1),
+                .init(decision: .accepted, count: 2),
+                .init(decision: .acceptedWithModifiedValue, count: 1),
+                .init(decision: .declined, count: 1),
+                .init(decision: .outcomeNotRecorded, count: 1)
+            ]
+        )
+    }
+
+    func testDecisionSummaryForEmptyLedgerIsEmpty() {
+        XCTAssertTrue(ProgressionReceiptLedgerProjection.decisionSummary(entries: []).isEmpty)
+    }
+
     private func makeRecord(
         planRunID: UUID = UUID(),
         workoutID: UUID = UUID()

@@ -10,7 +10,11 @@ final class SetPrefillPrecedenceTests: XCTestCase {
 
         XCTAssertTrue(fixture.viewModel.autofillPreviousPerformanceIfUnfilled(previous, to: fixture.set, in: fixture.entry))
         XCTAssertEqual(fixture.set.repetitions, 8)
-        XCTAssertEqual(fixture.set.weight, 50)
+        XCTAssertEqual(
+            fixture.set.weight,
+            UnitConversion.weight(50, from: .lbs, to: .kg),
+            accuracy: 0.001
+        )
 
         fixture.set.repetitions = 0
         fixture.set.weight = 0

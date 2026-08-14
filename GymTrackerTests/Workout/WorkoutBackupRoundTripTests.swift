@@ -5,14 +5,55 @@ import XCTest
 
 @MainActor
 final class WorkoutBackupRoundTripTests: XCTestCase {
+    func testCurrentBackupRestoresDuplicateDisplayNamesByStableExerciseIdentity() throws {
+        let source = try GymTrackerTestStore.makeInMemoryContext()
+        let customExercise = Exercise(
+            name: "Bench Press",
+            primaryMuscles: [.upperChest],
+            isCustom: true
+        )
+        let template = WorkoutTestFixture.makeTemplate(exercise: customExercise, targetSets: 3)
+        let workout = WorkoutTestFixture.makeWorkout(with: customExercise)
+        source.insert(customExercise)
+        source.insert(template)
+        source.insert(workout)
+        try source.save()
+
+        let backup = try BackupDTO.create(
+            from: source,
+            restTimer: 90,
+            darkMode: false,
+            unitSystem: .metric
+        )
+        let restored = try GymTrackerTestStore.makeInMemoryContext()
+        try backup.restore(to: restored)
+
+        let restoredCustom = try XCTUnwrap(
+            restored.fetch(FetchDescriptor<Exercise>()).first { $0.id == customExercise.id }
+        )
+        XCTAssertTrue(restoredCustom.isCustom)
+        XCTAssertEqual(
+            try restored.fetch(FetchDescriptor<WorkoutTemplate>())
+                .first { $0.name == template.name }?
+                .orderedTemplateExercises.first?.exercise.id,
+            restoredCustom.id
+        )
+        XCTAssertEqual(
+            try restored.fetch(FetchDescriptor<Workout>())
+                .first { $0.id == workout.id }?
+                .orderedExercises.first?.exercise.id,
+            restoredCustom.id
+        )
+    }
+
     func testLegacyBackupDefaultsTemplateProgressionToDoubleProgression() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let backup = BackupDTO(
             version: BackupDTO.legacyVersion,
             preferences: PreferencesDTO(darkMode: false, restTimer: 90, unitSystem: UnitSystem.metric.rawValue),
             exercises: [
                 ExerciseTemplateDTO(
-                    name: "Bench Press",
+                    name: "Legacy Progression Exercise",
                     primaryMuscles: [Muscle.upperChest.rawValue],
                     secondaryMuscles: nil,
                     category: nil,
@@ -33,7 +74,7 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
                     name: "Legacy Template",
                     templateExercises: [
                         TemplateExerciseDTO(
-                            exerciseName: "Bench Press",
+                            exerciseName: "Legacy Progression Exercise",
                             orderIndex: 0,
                             targetSets: 3,
                             repRangeMinimum: 8,
@@ -72,8 +113,8 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
     }
 
     func testBackupRoundTripsProgressionRuleAndRecommendationSnapshot() throws {
-        let source = try makeContext()
-        let exercise = makeExercise()
+        let source = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
         let templateExercise = TemplateExercise(
             exercise: exercise,
             order: 0,
@@ -84,7 +125,7 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
             exercises: [exercise],
             templateExercises: [templateExercise]
         )
-        let workout = makeWorkout(with: exercise)
+        let workout = WorkoutTestFixture.makeWorkout(with: exercise)
         let entry = try XCTUnwrap(workout.exercises.first)
         entry.recommendedDecision = .increase
         entry.recommendedLoad = 105
@@ -107,7 +148,7 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
         )
         let data = try JSONEncoder().encode(backup)
         let decoded = try JSONDecoder().decode(BackupDTO.self, from: data)
-        let restored = try makeContext()
+        let restored = try GymTrackerTestStore.makeInMemoryContext()
         try decoded.restore(to: restored)
 
         let restoredTemplate = try XCTUnwrap(
@@ -137,7 +178,7 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
     }
 
     func testBackupRoundTripsDeferredBackOffSnapshotWithoutDuplicatingGeneratedWork() throws {
-        let source = try makeContext()
+        let source = try GymTrackerTestStore.makeInMemoryContext()
         let exercise = Exercise(name: "Clean", primaryMuscles: [.quadriceps])
         let dailyMaximum = ExerciseSet(
             repetitions: 1,
@@ -175,7 +216,7 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
             darkMode: false,
             unitSystem: .metric
         )
-        let restored = try makeContext()
+        let restored = try GymTrackerTestStore.makeInMemoryContext()
         try JSONDecoder().decode(BackupDTO.self, from: JSONEncoder().encode(backup)).restore(to: restored)
 
         let restoredWorkout = try XCTUnwrap(
@@ -205,12 +246,11 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
     }
 
     func testDeferredBackOffSurvivesDiskRelaunchWithoutDuplicateGeneration() throws {
-        let url = try makeDiskStoreURL()
-        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let url = try WorkoutTestFixture.makeDiskStoreURL()
         let workoutID = UUID()
         let deferredBackOffID = UUID()
 
-        try withDiskContext(at: url) { context in
+        try WorkoutTestFixture.withDiskContext(at: url) { context in
             let exercise = Exercise(name: "Bench Press", primaryMuscles: [.middleChest])
             let topSet = ExerciseSet(
                 repetitions: 5,
@@ -244,7 +284,7 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
             try context.save()
         }
 
-        try withDiskContext(at: url) { context in
+        try WorkoutTestFixture.withDiskContext(at: url) { context in
             let workout = try XCTUnwrap(
                 context.fetch(FetchDescriptor<Workout>()).first { $0.id == workoutID }
             )
@@ -259,9 +299,9 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
     }
 
     func testBackupRoundTripsPlanRunProgressAndCompletedWorkoutIdentity() throws {
-        let source = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        let source = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let template = WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: 1)
         template.name = "Backup Plan Template"
         let plan = PlanCoordinator.createPlan(
             name: "Backup Plan",
@@ -341,7 +381,7 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
 
         let encoded = try JSONEncoder().encode(backup)
         let decoded = try JSONDecoder().decode(BackupDTO.self, from: encoded)
-        let restored = try makeContext()
+        let restored = try GymTrackerTestStore.makeInMemoryContext()
         try decoded.restore(to: restored)
 
         let restoredPlan = try XCTUnwrap(
@@ -389,34 +429,5 @@ final class WorkoutBackupRoundTripTests: XCTestCase {
         XCTAssertEqual(restoredSet.prescribedRestSeconds, 45)
         XCTAssertEqual(restoredSet.prescribedUnroundedLoad, 52.4)
         XCTAssertEqual(restoredSet.prescriptionLoadExplanation, "Training Max 65.5 × 80% = 52.4 → rounded to 52.5.")
-    }
-
-
-    private func makeExercise() -> Exercise {
-        Exercise(name: "Bench Press", primaryMuscles: [.upperChest])
-    }
-
-    private func makeContext() throws -> ModelContext {
-        try GymTrackerTestStore.makeInMemoryContext()
-    }
-
-    private func makeDiskStoreURL() throws -> URL {
-        try WorkoutTestFixture.makeDiskStoreURL()
-    }
-
-    private func withDiskContext<T>(
-        at url: URL,
-        _ body: (ModelContext) throws -> T
-    ) throws -> T {
-        try WorkoutTestFixture.withDiskContext(at: url, body)
-    }
-
-
-    private func makeTemplate(exercise: Exercise, targetSets: Int) -> WorkoutTemplate {
-        WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: targetSets)
-    }
-
-    private func makeWorkout(with exercise: Exercise, reps: Float = 8, weight: Float = 50) -> Workout {
-        WorkoutTestFixture.makeWorkout(with: exercise, reps: reps, weight: weight)
     }
 }

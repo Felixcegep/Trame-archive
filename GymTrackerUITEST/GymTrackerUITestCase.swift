@@ -72,7 +72,7 @@ class GymTrackerUITestCase: XCTestCase {
         case .history:
             selectTab(.progress, in: app)
             let history = app.descendants(matching: .any)["progress-workout-history"]
-            XCTAssertTrue(history.waitForExistence(timeout: 5))
+            scrollToElement(history, in: app)
             history.tap()
             return
         case .settings:
@@ -329,8 +329,7 @@ class GymTrackerUITestCase: XCTestCase {
                 // presentation is dropped during cold-launch hand-off.
                 let resume = app.buttons["resume-active-workout"]
                 XCTAssertTrue(resume.waitForExistence(timeout: 5))
-                resume.tap()
-                XCTAssertTrue(title.waitForExistence(timeout: 10))
+                resumeActiveWorkout(in: app)
             }
         } else {
             XCTAssertTrue(app.descendants(matching: .any)[expectedHomeControl].waitForExistence(timeout: 15))
@@ -422,18 +421,27 @@ class GymTrackerUITestCase: XCTestCase {
     /// all-exercises list.
     func navigateToActiveExercise(_ name: String, in app: XCUIApplication) {
         let exercise = app.descendants(matching: .any)["active-exercise-\(name)"]
-        if !exercise.exists {
-            let stageDot = app.buttons.matching(
-                NSPredicate(
-                    format: "identifier BEGINSWITH %@ AND label CONTAINS[c] %@",
-                    "stage-dot-",
-                    name
-                )
-            ).firstMatch
-            XCTAssertTrue(stageDot.waitForExistence(timeout: 5))
+        let stageDot = app.buttons.matching(
+            NSPredicate(
+                format: "identifier BEGINSWITH %@ AND label CONTAINS[c] %@",
+                "stage-dot-",
+                name
+            )
+        ).firstMatch
+        XCTAssertTrue(stageDot.waitForExistence(timeout: 5))
+        if !stageDot.isSelected {
             stageDot.tap()
         }
-        XCTAssertTrue(exercise.waitForExistence(timeout: 5))
+        let selected = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isSelected == true"),
+            object: stageDot
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [selected], timeout: 5), .completed)
+        let hittable = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isHittable == true"),
+            object: exercise
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: 5), .completed)
     }
 
     /// Finish is a terminal Stage page, not a toolbar action repeated on every
@@ -474,6 +482,22 @@ class GymTrackerUITestCase: XCTestCase {
             line: line
         )
         target.tap()
+
+        if field == "weight" {
+            let plateKeypad = app.descendants(matching: .any)["plate-keypad"]
+            if plateKeypad.waitForExistence(timeout: 1) {
+                let plateDigits = app.buttons["Enter an exact weight"]
+                scrollToElement(plateDigits, in: app, file: file, line: line)
+                plateDigits.tap()
+            } else {
+                let assistKeypad = app.descendants(matching: .any)["assist-keypad"]
+                if assistKeypad.waitForExistence(timeout: 1) {
+                    let assistDigits = app.buttons["Enter an exact amount"]
+                    scrollToElement(assistDigits, in: app, file: file, line: line)
+                    assistDigits.tap()
+                }
+            }
+        }
 
         for character in value {
             let key = character == "." || character == ","

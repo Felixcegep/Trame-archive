@@ -4,6 +4,13 @@ import XCTest
 
 @MainActor
 final class MobilityAssessmentMultiTrialInterpreterTests: XCTestCase {
+    func testSampleCreationRejectsEmptyAndNonFiniteTrials() {
+        XCTAssertNil(MobilityAssessmentSample.create(from: []))
+        XCTAssertNil(MobilityAssessmentSample.create(from: [12, .nan, 13]))
+        XCTAssertNil(MobilityAssessmentSample.create(from: [12, .infinity]))
+        XCTAssertNil(MobilityAssessmentSample.create(from: [-.infinity, 12]))
+    }
+
     func testMultiTrialManualEntryAttachesSampleWithCountAndSpread() throws {
         let context = try GymTrackerTestStore.makeInMemoryContext()
         let definition = MobilityAssessmentSeedData.definitions[0].makeDefinition()

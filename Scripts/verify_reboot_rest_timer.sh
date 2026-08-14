@@ -4,6 +4,7 @@ set -euo pipefail
 WORKSPACE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$WORKSPACE_DIR/Scripts/ui_test_simulator_lock.sh"
 SIMULATOR_ID="${SIMULATOR_ID:-11536E2C-BBE1-411D-AF6C-DF4ADCD332D1}"
+DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-/private/tmp/GymTrackerUITestDerivedData/$SIMULATOR_ID}"
 
 acquire_ui_test_simulator_lock "$SIMULATOR_ID" "verify_reboot_rest_timer.sh"
 trap release_ui_test_simulator_locks EXIT
@@ -12,8 +13,9 @@ trap 'exit 143' TERM
 
 XCODE_ARGUMENTS=(
   -project "$WORKSPACE_DIR/GymTracker.xcodeproj"
-  -scheme GymTracker
+  -scheme GymTrackerUITEST
   -destination "platform=iOS Simulator,id=$SIMULATOR_ID"
+  -derivedDataPath "$DERIVED_DATA_PATH"
   -parallel-testing-enabled NO
   -maximum-concurrent-test-simulator-destinations 1
 )

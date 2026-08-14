@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class WorkoutBackupFailureTests: XCTestCase {
     func testInvalidPlanRunBackupDoesNotReplaceExistingData() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let sentinel = Exercise(name: "Do Not Delete", primaryMuscles: [.upperChest])
         context.insert(sentinel)
         try context.save()
@@ -49,8 +49,59 @@ final class WorkoutBackupFailureTests: XCTestCase {
         )
     }
 
+    func testMobilityRecommendationCannotReferenceSessionProgressFromAnotherRun() throws {
+        let firstRunID = UUID().uuidString
+        let secondRunID = UUID().uuidString
+        let firstProgressID = UUID().uuidString
+        let secondProgressID = UUID().uuidString
+        let snapshotData = try JSONEncoder().encode(makeMobilityProgramPayload())
+        let recommendation = MobilityProgressionRecommendationDTO(
+            id: UUID().uuidString,
+            runID: firstRunID,
+            sessionProgressID: secondProgressID,
+            progressionKey: "progression",
+            side: MobilitySide.none.rawValue,
+            ruleID: UUID().uuidString,
+            actionData: try JSONEncoder().encode(MobilityProgressionAction.addCycle),
+            reason: "Test recommendation",
+            reasonKey: nil,
+            applicationMode: ProgressionApplicationMode.recommendation.rawValue,
+            performanceData: nil,
+            proposedDurationOffsetSeconds: 0,
+            proposedRepetitionOffset: 0,
+            proposedCycleOffset: 1,
+            proposedLoadOffset: 0,
+            proposedAssistanceLevelOffset: 0,
+            proposedSupportLevelStepOffset: 0,
+            proposedVariationStepOffset: 0,
+            createdAt: .now,
+            isResolved: false,
+            resolvedAt: nil,
+            decisionOutcome: nil
+        )
+        let backup = BackupDTO(
+            version: BackupDTO.currentVersion,
+            preferences: PreferencesDTO(darkMode: false, restTimer: 90, unitSystem: UnitSystem.metric.rawValue),
+            exercises: [],
+            templates: [],
+            collections: [],
+            workouts: [],
+            mobilityProgramRuns: [
+                makeMobilityProgramRunDTO(id: firstRunID, progressID: firstProgressID, snapshotData: snapshotData),
+                makeMobilityProgramRunDTO(id: secondRunID, progressID: secondProgressID, snapshotData: snapshotData)
+            ],
+            mobilityProgressionRecommendations: [recommendation]
+        )
+
+        XCTAssertThrowsError(try backup.validate()) { error in
+            guard case .invalidIdentifier("mobility progression recommendation") = error as? BackupValidationError else {
+                return XCTFail("Expected a cross-run mobility recommendation validation error, got \(error)")
+            }
+        }
+    }
+
     func testBackupInterruptionBeforeCommitPreservesExistingDatabase() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let sentinel = Exercise(name: "Keep During Import", primaryMuscles: [.upperChest])
         context.insert(sentinel)
         try context.save()
@@ -83,18 +134,17 @@ final class WorkoutBackupFailureTests: XCTestCase {
     }
 
     func testBackupReplacementSurvivesDiskRelaunchWithPlanRunHistoryLinks() throws {
-        let storeURL = try makeDiskStoreURL()
-        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+        let storeURL = try WorkoutTestFixture.makeDiskStoreURL()
         let backup = try makePlanRunBackup()
 
-        try withDiskContext(at: storeURL) { context in
+        try WorkoutTestFixture.withDiskContext(at: storeURL) { context in
             let sentinel = Exercise(name: "Replace Me", primaryMuscles: [.upperChest])
             context.insert(sentinel)
             try context.save()
             try backup.restore(to: context)
         }
 
-        try withDiskContext(at: storeURL) { context in
+        try WorkoutTestFixture.withDiskContext(at: storeURL) { context in
             let exercises = try context.fetch(FetchDescriptor<Exercise>())
             XCTAssertFalse(exercises.contains { $0.name == "Replace Me" })
             XCTAssertTrue(exercises.contains { $0.name == "Bench Press" })
@@ -124,10 +174,9 @@ final class WorkoutBackupFailureTests: XCTestCase {
     }
 
     func testCorruptDiskBackupLeavesOriginalDatabaseAfterRelaunch() throws {
-        let storeURL = try makeDiskStoreURL()
-        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+        let storeURL = try WorkoutTestFixture.makeDiskStoreURL()
 
-        try withDiskContext(at: storeURL) { context in
+        try WorkoutTestFixture.withDiskContext(at: storeURL) { context in
             let sentinel = Exercise(name: "Keep Corrupt Import", primaryMuscles: [.upperChest])
             context.insert(sentinel)
             try context.save()
@@ -170,7 +219,7 @@ final class WorkoutBackupFailureTests: XCTestCase {
             XCTAssertThrowsError(try backup.restore(to: context))
         }
 
-        try withDiskContext(at: storeURL) { context in
+        try WorkoutTestFixture.withDiskContext(at: storeURL) { context in
             XCTAssertTrue(
                 try context.fetch(FetchDescriptor<Exercise>()).contains {
                     $0.name == "Keep Corrupt Import"
@@ -182,11 +231,10 @@ final class WorkoutBackupFailureTests: XCTestCase {
     }
 
     func testInterruptedDiskBackupRestoreLeavesOriginalDatabaseAfterRelaunch() throws {
-        let storeURL = try makeDiskStoreURL()
-        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+        let storeURL = try WorkoutTestFixture.makeDiskStoreURL()
         let backup = try makePlanRunBackup()
 
-        try withDiskContext(at: storeURL) { context in
+        try WorkoutTestFixture.withDiskContext(at: storeURL) { context in
             let sentinel = Exercise(name: "Keep Interrupted Import", primaryMuscles: [.upperChest])
             context.insert(sentinel)
             try context.save()
@@ -198,7 +246,7 @@ final class WorkoutBackupFailureTests: XCTestCase {
             )
         }
 
-        try withDiskContext(at: storeURL) { context in
+        try WorkoutTestFixture.withDiskContext(at: storeURL) { context in
             XCTAssertTrue(
                 try context.fetch(FetchDescriptor<Exercise>()).contains {
                     $0.name == "Keep Interrupted Import"
@@ -211,10 +259,73 @@ final class WorkoutBackupFailureTests: XCTestCase {
     }
 
 
+    private func makeMobilityProgramPayload() -> MobilityProgramDefinitionPayload {
+        let occurrence = MobilityMovementOccurrenceDefinition(
+            occurrenceID: "occurrence-0",
+            mobilityDefinitionID: UUID(),
+            orderIndex: 0,
+            targets: MobilityMetricTargets(durationSeconds: .exact(30))
+        )
+        let session = MobilityPlannedSessionDefinition(
+            sessionKey: "session-0",
+            weekIndex: 0,
+            dayIndex: 0,
+            name: "Session",
+            recipe: MobilityRoutineRecipeDefinition(occurrences: [occurrence])
+        )
+        let week = MobilityProgramWeekDefinition(weekIndex: 0, sessions: [session])
+        let block = MobilityProgramBlockDefinition(orderIndex: 0, name: "Block", weeks: [week])
+        return MobilityProgramDefinitionPayload(
+            name: "Test Mobility Program",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [1],
+            blocks: [block]
+        )
+    }
+
+    private func makeMobilityProgramRunDTO(
+        id: String,
+        progressID: String,
+        snapshotData: Data
+    ) -> MobilityProgramRunDTO {
+        MobilityProgramRunDTO(
+            id: id,
+            sourceProgramID: UUID().uuidString,
+            sourceProgramName: "Test Mobility Program",
+            startDate: .now,
+            endDate: nil,
+            status: MobilityProgramRunStatus.active.rawValue,
+            currentWeekIndex: 0,
+            currentSessionIndex: 0,
+            programSnapshotData: snapshotData,
+            createdAt: .now,
+            updatedAt: .now,
+            sessionProgress: [
+                MobilityProgramSessionProgressDTO(
+                    id: progressID,
+                    sessionKey: "session-0",
+                    weekIndex: 0,
+                    dayIndex: 0,
+                    sameDayOrder: 0,
+                    isOptional: false,
+                    sessionNameSnapshot: "Session",
+                    status: MobilityProgramSessionStatus.pending.rawValue,
+                    originalScheduledDate: nil,
+                    scheduledDate: nil,
+                    lastRescheduledAt: nil,
+                    startedAt: nil,
+                    completedAt: nil,
+                    mobilitySessionID: nil
+                )
+            ],
+            progressionStates: []
+        )
+    }
+
     private func makePlanRunBackup() throws -> BackupDTO {
-        let source = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        let source = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let template = WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: 1)
         template.name = "Backup Plan Template"
         let plan = PlanCoordinator.createPlan(
             name: "Backup Plan",
@@ -264,14 +375,6 @@ final class WorkoutBackupFailureTests: XCTestCase {
         )
     }
 
-    private func makeExercise() -> Exercise {
-        WorkoutTestFixture.makeExercise()
-    }
-
-    private func makeContext() throws -> ModelContext {
-        try GymTrackerTestStore.makeInMemoryContext()
-    }
-
     // Each disk-backed test below calls through to this, which mints a fresh
     // FileManager.default.temporaryDirectory subdirectory keyed by a new UUID
     // per call (see WorkoutTestFixture.makeDiskStoreURL). That is what keeps
@@ -280,19 +383,4 @@ final class WorkoutBackupFailureTests: XCTestCase {
     // test also removes its own directory in a `defer`, so nothing leaks
     // between runs either. Verified by running this suite twice in one
     // invocation (see PR notes).
-    private func makeDiskStoreURL() throws -> URL {
-        try WorkoutTestFixture.makeDiskStoreURL()
-    }
-
-    private func withDiskContext<T>(
-        at url: URL,
-        _ body: (ModelContext) throws -> T
-    ) throws -> T {
-        try WorkoutTestFixture.withDiskContext(at: url, body)
-    }
-
-
-    private func makeTemplate(exercise: Exercise, targetSets: Int) -> WorkoutTemplate {
-        WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: targetSets)
-    }
 }

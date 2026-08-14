@@ -5,7 +5,7 @@ import XCTest
 @MainActor
 final class WorkoutExecutionBlockSplitServiceTests: XCTestCase {
     func testCursorAdvancesComponentsThenCompletesRoundAndSurvivesRefetch() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let workout = Workout(name: "Circuit")
         let block = WorkoutExecutionBlock(orderIndex: 0, kind: .circuit, targetRounds: 2)
         block.workout = workout
@@ -52,7 +52,7 @@ final class WorkoutExecutionBlockSplitServiceTests: XCTestCase {
     }
 
     func testRepeatedCommandIDIsIdempotent() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let workout = Workout(name: "Pair")
         let block = WorkoutExecutionBlock(orderIndex: 0, kind: .pairedSet)
         block.workout = workout
@@ -82,7 +82,7 @@ final class WorkoutExecutionBlockSplitServiceTests: XCTestCase {
     }
 
     func testBackupV28RoundTripsOrderedCursorEvidence() throws {
-        let source = try makeContext()
+        let source = try GymTrackerTestStore.makeInMemoryContext()
         let workout = Workout(name: "Complex")
         let block = WorkoutExecutionBlock(orderIndex: 0, kind: .olympicComplex, targetRounds: 3)
         block.workout = workout
@@ -128,7 +128,7 @@ final class WorkoutExecutionBlockSplitServiceTests: XCTestCase {
             WorkoutExecutionBlockSplitKind.clockCheckpoint.rawValue
         ])
 
-        let restored = try makeContext()
+        let restored = try GymTrackerTestStore.makeInMemoryContext()
         try backup.restore(to: restored)
         let restoredSplits = try restored.fetch(
             FetchDescriptor<WorkoutExecutionBlockSplit>(
@@ -146,18 +146,5 @@ final class WorkoutExecutionBlockSplitServiceTests: XCTestCase {
         )
         XCTAssertEqual(cursor.componentOrder, 1)
         XCTAssertEqual(cursor.splitCount, 2)
-    }
-
-    private func makeContext() throws -> ModelContext {
-        let configuration = ModelConfiguration(
-            schema: GymTrackerPersistenceConfiguration.schema,
-            isStoredInMemoryOnly: true
-        )
-        let container = try ModelContainer(
-            for: GymTrackerPersistenceConfiguration.schema,
-            migrationPlan: GymTrackerSchemaMigrationPlan.self,
-            configurations: configuration
-        )
-        return ModelContext(container)
     }
 }

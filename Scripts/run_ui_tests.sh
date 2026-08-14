@@ -28,7 +28,7 @@ FAST_TESTS=(
   testCompletedSetRequiresExplicitEditingAction
   testRejectsEmptyWorkoutSave
   testSavesCompletedWorkoutToHistory
-  testShowsAndAppliesPreviousSessionPerformance
+  testLogSetAcceptsAutofilledPreviousPerformance
   testDiscardsActiveWorkout
   testCreatesCustomExercise
   testCreatesWorkoutTemplate
@@ -170,7 +170,7 @@ run_fast() {
       | select(.nodeType == "Test Case")
       | [.durationInSeconds, .name]
       | @tsv
-    ' "$tests_path" | sort -rn | head -n 5 > "$slowest_tests_path"
+    ' "$tests_path" | sort -rn | awk 'NR <= 5' > "$slowest_tests_path"
   else
     echo "Per-test duration data was unavailable; the summary remains valid." >&2
   fi

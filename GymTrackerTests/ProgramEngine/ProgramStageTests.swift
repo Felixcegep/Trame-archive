@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 @testable import GymTracker
 
+@MainActor
 final class ProgramStageTests: XCTestCase {
     func testStageDefinitionCompilesAndSeedsInitialRunState() throws {
         let squat = Exercise(name: "Stage Squat", primaryMuscles: [.quadriceps])

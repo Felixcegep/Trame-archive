@@ -26,7 +26,7 @@
       }
     },
     {
-      "parallelizable" : true,
+      "parallelizable" : false,
       "target" : {
         "containerPath" : "container:GymTracker.xcodeproj",
         "identifier" : "44063699300194FD0084434D",

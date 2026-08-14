@@ -10,37 +10,37 @@ final class WorkoutProgressionTests: XCTestCase {
         XCTAssertEqual(UnitConversion.weight(220.462_26, from: .lbs, to: .kg), 100, accuracy: 0.001)
     }
 
-    func testRestTimerControllerTransitionsThroughPauseAndResume() {
-        let controller = RestTimerController()
+    func testRestTimerSessionTransitionsThroughPauseAndResume() {
+        let session = RestTimerSession()
         let endDate = Date.now.addingTimeInterval(90)
 
-        controller.start(until: endDate)
-        XCTAssertEqual(controller.endDate, endDate)
-        XCTAssertTrue(controller.isVisible)
+        session.start(until: endDate)
+        XCTAssertEqual(session.endDate, endDate)
+        XCTAssertTrue(session.isVisible)
 
-        controller.pause(remaining: 45)
-        XCTAssertEqual(controller.pausedRemaining, 45)
-        XCTAssertNil(controller.endDate)
+        session.pause(remaining: 45)
+        XCTAssertEqual(session.pausedRemaining, 45)
+        XCTAssertNil(session.endDate)
 
-        controller.extendPaused(by: 15)
-        XCTAssertEqual(controller.pausedRemaining, 60)
+        session.extendPaused(by: 15)
+        XCTAssertEqual(session.pausedRemaining, 60)
 
-        controller.cancel()
-        XCTAssertFalse(controller.isVisible)
+        session.cancel()
+        XCTAssertFalse(session.isVisible)
     }
 
-    func testRestTimerControllerRestoresExpiredDeadlineAsReady() {
-        let controller = RestTimerController()
+    func testRestTimerSessionRestoresExpiredDeadlineAsReady() {
+        let session = RestTimerSession()
 
-        controller.restore(endDate: Date.now.addingTimeInterval(-1), pausedRemaining: nil)
+        session.restore(endDate: Date.now.addingTimeInterval(-1), pausedRemaining: nil)
 
-        XCTAssertTrue(controller.isReady)
-        XCTAssertTrue(controller.isVisible)
+        XCTAssertTrue(session.isReady)
+        XCTAssertTrue(session.isVisible)
     }
 
     func testExerciseActiveDurationAccumulatesAcrossSelectionsAndRelaunches() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
         let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         let startedAt = Date(timeIntervalSinceReferenceDate: 1_000)
         context.insert(exercise)
@@ -122,11 +122,6 @@ final class WorkoutProgressionTests: XCTestCase {
         )
     }
 
-
-    private func makeExercise() -> Exercise {
-        Exercise(name: "Bench Press", primaryMuscles: [.upperChest])
-    }
-
     private func previousSet(order: Int, reps: Float, weight: Float) -> PreviousSetPerformance {
         PreviousSetPerformance(
             orderIndex: order,
@@ -140,7 +135,4 @@ final class WorkoutProgressionTests: XCTestCase {
         )
     }
 
-    private func makeContext() throws -> ModelContext {
-        try GymTrackerTestStore.makeInMemoryContext()
-    }
 }

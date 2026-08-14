@@ -29,6 +29,21 @@ final class MuscleBalanceAnalyticsServiceTests: XCTestCase {
         XCTAssertEqual(currentWeek.count(for: .deltoids), 1)
     }
 
+    func testNonStandardSetsDoNotContributeToMuscleBalance() throws {
+        let context = try makeContext()
+        let exercise = Exercise(name: "Bench Press", primaryMuscles: [.middleChest])
+        context.insert(exercise)
+        insertWorkout(exercise: exercise, date: referenceDate, setTypes: [.normal, .normal], in: context)
+        let workout = try XCTUnwrap(try context.fetch(FetchDescriptor<Workout>()).first)
+        workout.orderedExercises[0].orderedSets[0].setMethod = .cluster
+        try context.save()
+
+        let analytics = try MuscleBalanceAnalyticsService(modelContext: context)
+            .analytics(referenceDate: referenceDate)
+
+        XCTAssertEqual(analytics.weeks.last?.count(for: .chest), 1)
+    }
+
     func testActiveWorkoutsDoNotContributeToBalance() throws {
         let context = try makeContext()
         let exercise = Exercise(name: "Deadlift", primaryMuscles: [.hamstrings])

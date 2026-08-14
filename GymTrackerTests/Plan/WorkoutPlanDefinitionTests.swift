@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class WorkoutPlanDefinitionTests: XCTestCase {
     func testPlanExerciseDraftNormalizesCorruptRepRangeForEditor() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let exercise = Exercise(name: "Squat", primaryMuscles: [.quadriceps])
         let draft = PlanExerciseDraft(exercise: exercise, orderIndex: 0)
         var invalidDraft = draft
@@ -21,8 +21,8 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
     }
 
     func testPlannedWorkoutSnapshotsProgressionAndPreservesRule() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
         let priorWorkout = Workout(name: "Prior", endTime: .now)
         priorWorkout.startTime = .now.addingTimeInterval(-86_400)
         let priorEntry = ExerciseEntry(exercise: exercise, usedMetric: .imperial)
@@ -72,7 +72,7 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
     }
 
     func testPlannedSetsSnapshotTheirIndependentPrescription() throws {
-        let exercise = makeExercise()
+        let exercise = WorkoutTestFixture.makeExercise()
         let plannedExercise = PlannedExercise(
             exercise: exercise,
             orderIndex: 0,
@@ -137,7 +137,7 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
 
     func testPlanCreationAssignsDifferentTemplatesPerTrainingDay() throws {
         let lowerExercise = Exercise(name: "Back Squat", primaryMuscles: [.quadriceps])
-        let upperExercise = makeExercise()
+        let upperExercise = WorkoutTestFixture.makeExercise()
         let lower = WorkoutTemplate(
             name: "Lower",
             exercises: [lowerExercise],
@@ -174,7 +174,7 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
     }
 
     func testPlanCreationBuildsAnOrderedScheduledDeloadBlock() {
-        let exercise = makeExercise()
+        let exercise = WorkoutTestFixture.makeExercise()
         let template = WorkoutTemplate(
             name: "Full Body",
             exercises: [exercise],
@@ -204,7 +204,7 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
     }
 
     func testScheduledDeloadAdjustsOnlyTheNewWorkoutSnapshot() throws {
-        let exercise = makeExercise()
+        let exercise = WorkoutTestFixture.makeExercise()
         let template = WorkoutTemplate(
             name: "Full Body",
             exercises: [exercise],
@@ -248,7 +248,7 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
     }
 
     func testPlanEquipmentRequirementsAreNormalizedAtCreationAndEditing() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let exercise = Exercise(
             name: "Barbell Row",
             primaryMuscles: [.latissimusDorsi],
@@ -283,9 +283,9 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
     }
 
     func testPlanEditorDraftPersistsPhaseOrderIndex() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 2)
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let template = WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: 2)
         let plan = PlanCoordinator.createPlan(
             name: "Phase order plan",
             goal: .generalStrength,
@@ -306,9 +306,9 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
     }
 
     func testPlanEditorDraftAppliesOrderedSetPrescriptions() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 3)
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let template = WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: 3)
         let plan = PlanCoordinator.createPlan(
             name: "Per-set draft plan",
             goal: .generalStrength,
@@ -362,7 +362,7 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
     }
 
     func testPlannedVersusPerformedComparisonReportsMetAboveBelowAndNoTarget() {
-        let exercise = makeExercise()
+        let exercise = WorkoutTestFixture.makeExercise()
         let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         entry.prescribedSets = 3
         entry.prescribedRepRangeMinimum = 8
@@ -394,15 +394,4 @@ final class WorkoutPlanDefinitionTests: XCTestCase {
     }
 
 
-    private func makeContext() throws -> ModelContext {
-        try GymTrackerTestStore.makeInMemoryContext()
-    }
-
-    private func makeExercise() -> Exercise {
-        WorkoutTestFixture.makeExercise()
-    }
-
-    private func makeTemplate(exercise: Exercise, targetSets: Int) -> WorkoutTemplate {
-        WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: targetSets)
-    }
 }

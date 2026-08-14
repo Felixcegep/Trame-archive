@@ -108,6 +108,49 @@ final class DataSafetyServiceTests: XCTestCase {
         XCTAssertNotNil(updatedMetadata.lastExportDate)
     }
 
+    func testDetachedArchiveWriterKeepsTheValueSnapshotDecodable() async throws {
+        let backup = BackupDTO(
+            version: BackupDTO.currentVersion,
+            preferences: PreferencesDTO(darkMode: true, restTimer: 75, unitSystem: UnitSystem.imperial.rawValue),
+            exercises: [],
+            templates: [],
+            collections: [],
+            workouts: []
+        )
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DataSafetyServiceTests.\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let archive = try await Task.detached(priority: .utility) {
+            try BackupArchiveFileWriter.write(backup, in: directory)
+        }.value
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BackupDTO.self, from: archive.data)
+        XCTAssertEqual(decoded.version, BackupDTO.currentVersion)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: archive.fileURL.path))
+    }
+
+    func testArchiveWriterDoesNotPublishBackupRejectedByRestoreValidation() throws {
+        let backup = BackupDTO(
+            version: BackupDTO.currentVersion + 1,
+            preferences: PreferencesDTO(darkMode: false, restTimer: 90, unitSystem: UnitSystem.metric.rawValue),
+            exercises: [],
+            templates: [],
+            collections: [],
+            workouts: []
+        )
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DataSafetyServiceTests.\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        XCTAssertThrowsError(try BackupArchiveFileWriter.write(backup, in: directory))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appendingPathComponent("TrameBackup.json").path))
+    }
+
     func testGymBackupServiceTypealiasEquivalence() {
         let metadata = GymBackupService.fetchMetadata(defaults: testDefaults)
         XCTAssertTrue(metadata.isStoredLocally)

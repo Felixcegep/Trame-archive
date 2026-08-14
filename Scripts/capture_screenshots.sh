@@ -44,6 +44,8 @@ Scenes:
   coach-exchange        Coach Exchange package builder and import decisions
   journey                Training Journey list and timeline
   weightlifting          Weightlifting evidence dashboard
+  athlete-intelligence   Athlete profile, Global Progress, and one sport lens
+  progress-analysis      Progress hub, graphs, records, history, and specialist pages
   ledger                 Progression receipt ledger and detail
   mixed-workout          Eyes-up execution, round split, and complex evidence
   mobility               Mobility routine library and active execution
@@ -94,6 +96,8 @@ tests_for_scene() {
     coach-exchange) echo "testCaptureCoachExchangeScreenshots testCaptureCoachExchangeImportScreenshots" ;;
     journey) echo "testCaptureTrainingJourneyScreenshots" ;;
     weightlifting) echo "testCaptureWeightliftingDashboardScreenshot" ;;
+    athlete-intelligence) echo "testCaptureAthleteIntelligenceHubScreenshots" ;;
+    progress-analysis) echo "testCaptureProgressTabAnalysisScreenshots testCaptureAthleteIntelligenceHubScreenshots" ;;
     ledger) echo "testCaptureProgressionLedgerScreenshots" ;;
     mixed-workout) echo "testCaptureMixedWorkoutScreenshots" ;;
     mobility) echo "testCaptureTodayCompleteTourScreenshots testCaptureMobilityRoutinePurposeScreenshot testCaptureActiveMobilityScreenshot" ;;
@@ -136,6 +140,8 @@ files_for_scene() {
     coach-exchange) echo "coach-exchange/23_Coach_Exchange_Empty.png coach-exchange/23a_Coach_Exchange_Package_Builder.png coach-exchange/23b_Coach_Exchange_Conflict_Preview.png coach-exchange/23c_Coach_Exchange_Import_Complete.png" ;;
     journey) echo "journey/24_Training_Journey_List.png journey/24a_Training_Journey_Timeline.png" ;;
     weightlifting) echo "progress/26_Weightlifting_Populated.png progress/26a_Competition_Day_Active.png" ;;
+    athlete-intelligence) echo "overview/03g_Progress_Global_Populated.png overview/03h_Progress_General_Strength_Lens.png" ;;
+    progress-analysis) echo "progress/03_Progress_Hub.png progress/03i_Training_History.png progress/03j_Records.png progress/03k_Exercise_Trends.png progress/03l_Muscle_Group_Volume.png progress/03m_Supporting_History.png overview/03g_Progress_Global_Populated.png overview/03h_Progress_General_Strength_Lens.png" ;;
     ledger) echo "progression/25_Training_Ledger.png progression/25a_Training_Ledger_Detail.png" ;;
     mixed-workout) echo "mixed-workout/27_Mixed_Eyes_Up_Runtime.png mixed-workout/27a_Mixed_Runtime_Split.png mixed-workout/27b_Mixed_Complex_Component_Evidence.png" ;;
     mobility) echo "mobility/18_Mobility_Routines.png mobility/18b_Mobility_Routine_Purpose.png mobility/19_Active_Mobility.png" ;;
@@ -144,7 +150,7 @@ files_for_scene() {
     nutrition) echo "nutrition/20_Nutrition_Today.png nutrition/20a_Caffeine_Quick_Log.png nutrition/20b_Nutrition_Targets_Empty.png nutrition/20c_Recipe_Generation_Controls.png nutrition/20d_Recipe_Generating.png nutrition/20e_Recipe_Generated_Draft.png nutrition/20f_Recipe_Partial_Match.png nutrition/20g_Recipe_Manual_Fallback.png nutrition/20h_Food_Picker.png nutrition/20i_Recipe_Detail.png nutrition/20j_Log_Recipe.png" ;;
     active) echo "active-workout/05_Active_Workout_Empty.png overview/05_Home_With_Active_Workout.png active-workout/06_Add_Exercise_Sheet.png active-workout/07_Plate_Calculator.png active-workout/07b_Set_Details.png active-workout/07c_Execution_Block_Builder.png active-workout/07d_Execution_Block_Active.png active-workout/07e_Set_Method_Segments.png active-workout/07f_Complex_Component_Results.png active-workout/08j_Exercise_Swap.png active-workout/08o_Substitution_Why.png active-workout/08p_Substitution_Confirmation.png active-workout/08_Active_Workout_With_Set.png active-workout/08k_Active_Superset.png active-workout/08d_Completed_Exercise_Collapsed.png active-workout/08e_Discard_Workout.png active-workout/08f_Duration_Timer_Idle.png active-workout/08g_Duration_Timer_Running.png active-workout/08h_Duration_Timer_Paused.png active-workout/08i_Duration_Timer_Complete.png review/09_Save_Workout.png review/09d_Bodyweight_And_Sport.png" ;;
     active-panels) echo "active-workout/07g_Warmup_Expanded.png active-workout/07h_Warmup_Collapsed.png active-workout/07i_Top_And_Technique_Badges.png active-workout/07j_Complex_Readiness.png active-workout/07k_Complex_Resolver.png active-workout/08q_Warmup_Preparation_Large.png" ;;
-    active-gaps) echo "active-workout/07b_Set_Details.png active-workout/07g_Set_Details_More_Types.png active-workout/07h_Set_Details_Recent_Types.png active-workout/08l_Selected_Daily_Maximum.png active-workout/08m_Generated_Back_Off.png" ;;
+    active-gaps) echo "active-workout/07g_Set_Details_More_Types.png active-workout/07h_Set_Details_Recent_Types.png active-workout/08l_Selected_Daily_Maximum.png active-workout/08m_Generated_Back_Off.png" ;;
     keyboards) echo "keyboards/01_Weight_And_Reps_Reps.png keyboards/02_Weight_And_Reps_Weight.png keyboards/03_Reps_Only.png keyboards/04_Weighted_Bodyweight_Reps.png keyboards/05_Weighted_Bodyweight_Weight.png keyboards/06_Assisted_Bodyweight_Reps.png keyboards/07_Assisted_Bodyweight_Assistance.png keyboards/08_Duration.png keyboards/09_Duration_And_Distance_Duration.png keyboards/10_Duration_And_Distance_Distance.png keyboards/11_Calories.png" ;;
     rest) echo "active-workout/08_Rest_Countdown.png active-workout/08b_Rest_Paused.png active-workout/08c_Rest_Ready.png active-workout/08u_Fresh_Rest_Transition.png active-workout/08v_Stage_Finish_Summary.png" ;;
     history) echo "history/10_History_With_Workout.png history/10b_Expanded_Records.png history/11_History_Detail.png" ;;
@@ -169,7 +175,7 @@ files_for_scene() {
   esac
 }
 
-ALL_SCENES="brand overview pages settings-data-safety coach-exchange journey weightlifting ledger mixed-workout mobility mobility-assessment mobility-profile nutrition active active-panels active-gaps keyboards rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review t36"
+ALL_SCENES="brand overview pages settings-data-safety coach-exchange journey weightlifting athlete-intelligence progress-analysis ledger mixed-workout mobility mobility-assessment mobility-profile nutrition active active-panels active-gaps keyboards rest history recommendation performance template-progression workout-form plan-review program-builder program-catalog plan-calendar training-calendar hidden exercise-insights exercise-form muscle-balance rotation program-path weekly-review t36"
 SELECTED_SCENES=""
 OPEN_AFTER_CAPTURE=false
 
@@ -301,11 +307,11 @@ if [[ "$USE_PARALLEL" == true ]]; then
 fi
 
 echo "=== Building for Simulator 1 ($SIMULATOR_ID) ==="
-xcodebuild -quiet -project "$WORKSPACE_DIR/GymTracker.xcodeproj" -scheme GymTrackerUITEST -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath "$DERIVED_DATA_PATH" build-for-testing
+xcodebuild -quiet -project "$WORKSPACE_DIR/GymTracker.xcodeproj" -scheme GymTrackerUITEST -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath "$DERIVED_DATA_PATH" -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 build-for-testing
 
 if [[ "$USE_PARALLEL" == true ]]; then
   echo "=== Building for Simulator 2 ($SIMULATOR_ID_2) ==="
-  xcodebuild -quiet -project "$WORKSPACE_DIR/GymTracker.xcodeproj" -scheme GymTrackerUITEST -destination "platform=iOS Simulator,id=$SIMULATOR_ID_2" -derivedDataPath "$DERIVED_DATA_PATH_2" build-for-testing
+  xcodebuild -quiet -project "$WORKSPACE_DIR/GymTracker.xcodeproj" -scheme GymTrackerUITEST -destination "platform=iOS Simulator,id=$SIMULATOR_ID_2" -derivedDataPath "$DERIVED_DATA_PATH_2" -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 build-for-testing
 fi
 
 RAW_TESTS=()

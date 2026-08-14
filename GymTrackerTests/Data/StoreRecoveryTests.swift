@@ -61,4 +61,63 @@ final class StoreRecoveryTests: XCTestCase {
             XCTAssertEqual(error as? GymTrackerStoreRecovery.RecoveryError, .noStoreFiles)
         }
     }
+
+    func testPreMigrationBackupIgnoresAnotherUnpublishedStagingCopy() throws {
+        let storeURL = directory.appendingPathComponent("GymTracker.store")
+        try Data("complete-store".utf8).write(to: storeURL)
+
+        let finalDirectory = GymTrackerPreMigrationBackup.safetyDirectory(for: storeURL)
+            .appendingPathComponent("PreMigration-unrecorded", isDirectory: true)
+        let stagingDirectory = GymTrackerPreMigrationBackup.stagingDirectory(
+            for: finalDirectory,
+            identifier: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!
+        )
+        try fileManager.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
+        try Data("partial".utf8).write(
+            to: stagingDirectory.appendingPathComponent(storeURL.lastPathComponent)
+        )
+
+        let outcome = GymTrackerPreMigrationBackup.backUpIfSchemaVersionChanged(
+            storeURL: storeURL,
+            currentVersion: .init(3, 0, 0),
+            fileManager: fileManager
+        )
+
+        XCTAssertEqual(outcome, .backedUp(fromVersion: "unrecorded", location: finalDirectory))
+        XCTAssertTrue(fileManager.fileExists(atPath: stagingDirectory.path))
+        XCTAssertEqual(
+            try Data(contentsOf: finalDirectory.appendingPathComponent(storeURL.lastPathComponent)),
+            Data("complete-store".utf8)
+        )
+        XCTAssertTrue(
+            GymTrackerPreMigrationBackup.isCompleteBackup(
+                finalDirectory,
+                storeURL: storeURL,
+                fileManager: fileManager
+            )
+        )
+    }
+
+    func testPreMigrationBackupReplacesIncompletePublishedDirectory() throws {
+        let storeURL = directory.appendingPathComponent("GymTracker.store")
+        try Data("complete-store".utf8).write(to: storeURL)
+        let finalDirectory = GymTrackerPreMigrationBackup.safetyDirectory(for: storeURL)
+            .appendingPathComponent("PreMigration-unrecorded", isDirectory: true)
+        try fileManager.createDirectory(at: finalDirectory, withIntermediateDirectories: true)
+        try Data("manifest-without-store".utf8).write(
+            to: finalDirectory.appendingPathComponent(GymTrackerPreMigrationBackup.completionFileName)
+        )
+
+        let outcome = GymTrackerPreMigrationBackup.backUpIfSchemaVersionChanged(
+            storeURL: storeURL,
+            currentVersion: .init(3, 0, 0),
+            fileManager: fileManager
+        )
+
+        XCTAssertEqual(outcome, .backedUp(fromVersion: "unrecorded", location: finalDirectory))
+        XCTAssertEqual(
+            try Data(contentsOf: finalDirectory.appendingPathComponent(storeURL.lastPathComponent)),
+            Data("complete-store".utf8)
+        )
+    }
 }

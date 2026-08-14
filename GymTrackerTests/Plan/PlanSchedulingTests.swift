@@ -5,6 +5,28 @@ import XCTest
 
 @MainActor
 final class PlanSchedulingTests: XCTestCase {
+    func testAvailabilityRefreshCanPreserveRevisionWhenProjectionIsAlreadyCurrent() throws {
+        let context = try makeContext()
+        let plan = try makeScheduledPlan(in: context)
+        let run = try XCTUnwrap(
+            PlanCoordinator.startRun(
+                for: plan,
+                startDate: Date(timeIntervalSince1970: 1_700_000_000)
+            )
+        )
+        let originalUpdatedAt = Date(timeIntervalSince1970: 1_600_000_000)
+        run.updatedAt = originalUpdatedAt
+
+        let changed = PlanCoordinator.refreshAvailability(
+            for: run,
+            touchUpdatedAt: false
+        )
+
+        XCTAssertFalse(changed)
+        XCTAssertEqual(run.updatedAt, originalUpdatedAt)
+        XCTAssertEqual(run.orderedWorkoutProgress.map(\.status), [.available, .upcoming])
+    }
+
     func testSequentialScheduleUsesSessionOrderAcrossWeeks() throws {
         let context = try makeContext()
         let plan = try makeScheduledPlan(in: context)
@@ -432,7 +454,9 @@ final class PlanSchedulingTests: XCTestCase {
 
     func testRelaunchRefreshPromotesSessionScheduledForToday() throws {
         let storeURL = try makeDiskStoreURL()
-        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+        // SwiftData may retain asynchronous faults after the context leaves
+        // scope. The OS owns cleanup of this UUID-scoped temporary directory;
+        // deleting it synchronously can invalidate an open SQLite descriptor.
 
         let today = Calendar.current.startOfDay(for: .now)
         let tomorrow = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 1, to: today))
@@ -478,7 +502,8 @@ final class PlanSchedulingTests: XCTestCase {
 
     func testRelaunchRefreshKeepsInProgressSessionAsTheOnlyCurrentSession() throws {
         let storeURL = try makeDiskStoreURL()
-        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+        // Leave the UUID-scoped store to the system temporary-directory
+        // cleanup so SwiftData cannot fault against an unlinked database.
 
         var runID = UUID()
         var inProgressWorkoutID = UUID()
@@ -515,7 +540,8 @@ final class PlanSchedulingTests: XCTestCase {
 
     func testRescheduleSurvivesRelaunch() throws {
         let storeURL = try makeDiskStoreURL()
-        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+        // Leave the UUID-scoped store to the system temporary-directory
+        // cleanup so SwiftData cannot fault against an unlinked database.
 
         var rescheduledDate = Date.distantPast
         var runID = UUID()

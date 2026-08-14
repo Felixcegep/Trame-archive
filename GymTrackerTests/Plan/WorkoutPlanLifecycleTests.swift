@@ -6,9 +6,9 @@ import XCTest
 @MainActor
 final class WorkoutPlanLifecycleTests: XCTestCase {
     func testPlannedWorkoutSaveCompletesRunProgressAndMakesNextWorkoutAvailable() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let template = WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: 1)
         let plan = PlanCoordinator.createPlan(
             name: "Integration Plan",
             goal: .generalStrength,
@@ -67,9 +67,9 @@ final class WorkoutPlanLifecycleTests: XCTestCase {
     }
 
     func testPartialPlannedWorkoutSaveKeepsOnlyCompletedSetsAndAdvancesOnce() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 2)
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let template = WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: 2)
         let plan = PlanCoordinator.createPlan(
             name: "Partial Planned Save",
             goal: .generalStrength,
@@ -121,9 +121,9 @@ final class WorkoutPlanLifecycleTests: XCTestCase {
     }
 
     func testDiscardingPlannedWorkoutRestoresRunAvailabilityAndDeletesActiveWorkout() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let template = WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: 1)
         let plan = PlanCoordinator.createRepeatedPlan(
             name: "Recovery Plan",
             goal: .generalStrength,
@@ -165,8 +165,8 @@ final class WorkoutPlanLifecycleTests: XCTestCase {
     }
 
     func testSavingWorkoutExcludesIncompleteSetsAndEmptyExercisesFromHistory() throws {
-        let context = try makeContext()
-        let completedExercise = makeExercise()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let completedExercise = WorkoutTestFixture.makeExercise()
         let emptyExercise = Exercise(name: "Cable Fly", primaryMuscles: [.upperChest])
         let workout = Workout(name: "Partial")
         let completedEntry = ExerciseEntry(exercise: completedExercise, usedMetric: .metric)
@@ -196,8 +196,8 @@ final class WorkoutPlanLifecycleTests: XCTestCase {
     }
 
     func testInvalidSaveLeavesActiveDraftUntouched() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
         let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         entry.sets = [
             ExerciseSet(repetitions: 0, weight: 50, done: false, orderIndex: 0, usedMetric: .metric),
@@ -222,9 +222,9 @@ final class WorkoutPlanLifecycleTests: XCTestCase {
     }
 
     func testUndoGuidedSourceSwitchRestoresPriorPlanWithoutMovingItsSchedule() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let template = WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: 1)
         let fixedPlan = PlanCoordinator.createRepeatedPlan(
             name: "Original Plan",
             goal: .generalStrength,
@@ -271,9 +271,9 @@ final class WorkoutPlanLifecycleTests: XCTestCase {
     }
 
     func testStartingFixedPlanAfterStagingConflictPauseLeavesOneActiveRun() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let template = WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: 1)
         let originalPlan = PlanCoordinator.createRepeatedPlan(
             name: "Original",
             goal: .generalStrength,
@@ -315,15 +315,4 @@ final class WorkoutPlanLifecycleTests: XCTestCase {
     }
 
 
-    private func makeContext() throws -> ModelContext {
-        try GymTrackerTestStore.makeInMemoryContext()
-    }
-
-    private func makeExercise() -> Exercise {
-        WorkoutTestFixture.makeExercise()
-    }
-
-    private func makeTemplate(exercise: Exercise, targetSets: Int) -> WorkoutTemplate {
-        WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: targetSets)
-    }
 }

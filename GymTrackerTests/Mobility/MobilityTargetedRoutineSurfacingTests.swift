@@ -1,7 +1,47 @@
 import XCTest
+import SwiftData
 @testable import GymTracker
 
+@MainActor
 final class MobilityTargetedRoutineSurfacingTests: XCTestCase {
+    func testProductionAdapterUsesSeededKeysAndDegradesWithoutAuthoredBands() throws {
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let registry = try SystemSeedRegistry(context: context)
+        try MobilitySeedData.stage(using: context, registry: registry)
+        try MobilityAssessmentSeedData.stage(using: context, registry: registry)
+
+        let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
+        let definitions = try context.fetch(FetchDescriptor<MobilityAssessmentDefinition>())
+        let seededRoutineKeys = Set(routines.compactMap(\.catalogueKey))
+        let referencedRoutineKeys = Set(
+            MobilityTargetedRoutineSurfacingService.authoredMappings
+                .flatMap(\.routineCatalogueKeys)
+        )
+
+        XCTAssertFalse(referencedRoutineKeys.isEmpty)
+        XCTAssertTrue(referencedRoutineKeys.isSubset(of: seededRoutineKeys))
+        XCTAssertFalse(referencedRoutineKeys.contains("ankle_dorsiflexion_pnf"))
+        XCTAssertTrue(
+            MobilityTargetedRoutineSurfacingService.authoredMappings.allSatisfy { mapping in
+                mapping.protocolID.hasPrefix("mobility-assessment.")
+                    && mapping.movementID.hasPrefix("mobility-definition.")
+            }
+        )
+
+        let candidates = MobilityTargetedRoutineSurfacingService.candidates(from: routines)
+        XCTAssertTrue(candidates.allSatisfy { seededRoutineKeys.contains($0.routineID) })
+        XCTAssertEqual(candidates.count, routines.count)
+
+        let surface = MobilityTargetedRoutineSurfacingService.surface(
+            definitions: definitions,
+            results: [],
+            routines: routines
+        )
+        XCTAssertTrue(
+            surface.recommendations.isEmpty,
+            "No population bands are authored, so the adapter must remain neutral."
+        )
+    }
     func testOnlyNumericBelowObservationCanSurfaceWithNeutralWhyData() {
         let measurement = makeMeasurement(
             id: "hip-left",

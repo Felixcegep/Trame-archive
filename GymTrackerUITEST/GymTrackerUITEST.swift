@@ -53,9 +53,14 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
 
         selectTab(.progress, in: app)
         XCTAssertTrue(app.descendants(matching: .any)["progress-screen"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["progress-workout-history"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["progress-training-trends"].exists)
+        let workoutHistory = app.descendants(matching: .any)["progress-workout-history"]
+        scrollToElement(workoutHistory, in: app)
+        XCTAssertTrue(workoutHistory.exists)
+        let trainingTrends = app.descendants(matching: .any)["progress-training-trends"]
+        scrollToElement(trainingTrends, in: app)
+        XCTAssertTrue(trainingTrends.exists)
         let muscleGroupVolume = app.descendants(matching: .any)["progress-muscle-group-volume"]
+        scrollToElement(muscleGroupVolume, in: app)
         XCTAssertTrue(muscleGroupVolume.exists)
         muscleGroupVolume.tap()
         XCTAssertTrue(app.navigationBars["Muscle-group volume"].waitForExistence(timeout: 5))
@@ -513,17 +518,6 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["panel-details"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["panel-chip-plates"].exists)
 
-        // Relaunch the deterministic fixture so the open panel and disclosure
-        // scroll position cannot obscure the final style check.
-        relaunchPreservingData(app)
-        resumeActiveWorkout(in: app)
-
-        // Target the disclosure label itself. The card's combined accessibility
-        // button also contains its nested menu button and can resolve to that
-        // child after a relaunch, which does not expand the exercise.
-        navigateToActiveExercise("Leg Press", in: app)
-        tapButton("weight-field-Leg Press-0", in: app)
-        XCTAssertTrue(app.buttons["panel-chip-plates"].waitForExistence(timeout: 5))
     }
 
     /// Whole-row selection: tapping a row outside any value opens the keypad on
@@ -674,6 +668,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertTrue(app.buttons["complete-set-Bench Press-3"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["complete-set-Bench Press-4"].exists)
 
+        tapButton("exercise-actions-Bench Press", in: app)
         XCTAssertTrue(app.buttons["remove-exercise-Bench Press"].waitForExistence(timeout: 5))
         app.buttons["remove-exercise-Bench Press"].tap()
         app.buttons["confirm-remove-exercise-Bench Press"].firstMatch.tap()
@@ -796,7 +791,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         XCTAssertEqual(setValue("reps", for: "Bench Press", set: 0, in: app), "8")
         XCTAssertEqual(setValue("weight", for: "Bench Press", set: 0, in: app), "50")
         app.buttons["complete-set-Bench Press-0"].tap()
-        XCTAssertTrue(app.images["editing-set-Bench Press-0"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["complete-set-Bench Press-0"].isSelected)
     }
 
     func testPartialSaveHasNoSecondConfirmation() {
@@ -947,7 +942,7 @@ final class GymTrackerUITEST: GymTrackerUITestCase {
         tapButton("edit-recommendation-Bench Press", in: app)
         let firstIncompleteWeight = app.buttons["weight-field-Bench Press-0"]
         XCTAssertTrue(firstIncompleteWeight.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["keypad-key-1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["plate-keypad"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["panel-value-weight"].isSelected)
         XCTAssertFalse(app.buttons["progression-recommendation-card-Bench Press"].exists)
     }

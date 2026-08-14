@@ -4,6 +4,21 @@ import XCTest
 
 @MainActor
 final class NutritionTests: XCTestCase {
+    func testReferencePortionUsesFormattedAmountAndUnitAsItsName() {
+        let food = FoodItem(
+            name: "Rice",
+            referenceAmount: 100,
+            referenceUnit: .grams,
+            calories: 130
+        )
+
+        let portion = FoodLibraryService.defaultPortion(for: food)
+
+        XCTAssertEqual(portion.name, "100 g")
+        XCTAssertEqual(portion.amount, 100)
+        XCTAssertEqual(portion.unit, .grams)
+    }
+
     func testRecipeLoggingBoundsNeverCreatesAnInvalidRangeForCorruptYield() {
         XCTAssertEqual(RecipeLoggingBounds.gramsRange(yield: -25), 0...0)
         XCTAssertEqual(RecipeLoggingBounds.gramsRange(yield: nil), 0...100_000)

@@ -2,6 +2,89 @@ import XCTest
 @testable import GymTracker
 
 final class ScreenshotUITests: GymTrackerUITestCase {
+    /// Walks the common Progress destinations from one deterministic history
+    /// fixture so the hub, records, charts, volume evidence, and supporting
+    /// history can be reviewed as one visual system.
+    func testCaptureProgressTabAnalysisScreenshots() {
+        let app = launchFixture("history-bench", expectsActiveWorkout: false)
+        selectTab(.progress, in: app)
+
+        let progressScreen = app.descendants(matching: .any)["progress-screen"]
+        XCTAssertTrue(progressScreen.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["progress-sport-focus-chart"].waitForExistence(timeout: 10))
+        saveScreenshot("progress/03_Progress_Hub")
+
+        captureProgressDestination(
+            "progress-workout-history",
+            expected: "history-screen",
+            screenshot: "progress/03i_Training_History",
+            in: app
+        )
+        captureProgressDestination(
+            "progress-records",
+            expected: "history-screen",
+            screenshot: "progress/03j_Records",
+            in: app
+        )
+
+        openProgressDestination("progress-training-trends", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["training-frequency-chart"].waitForExistence(timeout: 10))
+        saveScreenshot("progress/03k_Exercise_Trends")
+        returnToProgressHub(in: app)
+
+        openProgressDestination("progress-muscle-group-volume", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["muscle-balance-content"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["muscle-balance-chart"].waitForExistence(timeout: 10))
+        saveScreenshot("progress/03l_Muscle_Group_Volume")
+        returnToProgressHub(in: app)
+
+        openProgressDestination("progress-supporting-history-mobility", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["supporting-history-screen"].waitForExistence(timeout: 10))
+        saveScreenshot("progress/03m_Supporting_History")
+    }
+
+    private func captureProgressDestination(
+        _ identifier: String,
+        expected expectedIdentifier: String,
+        screenshot: String,
+        in app: XCUIApplication
+    ) {
+        openProgressDestination(identifier, in: app)
+        XCTAssertTrue(app.descendants(matching: .any)[expectedIdentifier].waitForExistence(timeout: 10))
+        saveScreenshot(screenshot)
+        returnToProgressHub(in: app)
+    }
+
+    private func openProgressDestination(_ identifier: String, in app: XCUIApplication) {
+        let destination = app.descendants(matching: .any)[identifier]
+        scrollToElement(destination, in: app)
+        XCTAssertTrue(destination.waitForExistence(timeout: 10))
+        destination.tap()
+    }
+
+    private func returnToProgressHub(in app: XCUIApplication) {
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        back.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["progress-screen"].waitForExistence(timeout: 10))
+    }
+
+    /// One deterministic path covers the Athlete Intelligence hierarchy and a
+    /// snapshot-backed sport lens without exercising unrelated destinations.
+    func testCaptureAthleteIntelligenceHubScreenshots() {
+        let app = launchFixture("history-bench", expectsActiveWorkout: false)
+        selectTab(.progress, in: app)
+
+        XCTAssertTrue(app.descendants(matching: .any)["progress-athlete-profile"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["progress-lens-global"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["progress-sport-focus-chart"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/03g_Progress_Global_Populated")
+
+        tapControl("progress-lens-generalStrength", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["progress-sport-lens-generalStrength"].waitForExistence(timeout: 5))
+        saveScreenshot("overview/03h_Progress_General_Strength_Lens")
+    }
+
     func testCaptureWave1LightModeScreenshots() {
         let overview = launchFreshApp()
         saveScreenshot("overview/01_Today_Light")
@@ -713,7 +796,6 @@ final class ScreenshotUITests: GymTrackerUITestCase {
         tapButton("reps-field-Bench Press-0", in: more)
         tapButton("panel-details", in: more)
         XCTAssertTrue(more.descendants(matching: .any)["set-details-screen"].waitForExistence(timeout: 5))
-        saveScreenshot("active-workout/07b_Set_Details")
         tapButton("set-type-more-toggle", in: more)
         XCTAssertTrue(more.buttons["set-type-option-dailyMaximum"].waitForExistence(timeout: 5))
         saveScreenshot("active-workout/07g_Set_Details_More_Types")

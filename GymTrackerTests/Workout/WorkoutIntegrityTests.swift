@@ -6,10 +6,9 @@ import XCTest
 @MainActor
 final class WorkoutIntegrityTests: XCTestCase {
     func testExerciseAndSetOrderingPersistsAcrossDiskRelaunch() throws {
-        let storeURL = try makeDiskStoreURL()
-        defer { try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent()) }
+        let storeURL = try WorkoutTestFixture.makeDiskStoreURL()
 
-        try withDiskContext(at: storeURL) { context in
+        try WorkoutTestFixture.withDiskContext(at: storeURL) { context in
             let first = Exercise(name: "First", primaryMuscles: [.upperChest])
             let second = Exercise(name: "Second", primaryMuscles: [.latissimusDorsi])
             let firstEntry = ExerciseEntry(exercise: first, orderIndex: 1, usedMetric: .metric)
@@ -27,7 +26,7 @@ final class WorkoutIntegrityTests: XCTestCase {
             try context.save()
         }
 
-        try withDiskContext(at: storeURL) { context in
+        try WorkoutTestFixture.withDiskContext(at: storeURL) { context in
             let workout = try XCTUnwrap(context.fetch(FetchDescriptor<Workout>()).first)
             XCTAssertEqual(workout.orderedExercises.map { $0.exercise.name }, ["Second", "First"])
             XCTAssertEqual(workout.orderedExercises.map(\.orderIndex), [0, 1])
@@ -37,7 +36,7 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testSavingWorkoutAndHistoryUseTheSameOrderedEntriesAndSets() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let first = Exercise(name: "First", primaryMuscles: [.upperChest])
         let second = Exercise(name: "Second", primaryMuscles: [.latissimusDorsi])
         let firstEntry = ExerciseEntry(exercise: first, orderIndex: 1, usedMetric: .metric)
@@ -73,8 +72,8 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testOrphanCleanupDeletesUnownedEntriesAndSets() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
         let entry = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         entry.sets = [ExerciseSet(repetitions: 8, weight: 50, usedMetric: .metric)]
         context.insert(exercise)
@@ -89,9 +88,9 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testPreviousPerformanceUsesLatestCompletedWorkoutAndStoredIdentity() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
-        let olderWorkout = makeWorkout(with: exercise, reps: 8, weight: 100)
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let olderWorkout = WorkoutTestFixture.makeWorkout(with: exercise, reps: 8, weight: 100)
         olderWorkout.status = .completed
         olderWorkout.startTime = Date.now.addingTimeInterval(-86_400)
         olderWorkout.endTime = olderWorkout.startTime.addingTimeInterval(3_600)
@@ -109,8 +108,8 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testProgressionSnapshotExcludesWarmupsAndPreservesTheStartedTemplateEvidence() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
         let priorWorkout = Workout(name: "Prior", endTime: .now)
         priorWorkout.startTime = .now.addingTimeInterval(-86_400)
         let priorEntry = ExerciseEntry(exercise: exercise, usedMetric: .imperial)
@@ -157,8 +156,8 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testProgressionSnapshotSkipsDisabledAndAssistedBodyweightExercises() throws {
-        let context = try makeContext()
-        let disabledExercise = makeExercise()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let disabledExercise = WorkoutTestFixture.makeExercise()
         let assistedExercise = Exercise(
             name: "Assisted Pull-up",
             primaryMuscles: [.latissimusDorsi],
@@ -190,8 +189,8 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testApplyRecommendationConvertsOnlyIncompleteSets() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
         let openSet = ExerciseSet(repetitions: 0, weight: 0, orderIndex: 0, usedMetric: .metric)
         let completedSet = ExerciseSet(repetitions: 8, weight: 80, done: true, orderIndex: 1, usedMetric: .imperial)
         let entry = ExerciseEntry(exercise: exercise, sets: [openSet, completedSet], usedMetric: .metric)
@@ -214,8 +213,8 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testKeepLastRecommendationConvertsOnlyIncompleteSets() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
         let openSet = ExerciseSet(repetitions: 0, weight: 0, orderIndex: 0, usedMetric: .metric)
         let completedSet = ExerciseSet(repetitions: 8, weight: 80, done: true, orderIndex: 1, usedMetric: .imperial)
         let entry = ExerciseEntry(exercise: exercise, sets: [openSet, completedSet], usedMetric: .metric)
@@ -237,7 +236,7 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testRecommendationPresentationDistinguishesInsufficientHistoryFromIneligible() {
-        let exercise = makeExercise()
+        let exercise = WorkoutTestFixture.makeExercise()
         let eligible = ExerciseEntry(exercise: exercise, usedMetric: .metric)
         eligible.prescribedSets = 3
         eligible.prescribedRepRangeMaximum = 12
@@ -252,9 +251,9 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testBackupDefaultsMissingPlannedExerciseStimulus() throws {
-        let context = try makeContext()
-        let exercise = makeExercise()
-        let template = makeTemplate(exercise: exercise, targetSets: 1)
+        let context = try GymTrackerTestStore.makeInMemoryContext()
+        let exercise = WorkoutTestFixture.makeExercise()
+        let template = WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: 1)
         let plan = PlanCoordinator.createPlan(
             name: "Legacy Stimulus Plan",
             goal: .generalStrength,
@@ -283,36 +282,6 @@ final class WorkoutIntegrityTests: XCTestCase {
             backup.plans.first?.blocks.first?.weeks.first?.plannedWorkouts.first?.plannedExercises.first?.stimulus,
             TrainingStimulus.strength.rawValue
         )
-    }
-
-    private func makeDiskStoreURL() throws -> URL {
-        try WorkoutTestFixture.makeDiskStoreURL()
-    }
-
-    private func withDiskContext<T>(
-        at url: URL,
-        _ body: (ModelContext) throws -> T
-    ) throws -> T {
-        try WorkoutTestFixture.withDiskContext(at: url, body)
-    }
-
-    private func makeExercise() -> Exercise {
-        WorkoutTestFixture.makeExercise()
-    }
-
-    private func makeTemplate(
-        exercise: Exercise,
-        targetSets: Int
-    ) -> WorkoutTemplate {
-        WorkoutTestFixture.makeTemplate(exercise: exercise, targetSets: targetSets)
-    }
-
-    private func makeWorkout(
-        with exercise: Exercise,
-        reps: Float = 8,
-        weight: Float = 50
-    ) -> Workout {
-        WorkoutTestFixture.makeWorkout(with: exercise, reps: reps, weight: weight)
     }
 
     func testBackupExportKeysRemainUnchanged() throws {
@@ -512,7 +481,7 @@ final class WorkoutIntegrityTests: XCTestCase {
     }
 
     func testWorkoutTemplateSeedingAndCollectionCreation() throws {
-        let context = try makeContext()
+        let context = try GymTrackerTestStore.makeInMemoryContext()
         let exercises = ExerciseSeedData.templates()
         for exercise in exercises {
             context.insert(exercise)
@@ -575,7 +544,4 @@ final class WorkoutIntegrityTests: XCTestCase {
         )
     }
 
-    private func makeContext() throws -> ModelContext {
-        try GymTrackerTestStore.makeInMemoryContext()
-    }
 }

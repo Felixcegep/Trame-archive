@@ -105,6 +105,28 @@ final class TrainingCalendarModelTests: XCTestCase {
         XCTAssertEqual(missedDay.plannedWorkouts.first?.state, .missed)
     }
 
+    func testMonthDropsHistoryOutsideVisibleWindowBeforeProjection() {
+        let oldWorkout = Workout(name: "Old history", endTime: date(2024, 7, 20, 18))
+        oldWorkout.startTime = date(2024, 7, 20, 17)
+        let oldMeal = LoggedMeal(
+            day: LocalDay(date: date(2024, 7, 20, 12), calendar: calendar),
+            nameSnapshot: "Old meal"
+        )
+        let month = TrainingCalendarBuilder.month(
+            containing: today,
+            planRuns: [],
+            workouts: [oldWorkout],
+            mobilitySessions: [],
+            meals: [oldMeal],
+            checkIns: [],
+            supplementOccurrences: [],
+            today: today,
+            calendar: calendar
+        )
+
+        XCTAssertTrue(month.weeks.flatMap { $0 }.allSatisfy { !$0.hasContent })
+    }
+
     func testMissingNutritionValuesRemainUnknownInsteadOfZero() {
         let meal = LoggedMeal(day: LocalDay(date: today, calendar: calendar), nameSnapshot: "Estimate")
         meal.items = [LoggedMealItem(
