@@ -19,6 +19,8 @@ struct CurrentPlanCard: View {
     /// never gets this entry point.
     let onOpenWeeklyReview: (WeeklyProgramReviewRoute) -> Void
     let onChoosePlan: () -> Void
+    let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
+    let onStartRepeatingWorkout: (RepeatingPlanRun) -> Void
     /// Resuming can collide with another guided source, so it routes back to the
     /// root's conflict-aware handlers. Pausing and stopping only ever reduce the
     /// number of open runs, so they are applied here directly.
@@ -36,7 +38,14 @@ struct CurrentPlanCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            LibrarySectionTitle("Current plan")
+            // Following cards already name their status in the card eyebrow.
+            // Repeating the same label immediately above the hero spent a full
+            // row on duplicate hierarchy. Empty and ambiguous states still
+            // need the section title because their cards cannot truthfully say
+            // "Current plan."
+            if summary.kind == .none || summary.kind == .ambiguous {
+                LibrarySectionTitle("Current plan")
+            }
             card
         }
         .confirmationDialog(
@@ -136,7 +145,7 @@ private extension CurrentPlanCard {
             Button {
                 if let target = summary.target { onOpenPlan(target) }
             } label: {
-                VStack(alignment: .leading, spacing: Spacing.s) {
+                VStack(alignment: .leading, spacing: Spacing.m) {
                     HStack(spacing: Spacing.s) {
                         Label(
                             summary.isPaused ? "PAUSED PLAN" : "CURRENT PLAN",
@@ -159,20 +168,49 @@ private extension CurrentPlanCard {
                         .multilineTextAlignment(.leading)
                         .lineLimit(2)
 
-                    Text(summary.detail)
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .multilineTextAlignment(.leading)
+                    if let position = summary.positionText {
+                        Text(position)
+                            .font(AppFont.captionBold)
+                            .foregroundStyle(Color.gymPrimary)
+                    }
+
+                    if let next = summary.nextWorkoutName {
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text("Up next")
+                                .font(AppFont.captionBold)
+                                .tracking(0.8)
+                                .textCase(.uppercase)
+                                .foregroundStyle(Color.gymSubduedText)
+                            Text(next)
+                                .font(AppFont.titleSmallSemibold)
+                                .foregroundStyle(Color.gymText)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    } else if summary.isPaused {
+                        Text("Resume the plan to continue from this position.")
+                            .font(AppFont.subheadline)
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
 
                     if let fraction = summary.progressFraction,
                        let completed = summary.completedWorkouts,
                        let total = summary.totalWorkouts {
-                        ProgressView(value: fraction)
-                            .tint(Color.gymPrimary)
-                            .padding(.top, Spacing.xxs)
-                        Text("\(completed) of \(total) workouts")
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            ProgressView(value: fraction)
+                                .tint(Color.gymPrimary)
+                                .accessibilityHidden(true)
+                            HStack {
+                                Text("\(completed) completed")
+                                Spacer(minLength: Spacing.s)
+                                Text("\(max(total - completed, 0)) remaining")
+                            }
                             .font(AppFont.caption)
                             .foregroundStyle(Color.gymSubduedText)
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(completed) of \(total) plan workouts completed")
+                        .accessibilityIdentifier("current-plan-progress")
                     }
                 }
                 .padding(Spacing.l)
@@ -183,20 +221,29 @@ private extension CurrentPlanCard {
             .accessibilityIdentifier("current-plan-card")
             .accessibilityHint("Opens the plan.")
 
-            if let route = programPathRoute {
+            if primaryTrainingActionIsAvailable {
                 Divider()
                     .overlay(Color.gymBorder)
                     .padding(.horizontal, Spacing.l)
 
-                programPathLink(route)
+                primaryTrainingAction
             }
 
-            if let run = openFixedRun {
+            if programPathRoute != nil {
                 Divider()
                     .overlay(Color.gymBorder)
                     .padding(.horizontal, Spacing.l)
 
-                weeklyReviewLink(for: run)
+                HStack(spacing: Spacing.s) {
+                    if let route = programPathRoute {
+                        programPathLink(route)
+                    }
+                    if let run = openFixedRun {
+                        weeklyReviewLink(for: run)
+                    }
+                }
+                .padding(.horizontal, Spacing.l)
+                .padding(.vertical, Spacing.s)
             }
 
             Divider()
@@ -225,19 +272,15 @@ private extension CurrentPlanCard {
         Button {
             onOpenProgramPath(route)
         } label: {
-            HStack(spacing: Spacing.s) {
-                Label(ProgramPathPresentation.entryTitle, systemImage: AppIcon.routine)
+            VStack(spacing: Spacing.xs) {
+                Image(systemName: AppIcon.routine)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
-
-                Spacer(minLength: Spacing.s)
-
-                Image(systemName: AppIcon.chevronRight)
+                    .foregroundStyle(Color.gymPrimary)
+                Text(ProgramPathPresentation.entryTitle)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.gymText)
             }
-            .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.m)
+            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
             .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
@@ -250,19 +293,15 @@ private extension CurrentPlanCard {
         Button {
             onOpenWeeklyReview(WeeklyProgramReviewRoute(runID: run.id))
         } label: {
-            HStack(spacing: Spacing.s) {
-                Label(WeeklyProgramReviewPresentation.entryTitle, systemImage: AppIcon.chart)
+            VStack(spacing: Spacing.xs) {
+                Image(systemName: AppIcon.chart)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
-
-                Spacer(minLength: Spacing.s)
-
-                Image(systemName: AppIcon.chevronRight)
+                    .foregroundStyle(Color.gymPrimary)
+                Text(WeeklyProgramReviewPresentation.entryTitle)
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.gymText)
             }
-            .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.m)
+            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
             .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
@@ -284,12 +323,7 @@ private extension CurrentPlanCard {
 
     var actions: some View {
         HStack(spacing: Spacing.s) {
-            if summary.isPaused {
-                Button(action: resume) {
-                    Label("Resume", systemImage: AppIcon.play)
-                }
-                .accessibilityIdentifier("current-plan-resume")
-            } else {
+            if !summary.isPaused {
                 Button(action: pause) {
                     Label("Pause", systemImage: AppIcon.pause)
                 }
@@ -310,6 +344,42 @@ private extension CurrentPlanCard {
         .font(AppFont.subheadlineSemibold)
         .padding(.horizontal, Spacing.l)
         .padding(.vertical, Spacing.m)
+    }
+
+    var primaryTrainingActionIsAvailable: Bool {
+        summary.isPaused
+            || (openFixedRun.flatMap { PlanCoordinator.nextProgress(in: $0) } != nil)
+            || openRepeatingRun?.status == .active
+    }
+
+    @ViewBuilder
+    var primaryTrainingAction: some View {
+        if summary.isPaused {
+            Button("Resume plan", action: resume)
+                .buttonStyle(.gymPrimaryProminent)
+                .padding(Spacing.l)
+                .accessibilityIdentifier("current-plan-resume")
+        } else if let run = openFixedRun, let next = PlanCoordinator.nextProgress(in: run) {
+            Button {
+                onStartPlannedWorkout(run, next)
+            } label: {
+                Label("Start next workout", systemImage: AppIcon.play)
+            }
+            .buttonStyle(.gymPrimaryProminent)
+            .padding(Spacing.l)
+            .accessibilityLabel("Start \(next.plannedWorkoutName)")
+            .accessibilityIdentifier("current-plan-start-next")
+        } else if let run = openRepeatingRun, run.status == .active {
+            Button {
+                onStartRepeatingWorkout(run)
+            } label: {
+                Label("Start next workout", systemImage: AppIcon.play)
+            }
+            .buttonStyle(.gymPrimaryProminent)
+            .padding(Spacing.l)
+            .accessibilityLabel(summary.nextWorkoutName.map { "Start \($0)" } ?? "Start next rotation workout")
+            .accessibilityIdentifier("current-plan-start-next")
+        }
     }
 }
 

@@ -31,6 +31,8 @@ struct FolderView: View {
     let onOpenRoute: (LibraryRoute) -> Void
     let onOpenProgramPath: (ProgramPathRoute) -> Void
     let onOpenWeeklyReview: (WeeklyProgramReviewRoute) -> Void
+    let onStartPlannedWorkout: (PlanRun, PlanWorkoutProgress) -> Void
+    let onStartRepeatingWorkout: (RepeatingPlanRun) -> Void
     let onResumePlan: (PlanRun) -> Void
     let onPauseRepeatingPlan: (RepeatingPlanRun) -> Void
     let onResumeRepeatingPlan: (RepeatingPlanRun) -> Void
@@ -158,6 +160,8 @@ struct FolderView: View {
                 onOpenProgramPath: onOpenProgramPath,
                 onOpenWeeklyReview: onOpenWeeklyReview,
                 onChoosePlan: { onOpenRoute(.plans) },
+                onStartPlannedWorkout: onStartPlannedWorkout,
+                onStartRepeatingWorkout: onStartRepeatingWorkout,
                 onResumePlan: onResumePlan,
                 onPauseRepeatingPlan: onPauseRepeatingPlan,
                 onResumeRepeatingPlan: onResumeRepeatingPlan,

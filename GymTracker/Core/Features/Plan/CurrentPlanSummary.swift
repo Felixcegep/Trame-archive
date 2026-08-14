@@ -32,6 +32,10 @@ struct CurrentPlanSummary: Equatable {
     let title: String
     let detail: String
     let target: Target?
+    /// Factual position in the active source. A fixed plan reports its week;
+    /// a rotation reports cycle and slot without inventing completion.
+    let positionText: String?
+    let nextWorkoutName: String?
     /// `nil` for rotations, which have no end to measure against.
     let completedWorkouts: Int?
     let totalWorkouts: Int?
@@ -92,6 +96,8 @@ struct CurrentPlanSummary: Equatable {
             title: String(localized: "No plan yet"),
             detail: String(localized: "Follow a plan and Today will tell you what to train."),
             target: nil,
+            positionText: nil,
+            nextWorkoutName: nil,
             completedWorkouts: nil,
             totalWorkouts: nil
         )
@@ -103,6 +109,8 @@ struct CurrentPlanSummary: Equatable {
             title: String(localized: "More than one plan is running"),
             detail: String(localized: "Open Plans to stop the ones you are not following."),
             target: nil,
+            positionText: nil,
+            nextWorkoutName: nil,
             completedWorkouts: nil,
             totalWorkouts: nil
         )
@@ -121,6 +129,8 @@ struct CurrentPlanSummary: Equatable {
                 title: run.sourcePlanName,
                 detail: String(localized: "Paused · \(week)"),
                 target: .init(planID: run.sourcePlanID, isRepeating: false),
+                positionText: week,
+                nextWorkoutName: PlanCoordinator.nextProgress(in: run)?.plannedWorkoutName,
                 completedWorkouts: completed,
                 totalWorkouts: total
             )
@@ -135,6 +145,8 @@ struct CurrentPlanSummary: Equatable {
             title: run.sourcePlanName,
             detail: detail,
             target: .init(planID: run.sourcePlanID, isRepeating: false),
+            positionText: week,
+            nextWorkoutName: next?.plannedWorkoutName,
             completedWorkouts: completed,
             totalWorkouts: total
         )
@@ -143,6 +155,12 @@ struct CurrentPlanSummary: Equatable {
     private static func resolve(repeating run: RepeatingPlanRun) -> CurrentPlanSummary {
         let slots = run.orderedSlots
         let cycle = String(localized: "Cycle \(run.completedCycleCount + 1)")
+        let slotPosition = slots.isEmpty
+            ? cycle
+            : String(localized: "\(cycle) · Workout \(min(run.currentSlotIndex + 1, slots.count)) of \(slots.count)")
+        let nextName = slots.indices.contains(run.currentSlotIndex)
+            ? slots[run.currentSlotIndex].workoutTemplate?.name
+            : nil
 
         if run.status == .paused {
             return .init(
@@ -150,14 +168,13 @@ struct CurrentPlanSummary: Equatable {
                 title: run.sourcePlanName,
                 detail: String(localized: "Paused · \(cycle)"),
                 target: .init(planID: run.sourcePlanID, isRepeating: true),
+                positionText: slotPosition,
+                nextWorkoutName: nextName,
                 completedWorkouts: nil,
                 totalWorkouts: nil
             )
         }
 
-        let nextName = slots.indices.contains(run.currentSlotIndex)
-            ? slots[run.currentSlotIndex].workoutTemplate?.name
-            : nil
         let detail = nextName.map { String(localized: "\(cycle) · Next: \($0)") } ?? cycle
 
         return .init(
@@ -165,6 +182,8 @@ struct CurrentPlanSummary: Equatable {
             title: run.sourcePlanName,
             detail: detail,
             target: .init(planID: run.sourcePlanID, isRepeating: true),
+            positionText: slotPosition,
+            nextWorkoutName: nextName,
             completedWorkouts: nil,
             totalWorkouts: nil
         )

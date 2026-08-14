@@ -6,13 +6,28 @@ struct WeeklyProgramReviewSessionSummary: View {
     let summary: WeeklyProgramReviewProjection.SessionSummary
 
     var body: some View {
-        ChipFlowLayout(spacing: Spacing.s) {
-            tile(WeeklyProgramReviewPresentation.plannedSummaryTitle, count: summary.plannedCount, tint: .gymText)
-            tile(WeeklyProgramReviewPresentation.completedSummaryTitle, count: summary.completedCount, tint: .gymSuccess)
-            tile(WeeklyProgramReviewPresentation.inProgressSummaryTitle, count: summary.inProgressCount, tint: .gymPrimary)
-            tile(WeeklyProgramReviewPresentation.skippedSummaryTitle, count: summary.skippedCount, tint: .gymSubduedText)
-            tile(WeeklyProgramReviewPresentation.missedSummaryTitle, count: summary.missedCount, tint: .gymDestructive)
-            tile(WeeklyProgramReviewPresentation.remainingSummaryTitle, count: remainingCount, tint: .gymSubduedText)
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(summary.plannedCount) planned")
+                    .font(AppFont.headlineSemibold)
+                    .foregroundStyle(Color.gymText)
+                Spacer(minLength: Spacing.s)
+                Text(statusSummary)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .multilineTextAlignment(.trailing)
+            }
+
+            if summary.plannedCount > 0 {
+                HStack(spacing: Spacing.xs) {
+                    statusSegments(count: summary.completedCount, tint: .gymSuccess)
+                    statusSegments(count: summary.inProgressCount, tint: .gymPrimary)
+                    statusSegments(count: summary.missedCount, tint: .gymDestructive)
+                    statusSegments(count: summary.skippedCount, tint: .gymSubduedText)
+                    statusSegments(count: remainingCount, tint: .gymBorder)
+                }
+                .accessibilityHidden(true)
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("weekly-review-session-summary")
@@ -36,19 +51,24 @@ struct WeeklyProgramReviewSessionSummary: View {
         summary.availableCount + summary.upcomingCount
     }
 
-    private func tile(_ title: String, count: Int, tint: Color) -> some View {
-        VStack(spacing: Spacing.xxs) {
-            Text(count.formatted())
-                .font(AppFont.headlineMonospaced)
-                .foregroundStyle(tint)
-            Text(title)
-                .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+    @ViewBuilder
+    private func statusSegments(count: Int, tint: Color) -> some View {
+        ForEach(0..<count, id: \.self) { _ in
+            Capsule(style: .continuous)
+                .fill(tint)
+                .frame(maxWidth: .infinity)
+                .frame(height: Spacing.s)
         }
-        .frame(minWidth: 64)
-        .padding(.vertical, Spacing.s)
-        .padding(.horizontal, Spacing.m)
-        .background(Color.gymRowSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+    }
+
+    private var statusSummary: String {
+        var parts: [String] = []
+        if summary.completedCount > 0 { parts.append("\(summary.completedCount) completed") }
+        if summary.inProgressCount > 0 { parts.append("\(summary.inProgressCount) in progress") }
+        if summary.missedCount > 0 { parts.append("\(summary.missedCount) missed") }
+        if summary.skippedCount > 0 { parts.append("\(summary.skippedCount) skipped") }
+        if remainingCount > 0 { parts.append("\(remainingCount) remaining") }
+        return parts.isEmpty ? String(localized: "No session status yet") : parts.joined(separator: " · ")
     }
 
     private var accessibilityLabel: String {
