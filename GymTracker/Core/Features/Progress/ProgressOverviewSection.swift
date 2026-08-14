@@ -1,3 +1,4 @@
+import Charts
 import SwiftData
 import SwiftUI
 
@@ -13,17 +14,28 @@ struct ProgressOverviewSection: View {
     let range: AnalyticsDateRange
     let state: ProgressOverviewState
     var onOpenPlan: ((UUID) -> Void)? = nil
+    var onNavigate: (ProgressRoute) -> Void = { _ in }
+    var presentation: ProgressOverviewPresentation = .all
 
+    @ViewBuilder
     var body: some View {
         switch state {
         case .loading:
-            loadingCard
+            if presentation != .insights { loadingCard }
         case .failed:
-            failedCard
+            if presentation != .insights { failedCard }
         case .empty:
-            emptyCard
+            if presentation != .insights { emptyCard }
         case let .loaded(summary):
-            loadedCards(summary)
+            switch presentation {
+            case .weekly:
+                weekHeroCard(summary)
+            case .insights:
+                insightCards(summary)
+            case .all:
+                weekHeroCard(summary)
+                insightCards(summary)
+            }
         }
     }
 
@@ -41,9 +53,8 @@ struct ProgressOverviewSection: View {
     /// lives in another tab, and mobility and the journey are narratives rather
     /// than numbers.
     @ViewBuilder
-    private func loadedCards(_ summary: ProgressOverviewSummary) -> some View {
-        weekHeroCard(summary)
-        highlightTiles(summary)
+    private func insightCards(_ summary: ProgressOverviewSummary) -> some View {
+        performanceDashboardCard(summary)
         if summary.currentPlanID != nil {
             currentPlanCard(summary)
         }
@@ -55,14 +66,27 @@ struct ProgressOverviewSection: View {
 
     /// The week as a figure, not a sentence.
     private func weekHeroCard(_ summary: ProgressOverviewSummary) -> some View {
-        NavigationLink(value: ProgressRoute.workoutHistory) {
+        Button {
+            onNavigate(.workoutHistory)
+        } label: {
             VStack(alignment: .leading, spacing: Spacing.m) {
-                eyebrow("This week")
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        eyebrow("Training rhythm")
+                        Text("This week")
+                            .font(AppFont.titleSmallSemibold)
+                            .foregroundStyle(Color.gymText)
+                    }
+                    Spacer(minLength: Spacing.m)
+                    Text("History")
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.gymPrimary)
+                }
 
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.xl) {
                     figure(
                         "\(summary.workoutsThisWeek)",
-                        caption: CountPhrase.completedWorkouts(summary.workoutsThisWeek)
+                        caption: String(localized: "workouts")
                     )
 
                     if let time = summary.trainingTimeThisWeekText {
@@ -72,14 +96,7 @@ struct ProgressOverviewSection: View {
                     Spacer(minLength: 0)
                 }
 
-                if let takeaway = summary.consistencyTakeaway {
-                    Divider().overlay(Color.gymBorder)
-
-                    Text(takeaway)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                weeklyFrequencyChart(summary.weeklyFrequency)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.l)
@@ -90,6 +107,58 @@ struct ProgressOverviewSection: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(weekAccessibilityLabel(summary))
         .accessibilityAddTraits(.isButton)
+    }
+
+    @ViewBuilder
+    private func weeklyFrequencyChart(_ points: [WeeklyFrequencyPoint]) -> some View {
+        if !points.isEmpty {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                HStack {
+                    Text("Last 8 weeks")
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+
+                Chart(points) { point in
+                    BarMark(
+                        x: .value("Week", point.weekStart, unit: .weekOfYear),
+                        y: .value("Completed workouts", point.workoutCount),
+                        width: .ratio(0.56)
+                    )
+                    .foregroundStyle(
+                        point.id == points.last?.id
+                            ? Color.gymPrimary
+                            : (point.workoutCount == 0 ? Color.gymBorder : Color.gymPrimary.opacity(0.35))
+                    )
+                    .cornerRadius(Radius.medium)
+                }
+                .chartYScale(domain: 0...max(1, points.map(\.workoutCount).max() ?? 1))
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { value in
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
+                }
+                .chartYAxis(.hidden)
+                .chartPlotStyle { plot in
+                    plot
+                        .background(Color.gymPrimarySurface.opacity(0.22))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                }
+                .frame(height: ComponentSize.overviewChartHeight)
+                .accessibilityHidden(true)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(weeklyFrequencyAccessibilityLabel(points))
+            .accessibilityIdentifier("progress-overview-weekly-frequency-chart")
+        }
+    }
+
+    private func weeklyFrequencyAccessibilityLabel(_ points: [WeeklyFrequencyPoint]) -> String {
+        let values = points.map {
+            "\($0.weekStart.formatted(.dateTime.month(.abbreviated).day())): \(CountPhrase.completedWorkouts($0.workoutCount))"
+        }
+        return String(localized: "Completed workouts over the last eight weeks. \(values.joined(separator: ", "))")
     }
 
     /// A value and what it counts, stacked. Monospaced so two of them sitting
@@ -118,96 +187,282 @@ struct ProgressOverviewSection: View {
         if let time = summary.trainingTimeThisWeekText {
             parts.append(String(localized: "\(time) trained."))
         }
-        if let takeaway = summary.consistencyTakeaway {
-            parts.append(takeaway)
-        }
         return parts.joined(separator: " ")
     }
 
-    // MARK: - Highlight tiles
+    // MARK: - Performance dashboard
 
-    /// Latest record and most-logged exercise, side by side.
-    ///
-    /// Two tiles or one full-width tile — never a tile beside a gap. A lifter
-    /// with no records yet gets the trend at full width rather than a lonely
-    /// card with an empty neighbour.
+    /// Oura's best trend screens make one graph the subject and keep the
+    /// supporting numbers attached to it. The previous layout turned the same
+    /// exercise into a "Most logged" card and a second chart card, with a
+    /// detached list chevron beside both. This is one evidence panel with two
+    /// compact entry points and no list accessory column.
     @ViewBuilder
-    private func highlightTiles(_ summary: ProgressOverviewSummary) -> some View {
-        let hasRecord = summary.latestRecord != nil
-        let hasSeries = summary.featuredSeries != nil
-
-        if hasRecord || hasSeries {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: Spacing.m) {
-                    tileContent(summary)
+    private func performanceDashboardCard(_ summary: ProgressOverviewSummary) -> some View {
+        if summary.latestRecord != nil || summary.featuredSeries != nil {
+            VStack(alignment: .leading, spacing: Spacing.l) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    eyebrow("Performance")
+                    Text("Exercise progress")
+                        .font(AppFont.titleSmallSemibold)
+                        .foregroundStyle(Color.gymText)
                 }
-                VStack(spacing: Spacing.m) {
-                    tileContent(summary)
+
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: Spacing.s) {
+                        performanceMetrics(summary)
+                    }
+                    VStack(spacing: Spacing.s) {
+                        performanceMetrics(summary)
+                    }
+                }
+
+                if let series = summary.featuredSeries,
+                   let projection = featuredTrendProjection(series),
+                   projection.points.count >= 2 {
+                    Divider().overlay(Color.gymBorder)
+                    featuredTrendDiagram(series, projection: projection)
                 }
             }
-            // Deliberately unnamed — the two tiles inside publish their own
-            // identifiers, and a container identifier would replace them.
+            .padding(Spacing.l)
+            .background(overviewSurface)
             .overviewRowChrome(identifier: nil)
         }
     }
 
     @ViewBuilder
-    private func tileContent(_ summary: ProgressOverviewSummary) -> some View {
-        if let record = summary.latestRecord {
-            tile(
+    private func performanceMetrics(_ summary: ProgressOverviewSummary) -> some View {
+        if let record = summary.latestRecord,
+           shouldShowRecordMetric(record, summary: summary) {
+            performanceMetric(
                 route: .records,
                 identifier: "latest-record",
                 label: String(localized: "Latest record"),
                 value: record.displayValue,
-                caption: "\(record.exerciseName) · \(record.kind)"
+                caption: "\(record.exerciseName) · \(record.kind)",
+                tint: .gymSecondary,
+                surface: .gymSecondarySurface
             )
         }
-        if let series = summary.featuredSeries {
-            tile(
+        if let series = summary.featuredSeries,
+           (featuredTrendProjection(series)?.points.count ?? 0) < 2 {
+            performanceMetric(
                 route: .trainingTrends,
                 identifier: "exercise-trend",
                 label: String(localized: "Most logged"),
                 value: series.name,
                 caption: series.quality == .sparse
-                    ? String(localized: "Not enough sessions yet to read as a trend")
-                    : sessionCountText(series)
+                    ? String(localized: "Early evidence")
+                    : sessionCountText(series),
+                tint: .gymPrimary,
+                surface: .gymPrimarySurface
             )
         }
     }
 
-    private func tile(
+    private func shouldShowRecordMetric(
+        _ record: PersonalRecordItem,
+        summary: ProgressOverviewSummary
+    ) -> Bool {
+        guard let series = summary.featuredSeries,
+              (featuredTrendProjection(series)?.points.count ?? 0) >= 2 else {
+            return true
+        }
+        return series.name != record.exerciseName
+    }
+
+    private func performanceMetric(
         route: ProgressRoute,
         identifier: String,
         label: String,
         value: String,
-        caption: String
+        caption: String,
+        tint: Color,
+        surface: Color
     ) -> some View {
-        NavigationLink(value: route) {
+        Button {
+            onNavigate(route)
+        } label: {
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                eyebrow(label)
-
+                Text(label)
+                    .font(AppFont.captionBold)
+                    .tracking(0.7)
+                    .textCase(.uppercase)
+                    .foregroundStyle(tint)
                 Text(value)
                     .font(AppFont.titleSmallSemibold)
                     .foregroundStyle(Color.gymText)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.7)
-                    .fixedSize(horizontal: false, vertical: true)
-
+                    .minimumScaleFactor(0.72)
                 Text(caption)
                     .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
                     .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Spacing.l)
-            .background(overviewSurface)
+            .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+            .padding(Spacing.m)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                    .fill(surface.opacity(0.72))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(label). \(value). \(caption)")
-        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Opens full evidence")
         .accessibilityIdentifier("progress-overview-\(identifier)")
+    }
+
+    private func featuredTrendDiagram(
+        _ series: ExerciseProgressSeries,
+        projection: (label: String, points: [ExerciseProgressPoint])
+    ) -> some View {
+        let first = projection.points[0]
+        let latest = projection.points[projection.points.count - 1]
+        let usesTimeLabels = Calendar.current.isDate(first.date, inSameDayAs: latest.date)
+        let maximum = projection.points.map(\.value).max() ?? 1
+        let upperBound = max(Float(1), maximum * 1.12)
+
+        return Button {
+            onNavigate(.trainingTrends)
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        eyebrow(projection.points.count >= 4 ? "Exercise trend" : "Early comparison")
+                        Text(series.name)
+                            .font(AppFont.titleSmallSemibold)
+                            .foregroundStyle(Color.gymText)
+                    }
+                    Spacer(minLength: Spacing.m)
+                    VStack(alignment: .trailing, spacing: Spacing.xxs) {
+                        Text(latest.value.formatted(.number.precision(.fractionLength(0...1))))
+                            .font(AppFont.titleSmallSemiboldMonospaced)
+                            .foregroundStyle(Color.gymText)
+                        Text(projection.label)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                            .lineLimit(1)
+                    }
+                }
+
+                Chart(projection.points) { point in
+                    // An area implies continuity. Reserve it for an actual
+                    // multi-session trend; two points are only a comparison.
+                    if projection.points.count >= 4 {
+                        AreaMark(
+                            x: .value("Session", point.date),
+                            y: .value(projection.label, point.value)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.gymPrimary.opacity(0.22), Color.gymPrimary.opacity(0.02)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .interpolationMethod(.linear)
+                    }
+
+                    LineMark(
+                        x: .value("Session", point.date),
+                        y: .value(projection.label, point.value)
+                    )
+                    .foregroundStyle(Color.gymPrimary)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    .interpolationMethod(.linear)
+
+                    PointMark(
+                        x: .value("Session", point.date),
+                        y: .value(projection.label, point.value)
+                    )
+                    .symbolSize(point.id == latest.id ? 72 : 34)
+                    .foregroundStyle(
+                        point.id == latest.id
+                            ? Color.gymPrimary
+                            : Color.gymPrimary.opacity(0.55)
+                    )
+                }
+                .chartYScale(domain: Float.zero...upperBound)
+                .chartXAxis(.hidden)
+                .chartYAxis {
+                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
+                        AxisGridLine().foregroundStyle(Color.gymBorder)
+                        AxisValueLabel()
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
+                }
+                .chartLegend(.hidden)
+                .frame(
+                    height: projection.points.count >= 4
+                        ? ComponentSize.progressDashboardChartHeight
+                        : ComponentSize.overviewChartHeight
+                )
+                .accessibilityHidden(true)
+
+                HStack {
+                    Text("Earlier · \(featuredSessionLabel(first.date, usesTime: usesTimeLabels))")
+                    Spacer(minLength: Spacing.s)
+                    Text("Latest · \(featuredSessionLabel(latest.date, usesTime: usesTimeLabels))")
+                }
+                .font(AppFont.caption)
+                .foregroundStyle(Color.gymSubduedText)
+                .accessibilityHidden(true)
+
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(featuredTrendAccessibilityLabel(series, projection: projection))
+        .accessibilityHint("Opens exercise trends")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("progress-overview-featured-trend-chart")
+    }
+
+    private func featuredTrendProjection(
+        _ series: ExerciseProgressSeries
+    ) -> (label: String, points: [ExerciseProgressPoint])? {
+        if series.loadPoints.count >= 2 {
+            return (
+                String(localized: "Best load (\(series.unit))"),
+                series.loadPoints.sorted { $0.date < $1.date }
+            )
+        }
+        if series.volumePoints.count >= 2 {
+            return (
+                String(localized: "Session volume (\(series.unit))"),
+                series.volumePoints.sorted { $0.date < $1.date }
+            )
+        }
+        if series.repsPoints.count >= 2 {
+            return (
+                String(localized: "Completed repetitions"),
+                series.repsPoints.sorted { $0.date < $1.date }
+            )
+        }
+        return nil
+    }
+
+    private func featuredTrendAccessibilityLabel(
+        _ series: ExerciseProgressSeries,
+        projection: (label: String, points: [ExerciseProgressPoint])
+    ) -> String {
+        guard let first = projection.points.first, let last = projection.points.last else {
+            return series.name
+        }
+        return String(
+            localized: "\(series.name), \(projection.label). \(projection.points.count) comparable sessions. First \(first.value.formatted()), latest \(last.value.formatted()). Opens exercise trends."
+        )
+    }
+
+    private func featuredSessionLabel(_ date: Date, usesTime: Bool) -> String {
+        if usesTime {
+            return date.formatted(.dateTime.hour().minute())
+        }
+        return date.formatted(.dateTime.month(.abbreviated).day())
     }
 
     // MARK: - Shared chrome
@@ -392,6 +647,12 @@ struct ProgressOverviewSection: View {
     }
 }
 
+enum ProgressOverviewPresentation {
+    case weekly
+    case insights
+    case all
+}
+
 private extension View {
     /// The list-row reset every overview item needs so a card can draw its own
     /// surface instead of inheriting the grouped one.
@@ -429,6 +690,7 @@ struct ProgressOverviewSummary: Equatable {
     var workoutsThisWeek: Int
     var trainingTimeThisWeekText: String?
     var consistencyTakeaway: String?
+    var weeklyFrequency: [WeeklyFrequencyPoint]
     var currentPlanID: UUID?
     var currentPlanName: String?
     var currentPlanPhaseText: String?

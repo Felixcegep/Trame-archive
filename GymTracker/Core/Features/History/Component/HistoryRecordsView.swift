@@ -18,13 +18,7 @@ struct HistoryRecordsView: View {
 
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.xl) {
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("Records")
-                        .font(AppFont.displayMedium)
-                    Text("Personal bests from completed workouts.")
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
-                }
+                GymSectionHeader(title: "Personal bests")
 
                 if loadRecords.isEmpty && repRecords.isEmpty && velocity.isEmpty && specialized.isEmpty && blockScores.isEmpty && notable.isEmpty {
                     ContentUnavailableView(
@@ -33,21 +27,13 @@ struct HistoryRecordsView: View {
                         description: Text("Complete weighted or rep-based sets to establish personal bests.")
                     )
                 } else {
-                    if !loadRecords.isEmpty {
-                        recordsSection("Best load", icon: AppIcon.workout, records: loadRecords)
-                    }
-                    if !repRecords.isEmpty {
-                        recordsSection("Best reps", icon: AppIcon.number, records: repRecords)
-                    }
-                    if !velocity.isEmpty {
-                        recordsSection("Velocity records", icon: AppIcon.progression, records: velocity)
-                    }
-                    if !specialized.isEmpty {
-                        recordsSection("Power & implement records", icon: AppIcon.trophy, records: specialized)
-                    }
-                    if !blockScores.isEmpty {
-                        recordsSection("Format records", icon: AppIcon.relationship, records: blockScores)
-                    }
+                    recordsBoard(
+                        loadRecords: loadRecords,
+                        repRecords: repRecords,
+                        velocity: velocity,
+                        specialized: specialized,
+                        blockScores: blockScores
+                    )
                     if !notable.isEmpty {
                         notableSection(notable)
                     }
@@ -59,10 +45,45 @@ struct HistoryRecordsView: View {
         .background(Color.gymBackground)
     }
 
-    private func recordsSection(_ title: String, icon: String, records: [HistoryRecord]) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            Label(title, systemImage: icon)
-                .font(AppFont.titleSmallSemibold)
+    @ViewBuilder
+    private func recordsBoard(
+        loadRecords: [HistoryRecord],
+        repRecords: [HistoryRecord],
+        velocity: [HistoryRecord],
+        specialized: [HistoryRecord],
+        blockScores: [HistoryRecord]
+    ) -> some View {
+        GymCard(variant: .completed) {
+            GymEyebrow("Measured bests", tint: .gymSecondary)
+            if !loadRecords.isEmpty {
+                recordGroup("Load", records: loadRecords)
+            }
+            if !repRecords.isEmpty {
+                recordGroup("Reps", records: repRecords)
+            }
+            if !velocity.isEmpty {
+                recordGroup("Velocity", records: velocity)
+            }
+            if !specialized.isEmpty {
+                recordGroup("Power", records: specialized)
+            }
+            if !blockScores.isEmpty {
+                recordGroup("Format", records: blockScores)
+            }
+        }
+    }
+
+    private func recordGroup(_ title: String, records: [HistoryRecord]) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack {
+                Text(title)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubduedText)
+                Spacer()
+                Text("\(records.count)")
+                    .font(AppFont.captionSemiboldMonospaced)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
             ForEach(records) { record in
                 recordRow(record)
             }
@@ -70,10 +91,11 @@ struct HistoryRecordsView: View {
     }
 
     private func notableSection(_ sessions: [HistorySessionRecord]) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            Label("Notable sessions", systemImage: AppIcon.favoriteFilled)
-                .font(AppFont.titleSmallSemibold)
-            ForEach(sessions) { session in
+        GymCard {
+            GymEyebrow("Notable sessions", tint: .gymSecondary)
+
+            ForEach(Array(sessions.enumerated()), id: \.element.id) { index, session in
+                if index > 0 { Divider() }
                 HStack {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(session.title)
@@ -85,10 +107,10 @@ struct HistoryRecordsView: View {
                     Spacer()
                     Text("\(Formatters.formatFloat(session.volume)) \(session.unit) volume")
                         .font(AppFont.captionSemiboldMonospaced)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.gymText)
                 }
-                .padding(Spacing.m)
-                .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
+                .frame(minHeight: ComponentSize.minimumTouchTarget)
+                .accessibilityElement(children: .combine)
             }
         }
     }
@@ -107,8 +129,7 @@ struct HistoryRecordsView: View {
                 .font(AppFont.headlineMonospaced)
                 .foregroundStyle(Color.gymPrimary)
         }
-        .padding(Spacing.m)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
         .accessibilityElement(children: .combine)
     }
 

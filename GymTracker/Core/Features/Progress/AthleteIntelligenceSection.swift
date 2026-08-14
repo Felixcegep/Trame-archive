@@ -64,6 +64,8 @@ struct AthleteIntelligenceSection: View {
     @Binding var isEditingProfile: Bool
     let range: AnalyticsDateRange
     let workouts: [Workout]
+    let showsGlobalSummary: Bool
+    let onNavigate: (ProgressRoute) -> Void
     @State private var projectionCache: AthleteIntelligenceProjectionCache?
 
     private var profile: TrainingProfile? { profiles.first }
@@ -72,12 +74,16 @@ struct AthleteIntelligenceSection: View {
         selectedLens: Binding<ProgressLens>,
         isEditingProfile: Binding<Bool>,
         range: AnalyticsDateRange,
-        workouts: [Workout]
+        workouts: [Workout],
+        showsGlobalSummary: Bool = true,
+        onNavigate: @escaping (ProgressRoute) -> Void = { _ in }
     ) {
         _selectedLens = selectedLens
         _isEditingProfile = isEditingProfile
         self.range = range
         self.workouts = workouts
+        self.showsGlobalSummary = showsGlobalSummary
+        self.onNavigate = onNavigate
 
         var descriptor = FetchDescriptor<TrainingProfile>()
         descriptor.fetchLimit = 1
@@ -173,17 +179,13 @@ struct AthleteIntelligenceSection: View {
             $0.inputID == inputID ? $0 : nil
         } ?? makeProjection(inputID: inputID)
 
-        athleteProfileCard(suggestion: projection.suggestion)
+        lensPicker(availability: projection.availability)
             .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
+            .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
             .task(id: inputID) {
                 guard projectionCache?.inputID != inputID else { return }
                 projectionCache = projection
             }
-
-        lensPicker(availability: projection.availability)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
 
         switch selectedLens {
         case .global:
@@ -191,6 +193,45 @@ struct AthleteIntelligenceSection: View {
         case let .sport(discipline):
             sportContent(discipline, projection: projection)
         }
+
+        athleteProfileControl(suggestion: projection.suggestion)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+    }
+
+    @ViewBuilder
+    private func athleteProfileControl(suggestion: SportProfileSuggestion?) -> some View {
+        if shouldOfferSuggestion, let suggestion {
+            athleteProfileCard(suggestion: suggestion)
+        } else {
+            compactAthleteProfileRow
+        }
+    }
+
+    private var compactAthleteProfileRow: some View {
+        Button { isEditingProfile = true } label: {
+            HStack(spacing: Spacing.m) {
+                GymIconChip(systemImage: AppIcon.settings, tint: .gymPrimary)
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text("Training profile")
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.gymText)
+                    Text(profileTitle)
+                        .font(AppFont.caption)
+                        .foregroundStyle(Color.gymSubduedText)
+                }
+                Spacer(minLength: Spacing.s)
+                Text("Edit")
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymPrimary)
+            }
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Training profile. \(profileTitle). Edit.")
+        .accessibilityIdentifier("progress-athlete-profile")
     }
 
     private func athleteProfileCard(suggestion: SportProfileSuggestion?) -> some View {
@@ -321,14 +362,30 @@ struct AthleteIntelligenceSection: View {
 
     @ViewBuilder
     private func globalContent(_ projection: AthleteIntelligenceProjectionCache) -> some View {
-        globalSummary(projection.global, delta: projection.workoutCountDelta)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
+        if showsGlobalSummary {
+            globalSummary(projection.global, delta: projection.workoutCountDelta)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+        }
 
-        if projection.timeline.periods.contains(where: \.hasEvidence) {
+        if projection.timeline.quality == .adequate,
+           projection.timeline.periods.filter(\.hasEvidence).count >= 2 {
             sportFocusChart(projection.timeline)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
+        } else {
+            HStack(spacing: Spacing.m) {
+                GymIconChip(systemImage: AppIcon.info, tint: .gymPrimary)
+                Text("Complete at least four workouts across two weeks to compare how your sport focus changes over time.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, Spacing.xs)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("progress-sport-focus-insufficient")
         }
 
         sportHighlights(projection.global.sportHighlights)
@@ -471,7 +528,8 @@ struct AthleteIntelligenceSection: View {
             discipline: discipline,
             workouts: projection.workoutsByDiscipline[discipline] ?? [],
             interval: projection.interval,
-            competitionLifts: powerliftingLiftIdentity
+            competitionLifts: powerliftingLiftIdentity,
+            onNavigate: onNavigate
         )
     }
 

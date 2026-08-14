@@ -67,8 +67,7 @@ struct HistoryMuscleBalanceView: View {
 
     private var content: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xxl) {
-                methodology
+            VStack(alignment: .leading, spacing: Spacing.xl) {
                 MuscleGroupRankingSection(
                     summaries: analytics.summaries,
                     selectedGroup: $selectedGroup
@@ -85,6 +84,8 @@ struct HistoryMuscleBalanceView: View {
                 if !analytics.callouts.isEmpty {
                     observation
                 }
+
+                methodology
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.top, Spacing.l)
@@ -93,12 +94,16 @@ struct HistoryMuscleBalanceView: View {
     }
 
     private var methodology: some View {
-        GymCard(variant: .current) {
-            Label("Estimated working sets", systemImage: AppIcon.info)
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymPrimary)
-            Text("Primary muscles count as 1.0 set and secondary muscles as 0.5. Warm-ups are excluded. This describes training distribution, not physiological response.")
-                .font(AppFont.subheadline)
+        GymCard {
+            HStack(alignment: .top, spacing: Spacing.s) {
+                Image(systemName: AppIcon.info)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.gymSubduedText)
+                    .accessibilityHidden(true)
+                Text("Primary muscles count as 1.0 estimated set and secondary muscles as 0.5. Warm-ups are excluded. Distribution does not measure physiological response.")
+                    .font(AppFont.caption)
+                    .foregroundStyle(Color.gymSubduedText)
+            }
         }
         .accessibilityIdentifier("muscle-balance-explanation")
         .overlay(alignment: .topLeading) {
@@ -150,11 +155,15 @@ private struct MuscleGroupRankingSection: View {
         showsAllGroups ? summaries : Array(summaries.prefix(4))
     }
 
+    private var maximumAverage: Double {
+        max(1, summaries.map(\.recentAverage).max() ?? 1)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             GymSectionHeader(
-                title: "Last four weeks",
-                detail: "Select a muscle group to inspect its weekly evidence."
+                title: "Training distribution",
+                detail: "Estimated sets per week over the last four weeks. Select a bar for weekly evidence."
             )
             GymCard {
                 ForEach(Array(visibleSummaries.enumerated()), id: \.element.id) { index, summary in
@@ -164,7 +173,8 @@ private struct MuscleGroupRankingSection: View {
                     } label: {
                         MuscleGroupSummaryRow(
                             summary: summary,
-                            isSelected: selectedGroup == summary.group
+                            isSelected: selectedGroup == summary.group,
+                            maximumAverage: maximumAverage
                         )
                     }
                     .buttonStyle(.plain)
@@ -191,26 +201,41 @@ private struct MuscleGroupRankingSection: View {
 private struct MuscleGroupSummaryRow: View {
     let summary: MuscleBalanceSummary
     let isSelected: Bool
+    let maximumAverage: Double
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
-            Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
-                .foregroundStyle(isSelected ? Color.gymPrimary : Color.gymSubduedText)
-                .accessibilityHidden(true)
-            Text(summary.group.displayName)
-                .font(AppFont.subheadlineSemibold)
-            Spacer()
-            VStack(alignment: .trailing, spacing: Spacing.xxs) {
-                Text("\(Formatters.formatFloat(Float(summary.recentAverage))) sets / week")
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+                Text(summary.group.displayName)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
+                Spacer()
+                Text("\(Formatters.formatFloat(Float(summary.recentAverage))) / wk")
                     .font(AppFont.subheadlineSemiboldMonospaced)
+                    .foregroundStyle(Color.gymText)
+            }
+
+            ProgressView(value: summary.recentAverage, total: maximumAverage)
+                .progressViewStyle(.linear)
+                .tint(isSelected ? Color.gymPrimary : Color.gymPrimary.opacity(0.38))
+                .accessibilityHidden(true)
+
+            HStack(spacing: Spacing.xs) {
+                if isSelected {
+                    Text("Selected")
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.gymPrimary)
+                }
                 Text(changeText)
                     .font(AppFont.caption)
                     .foregroundStyle(Color.gymSubduedText)
             }
         }
-        .frame(minHeight: 44)
+        .padding(.vertical, Spacing.xs)
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(summary.group.displayName), \(Formatters.formatFloat(Float(summary.recentAverage))) estimated sets per week, \(changeText)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     private var changeText: String {
@@ -275,7 +300,7 @@ private struct MuscleGroupVolumeChart: View {
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
                 }
             }
-            .frame(height: ComponentSize.standardChartHeight)
+            .frame(height: ComponentSize.progressDashboardChartHeight)
             .chartXSelection(value: $selectedDate)
             .chartYAxis {
                 AxisMarks(position: .leading) { _ in

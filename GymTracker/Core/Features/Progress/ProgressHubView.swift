@@ -24,6 +24,7 @@ struct ProgressHubView: View {
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var onOpenPlan: ((UUID) -> Void)? = nil
+    var onNavigate: (ProgressRoute) -> Void = { _ in }
 
     @State private var overviewRange: AnalyticsDateRange = .twelveWeeks
     @State private var overviewState: ProgressOverviewState = .loading
@@ -37,37 +38,65 @@ struct ProgressHubView: View {
 
     var body: some View {
         List {
-            Section {
-                AthleteIntelligenceSection(
-                    selectedLens: $selectedLens,
-                    isEditingProfile: $isEditingAthleteProfile,
-                    range: overviewRange,
-                    workouts: workouts
-                )
-            }
-
             if selectedLens == .global {
-            Section {
-                // The range control is a list row rather than a toolbar menu:
-                // toolbar buttons do not reliably fire on pushed screens in
-                // this iOS generation, and a row keeps the control reachable
-                // with the same gesture as everything else on the screen.
-                Picker("Period", selection: $overviewRange) {
-                    ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
-                        Text(range.title).tag(range)
+                Section {
+                    ProgressOverviewSection(
+                        range: overviewRange,
+                        state: overviewState,
+                        onOpenPlan: onOpenPlan,
+                        onNavigate: onNavigate,
+                        presentation: .weekly
+                    )
+                }
+
+                if hasOverviewEvidence {
+                    Section {
+                        ProgressOverviewSection(
+                            range: overviewRange,
+                            state: overviewState,
+                            onOpenPlan: onOpenPlan,
+                            onNavigate: onNavigate,
+                            presentation: .insights
+                        )
+                    } header: {
+                        HStack {
+                            Text("Strength progress")
+                            Spacer(minLength: Spacing.s)
+                            Menu {
+                                Picker("Trend range", selection: $overviewRange) {
+                                    ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
+                                        Text(range.title).tag(range)
+                                    }
+                                }
+                            } label: {
+                                Text(overviewRange.title)
+                                    .font(AppFont.captionBold)
+                                    .textCase(.none)
+                            }
+                            .accessibilityLabel("Trend range")
+                            .accessibilityValue(overviewRange.title)
+                            .accessibilityIdentifier("progress-overview-range")
+                        }
                     }
                 }
-                .pickerStyle(.menu)
-                .accessibilityIdentifier("progress-overview-range")
-
-                // Only the cards drop the row surface — they bring their own.
-                // Clearing it for the whole section stripped the picker of its
-                // grouped background too, leaving the control floating on the
-                // page as if it were a caption.
-                ProgressOverviewSection(range: overviewRange, state: overviewState, onOpenPlan: onOpenPlan)
-            } header: {
-                Text("Overview")
             }
+
+            // Athlete setup changes ordering, not historical truth. It follows
+            // the user's actual evidence so opening Progress answers the common
+            // question ("how is training going?") before asking for preferences.
+            if hasOverviewEvidence {
+                Section {
+                    AthleteIntelligenceSection(
+                        selectedLens: $selectedLens,
+                        isEditingProfile: $isEditingAthleteProfile,
+                        range: overviewRange,
+                        workouts: workouts,
+                        showsGlobalSummary: false,
+                        onNavigate: onNavigate
+                    )
+                } header: {
+                    Text("Training focus")
+                }
             }
 
             // Four rows, not seven.
@@ -79,7 +108,7 @@ struct ProgressHubView: View {
             // presenting all seven at equal weight made the four common ones
             // as hard to find as the three rare ones. Nothing is removed; the
             // rare three moved one disclosure deeper.
-            Section("Training") {
+            Section("Explore") {
                 progressLink(
                     route: .workoutHistory,
                     title: "Training history",
@@ -177,6 +206,11 @@ struct ProgressHubView: View {
         }
     }
 
+    private var hasOverviewEvidence: Bool {
+        if case .loaded = overviewState { return true }
+        return false
+    }
+
     /// Projects the overview from the hub's existing SwiftData observations.
     ///
     /// Synchronous on the main actor by design: the inputs are SwiftData model
@@ -231,6 +265,7 @@ struct ProgressHubView: View {
                 workoutsThisWeek: consistency.weeklyFrequency.last?.workoutCount ?? 0,
                 trainingTimeThisWeekText: trainingTimeText(in: weekInterval),
                 consistencyTakeaway: consistency.takeawayText,
+                weeklyFrequency: consistency.weeklyFrequency,
                 currentPlanID: currentPlanID,
                 currentPlanName: currentPlanName,
                 currentPlanPhaseText: currentPlanPhaseText,
@@ -457,10 +492,15 @@ struct MobilityHistoryView: View {
             evidenceByResultID: evidenceByResultID
         )
 
-        return List {
+        return Group {
             if completedSessions.isEmpty {
-                ContentUnavailableView("No Mobility History", systemImage: AppIcon.mobility, description: Text("Complete a mobility routine to review it here."))
+                SupportingHistoryEmptyState(
+                    title: "No mobility yet",
+                    detail: "Completed routines appear here.",
+                    systemImage: AppIcon.mobility
+                )
             } else {
+                List {
                 ForEach(completedSessions) { session in
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         // The routine's recorded name stays primary; a later
@@ -484,9 +524,10 @@ struct MobilityHistoryView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("mobility-history-context-\(session.id)")
                 }
+                }
+                .scrollContentBackground(.hidden)
             }
         }
-        .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
     }
 
@@ -609,10 +650,15 @@ struct NutritionHistoryView: View {
     @Query(sort: \LoggedMeal.loggedAt, order: .reverse) private var meals: [LoggedMeal]
 
     var body: some View {
-        List {
+        Group {
             if meals.isEmpty {
-                ContentUnavailableView("No Nutrition History", systemImage: AppIcon.nutrition, description: Text("Log food to build your nutrition history."))
+                SupportingHistoryEmptyState(
+                    title: "No nutrition yet",
+                    detail: "Logged meals appear here.",
+                    systemImage: AppIcon.nutrition
+                )
             } else {
+                List {
                 Section("Last 7 days") {
                     ForEach(daySummaries) { summary in
                         HStack {
@@ -638,9 +684,10 @@ struct NutritionHistoryView: View {
                         }
                     }
                 }
+                }
+                .scrollContentBackground(.hidden)
             }
         }
-        .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
     }
 
@@ -691,10 +738,15 @@ struct JournalHistoryView: View {
     @Query(sort: \DailyLogEntry.createdAt, order: .reverse) private var entries: [DailyLogEntry]
 
     var body: some View {
-        List {
+        Group {
             if entries.isEmpty {
-                ContentUnavailableView("No Journal History", systemImage: AppIcon.routine, description: Text("Complete a daily check-in to review it here."))
+                SupportingHistoryEmptyState(
+                    title: "No journal yet",
+                    detail: "Daily check-ins appear here.",
+                    systemImage: AppIcon.routine
+                )
             } else {
+                List {
                 ForEach(entries) { entry in
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text(entry.dayKey).font(AppFont.subheadlineSemibold)
@@ -703,9 +755,37 @@ struct JournalHistoryView: View {
                             .foregroundStyle(Color.gymSubduedText)
                     }
                 }
+                }
+                .scrollContentBackground(.hidden)
             }
         }
-        .scrollContentBackground(.hidden)
         .background(Color.gymBackground)
+    }
+}
+
+private struct SupportingHistoryEmptyState: View {
+    let title: String
+    let detail: String
+    let systemImage: String
+
+    var body: some View {
+        ScrollView {
+            GymCard {
+                HStack(alignment: .top, spacing: Spacing.m) {
+                    GymIconChip(systemImage: systemImage, tint: .gymAccent)
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text(title)
+                            .font(AppFont.subheadlineSemibold)
+                            .foregroundStyle(Color.gymText)
+                        Text(detail)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Color.gymSubduedText)
+                    }
+                }
+            }
+            .padding(.horizontal, Spacing.xl)
+            .padding(.top, Spacing.m)
+        }
+        .accessibilityElement(children: .combine)
     }
 }

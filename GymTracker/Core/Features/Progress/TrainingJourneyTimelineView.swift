@@ -10,9 +10,8 @@ struct TrainingJourneyTimelineView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private let labelWidth = Spacing.xxxl * 3 + Spacing.m
-    private let minimumChartWidth = Spacing.xxxl * 22 + Spacing.m
-    private let barHeight = Spacing.xxxl + Spacing.m
+    private let labelWidth = Spacing.xxxl * 2 + Spacing.l
+    private let barHeight = Spacing.xxxl
     private let sublaneSpacing = Spacing.xs
     private let transitionMarkerHeight = Spacing.xxxl + Spacing.s
 
@@ -30,26 +29,39 @@ struct TrainingJourneyTimelineView: View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             DatePicker("Selected date", selection: $selectedDate, displayedComponents: .date)
                 .datePickerStyle(.compact)
-                .padding(.horizontal, Spacing.l)
+                .labelsHidden()
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .accessibilityLabel("Timeline date")
                 .accessibilityIdentifier("training-journey-timeline-date")
-
-            GeometryReader { geometry in
-                let chartWidth = max(minimumChartWidth, geometry.size.width - labelWidth)
-                ScrollView(.horizontal) {
-                    timelineCanvas(chartWidth: chartWidth)
-                        // `timelineCanvas` owns horizontal content padding.
-                        // Include it in the scrollable width so the leading
-                        // lane icons and trailing segment edges are never
-                        // clipped by the explicit canvas frame.
-                        .frame(width: labelWidth + chartWidth + Spacing.l * 2)
-                }
-                .scrollIndicators(.visible)
-                .accessibilityIdentifier("training-journey-timeline-scroll")
-            }
-            .frame(height: canvasHeight)
-
-            selectionCard
                 .padding(.horizontal, Spacing.l)
+
+            if let segment = singleJourneySegment {
+                singleChapterMilestone(segment)
+                    .padding(.horizontal, Spacing.l)
+            } else {
+                GeometryReader { geometry in
+                    let chartWidth = max(
+                        1,
+                        geometry.size.width - labelWidth - Spacing.s - Spacing.m * 2
+                    )
+                    timelineCanvas(chartWidth: chartWidth)
+                        .padding(.horizontal, Spacing.m)
+                }
+                .frame(height: canvasHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+                        .fill(Color.gymCard)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+                                .stroke(Color.gymBorder, lineWidth: 1)
+                        }
+                )
+                .padding(.horizontal, Spacing.l)
+                .accessibilityIdentifier("training-journey-timeline-chart")
+
+                selectionCard
+                    .padding(.horizontal, Spacing.l)
+            }
         }
         .padding(.vertical, Spacing.s)
         .background(Color.gymBackground)
@@ -57,13 +69,117 @@ struct TrainingJourneyTimelineView: View {
         .animation(reduceMotion ? nil : AppMotion.compact, value: selectedDate)
     }
 
+    private var visibleLanes: [TrainingJourneyTimelineLaneProjection] {
+        projection.lanes.filter { $0.segments.isEmpty == false }
+    }
+
+    private var singleJourneySegment: TrainingJourneyTimelineSegment? {
+        guard practiceTransitions.markers.isEmpty else { return nil }
+        let segments = visibleLanes.flatMap(\.segments)
+        return segments.count == 1 ? segments[0] : nil
+    }
+
+    private func singleChapterMilestone(
+        _ segment: TrainingJourneyTimelineSegment
+    ) -> some View {
+        let selection = projection.selection(for: selectedDate)
+        let selectedHit = selection.hits.first { $0.chapterID == segment.chapterID }
+        let tint = laneTint(segment.lane)
+
+        return VStack(alignment: .leading, spacing: Spacing.m) {
+            HStack(spacing: Spacing.m) {
+                GymIconChip(systemImage: laneIcon(segment.lane), tint: tint)
+                Text(segment.title)
+                    .font(AppFont.subheadlineSemibold)
+                    .foregroundStyle(Color.gymText)
+                    .lineLimit(1)
+                Spacer(minLength: Spacing.s)
+            }
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(tint.opacity(0.14))
+                    .frame(height: Spacing.m)
+
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [tint, tint.opacity(0.55)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: Spacing.m)
+
+                Circle()
+                    .fill(Color.gymCard)
+                    .frame(width: Spacing.l, height: Spacing.l)
+                    .overlay {
+                        Circle().stroke(tint, lineWidth: 2)
+                    }
+                    .overlay {
+                        Image(systemName: AppIcon.workout)
+                            .font(AppFont.caption2)
+                            .foregroundStyle(tint)
+                    }
+                    .padding(.leading, Spacing.xxs)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                Text(milestoneDateLabel(segment))
+                Spacer(minLength: Spacing.s)
+                if let selectedHit {
+                    Text(hitSummary(selectedHit))
+                } else {
+                    Text("No activity on this date")
+                }
+            }
+            .font(AppFont.caption)
+            .foregroundStyle(Color.gymSubduedText)
+        }
+        .padding(Spacing.l)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+                .fill(laneSurface(segment.lane).opacity(0.72))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
+                        .stroke(tint.opacity(0.45), lineWidth: 1)
+                }
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            [
+                segmentAccessibilityLabel(segment),
+                selectedHit.map(hitAccessibilityLabel)
+            ]
+            .compactMap { $0 }
+            .joined(separator: ". ")
+        )
+        .accessibilityIdentifier("training-journey-single-milestone")
+    }
+
+    private func milestoneDateLabel(_ segment: TrainingJourneyTimelineSegment) -> String {
+        if Calendar.current.isDateInToday(segment.originalStart) {
+            return String(localized: "Started today")
+        }
+        if segment.isOpenEnded {
+            return String(localized: "Since \(segment.originalStart.formatted(.dateTime.month(.abbreviated).day()))")
+        }
+        return segment.originalStart.formatted(.dateTime.month(.abbreviated).day().year())
+    }
+
     private var canvasHeight: CGFloat {
         let markerRowsHeight = CGFloat(transitionMarkerRows.count)
             * (transitionMarkerHeight + Spacing.xxs)
-        let lanesHeight = projection.lanes.reduce(CGFloat.zero) { partial, lane in
+        let lanesHeight = visibleLanes.reduce(CGFloat.zero) { partial, lane in
             partial + laneHeight(for: lane)
         }
-        return tickRowHeight + markerRowsHeight + lanesHeight + Spacing.m
+        let visibleRowGaps = visibleLanes.count + (practiceTransitions.markers.isEmpty ? 0 : 1)
+        return tickRowHeight
+            + markerRowsHeight
+            + lanesHeight
+            + CGFloat(visibleRowGaps) * Spacing.s
+            + Spacing.s * 2
     }
 
     private func timelineCanvas(chartWidth: CGFloat) -> some View {
@@ -74,7 +190,7 @@ struct TrainingJourneyTimelineView: View {
                 transitionMarkerRow(chartWidth: chartWidth)
             }
 
-            ForEach(projection.lanes) { lane in
+            ForEach(visibleLanes) { lane in
                 HStack(alignment: .center, spacing: Spacing.s) {
                     laneLabel(lane.lane)
                         .frame(width: labelWidth, height: laneHeight(for: lane), alignment: .leading)
@@ -83,7 +199,6 @@ struct TrainingJourneyTimelineView: View {
                 .frame(height: laneHeight(for: lane))
             }
         }
-        .padding(.horizontal, Spacing.l)
         .padding(.vertical, Spacing.s)
     }
 
@@ -100,7 +215,7 @@ struct TrainingJourneyTimelineView: View {
                         .foregroundStyle(tick.kind == .year ? Color.gymText : Color.gymSubduedText)
                         .fixedSize()
                 }
-                .offset(x: tick.position * chartWidth)
+                .offset(x: min(tick.position * chartWidth, max(0, chartWidth - Spacing.xxxl)))
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(tickLabel(tick))
             }
@@ -204,20 +319,20 @@ struct TrainingJourneyTimelineView: View {
     }
 
     private func laneLabel(_ lane: TrainingJourneyTimelineLane) -> some View {
-        let copy: (String, String) = {
+        let copy: (visible: String, spoken: String, icon: String) = {
             switch lane {
-            case .fixedPlan: ("Fixed plan", AppIcon.plan)
-            case .repeatingPlan: ("Rotation", AppIcon.repeatingPlan)
-            case .freeTraining: ("Free training", AppIcon.workout)
+            case .fixedPlan: ("Plan", "Fixed plan", AppIcon.plan)
+            case .repeatingPlan: ("Rotation", "Rotation", AppIcon.repeatingPlan)
+            case .freeTraining: ("Free", "Free training", AppIcon.workout)
             }
         }()
-        return Label(copy.0, systemImage: copy.1)
-            .font(AppFont.footnoteMedium)
+        return Label(copy.visible, systemImage: copy.icon)
+            .font(AppFont.captionBold)
             .foregroundStyle(Color.gymText)
             .labelStyle(.titleAndIcon)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(copy.0)
+            .accessibilityLabel(copy.spoken)
     }
 
     private func laneTrack(
@@ -231,45 +346,35 @@ struct TrainingJourneyTimelineView: View {
                 .frame(height: Spacing.xxs)
                 .offset(y: trackHeight - Spacing.xxs)
 
-            ForEach(lane.gaps) { gap in
-                Rectangle()
-                    .fill(Color.gymMutedSurface)
-                    .frame(
-                        width: max(Spacing.xxs, (gap.positionEnd - gap.positionStart) * chartWidth),
-                        height: Spacing.m
-                    )
-                    .offset(x: gap.positionStart * chartWidth)
-                    .accessibilityHidden(true)
-            }
-
             ForEach(lane.segments) { segment in
                 let segmentWidth = max(
-                    Spacing.xxxl + Spacing.m,
+                    Spacing.xs,
                     (segment.positionEnd - segment.positionStart) * chartWidth
                 )
                 Button {
                     selectedDate = segment.originalStart
                 } label: {
-                    HStack(spacing: Spacing.xs) {
-                        Text(segment.title)
-                            .font(AppFont.footnoteMedium)
-                            .foregroundStyle(Color.gymText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                        if segment.isOpenEnded {
-                            Text("Current")
-                                .font(AppFont.caption2)
-                                .foregroundStyle(Color.gymSubduedText)
-                                .padding(.horizontal, Spacing.xs)
-                                .padding(.vertical, Spacing.xxs)
-                                .background(Color.gymBackground.opacity(0.7))
-                                .clipShape(RoundedRectangle(cornerRadius: Radius.small))
-                            Image(systemName: AppIcon.chevronRight)
-                                .font(AppFont.caption2)
-                                .accessibilityHidden(true)
+                    Group {
+                        if segmentWidth >= Spacing.xxxl * 2 {
+                            HStack(spacing: Spacing.xs) {
+                                Text(segment.title)
+                                    .font(AppFont.captionBold)
+                                    .foregroundStyle(Color.gymText)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                                if segment.isOpenEnded,
+                                   segmentWidth >= Spacing.xxxl * 3 {
+                                    Circle()
+                                        .fill(laneTint(segment.lane))
+                                        .frame(width: Spacing.xs, height: Spacing.xs)
+                                        .accessibilityHidden(true)
+                                }
+                            }
+                            .padding(.horizontal, Spacing.s)
+                        } else {
+                            Color.clear
                         }
                     }
-                    .padding(.horizontal, Spacing.s)
                     .frame(
                         width: segmentWidth,
                         height: barHeight,
@@ -279,7 +384,7 @@ struct TrainingJourneyTimelineView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                     .overlay {
                         RoundedRectangle(cornerRadius: Radius.small)
-                            .stroke(laneTint(segment.lane), lineWidth: Spacing.xxs)
+                            .stroke(laneTint(segment.lane), lineWidth: 1.5)
                     }
                 }
                 .buttonStyle(.plain)
@@ -293,9 +398,9 @@ struct TrainingJourneyTimelineView: View {
                 .accessibilityIdentifier("training-journey-timeline-segment-\(segment.chapterID)")
             }
 
-            Rectangle()
+            Capsule()
                 .fill(Color.gymAccent)
-                .frame(width: Spacing.xxs, height: trackHeight - Spacing.s)
+                .frame(width: Spacing.xxs, height: trackHeight - Spacing.xs)
                 .offset(x: cursorPosition * chartWidth)
                 .accessibilityHidden(true)
         }
@@ -322,14 +427,9 @@ struct TrainingJourneyTimelineView: View {
     private var selectionCard: some View {
         let selection = projection.selection(for: selectedDate)
         return GymCard {
-            GymEyebrow("Selected date")
-            Text(selectedDate.formatted(date: .complete, time: .omitted))
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
-
             if selection.hits.isEmpty {
                 Text("No chapter on this date")
-                    .font(AppFont.caption)
+                    .font(AppFont.subheadlineSemibold)
                     .foregroundStyle(Color.gymSubduedText)
             } else {
                 ForEach(selection.hits) { hit in
@@ -369,6 +469,22 @@ struct TrainingJourneyTimelineView: View {
             }
         }
         .accessibilityIdentifier("training-journey-timeline-selection")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(selectionAccessibilityLabel(selection))
+    }
+
+    private func selectionAccessibilityLabel(_ selection: TrainingJourneyTimelineSelection) -> String {
+        let date = selectedDate.formatted(date: .complete, time: .omitted)
+        var parts = [date]
+        if selection.hits.isEmpty {
+            parts.append("No chapter")
+        } else {
+            parts.append(contentsOf: selection.hits.map(hitAccessibilityLabel))
+        }
+        parts.append(contentsOf: transitionMarkers(on: selectedDate).map {
+            TrainingJourneyTimelineTransitionPresentation.accessibilityLabel($0)
+        })
+        return parts.joined(separator: ". ")
     }
 
     private func transitionMarkers(on date: Date) -> [TrainingJourneyPracticeTransitionMarker] {
@@ -389,6 +505,14 @@ struct TrainingJourneyTimelineView: View {
         case .fixedPlan: .gymPrimary
         case .repeatingPlan: .gymSecondary
         case .freeTraining: .gymAccent
+        }
+    }
+
+    private func laneIcon(_ lane: TrainingJourneyTimelineLane) -> String {
+        switch lane {
+        case .fixedPlan: AppIcon.plan
+        case .repeatingPlan: AppIcon.repeatingPlan
+        case .freeTraining: AppIcon.workout
         }
     }
 
@@ -414,11 +538,19 @@ struct TrainingJourneyTimelineView: View {
     }
 
     private func segmentSummary(_ segment: TrainingJourneyTimelineSegment) -> String {
-        "\(segment.completedWorkouts) workouts, \(segment.personalRecords) records"
+        "\(workoutCountText(segment.completedWorkouts)), \(recordCountText(segment.personalRecords))"
     }
 
     private func hitSummary(_ hit: TrainingJourneyTimelineHit) -> String {
-        "\(hit.completedWorkouts) workouts · \(hit.personalRecords) records"
+        "\(workoutCountText(hit.completedWorkouts)) · \(recordCountText(hit.personalRecords))"
+    }
+
+    private func workoutCountText(_ count: Int) -> String {
+        count == 1 ? String(localized: "1 workout") : String(localized: "\(count) workouts")
+    }
+
+    private func recordCountText(_ count: Int) -> String {
+        count == 1 ? String(localized: "1 record") : String(localized: "\(count) records")
     }
 
     private func hitAccessibilityLabel(_ hit: TrainingJourneyTimelineHit) -> String {

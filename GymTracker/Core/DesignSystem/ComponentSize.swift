@@ -8,6 +8,12 @@ enum ComponentSize {
     /// lifter is trying to read while typing.
     static let keypadKeyHeight: CGFloat = minimumTouchTarget
     static let iconChip: CGFloat = 36
+    /// A sparkline-sized overview chart. It shows a direction without taking
+    /// the vertical weight of a detail-screen analysis chart.
+    static let overviewChartHeight: CGFloat = 120
+    /// The primary diagram on a dashboard: tall enough for a readable scale,
+    /// but quieter than the 180pt analysis chart on a detail screen.
+    static let progressDashboardChartHeight: CGFloat = 156
     static let compactChartHeight: CGFloat = 180
     static let standardChartHeight: CGFloat = 210
     static let nutritionRing: CGFloat = 112

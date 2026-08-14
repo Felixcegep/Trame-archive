@@ -11,6 +11,7 @@ struct SpecializedSportLensView: View {
     let workouts: [Workout]
     let interval: DateInterval
     let competitionLifts: PowerliftingLiftIdentity?
+    let onNavigate: (ProgressRoute) -> Void
     @State private var projectionCache: SpecializedSportLensProjectionCache?
 
     var body: some View {
@@ -40,7 +41,7 @@ struct SpecializedSportLensView: View {
             case .mixed(let value):
                 MixedSportLensView(projection: value)
             case .weightlifting:
-                WeightliftingSportLensLink()
+                WeightliftingSportLensLink(onOpen: { onNavigate(.weightlifting) })
             }
         }
         .listRowBackground(Color.clear)
@@ -769,8 +770,10 @@ private struct MixedSportLensView: View {
 }
 
 private struct WeightliftingSportLensLink: View {
+    let onOpen: () -> Void
+
     var body: some View {
-        NavigationLink(value: ProgressRoute.weightlifting) {
+        Button(action: onOpen) {
             GymCard {
                 HStack(spacing: Spacing.m) {
                     GymIconChip(systemImage: AppIcon.trophy)
@@ -783,9 +786,9 @@ private struct WeightliftingSportLensLink: View {
                             .foregroundStyle(Color.gymSubduedText)
                     }
                     Spacer(minLength: 0)
-                    Image(systemName: AppIcon.chevronRight)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .accessibilityHidden(true)
+                    Text(String(localized: "Open"))
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.gymPrimary)
                 }
             }
         }
