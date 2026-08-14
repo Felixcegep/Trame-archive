@@ -554,8 +554,7 @@ enum UITestFixture: String {
     private static func makeLoadingStyleWorkout(using context: ModelContext) throws {
         let entries = [
             try inProgressEntry(named: "Bench Press", orderIndex: 0, using: context),
-            try inProgressEntry(named: "Dumbbell Bench Press", orderIndex: 1, using: context),
-            try inProgressEntry(named: "Leg Press", orderIndex: 2, using: context)
+            try inProgressEntry(named: "Dumbbell Bench Press", orderIndex: 1, using: context)
         ]
         try makeActiveWorkout(exercises: entries, using: context)
     }

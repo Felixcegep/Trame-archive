@@ -1,6 +1,6 @@
 import Foundation
 
-enum AssessmentBackupValidator {
+nonisolated enum AssessmentBackupValidator {
     static func validate(_ backup: BackupDTO) throws {
         let definitions = backup.mobilityAssessmentDefinitions
         let mobilityAssessmentSessions = backup.mobilityAssessmentSessions

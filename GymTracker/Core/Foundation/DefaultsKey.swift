@@ -27,8 +27,8 @@ struct DefaultsKey {
     static let checkInRemindersEnabled = "checkInRemindersEnabled"
     static let checkInReminderHour = "checkInReminderHour"
     static let checkInReminderMinute = "checkInReminderMinute"
-    static let bodyWeightPromptCadence = "bodyWeightPromptCadence"
-    static let caffeineBirthdateTimestamp = "caffeineBirthdateTimestamp"
+    nonisolated static let bodyWeightPromptCadence = "bodyWeightPromptCadence"
+    nonisolated static let caffeineBirthdateTimestamp = "caffeineBirthdateTimestamp"
     /// Apple Health workout export is opt-in. Saving locally never depends on
     /// this value or on HealthKit availability/authorization.
     static let healthKitWorkoutExportEnabled = "healthKitWorkoutExportEnabled"

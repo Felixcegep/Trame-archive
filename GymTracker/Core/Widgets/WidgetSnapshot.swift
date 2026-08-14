@@ -97,9 +97,10 @@ struct MobilityWidgetCommand: Codable, Equatable, Sendable {
 enum MobilityWidgetCommandStore {
     private static let fileName = "mobility-widget-command.json"
 
-    static func submit(_ command: MobilityWidgetCommand) {
-        guard let url = commandURL, let data = try? JSONEncoder().encode(command) else { return }
-        try? data.write(to: url, options: .atomic)
+    static func submit(_ command: MobilityWidgetCommand) throws {
+        guard let url = commandURL else { throw WidgetSharedStoreError.containerUnavailable }
+        let data = try JSONEncoder().encode(command)
+        try data.write(to: url, options: .atomic)
     }
 
     static func pending() -> MobilityWidgetCommand? {
@@ -107,9 +108,9 @@ enum MobilityWidgetCommandStore {
         return try? JSONDecoder().decode(MobilityWidgetCommand.self, from: data)
     }
 
-    static func acknowledge(commandID: UUID) {
+    static func acknowledge(commandID: UUID) throws {
         guard pending()?.commandID == commandID, let url = commandURL else { return }
-        try? FileManager.default.removeItem(at: url)
+        try FileManager.default.removeItem(at: url)
     }
 
     private static var commandURL: URL? {
@@ -141,9 +142,10 @@ enum WidgetSnapshotStore {
     static let appGroupIdentifier = "group.felix.GymTracker"
     private static let fileName = "widget-snapshot.json"
 
-    static func write(_ snapshot: WidgetSnapshot) {
-        guard let url = snapshotURL, let data = try? JSONEncoder().encode(snapshot) else { return }
-        try? data.write(to: url, options: .atomic)
+    static func write(_ snapshot: WidgetSnapshot) throws {
+        guard let url = snapshotURL else { throw WidgetSharedStoreError.containerUnavailable }
+        let data = try JSONEncoder().encode(snapshot)
+        try data.write(to: url, options: .atomic)
     }
 
     static func read() -> WidgetSnapshot? {
@@ -156,4 +158,8 @@ enum WidgetSnapshotStore {
             .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?
             .appendingPathComponent(fileName)
     }
+}
+
+private enum WidgetSharedStoreError: Error {
+    case containerUnavailable
 }

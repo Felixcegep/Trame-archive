@@ -1,15 +1,15 @@
 import Foundation
 import Observation
-import WatchConnectivity
+@preconcurrency import WatchConnectivity
 
-enum WatchRestPhase: String, Codable {
+nonisolated enum WatchRestPhase: String, Codable, Sendable {
     case inactive
     case running
     case paused
     case ready
 }
 
-struct WatchWorkoutDisplaySnapshot: Equatable {
+nonisolated struct WatchWorkoutDisplaySnapshot: Equatable, Sendable {
     let snapshotID: String
     let workoutID: UUID
     let generatedAt: Date
@@ -22,6 +22,14 @@ struct WatchWorkoutDisplaySnapshot: Equatable {
     let restPhase: WatchRestPhase
     let restEndDate: Date?
     let pausedRemainingTime: TimeInterval?
+}
+
+/// Typed value crossing the WatchConnectivity callback boundary. Foundation's
+/// `[String: Any]` transport dictionaries are not `Sendable`; decode them on
+/// the callback executor before handing only immutable values to MainActor.
+private nonisolated struct WatchCommandResponse: Sendable {
+    let outcome: String?
+    let snapshot: WatchWorkoutDisplaySnapshot?
 }
 
 @MainActor
@@ -61,7 +69,8 @@ final class WatchWorkoutConnectivity: NSObject, WCSessionDelegate {
         let session = WCSession.default
         if session.isReachable {
             session.sendMessage(envelope, replyHandler: { [weak self] reply in
-                Task { @MainActor in self?.consume(reply) }
+                let response = Self.decode(reply)
+                Task { @MainActor in self?.consume(response) }
             }, errorHandler: { [weak self] _ in
                 session.transferUserInfo(envelope)
                 Task { @MainActor in self?.lastCommandStatus = String(localized: "Queued until iPhone reconnects") }
@@ -77,48 +86,68 @@ final class WatchWorkoutConnectivity: NSObject, WCSessionDelegate {
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: (any Error)?
     ) {
+        let response = Self.decode(session.receivedApplicationContext)
+        let didActivate = error == nil
         Task { @MainActor in
-            connectionDescription = error == nil
+            connectionDescription = didActivate
                 ? String(localized: "Connected to iPhone")
                 : String(localized: "Waiting for iPhone")
-            consume(session.receivedApplicationContext)
+            consume(response)
         }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-        Task { @MainActor in consume(applicationContext) }
+        let response = Self.decode(applicationContext)
+        Task { @MainActor in consume(response) }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-        Task { @MainActor in consume(message) }
+        let response = Self.decode(message)
+        Task { @MainActor in consume(response) }
     }
 
-    private func consume(_ payload: [String: Any]) {
-        if let outcome = payload["outcome"] as? String {
+    private func consume(_ response: WatchCommandResponse) {
+        if let outcome = response.outcome {
             lastCommandStatus = outcome == "applied"
                 ? String(localized: "Saved on iPhone")
                 : String(localized: "Open iPhone to review the latest workout state")
         }
-        guard let snapshotPayload = payload["snapshot"] as? [String: Any] ?? (payload["workoutID"] == nil ? nil : payload),
+        if let snapshot = response.snapshot {
+            self.snapshot = snapshot
+        }
+    }
+
+    private nonisolated static func decode(_ payload: [String: Any]) -> WatchCommandResponse {
+        let snapshotPayload = payload["snapshot"] as? [String: Any]
+            ?? (payload["workoutID"] == nil ? nil : payload)
+        guard let snapshotPayload,
               let snapshotID = snapshotPayload["snapshotID"] as? String,
               let workoutString = snapshotPayload["workoutID"] as? String,
               let workoutID = UUID(uuidString: workoutString),
               let start = snapshotPayload["startTime"] as? TimeInterval,
               let generated = snapshotPayload["generatedAt"] as? TimeInterval
-        else { return }
-        snapshot = WatchWorkoutDisplaySnapshot(
-            snapshotID: snapshotID,
-            workoutID: workoutID,
-            generatedAt: Date(timeIntervalSince1970: generated),
-            startTime: Date(timeIntervalSince1970: start),
-            currentExerciseName: snapshotPayload["currentExerciseName"] as? String,
-            currentSet: snapshotPayload["currentSet"] as? Int,
-            totalSets: snapshotPayload["totalSets"] as? Int,
-            currentExerciseOrderIndex: snapshotPayload["currentExerciseOrderIndex"] as? Int,
-            currentSetOrderIndex: snapshotPayload["currentSetOrderIndex"] as? Int,
-            restPhase: (snapshotPayload["restPhase"] as? String).flatMap(WatchRestPhase.init(rawValue:)) ?? .inactive,
-            restEndDate: (snapshotPayload["restEndDate"] as? TimeInterval).map(Date.init(timeIntervalSince1970:)),
-            pausedRemainingTime: snapshotPayload["pausedRemainingTime"] as? TimeInterval
+        else {
+            return WatchCommandResponse(
+                outcome: payload["outcome"] as? String,
+                snapshot: nil
+            )
+        }
+        return WatchCommandResponse(
+            outcome: payload["outcome"] as? String,
+            snapshot: WatchWorkoutDisplaySnapshot(
+                snapshotID: snapshotID,
+                workoutID: workoutID,
+                generatedAt: Date(timeIntervalSince1970: generated),
+                startTime: Date(timeIntervalSince1970: start),
+                currentExerciseName: snapshotPayload["currentExerciseName"] as? String,
+                currentSet: snapshotPayload["currentSet"] as? Int,
+                totalSets: snapshotPayload["totalSets"] as? Int,
+                currentExerciseOrderIndex: snapshotPayload["currentExerciseOrderIndex"] as? Int,
+                currentSetOrderIndex: snapshotPayload["currentSetOrderIndex"] as? Int,
+                restPhase: (snapshotPayload["restPhase"] as? String).flatMap(WatchRestPhase.init(rawValue:)) ?? .inactive,
+                restEndDate: (snapshotPayload["restEndDate"] as? TimeInterval).map(Date.init(timeIntervalSince1970:)),
+                pausedRemainingTime: snapshotPayload["pausedRemainingTime"] as? TimeInterval
+            )
         )
     }
 }

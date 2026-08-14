@@ -151,7 +151,7 @@ enum WorkoutMobilityLinkResolver {
     ) -> MobilityRoutine? {
         if let runID = workout.sourceRepeatingPlanRunID,
            let occurrenceID = workout.sourceRepeatingPlanOccurrenceID,
-           let run = (try? context.fetch(FetchDescriptor<RepeatingPlanRun>()))?.first(where: { $0.id == runID }),
+           let run = fetchRepeatingRun(id: runID, using: context),
            let occurrence = run.occurrences.first(where: { $0.id == occurrenceID }),
            let slot = slot(in: run, for: occurrence)
         {
@@ -179,8 +179,18 @@ enum WorkoutMobilityLinkResolver {
             return liveRoutine
         }
         guard let snapshotID else { return nil }
-        return (try? context.fetch(FetchDescriptor<MobilityRoutine>()))?
-            .first { $0.id == snapshotID && isRunnable($0) }
+        var descriptor = FetchDescriptor<MobilityRoutine>(
+            predicate: #Predicate { $0.id == snapshotID }
+        )
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first.flatMap { isRunnable($0) ? $0 : nil }
+    }
+
+    @MainActor
+    private static func fetchRepeatingRun(id: UUID, using context: ModelContext) -> RepeatingPlanRun? {
+        var descriptor = FetchDescriptor<RepeatingPlanRun>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first
     }
 
     /// An archived or empty routine is a link, not an offer. Presenting it
@@ -210,7 +220,9 @@ enum WorkoutMobilityContinuationPolicy {
 @MainActor
 enum ProgressionReceiptPolicy {
     static func workout(id: UUID, using context: ModelContext) -> Workout? {
-        (try? context.fetch(FetchDescriptor<Workout>()))?.first { $0.id == id }
+        var descriptor = FetchDescriptor<Workout>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first
     }
 
     /// Whether the saved workout left unresolved recommendation records behind.

@@ -559,7 +559,7 @@ enum WorkoutTemplateSeedData {
         // therefore never becomes part of the shipped built-in catalogue.
         values.append(
             TemplateDefinition(
-                seedKey: "workout-template.debug-test-workout",
+                seedKey: "workout-template.testworkout",
                 name: "testWorkout",
                 prescriptions: [
                     Prescription(exerciseName: "Bench Press", sets: 2, minimum: 8, maximum: 8, rpe: 7, restSeconds: 120, notes: "Weight and repetitions."),
@@ -636,22 +636,30 @@ enum WorkoutTemplateMobilitySeedLinker {
 
         let templates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
         let routines = try context.fetch(FetchDescriptor<MobilityRoutine>())
+        let templatesByID = Dictionary(
+            templates.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let routinesByID = Dictionary(
+            routines.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let resolvedLinks = try WorkoutTemplateSeedData.mobilityLinks.map { definition in
             let template = try resolveTemplate(
                 definition.templateSeedKey,
-                templates: templates,
+                templatesByID: templatesByID,
                 registry: registry
             )
             let preRoutine = try resolveRoutine(
                 definition.preRoutineSeedKey,
                 ownerKey: definition.templateSeedKey,
-                routines: routines,
+                routinesByID: routinesByID,
                 registry: registry
             )
             let postRoutine = try resolveRoutine(
                 definition.postRoutineSeedKey,
                 ownerKey: definition.templateSeedKey,
-                routines: routines,
+                routinesByID: routinesByID,
                 registry: registry
             )
             return ResolvedLink(
@@ -662,11 +670,19 @@ enum WorkoutTemplateMobilitySeedLinker {
             )
         }
 
-        let planRecords = try context.fetch(FetchDescriptor<SystemSeedRecord>())
-            .filter { $0.entityKind == .repeatingPlan && $0.isSystemProvided }
+        let repeatingPlanKind = SystemSeedEntityKind.repeatingPlan.rawValue
+        let planRecords = try context.fetch(FetchDescriptor<SystemSeedRecord>(
+            predicate: #Predicate {
+                $0.entityKindRaw == repeatingPlanKind && $0.isSystemProvided
+            }
+        ))
         let plans = try context.fetch(FetchDescriptor<RepeatingPlan>())
+        let plansByID = Dictionary(
+            plans.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let seededPlans = try planRecords.map { record -> RepeatingPlan in
-            guard let plan = plans.first(where: { $0.id == record.entityID }) else {
+            guard let plan = plansByID[record.entityID] else {
                 throw SystemSeedError.danglingEntity(key: record.seedKey, entityID: record.entityID)
             }
             return plan
@@ -699,12 +715,12 @@ enum WorkoutTemplateMobilitySeedLinker {
 
     private static func resolveTemplate(
         _ key: String,
-        templates: [WorkoutTemplate],
+        templatesByID: [UUID: WorkoutTemplate],
         registry: SystemSeedRegistry
     ) throws -> WorkoutTemplate {
         guard
             let record = try registry.record(for: key, expectedKind: .workoutTemplate),
-            let template = templates.first(where: { $0.id == record.entityID })
+            let template = templatesByID[record.entityID]
         else {
             throw SystemSeedError.unresolvedDependency(key: key, dependency: key)
         }
@@ -714,13 +730,13 @@ enum WorkoutTemplateMobilitySeedLinker {
     private static func resolveRoutine(
         _ key: String?,
         ownerKey: String,
-        routines: [MobilityRoutine],
+        routinesByID: [UUID: MobilityRoutine],
         registry: SystemSeedRegistry
     ) throws -> MobilityRoutine? {
         guard let key else { return nil }
         guard
             let record = try registry.record(for: key, expectedKind: .mobilityRoutine),
-            let routine = routines.first(where: { $0.id == record.entityID })
+            let routine = routinesByID[record.entityID]
         else {
             throw SystemSeedError.unresolvedDependency(key: ownerKey, dependency: key)
         }

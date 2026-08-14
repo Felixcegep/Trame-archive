@@ -2,7 +2,7 @@ import Foundation
 
 /// Validates mobility domain entities within a backup archive:
 /// mobility definitions, routines, items, sessions, entries, results, evidence, and mobility program definitions.
-enum MobilityBackupValidator {
+nonisolated enum MobilityBackupValidator {
     static func validate(_ dto: BackupDTO) throws {
         let names = dto.mobilityRoutines.compactMap(\.name)
         let mobilityRoutineNames = Set(names)

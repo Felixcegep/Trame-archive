@@ -13,7 +13,7 @@ enum MobilityAssessmentZone: String, Codable, CaseIterable, Hashable, Sendable {
     case ankles
 }
 
-enum MobilityMeasurementMode: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum MobilityMeasurementMode: String, Codable, CaseIterable, Hashable, Sendable {
     case inclinometer
     case axialRotation
     case twoSegmentAngle
@@ -46,7 +46,7 @@ enum MobilityMeasurementSource: String, Codable, CaseIterable, Hashable, Sendabl
     case imported
 }
 
-enum MobilityMeasurementConfidence: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum MobilityMeasurementConfidence: String, Codable, CaseIterable, Hashable, Sendable {
     case high
     case moderate
     case low
@@ -68,7 +68,7 @@ enum MobilityAssessmentSide: String, Codable, CaseIterable, Hashable, Sendable {
     case combined
 }
 
-enum MobilityAssessmentSessionStatus: String, Codable, CaseIterable, Hashable, Sendable {
+nonisolated enum MobilityAssessmentSessionStatus: String, Codable, CaseIterable, Hashable, Sendable {
     case active
     case completed
     case stopped

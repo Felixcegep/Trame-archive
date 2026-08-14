@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum Muscle: String, Codable, CaseIterable {
+nonisolated enum Muscle: String, Codable, CaseIterable, Sendable {
     
 
     // MARK: - Upper Body
@@ -71,7 +71,7 @@ enum Muscle: String, Codable, CaseIterable {
 }
 
 extension Muscle {
-    enum Group: String, CaseIterable {
+    nonisolated enum Group: String, CaseIterable, Sendable {
         case chest = "Chest"
         case shoulders = "Shoulders"
         case arms = "Arms"
@@ -81,12 +81,12 @@ extension Muscle {
         case legs = "Legs"
         case other = "Other Muscles"
 
-        var muscles: [Muscle] {
+        nonisolated var muscles: [Muscle] {
             Muscle.allCases.filter { $0.group == self }
         }
     }
 
-    var group: Group {
+    nonisolated var group: Group {
         switch self {
         case .upperChest, .middleChest, .lowerChest:
             return .chest
@@ -110,7 +110,7 @@ extension Muscle {
 }
 
 extension Muscle {
-    private static let displayNames: [Muscle: String] = {
+    nonisolated private static let displayNames: [Muscle: String] = {
         Dictionary(uniqueKeysWithValues: allCases.map { muscle in
             let name = muscle.rawValue.reduce("") { result, character in
                 if character.isUppercase {
@@ -123,7 +123,7 @@ extension Muscle {
         })
     }()
 
-    var displayName: String {
+    nonisolated var displayName: String {
         Self.displayNames[self] ?? rawValue
     }
 }

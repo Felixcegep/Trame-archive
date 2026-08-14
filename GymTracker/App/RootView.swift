@@ -70,13 +70,12 @@ struct RootView: View {
     @State private var isPreparingApp = true
     @State private var hasFinishedLaunchAnimation = false
     @State private var appIntentRouteStore = AppIntentRouteStore.shared
-    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var availableExercises: [Exercise]
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
-    /// The root becomes interactive only after both the persisted state is
-    /// trustworthy and the short brand motion has resolved. These normally
-    /// overlap, so the animation never extends a launch whose data work takes
-    /// longer than the authored 1.05 seconds.
+    /// The root becomes interactive only after launch-critical persisted state
+    /// is ready and the short brand motion has resolved. One-time repair work
+    /// that is idempotent and does not determine the first screen continues
+    /// after this gate, so a large history cannot delay the first useful frame.
     private var isShowingLaunchExperience: Bool {
         isPreparingApp
             || !hasFinishedLaunchAnimation
@@ -254,8 +253,7 @@ struct RootView: View {
         .sheet(isPresented: $isShowingPersonalizedWorkoutBuilder, onDismiss: {
             personalizedWorkoutLaunchRequest = nil
         }) {
-            PersonalizedWorkoutBuilderView(
-                availableExercises: availableExercises,
+            PersonalizedWorkoutBuilderDestination(
                 launchRequest: personalizedWorkoutLaunchRequest,
                 onStart: startPersonalizedWorkout
             )
@@ -438,23 +436,33 @@ struct RootView: View {
     }
 
     private func plan(id: UUID) -> WorkoutPlan? {
-        try? modelContext.fetch(FetchDescriptor<WorkoutPlan>()).first { $0.id == id }
+        var descriptor = FetchDescriptor<WorkoutPlan>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
     }
 
     private func repeatingPlan(id: UUID) -> RepeatingPlan? {
-        try? modelContext.fetch(FetchDescriptor<RepeatingPlan>()).first { $0.id == id }
+        var descriptor = FetchDescriptor<RepeatingPlan>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
     }
 
     private func programDefinitionRecord(id: UUID) -> ProgramDefinitionRecord? {
-        try? modelContext.fetch(FetchDescriptor<ProgramDefinitionRecord>()).first { $0.id == id }
+        var descriptor = FetchDescriptor<ProgramDefinitionRecord>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
     }
 
     private func workoutTemplate(id: UUID) -> WorkoutTemplate? {
-        try? modelContext.fetch(FetchDescriptor<WorkoutTemplate>()).first { $0.id == id }
+        var descriptor = FetchDescriptor<WorkoutTemplate>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
     }
 
     private func workoutCollection(id: UUID) -> WorkoutCollection? {
-        try? modelContext.fetch(FetchDescriptor<WorkoutCollection>()).first { $0.id == id }
+        var descriptor = FetchDescriptor<WorkoutCollection>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
     }
 
     /// Today's header chip carries only a plan id, so the route is resolved
@@ -550,27 +558,10 @@ struct RootView: View {
         // durability points so a final keypad edit cannot be stranded in the
         // in-memory SwiftData context.
         if newPhase == .inactive || newPhase == .background {
-            do {
-                try modelContext.save()
-            } catch {
-                modelContext.rollback()
-                print("Failed to save modelContext on backgrounding: \(error)")
-                // Recorded, not just printed: whatever the active workout
-                // logged this session may not have reached disk, and a
-                // console line nobody reads is indistinguishable from losing
-                // it silently. No UI reads this today, deliberately — the app
-                // is backgrounding, so there is no safe moment to present
-                // anything: an alert now is dismissed before anyone sees it,
-                // and surfacing it on next foreground would ambush the person
-                // with a stale error about a session they may not even
-                // remember. A real treatment needs to decide whether this is
-                // even actionable (a full disk clears on its own; a
-                // programmer error does not) and whether re-surfacing a
-                // background failure at next launch is worth the ambush,
-                // before it becomes something the user sees.
-                BackgroundSaveFailureState.shared.recordFailure(error)
+            let didSave = savePendingChangesForDurability()
+            if didSave {
+                WidgetSnapshotService.refresh(using: modelContext)
             }
-            WidgetSnapshotService.refresh(using: modelContext)
             if newPhase != .background { return }
             // Rest is the interval the phone spends in a pocket. The deadline
             // is already persisted on the workout, so scheduling here — and
@@ -585,6 +576,12 @@ struct RootView: View {
                 )
             }
         } else if newPhase == .active {
+            // A lifecycle save can fail transiently (for example while disk
+            // pressure changes). Pending edits are deliberately retained and
+            // retried on foreground instead of being rolled back and lost.
+            if BackgroundSaveFailureState.shared.lastFailure != nil || modelContext.hasChanges {
+                _ = savePendingChangesForDurability()
+            }
             consumePendingMobilityWidgetCommand()
             workoutVM.reconcileLiveActivity()
             Task {
@@ -595,9 +592,29 @@ struct RootView: View {
         }
     }
 
+    private func savePendingChangesForDurability() -> Bool {
+        do {
+            try modelContext.save()
+            BackgroundSaveFailureState.shared.clearFailure()
+            return true
+        } catch {
+            print("Failed to save modelContext at a lifecycle durability boundary: \(error)")
+            BackgroundSaveFailureState.shared.recordFailure(error)
+            return false
+        }
+    }
+
     private func consumePendingMobilityWidgetCommand(now: Date = .now) {
         guard let command = MobilityWidgetCommandStore.pending() else { return }
-        defer { MobilityWidgetCommandStore.acknowledge(commandID: command.commandID) }
+        defer {
+            do {
+                try MobilityWidgetCommandStore.acknowledge(commandID: command.commandID)
+            } catch {
+                // The exact command identity makes a retry safe: an already
+                // applied command becomes stale instead of advancing twice.
+                print("RootView: failed to acknowledge mobility widget command: \(error)")
+            }
+        }
         guard now.timeIntervalSince(command.createdAt) >= 0,
               now.timeIntervalSince(command.createdAt) <= 5 * 60 else {
             WidgetSnapshotService.refresh(using: modelContext)
@@ -1073,8 +1090,18 @@ struct RootView: View {
         if isResettingForUITesting {
             resetForUITesting()
         }
-        AppBootstrap.runDataMaintenance(using: modelContext)
+        // UI-test launches keep the old deterministic ordering. Ordinary
+        // launches publish the interactive root before one-time repair, which
+        // only repairs legacy rows/ordering and does not participate in
+        // recovery, seeding, or active-session restoration.
+        if isResettingForUITesting {
+            AppBootstrap.runDataMaintenance(using: modelContext)
+        }
         AppBootstrap.seedSystemCatalog(using: modelContext)
+        // Normalization repairs the active/completed status from `endTime` and
+        // historical identity before restoration. Deferring it can make a
+        // legacy active workout invisible for the entire launch, so only the
+        // independent orphan cleanup moves behind the interactive gate.
         AppBootstrap.normalizePersistedWorkoutData(using: modelContext)
         if fixture?.refreshesPlanRunAvailability != false {
             AppBootstrap.refreshActivePlanRuns(using: modelContext)
@@ -1113,7 +1140,6 @@ struct RootView: View {
         consumePendingPlanNotificationDestination()
         consumePendingAppIntentDestination()
         consumePendingMobilityWidgetCommand()
-        WatchCompanionConnectivityCoordinator.shared.activate(container: modelContext.container)
         isPreparingApp = false
         if AppLaunchArguments.current.contains("-ui-testing-open-daily-check-in") {
             isShowingUITestDailyCheckIn = true
@@ -1121,9 +1147,30 @@ struct RootView: View {
         if AppLaunchArguments.current.contains("-ui-testing-open-caffeine-log") {
             isShowingUITestCaffeineQuickLog = true
         }
+        // Publish the interactive root before rebuilding widgets and
+        // reconciling notification requests. Those tasks are important but do
+        // not determine the first tappable frame.
+        await Task.yield()
+        guard !Task.isCancelled else { return }
+        if !isResettingForUITesting {
+            AppBootstrap.runDataMaintenance(using: modelContext)
+        }
+        await Task.yield()
+        guard !Task.isCancelled else { return }
         WidgetSnapshotService.refresh(using: modelContext)
+        await Task.yield()
+        guard !Task.isCancelled else { return }
         await PlanNotificationScheduler.shared.reconcile(using: modelContext)
+        await Task.yield()
+        guard !Task.isCancelled else { return }
         await CheckInNotificationScheduler.shared.reconcile(using: modelContext)
+        await Task.yield()
+        guard !Task.isCancelled else { return }
+        // Watch activation loads local command receipts and publishes a
+        // snapshot; neither is needed to render or interact with the first
+        // root frame. Keeping this work in the view-owned task also prevents a
+        // cancelled/recreated root from starting duplicate maintenance waves.
+        WatchCompanionConnectivityCoordinator.shared.activate(container: modelContext.container)
     }
 
     /// Applies whatever a UI-test launch asked for. Every field is optional so
@@ -1147,7 +1194,10 @@ struct RootView: View {
             selectedTab = .train
             trainPath = [.plan(destination.planID)]
         case .reschedule:
-            guard let run = try? modelContext.fetch(FetchDescriptor<PlanRun>()).first(where: { $0.id == destination.runID }),
+            let runID = destination.runID
+            var descriptor = FetchDescriptor<PlanRun>(predicate: #Predicate { $0.id == runID })
+            descriptor.fetchLimit = 1
+            guard let run = try? modelContext.fetch(descriptor).first,
                   run.sourcePlanID == destination.planID,
                   let progress = run.workoutProgress.first(where: { $0.id == destination.progressID }),
                   PlanReminderEligibility.isActionableToday(progress, in: run)
@@ -1214,7 +1264,9 @@ struct RootView: View {
     }
 
     private func exercise(id: UUID) -> Exercise? {
-        try? modelContext.fetch(FetchDescriptor<Exercise>()).first { $0.id == id }
+        var descriptor = FetchDescriptor<Exercise>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
     }
 
     private func startFreeWorkout() {
@@ -1519,7 +1571,7 @@ struct RootView: View {
     /// behavioural change to the chain rather than a cleanup, and it needs the
     /// flow exercised on a device before it ships — see T-37 in
     /// `Documentation/UIUXInteractionPlan.md`.
-    private func presentAfterDismissal(_ present: @escaping () -> Void) {
+    private func presentAfterDismissal(_ present: @escaping @MainActor @Sendable () -> Void) {
         DispatchQueue.main.async(execute: present)
     }
 
@@ -1782,5 +1834,22 @@ struct RootView: View {
     private func requestDiscardActiveWorkout() {
         activeLoggingMetrics.workoutDiscarded()
         activeSessionRouter.requestDiscardActiveWorkout()
+    }
+}
+
+/// Keeps the exercise-catalog observation scoped to the builder sheet. RootView
+/// no longer refetches every available exercise while unrelated tabs or
+/// full-screen sessions update.
+private struct PersonalizedWorkoutBuilderDestination: View {
+    @Query(filter: #Predicate<Exercise> { !$0.isArchived }) private var availableExercises: [Exercise]
+    let launchRequest: WorkoutGenerationLaunchRequest?
+    let onStart: (ValidatedWorkoutDraft) -> Bool
+
+    var body: some View {
+        PersonalizedWorkoutBuilderView(
+            availableExercises: availableExercises,
+            launchRequest: launchRequest,
+            onStart: onStart
+        )
     }
 }

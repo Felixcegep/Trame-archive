@@ -13,7 +13,7 @@ class ActiveWorkoutViewModel {
     let modelContext: ModelContext
     private let activeLoggingMetrics: ActiveLoggingMetricsRecorder?
     
-    private let restTimer = RestTimerController()
+    private let restTimer = RestTimerSession()
     private var timerTask: Task<Void, Never>?
     private var pendingTypedInputSaveTask: Task<Void, Never>?
     private var pendingActiveDurationSaveTask: Task<Void, Never>?
@@ -412,9 +412,10 @@ class ActiveWorkoutViewModel {
     func acceptActiveRecommendation(
         _ recommendation: PlanProgressionRecommendationRecord
     ) throws {
-        guard let run = (try? modelContext.fetch(FetchDescriptor<PlanRun>()))?.first(where: {
-            $0.id == recommendation.planRunID
-        }) else {
+        let runID = recommendation.planRunID
+        var descriptor = FetchDescriptor<PlanRun>(predicate: #Predicate { $0.id == runID })
+        descriptor.fetchLimit = 1
+        guard let run = (try? modelContext.fetch(descriptor))?.first else {
             throw ActiveWorkoutRecommendationMutationService.MutationError.activeWorkoutNotFound
         }
         try PlanProgressionRecommendationService.accept(
@@ -611,7 +612,7 @@ class ActiveWorkoutViewModel {
         runRestCountdown(until: timerEndDate)
         // Only a freshly started rest knows its intended length. Restores and
         // resumes inherit whatever is already recorded, which is `nil` after a
-        // cold launch — see `RestTimerController.plannedDuration`.
+        // cold launch — see `RestTimerSession.plannedDuration`.
         restTimer.planDuration(TimeInterval(seconds))
         activeLoggingMetrics?.restStarted()
     }
@@ -668,7 +669,7 @@ class ActiveWorkoutViewModel {
 
         // Fall back to the rest the *programme* asked for.
         //
-        // `RestTimerController.plannedDuration` is in-memory only, so a cold
+        // `RestTimerSession.plannedDuration` is in-memory only, so a cold
         // launch mid-rest leaves it nil and the takeover drops the ring
         // entirely — which is the state every rest screenshot captured so far
         // shows. The original reasoning was that a ring with an invented
@@ -999,7 +1000,9 @@ class ActiveWorkoutViewModel {
     /// The run this workout was started from, when it came from a plan.
     func activePlanRun() -> PlanRun? {
         guard let runID = workoutVM.activeWorkout?.sourcePlanRunID else { return nil }
-        return (try? modelContext.fetch(FetchDescriptor<PlanRun>()))?.first { $0.id == runID }
+        var descriptor = FetchDescriptor<PlanRun>(predicate: #Predicate { $0.id == runID })
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.first
     }
 
     /// Today's plan goal, used as substitution context. `nil` for free and
@@ -1163,7 +1166,6 @@ class ActiveWorkoutViewModel {
     /// focus identically.
     func completeSet(_ set: ExerciseSet, in exercise: ExerciseEntry) -> SetCompletionOutcome {
         let isCompleting = !set.done
-        let fields = SetInputCoordinator.inputFields(for: exercise.trackingTypeSnapshot)
         let firstField = SetInputCoordinator.firstMissingField(
             in: set,
             for: exercise.trackingTypeSnapshot

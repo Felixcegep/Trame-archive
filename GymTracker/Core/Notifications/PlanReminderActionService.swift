@@ -33,7 +33,10 @@ enum PlanReminderActionService {
         now: Date = .now,
         calendar: Calendar = .current
     ) -> (run: PlanRun, progress: PlanWorkoutProgress)? {
-        guard let run = try? modelContext.fetch(FetchDescriptor<PlanRun>()).first(where: { $0.id == destination.runID }),
+        let runID = destination.runID
+        var descriptor = FetchDescriptor<PlanRun>(predicate: #Predicate { $0.id == runID })
+        descriptor.fetchLimit = 1
+        guard let run = (try? modelContext.fetch(descriptor))?.first,
               run.sourcePlanID == destination.planID,
               let progress = run.workoutProgress.first(where: { $0.id == destination.progressID }),
               PlanReminderEligibility.isActionableToday(progress, in: run, now: now, calendar: calendar)

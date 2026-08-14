@@ -35,20 +35,16 @@ enum GymTrackerStoreRecovery {
 
         guard !urls.isEmpty else { throw RecoveryError.noStoreFiles }
 
-        var wrappers: [String: FileWrapper] = [:]
+        var files: [String: Data] = [:]
         for url in urls {
             do {
-                wrappers[url.lastPathComponent] = FileWrapper(
-                    regularFileWithContents: try Data(contentsOf: url, options: .mappedIfSafe)
-                )
+                files[url.lastPathComponent] = try Data(contentsOf: url, options: .mappedIfSafe)
             } catch {
                 throw RecoveryError.unreadableStoreFile(url.path)
             }
         }
 
-        return StoreRecoveryBundleDocument(
-            wrapper: FileWrapper(directoryWithFileWrappers: wrappers)
-        )
+        return StoreRecoveryBundleDocument(files: files)
     }
 
     /// Removes only the persistent store and its SQLite sidecars. Safety
@@ -83,18 +79,25 @@ struct StoreRecoveryBundleDocument: FileDocument {
     static var readableContentTypes: [UTType] { [contentType] }
     static var writableContentTypes: [UTType] { [contentType] }
 
-    static let empty = StoreRecoveryBundleDocument(
-        wrapper: FileWrapper(directoryWithFileWrappers: [:])
-    )
+    static let empty = StoreRecoveryBundleDocument(files: [:])
 
-    let wrapper: FileWrapper
+    /// `FileDocument` is `Sendable`, while Foundation's reference-type
+    /// `FileWrapper` is not. Keep the document's durable state as immutable,
+    /// sendable bytes and materialize wrappers only at the API boundary.
+    let files: [String: Data]
 
-    init(wrapper: FileWrapper) {
-        self.wrapper = wrapper
+    var wrapper: FileWrapper {
+        FileWrapper(
+            directoryWithFileWrappers: files.mapValues(FileWrapper.init(regularFileWithContents:))
+        )
+    }
+
+    init(files: [String: Data]) {
+        self.files = files
     }
 
     init(configuration: ReadConfiguration) throws {
-        self.wrapper = configuration.file
+        self.files = (configuration.file.fileWrappers ?? [:]).compactMapValues(\.regularFileContents)
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {

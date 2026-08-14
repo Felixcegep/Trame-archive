@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// The pager's last page: what the session amounted to, and what still stands
 /// between it and being saved.

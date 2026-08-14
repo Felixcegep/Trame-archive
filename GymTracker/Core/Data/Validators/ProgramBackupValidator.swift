@@ -2,7 +2,7 @@ import Foundation
 
 /// Validates program domain entities within a backup archive:
 /// program definitions, plans, plan runs, repeating plans, progression state, and recommendation records.
-enum ProgramBackupValidator {
+nonisolated enum ProgramBackupValidator {
     static func validate(_ dto: BackupDTO) throws {
         let planIDs = Set(dto.plans.map { $0.id.lowercased() })
         

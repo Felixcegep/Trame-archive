@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 import UserNotifications
 
@@ -8,6 +9,7 @@ final class CheckInNotificationScheduler {
 
     private static let categoryIdentifier = "GYMTRACKER_DAILY_CHECK_IN"
     private let center = UNUserNotificationCenter.current()
+    private let logger = Logger(subsystem: "GymTracker", category: "CheckInNotifications")
     private init() {}
 
     var isEnabled: Bool {
@@ -58,11 +60,19 @@ final class CheckInNotificationScheduler {
         }
 
         let calendar = Calendar.current
-        let days = [LocalDay(date: now, calendar: calendar), LocalDay(date: calendar.date(byAdding: .day, value: 1, to: now) ?? now, calendar: calendar)]
+        let days = [
+            LocalDay(date: now, calendar: calendar),
+            LocalDay(date: calendar.date(byAdding: .day, value: 1, to: now) ?? now, calendar: calendar)
+        ]
+        let todayKey = days[0].rawValue
+        let tomorrowKey = days[1].rawValue
         let entries: [DailyLogEntry]
         do {
-            entries = try modelContext.fetch(FetchDescriptor<DailyLogEntry>())
+            entries = try modelContext.fetch(FetchDescriptor<DailyLogEntry>(
+                predicate: #Predicate { $0.dayKey == todayKey || $0.dayKey == tomorrowKey }
+            ))
         } catch {
+            logger.error("Daily check-in reminder fetch failed: \(error.localizedDescription, privacy: .public)")
             return
         }
         let completedDays = Set(entries.map(\.dayKey))
@@ -89,7 +99,11 @@ final class CheckInNotificationScheduler {
 
         await cancelAllCheckInReminders()
         for request in requests {
-            try? await center.add(request)
+            do {
+                try await center.add(request)
+            } catch {
+                logger.error("Daily check-in reminder scheduling failed: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 

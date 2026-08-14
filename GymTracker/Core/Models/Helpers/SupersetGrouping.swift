@@ -4,7 +4,7 @@ import Foundation
 /// A valid group has at least two contiguous members in ordered collection
 /// order. This deliberately dissolves invalid data rather than moving an
 /// exercise the user intentionally reordered.
-enum SupersetGrouping {
+nonisolated enum SupersetGrouping {
     static func dissolveInvalidGroups(in exercises: [ExerciseEntry]) {
         dissolveInvalidGroups(
             in: exercises,

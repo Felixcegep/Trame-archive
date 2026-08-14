@@ -1,6 +1,6 @@
 import Foundation
 
-enum ReceiptBackupValidator {
+nonisolated enum ReceiptBackupValidator {
     static func validate(_ backup: BackupDTO) throws {
         if backup.version >= BackupDTO.programVersion {
             try validateUniqueIdentifiers(

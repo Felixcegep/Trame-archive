@@ -15,7 +15,7 @@ import Foundation
 /// Why the lifter is replacing the exercise. Structured, never free text, so
 /// the reason can drive evaluation, survive a backup round trip, and be
 /// localized after the fact.
-enum SubstitutionReason: String, Codable, CaseIterable, Sendable {
+nonisolated enum SubstitutionReason: String, Codable, CaseIterable, Sendable {
     case equipmentUnavailable
     case discomfort
     case fatigue
@@ -30,7 +30,7 @@ enum SubstitutionReason: String, Codable, CaseIterable, Sendable {
 }
 
 /// Does the candidate preserve today's training purpose?
-enum SubstitutionSuitability: String, Codable, CaseIterable, Sendable {
+nonisolated enum SubstitutionSuitability: String, Codable, CaseIterable, Sendable {
     case excellent
     case good
     case acceptable
@@ -65,7 +65,7 @@ enum SubstitutionSuitability: String, Codable, CaseIterable, Sendable {
 /// resistance implementation, range-of-motion and technique standard, tracking
 /// semantics, load interpretation, and relevant assistance. Anything less is
 /// `limited` or `notDirect`; anything unproven is `unknown`.
-enum SubstitutionComparability: String, Codable, CaseIterable, Sendable {
+nonisolated enum SubstitutionComparability: String, Codable, CaseIterable, Sendable {
     case direct
     case limited
     case notDirect
@@ -86,7 +86,7 @@ enum SubstitutionComparability: String, Codable, CaseIterable, Sendable {
 /// persisted value the progression services read; this enum is the
 /// explainable decision behind it, and the two are kept in lockstep by
 /// `ExerciseEntry.applySubstitutionDecision(_:)`.
-enum ProgressionTransferPolicy: String, Codable, CaseIterable, Sendable {
+nonisolated enum ProgressionTransferPolicy: String, Codable, CaseIterable, Sendable {
     /// Default. The substitute starts its own progression state.
     case separate
     /// Explicitly chosen by the lifter, and only offerable when comparability
@@ -103,14 +103,14 @@ enum ProgressionTransferPolicy: String, Codable, CaseIterable, Sendable {
 
 /// How far the substitution decision reaches. Today-only is always the
 /// default; replacing the exercise in the plan is a separate previewed action.
-enum SubstitutionScope: String, Codable, CaseIterable, Sendable {
+nonisolated enum SubstitutionScope: String, Codable, CaseIterable, Sendable {
     case todayOnly
     case futurePlan
 }
 
 /// A coarse qualifier on the evidence behind an evaluation. Never a numeric
 /// score and never presented as a percentage.
-enum SubstitutionEvidenceConfidence: String, Codable, CaseIterable, Sendable {
+nonisolated enum SubstitutionEvidenceConfidence: String, Codable, CaseIterable, Sendable {
     case high
     case moderate
     case low
@@ -121,7 +121,7 @@ enum SubstitutionEvidenceConfidence: String, Codable, CaseIterable, Sendable {
 
 /// Where a curated substitution link came from. Legacy rows persisted before
 /// this field existed read as `systemUnreviewed`.
-enum SubstitutionProvenance: String, Codable, CaseIterable, Sendable {
+nonisolated enum SubstitutionProvenance: String, Codable, CaseIterable, Sendable {
     /// A coach-reviewed curated link.
     case systemReviewed
     /// Shipped in seed data but not yet through curation review. Treated as

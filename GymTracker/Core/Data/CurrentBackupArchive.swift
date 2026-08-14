@@ -8,21 +8,21 @@ import Foundation
 /// The first slice deliberately covers only the exercise catalogue, workout
 /// templates, and performed workout history. Other domains continue to read
 /// their DTOs directly until they receive their own evidence-backed adapter.
-struct CurrentBackupArchive {
+nonisolated struct CurrentBackupArchive {
     let sourceVersion: Int
     let workout: CurrentWorkoutBackupArchive
 
-    init(adapting backup: BackupDTO) {
+    init(adapting backup: BackupDTO) throws {
         sourceVersion = backup.version
         workout = CurrentWorkoutBackupArchive(
             exercises: backup.exercises.map(CurrentExerciseArchive.init),
             templates: backup.templates.map(CurrentWorkoutTemplateArchive.init),
-            workouts: backup.workouts.map(CurrentWorkoutHistoryArchive.init)
+            workouts: try backup.workouts.map(CurrentWorkoutHistoryArchive.init)
         )
     }
 }
 
-struct CurrentWorkoutBackupArchive {
+nonisolated struct CurrentWorkoutBackupArchive {
     let exercises: [CurrentExerciseArchive]
     let templates: [CurrentWorkoutTemplateArchive]
     let workouts: [CurrentWorkoutHistoryArchive]
@@ -31,7 +31,7 @@ struct CurrentWorkoutBackupArchive {
 /// Current typed interpretation of catalogue defaults. A missing legacy UUID
 /// remains `nil`; materialization retains the existing seeded-ID/new-UUID rule
 /// rather than inventing portable history.
-struct CurrentExerciseArchive {
+nonisolated struct CurrentExerciseArchive {
     let dto: ExerciseTemplateDTO
     let stableID: UUID?
     let category: ExerciseCategory
@@ -71,7 +71,7 @@ struct CurrentExerciseArchive {
     }
 }
 
-struct CurrentWorkoutTemplateArchive {
+nonisolated struct CurrentWorkoutTemplateArchive {
     let dto: WorkoutTemplateDTO
     let exercises: [CurrentTemplateExerciseArchive]
 
@@ -81,7 +81,7 @@ struct CurrentWorkoutTemplateArchive {
     }
 }
 
-struct CurrentTemplateExerciseArchive {
+nonisolated struct CurrentTemplateExerciseArchive {
     let dto: TemplateExerciseDTO
     let progressionRule: ProgressionRule
     let supersetGroupID: UUID?
@@ -98,19 +98,22 @@ struct CurrentTemplateExerciseArchive {
     }
 }
 
-struct CurrentWorkoutHistoryArchive {
+nonisolated struct CurrentWorkoutHistoryArchive {
     let dto: WorkoutDTO
     let status: WorkoutStatus
     let entries: [CurrentExerciseEntryArchive]
 
-    init(_ dto: WorkoutDTO) {
+    init(_ dto: WorkoutDTO) throws {
+        guard let status = WorkoutStatus(rawValue: dto.status) else {
+            throw BackupValidationError.invalidIdentifier("workout status")
+        }
         self.dto = dto
-        status = WorkoutStatus(rawValue: dto.status) ?? .completed
+        self.status = status
         entries = dto.exercises.map(CurrentExerciseEntryArchive.init)
     }
 }
 
-struct CurrentExerciseEntryArchive {
+nonisolated struct CurrentExerciseEntryArchive {
     let dto: ExerciseEntryDTO
     let usedMetric: UnitSystem
     let historicalNameSnapshot: String?

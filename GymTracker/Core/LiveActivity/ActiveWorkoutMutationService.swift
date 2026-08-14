@@ -144,8 +144,11 @@ struct ActiveWorkoutMutationService {
     }
 
     private func activeWorkout(id: UUID) -> Workout? {
-        (try? modelContext.fetch(FetchDescriptor<Workout>()))?
-            .first { $0.id == id && $0.status == .active }
+        var descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { $0.id == id && $0.endTime == nil }
+        )
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor))?.first(where: { $0.status == .active })
     }
 
     private func completionResult(_ outcome: WorkoutSetCompletionWorkflow.Outcome) -> Result {

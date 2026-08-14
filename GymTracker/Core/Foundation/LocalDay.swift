@@ -3,7 +3,7 @@ import Foundation
 /// A stable, calendar-day key for user-owned daily records. The key is derived
 /// in the user's current calendar and time zone; timestamps remain available on
 /// the owning records for audit and ordering.
-struct LocalDay: Codable, Hashable, Comparable, Sendable, RawRepresentable {
+nonisolated struct LocalDay: Codable, Hashable, Comparable, Sendable, RawRepresentable {
     let rawValue: String
 
     init(rawValue: String) {

@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import UserNotifications
 
 /// Tells a lifter their rest is over when the app is not on screen.
@@ -23,6 +24,7 @@ final class RestNotificationScheduler {
     static let shared = RestNotificationScheduler()
 
     private let center = UNUserNotificationCenter.current()
+    private let logger = Logger(subsystem: "GymTracker", category: "RestNotifications")
     private init() {}
 
     /// Schedules the reminder for `restEndDate`, replacing any pending one.
@@ -51,7 +53,11 @@ final class RestNotificationScheduler {
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: remaining, repeats: false)
         )
 
-        try? await center.add(request)
+        do {
+            try await center.add(request)
+        } catch {
+            logger.error("Rest notification scheduling failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     /// Removes the pending reminder. Safe to call when none exists, which is

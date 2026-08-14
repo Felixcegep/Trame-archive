@@ -7,20 +7,20 @@
 import ActivityKit
 import Foundation
 
-enum LiveActivityRestPhase: String, Codable, Hashable, Sendable {
+nonisolated enum LiveActivityRestPhase: String, Codable, Hashable, Sendable {
     case inactive
     case running
     case paused
 }
 
-enum WorkoutActivityPresentationState: Hashable, Sendable {
+nonisolated enum WorkoutActivityPresentationState: Hashable, Sendable {
     case emptyWorkout
     case activeSet(exercise: String, set: Int, total: Int)
     case resting(nextExercise: String?)
     case readyForReview
 }
 
-enum LiveActivityTimeRange {
+nonisolated enum LiveActivityTimeRange {
     static func restInterval(now: Date, end: Date) -> ClosedRange<Date>? {
         guard end > now else { return nil }
         return now...end
@@ -29,7 +29,7 @@ enum LiveActivityTimeRange {
 
 /// A Codable display projection of persisted `Workout` truth. It deliberately
 /// contains no independently mutable workout state.
-struct LiveActivityProjection: Hashable, Sendable {
+nonisolated struct LiveActivityProjection: Hashable, Sendable {
     let workoutID: UUID
     let startTime: Date
     let currentExerciseName: String?
@@ -71,11 +71,11 @@ struct LiveActivityProjection: Hashable, Sendable {
     }
 }
 
-struct GymTrackerAttributes: ActivityAttributes {
+nonisolated struct GymTrackerAttributes: ActivityAttributes {
     let workoutID: UUID
     let startTime: Date
 
-    struct ContentState: Codable, Hashable, Sendable {
+    nonisolated struct ContentState: Codable, Hashable, Sendable {
         var currentExerciseName: String?
         var currentSet: Int?
         var totalSeries: Int?

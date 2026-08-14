@@ -77,7 +77,7 @@ enum SubstitutionEvaluationService {
     ) -> [SubstitutionEvaluation] {
         candidates
             .map { evaluate(source: source, candidate: $0, context: context) }
-            .sorted(by: isOrderedBefore)
+            .sorted { isOrderedBefore($0, $1) }
     }
 
     /// Total order: better suitability first, then better comparability, then

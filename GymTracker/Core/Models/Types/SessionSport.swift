@@ -63,7 +63,7 @@ struct SessionSportSuggestion: Equatable {
 /// The scoring is deliberately simple and legible rather than clever — it is
 /// pre-filling one row on the save screen, and the lifter can override it with a
 /// single tap.
-enum SessionSportDetector {
+nonisolated enum SessionSportDetector {
 
     /// Names that identify a lift beyond what the taxonomy can express. Matched
     /// case-insensitively as substrings, so "Hang Power Clean" and "Clean and
@@ -174,7 +174,7 @@ enum SessionSportDetector {
 /// The slice of an exercise the detector reads. Keeping this a plain struct lets
 /// the rules be unit-tested without building a SwiftData graph, and keeps the
 /// detector out of the persistence layer.
-struct ExerciseDetectionInput: Equatable {
+nonisolated struct ExerciseDetectionInput: Equatable, Sendable {
     let name: String
     let category: ExerciseCategory
     let equipment: EquipmentType

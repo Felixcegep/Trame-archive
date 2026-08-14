@@ -155,8 +155,7 @@ class WorkoutViewModel {
             }
         } catch {
             modelContext.rollback()
-            self.activeWorkout = try? modelContext.fetch(FetchDescriptor<Workout>())
-                .first { $0.status == .active }
+            self.activeWorkout = Self.latestActiveWorkout(using: modelContext)
             return
         }
         try? WorkoutExecutionBlockSplitService.deleteWorkoutEvidence(
@@ -168,14 +167,13 @@ class WorkoutViewModel {
             workout = nil
             NotificationCenter.default.post(name: .planScheduleDidChange, object: nil)
         } else {
-            self.activeWorkout = try? modelContext.fetch(FetchDescriptor<Workout>())
-                .first { $0.status == .active }
+            self.activeWorkout = Self.latestActiveWorkout(using: modelContext)
         }
     }
 
     @discardableResult
     func startWorkout(using modelContext: ModelContext) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext) else { return false }
+        guard canStartNewWorkout(using: modelContext) else { return false }
 
         let newWorkout = Workout(name : nil)
         return persistAndActivate(newWorkout, using: modelContext).didSave
@@ -183,7 +181,7 @@ class WorkoutViewModel {
 
     @discardableResult
     func startWorkout(with template: WorkoutTemplate, using modelContext: ModelContext) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext) else { return false }
+        guard canStartNewWorkout(using: modelContext) else { return false }
 
         let newWorkout = Workout(template: template, unitSystem: unitSystem)
         ProgressionSnapshotService(modelContext: modelContext)
@@ -209,7 +207,7 @@ class WorkoutViewModel {
         command: RepeatingPlanWorkoutStartCommand,
         using modelContext: ModelContext
     ) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext) else { return false }
+        guard canStartNewWorkout(using: modelContext) else { return false }
 
         do {
             let staged = try RepeatingPlanCoordinator.start(
@@ -253,7 +251,10 @@ class WorkoutViewModel {
         using modelContext: ModelContext
     ) -> Bool {
         do {
-            let hasActiveWorkout = try modelContext.fetch(FetchDescriptor<Workout>())
+            let descriptor = FetchDescriptor<Workout>(
+                predicate: #Predicate { $0.endTime == nil }
+            )
+            let hasActiveWorkout = try modelContext.fetch(descriptor)
                 .contains { $0.status == .active }
             guard !hasActiveWorkout else { return false }
 
@@ -274,7 +275,7 @@ class WorkoutViewModel {
         in planRun: PlanRun,
         using modelContext: ModelContext
     ) -> Bool {
-        guard !restoreActiveWorkout(using: modelContext) else { return false }
+        guard canStartNewWorkout(using: modelContext) else { return false }
         _ = PlanProgressionTransitionService.applyDuePendingTransitions(in: planRun)
         guard planRun.status == .active else { return false }
         guard progress.status == .available || progress.status == .upcoming else { return false }
@@ -320,38 +321,50 @@ class WorkoutViewModel {
     @discardableResult
     func restoreActiveWorkout(using modelContext: ModelContext) -> Bool {
         do {
-            let workouts = try modelContext.fetch(FetchDescriptor<Workout>())
-            let activeWorkouts = workouts
-                .filter { $0.status == .active }
-                .sorted { $0.startTime > $1.startTime }
-
-            guard let activeWorkout = activeWorkouts.first(where: {
-                isRestorableActiveWorkout($0, using: modelContext)
-            }) else {
-                self.activeWorkout = nil
-                Task { await LiveActivityManager.shared.endOrphanedActivities() }
-                // Nothing to restore. This must be `false`, not `true`: callers
-                // read the result as "an active workout was found and bound",
-                // and every `startWorkout` overload guards on
-                // `!restoreActiveWorkout(...)`. Returning `true` here makes all
-                // of them refuse to start anything.
-                return false
-            }
-
-            self.activeWorkout = activeWorkout
-            reconcileLiveActivity()
-            return true
+            return try bindActiveWorkoutIfPresent(using: modelContext)
         } catch {
             print("Failed to restore active workout: \(error)")
             return false
         }
     }
 
+    /// Starting new performed truth has a stricter contract than a read-only
+    /// restoration attempt: a failed active-workout fetch is not evidence that
+    /// no active workout exists. Refuse creation and retain the error instead
+    /// of risking two concurrent active sessions.
+    private func canStartNewWorkout(using modelContext: ModelContext) -> Bool {
+        do {
+            return try bindActiveWorkoutIfPresent(using: modelContext) == false
+        } catch {
+            lastStartFailure = error
+            print("Failed to verify whether an active workout exists: \(error)")
+            return false
+        }
+    }
+
+    private func bindActiveWorkoutIfPresent(using modelContext: ModelContext) throws -> Bool {
+        let activeWorkouts = try Self.activeWorkoutCandidates(using: modelContext)
+        guard let activeWorkout = activeWorkouts.first(where: {
+            isRestorableActiveWorkout($0, using: modelContext)
+        }) else {
+            self.activeWorkout = nil
+            Task { await LiveActivityManager.shared.endOrphanedActivities() }
+            return false
+        }
+        self.activeWorkout = activeWorkout
+        reconcileLiveActivity()
+        return true
+    }
+
     @discardableResult
     func handleExternalWorkoutChange(workoutID: UUID, using modelContext: ModelContext) -> Bool {
         let freshContext = ModelContext(modelContext.container)
-        guard let freshWorkout = (try? freshContext.fetch(FetchDescriptor<Workout>()))?
-            .first(where: { $0.id == workoutID && $0.status == .active })
+        var descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { $0.id == workoutID && $0.endTime == nil }
+        )
+        descriptor.fetchLimit = 1
+        guard let freshWorkout = (try? freshContext.fetch(descriptor))?
+            .first(where: { $0.status == .active })
         else {
             if activeWorkout?.id == workoutID {
                 activeWorkout = nil
@@ -412,6 +425,18 @@ class WorkoutViewModel {
         // a harmless no-op rather than a duplicate mutation.
         reconcileLiveActivity()
         return true
+    }
+
+    private static func activeWorkoutCandidates(using modelContext: ModelContext) throws -> [Workout] {
+        let descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { $0.endTime == nil },
+            sortBy: [SortDescriptor(\.startTime, order: .reverse)]
+        )
+        return try modelContext.fetch(descriptor).filter { $0.status == .active }
+    }
+
+    private static func latestActiveWorkout(using modelContext: ModelContext) -> Workout? {
+        (try? activeWorkoutCandidates(using: modelContext))?.first
     }
 
     private func persistAndActivate(_ workout: Workout, using modelContext: ModelContext) -> PersistenceOutcome {
@@ -557,7 +582,9 @@ class WorkoutViewModel {
 
     private func planRun(id: UUID, using modelContext: ModelContext) -> PlanRun? {
         do {
-            return try modelContext.fetch(FetchDescriptor<PlanRun>()).first { $0.id == id }
+            var descriptor = FetchDescriptor<PlanRun>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            return try modelContext.fetch(descriptor).first
         } catch {
             print("Failed to find plan run: \(error)")
             return nil
@@ -569,8 +596,9 @@ class WorkoutViewModel {
         using modelContext: ModelContext
     ) -> RepeatingPlanRun? {
         do {
-            return try modelContext.fetch(FetchDescriptor<RepeatingPlanRun>())
-                .first { $0.id == id }
+            var descriptor = FetchDescriptor<RepeatingPlanRun>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            return try modelContext.fetch(descriptor).first
         } catch {
             print("Failed to find repeating plan run: \(error)")
             return nil

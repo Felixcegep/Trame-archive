@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct PreferencesDTO: Codable {
+nonisolated struct PreferencesDTO: Codable, Sendable {
     let darkMode: Bool
     let restTimer: Int
     let unitSystem: String
@@ -15,12 +15,13 @@ nonisolated struct PreferencesDTO: Codable {
 /// values travel as their raw identifiers and are decoded leniently on restore,
 /// so a profile written by a newer build lands in an older one with the
 /// unrecognised fields simply absent instead of failing the whole restore.
-nonisolated struct TrainingProfileDTO: Codable {
+nonisolated struct TrainingProfileDTO: Codable, Sendable {
     var schemaVersion: Int? = nil
     var onboardingVersion: Int? = nil
     var preferredTrainingStructure: String? = nil
     var primaryDiscipline: String? = nil
     var secondaryDisciplineIDs: [String]? = nil
+    var progressOrganizationMode: String? = nil
     var primaryGoal: String? = nil
     var experienceLevel: String? = nil
     var preferredDaysPerWeek: Int? = nil
@@ -35,6 +36,9 @@ nonisolated struct TrainingProfileDTO: Codable {
     var competitionDiscipline: String? = nil
     var competitionEventDateTimestamp: Double? = nil
     var competitionStandards: String? = nil
+    var competitionSquatExerciseID: UUID? = nil
+    var competitionBenchExerciseID: UUID? = nil
+    var competitionDeadliftExerciseID: UUID? = nil
     // Mobility intake, added without a `BackupDTO.currentVersion` bump — every
     // field here decodes optionally and absent on an older backup means
     // exactly what it means everywhere else in this DTO: never asked.
@@ -46,7 +50,7 @@ nonisolated struct TrainingProfileDTO: Codable {
     var updatedAtTimestamp: Double? = nil
 }
 
-nonisolated struct ExerciseTemplateDTO: Codable {
+nonisolated struct ExerciseTemplateDTO: Codable, Sendable {
     var id: String? = nil
     let name: String
     let primaryMuscles: [String]
@@ -80,7 +84,7 @@ nonisolated struct ExerciseTemplateDTO: Codable {
     var strongmanImplementProfileData: Data? = nil
 }
 
-nonisolated struct ExerciseRelationshipDTO: Codable {
+nonisolated struct ExerciseRelationshipDTO: Codable, Sendable {
     let sourceExerciseName: String
     let targetExerciseName: String
     let type: String
@@ -92,9 +96,14 @@ nonisolated struct ExerciseRelationshipDTO: Codable {
     var appliesToGoals: [String]? = nil
     var appliesToRoles: [String]? = nil
     var reviewVersion: Int? = nil
+    /// Stable identities remove display-name ambiguity for current backups.
+    /// Older archives omit these and are accepted only when the name resolves
+    /// to exactly one exercise.
+    var sourceExerciseID: String? = nil
+    var targetExerciseID: String? = nil
 }
 
-nonisolated struct TemplateExerciseDTO: Codable {
+nonisolated struct TemplateExerciseDTO: Codable, Sendable {
     let exerciseName: String
     let orderIndex: Int
     let targetSets: Int
@@ -112,9 +121,10 @@ nonisolated struct TemplateExerciseDTO: Codable {
     // Explicit author intent only. Older backups omit it and restore as nil;
     // a missing value must never be replaced with an invented default.
     var stimulus: String? = nil
+    var exerciseID: String? = nil
 }
 
-nonisolated struct TemplateExerciseBlockDTO: Codable {
+nonisolated struct TemplateExerciseBlockDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let kind: String
@@ -133,7 +143,7 @@ nonisolated struct TemplateExerciseBlockDTO: Codable {
     var repetitionStep: Int? = nil
 }
 
-nonisolated struct WorkoutTemplateDTO: Codable {
+nonisolated struct WorkoutTemplateDTO: Codable, Sendable {
     var id: String? = nil
     let name: String
     let templateExercises: [TemplateExerciseDTO]
@@ -144,12 +154,12 @@ nonisolated struct WorkoutTemplateDTO: Codable {
     var isArchived: Bool? = false
 }
 
-nonisolated struct WorkoutCollectionDTO: Codable {
+nonisolated struct WorkoutCollectionDTO: Codable, Sendable {
     let name: String
     let templateNames: [String]
 }
 
-nonisolated struct ExerciseSetDTO: Codable {
+nonisolated struct ExerciseSetDTO: Codable, Sendable {
     let orderIndex: Int
     let weightType: String
     let distanceType: String
@@ -213,7 +223,7 @@ nonisolated struct ExerciseSetDTO: Codable {
     var id: String? = nil
 }
 
-nonisolated struct ExerciseSetSegmentDTO: Codable {
+nonisolated struct ExerciseSetSegmentDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let repetitions: Float
@@ -233,7 +243,7 @@ nonisolated struct ExerciseSetSegmentDTO: Codable {
     var perceivedExertion: Double? = nil
 }
 
-nonisolated struct ComplexComponentResultDTO: Codable {
+nonisolated struct ComplexComponentResultDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let exerciseID: String
@@ -244,7 +254,7 @@ nonisolated struct ComplexComponentResultDTO: Codable {
     let liftQuality: String?
 }
 
-nonisolated struct ExerciseEntryDTO: Codable {
+nonisolated struct ExerciseEntryDTO: Codable, Sendable {
     let orderIndex: Int
     let comment: String?
     let exerciseName: String
@@ -318,7 +328,7 @@ nonisolated struct ExerciseEntryDTO: Codable {
     var strongmanEventFamilySnapshot: String? = nil
 }
 
-nonisolated struct WorkoutDTO: Codable {
+nonisolated struct WorkoutDTO: Codable, Sendable {
     let id: String?
     let status: String
     let name: String?
@@ -344,7 +354,7 @@ nonisolated struct WorkoutDTO: Codable {
     var executionBlocks: [WorkoutExecutionBlockDTO]? = nil
 }
 
-nonisolated struct WorkoutExecutionBlockDTO: Codable {
+nonisolated struct WorkoutExecutionBlockDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let kind: String
@@ -374,7 +384,7 @@ nonisolated struct WorkoutExecutionBlockDTO: Codable {
     var splits: [WorkoutExecutionBlockSplitDTO]? = nil
 }
 
-nonisolated struct WorkoutExecutionBlockSplitDTO: Codable {
+nonisolated struct WorkoutExecutionBlockSplitDTO: Codable, Sendable {
     let id: String
     let workoutID: String
     let sequenceIndex: Int
@@ -385,7 +395,7 @@ nonisolated struct WorkoutExecutionBlockSplitDTO: Codable {
     let recordedAt: Date
 }
 
-nonisolated struct PlannedExerciseDTO: Codable {
+nonisolated struct PlannedExerciseDTO: Codable, Sendable {
     let id: String
     let exerciseName: String
     let orderIndex: Int
@@ -421,9 +431,11 @@ nonisolated struct PlannedExerciseDTO: Codable {
     var automaticDeloadVolumeReductionPercent: Int? = nil
     var automaticDeloadIntensityReductionPercent: Int? = nil
     var warmupSchemeData: Data? = nil
+    var exerciseID: String? = nil
+    var alternativeExerciseIDs: [String]? = nil
 }
 
-nonisolated struct PlannedSetDTO: Codable {
+nonisolated struct PlannedSetDTO: Codable, Sendable {
     let orderIndex: Int
     let setType: String
     let repetitions: Int?
@@ -441,7 +453,7 @@ nonisolated struct PlannedSetDTO: Codable {
     var definitionData: Data? = nil
 }
 
-nonisolated struct ProgressionStateDTO: Codable {
+nonisolated struct ProgressionStateDTO: Codable, Sendable {
     let id: String
     let progressionKey: String
     var scope: String? = nil
@@ -476,7 +488,7 @@ nonisolated struct ProgressionStateDTO: Codable {
     var pendingProgressionData: Data? = nil
 }
 
-nonisolated struct ProgressionRecommendationDTO: Codable {
+nonisolated struct ProgressionRecommendationDTO: Codable, Sendable {
     let id: String
     let planRunID: String
     let workoutID: String
@@ -528,7 +540,7 @@ nonisolated struct ProgressionRecommendationDTO: Codable {
     var ruleVersion: Int? = nil
 }
 
-nonisolated struct PlannedWorkoutDTO: Codable {
+nonisolated struct PlannedWorkoutDTO: Codable, Sendable {
     let id: String
     let name: String
     let orderIndex: Int
@@ -542,7 +554,7 @@ nonisolated struct PlannedWorkoutDTO: Codable {
     var executionBlocks: [PlannedExerciseBlockDTO]? = nil
 }
 
-nonisolated struct PlannedExerciseBlockDTO: Codable {
+nonisolated struct PlannedExerciseBlockDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let kind: String
@@ -563,7 +575,7 @@ nonisolated struct PlannedExerciseBlockDTO: Codable {
     let definitionBlockKey: String?
 }
 
-nonisolated struct PlanWeekDTO: Codable {
+nonisolated struct PlanWeekDTO: Codable, Sendable {
     let id: String
     let weekIndex: Int
     let name: String?
@@ -571,7 +583,7 @@ nonisolated struct PlanWeekDTO: Codable {
     let plannedWorkouts: [PlannedWorkoutDTO]
 }
 
-nonisolated struct PlanBlockDTO: Codable {
+nonisolated struct PlanBlockDTO: Codable, Sendable {
     let id: String
     let name: String
     let phaseType: String
@@ -583,7 +595,7 @@ nonisolated struct PlanBlockDTO: Codable {
     let weeks: [PlanWeekDTO]
 }
 
-nonisolated struct WorkoutPlanDTO: Codable {
+nonisolated struct WorkoutPlanDTO: Codable, Sendable {
     let id: String
     let name: String
     let goal: String
@@ -603,7 +615,7 @@ nonisolated struct WorkoutPlanDTO: Codable {
     let blocks: [PlanBlockDTO]
 }
 
-nonisolated struct PlanWorkoutProgressDTO: Codable {
+nonisolated struct PlanWorkoutProgressDTO: Codable, Sendable {
     let id: String
     let plannedWorkoutID: String
     let plannedWorkoutName: String
@@ -623,7 +635,7 @@ nonisolated struct PlanWorkoutProgressDTO: Codable {
     let completedWorkoutID: String?
 }
 
-nonisolated struct PlanRunDTO: Codable {
+nonisolated struct PlanRunDTO: Codable, Sendable {
     let id: String
     let sourcePlanID: String
     let sourcePlanName: String
@@ -640,7 +652,7 @@ nonisolated struct PlanRunDTO: Codable {
     var progressionStates: [ProgressionStateDTO] = []
 }
 
-nonisolated struct ProgramDefinitionDTO: Codable {
+nonisolated struct ProgramDefinitionDTO: Codable, Sendable {
     let id: String
     let schemaVersion: Int
     let templateVersion: Int
@@ -664,7 +676,7 @@ nonisolated struct ProgramDefinitionDTO: Codable {
 /// version constant): the field decodes absent as `[]` for every payload that
 /// predates it, exactly like `MobilityRoutineBlockDTO` and
 /// `MobilityEntryEvidenceDTO` fields did when they were added within v26.
-nonisolated struct MobilityProgramDefinitionDTO: Codable {
+nonisolated struct MobilityProgramDefinitionDTO: Codable, Sendable {
     let id: String
     let programKey: String
     let schemaVersion: Int
@@ -683,7 +695,7 @@ nonisolated struct MobilityProgramDefinitionDTO: Codable {
 /// Portable form of one `MobilityProgramSessionProgress`, nested inside
 /// `MobilityProgramRunDTO` exactly like `PlanWorkoutProgressDTO` nests
 /// inside `PlanRunDTO`.
-nonisolated struct MobilityProgramSessionProgressDTO: Codable {
+nonisolated struct MobilityProgramSessionProgressDTO: Codable, Sendable {
     let id: String
     let sessionKey: String
     let weekIndex: Int
@@ -703,7 +715,7 @@ nonisolated struct MobilityProgramSessionProgressDTO: Codable {
 /// Portable form of one `MobilityProgressionState`, keyed by
 /// `(progressionKey, side)` — see that model's doc comment for why side is
 /// part of the key.
-nonisolated struct MobilityProgressionStateDTO: Codable {
+nonisolated struct MobilityProgressionStateDTO: Codable, Sendable {
     let id: String
     let progressionKey: String
     let side: String
@@ -724,7 +736,7 @@ nonisolated struct MobilityProgressionStateDTO: Codable {
 /// graphs. `programSnapshotData` is the frozen
 /// `MobilityProgramDefinitionPayload` this run activated with — restoring
 /// it never re-reads the live `MobilityProgramDefinitionRecord`.
-nonisolated struct MobilityProgramRunDTO: Codable {
+nonisolated struct MobilityProgramRunDTO: Codable, Sendable {
     let id: String
     let sourceProgramID: String
     let sourceProgramName: String
@@ -743,7 +755,7 @@ nonisolated struct MobilityProgramRunDTO: Codable {
 /// Portable form of `MobilityProgressionRecommendationRecord`. Distinct from
 /// `ProgressionRecommendationDTO` — see that model's doc comment for the
 /// audited reason a shared table was not safe.
-nonisolated struct MobilityProgressionRecommendationDTO: Codable {
+nonisolated struct MobilityProgressionRecommendationDTO: Codable, Sendable {
     let id: String
     let runID: String
     let sessionProgressID: String
@@ -768,7 +780,7 @@ nonisolated struct MobilityProgressionRecommendationDTO: Codable {
     let decisionOutcome: String?
 }
 
-nonisolated struct DailyLogEntryDTO: Codable {
+nonisolated struct DailyLogEntryDTO: Codable, Sendable {
     let id: String
     let dayKey: String
     let status: String
@@ -780,7 +792,7 @@ nonisolated struct DailyLogEntryDTO: Codable {
     let updatedAt: Date
 }
 
-nonisolated struct BodyWeightEntryDTO: Codable {
+nonisolated struct BodyWeightEntryDTO: Codable, Sendable {
     let id: String
     let dayKey: String
     let value: Float
@@ -791,7 +803,7 @@ nonisolated struct BodyWeightEntryDTO: Codable {
     let updatedAt: Date
 }
 
-nonisolated struct HealthKitBodyMassProvenanceDTO: Codable {
+nonisolated struct HealthKitBodyMassProvenanceDTO: Codable, Sendable {
     let id: String
     let healthKitSampleID: String
     let bodyWeightEntryID: String
@@ -805,7 +817,7 @@ nonisolated struct HealthKitBodyMassProvenanceDTO: Codable {
     let lastSeenAt: Date
 }
 
-nonisolated struct HealthKitWorkoutExportReceiptDTO: Codable {
+nonisolated struct HealthKitWorkoutExportReceiptDTO: Codable, Sendable {
     let id: String
     let workoutID: String
     let healthKitWorkoutID: String?
@@ -818,7 +830,7 @@ nonisolated struct HealthKitWorkoutExportReceiptDTO: Codable {
     let errorMessage: String?
 }
 
-nonisolated struct SupplementOccurrenceDTO: Codable {
+nonisolated struct SupplementOccurrenceDTO: Codable, Sendable {
     let id: String
     let occurrenceKey: String
     let dayKey: String
@@ -829,14 +841,14 @@ nonisolated struct SupplementOccurrenceDTO: Codable {
     let updatedAt: Date
 }
 
-nonisolated struct MobilityFamilyDTO: Codable {
+nonisolated struct MobilityFamilyDTO: Codable, Sendable {
     let id: String
     let name: String
     let createdAt: Date
     let updatedAt: Date
 }
 
-nonisolated struct MobilityDefinitionDTO: Codable {
+nonisolated struct MobilityDefinitionDTO: Codable, Sendable {
     let id: String
     let name: String
     let instructions: String?
@@ -851,7 +863,7 @@ nonisolated struct MobilityDefinitionDTO: Codable {
     let updatedAt: Date
 }
 
-nonisolated struct MobilityPhasePrescriptionDTO: Codable {
+nonisolated struct MobilityPhasePrescriptionDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let phaseType: String
@@ -861,27 +873,27 @@ nonisolated struct MobilityPhasePrescriptionDTO: Codable {
     let side: String
 }
 
-nonisolated struct MobilityBreathingPrescriptionDTO: Codable {
+nonisolated struct MobilityBreathingPrescriptionDTO: Codable, Sendable {
     let targetBreaths: Int?
     let inhaleSeconds: Int?
     let exhaleSeconds: Int?
     let instructionKey: String?
 }
 
-nonisolated struct MobilityTempoPrescriptionDTO: Codable {
+nonisolated struct MobilityTempoPrescriptionDTO: Codable, Sendable {
     let moveIntoRangeSeconds: Int?
     let holdSeconds: Int?
     let returnSeconds: Int?
     let pauseSeconds: Int?
 }
 
-nonisolated struct MobilityAssistancePrescriptionDTO: Codable {
+nonisolated struct MobilityAssistancePrescriptionDTO: Codable, Sendable {
     let assistanceType: String
     let level: Int?
     let equipment: String?
 }
 
-nonisolated struct MobilityRoutineItemDTO: Codable {
+nonisolated struct MobilityRoutineItemDTO: Codable, Sendable {
     let id: String
     let definitionID: String
     let orderIndex: Int
@@ -907,7 +919,7 @@ nonisolated struct MobilityRoutineItemDTO: Codable {
     var restPrescription: MobilityRestPrescription? = nil
 }
 
-nonisolated struct MobilityRoutineBlockDTO: Codable {
+nonisolated struct MobilityRoutineBlockDTO: Codable, Sendable {
     let blockKey: String
     let orderIndex: Int
     var name: String? = nil
@@ -916,7 +928,7 @@ nonisolated struct MobilityRoutineBlockDTO: Codable {
     var restPrescription: MobilityRestPrescription? = nil
 }
 
-nonisolated struct MobilityRoutineDTO: Codable {
+nonisolated struct MobilityRoutineDTO: Codable, Sendable {
     let id: String
     let name: String
     let notes: String?
@@ -928,7 +940,7 @@ nonisolated struct MobilityRoutineDTO: Codable {
     var blocks: [MobilityRoutineBlockDTO]? = nil
 }
 
-nonisolated struct MobilityPhaseResultDTO: Codable {
+nonisolated struct MobilityPhaseResultDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let phaseType: String
@@ -943,7 +955,7 @@ nonisolated struct MobilityPhaseResultDTO: Codable {
     let completedAt: Date?
 }
 
-nonisolated struct MobilityResultDTO: Codable {
+nonisolated struct MobilityResultDTO: Codable, Sendable {
     let id: String
     let side: String
     let status: String
@@ -974,7 +986,7 @@ nonisolated struct MobilityResultDTO: Codable {
     var restSnapshot: MobilityRestPrescription? = nil
 }
 
-nonisolated struct MobilityEntryDTO: Codable {
+nonisolated struct MobilityEntryDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let definitionIDSnapshot: String
@@ -1006,7 +1018,7 @@ nonisolated struct MobilityEntryDTO: Codable {
     var restPrescriptionSnapshot: MobilityRestPrescription? = nil
 }
 
-nonisolated struct MobilitySessionDTO: Codable {
+nonisolated struct MobilitySessionDTO: Codable, Sendable {
     let id: String
     let status: String
     let nameSnapshot: String
@@ -1022,7 +1034,7 @@ nonisolated struct MobilitySessionDTO: Codable {
     let entries: [MobilityEntryDTO]
 }
 
-nonisolated struct MobilityAssessmentDefinitionDTO: Codable {
+nonisolated struct MobilityAssessmentDefinitionDTO: Codable, Sendable {
     let id: String
     let catalogueKey: String
     let name: String
@@ -1046,7 +1058,7 @@ nonisolated struct MobilityAssessmentDefinitionDTO: Codable {
     let updatedAt: Date
 }
 
-nonisolated struct MobilityAssessmentSampleDTO: Codable {
+nonisolated struct MobilityAssessmentSampleDTO: Codable, Sendable {
     let id: String
     let sampleCount: Int
     let median: Double
@@ -1058,7 +1070,7 @@ nonisolated struct MobilityAssessmentSampleDTO: Codable {
     let createdAt: Date
 }
 
-nonisolated struct MobilityAssessmentResultDTO: Codable {
+nonisolated struct MobilityAssessmentResultDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let numericValue: Double?
@@ -1085,7 +1097,7 @@ nonisolated struct MobilityAssessmentResultDTO: Codable {
     let sample: MobilityAssessmentSampleDTO?
 }
 
-nonisolated struct MobilityAssessmentSessionDTO: Codable {
+nonisolated struct MobilityAssessmentSessionDTO: Codable, Sendable {
     let id: String
     let status: String
     let dayKey: String
@@ -1099,7 +1111,7 @@ nonisolated struct MobilityAssessmentSessionDTO: Codable {
     let results: [MobilityAssessmentResultDTO]
 }
 
-nonisolated struct FoodServingDTO: Codable {
+nonisolated struct FoodServingDTO: Codable, Sendable {
     let id: String
     let name: String
     let amount: Double
@@ -1107,7 +1119,7 @@ nonisolated struct FoodServingDTO: Codable {
     let equivalentReferenceAmount: Double
 }
 
-nonisolated struct FoodItemDTO: Codable {
+nonisolated struct FoodItemDTO: Codable, Sendable {
     let id: String
     let name: String
     let referenceAmount: Double
@@ -1131,7 +1143,7 @@ nonisolated struct FoodItemDTO: Codable {
     let servings: [FoodServingDTO]
 }
 
-nonisolated struct MealTemplateItemDTO: Codable {
+nonisolated struct MealTemplateItemDTO: Codable, Sendable {
     let id: String
     let foodID: String
     let orderIndex: Int
@@ -1139,7 +1151,7 @@ nonisolated struct MealTemplateItemDTO: Codable {
     let quantity: Double
 }
 
-nonisolated struct MealTemplateDTO: Codable {
+nonisolated struct MealTemplateDTO: Codable, Sendable {
     let id: String
     let lineageID: String
     let version: Int
@@ -1159,7 +1171,7 @@ nonisolated struct MealTemplateDTO: Codable {
     var photoData: Data? = nil
 }
 
-nonisolated struct LoggedMealItemDTO: Codable {
+nonisolated struct LoggedMealItemDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let sourceFoodID: String?
@@ -1178,7 +1190,7 @@ nonisolated struct LoggedMealItemDTO: Codable {
     let preparationState: String
 }
 
-nonisolated struct LoggedMealDTO: Codable {
+nonisolated struct LoggedMealDTO: Codable, Sendable {
     let id: String
     let dayKey: String
     let slot: String
@@ -1191,7 +1203,7 @@ nonisolated struct LoggedMealDTO: Codable {
     let items: [LoggedMealItemDTO]
 }
 
-nonisolated struct NutritionTargetDTO: Codable {
+nonisolated struct NutritionTargetDTO: Codable, Sendable {
     let id: String
     let phase: String
     let effectiveStartDayKey: String
@@ -1209,7 +1221,7 @@ nonisolated struct NutritionTargetDTO: Codable {
     let updatedAt: Date
 }
 
-nonisolated struct RepeatingPlanSlotDTO: Codable {
+nonisolated struct RepeatingPlanSlotDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
     let templateIDSnapshot: String
@@ -1225,7 +1237,7 @@ nonisolated struct RepeatingPlanSlotDTO: Codable {
     var postWorkoutMobilityRoutineNameSnapshot: String? = nil
 }
 
-nonisolated struct RepeatingPlanDTO: Codable {
+nonisolated struct RepeatingPlanDTO: Codable, Sendable {
     let id: String
     let name: String
     let goal: String
@@ -1239,7 +1251,7 @@ nonisolated struct RepeatingPlanDTO: Codable {
     let slots: [RepeatingPlanSlotDTO]
 }
 
-nonisolated struct RepeatingPlanRunSlotDTO: Codable {
+nonisolated struct RepeatingPlanRunSlotDTO: Codable, Sendable {
     let id: String
     let sourceSlotID: String
     let orderIndex: Int
@@ -1254,7 +1266,7 @@ nonisolated struct RepeatingPlanRunSlotDTO: Codable {
     var postWorkoutMobilityRoutineNameSnapshot: String? = nil
 }
 
-nonisolated struct RepeatingPlanOccurrenceDTO: Codable {
+nonisolated struct RepeatingPlanOccurrenceDTO: Codable, Sendable {
     let id: String
     let cycleIndex: Int
     let expectedSlotIndex: Int
@@ -1273,7 +1285,7 @@ nonisolated struct RepeatingPlanOccurrenceDTO: Codable {
     let completedWorkoutID: String?
 }
 
-nonisolated struct RepeatingPlanRunDTO: Codable {
+nonisolated struct RepeatingPlanRunDTO: Codable, Sendable {
     let id: String
     let sourcePlanID: String
     let sourcePlanName: String
@@ -1288,7 +1300,7 @@ nonisolated struct RepeatingPlanRunDTO: Codable {
     let occurrences: [RepeatingPlanOccurrenceDTO]
 }
 
-nonisolated struct BackupDTO: Codable {
+nonisolated struct BackupDTO: Codable, Sendable {
     let version: Int
     let preferences: PreferencesDTO
     let exercises: [ExerciseTemplateDTO]

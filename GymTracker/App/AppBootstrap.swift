@@ -146,10 +146,22 @@ enum AppBootstrap {
     /// flags must not outrank a newly due session after relaunch.
     static func refreshActivePlanRuns(using context: ModelContext) {
         do {
-            let runs = try context.fetch(FetchDescriptor<PlanRun>())
+            // `PlanRun.status` is an enum-backed SwiftData property. The
+            // current runtime cannot translate enum captures in predicates,
+            // so keep the supported in-memory status filter here.
+            let runs = try context.fetch(FetchDescriptor<PlanRun>(
+                predicate: #Predicate { $0.endDate == nil }
+            ))
                 .filter { $0.status == .active }
-            runs.forEach { PlanCoordinator.refreshAvailability(for: $0) }
-            try context.save()
+            let didChange = runs.reduce(into: false) { changed, run in
+                changed = PlanCoordinator.refreshAvailability(
+                    for: run,
+                    touchUpdatedAt: false
+                ) || changed
+            }
+            if didChange {
+                try context.save()
+            }
         } catch {
             context.rollback()
             print("Failed to refresh plan-run availability: \(error)")
@@ -195,8 +207,9 @@ enum AppBootstrap {
             showsActiveWorkoutConflict: fixture.showsActiveWorkoutConflict
         )
         if fixture == .progressionReceipt,
-           let record = try? context.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>())
-            .first(where: { !$0.isResolved }) {
+           let record = try? context.fetch(FetchDescriptor<PlanProgressionRecommendationRecord>(
+            predicate: #Predicate { !$0.isResolved }
+           )).first {
             outcome.progressionReceipt = ProgressionReceipt(
                 planRunID: record.planRunID,
                 workoutID: record.workoutID
@@ -347,7 +360,9 @@ enum UITestLaunch {
     /// against the seeded run so the test does not depend on a real
     /// notification being scheduled and fired.
     private static func planRescheduleNotification(using context: ModelContext) -> PlanNotificationDestination? {
-        guard let run = try? context.fetch(FetchDescriptor<PlanRun>())
+        guard let run = try? context.fetch(FetchDescriptor<PlanRun>(
+            predicate: #Predicate { $0.endDate == nil }
+        ))
             .first(where: { $0.status == .active })
         else {
             return nil

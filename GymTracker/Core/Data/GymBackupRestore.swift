@@ -5,7 +5,7 @@ import SwiftData
 /// Keeping decode, validation, and replacement behind one service prevents the
 /// file-import path from drifting away from the data-loss guarantees of Backup v2.
 enum BackupImportService {
-    static func decodeAndValidate(_ data: Data) throws -> BackupDTO {
+    nonisolated static func decodeAndValidate(_ data: Data) throws -> BackupDTO {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let backup = try decoder.decode(BackupDTO.self, from: data)
@@ -34,7 +34,7 @@ extension BackupDTO {
         beforeCommit: (() throws -> Void)?
     ) throws {
         try validate()
-        let currentArchive = CurrentBackupArchive(adapting: self)
+        let currentArchive = try CurrentBackupArchive(adapting: self)
         do {
             try context.clearAllGymData(saveChanges: false)
 
@@ -97,15 +97,19 @@ extension BackupDTO {
             restoreCtx.context.insert(exercise)
         }
 
-        restoreCtx.exerciseMap = Dictionary(builtInExercises.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
+        for exercise in builtInExercises {
+            restoreCtx.register(exercise)
+        }
 
         for normalizedExercise in exercises {
             let exerciseDTO = normalizedExercise.dto
             let primaryMuscles = exerciseDTO.primaryMuscles.compactMap { Muscle(rawValue: $0) }
             let secondaryMuscles = exerciseDTO.secondaryMuscles?.compactMap { Muscle(rawValue: $0) }
 
-            if !exerciseDTO.isCustom, let existing = restoreCtx.exerciseMap[exerciseDTO.name] {
+            if !exerciseDTO.isCustom,
+               let existing = restoreCtx.exercisesByName[exerciseDTO.name]?.first(where: { !$0.isCustom }) {
                 if let id = normalizedExercise.stableID {
+                    restoreCtx.exercisesByID.removeValue(forKey: existing.id)
                     existing.id = id
                 }
                 if let fr = exerciseDTO.frenchName { existing.frenchName = fr }
@@ -115,6 +119,7 @@ extension BackupDTO {
                 if let implementData = exerciseDTO.strongmanImplementProfileData {
                     existing.strongmanImplementProfileData = implementData
                 }
+                restoreCtx.register(existing)
             } else {
                 let newExercise = Exercise(
                     name: exerciseDTO.name,
@@ -150,20 +155,22 @@ extension BackupDTO {
                 newExercise.strongmanEventFamilyRaw = exerciseDTO.strongmanEventFamily
                 newExercise.strongmanImplementProfileData = exerciseDTO.strongmanImplementProfileData
                 restoreCtx.context.insert(newExercise)
-                if restoreCtx.exerciseMap[newExercise.name] == nil {
-                    restoreCtx.exerciseMap[newExercise.name] = newExercise
-                }
+                restoreCtx.register(newExercise)
             }
         }
 
         for relationshipDTO in exerciseRelationships {
-            guard
-                let source = restoreCtx.exerciseMap[relationshipDTO.sourceExerciseName],
-                let target = restoreCtx.exerciseMap[relationshipDTO.targetExerciseName],
-                let type = ExerciseRelationshipType(rawValue: relationshipDTO.type)
-            else {
+            guard let type = ExerciseRelationshipType(rawValue: relationshipDTO.type) else {
                 throw BackupValidationError.invalidExerciseRelationship
             }
+            let source = try restoreCtx.resolveExercise(
+                id: relationshipDTO.sourceExerciseID,
+                name: relationshipDTO.sourceExerciseName
+            )
+            let target = try restoreCtx.resolveExercise(
+                id: relationshipDTO.targetExerciseID,
+                name: relationshipDTO.targetExerciseName
+            )
             restoreCtx.context.insert(ExerciseRelationship(
                 sourceExercise: source,
                 targetExercise: target,
@@ -190,7 +197,10 @@ extension BackupDTO {
 
             for normalizedTemplateExercise in normalizedTemplate.exercises {
                 let teDTO = normalizedTemplateExercise.dto
-                guard let exercise = restoreCtx.exerciseMap[teDTO.exerciseName] else { continue }
+                let exercise = try restoreCtx.resolveExercise(
+                    id: teDTO.exerciseID,
+                    name: teDTO.exerciseName
+                )
                 let te = TemplateExercise(
                     exercise: exercise,
                     order: teDTO.orderIndex,
@@ -561,11 +571,17 @@ extension BackupDTO {
                 let weeks = try blockDTO.weeks.map { weekDTO in
                     let plannedWorkouts = try weekDTO.plannedWorkouts.map { plannedWorkoutDTO in
                         let plannedExercises = try plannedWorkoutDTO.plannedExercises.map { plannedExerciseDTO in
-                            guard let exercise = restoreCtx.exerciseMap[plannedExerciseDTO.exerciseName] else {
-                                throw BackupValidationError.missingExercise(plannedExerciseDTO.exerciseName)
-                            }
-                            let alternativeExercises = (plannedExerciseDTO.alternativeExerciseNames ?? []).compactMap {
-                                restoreCtx.exerciseMap[$0]
+                            let exercise = try restoreCtx.resolveExercise(
+                                id: plannedExerciseDTO.exerciseID,
+                                name: plannedExerciseDTO.exerciseName
+                            )
+                            let alternativeNames = plannedExerciseDTO.alternativeExerciseNames ?? []
+                            let alternativeIDs = plannedExerciseDTO.alternativeExerciseIDs ?? []
+                            let alternativeExercises = try alternativeNames.enumerated().map { index, name in
+                                try restoreCtx.resolveExercise(
+                                    id: alternativeIDs.indices.contains(index) ? alternativeIDs[index] : nil,
+                                    name: name
+                                )
                             }
                             let plannedExercise = PlannedExercise(
                                 exercise: exercise,
@@ -850,7 +866,10 @@ extension BackupDTO {
         var exercises: [ExerciseEntry] = []
         for normalizedEntry in normalizedEntries {
             let entryDTO = normalizedEntry.dto
-            guard let exerciseTemplate = restoreCtx.exerciseMap[entryDTO.exerciseName] else { continue }
+            let exerciseTemplate = try restoreCtx.resolveExercise(
+                id: entryDTO.exerciseIDSnapshot,
+                name: entryDTO.exerciseName
+            )
 
             let entry = ExerciseEntry(
                 comment: entryDTO.comment,
@@ -1259,6 +1278,7 @@ extension BackupDTO {
         profile.preferredTrainingStructureRaw = validated(dto.preferredTrainingStructure, as: TrainingStructureChoice.self)
         profile.primaryDisciplineRaw = validated(dto.primaryDiscipline, as: TrainingDisciplinePreference.self)
         profile.secondaryDisciplineIDs = dto.secondaryDisciplineIDs ?? []
+        profile.progressOrganizationModeRaw = validated(dto.progressOrganizationMode, as: ProgressOrganizationMode.self)
         profile.primaryGoalRaw = validated(dto.primaryGoal, as: TrainingGoalPreference.self)
         profile.experienceLevelRaw = validated(dto.experienceLevel, as: ProfileExperienceLevel.self)
         profile.preferredDaysPerWeek = dto.preferredDaysPerWeek
@@ -1280,7 +1300,10 @@ extension BackupDTO {
         let competition = CompetitionProfileDraft(
             discipline: dto.competitionDiscipline.flatMap(CompetitionDiscipline.init(rawValue:)),
             eventDate: dto.competitionEventDateTimestamp.map(Date.init(timeIntervalSince1970:)),
-            standards: dto.competitionStandards.flatMap(CompetitionStandards.init(rawValue:))
+            standards: dto.competitionStandards.flatMap(CompetitionStandards.init(rawValue:)),
+            squatExerciseID: dto.competitionSquatExerciseID,
+            benchExerciseID: dto.competitionBenchExerciseID,
+            deadliftExerciseID: dto.competitionDeadliftExerciseID
         )
         if !competition.isEmpty {
             profile.competitionProfileData = try? JSONEncoder().encode(competition)
@@ -2034,7 +2057,8 @@ extension BackupDTO {
 
 private struct RestoreContext {
     let context: ModelContext
-    var exerciseMap: [String: Exercise] = [:]
+    var exercisesByID: [UUID: Exercise] = [:]
+    var exercisesByName: [String: [Exercise]] = [:]
     var templateMap: [String: WorkoutTemplate] = [:]
     var planMap: [String: WorkoutPlan] = [:]
     var repeatingPlanMap: [String: RepeatingPlan] = [:]
@@ -2046,4 +2070,27 @@ private struct RestoreContext {
     var mobilityAssessmentDefinitionsByKey: [String: MobilityAssessmentDefinition] = [:]
     var foodsByID: [String: FoodItem] = [:]
     var restoredRecipePhotoIdentifiers: [String: String] = [:]
+
+    mutating func register(_ exercise: Exercise) {
+        exercisesByID[exercise.id] = exercise
+        var candidates = exercisesByName[exercise.name] ?? []
+        if candidates.contains(where: { $0 === exercise }) == false {
+            candidates.append(exercise)
+            exercisesByName[exercise.name] = candidates
+        }
+    }
+
+    func resolveExercise(id: String?, name: String) throws -> Exercise {
+        if let id, let uuid = UUID(uuidString: id), let exercise = exercisesByID[uuid] {
+            return exercise
+        }
+        let candidates = exercisesByName[name] ?? []
+        guard candidates.count == 1, let exercise = candidates.first else {
+            if candidates.isEmpty {
+                throw BackupValidationError.missingExercise(name)
+            }
+            throw BackupValidationError.invalidIdentifier("ambiguous exercise reference: \(name)")
+        }
+        return exercise
+    }
 }

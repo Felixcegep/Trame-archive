@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 import UIKit
 import UserNotifications
@@ -58,6 +59,7 @@ final class PlanNotificationScheduler {
     static let categoryIdentifier = "GYMTRACKER_PLAN_WORKOUT"
 
     private let center = UNUserNotificationCenter.current()
+    private let logger = Logger(subsystem: "GymTracker", category: "PlanNotifications")
     private var reconciliationGeneration = 0
     private init() {}
 
@@ -137,8 +139,17 @@ final class PlanNotificationScheduler {
 
         let runs: [PlanRun]
         do {
-            runs = try modelContext.fetch(FetchDescriptor<PlanRun>())
+            // Only active runs can produce future reminders. Keeping
+            // completed/archived history out of this launch-time reconciliation
+            // avoids materializing the entire plan-run graph.
+            // SwiftData currently rejects predicates over this enum-backed
+            // property at runtime; filter after the supported fetch.
+            runs = try modelContext.fetch(FetchDescriptor<PlanRun>(
+                predicate: #Predicate { $0.endDate == nil }
+            ))
+                .filter { $0.status == .active }
         } catch {
+            logger.error("Plan reminder reconciliation fetch failed: \(error.localizedDescription, privacy: .public)")
             return
         }
 
@@ -146,7 +157,7 @@ final class PlanNotificationScheduler {
         let calendar = Calendar.current
         var requests: [UNNotificationRequest] = []
 
-        for run in runs where run.status == .active {
+        for run in runs {
             for progress in run.orderedWorkoutProgress
             where PlanReminderEligibility.canSchedule(progress, in: run) {
                 guard let scheduledDate = progress.scheduledDate,
@@ -177,7 +188,11 @@ final class PlanNotificationScheduler {
         guard generation == reconciliationGeneration else { return }
         for request in requests {
             guard generation == reconciliationGeneration else { return }
-            try? await center.add(request)
+            do {
+                try await center.add(request)
+            } catch {
+                logger.error("Plan reminder scheduling failed: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 

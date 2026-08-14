@@ -263,16 +263,29 @@ enum WorkoutPlanArchiveService {
             return "Referenced by plan run records. Archived so run history remains valid."
         }
 
-        // Also check via fetched runs in case inverse relationship is stale
-        let allRuns = try context.fetch(FetchDescriptor<PlanRun>())
-        if allRuns.contains(where: { $0.plan?.id == plan.id || $0.sourcePlanID == plan.id }) {
+        // Also check the persisted snapshot in case the inverse relationship
+        // is stale. This is an existence question, not a reason to retain all
+        // historical runs.
+        let planID = plan.id
+        var runDescriptor = FetchDescriptor<PlanRun>(
+            predicate: #Predicate { $0.sourcePlanID == planID }
+        )
+        runDescriptor.fetchLimit = 1
+        if try context.fetch(runDescriptor).isEmpty == false {
             return "Referenced by plan run records. Archived so run history remains valid."
         }
 
         // Check for completed workouts that reference this plan
-        let allWorkouts = try context.fetch(FetchDescriptor<Workout>())
-        if allWorkouts.contains(where: { $0.sourcePlanRunID != nil && $0.sourceProgramDefinitionID == plan.sourceProgramDefinitionID && plan.sourceProgramDefinitionID != nil }) {
-            return "Referenced by completed workout history. Archived so past workouts remain unchanged."
+        if let programID = plan.sourceProgramDefinitionID {
+            var workoutDescriptor = FetchDescriptor<Workout>(
+                predicate: #Predicate {
+                    $0.sourcePlanRunID != nil && $0.sourceProgramDefinitionID == programID
+                }
+            )
+            workoutDescriptor.fetchLimit = 1
+            if try context.fetch(workoutDescriptor).isEmpty == false {
+                return "Referenced by completed workout history. Archived so past workouts remain unchanged."
+            }
         }
 
         return nil
@@ -405,9 +418,14 @@ enum RepeatingPlanArchiveService {
             return "Referenced by rotation run records. Archived so run history remains valid."
         }
 
-        // Also check via fetched runs in case inverse relationship is stale
-        let allRuns = try context.fetch(FetchDescriptor<RepeatingPlanRun>())
-        if allRuns.contains(where: { $0.plan?.id == plan.id || $0.sourcePlanID == plan.id }) {
+        // Also check the persisted snapshot in case the inverse relationship
+        // is stale, bounded to the first matching run.
+        let planID = plan.id
+        var runDescriptor = FetchDescriptor<RepeatingPlanRun>(
+            predicate: #Predicate { $0.sourcePlanID == planID }
+        )
+        runDescriptor.fetchLimit = 1
+        if try context.fetch(runDescriptor).isEmpty == false {
             return "Referenced by rotation run records. Archived so run history remains valid."
         }
 

@@ -353,7 +353,7 @@ nonisolated enum MobilityBlockKind: String, Codable, CaseIterable, Hashable, Sen
 /// A breath-led target remains part of the movement prescription. The
 /// performed result records only the breaths actually completed; it never
 /// turns an unperformed target into evidence.
-struct MobilityBreathingPrescription: Codable, Hashable {
+nonisolated struct MobilityBreathingPrescription: Codable, Hashable, Sendable {
     var targetBreaths: Int?
     var inhaleSeconds: Int?
     var exhaleSeconds: Int?
@@ -365,7 +365,7 @@ struct MobilityBreathingPrescription: Codable, Hashable {
     }
 }
 
-struct MobilityTempoPrescription: Codable, Hashable {
+nonisolated struct MobilityTempoPrescription: Codable, Hashable, Sendable {
     var moveIntoRangeSeconds: Int?
     var holdSeconds: Int?
     var returnSeconds: Int?
@@ -377,7 +377,7 @@ struct MobilityTempoPrescription: Codable, Hashable {
     }
 }
 
-enum MobilityAssistanceType: String, Codable, CaseIterable, Hashable, Identifiable {
+nonisolated enum MobilityAssistanceType: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     case blocks
     case strap
     case band
@@ -400,7 +400,7 @@ enum MobilityAssistanceType: String, Codable, CaseIterable, Hashable, Identifiab
 /// Optional external help used to perform a mobility prescription. `level`
 /// is an authored ordinal within the named assistance type, not a score that
 /// can be compared across equipment or movements.
-struct MobilityAssistancePrescription: Codable, Hashable {
+nonisolated struct MobilityAssistancePrescription: Codable, Hashable, Sendable {
     var assistanceTypeRaw: String
     var level: Int?
     var equipmentRaw: String?
@@ -544,7 +544,7 @@ enum MobilityCompensationKey: String, Codable, CaseIterable, Hashable, Identifia
     }
 }
 
-enum MobilitySensation: String, Codable, CaseIterable, Hashable, Identifiable {
+nonisolated enum MobilitySensation: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     case none
     case mildStretch
     case moderateStretch

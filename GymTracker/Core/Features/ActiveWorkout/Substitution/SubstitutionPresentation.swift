@@ -250,7 +250,7 @@ enum SubstitutionPresentation {
     }
 
     static func factorTitles(_ codes: [String]) -> [String] {
-        codes.compactMap(factorTitle)
+        codes.compactMap { factorTitle($0) }
     }
 
     // MARK: - Progression effect
@@ -325,7 +325,7 @@ enum SubstitutionPresentation {
         if snapshot.hardFilterFailureCodes.isEmpty {
             builder.add(.whatDiffers, items: factorTitles(snapshot.differingFactorCodes))
         } else {
-            builder.add(.blockers, items: snapshot.hardFilterFailureCodes.compactMap(hardFilterTitle))
+            builder.add(.blockers, items: snapshot.hardFilterFailureCodes.compactMap { hardFilterTitle($0) })
         }
 
         // Effect on history — always stated, never implied.

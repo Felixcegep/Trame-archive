@@ -2,7 +2,7 @@ import Foundation
 
 #if !GYMTRACKER_EXTENSION
 
-enum HealthKitBackupValidator {
+nonisolated enum HealthKitBackupValidator {
     static func validate(_ backup: BackupDTO) throws {
         guard backup.version >= BackupDTO.healthKitIntegrationVersion else { return }
 
@@ -11,8 +11,8 @@ enum HealthKitBackupValidator {
         var sampleIDs = Set<String>()
         for provenance in backup.healthKitBodyMassProvenance {
             guard UUID(uuidString: provenance.id) != nil,
-                  UUID(uuidString: provenance.bodyWeightEntryID) != nil,
-                  bodyWeightIDs.contains(UUID(uuidString: provenance.bodyWeightEntryID)!),
+                  let bodyWeightEntryID = UUID(uuidString: provenance.bodyWeightEntryID),
+                  bodyWeightIDs.contains(bodyWeightEntryID),
                   !provenance.healthKitSampleID.isEmpty,
                   provenance.sourceBundleIdentifier.isEmpty == false,
                   provenance.valueKilograms.isFinite,

@@ -2,7 +2,7 @@ import Foundation
 
 /// Validates nutrition domain entities within a backup archive:
 /// food items, servings, meal templates, logged meals, and nutrition targets.
-enum NutritionBackupValidator {
+nonisolated enum NutritionBackupValidator {
     static func validate(_ dto: BackupDTO) throws {
         let foodIDs = Set(dto.foods.map { $0.id.lowercased() })
 

@@ -14,7 +14,7 @@ import Foundation
 ///
 /// `version` and `ruleID` identify the rule set that produced the verdict, so
 /// a later rule change never retroactively reinterprets an old decision.
-struct SubstitutionEvaluationSnapshot: Codable, Equatable, Sendable {
+nonisolated struct SubstitutionEvaluationSnapshot: Codable, Equatable, Sendable {
     let version: Int
     let ruleID: String
     let sourceExerciseID: UUID

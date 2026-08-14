@@ -52,10 +52,10 @@ final class SystemCatalogInstallState {
 /// Whether the save `RootView` issues while the app backgrounds is known to
 /// have failed.
 ///
-/// This exists to answer one question later — "did we actually lose the set I
-/// just logged?" — not to build anything on top of it today. Deliberately no
-/// screen reads this yet: see the call site in `RootView.handleScenePhaseChange`
-/// for why presenting it there and then would be the wrong move.
+/// This exists to retain retry state across scene transitions — "did the last
+/// durability save fail?" RootView retries it on foreground. Deliberately no
+/// screen presents the failure while the app is backgrounding, where an alert
+/// would disappear before it could be acted on.
 @MainActor
 @Observable
 final class BackgroundSaveFailureState {
@@ -72,5 +72,9 @@ final class BackgroundSaveFailureState {
 
     func recordFailure(_ error: Error) {
         lastFailure = Failure(diagnosticDescription: String(describing: error), occurredAt: .now)
+    }
+
+    func clearFailure() {
+        lastFailure = nil
     }
 }

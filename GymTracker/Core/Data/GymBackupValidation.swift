@@ -66,8 +66,8 @@ enum BackupValidationError: LocalizedError {
     }
 }
 
-extension BackupDTO {
-    func validate() throws {
+nonisolated extension BackupDTO {
+    nonisolated func validate() throws {
         try BackupEnvelopeValidator.validate(self)
         try ReceiptBackupValidator.validate(self)
         try StrengthBackupValidator.validate(self)
@@ -77,7 +77,7 @@ extension BackupDTO {
 #if !GYMTRACKER_EXTENSION
         try HealthKitBackupValidator.validate(self)
 #endif
-        let currentArchive = CurrentBackupArchive(adapting: self)
+        let currentArchive = try CurrentBackupArchive(adapting: self)
         let workoutArchive = currentArchive.workout
 
         // A duplicate display name is only genuinely ambiguous when nothing
@@ -97,6 +97,9 @@ extension BackupDTO {
         }
 
         let availableExerciseNames = Set(exerciseNames)
+        let exerciseNameCounts = Dictionary(grouping: workoutArchive.exercises, by: { $0.dto.name })
+            .mapValues(\.count)
+        let availableExerciseIDs = Set(exercises.compactMap(\.id))
         let mobilityRoutineNames = Set(mobilityRoutines.map(\.name))
         let mobilityRoutineIDsByName = Dictionary(
             mobilityRoutines.map { ($0.name, $0.id) },
@@ -243,8 +246,16 @@ extension BackupDTO {
 
         var relationshipKeys = Set<String>()
         for relationship in exerciseRelationships {
+            let sourceReference = relationship.sourceExerciseID ?? relationship.sourceExerciseName
+            let targetReference = relationship.targetExerciseID ?? relationship.targetExerciseName
+            let sourceResolves = relationship.sourceExerciseID.map(availableExerciseIDs.contains)
+                ?? (exerciseNameCounts[relationship.sourceExerciseName] == 1)
+            let targetResolves = relationship.targetExerciseID.map(availableExerciseIDs.contains)
+                ?? (exerciseNameCounts[relationship.targetExerciseName] == 1)
             guard
-                relationship.sourceExerciseName != relationship.targetExerciseName,
+                sourceReference != targetReference,
+                sourceResolves,
+                targetResolves,
                 availableExerciseNames.contains(relationship.sourceExerciseName),
                 availableExerciseNames.contains(relationship.targetExerciseName),
                 ExerciseRelationshipType(rawValue: relationship.type) != nil
@@ -252,7 +263,7 @@ extension BackupDTO {
                 throw BackupValidationError.invalidExerciseRelationship
             }
 
-            let key = "\(relationship.sourceExerciseName)|\(relationship.targetExerciseName)|\(relationship.type)"
+            let key = "\(sourceReference)|\(targetReference)|\(relationship.type)"
             guard relationshipKeys.insert(key).inserted else {
                 throw BackupValidationError.invalidExerciseRelationship
             }
@@ -337,6 +348,7 @@ extension BackupDTO {
             // validation immediately above.
             try validateUniqueIdentifiers(mobilityProgramRuns.map(\.id), named: "mobility program run")
             var mobilitySessionProgressIDs = Set<String>()
+            var mobilitySessionProgressRunIDs = [String: String]()
             for runDTO in mobilityProgramRuns {
                 guard let payload = try? JSONDecoder().decode(MobilityProgramDefinitionPayload.self, from: runDTO.programSnapshotData) else {
                     throw BackupValidationError.invalidMobilityProgramDefinition(runDTO.sourceProgramName)
@@ -356,6 +368,7 @@ extension BackupDTO {
                     guard mobilitySessionProgressIDs.insert(progressDTO.id).inserted else {
                         throw BackupValidationError.duplicateIdentifier("mobility program session progress")
                     }
+                    mobilitySessionProgressRunIDs[progressDTO.id] = runDTO.id
                     guard MobilityProgramSessionStatus(rawValue: progressDTO.status) != nil,
                           progressDTO.dayIndex >= 0, progressDTO.dayIndex <= 6 else {
                         throw BackupValidationError.invalidIdentifier("mobility program session progress")
@@ -376,7 +389,7 @@ extension BackupDTO {
             let mobilityRunIDs = Set(mobilityProgramRuns.map(\.id))
             for recommendation in mobilityProgressionRecommendations {
                 guard mobilityRunIDs.contains(recommendation.runID),
-                      mobilitySessionProgressIDs.contains(recommendation.sessionProgressID),
+                      mobilitySessionProgressRunIDs[recommendation.sessionProgressID] == recommendation.runID,
                       UUID(uuidString: recommendation.ruleID) != nil,
                       MobilitySide(rawValue: recommendation.side) != nil,
                       ProgressionApplicationMode(rawValue: recommendation.applicationMode) != nil,
@@ -702,7 +715,10 @@ extension BackupDTO {
                 workout.sourceRepeatingPlanRunID,
                 workout.sourceRepeatingPlanOccurrenceID
             ]
-            guard sourceIDs.allSatisfy({ $0 == nil || UUID(uuidString: $0!) != nil }) else {
+            guard sourceIDs.allSatisfy({ sourceID in
+                guard let sourceID else { return true }
+                return UUID(uuidString: sourceID) != nil
+            }) else {
                 throw BackupValidationError.invalidIdentifier("workout repeating plan source")
             }
             let hasRepeatingSource = sourceIDs.contains(where: { $0 != nil }) || workout.sourceRepeatingPlanName != nil
@@ -714,11 +730,12 @@ extension BackupDTO {
             ) else {
                 throw BackupValidationError.invalidIdentifier("workout repeating plan source")
             }
-            if let occurrenceID = workout.sourceRepeatingPlanOccurrenceID {
+            if let occurrenceID = workout.sourceRepeatingPlanOccurrenceID,
+               let sourceRunID = workout.sourceRepeatingPlanRunID {
                 guard
                     let occurrence = occurrenceLinkByID[occurrenceID],
-                    sourcePlanIDByRunID[workout.sourceRepeatingPlanRunID!] == workout.sourceRepeatingPlanID,
-                    occurrence.runID == workout.sourceRepeatingPlanRunID,
+                    sourcePlanIDByRunID[sourceRunID] == workout.sourceRepeatingPlanID,
+                    occurrence.runID == sourceRunID,
                     occurrence.sourcePlanID == workout.sourceRepeatingPlanID
                 else {
                     throw BackupValidationError.invalidIdentifier("workout repeating plan occurrence")

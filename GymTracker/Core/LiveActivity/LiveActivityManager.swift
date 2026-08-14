@@ -8,7 +8,10 @@ import Foundation
 final class LiveActivityManager {
     static let shared = LiveActivityManager()
 
-    private var activity: Activity<GymTrackerAttributes>?
+    /// ActivityKit's `Activity` reference is not Sendable in Swift 6. Keep
+    /// only stable value identity on the main actor; async helpers reacquire
+    /// the system object and consume it within one nonisolated operation.
+    private var activityID: String?
 
     private init() {}
 
@@ -18,20 +21,24 @@ final class LiveActivityManager {
         if let matching = Activity<GymTrackerAttributes>.activities.first(where: {
             $0.attributes.workoutID == projection.workoutID
         }) {
-            activity = matching
-            endActivities(except: matching.id)
+            activityID = matching.id
+            endCurrentActivities(except: matching.id)
             return
         }
 
-        endActivities(except: nil)
+        // Snapshot stale identities before requesting the replacement. Reading
+        // `Activity.activities` later inside the Task can otherwise observe and
+        // immediately end the activity created below.
+        endCurrentActivities(except: nil)
         let attributes = GymTrackerAttributes(workoutID: projection.workoutID, startTime: projection.startTime)
         do {
-            activity = try Activity.request(
+            let requested = try Activity.request(
                 attributes: attributes,
                 content: ActivityContent(state: contentState(for: projection), staleDate: projection.restEndDate)
             )
+            activityID = requested.id
         } catch {
-            activity = nil
+            activityID = nil
         }
     }
 
@@ -41,11 +48,15 @@ final class LiveActivityManager {
     }
 
     func end() async {
-        let activities = Activity<GymTrackerAttributes>.activities
-        for item in activities {
-            await item.end(nil, dismissalPolicy: .immediate)
+        // End exactly the activities that existed when shutdown began. A new
+        // workout can start while ActivityKit is suspended; enumerating after
+        // that await would end the replacement and clear its identity.
+        let endingActivityID = activityID
+        let endingIDs = Activity<GymTrackerAttributes>.activities.map(\.id)
+        await Self.endActivities(ids: endingIDs)
+        if activityID == endingActivityID {
+            activityID = nil
         }
-        activity = nil
     }
 
     func endOrphanedActivities() async {
@@ -53,13 +64,12 @@ final class LiveActivityManager {
     }
 
     private func update(_ projection: LiveActivityProjection) async {
-        guard let activity else { return }
-        await activity.update(
-            ActivityContent(
-                state: contentState(for: projection),
-                staleDate: projection.restEndDate
-            )
+        guard let activityID else { return }
+        let content = ActivityContent(
+            state: contentState(for: projection),
+            staleDate: projection.restEndDate
         )
+        await Self.updateActivity(id: activityID, content: content)
     }
 
     private func contentState(for projection: LiveActivityProjection) -> GymTrackerAttributes.ContentState {
@@ -76,13 +86,29 @@ final class LiveActivityManager {
         )
     }
 
-    private func endActivities(except keptID: String?) {
-        let stale = Activity<GymTrackerAttributes>.activities.filter { $0.id != keptID }
-        guard !stale.isEmpty else { return }
+    private func endCurrentActivities(except keptID: String?) {
+        let staleIDs = Activity<GymTrackerAttributes>.activities
+            .map(\.id)
+            .filter { $0 != keptID }
         Task {
-            for item in stale {
-                await item.end(nil, dismissalPolicy: .immediate)
-            }
+            await Self.endActivities(ids: staleIDs)
+        }
+    }
+
+    private nonisolated static func updateActivity(
+        id: String,
+        content: ActivityContent<GymTrackerAttributes.ContentState>
+    ) async {
+        guard let activity = Activity<GymTrackerAttributes>.activities.first(where: { $0.id == id }) else {
+            return
+        }
+        await activity.update(content)
+    }
+
+    private nonisolated static func endActivities(ids: [String]) async {
+        let staleIDs = Set(ids)
+        for activity in Activity<GymTrackerAttributes>.activities where staleIDs.contains(activity.id) {
+            await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
 }

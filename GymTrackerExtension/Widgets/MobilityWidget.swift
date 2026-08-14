@@ -22,7 +22,9 @@ struct QueueMobilityCompletionIntent: AppIntent {
         guard let sessionID = UUID(uuidString: sessionID), let entryID = UUID(uuidString: entryID) else {
             return .result()
         }
-        MobilityWidgetCommandStore.submit(.init(commandID: UUID(), sessionID: sessionID, entryID: entryID, createdAt: .now))
+        try MobilityWidgetCommandStore.submit(
+            .init(commandID: UUID(), sessionID: sessionID, entryID: entryID, createdAt: .now)
+        )
         return .result()
     }
 }

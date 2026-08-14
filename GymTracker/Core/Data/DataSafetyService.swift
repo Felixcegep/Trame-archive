@@ -86,8 +86,54 @@ struct DataSafetyExportResult: Sendable {
     }
 }
 
+/// The result of serializing a value-only backup archive. This crosses the
+/// export task boundary; it deliberately contains no SwiftData model or model
+/// context reference.
+nonisolated struct BackupArchiveFile: Sendable {
+    let fileURL: URL
+    let data: Data
+}
+
+/// JSON encoding and file I/O can be substantial for a long training history.
+/// Keep it independent from the `ModelContext` snapshot phase so it can run at
+/// utility priority without ever touching a SwiftData graph off its actor.
+nonisolated enum BackupArchiveFileWriter {
+    static func write(_ backup: BackupDTO, in directory: URL) throws -> BackupArchiveFile {
+        // An export is a recovery artifact, not merely JSON. Refuse to publish
+        // or record success for a value graph the restore path would reject.
+        try backup.validate()
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(backup)
+        let fileURL = directory.appendingPathComponent("TrameBackup.json")
+        try data.write(to: fileURL, options: .atomic)
+        return BackupArchiveFile(fileURL: fileURL, data: data)
+    }
+}
+
+/// Owns the read-side SwiftData context used by backup export. Creating a
+/// separate context is important: the main UI context can remain responsive
+/// while the complete relationship graph is materialized into value-only
+/// DTOs. This actor never saves or mutates the store.
+@ModelActor
+private actor BackupSnapshotActor {
+    func makeBackup(
+        restTimer: Int,
+        darkMode: Bool,
+        unitSystem: UnitSystem
+    ) throws -> BackupDTO {
+        try BackupDTO.create(
+            from: modelContext,
+            restTimer: restTimer,
+            darkMode: darkMode,
+            unitSystem: unitSystem
+        )
+    }
+}
+
 /// Service exposing data-fetching logic for data safety metadata and backup export operations.
-struct DataSafetyService: Sendable {
+struct DataSafetyService {
     private let defaults: UserDefaults
     private let fileManager: FileManager
 
@@ -148,22 +194,30 @@ struct DataSafetyService: Sendable {
         darkMode: Bool,
         unitSystem: UnitSystem
     ) async throws -> DataSafetyExportResult {
-        let backup = try BackupDTO.create(
-            from: context,
-            restTimer: restTimer,
-            darkMode: darkMode,
-            unitSystem: unitSystem
-        )
+        // A second context sees only committed data. Preserve the previous
+        // export contract for a caller with pending edits by reading the
+        // caller's context in that case; the normal saved-store path moves
+        // the expensive graph traversal to the model actor.
+        let backup: BackupDTO
+        if context.hasChanges {
+            backup = try BackupDTO.create(
+                from: context,
+                restTimer: restTimer,
+                darkMode: darkMode,
+                unitSystem: unitSystem
+            )
+        } else {
+            let snapshotActor = BackupSnapshotActor(modelContainer: context.container)
+            backup = try await snapshotActor.makeBackup(
+                restTimer: restTimer,
+                darkMode: darkMode,
+                unitSystem: unitSystem
+            )
+        }
 
-        let targetDir = fileManager.temporaryDirectory
-        let (fileURL, data) = try await Task.detached(priority: .utility) {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = .prettyPrinted
-            encoder.dateEncodingStrategy = .iso8601
-            let encodedData = try encoder.encode(backup)
-            let outputURL = targetDir.appendingPathComponent("TrameBackup.json")
-            try encodedData.write(to: outputURL, options: .atomic)
-            return (outputURL, encodedData)
+        let targetDirectory = fileManager.temporaryDirectory
+        let archive = try await Task.detached(priority: .utility) {
+            try BackupArchiveFileWriter.write(backup, in: targetDirectory)
         }.value
 
         let exportDate = Date.now
@@ -171,8 +225,8 @@ struct DataSafetyService: Sendable {
 
         return DataSafetyExportResult(
             backup: backup,
-            fileURL: fileURL,
-            data: data,
+            fileURL: archive.fileURL,
+            data: archive.data,
             exportDate: exportDate
         )
     }

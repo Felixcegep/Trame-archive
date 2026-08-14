@@ -33,20 +33,23 @@ enum DataMaintenanceService {
     @discardableResult
     static func cleanupOrphans(using context: ModelContext) throws -> OrphanCleanupResult {
         do {
-            let orphanSets = try context.fetch(FetchDescriptor<ExerciseSet>())
-                .filter { $0.exerciseEntry == nil }
+            let orphanSets = try context.fetch(FetchDescriptor<ExerciseSet>(
+                predicate: #Predicate { $0.exerciseEntry == nil }
+            ))
             for set in orphanSets {
                 context.delete(set)
             }
 
-            let orphanEntries = try context.fetch(FetchDescriptor<ExerciseEntry>())
-                .filter { $0.workout == nil }
+            let orphanEntries = try context.fetch(FetchDescriptor<ExerciseEntry>(
+                predicate: #Predicate { $0.workout == nil }
+            ))
             for entry in orphanEntries {
                 context.delete(entry)
             }
 
-            let orphanTemplateExercises = try context.fetch(FetchDescriptor<TemplateExercise>())
-                .filter { $0.workoutTemplate == nil }
+            let orphanTemplateExercises = try context.fetch(FetchDescriptor<TemplateExercise>(
+                predicate: #Predicate { $0.workoutTemplate == nil }
+            ))
             for templateExercise in orphanTemplateExercises {
                 context.delete(templateExercise)
             }

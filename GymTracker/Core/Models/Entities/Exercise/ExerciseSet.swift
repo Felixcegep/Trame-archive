@@ -261,7 +261,7 @@ final class ExerciseSet {
             repetitions: repetitions,
             weight: weight,
             duration: duration,
-            distance: distance.map { WorkoutDistancePolicy.meters(storedValue: $0, storedUnit: distanceType) },
+            distance: distance.flatMap { WorkoutDistancePolicy.meters(storedValue: $0, storedUnit: distanceType) },
             calories: calories,
             
             
@@ -431,11 +431,11 @@ final class ExerciseSet {
         }
         if let duration = duration, duration > 0 {
             if let distance = distance, distance > 0 {
-                let measurement = WorkoutDistancePolicy.displayMeasurement(
+                guard let measurement = WorkoutDistancePolicy.displayMeasurement(
                     storedValue: distance,
                     storedUnit: distanceType,
                     system: usedMetric
-                )
+                ) else { return "\(Int(duration))s" }
                 return String(
                     format: "%ds @ %.2f %@",
                     Int(duration),

@@ -162,16 +162,24 @@ enum RepeatingPlanSystemSeedInstaller {
         try registry.validateUniqueKeys(desired.map(\.seedKey))
 
         let templates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
+        let templatesByID = Dictionary(
+            templates.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let resolvedDefinitions = try desired.map { definition in
-            (definition, try resolvedTemplates(for: definition, templates: templates, registry: registry))
+            (definition, try resolvedTemplates(for: definition, templatesByID: templatesByID, registry: registry))
         }
         var existingPlans = try context.fetch(FetchDescriptor<RepeatingPlan>())
+        var existingPlansByID = Dictionary(
+            existingPlans.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         var report = SystemSeedInstallReport()
 
         for (definition, slotTemplates) in resolvedDefinitions {
 
             if let record = try registry.record(for: definition.seedKey, expectedKind: .repeatingPlan) {
-                guard let plan = existingPlans.first(where: { $0.id == record.entityID }) else {
+                guard let plan = existingPlansByID[record.entityID] else {
                     throw SystemSeedError.danglingEntity(key: definition.seedKey, entityID: record.entityID)
                 }
                 plan.isBuiltIn = true
@@ -212,6 +220,7 @@ enum RepeatingPlanSystemSeedInstaller {
                 )
                 context.insert(plan)
                 existingPlans.append(plan)
+                existingPlansByID[plan.id] = plan
                 sourceKind = .bundled
                 report.inserted += 1
             }
@@ -231,13 +240,13 @@ enum RepeatingPlanSystemSeedInstaller {
 
     private static func resolvedTemplates(
         for definition: RepeatingPlanSeedDefinition,
-        templates: [WorkoutTemplate],
+        templatesByID: [UUID: WorkoutTemplate],
         registry: SystemSeedRegistry
     ) throws -> [WorkoutTemplate] {
         try definition.templateSeedKeys.map { templateKey in
             guard
                 let record = try registry.record(for: templateKey, expectedKind: .workoutTemplate),
-                let template = templates.first(where: { $0.id == record.entityID })
+                let template = templatesByID[record.entityID]
             else {
                 throw SystemSeedError.unresolvedDependency(
                     key: definition.seedKey,

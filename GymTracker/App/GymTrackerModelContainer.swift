@@ -174,18 +174,13 @@ enum GymTrackerModelContainer {
         case unavailable(message: String, storeURL: URL)
     }
 
-    /// A failed store open should not terminate the process: the app renders a
+    /// A failed store open must not terminate the process: the app renders a
     /// recovery state without attaching a context, so it cannot overwrite a
-    /// recoverable on-disk store with a fresh empty one.
-    ///
-    /// **This only holds for failures SwiftData reports as a Swift `Error`.**
-    /// Verified the hard way: a malformed migration plan made CoreData raise an
-    /// `NSException` from `addPersistentStoreWithDescription:` instead, which
-    /// `catch` below cannot intercept, so the process hit `SIGABRT` on launch
-    /// and the recovery state was never reached. If store-open failure has to
-    /// be survivable for every cause, the open needs an Objective-C shim that
-    /// catches `NSException`, or a pre-flight compatibility check against the
-    /// store's metadata before the container is built. Neither exists yet.
+    /// recoverable on-disk store with a fresh empty one. SwiftData normally
+    /// throws a Swift `Error`, but Core Data can also raise an Objective-C
+    /// `NSException` while adding an incompatible persistent store. The narrow
+    /// `GTExceptionBoundary` around only `makeContainer` converts that otherwise
+    /// uncatchable launch failure into the same unavailable-store state.
     static let bootstrapState: BootstrapState = {
         // The recovery state is otherwise reachable only through a real store
         // failure, which no UI test can provoke, so it has never had a
@@ -210,8 +205,38 @@ enum GymTrackerModelContainer {
             currentVersion: currentVersion
         )
 
+#if GYMTRACKER_EXTENSION
+        // The widget extension does not link the app-only Objective-C
+        // exception shim. SwiftData failures still surface as a recoverable
+        // Swift error here; the app process uses the broader boundary below.
         do {
             let container = try persistence.makeContainer(using: configuration)
+            GymTrackerPreMigrationBackup.recordSuccessfulOpen(
+                storeURL: configuration.url,
+                version: currentVersion
+            )
+            return .ready(container)
+        } catch {
+            let recovery = backupOutcome.recoveryDescription.map { " \($0)" } ?? ""
+            return .unavailable(
+                message: "\(error.localizedDescription)\(recovery)",
+                storeURL: configuration.url
+            )
+        }
+#else
+        var openedContainer: ModelContainer?
+        var openError: Error?
+        var caughtException: NSException?
+
+        let operationReturned = GTExceptionBoundary.performOperation({
+            do {
+                openedContainer = try persistence.makeContainer(using: configuration)
+            } catch {
+                openError = error
+            }
+        }, caughtException: &caughtException)
+
+        if operationReturned, let container = openedContainer {
             // Only a completed open proves the migration succeeded, so the
             // recorded version advances here and nowhere else. A throw leaves
             // the marker on the previous version, which is what stops the next
@@ -221,14 +246,23 @@ enum GymTrackerModelContainer {
                 version: currentVersion
             )
             return .ready(container)
-        } catch {
-            print("Unable to create GymTracker's persistent model container: \(error)")
-            let recovery = backupOutcome.recoveryDescription.map { " \($0)" } ?? ""
-            return .unavailable(
-                message: "\(error.localizedDescription)\(recovery)",
-                storeURL: configuration.url
-            )
         }
+
+        let recovery = backupOutcome.recoveryDescription.map { " \($0)" } ?? ""
+        let failureMessage: String
+        if let openError {
+            failureMessage = openError.localizedDescription
+        } else if let caughtException {
+            let reason = caughtException.reason ?? "The persistent store could not be opened."
+            failureMessage = "\(caughtException.name.rawValue): \(reason)"
+        } else {
+            failureMessage = "The persistent store could not be opened."
+        }
+        return .unavailable(
+            message: "\(failureMessage)\(recovery)",
+            storeURL: configuration.url
+        )
+#endif
     }()
 
     static var shared: ModelContainer? {

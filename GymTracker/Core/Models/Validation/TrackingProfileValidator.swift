@@ -1,6 +1,6 @@
 import Foundation
 
-enum TrackingProfileValidationError: Error, Equatable, LocalizedError {
+nonisolated enum TrackingProfileValidationError: Error, Equatable, LocalizedError {
     case invalidCombination(stimulus: TrainingStimulus, trackingType: TrackingType)
 
     var errorDescription: String? {

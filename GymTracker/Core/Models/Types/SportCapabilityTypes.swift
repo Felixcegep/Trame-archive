@@ -78,7 +78,7 @@ extension SportCapabilityProfile {
     /// The one place a discipline's representable shape is authored. Adding a
     /// discipline means adding one case here; nothing else in the app should
     /// hardcode a per-discipline capability list.
-    static func profile(for discipline: SportDiscipline, trackingType: TrackingType) -> SportCapabilityProfile {
+    nonisolated static func profile(for discipline: SportDiscipline, trackingType: TrackingType) -> SportCapabilityProfile {
         let trackingMetrics = trackingType.capabilityProfile.supportedMetrics
         switch discipline {
         case .generalStrength:
@@ -167,7 +167,7 @@ extension SportCapabilityProfile {
     /// The non-regression default: an exercise that never authored a sport
     /// discipline resolves purely from its `TrackingType`/`ExerciseCategory`,
     /// matching today's unconditional behavior for every existing exercise.
-    static func deriving(from trackingType: TrackingType, category: ExerciseCategory?) -> SportCapabilityProfile {
+    nonisolated static func deriving(from trackingType: TrackingType, category: ExerciseCategory?) -> SportCapabilityProfile {
         let discipline: SportDiscipline = (category == .cardio) ? .generalCardio : .generalStrength
         return profile(for: discipline, trackingType: trackingType)
     }

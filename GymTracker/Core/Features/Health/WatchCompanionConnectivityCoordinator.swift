@@ -1,8 +1,24 @@
 import Foundation
 import SwiftData
-import WatchConnectivity
+@preconcurrency import WatchConnectivity
 
 #if !GYMTRACKER_EXTENSION
+
+/// WatchConnectivity owns this reply closure and permits it to be invoked
+/// asynchronously exactly once. The framework protocol predates Sendable, so
+/// this narrow wrapper documents the one unchecked boundary while all command
+/// data crossing into the main actor remains typed and Sendable.
+private nonisolated final class WatchReplyHandler: @unchecked Sendable {
+    private let handler: ([String: Any]) -> Void
+
+    init(_ handler: @escaping ([String: Any]) -> Void) {
+        self.handler = handler
+    }
+
+    func callAsFunction(_ response: [String: Any]) {
+        handler(response)
+    }
+}
 
 /// iPhone transport adapter. WatchConnectivity carries value envelopes only;
 /// every accepted mutation is delegated to WatchCompanionCommandProcessor.
@@ -37,10 +53,15 @@ final class WatchCompanionConnectivityCoordinator: NSObject, WCSessionDelegate {
     func publishSnapshot(now: Date = .now) {
         guard let container, WCSession.default.activationState == .activated else { return }
         let context = ModelContext(container)
-        guard let workout = ((try? context.fetch(FetchDescriptor<Workout>())) ?? [])
-            .filter({ $0.status == .active })
-            .sorted(by: { $0.startTime > $1.startTime })
-            .first else { return }
+        let descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { $0.endTime == nil },
+            sortBy: [SortDescriptor(\.startTime, order: .reverse)]
+        )
+        // SwiftData cannot reliably translate predicates over this enum-backed
+        // property. Keep the persisted end-time bound and filter the small
+        // active candidate set after the fetch.
+        guard let workout = (try? context.fetch(descriptor))?
+            .first(where: { $0.status == .active }) else { return }
         let snapshot = WatchCompanionWorkoutSnapshot.build(
             projection: LiveActivityProjection(workout: workout, now: now),
             isWorkoutCompleted: false,
@@ -70,17 +91,23 @@ final class WatchCompanionConnectivityCoordinator: NSObject, WCSessionDelegate {
         didReceiveMessage message: [String: Any],
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
+        guard let command = Self.decodeCommand(message) else {
+            replyHandler(["outcome": WatchCompanionCommandOutcome.rejected.rawValue])
+            return
+        }
+        let reply = WatchReplyHandler(replyHandler)
         Task { @MainActor in
-            replyHandler(process(message, connection: .reachable))
+            reply(process(command, connection: .reachable))
         }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
-        Task { @MainActor in _ = process(userInfo, connection: .reachable) }
+        guard let command = Self.decodeCommand(userInfo) else { return }
+        Task { @MainActor in _ = process(command, connection: .reachable) }
     }
 
-    private func process(_ dictionary: [String: Any], connection: WatchCompanionConnection) -> [String: Any] {
-        guard let command = decodeCommand(dictionary), let container else {
+    private func process(_ command: WatchCompanionCommandEnvelope, connection: WatchCompanionConnection) -> [String: Any] {
+        guard let container else {
             return ["outcome": WatchCompanionCommandOutcome.rejected.rawValue]
         }
         let receipt = WatchCompanionCommandProcessor.process(
@@ -108,10 +135,12 @@ final class WatchCompanionConnectivityCoordinator: NSObject, WCSessionDelegate {
     private func currentSnapshot(now: Date = .now) -> WatchCompanionWorkoutSnapshot? {
         guard let container else { return nil }
         let context = ModelContext(container)
-        guard let workout = ((try? context.fetch(FetchDescriptor<Workout>())) ?? [])
-            .filter({ $0.status == .active })
-            .sorted(by: { $0.startTime > $1.startTime })
-            .first else { return nil }
+        let descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { $0.endTime == nil },
+            sortBy: [SortDescriptor(\.startTime, order: .reverse)]
+        )
+        guard let workout = (try? context.fetch(descriptor))?
+            .first(where: { $0.status == .active }) else { return nil }
         return .build(
             projection: LiveActivityProjection(workout: workout, now: now),
             isWorkoutCompleted: false,
@@ -120,7 +149,7 @@ final class WatchCompanionConnectivityCoordinator: NSObject, WCSessionDelegate {
         )
     }
 
-    private func decodeCommand(_ value: [String: Any]) -> WatchCompanionCommandEnvelope? {
+    private nonisolated static func decodeCommand(_ value: [String: Any]) -> WatchCompanionCommandEnvelope? {
         guard let commandString = value["commandID"] as? String,
               let commandID = UUID(uuidString: commandString),
               let workoutString = value["workoutID"] as? String,

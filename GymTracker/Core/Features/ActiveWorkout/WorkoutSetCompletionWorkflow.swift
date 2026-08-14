@@ -102,8 +102,13 @@ struct WorkoutSetCompletionWorkflow {
     func execute(_ command: Command) -> Outcome {
         let workout: Workout
         do {
-            guard let active = try modelContext.fetch(FetchDescriptor<Workout>())
-                .first(where: { $0.id == command.workoutID && $0.status == .active })
+            let workoutID = command.workoutID
+            var descriptor = FetchDescriptor<Workout>(
+                predicate: #Predicate { $0.id == workoutID && $0.endTime == nil }
+            )
+            descriptor.fetchLimit = 1
+            guard let active = try modelContext.fetch(descriptor).first,
+                  active.status == .active
             else { return .unavailable }
             workout = active
         } catch {
@@ -230,7 +235,7 @@ struct WorkoutSetCompletionWorkflow {
     private func validate(_ log: Log) -> LogValidationFailure? {
         if log.rpe != nil, log.rir != nil { return .conflictingEffortMeasures }
         if log.repetitions.map({ $0 <= 0 }) == true { return .invalidRepetitions }
-        if log.weight.map({ $0 < 0 }) == true { return .invalidWeight }
+        if log.weight.map({ !$0.isFinite || $0 < 0 }) == true { return .invalidWeight }
         if log.rpe.map({ !(1.0...10.0).contains($0) }) == true { return .invalidRPE }
         if log.rir.map({ !(0...6).contains($0) }) == true { return .invalidRIR }
         return nil

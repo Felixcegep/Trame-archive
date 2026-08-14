@@ -48,10 +48,20 @@ enum SystemSeedCatalogCoordinator {
     /// The catalogue is immutable between bundled content versions. Avoid a
     /// full graph scan and save on every launch once this version is present.
     static func needsInstallation(in context: ModelContext) throws -> Bool {
-        let records = try context.fetch(FetchDescriptor<SystemSeedRecord>())
-        return records.isEmpty || records.contains {
-            $0.seedVersion < seedVersion || $0.contentVersion < contentVersion
+        if try context.fetchCount(FetchDescriptor<SystemSeedRecord>()) == 0 {
+            return true
         }
+
+        let requiredSeedVersion = seedVersion
+        let requiredContentVersion = contentVersion
+        var outdatedRecord = FetchDescriptor<SystemSeedRecord>(
+            predicate: #Predicate {
+                $0.seedVersion < requiredSeedVersion
+                    || $0.contentVersion < requiredContentVersion
+            }
+        )
+        outdatedRecord.fetchLimit = 1
+        return try context.fetch(outdatedRecord).isEmpty == false
     }
 
     static func installBundledCatalog(
@@ -222,6 +232,10 @@ enum SystemSeedCatalogCoordinator {
             )
         }
         var existingTemplates = try context.fetch(FetchDescriptor<WorkoutTemplate>())
+        var existingTemplatesByID = Dictionary(
+            existingTemplates.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         var report = SystemSeedInstallReport()
         var installedTemplatesByKey: [String: WorkoutTemplate] = [:]
 
@@ -229,7 +243,7 @@ enum SystemSeedCatalogCoordinator {
             let key = desired.seedKey
             let entity: WorkoutTemplate
             if let record = try registry.record(for: key, expectedKind: .workoutTemplate) {
-                guard let matched = existingTemplates.first(where: { $0.id == record.entityID }) else {
+                guard let matched = existingTemplatesByID[record.entityID] else {
                     throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
                 }
                 entity = matched
@@ -257,6 +271,7 @@ enum SystemSeedCatalogCoordinator {
                     entity.isBuiltIn = true
                     context.insert(entity)
                     existingTemplates.append(entity)
+                    existingTemplatesByID[entity.id] = entity
                     try registry.register(
                         key: key,
                         kind: .workoutTemplate,
@@ -272,6 +287,10 @@ enum SystemSeedCatalogCoordinator {
         }
 
         let existingCollections = try context.fetch(FetchDescriptor<WorkoutCollection>())
+        let existingCollectionsByID = Dictionary(
+            existingCollections.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         for collectionDef in WorkoutTemplateSeedData.collections {
             let collectionKey = collectionDef.seedKey
             let collectionTemplates = try collectionDef.templateSeedKeys.map { templateKey in
@@ -282,7 +301,7 @@ enum SystemSeedCatalogCoordinator {
             }
 
             if let record = try registry.record(for: collectionKey, expectedKind: .workoutCollection) {
-                guard let matched = existingCollections.first(where: { $0.id == record.entityID }) else {
+                guard let matched = existingCollectionsByID[record.entityID] else {
                     throw SystemSeedError.danglingEntity(key: collectionKey, entityID: record.entityID)
                 }
                 matched.isBuiltIn = true
@@ -381,7 +400,9 @@ enum SystemSeedCatalogCoordinator {
         in context: ModelContext,
         registry: SystemSeedRegistry
     ) throws -> SystemSeedInstallReport {
-        let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>()).filter(\.isBuiltIn)
+        let records = try context.fetch(FetchDescriptor<ProgramDefinitionRecord>(
+            predicate: #Predicate { $0.isBuiltIn }
+        ))
         var report = SystemSeedInstallReport()
         for definition in records {
             let payload = try definition.payload()
@@ -407,7 +428,9 @@ enum SystemSeedCatalogCoordinator {
         in context: ModelContext,
         registry: SystemSeedRegistry
     ) throws -> SystemSeedInstallReport {
-        let records = try context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>()).filter(\.isBuiltIn)
+        let records = try context.fetch(FetchDescriptor<MobilityProgramDefinitionRecord>(
+            predicate: #Predicate { $0.isBuiltIn }
+        ))
         var report = SystemSeedInstallReport()
         for definition in records {
             let key = "mobility-program.\(definition.programKey.lowercased())"

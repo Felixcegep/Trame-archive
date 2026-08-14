@@ -48,6 +48,7 @@ public enum GymTrackerPreMigrationBackup {
 
     static let safetyDirectoryName = "GymTrackerMigrationSafety"
     static let markerFileName = "OpenedSchemaVersion.txt"
+    static let completionFileName = "BackupComplete.txt"
 
     static func versionString(_ version: Schema.Version) -> String {
         "\(version.major).\(version.minor).\(version.patch)"
@@ -71,6 +72,37 @@ public enum GymTrackerPreMigrationBackup {
 
     static func markerURL(for storeURL: URL) -> URL {
         safetyDirectory(for: storeURL).appendingPathComponent(markerFileName)
+    }
+
+    static func stagingDirectory(for backupDirectory: URL, identifier: UUID = UUID()) -> URL {
+        backupDirectory
+            .deletingLastPathComponent()
+            .appendingPathComponent(
+                ".\(backupDirectory.lastPathComponent).partial-\(identifier.uuidString)",
+                isDirectory: true
+            )
+    }
+
+    /// A legacy backup predating the completion marker is preserved when its
+    /// indispensable main store exists. New backups also carry a manifest;
+    /// every named file must still be present before the directory can suppress
+    /// another migration copy.
+    static func isCompleteBackup(
+        _ backupDirectory: URL,
+        storeURL: URL,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        let copiedStore = backupDirectory.appendingPathComponent(storeURL.lastPathComponent)
+        guard fileManager.fileExists(atPath: copiedStore.path) else { return false }
+        let completionURL = backupDirectory.appendingPathComponent(completionFileName)
+        guard let data = fileManager.contents(atPath: completionURL.path),
+              let manifest = String(data: data, encoding: .utf8) else {
+            return true
+        }
+        let names = manifest.split(whereSeparator: \.isNewline).map(String.init)
+        return names.isEmpty == false && names.allSatisfy {
+            fileManager.fileExists(atPath: backupDirectory.appendingPathComponent($0).path)
+        }
     }
 
     /// Copies the store aside if the last successful open was on a different
@@ -99,28 +131,65 @@ public enum GymTrackerPreMigrationBackup {
         let backupDirectory = safetyDirectory(for: storeURL)
             .appendingPathComponent("PreMigration-\(sourceVersion)", isDirectory: true)
 
-        if fileManager.fileExists(atPath: backupDirectory.path) {
+        if isCompleteBackup(backupDirectory, storeURL: storeURL, fileManager: fileManager) {
             return .existingBackupPreserved(fromVersion: sourceVersion, location: backupDirectory)
         }
 
+        // An empty/partial destination from an older implementation must not
+        // suppress protection forever. It contains no usable main store, so
+        // replacing it cannot discard a recoverable backup.
+        if fileManager.fileExists(atPath: backupDirectory.path) {
+            do {
+                try fileManager.removeItem(at: backupDirectory)
+            } catch {
+                // Another process may have removed the same invalid directory
+                // after our existence check. Continue only when it is truly
+                // gone; any remaining path is still an actionable failure.
+                if fileManager.fileExists(atPath: backupDirectory.path) {
+                    return .failed(error.localizedDescription)
+                }
+            }
+        }
+
+        // Publish a backup directory only after every existing SQLite file is
+        // copied. A process kill during copy can leave the staging directory,
+        // but never a destination that a later launch mistakes for complete.
+        // App and extension processes may start concurrently. Each writer owns
+        // a unique unpublished directory; neither removes another's in-flight
+        // copy.
+        let stagingDirectory = stagingDirectory(for: backupDirectory)
+
         do {
-            try fileManager.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
+            var copiedFileNames: [String] = []
             for url in storeFileURLs(for: storeURL) where fileManager.fileExists(atPath: url.path) {
                 try fileManager.copyItem(
                     at: url,
-                    to: backupDirectory.appendingPathComponent(url.lastPathComponent)
+                    to: stagingDirectory.appendingPathComponent(url.lastPathComponent)
                 )
+                copiedFileNames.append(url.lastPathComponent)
             }
+            guard copiedFileNames.contains(storeURL.lastPathComponent) else {
+                throw CocoaError(.fileNoSuchFile)
+            }
+            try Data(copiedFileNames.sorted().joined(separator: "\n").utf8).write(
+                to: stagingDirectory.appendingPathComponent(completionFileName),
+                options: .atomic
+            )
+            try fileManager.moveItem(at: stagingDirectory, to: backupDirectory)
             // Only now that a newer copy exists on disk is it safe to drop the
             // older generations. Pruning before the copy — or on every launch —
             // would reintroduce the failure this whole type guards against.
             pruneBackups(keeping: backupDirectory, in: safetyDirectory(for: storeURL), fileManager: fileManager)
             return .backedUp(fromVersion: sourceVersion, location: backupDirectory)
         } catch {
-            // Remove a half-written directory. Leaving it would make the
-            // existence check above treat a partial copy as a real backup and
-            // suppress every future attempt.
-            try? fileManager.removeItem(at: backupDirectory)
+            // A failed or interrupted staging copy is disposable. Never
+            // remove the published destination here: if another invocation
+            // completed it first, that is the copy this migration needs.
+            try? fileManager.removeItem(at: stagingDirectory)
+            if isCompleteBackup(backupDirectory, storeURL: storeURL, fileManager: fileManager) {
+                return .existingBackupPreserved(fromVersion: sourceVersion, location: backupDirectory)
+            }
             return .failed(error.localizedDescription)
         }
     }

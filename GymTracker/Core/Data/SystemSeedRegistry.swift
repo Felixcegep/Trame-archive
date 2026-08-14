@@ -189,6 +189,10 @@ enum ExerciseSystemSeedInstaller {
         try registry.validateUniqueKeys(keys)
 
         var existing = try context.fetch(FetchDescriptor<Exercise>())
+        var existingByID = Dictionary(
+            existing.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         var report = SystemSeedInstallReport()
 
         for seed in desired {
@@ -196,7 +200,7 @@ enum ExerciseSystemSeedInstaller {
             let key = seed.seedKey
             let entity: Exercise
             if let record = try registry.record(for: key, expectedKind: .exercise) {
-                guard let matched = existing.first(where: { $0.id == record.entityID }) else {
+                guard let matched = existingByID[record.entityID] else {
                     throw SystemSeedError.danglingEntity(key: key, entityID: record.entityID)
                 }
                 entity = matched
@@ -228,6 +232,7 @@ enum ExerciseSystemSeedInstaller {
                     entity = template
                     context.insert(entity)
                     existing.append(entity)
+                    existingByID[entity.id] = entity
                     try registry.register(
                         key: key,
                         kind: .exercise,
@@ -241,7 +246,12 @@ enum ExerciseSystemSeedInstaller {
             }
         }
 
-        try retireDuplicateExercises(in: context, registry: registry, existing: existing, report: &report)
+        try retireDuplicateExercises(
+            in: context,
+            registry: registry,
+            existingByID: existingByID,
+            report: &report
+        )
 
         return report
     }
@@ -271,7 +281,7 @@ enum ExerciseSystemSeedInstaller {
     private static func retireDuplicateExercises(
         in context: ModelContext,
         registry: SystemSeedRegistry,
-        existing: [Exercise],
+        existingByID: [UUID: Exercise],
         report: inout SystemSeedInstallReport
     ) throws {
         for pair in retiredDuplicateExerciseSeedKeys {
@@ -280,7 +290,7 @@ enum ExerciseSystemSeedInstaller {
             // store that's already been through this retirement once.
             guard let record = try registry.record(for: pair.retired, expectedKind: .exercise) else { continue }
             guard !record.isDeprecated else { continue }
-            guard let entity = existing.first(where: { $0.id == record.entityID }) else {
+            guard let entity = existingByID[record.entityID] else {
                 throw SystemSeedError.danglingEntity(key: pair.retired, entityID: record.entityID)
             }
             entity.isArchived = true

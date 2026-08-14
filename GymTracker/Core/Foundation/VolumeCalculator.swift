@@ -14,7 +14,18 @@ enum VolumeCalculator {
         semantics: LoggingSemantics,
         in unit: WeightType
     ) -> Float {
+        // Persisted legacy data can predate the completion validator.  An
+        // invalid scalar must not poison an entire chart/reduction with NaN
+        // or infinity, and non-positive load/repetition values are not a
+        // completed volume contribution.
+        guard weight.isFinite,
+              repetitions.isFinite,
+              weight > 0,
+              repetitions > 0
+        else { return 0 }
         let convertedWeight = UnitConversion.weight(weight, from: weightType, to: unit)
-        return convertedWeight * repetitions * semantics.sideMultiplier * semantics.loadMultiplier
+        guard convertedWeight.isFinite else { return 0 }
+        let volume = convertedWeight * repetitions * semantics.sideMultiplier * semantics.loadMultiplier
+        return volume.isFinite && volume > 0 ? volume : 0
     }
 }

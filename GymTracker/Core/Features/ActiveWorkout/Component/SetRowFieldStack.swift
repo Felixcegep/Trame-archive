@@ -318,7 +318,7 @@ struct SetRowFieldStack: View {
         let meters = WorkoutDistancePolicy.meters(
             storedValue: previousSet.distance ?? 0,
             storedUnit: previousSet.distanceType
-        )
+        ) ?? 0
         return UnitConversion.distance(meters, from: .meters, to: preferredDistanceUnit)
     }
 

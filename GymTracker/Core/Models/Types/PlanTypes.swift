@@ -1,6 +1,6 @@
 import Foundation
 
-enum TrainingStimulus: String, Codable, CaseIterable {
+nonisolated enum TrainingStimulus: String, Codable, CaseIterable, Sendable {
     case strength = "Strength"
     case hypertrophy = "Hypertrophy"
     case power = "Power"

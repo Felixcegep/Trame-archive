@@ -11,12 +11,14 @@ nonisolated struct DistanceMeasurement: Equatable, Sendable {
 /// with `.meters`; callers must always cross this policy rather than assuming
 /// the stored number already uses a particular display unit.
 nonisolated enum WorkoutDistancePolicy {
-    nonisolated static func meters(storedValue: Float, storedUnit: DistanceType) -> Float {
-        UnitConversion.distance(storedValue, from: storedUnit, to: .meters)
+    nonisolated static func meters(storedValue: Float, storedUnit: DistanceType) -> Float? {
+        guard storedValue.isFinite, storedValue >= 0 else { return nil }
+        let converted = UnitConversion.distance(storedValue, from: storedUnit, to: .meters)
+        return converted.isFinite ? converted : nil
     }
 
     @MainActor static func meters(of set: ExerciseSet) -> Float? {
-        set.distance.map { meters(storedValue: $0, storedUnit: set.distanceType) }
+        set.distance.flatMap { meters(storedValue: $0, storedUnit: set.distanceType) }
     }
 
     nonisolated static func preferredDisplayUnit(
@@ -31,8 +33,8 @@ nonisolated enum WorkoutDistancePolicy {
         storedValue: Float,
         storedUnit: DistanceType,
         system: UnitSystem
-    ) -> DistanceMeasurement {
-        let meters = meters(storedValue: storedValue, storedUnit: storedUnit)
+    ) -> DistanceMeasurement? {
+        guard let meters = meters(storedValue: storedValue, storedUnit: storedUnit) else { return nil }
         let unit = preferredDisplayUnit(forMeters: meters, system: system)
         return DistanceMeasurement(
             value: UnitConversion.distance(meters, from: .meters, to: unit),
@@ -66,7 +68,7 @@ nonisolated enum WorkoutDistancePolicy {
 
     @MainActor static func canonicalizeEditable(_ set: ExerciseSet) -> Bool {
         guard !set.done, set.distanceType != .meters else { return false }
-        set.distance = set.distance.map { meters(storedValue: $0, storedUnit: set.distanceType) }
+        set.distance = set.distance.flatMap { meters(storedValue: $0, storedUnit: set.distanceType) }
         set.distanceType = .meters
         return true
     }

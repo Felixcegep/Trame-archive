@@ -87,11 +87,20 @@ extension ModelContext {
 #if !GYMTRACKER_EXTENSION
         for definition in try fetch(FetchDescriptor<ProgramDefinitionRecord>()) { delete(definition) }
         for definition in try fetch(FetchDescriptor<MobilityProgramDefinitionRecord>()) { delete(definition) }
-        // Recommendation records have no relationship to a graph root; they
-        // are scalar-only receipts keyed by plan/workout UUIDs. Delete them
-        // explicitly so a UI-test reset cannot leave dangling identifiers in
-        // the next backup fixture.
+        // Mobility program runs own their nested session-progress and
+        // progression-state graphs. Delete the roots explicitly during a
+        // reset so a clear cannot leave runtime history alongside a removed
+        // definition.
+        for run in try fetch(FetchDescriptor<MobilityProgramRun>()) { delete(run) }
+        // Workout recommendation records have no relationship to a graph
+        // root; they are scalar-only receipts keyed by plan/workout UUIDs.
+        // Delete them explicitly so a UI-test reset cannot leave dangling
+        // identifiers in the next backup fixture.
         for record in try fetch(FetchDescriptor<PlanProgressionRecommendationRecord>()) { delete(record) }
+        // Mobility recommendations are scalar-only receipts as well, keyed by
+        // the mobility run and session-progress UUIDs rather than by a
+        // SwiftData relationship.
+        for record in try fetch(FetchDescriptor<MobilityProgressionRecommendationRecord>()) { delete(record) }
         // The training profile is a single preference record with no
         // relationships. Cleared here so a restore replaces it rather than
         // leaving the previous device's answers alongside the imported ones.

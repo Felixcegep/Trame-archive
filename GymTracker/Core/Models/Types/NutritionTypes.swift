@@ -1,6 +1,6 @@
 import Foundation
 
-enum NutritionServingUnit: String, Codable, CaseIterable, Hashable {
+nonisolated enum NutritionServingUnit: String, Codable, CaseIterable, Hashable, Sendable {
     case grams
     case milliliters
     case count
@@ -16,14 +16,14 @@ enum NutritionServingUnit: String, Codable, CaseIterable, Hashable {
     }
 }
 
-enum FoodSourceKind: String, Codable, CaseIterable, Hashable {
+nonisolated enum FoodSourceKind: String, Codable, CaseIterable, Hashable, Sendable {
     case curated
     case userCreated
 
     var displayName: String { self == .curated ? "Curated" : "Custom" }
 }
 
-enum FoodConfidence: String, Codable, CaseIterable, Hashable {
+nonisolated enum FoodConfidence: String, Codable, CaseIterable, Hashable, Sendable {
     case verified
     case userProvided
     case estimated
@@ -37,14 +37,14 @@ enum FoodConfidence: String, Codable, CaseIterable, Hashable {
     }
 }
 
-enum FoodPreparationState: String, Codable, CaseIterable, Hashable {
+nonisolated enum FoodPreparationState: String, Codable, CaseIterable, Hashable, Sendable {
     case raw
     case cooked
 
     var displayName: String { self == .raw ? "Raw" : "Cooked" }
 }
 
-enum MealSlot: String, Codable, CaseIterable, Hashable {
+nonisolated enum MealSlot: String, Codable, CaseIterable, Hashable, Sendable {
     case breakfast
     case lunch
     case dinner
@@ -53,7 +53,7 @@ enum MealSlot: String, Codable, CaseIterable, Hashable {
     var displayName: String { rawValue.capitalized }
 }
 
-enum NutritionGoalPhase: String, Codable, CaseIterable, Hashable {
+nonisolated enum NutritionGoalPhase: String, Codable, CaseIterable, Hashable, Sendable {
     case maintenance
     case bulk
     case cut
@@ -61,14 +61,14 @@ enum NutritionGoalPhase: String, Codable, CaseIterable, Hashable {
     var displayName: String { rawValue.capitalized }
 }
 
-enum NutritionDayKind: String, Codable, Hashable {
+nonisolated enum NutritionDayKind: String, Codable, Hashable, Sendable {
     case training
     case rest
 
     var displayName: String { self == .training ? "Training day" : "Rest day" }
 }
 
-struct NutritionMacroTotals: Equatable, Sendable {
+nonisolated struct NutritionMacroTotals: Equatable, Sendable {
     var calories: Double = 0
     var protein: Double = 0
     var carbohydrates: Double = 0
@@ -85,7 +85,7 @@ struct NutritionMacroTotals: Equatable, Sendable {
     }
 }
 
-struct NutritionTargetValues: Equatable, Sendable {
+nonisolated struct NutritionTargetValues: Equatable, Sendable {
     var calories: Double?
     var protein: Double?
     var carbohydrates: Double?

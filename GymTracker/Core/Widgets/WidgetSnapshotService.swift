@@ -8,23 +8,29 @@ import WidgetKit
 @MainActor
 enum WidgetSnapshotService {
     static func refresh(using context: ModelContext) {
-        WidgetSnapshotStore.write(buildSnapshot(using: context))
-        WidgetCenter.shared.reloadAllTimelines()
+        do {
+            try WidgetSnapshotStore.write(buildSnapshot(using: context))
+            WidgetCenter.shared.reloadAllTimelines()
+        } catch {
+            // Preserve the last complete snapshot. Reloading after a failed
+            // projection or write would only advertise stale or partial data.
+            print("WidgetSnapshotService: failed to publish snapshot: \(error)")
+        }
     }
 
-    private static func buildSnapshot(using context: ModelContext) -> WidgetSnapshot {
+    private static func buildSnapshot(using context: ModelContext) throws -> WidgetSnapshot {
         WidgetSnapshot(
             generatedAt: .now,
-            today: todayData(using: context),
-            weeklyVolume: weeklyVolumeData(using: context),
-            caffeine: caffeineData(using: context),
-            creatine: creatineData(using: context),
-            mobility: mobilityData(using: context)
+            today: try todayData(using: context),
+            weeklyVolume: try weeklyVolumeData(using: context),
+            caffeine: try caffeineData(using: context),
+            creatine: try creatineData(using: context),
+            mobility: try mobilityData(using: context)
         )
     }
 
-    private static func todayData(using context: ModelContext) -> TodayWidgetData {
-        let plan = WorkoutIntentProjectionService.todayPlan(using: context)
+    private static func todayData(using context: ModelContext) throws -> TodayWidgetData {
+        let plan = try WorkoutIntentProjectionService.todayPlanRequiringStore(using: context)
         let state: TodayWidgetData.State = switch plan.state {
         case .activeWorkout: .activeWorkout
         case .scheduledWorkout: .scheduledWorkout
@@ -39,9 +45,12 @@ enum WidgetSnapshotService {
         )
     }
 
-    private static func weeklyVolumeData(using context: ModelContext) -> WeeklyVolumeWidgetData {
+    private static func weeklyVolumeData(using context: ModelContext) throws -> WeeklyVolumeWidgetData {
         let unit: WeightType = UserDefaults.standard.unitSystem == .metric ? .kg : .lbs
-        let projection = WorkoutIntentProjectionService.weeklyVolume(using: context, preferredUnit: unit)
+        let projection = try WorkoutIntentProjectionService.weeklyVolumeRequiringStore(
+            using: context,
+            preferredUnit: unit
+        )
         return WeeklyVolumeWidgetData(
             completedWorkoutCount: projection.completedWorkoutCount,
             workingSetCount: projection.workingSetCount,
@@ -50,14 +59,20 @@ enum WidgetSnapshotService {
         )
     }
 
-    private static func caffeineData(using context: ModelContext) -> CaffeineWidgetData {
-        let meals = (try? context.fetch(FetchDescriptor<LoggedMeal>())) ?? []
-        let totals = NutritionDaySummary.resolve(day: .today, meals: meals).totals
+    private static func caffeineData(using context: ModelContext) throws -> CaffeineWidgetData {
+        let today = LocalDay.today
+        let dayKey = today.rawValue
+        let meals = try context.fetch(FetchDescriptor<LoggedMeal>(
+            predicate: #Predicate { $0.dayKey == dayKey }
+        ))
+        let totals = NutritionDaySummary.resolve(day: today, meals: meals).totals
 
         let birthdate = UserDefaults.standard.double(forKey: DefaultsKey.caffeineBirthdateTimestamp).nonZeroDate
-        let latestBodyWeightKilograms = (try? context.fetch(FetchDescriptor<BodyWeightEntry>(
+        var bodyWeightDescriptor = FetchDescriptor<BodyWeightEntry>(
             sortBy: [SortDescriptor(\.measuredAt, order: .reverse)]
-        )))?.first.map { Double($0.kilograms) }
+        )
+        bodyWeightDescriptor.fetchLimit = 1
+        let latestBodyWeightKilograms = try context.fetch(bodyWeightDescriptor).first.map { Double($0.kilograms) }
 
         let ageBand = CaffeineGuidance.ageBand(birthdate: birthdate)
         let limit = CaffeineGuidance.dailyLimit(ageBand: ageBand, bodyWeightKilograms: latestBodyWeightKilograms)
@@ -66,15 +81,42 @@ enum WidgetSnapshotService {
         return CaffeineWidgetData(loggedMilligrams: totals.caffeineMilligrams, referenceMilligrams: referenceMilligrams)
     }
 
-    private static func creatineData(using context: ModelContext) -> CreatineWidgetData {
+    private static func creatineData(using context: ModelContext) throws -> CreatineWidgetData {
         let today = LocalDay.today
-        let occurrences = (try? context.fetch(FetchDescriptor<SupplementOccurrence>())) ?? []
-        let isConfirmed = occurrences.first { $0.dayKey == today.rawValue && $0.kind == .creatine }?.status == .completed
+        let occurrenceKey = "\(today.rawValue)|\(SupplementKind.creatine.rawValue)"
+        var descriptor = FetchDescriptor<SupplementOccurrence>(
+            predicate: #Predicate { $0.occurrenceKey == occurrenceKey }
+        )
+        descriptor.fetchLimit = 1
+        let isConfirmed = try context.fetch(descriptor).first?.status == .completed
         return CreatineWidgetData(isConfirmed: isConfirmed)
     }
 
-    private static func mobilityData(using context: ModelContext) -> MobilityWidgetData {
-        let sessions = (try? context.fetch(FetchDescriptor<MobilitySession>())) ?? []
+    private static func mobilityData(using context: ModelContext) throws -> MobilityWidgetData {
+        let now = Date.now
+        let weekStart = Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        let activeStatus = MobilitySessionStatus.active.rawValue
+        let completedStatus = MobilitySessionStatus.completed.rawValue
+        // The widget needs active sessions, this week's completion count, and
+        // the latest completed session. Avoid materializing the entire mobility
+        // history and all of its entry/result relationships on every refresh.
+        let recent = try context.fetch(FetchDescriptor<MobilitySession>(
+            predicate: #Predicate {
+                $0.statusRaw == activeStatus
+                    || ($0.statusRaw == completedStatus && $0.startTime >= weekStart)
+            },
+            sortBy: [SortDescriptor(\.startTime, order: .reverse)]
+        ))
+        var latestEndedDescriptor = FetchDescriptor<MobilitySession>(
+            predicate: #Predicate { $0.statusRaw == completedStatus },
+            sortBy: [SortDescriptor(\.startTime, order: .reverse)]
+        )
+        latestEndedDescriptor.fetchLimit = 1
+        let latestCompleted = try context.fetch(latestEndedDescriptor).first
+        var sessions = recent
+        if let latestCompleted, sessions.contains(where: { $0.id == latestCompleted.id }) == false {
+            sessions.append(latestCompleted)
+        }
         let snapshots = sessions.map { session in
             let entries = session.orderedEntries
             let completedEntries = entries.filter { entry in
@@ -101,7 +143,7 @@ enum WidgetSnapshotService {
                 startTime: session.startTime
             )
         }
-        return MobilityWidgetProjection.resolve(sessions: snapshots, now: .now, calendar: .current)
+        return MobilityWidgetProjection.resolve(sessions: snapshots, now: now, calendar: .current)
     }
 }
 

@@ -72,7 +72,9 @@ enum PlanLifecycleService {
     /// Sorted most-recently-updated first, with an id tiebreak so the order is
     /// stable across launches rather than whatever the store returns.
     static func activeFixedRuns(using context: ModelContext) -> [PlanRun] {
-        ((try? context.fetch(FetchDescriptor<PlanRun>())) ?? [])
+        ((try? context.fetch(FetchDescriptor<PlanRun>(
+            predicate: #Predicate { $0.endDate == nil }
+        ))) ?? [])
             .filter { $0.status == .active }
             .sorted {
                 if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
@@ -81,7 +83,9 @@ enum PlanLifecycleService {
     }
 
     static func activeRepeatingRuns(using context: ModelContext) -> [RepeatingPlanRun] {
-        ((try? context.fetch(FetchDescriptor<RepeatingPlanRun>())) ?? [])
+        ((try? context.fetch(FetchDescriptor<RepeatingPlanRun>(
+            predicate: #Predicate { $0.endedAt == nil }
+        ))) ?? [])
             .filter { $0.status == .active }
             .sorted {
                 if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
@@ -108,8 +112,12 @@ enum PlanLifecycleService {
             return .failed(message: "The previous plan could not be restored automatically.")
         }
 
-        let fixedRuns = (try? context.fetch(FetchDescriptor<PlanRun>())) ?? []
-        let repeatingRuns = (try? context.fetch(FetchDescriptor<RepeatingPlanRun>())) ?? []
+        let fixedRuns = (try? context.fetch(FetchDescriptor<PlanRun>(
+            predicate: #Predicate { $0.endDate == nil }
+        ))) ?? []
+        let repeatingRuns = (try? context.fetch(FetchDescriptor<RepeatingPlanRun>(
+            predicate: #Predicate { $0.endedAt == nil }
+        ))) ?? []
         guard fixedRuns.contains(where: { priorFixed[$0.id] != nil })
                 || repeatingRuns.contains(where: { priorRepeating[$0.id] != nil }) else {
             return .failed(message: "The previous plan is no longer available.")

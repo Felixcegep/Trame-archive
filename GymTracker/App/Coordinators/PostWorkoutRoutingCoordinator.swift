@@ -20,7 +20,9 @@ final class PostWorkoutRoutingCoordinator {
     /// Order: Cooldown first (if requested), then Progression Receipt (if owed).
     func processPostWorkoutDismissal(
         using modelContext: ModelContext,
-        presentAfterDismissal: @escaping (@escaping () -> Void) -> Void
+        presentAfterDismissal: @escaping @MainActor @Sendable (
+            @escaping @MainActor @Sendable () -> Void
+        ) -> Void
     ) {
         if let pendingCooldown = pendingCooldownAfterWorkoutDismissal {
             pendingCooldownAfterWorkoutDismissal = nil

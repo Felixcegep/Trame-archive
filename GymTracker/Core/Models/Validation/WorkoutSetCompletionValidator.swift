@@ -151,11 +151,25 @@ nonisolated enum WorkoutSetCompletionValidator {
         input: Input
     ) -> InvalidReason? {
         switch metric {
-        case .repetitions: return input.repetitions > 0 ? nil : .missingRepetitions
-        case .load: return input.load > 0 ? nil : .missingLoad
-        case .duration: return (input.duration ?? 0) > 0 ? nil : .missingDuration
-        case .distance: return (input.distance ?? 0) > 0 ? nil : .missingDistance
-        case .calories: return (input.calories ?? 0) > 0 ? nil : .missingCalories
+        case .repetitions:
+            return input.repetitions.isFinite && input.repetitions > 0 ? nil : .missingRepetitions
+        case .load:
+            return input.load.isFinite && input.load > 0 ? nil : .missingLoad
+        case .duration:
+            guard let duration = input.duration, duration.isFinite, duration > 0 else {
+                return .missingDuration
+            }
+            return nil
+        case .distance:
+            guard let distance = input.distance, distance.isFinite, distance > 0 else {
+                return .missingDistance
+            }
+            return nil
+        case .calories:
+            guard let calories = input.calories, calories.isFinite, calories > 0 else {
+                return .missingCalories
+            }
+            return nil
         case .meanVelocity, .peakVelocity, .jumpHeight, .contactTime,
                 .throwDistance, .cadence:
             // Advanced evidence is intentionally not a completion metric until

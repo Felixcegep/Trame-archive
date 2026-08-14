@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 @Observable
-final class RestTimerController {
+final class RestTimerSession {
     enum State: Equatable {
         case idle
         case running(Date)

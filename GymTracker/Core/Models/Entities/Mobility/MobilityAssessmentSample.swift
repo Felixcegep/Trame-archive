@@ -40,11 +40,10 @@ final class MobilityAssessmentSample {
 
     /// Constructs a MobilityAssessmentSample from repeated trial measurements.
     static func create(from trials: [Double], createdAt: Date = .now) -> MobilityAssessmentSample? {
-        guard trials.isEmpty == false else { return nil }
+        guard trials.isEmpty == false, trials.allSatisfy(\.isFinite) else { return nil }
         let sorted = trials.sorted()
         let count = sorted.count
-        let min = sorted.first!
-        let max = sorted.last!
+        guard let min = sorted.first, let max = sorted.last else { return nil }
         let median: Double
         if count % 2 == 1 {
             median = sorted[count / 2]
@@ -66,4 +65,3 @@ final class MobilityAssessmentSample {
         )
     }
 }
-

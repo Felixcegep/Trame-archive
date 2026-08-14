@@ -1,6 +1,6 @@
 import Foundation
 
-enum BackupEnvelopeValidator {
+nonisolated enum BackupEnvelopeValidator {
     static func validate(_ backup: BackupDTO) throws {
         guard backup.version >= BackupDTO.legacyVersion && backup.version <= BackupDTO.currentVersion else {
             throw BackupValidationError.unsupportedVersion(backup.version)

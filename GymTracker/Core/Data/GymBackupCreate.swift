@@ -3,7 +3,12 @@ import SwiftData
 
 extension BackupDTO {
 
-    static func create(from context: ModelContext, restTimer: Int, darkMode: Bool, unitSystem: UnitSystem) throws -> BackupDTO {
+    /// Builds a value-only backup from the context that owns the read. The
+    /// method is deliberately nonisolated so a `ModelActor` can perform the
+    /// complete graph traversal on its own SwiftData executor. Callers that
+    /// need unsaved changes may still invoke it with the main context; the
+    /// export service chooses that path explicitly when necessary.
+    nonisolated static func create(from context: ModelContext, restTimer: Int, darkMode: Bool, unitSystem: UnitSystem) throws -> BackupDTO {
         let exercises = try context.fetch(FetchDescriptor<Exercise>())
         let exerciseDTOs = exercises.map { exercise in
             ExerciseTemplateDTO(
@@ -41,9 +46,9 @@ extension BackupDTO {
             )
         }
 
-        let relationshipDTOs: [ExerciseRelationshipDTO] = try context.fetch(FetchDescriptor<ExerciseRelationship>()).compactMap { relationship in
+        let relationshipDTOs: [ExerciseRelationshipDTO] = try context.fetch(FetchDescriptor<ExerciseRelationship>()).map { relationship in
             guard let source = relationship.sourceExercise, let target = relationship.targetExercise else {
-                return nil
+                throw BackupValidationError.invalidExerciseRelationship
             }
             return ExerciseRelationshipDTO(
                 sourceExerciseName: source.name,
@@ -53,7 +58,9 @@ extension BackupDTO {
                 rationaleCode: relationship.rationaleCode,
                 appliesToGoals: relationship.appliesToGoalsRaw.isEmpty ? nil : relationship.appliesToGoalsRaw,
                 appliesToRoles: relationship.appliesToRolesRaw.isEmpty ? nil : relationship.appliesToRolesRaw,
-                reviewVersion: relationship.reviewVersion
+                reviewVersion: relationship.reviewVersion,
+                sourceExerciseID: source.id.uuidString,
+                targetExerciseID: target.id.uuidString
             )
         }
 
@@ -78,7 +85,8 @@ extension BackupDTO {
                         progressionKey: te.progressionKey,
                         executionBlockID: te.executionBlockID?.uuidString,
                         executionBlockComponentOrder: te.executionBlockComponentOrder,
-                        stimulus: te.stimulus?.rawValue
+                        stimulus: te.stimulus?.rawValue,
+                        exerciseID: te.exercise.id.uuidString
                     )
                 },
                 executionBlocks: template.orderedExecutionBlocks.map { block in
@@ -455,7 +463,11 @@ extension BackupDTO {
                                                 initialActualOneRepMax: plannedExercise.initialActualOneRepMax,
                                                 automaticDeloadVolumeReductionPercent: plannedExercise.automaticDeloadVolumeReductionPercent,
                                                 automaticDeloadIntensityReductionPercent: plannedExercise.automaticDeloadIntensityReductionPercent,
-                                                warmupSchemeData: plannedExercise.warmupSchemeData
+                                                warmupSchemeData: plannedExercise.warmupSchemeData,
+                                                exerciseID: plannedExercise.exercise.id.uuidString,
+                                                alternativeExerciseIDs: plannedExercise.alternatives
+                                                    .sorted { $0.orderIndex < $1.orderIndex }
+                                                    .map { $0.exercise.id.uuidString }
                                             )
                                         },
                                         executionBlocks: plannedWorkout.orderedExecutionBlocks.map { block in
@@ -1280,13 +1292,16 @@ extension BackupDTO {
         // A profile the lifter never created exports as absent rather than as
         // an empty record, so a restore cannot resurrect "answered nothing" as
         // if it were a set of answers.
-        let trainingProfileDTO = ((try? context.fetch(FetchDescriptor<TrainingProfile>())) ?? []).first.map { profile in
+        var trainingProfileDescriptor = FetchDescriptor<TrainingProfile>()
+        trainingProfileDescriptor.fetchLimit = 1
+        let trainingProfileDTO = try context.fetch(trainingProfileDescriptor).first.map { profile in
             TrainingProfileDTO(
                 schemaVersion: profile.schemaVersion,
                 onboardingVersion: profile.onboardingVersion,
                 preferredTrainingStructure: profile.preferredTrainingStructureRaw,
                 primaryDiscipline: profile.primaryDisciplineRaw,
                 secondaryDisciplineIDs: profile.secondaryDisciplineIDs.isEmpty ? nil : profile.secondaryDisciplineIDs,
+                progressOrganizationMode: profile.progressOrganizationModeRaw,
                 primaryGoal: profile.primaryGoalRaw,
                 experienceLevel: profile.experienceLevelRaw,
                 preferredDaysPerWeek: profile.preferredDaysPerWeek,
@@ -1303,6 +1318,9 @@ extension BackupDTO {
                 competitionDiscipline: profile.competition?.discipline?.rawValue,
                 competitionEventDateTimestamp: profile.competition?.eventDate?.timeIntervalSince1970,
                 competitionStandards: profile.competition?.standards?.rawValue,
+                competitionSquatExerciseID: profile.competition?.squatExerciseID,
+                competitionBenchExerciseID: profile.competition?.benchExerciseID,
+                competitionDeadliftExerciseID: profile.competition?.deadliftExerciseID,
                 mobilityGoal: profile.mobilityGoalRaw,
                 mobilityExperience: profile.mobilityExperienceRaw,
                 mobilityFrequency: profile.mobilityFrequencyRaw,

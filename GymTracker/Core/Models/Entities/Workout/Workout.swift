@@ -11,7 +11,7 @@ import SwiftData
 /// The mutation boundary shared by every active-workout model. A completed
 /// workout is historical truth; attempts to edit its graph are rejected in
 /// Release builds as well as Debug builds.
-enum WorkoutMutationOperation: String, Codable, Equatable, Sendable {
+nonisolated enum WorkoutMutationOperation: String, Codable, Equatable, Sendable {
     case addWorkoutEntry
     case removeWorkoutEntry
     case updateWorkoutName
@@ -43,7 +43,7 @@ enum WorkoutMutationOperation: String, Codable, Equatable, Sendable {
     case updateExecutionBlockScore
 }
 
-enum WorkoutMutationError: Error, Equatable, LocalizedError, Sendable {
+nonisolated enum WorkoutMutationError: Error, Equatable, LocalizedError, Sendable {
     case completedWorkoutMutation(WorkoutMutationOperation)
 
     var errorDescription: String? {
@@ -54,7 +54,7 @@ enum WorkoutMutationError: Error, Equatable, LocalizedError, Sendable {
     }
 }
 
-enum WorkoutMutationResult: Equatable, Sendable {
+nonisolated enum WorkoutMutationResult: Equatable, Sendable {
     case applied
     case rejected(WorkoutMutationError)
 
@@ -64,7 +64,7 @@ enum WorkoutMutationResult: Equatable, Sendable {
     }
 }
 
-enum WorkoutMutationGuard {
+nonisolated enum WorkoutMutationGuard {
     static func rejectionIfCompleted(
         _ isCompleted: Bool,
         operation: WorkoutMutationOperation
@@ -217,6 +217,7 @@ class Workout {
         )
     }
 
+    @MainActor
     convenience init(plannedWorkout: PlannedWorkout, planRun: PlanRun, unitSystem: UnitSystem) {
         self.init(name: plannedWorkout.name)
         self.sourceTemplate = plannedWorkout.sourceTemplate

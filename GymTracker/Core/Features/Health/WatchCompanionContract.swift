@@ -5,12 +5,12 @@ import SwiftData
 
 /// The phone remains authoritative for SwiftData and workout mutations. The
 /// future Watch target is a command surface and a read-only snapshot client.
-enum WatchCompanionAuthority: String, Codable, Equatable, Hashable, Sendable {
+nonisolated enum WatchCompanionAuthority: String, Codable, Equatable, Hashable, Sendable {
     case phone
     case watchCommandSurface
 }
 
-enum WatchCompanionConnection: String, Codable, Equatable, Hashable, Sendable {
+nonisolated enum WatchCompanionConnection: String, Codable, Equatable, Hashable, Sendable {
     case unsupported
     case notPaired
     case appNotInstalled
@@ -19,7 +19,7 @@ enum WatchCompanionConnection: String, Codable, Equatable, Hashable, Sendable {
     case offline
 }
 
-struct WatchCompanionOwnershipState: Codable, Equatable, Hashable, Sendable {
+nonisolated struct WatchCompanionOwnershipState: Codable, Equatable, Hashable, Sendable {
     let authority: WatchCompanionAuthority
     let connection: WatchCompanionConnection
     let phoneOwnsPersistence: Bool
@@ -33,7 +33,7 @@ struct WatchCompanionOwnershipState: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-enum WatchCompanionCommandKind: String, Codable, Equatable, Hashable, Sendable {
+nonisolated enum WatchCompanionCommandKind: String, Codable, Equatable, Hashable, Sendable {
     case completeCurrentSet
     case pauseRest
     case resumeRest
@@ -46,7 +46,7 @@ enum WatchCompanionCommandKind: String, Codable, Equatable, Hashable, Sendable {
 /// A command is an intent, not performed truth. `commandID` is the stable
 /// idempotency key that the future Watch adapter must pass to the existing
 /// durable mutation boundary where supported (notably execution-block splits).
-struct WatchCompanionCommandEnvelope: Codable, Equatable, Hashable, Sendable {
+nonisolated struct WatchCompanionCommandEnvelope: Codable, Equatable, Hashable, Sendable {
     let commandID: UUID
     let workoutID: UUID
     let kind: WatchCompanionCommandKind
@@ -80,7 +80,7 @@ struct WatchCompanionCommandEnvelope: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-enum WatchCompanionCommandOutcome: String, Codable, Equatable, Hashable, Sendable {
+nonisolated enum WatchCompanionCommandOutcome: String, Codable, Equatable, Hashable, Sendable {
     case applied
     case duplicate
     case queuedOffline
@@ -90,7 +90,7 @@ enum WatchCompanionCommandOutcome: String, Codable, Equatable, Hashable, Sendabl
     case handoffRequired
 }
 
-enum WatchCompanionConflictReason: String, Codable, Equatable, Hashable, Sendable {
+nonisolated enum WatchCompanionConflictReason: String, Codable, Equatable, Hashable, Sendable {
     case workoutChanged
     case currentSetChanged
     case restStateChanged
@@ -99,7 +99,7 @@ enum WatchCompanionConflictReason: String, Codable, Equatable, Hashable, Sendabl
     case snapshotChanged
 }
 
-struct WatchCompanionCommandReceipt: Codable, Equatable, Hashable, Sendable {
+nonisolated struct WatchCompanionCommandReceipt: Codable, Equatable, Hashable, Sendable {
     let commandID: UUID
     let workoutID: UUID
     let kind: WatchCompanionCommandKind
@@ -111,7 +111,7 @@ struct WatchCompanionCommandReceipt: Codable, Equatable, Hashable, Sendable {
 
 /// A compact latest-state snapshot. It contains enough for a Watch set/rest
 /// surface and completion handoff without creating a Watch-owned workout graph.
-struct WatchCompanionWorkoutSnapshot: Codable, Equatable, Hashable, Sendable {
+nonisolated struct WatchCompanionWorkoutSnapshot: Codable, Equatable, Hashable, Sendable {
     let snapshotID: String
     let workoutID: UUID
     let generatedAt: Date
@@ -289,8 +289,10 @@ enum WatchCompanionCommandProcessor {
         now: Date = .now,
         using context: ModelContext
     ) -> WatchCompanionCommandReceipt {
-        guard let workout = ((try? context.fetch(FetchDescriptor<Workout>())) ?? [])
-            .first(where: { $0.id == command.workoutID }) else {
+        let workoutID = command.workoutID
+        var descriptor = FetchDescriptor<Workout>(predicate: #Predicate { $0.id == workoutID })
+        descriptor.fetchLimit = 1
+        guard let workout = (try? context.fetch(descriptor))?.first else {
             return receipt(command, outcome: .conflict, reason: .workoutChanged, snapshotID: nil, at: now)
         }
         let before = WatchCompanionWorkoutSnapshot.build(

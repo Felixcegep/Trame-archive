@@ -2,7 +2,7 @@ import Foundation
 
 /// A within-workout execution structure. This is intentionally distinct from
 /// `PlanBlock`, which represents a multi-week periodization phase.
-enum ExerciseBlockKind: String, Codable, CaseIterable {
+nonisolated enum ExerciseBlockKind: String, Codable, CaseIterable {
     case straight
     case pairedSet
     case triset
@@ -93,7 +93,7 @@ enum ExerciseBlockKind: String, Codable, CaseIterable {
     }
 }
 
-enum WorkoutBlockStatus: String, Codable, CaseIterable {
+nonisolated enum WorkoutBlockStatus: String, Codable, CaseIterable {
     case notStarted
     case inProgress
     case completed
@@ -115,7 +115,7 @@ enum WorkoutBlockStatus: String, Codable, CaseIterable {
     }
 }
 
-enum BlockClockMode: String, Codable, CaseIterable {
+nonisolated enum BlockClockMode: String, Codable, CaseIterable {
     case none
     case countUp
     case countdown
@@ -133,7 +133,7 @@ enum BlockClockMode: String, Codable, CaseIterable {
 
 /// The score is stored as raw, typed evidence. Presentation and comparison
 /// policies decide whether it is eligible for a record or progression rule.
-enum BlockScoreKind: String, Codable, CaseIterable {
+nonisolated enum BlockScoreKind: String, Codable, CaseIterable {
     case none
     case duration
     case roundsAndRepetitions
@@ -160,7 +160,7 @@ enum BlockScoreKind: String, Codable, CaseIterable {
 /// Explicitly describes when a block's repetitions change across rounds.
 /// Per-exercise target sets/reps remain the component prescription for fixed
 /// circuits and chippers.
-enum BlockRepetitionScheme: String, Codable, CaseIterable {
+nonisolated enum BlockRepetitionScheme: String, Codable, CaseIterable {
     case fixed
     case ascendingLadder
     case descendingLadder
@@ -178,7 +178,7 @@ enum BlockRepetitionScheme: String, Codable, CaseIterable {
 
 /// A set role (`SetType`) and its method are independent. A top set may be a
 /// cluster; a back-off set may be a dropset.
-enum SetMethod: String, Codable, CaseIterable {
+nonisolated enum SetMethod: String, Codable, CaseIterable {
     case standard
     case dropSet
     case mechanicalDropSet
@@ -231,7 +231,7 @@ enum SetMethod: String, Codable, CaseIterable {
 /// The performed outcome of one ordered component in a prescribed Olympic
 /// complex. This stays distinct from `LiftQuality`: a component can be
 /// partially completed and still carry a technical-quality observation.
-enum ComplexComponentOutcome: String, Codable, CaseIterable {
+nonisolated enum ComplexComponentOutcome: String, Codable, CaseIterable {
     case notStarted
     case completed
     case partial
@@ -252,7 +252,7 @@ enum ComplexComponentOutcome: String, Codable, CaseIterable {
 /// Snapshot input accepted by the persisted workout model. It intentionally
 /// does not depend on the Program Engine so the Live Activity extension can
 /// compile the workout schema independently.
-struct ComplexComponentSnapshot: Hashable {
+nonisolated struct ComplexComponentSnapshot: Hashable {
     let exerciseID: UUID
     let exerciseNameSnapshot: String
     let prescribedRepetitions: Int
@@ -260,7 +260,7 @@ struct ComplexComponentSnapshot: Hashable {
 
 /// Parent-level result of one Olympic attempt. This is derived from the
 /// ordered component evidence and therefore cannot disagree with it.
-enum OlympicAttemptOutcome: String, Codable, CaseIterable, Hashable {
+nonisolated enum OlympicAttemptOutcome: String, Codable, CaseIterable, Hashable {
     case notStarted
     case made
     case partial
@@ -278,7 +278,7 @@ enum OlympicAttemptOutcome: String, Codable, CaseIterable, Hashable {
     }
 }
 
-enum MeasurementSource: String, Codable, CaseIterable {
+nonisolated enum MeasurementSource: String, Codable, CaseIterable {
     case manual
     case imported
     case device
@@ -297,7 +297,7 @@ enum MeasurementSource: String, Codable, CaseIterable {
 /// A deliberately small, typed set of sport-specific outcomes. The value for
 /// each kind lives in its own unit-bearing property on `ExerciseSet`, avoiding
 /// ambiguous custom key/value metrics in workout history.
-enum SpecializedPerformanceMetricKind: String, Codable, CaseIterable {
+nonisolated enum SpecializedPerformanceMetricKind: String, Codable, CaseIterable {
     case none
     case jumpHeight
     case contactTime
@@ -315,7 +315,7 @@ enum SpecializedPerformanceMetricKind: String, Codable, CaseIterable {
     }
 }
 
-enum ExecutionBlockConfigurationValidator {
+nonisolated enum ExecutionBlockConfigurationValidator {
     static func message(
         kind: ExerciseBlockKind,
         clockMode: BlockClockMode,

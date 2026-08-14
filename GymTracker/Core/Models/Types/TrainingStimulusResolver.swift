@@ -4,7 +4,7 @@ import Foundation
 /// resolution, and backup validation. The return type is optional because an
 /// exercise whose semantics do not support an unambiguous inference must stay
 /// unclassified — absence is different from intent.
-enum TrainingStimulusResolver {
+nonisolated enum TrainingStimulusResolver {
     static func inferredStimulus(for exercise: Exercise) -> TrainingStimulus? {
         inferredStimulus(category: exercise.category, trackingType: exercise.trackingType)
     }
