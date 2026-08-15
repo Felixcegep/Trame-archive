@@ -745,6 +745,7 @@ final class BackupFieldCoverageTests: XCTestCase {
         assertFieldCount(of: MobilityAssessmentResultDTO.self, equals: 24)
         assertFieldCount(of: MobilityAssessmentSessionDTO.self, equals: 11)
         assertFieldCount(of: TrainingProfileDTO.self, equals: 29)
+        assertFieldCount(of: CatalogDefinitionMetadataDTO.self, equals: 32)
     }
 
     /// The count guard above only protects the eight DTO types it already
@@ -811,7 +812,8 @@ final class BackupFieldCoverageTests: XCTestCase {
         "MobilityAssessmentSampleDTO",
         "MobilityAssessmentResultDTO",
         "MobilityAssessmentSessionDTO",
-        "TrainingProfileDTO"
+        "TrainingProfileDTO",
+        "CatalogDefinitionMetadataDTO"
     ]
 
     /// DTO types with no Mirror-based field-count guard *in this file* yet.
@@ -883,6 +885,7 @@ final class BackupFieldCoverageTests: XCTestCase {
         "MobilityTempoPrescriptionDTO",
         "MobilityAssistancePrescriptionDTO",
         "MobilityBreathingPrescriptionDTO",
+        "ProgramDiscoverySeedDTO", // Dedicated discovery-only backup round trip lives in CatalogDefinitionMetadataBackupTests.
     ]
 
     private func assertFieldCount<T>(
@@ -1031,6 +1034,41 @@ final class BackupFieldCoverageTests: XCTestCase {
             )
         case "TrainingProfileDTO":
             return TrainingProfileDTO()
+        case "CatalogDefinitionMetadataDTO":
+            return CatalogDefinitionMetadataDTO(
+                id: UUID().uuidString,
+                definitionID: UUID().uuidString,
+                definitionKind: CatalogDefinitionKind.exercise.rawValue,
+                catalogueKey: nil,
+                sourceReferencesData: nil,
+                muscleGroups: [],
+                anatomicalTargetMuscles: [],
+                anatomicalSynergistMuscles: [],
+                descriptionText: nil,
+                instructionSteps: [],
+                videoURLString: nil,
+                videoEmbedURLString: nil,
+                thumbnailURLString: nil,
+                imageURLString: nil,
+                liftosaurURLString: nil,
+                liftosaurSlug: nil,
+                categoryRaw: nil,
+                difficultyRaw: nil,
+                equipmentLabels: [],
+                primaryMuscleLabels: [],
+                secondaryMuscleLabels: [],
+                sanskritName: nil,
+                metValue: nil,
+                benefitsText: nil,
+                svgURLString: nil,
+                authoringLanguage: nil,
+                authoringLanguageVersion: nil,
+                authoringSourceData: nil,
+                authoringSourceHash: nil,
+                authoringCompilerVersion: nil,
+                createdAt: .now,
+                updatedAt: .now
+            )
         case "MobilityRoutineDTO":
             return MobilityRoutineDTO(
                 id: UUID().uuidString,

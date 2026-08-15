@@ -28,6 +28,33 @@ final class GymTrackerFrozenV2SchemaTests: XCTestCase {
         )
     }
 
+    func testCurrentCatalogMetadataSchemaVersionIdentifier() {
+        XCTAssertEqual(
+            GymTrackerExecutionSplitSchema.versionIdentifier,
+            Schema.Version(3, 0, 0),
+            "GymTrackerExecutionSplitSchema version identifier MUST remain 3.0.0"
+        )
+        XCTAssertEqual(
+            GymTrackerCatalogMetadataSchema.versionIdentifier,
+            Schema.Version(4, 0, 0),
+            "The additive catalogue metadata schema MUST be 4.0.0"
+        )
+        XCTAssertTrue(
+            GymTrackerCatalogMetadataSchema.models.contains {
+                String(describing: $0) == "CatalogDefinitionMetadata"
+            },
+            "V4 needs its additive metadata model so SwiftData does not compute the same checksum as V3"
+        )
+        let v3 = Set(GymTrackerExecutionSplitSchema.models.map { String(describing: $0) })
+        let v4 = Set(GymTrackerCatalogMetadataSchema.models.map { String(describing: $0) })
+        XCTAssertEqual(
+            v4.subtracting(v3),
+            Set(["CatalogDefinitionMetadata", "ProgramDiscoverySeed"]),
+            "The app V4 inventory must add exactly the two catalogue roots"
+        )
+        XCTAssertTrue(v3.isSubset(of: v4), "V4 must preserve every V3 model")
+    }
+
     func testFrozenV2ModelInventoryMatchesExpectedModels() {
         let actualModels = GymTrackerAdvancedMobilityEvidenceSchema.models
         let actualModelNames = Set(actualModels.map { String(describing: $0) })
@@ -212,6 +239,55 @@ final class GymTrackerFrozenV2SchemaTests: XCTestCase {
 
             let evidenceFetched = try context.fetch(FetchDescriptor<MobilityRoutineItemEvidence>())
             XCTAssertEqual(evidenceFetched.count, 1)
+        }
+    }
+
+    func testSupportedV3ToV4CatalogMetadataMigration() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let storeURL = tempDir.appendingPathComponent("v3_to_v4_catalog_metadata.store")
+        let config = ModelConfiguration(url: storeURL, allowsSave: true)
+        let v3Schema = Schema(versionedSchema: GymTrackerExecutionSplitSchema.self)
+        let v4Schema = Schema(versionedSchema: GymTrackerCatalogMetadataSchema.self)
+        let exerciseID = UUID()
+
+        do {
+            let container = try ModelContainer(for: v3Schema, configurations: config)
+            let context = ModelContext(container)
+            let exercise = Exercise(
+                name: "V3 Catalog Exercise",
+                primaryMuscles: [.quadriceps],
+                id: exerciseID
+            )
+            context.insert(exercise)
+            try context.save()
+        }
+
+        do {
+            let container = try ModelContainer(
+                for: v4Schema,
+                migrationPlan: GymTrackerSchemaMigrationPlan.self,
+                configurations: config
+            )
+            let context = ModelContext(container)
+            let exercises = try context.fetch(FetchDescriptor<Exercise>())
+            XCTAssertEqual(exercises.map(\.id), [exerciseID])
+
+            let metadata = CatalogDefinitionMetadata(
+                definitionID: exerciseID,
+                definitionKind: .exercise,
+                catalogueKey: "exercise.v3-catalog-exercise"
+            )
+            metadata.descriptionText = "Added after the V4 migration."
+            context.insert(metadata)
+            try context.save()
+
+            let restoredMetadata = try context.fetch(FetchDescriptor<CatalogDefinitionMetadata>())
+            XCTAssertEqual(restoredMetadata.count, 1)
+            XCTAssertEqual(restoredMetadata.first?.definitionID, exerciseID)
+            XCTAssertEqual(restoredMetadata.first?.descriptionText, "Added after the V4 migration.")
         }
     }
 }

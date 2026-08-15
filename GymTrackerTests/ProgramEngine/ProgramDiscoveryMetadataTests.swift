@@ -169,12 +169,159 @@ final class ProgramDiscoveryMetadataTests: XCTestCase {
         XCTAssertEqual(prescriptionSignature(baseline), prescriptionSignature(enriched))
     }
 
+    func testDiscoveryMetadataDefaultsToAbsentOnNewPayloads() {
+        let strength = ProgramDefinitionFixture.make(exercises: [exerciseDefinition()])
+        let mobility = MobilityProgramDefinitionPayload(
+            name: "Mobility",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [2],
+            blocks: []
+        )
+
+        XCTAssertNil(strength.discoveryMetadata)
+        XCTAssertNil(mobility.discoveryMetadata)
+        XCTAssertEqual(ProgramDiscoveryMetadata().tags, [])
+    }
+
+    func testStrengthDiscoveryMetadataRoundTripsAndAuthoringLoweringPreservesIt() throws {
+        let metadata = ProgramDiscoveryMetadata(
+            authorOrOrigin: "Example Coach",
+            categoryOrDisciplineLabel: "Hypertrophy",
+            progressionModelLabel: "Double progression",
+            tags: ["upper body", "intermediate"],
+            sourceProgramURL: "https://example.com/program",
+            imageURL: "https://example.com/program.jpg"
+        )
+        var payload = ProgramDefinitionFixture.make(exercises: [exerciseDefinition()])
+        payload.discoveryMetadata = metadata
+
+        let decoded = try JSONDecoder().decode(
+            ProgramDefinitionPayload.self,
+            from: JSONEncoder().encode(payload)
+        )
+        XCTAssertEqual(decoded.discoveryMetadata, metadata)
+
+        let authoring = try JSONDecoder().decode(
+            AuthoringProgramDefinition.self,
+            from: JSONEncoder().encode(makeAuthoringProgram(discoveryMetadata: metadata))
+        )
+        let lowered = try authoring.expand(exerciseIDsByName: [:])
+        XCTAssertEqual(lowered.discoveryMetadata, metadata)
+    }
+
+    func testMobilityDiscoveryMetadataRoundTrips() throws {
+        let metadata = ProgramDiscoveryMetadata(
+            authorOrOrigin: "Mobility Lab",
+            categoryOrDisciplineLabel: "Mobility",
+            progressionModelLabel: "Range control",
+            tags: ["hips"],
+            sourceProgramURL: "https://example.com/mobility",
+            imageURL: "https://example.com/mobility.jpg"
+        )
+        let payload = MobilityProgramDefinitionPayload(
+            name: "Mobility",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [2],
+            discoveryMetadata: metadata,
+            blocks: []
+        )
+
+        let decoded = try JSONDecoder().decode(
+            MobilityProgramDefinitionPayload.self,
+            from: JSONEncoder().encode(payload)
+        )
+        XCTAssertEqual(decoded.discoveryMetadata, metadata)
+    }
+
+    func testLegacyPayloadWithoutDiscoveryMetadataDecodesAsAbsent() throws {
+        let strengthData = try removingDiscoveryMetadata(
+            from: JSONEncoder().encode(ProgramDefinitionFixture.make(exercises: [exerciseDefinition()]))
+        )
+        let decodedStrength = try JSONDecoder().decode(ProgramDefinitionPayload.self, from: strengthData)
+        XCTAssertNil(decodedStrength.discoveryMetadata)
+
+        let mobility = MobilityProgramDefinitionPayload(
+            name: "Mobility",
+            durationWeeks: 1,
+            supportedDaysPerWeek: [2],
+            blocks: []
+        )
+        let mobilityData = try removingDiscoveryMetadata(
+            from: JSONEncoder().encode(mobility)
+        )
+        let decodedMobility = try JSONDecoder().decode(MobilityProgramDefinitionPayload.self, from: mobilityData)
+        XCTAssertNil(decodedMobility.discoveryMetadata)
+    }
+
+    func testCatalogMetadataReservesProgramKeyAndAuthoringHooksWithoutChangingProgramRecord() throws {
+        var payload = ProgramDefinitionFixture.make(exercises: [exerciseDefinition()])
+        payload.programKey = "stable-program-key"
+        let source = Data("program source".utf8)
+        let record = try ProgramDefinitionRecord(payload: payload)
+        let metadata = CatalogDefinitionMetadata(
+            definitionID: record.id,
+            definitionKind: .workoutProgram,
+            catalogueKey: payload.programKey
+        )
+        metadata.authoringLanguage = "trame"
+        metadata.authoringLanguageVersion = "1"
+        metadata.authoringSourceData = source
+        metadata.authoringSourceHash = "sha256:example"
+        metadata.authoringCompilerVersion = "compiler-1"
+
+        XCTAssertEqual(metadata.catalogueKey, "stable-program-key")
+        XCTAssertEqual(metadata.authoringLanguage, "trame")
+        XCTAssertEqual(metadata.authoringLanguageVersion, "1")
+        XCTAssertEqual(metadata.authoringSourceData, source)
+        XCTAssertEqual(metadata.authoringSourceHash, "sha256:example")
+        XCTAssertEqual(metadata.authoringCompilerVersion, "compiler-1")
+    }
+
     private func exerciseDefinition() -> ProgramExerciseDefinition {
         ProgramExerciseDefinition(
             exerciseID: UUID(),
             exposureKey: "squat",
             orderIndex: 0,
             plannedSets: [.init(orderIndex: 0, repetitions: .fixed(5))]
+        )
+    }
+
+    private func makeAuthoringProgram(discoveryMetadata: ProgramDiscoveryMetadata) -> AuthoringProgramDefinition {
+        AuthoringProgramDefinition(
+            programKey: "authoring-program",
+            name: "Authoring Program",
+            description: nil,
+            goal: .generalStrength,
+            experienceLevel: .beginner,
+            durationWeeks: 1,
+            supportedDaysPerWeek: [1],
+            scheduleMode: .fixedWeekdays,
+            scheduleIntervalDays: 1,
+            requiredEquipment: [],
+            prerequisites: [],
+            warnings: [],
+            isExperimental: false,
+            intakeInputs: [],
+            missedWorkoutPolicy: .shiftSequence,
+            completionPolicy: nil,
+            requiredCapabilities: [],
+            provenance: nil,
+            sourceReferences: nil,
+            discoveryMetadata: discoveryMetadata,
+            supportedDisciplineIDs: nil,
+            focusAreaApplicability: nil,
+            focusAreaIDs: nil,
+            estimatedSessionMinutesMinimum: nil,
+            estimatedSessionMinutesMaximum: nil,
+            competitionDisciplineID: nil,
+            optionalEquipmentCapabilityIDs: nil,
+            equipmentRequirement: nil,
+            displayName: nil,
+            disclaimer: nil,
+            rulesLibrary: nil,
+            stageTemplates: nil,
+            waveTemplates: nil,
+            blocks: []
         )
     }
 
@@ -223,5 +370,11 @@ final class ProgramDiscoveryMetadataTests: XCTestCase {
               let canonical = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
         else { return "" }
         return canonical.base64EncodedString()
+    }
+
+    private func removingDiscoveryMetadata(from data: Data) throws -> Data {
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        object.removeValue(forKey: "discoveryMetadata")
+        return try JSONSerialization.data(withJSONObject: object)
     }
 }
