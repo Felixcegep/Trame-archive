@@ -104,7 +104,9 @@ struct LibraryItemRow: View {
         }
         .padding(.vertical, Spacing.md)
         .overlay(alignment: .bottom) {
-            Divider().overlay(Color.trameSeparator)
+            Rectangle()
+                .fill(Color.trameSeparator)
+                .frame(height: 1)
         }
         .contentShape(Rectangle())
     }
@@ -239,7 +241,9 @@ struct RecentLibraryRow: View {
         }
         .padding(.vertical, Spacing.md)
         .overlay(alignment: .bottom) {
-            Divider().overlay(Color.trameSeparator)
+            Rectangle()
+                .fill(Color.trameSeparator)
+                .frame(height: 1)
         }
         .contentShape(Rectangle())
     }

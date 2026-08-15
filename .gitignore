@@ -11,3 +11,4 @@ xcuserdata/
 # Claude Code local settings
 .claude/
 .zed/
+.zed-build/

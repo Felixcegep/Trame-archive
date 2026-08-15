@@ -39,7 +39,7 @@ struct ProgressHubView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: Spacing.xxl) {
+            LazyVStack(alignment: .leading, spacing: Spacing.xl) {
                 progressControls
 
                 if selectedLens == .global {
@@ -112,13 +112,11 @@ struct ProgressHubView: View {
     }
 
     private var progressControls: some View {
-        HStack(spacing: Spacing.m) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             lensPicker
-            Spacer()
             rangePicker
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, Spacing.xs)
         .accessibilityIdentifier("progress-controls")
     }
 
@@ -132,12 +130,15 @@ struct ProgressHubView: View {
                 }
             }
         } label: {
-            HStack(spacing: Spacing.xs) {
+            HStack(spacing: Spacing.s) {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(lensColor(selectedLens))
+                    .frame(width: 10, height: 10)
                 Text(selectedLens.title)
+                    .font(AppFont.bodyMedium)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(AppFont.micro)
             }
-            .font(AppFont.bodyMedium)
             .foregroundStyle(Color.trameText)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
         }
@@ -146,26 +147,34 @@ struct ProgressHubView: View {
         .accessibilityIdentifier("progress-sport-lens-picker")
     }
 
-    private var rangePicker: some View {
-        Menu {
-            Picker("Progress range", selection: $overviewRange) {
-                ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
-                    Text(range.title).tag(range)
-                }
-            }
-        } label: {
-            HStack(spacing: Spacing.xs) {
-                Text(overviewRange.title)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(AppFont.micro)
-            }
-            .font(AppFont.bodyMedium)
-            .foregroundStyle(Color.trameText)
-            .frame(minHeight: ComponentSize.minimumTouchTarget)
+    private func lensColor(_ lens: ProgressLens) -> Color {
+        switch lens {
+        case .global: return Color.trameText
+        case let .sport(discipline): return SportDisciplinePalette.color(for: discipline)
         }
+    }
+
+    private var rangePicker: some View {
+        Picker("Progress range", selection: $overviewRange) {
+            ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
+                Text(rangeShortTitle(range)).tag(range)
+            }
+        }
+        .pickerStyle(.segmented)
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
         .accessibilityLabel("Progress range")
         .accessibilityValue(overviewRange.title)
         .accessibilityIdentifier("progress-overview-range")
+    }
+
+    private func rangeShortTitle(_ range: AnalyticsDateRange) -> String {
+        switch range {
+        case .fourWeeks: "4W"
+        case .twelveWeeks: "12W"
+        case .sixMonths: "6M"
+        case .oneYear: "1Y"
+        case .allTime: "All"
+        }
     }
 
     private var exploreGroup: some View {
@@ -188,7 +197,7 @@ struct ProgressHubView: View {
                 )
                 progressLink(
                     route: .muscleGroupVolume,
-                    title: "Volume"
+                    title: "Muscles"
                 )
 
                 DisclosureGroup(isExpanded: $isShowingTools) {
@@ -225,7 +234,7 @@ struct ProgressHubView: View {
 
     private var supportingHistoryGroup: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            TrameSectionRule(title: "Supporting history")
+            TrameSectionRule(title: "More history")
 
             LibraryOpenGroup {
                 progressLink(
@@ -486,7 +495,9 @@ struct ProgressHubView: View {
             }
             .padding(.vertical, Spacing.md)
             .overlay(alignment: .bottom) {
-                Divider().overlay(Color.trameSeparator)
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
             }
             .contentShape(Rectangle())
         }

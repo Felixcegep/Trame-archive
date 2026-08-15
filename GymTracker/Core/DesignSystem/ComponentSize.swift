@@ -11,6 +11,8 @@ enum ComponentSize {
     /// A sparkline-sized overview chart. It shows a direction without taking
     /// the vertical weight of a detail-screen analysis chart.
     static let overviewChartHeight: CGFloat = 120
+    /// A glanceable evidence sparkline beside one answer-sized metric.
+    static let progressOverviewSparklineHeight: CGFloat = 88
     /// The primary diagram on a dashboard: tall enough for a readable scale,
     /// but quieter than the 180pt analysis chart on a detail screen.
     static let progressDashboardChartHeight: CGFloat = 156

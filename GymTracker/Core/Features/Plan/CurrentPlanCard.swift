@@ -79,20 +79,29 @@ struct CurrentPlanCard: View {
 
 private extension CurrentPlanCard {
     var emptyCard: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            TrameMetric(
-                value: "NONE",
-                label: "ACTIVE",
-                accessibilityLabel: String(localized: "No active plan")
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityHidden(true)
-
-            Button("Choose plan", action: onChoosePlan)
-                .buttonStyle(.tramePrimaryAction)
-                .accessibilityIdentifier("choose-a-plan")
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: onChoosePlan) {
+                HStack(spacing: Spacing.m) {
+                    TrameCategoryTile(
+                        systemImage: AppIcon.plan,
+                        fill: Color.trameCompetition,
+                        size: ComponentSize.iconChip
+                    )
+                    Text("Choose a plan")
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(Color.trameText)
+                    Spacer()
+                    Image(systemName: AppIcon.chevronRight)
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameSubdued)
+                }
+                .padding(.vertical, Spacing.md)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("choose-a-plan")
+            .accessibilityHint("Opens plans.")
         }
-        .padding(.top, Spacing.xs)
         .accessibilityIdentifier("current-plan-empty")
     }
 
@@ -125,72 +134,61 @@ private extension CurrentPlanCard {
             Button {
                 if let target = summary.target { onOpenPlan(target) }
             } label: {
-                VStack(alignment: .leading, spacing: Spacing.m) {
-                    HStack(spacing: Spacing.s) {
-                        Label(
-                            summary.isPaused ? "PAUSED PLAN" : "CURRENT PLAN",
-                            systemImage: summary.isPaused ? AppIcon.pause : AppIcon.plan
-                        )
-                        .font(AppFont.eyebrow)
-                        .tracking(0.8)
-                        .foregroundStyle(summary.isPaused ? Color.trameSubdued : Color.trameStrength)
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                        Text(summary.title)
+                            .font(AppFont.eyebrow)
+                            .tracking(0.8)
+                            .foregroundStyle(summary.isPaused ? Color.trameSubdued : Color.trameCompetition)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(2)
 
                         Spacer()
+
+                        if summary.isPaused {
+                            Label("Paused", systemImage: AppIcon.pause)
+                                .font(AppFont.micro)
+                                .foregroundStyle(Color.trameSubdued)
+                        }
 
                         Image(systemName: AppIcon.chevronRight)
                             .font(AppFont.micro)
                             .foregroundStyle(Color.trameSubdued)
                     }
 
-                    Text(summary.title)
-                        .font(AppFont.titleSmall)
-                        .foregroundStyle(Color.trameText)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-
-                    if let position = summary.positionText {
-                        Text(position)
-                            .font(AppFont.eyebrow)
-                            .foregroundStyle(Color.trameStrength)
+                    if let next = summary.nextWorkoutName {
+                        Text(next)
+                            .font(AppFont.titleSmallSemibold)
+                            .foregroundStyle(Color.trameText)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    if let next = summary.nextWorkoutName {
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text("Up next")
-                                .font(AppFont.eyebrow)
-                                .tracking(0.8)
-                                .textCase(.uppercase)
+                    HStack(spacing: Spacing.s) {
+                        if let position = summary.positionText {
+                            Text(position)
+                                .font(AppFont.metadata)
                                 .foregroundStyle(Color.trameSubdued)
-                            Text(next)
-                                .font(AppFont.titleSmallSemibold)
-                                .foregroundStyle(Color.trameText)
-                                .multilineTextAlignment(.leading)
-                                .fixedSize(horizontal: false, vertical: true)
                         }
-                    } else if summary.isPaused {
-                        Text("Resume the plan to continue from this position.")
-                            .font(AppFont.subheadline)
-                            .foregroundStyle(Color.trameSubdued)
+
+                        Spacer(minLength: Spacing.s)
+
+                        if let completed = summary.completedWorkouts,
+                           let total = summary.totalWorkouts {
+                            Text("\(completed)/\(total)")
+                                .font(AppFont.metadata)
+                                .monospacedDigit()
+                                .foregroundStyle(Color.trameSubdued)
+                        }
                     }
 
                     if let fraction = summary.progressFraction,
                        let completed = summary.completedWorkouts,
                        let total = summary.totalWorkouts {
-                        VStack(alignment: .leading, spacing: Spacing.xs) {
-                            ProgressView(value: fraction)
-                                .tint(Color.trameStrength)
-                                .accessibilityHidden(true)
-                            HStack {
-                                Text("\(completed) completed")
-                                Spacer(minLength: Spacing.s)
-                                Text("\(max(total - completed, 0)) remaining")
-                            }
-                            .font(AppFont.metadata)
-                            .foregroundStyle(Color.trameSubdued)
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(completed) of \(total) plan workouts completed")
-                        .accessibilityIdentifier("current-plan-progress")
+                        ProgressView(value: fraction)
+                            .tint(Color.trameStrength)
+                            .accessibilityLabel("\(completed) of \(total) plan workouts completed")
+                            .accessibilityIdentifier("current-plan-progress")
                     }
                 }
                 .padding(Spacing.l)

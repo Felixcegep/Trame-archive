@@ -13,12 +13,26 @@ import SwiftUI
 /// zero-work week is distinct from an unavailable series.
 /// ENCODING: week -> x-position; completed-workout count -> bar height;
 /// strength hue -> recorded work; separator hue -> represented zero work.
-/// INTERACTION: native chart selection chooses a week.
-/// DETAIL: the selected week and exact count sit below the chart; History opens
-/// the immutable source workouts.
+/// INTERACTION: tapping the compact diagram opens the full Trends destination.
+/// DETAIL: the complete period/count sequence remains available to VoiceOver;
+/// Trends exposes the larger analysis surface.
 /// EMPTY STATE: no series renders no cadence diagram; a represented zero stays
 /// a labelled zero-work week.
 /// ACCESSIBILITY: one ordered label announces every week and exact count.
+///
+/// Diagram specification — training focus:
+/// QUESTION: Which recorded sports make up completed training in this period?
+/// DATA: completed-workout sport highlights; unclassified evidence remains
+/// unavailable rather than being assigned to a sport.
+/// ENCODING: segment width -> completed-workout count; semantic hue -> sport;
+/// direct labels and counts reinforce every hue. More than four sports collapse
+/// visually into an explicitly labelled Other segment.
+/// INTERACTION: none on the compact overview; the lens picker changes scope.
+/// DETAIL: the visible legend provides counts and VoiceOver announces every
+/// underlying sport before any visual grouping.
+/// EMPTY STATE: no completed training and unavailable classification remain
+/// distinct textual states.
+/// ACCESSIBILITY: one complete label announces all sports and exact counts.
 ///
 /// Diagram specification — exercise evidence:
 /// QUESTION: How did one comparable performed exercise value change?
@@ -39,138 +53,135 @@ struct ProgressOverviewSection: View {
     var onNavigate: (ProgressRoute) -> Void = { _ in }
     var presentation: ProgressOverviewPresentation = .all
 
-    @State private var selectedFrequencyDate: Date?
     @State private var selectedTrendDate: Date?
 
     @ViewBuilder
     var body: some View {
         switch state {
         case .loading:
-            if presentation != .insights { loadingState }
+            loadingState
         case .failed:
-            if presentation != .insights { failedState }
+            failedState
         case .empty:
-            if presentation != .insights { emptyState }
+            emptyState
         case let .loaded(summary):
-            switch presentation {
-            case .weekly:
-                periodOverview(summary)
-            case .insights:
-                insightGroups(summary)
-            case .all:
-                periodOverview(summary)
-                insightGroups(summary)
-            }
+            insightGroups(summary)
         }
     }
 
-    // MARK: - Glance
+    // MARK: - Sections
 
-    private func periodOverview(_ summary: ProgressOverviewSummary) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            TrameMetric(
-                value: "\(summary.completedWorkoutsInRange)",
-                label: summary.completedWorkoutsInRange == 1 ? "workout" : "workouts",
-                accessibilityLabel: CountPhrase.completedWorkouts(summary.completedWorkoutsInRange)
-            )
-            .accessibilityIdentifier("progress-global-summary")
-            .accessibilityIdentifier("progress-overview-current-period")
+    @ViewBuilder
+    private func insightGroups(_ summary: ProgressOverviewSummary) -> some View {
+        recentCadence(summary.weeklyFrequency, summary: summary)
+        sportEvidence(summary)
+        performanceEvidence(summary)
+    }
 
-            TrameMetricStrip(items: supportingMetricItems(summary))
+    @ViewBuilder
+    private func recentCadence(
+        _ points: [WeeklyFrequencyPoint],
+        summary: ProgressOverviewSummary
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            TrameSectionRule(title: "Training rhythm")
 
-            if summary.completedWorkoutsInRange > 0,
-               summary.trainingTimeInRangeText == nil {
-                Text("Training duration is unavailable for this period.")
-                    .font(AppFont.metadata)
-                    .foregroundStyle(Color.trameSubdued)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("progress-overview-duration-missing")
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: Spacing.xxl) {
+                    cadenceMetric(
+                        value: "\(summary.completedWorkoutsInRange)",
+                        label: summary.completedWorkoutsInRange == 1 ? "workout" : "workouts",
+                        accessibilityLabel: CountPhrase.completedWorkouts(summary.completedWorkoutsInRange)
+                    )
+                    cadenceMetric(
+                        value: summary.trainingTimeInRangeText ?? "—",
+                        label: "trained",
+                        accessibilityLabel: summary.trainingTimeInRangeText.map { "\($0) trained" }
+                            ?? "Training duration unavailable"
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: Spacing.m) {
+                    cadenceMetric(
+                        value: "\(summary.completedWorkoutsInRange)",
+                        label: summary.completedWorkoutsInRange == 1 ? "workout" : "workouts",
+                        accessibilityLabel: CountPhrase.completedWorkouts(summary.completedWorkoutsInRange)
+                    )
+                    cadenceMetric(
+                        value: summary.trainingTimeInRangeText ?? "—",
+                        label: "trained",
+                        accessibilityLabel: summary.trainingTimeInRangeText.map { "\($0) trained" }
+                            ?? "Training duration unavailable"
+                    )
+                }
+            }
+            .padding(.vertical, Spacing.xxs)
+
+            if points.isEmpty == false {
+                Button {
+                    onNavigate(.trainingTrends)
+                } label: {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Chart(points) { point in
+                            BarMark(
+                                x: .value("Week", point.weekStart, unit: .weekOfYear),
+                                y: .value("Completed workouts", point.workoutCount),
+                                width: .ratio(0.54)
+                            )
+                            .foregroundStyle(
+                                point.workoutCount == 0
+                                    ? Color.trameSeparator
+                                    : Color.trameStrength
+                            )
+                        }
+                        .chartYScale(domain: 0...max(1, points.map(\.workoutCount).max() ?? 1))
+                        .chartXAxis(.hidden)
+                        .chartYAxis {
+                            AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                                AxisGridLine().foregroundStyle(Color.trameSeparator)
+                            }
+                        }
+                        .chartPlotStyle { plot in
+                            plot.background(Color.clear)
+                        }
+                        .frame(height: ComponentSize.overviewChartHeight)
+
+                        HStack {
+                            Text("8W")
+                            Spacer()
+                            Text("NOW")
+                        }
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameSubdued)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(weeklyFrequencyAccessibilityLabel(points))
+                .accessibilityHint("Opens training trends")
+                .accessibilityIdentifier("progress-overview-current-period")
             }
         }
         .overviewRowChrome(identifier: nil)
     }
 
-    private func supportingMetricItems(_ summary: ProgressOverviewSummary) -> [TrameMetricStripItem] {
-        var items: [TrameMetricStripItem] = []
-        if let time = summary.trainingTimeInRangeText {
-            items.append(TrameMetricStripItem(
-                id: "time",
-                value: time,
-                label: "Training time",
-                accessibilityLabel: "\(time) of recorded training time"
-            ))
+    private func cadenceMetric(
+        value: String,
+        label: String,
+        accessibilityLabel: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(value)
+                .font(AppFont.metricHero)
+                .foregroundStyle(Color.trameText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Text(label)
+                .font(AppFont.micro)
+                .foregroundStyle(Color.trameSubdued)
         }
-        items.append(TrameMetricStripItem(
-            id: "entries",
-            value: "\(summary.completedEntriesInRange)",
-            label: "Recorded exercises",
-            accessibilityLabel: "\(summary.completedEntriesInRange) completed exercise entries"
-        ))
-        return items
-    }
-
-    // MARK: - Read
-
-    @ViewBuilder
-    private func insightGroups(_ summary: ProgressOverviewSummary) -> some View {
-        recentCadence(summary.weeklyFrequency)
-        performanceEvidence(summary)
-        sportEvidence(summary)
-    }
-
-    @ViewBuilder
-    private func recentCadence(_ points: [WeeklyFrequencyPoint]) -> some View {
-        if points.isEmpty == false {
-            let selectedPoint = selectedFrequencyPoint(in: points)
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                TrameSectionRule(title: "Training rhythm")
-
-                Chart(points) { point in
-                    BarMark(
-                        x: .value("Week", point.weekStart, unit: .weekOfYear),
-                        y: .value("Completed workouts", point.workoutCount),
-                        width: .ratio(0.54)
-                    )
-                    .foregroundStyle(
-                        point.workoutCount == 0
-                            ? Color.trameSeparator
-                            : Color.trameStrength
-                    )
-
-                    if selectedPoint?.id == point.id {
-                        RuleMark(x: .value("Selected week", point.weekStart))
-                            .foregroundStyle(Color.trameText)
-                            .lineStyle(StrokeStyle(lineWidth: 1))
-                    }
-                }
-                .chartYScale(domain: 0...max(1, points.map(\.workoutCount).max() ?? 1))
-                .chartXAxis {
-                    AxisMarks(values: .stride(by: .weekOfYear, count: 2)) { _ in
-                        AxisValueLabel(format: .dateTime.month(.abbreviated).day())
-                            .font(AppFont.micro)
-                            .foregroundStyle(Color.trameSubdued)
-                    }
-                }
-                .chartYAxis(.hidden)
-                .chartPlotStyle { plot in
-                    plot.background(Color.clear)
-                }
-                .chartXSelection(value: $selectedFrequencyDate)
-                .frame(height: ComponentSize.overviewChartHeight)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(weeklyFrequencyAccessibilityLabel(points))
-                .accessibilityIdentifier("progress-overview-weekly-frequency-chart")
-            }
-            .overviewRowChrome(identifier: nil)
-        }
-    }
-
-    private func selectedFrequencyPoint(in points: [WeeklyFrequencyPoint]) -> WeeklyFrequencyPoint? {
-        guard let selectedFrequencyDate else { return points.last }
-        return points.min {
-            abs($0.weekStart.timeIntervalSince(selectedFrequencyDate))
-                < abs($1.weekStart.timeIntervalSince(selectedFrequencyDate))
-        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private func weeklyFrequencyAccessibilityLabel(_ points: [WeeklyFrequencyPoint]) -> String {
@@ -259,18 +270,19 @@ struct ProgressOverviewSection: View {
         return Button {
             onNavigate(.trainingTrends)
         } label: {
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(series.name)
-                        .font(AppFont.body.weight(.semibold))
-                        .foregroundStyle(Color.trameText)
-                    Spacer()
+            HStack(alignment: .bottom, spacing: Spacing.l) {
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
                     if let latestPoint {
-                        Text("\(latestPoint.value.formatted(.number.precision(.fractionLength(0...1)))) \(series.unit)")
-                            .font(AppFont.metricCompact)
+                        Text("\(latestPoint.value.formatted(.number.precision(.fractionLength(0...1))))")
+                            .font(AppFont.metricHero)
                             .foregroundStyle(Color.trameText)
+                        Text("\(series.name) · \(series.unit)")
+                            .font(AppFont.micro)
+                            .foregroundStyle(Color.trameSubdued)
+                            .lineLimit(1)
                     }
                 }
+                .frame(minWidth: 100, alignment: .leading)
 
                 Chart(projection.points) { point in
                     LineMark(
@@ -278,14 +290,14 @@ struct ProgressOverviewSection: View {
                         y: .value(projection.label, point.value)
                     )
                     .foregroundStyle(Color.trameStrength)
-                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                     .interpolationMethod(.linear)
 
                     PointMark(
                         x: .value("Session", point.date),
                         y: .value(projection.label, point.value)
                     )
-                    .symbolSize(selected?.id == point.id ? 70 : 34)
+                    .symbolSize(selected?.id == point.id ? 60 : 28)
                     .foregroundStyle(selected?.id == point.id ? Color.trameText : Color.trameStrength)
 
                     if selected?.id == point.id {
@@ -296,17 +308,10 @@ struct ProgressOverviewSection: View {
                 }
                 .chartYScale(domain: Float.zero...upperBound)
                 .chartXAxis(.hidden)
-                .chartYAxis {
-                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
-                        AxisGridLine().foregroundStyle(Color.trameSeparator)
-                        AxisValueLabel()
-                            .font(AppFont.micro)
-                            .foregroundStyle(Color.trameSubdued)
-                    }
-                }
+                .chartYAxis(.hidden)
                 .chartLegend(.hidden)
                 .chartXSelection(value: $selectedTrendDate)
-                .frame(height: ComponentSize.progressDashboardChartHeight)
+                .frame(height: ComponentSize.progressOverviewSparklineHeight)
             }
             .contentShape(Rectangle())
         }
@@ -375,6 +380,8 @@ struct ProgressOverviewSection: View {
         let orderedEvidence = summary.sportEvidence.sorted {
             $0.completedWorkoutCount > $1.completedWorkoutCount
         }
+        let segments = sportFocusSegments(orderedEvidence)
+        let total = max(segments.reduce(0) { $0 + $1.count }, 1)
 
         return VStack(alignment: .leading, spacing: Spacing.s) {
             TrameSectionRule(title: "Training focus")
@@ -383,73 +390,116 @@ struct ProgressOverviewSection: View {
             if summary.sportEvidence.isEmpty {
                 Text(summary.completedWorkoutsInRange == 0
                     ? String(localized: "No completed training in this period.")
-                    : String(localized: "No sport classification available."))
+                    : String(localized: "Sport classification unavailable."))
                 .font(AppFont.metadata)
                 .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
             } else {
-                ForEach(orderedEvidence) { evidence in
-                    HStack(spacing: Spacing.m) {
-                        Rectangle()
-                            .fill(SportDisciplinePalette.color(for: evidence.discipline))
-                            .frame(width: Spacing.xs, height: ComponentSize.minimumTouchTarget)
-                            .accessibilityHidden(true)
-
-                        Text(evidence.discipline.title)
-                            .font(AppFont.body.weight(.semibold))
-                            .foregroundStyle(Color.trameText)
-
-                        Spacer(minLength: Spacing.s)
-
-                        Text("\(evidence.completedWorkoutCount)")
-                            .font(AppFont.metricCompact)
-                            .foregroundStyle(Color.trameText)
+                VStack(alignment: .leading, spacing: Spacing.m) {
+                    GeometryReader { geometry in
+                        let gaps = CGFloat(max(segments.count - 1, 0)) * Spacing.xxs
+                        let availableWidth = max(geometry.size.width - gaps, 0)
+                        HStack(spacing: Spacing.xxs) {
+                            ForEach(segments) { segment in
+                                Rectangle()
+                                    .fill(segment.color)
+                                    .frame(width: availableWidth * CGFloat(segment.count) / CGFloat(total))
+                            }
+                        }
                     }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(evidence.accessibilityLabel)
+                    .frame(height: ComponentSize.minimumTouchTarget)
+                    .accessibilityHidden(true)
 
-                    if evidence.id != orderedEvidence.last?.id {
-                        Divider().overlay(Color.trameSeparator)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: Spacing.l) {
+                            ForEach(segments) { segment in
+                                sportLegendItem(segment)
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: Spacing.s) {
+                            ForEach(segments) { segment in
+                                sportLegendItem(segment)
+                            }
+                        }
                     }
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(sportFocusAccessibilityLabel(orderedEvidence))
             }
         }
         .overviewRowChrome(identifier: nil)
     }
 
+    private func sportFocusSegments(
+        _ evidence: [ProgressOverviewSportEvidence]
+    ) -> [SportFocusSegment] {
+        let visible = evidence.prefix(evidence.count > 4 ? 3 : 4).map {
+            SportFocusSegment(
+                id: $0.id,
+                title: $0.discipline.title,
+                count: $0.completedWorkoutCount,
+                color: SportDisciplinePalette.color(for: $0.discipline)
+            )
+        }
+        guard evidence.count > 4 else { return visible }
+        let otherCount = evidence.dropFirst(3).reduce(0) { $0 + $1.completedWorkoutCount }
+        return visible + [
+            SportFocusSegment(
+                id: "other",
+                title: String(localized: "Other"),
+                count: otherCount,
+                color: Color.trameSubdued
+            )
+        ]
+    }
+
+    private func sportLegendItem(_ segment: SportFocusSegment) -> some View {
+        HStack(spacing: Spacing.xs) {
+            Rectangle()
+                .fill(segment.color)
+                .frame(width: Spacing.s, height: Spacing.s)
+                .accessibilityHidden(true)
+            Text(segment.title)
+                .font(AppFont.micro)
+                .foregroundStyle(Color.trameSubdued)
+                .lineLimit(1)
+            Text("\(segment.count)")
+                .font(AppFont.micro)
+                .monospacedDigit()
+                .foregroundStyle(Color.trameText)
+        }
+    }
+
+    private func sportFocusAccessibilityLabel(
+        _ evidence: [ProgressOverviewSportEvidence]
+    ) -> String {
+        evidence.map(\.accessibilityLabel).joined(separator: ". ")
+    }
+
     // MARK: - States
 
     private var loadingState: some View {
-        HStack(spacing: Spacing.m) {
-            ProgressView()
-            Text("Reading your history…")
-                .font(AppFont.body)
-                .foregroundStyle(Color.trameSubdued)
-        }
-        .frame(minHeight: ComponentSize.minimumTouchTarget)
-        .overviewRowChrome(identifier: "loading")
+        ProgressView()
+            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+            .accessibilityLabel("Reading history")
+            .overviewRowChrome(identifier: "loading")
     }
 
     private var failedState: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            TrameSectionRule(title: "Summary unavailable")
-            Text("Your history could not be read just now. The evidence routes below remain available.")
-                .font(AppFont.body)
-                .foregroundStyle(Color.trameSubdued)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .overviewRowChrome(identifier: "failed")
+        Text("Progress unavailable. Try again.")
+            .font(AppFont.body)
+            .foregroundStyle(Color.trameSubdued)
+            .fixedSize(horizontal: false, vertical: true)
+            .overviewRowChrome(identifier: "failed")
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            TrameSectionRule(title: "No completed workouts")
-            Text("Finish a workout and its recorded totals, cadence, sport evidence, and exact source history appear here.")
-                .font(AppFont.body)
-                .foregroundStyle(Color.trameSubdued)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .overviewRowChrome(identifier: "empty")
+        Text("Complete a workout to see progress.")
+            .font(AppFont.body)
+            .foregroundStyle(Color.trameSubdued)
+            .fixedSize(horizontal: false, vertical: true)
+            .overviewRowChrome(identifier: "empty")
     }
 }
 
@@ -508,6 +558,13 @@ struct ProgressOverviewSummary: Equatable {
     var assessmentRecencyText: String
     var latestChapterTitle: String?
     var journeySummaryText: String
+}
+
+private struct SportFocusSegment: Identifiable {
+    let id: String
+    let title: String
+    let count: Int
+    let color: Color
 }
 
 struct ProgressOverviewSportEvidence: Equatable, Identifiable {

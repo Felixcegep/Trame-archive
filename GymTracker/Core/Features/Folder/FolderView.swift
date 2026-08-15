@@ -195,7 +195,7 @@ struct FolderView: View {
     /// half the app behind a toggle.
     private var workoutLibrarySection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            LibrarySectionTitle("Strength")
+            LibrarySectionTitle("Library")
 
             LibraryOpenGroup {
                 NavigationLink(value: LibraryRoute.plans) {
