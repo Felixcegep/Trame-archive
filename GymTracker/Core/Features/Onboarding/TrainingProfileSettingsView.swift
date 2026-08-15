@@ -66,7 +66,7 @@ struct TrainingProfileSettingsView: View {
         // people actually land on, rendered in the system's default grey.
         // Same fix `SettingView` already uses for its own `Form`.
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Training profile")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-profile-settings")
@@ -436,7 +436,7 @@ struct TrainingProfileIdentityView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Training")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-profile-identity")
@@ -504,7 +504,7 @@ struct TrainingProfileCompetitionLiftsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Competition lifts")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-profile-competition-lifts")
@@ -599,7 +599,7 @@ struct TrainingProfileScheduleView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Schedule")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-profile-schedule")
@@ -652,7 +652,7 @@ struct TrainingProfileEquipmentView: View {
             }
             .padding(Spacing.l)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Equipment")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-profile-equipment-list")
@@ -712,7 +712,7 @@ struct TrainingProfileWeekdaysView: View {
             .padding(Spacing.l)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Usual training days")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-profile-weekday-list")
@@ -789,7 +789,7 @@ struct TrainingProfileSpecializedEquipmentView: View {
             .padding(Spacing.l)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Specialised equipment")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("training-profile-specialized-list")
