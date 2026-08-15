@@ -72,30 +72,53 @@ struct FolderView: View {
         // rename.
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isCreateMenuPresented = true
+                Menu {
+                    Button {
+                        activeSheet = .workoutTemplate
+                    } label: {
+                        Label("New Workout", systemImage: AppIcon.routine)
+                    }
+                    .accessibilityIdentifier("new-workout-template")
+
+                    Button {
+                        activeSheet = .exercise
+                    } label: {
+                        Label("New Exercise", systemImage: AppIcon.workout)
+                    }
+                    .accessibilityIdentifier("new-exercise")
+
+                    Divider()
+
+                    Button {
+                        activeSheet = .plan
+                    } label: {
+                        Label("New Plan", systemImage: AppIcon.planAdd)
+                    }
+                    .accessibilityIdentifier("new-plan")
+
+                    Button {
+                        activeSheet = .programDefinition
+                    } label: {
+                        Label("Plan Builder", systemImage: AppIcon.progression)
+                    }
+                    .accessibilityIdentifier("new-program-definition")
+
+                    Divider()
+
+                    Button {
+                        activeSheet = .workoutCollection
+                    } label: {
+                        Label("New Folder", systemImage: "folder.badge.plus")
+                    }
                 } label: {
-                    Image(systemName: "square.and.pencil")
+                    Image(systemName: "plus")
                         .font(AppFont.bodyMedium)
                         .foregroundStyle(Color.trameText)
                         .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
                 .accessibilityLabel("Create library item")
                 .accessibilityIdentifier("library-create")
-                .popover(
-                    isPresented: $isCreateMenuPresented,
-                    attachmentAnchor: .rect(.bounds),
-                    arrowEdge: .top
-                ) {
-                    LibraryCreatePopover { sheet in
-                        pendingSheet = sheet
-                        isCreateMenuPresented = false
-                    }
-                    .presentationCompactAdaptation(.popover)
-                    .onDisappear(perform: presentPendingSheet)
-                }
             }
         }
         .sheet(item: $activeSheet) { sheet in
@@ -130,7 +153,11 @@ struct FolderView: View {
 
     private var searchField: some View {
         HStack(spacing: Spacing.s) {
-            TextField("Search", text: $searchText)
+            Image(systemName: AppIcon.search)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
+            TextField("Search workouts, plans, exercises", text: $searchText)
+                .font(AppFont.bodyMedium)
                 .textInputAutocapitalization(.never)
                 .accessibilityIdentifier("library-search")
                 .autocorrectionDisabled()
@@ -154,7 +181,7 @@ struct FolderView: View {
     }
 
     private var browseSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.xl) {
+        VStack(alignment: .leading, spacing: Spacing.xxl) {
             CurrentPlanCard(
                 onOpenPlan: { target in
                     onOpenRoute(target.isRepeating ? .repeatingPlan(target.planID) : .plan(target.planID))
@@ -171,98 +198,96 @@ struct FolderView: View {
             )
             .gymAssembly(index: 2, isActive: isPlayingAssembly)
 
-            studioGrid
+            strengthSection
                 .gymAssembly(index: 3, isActive: isPlayingAssembly)
+
+            if featureFlags.isEnabled(.mobility) {
+                mobilitySection
+                    .gymAssembly(index: 4, isActive: isPlayingAssembly)
+            }
         }
     }
 
-    private var studioGrid: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            TrameSectionRule(title: "Studio")
+    private var strengthSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            TrameSectionRule(title: "Strength")
 
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: Spacing.m),
-                    GridItem(.flexible(), spacing: Spacing.m)
-                ],
-                spacing: Spacing.m
-            ) {
+            VStack(spacing: 0) {
                 NavigationLink(value: LibraryRoute.plans) {
-                    StudioCategoryTile(
+                    LibraryItemRow(
                         title: "Plans",
-                        count: planCount,
                         icon: AppIcon.plan,
-                        color: Color.trameCompetition,
-                        subtitle: "Programs",
-                        accessibilityIdentifier: "plans-browser"
+                        color: Color.trameStrength,
+                        count: planCount
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("plans-browser")
 
                 NavigationLink(value: LibraryRoute.workouts) {
-                    StudioCategoryTile(
+                    LibraryItemRow(
                         title: "Workouts",
-                        count: workoutTemplates.count,
                         icon: AppIcon.routine,
                         color: Color.trameStrength,
-                        subtitle: "Routines",
-                        accessibilityIdentifier: "workouts-browser"
+                        count: workoutTemplates.count
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("workouts-browser")
 
                 NavigationLink(value: LibraryRoute.exercises) {
-                    StudioCategoryTile(
+                    LibraryItemRow(
                         title: "Exercises",
-                        count: exerciseTemplates.count,
                         icon: AppIcon.workout,
                         color: Color.trameStrength,
-                        subtitle: "Movements",
-                        accessibilityIdentifier: "exercises-browser"
+                        count: exerciseTemplates.count
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("exercises-browser")
+            }
+        }
+    }
 
-                if featureFlags.isEnabled(.mobility) {
-                    NavigationLink(value: LibraryRoute.mobility) {
-                        StudioCategoryTile(
-                            title: "Mobility",
-                            count: mobilityRoutines.count,
-                            icon: AppIcon.mobility,
-                            color: Color.trameMobility,
-                            subtitle: "Flows",
-                            accessibilityIdentifier: "train-mobility-library"
-                        )
-                    }
-                    .buttonStyle(.plain)
+    private var mobilitySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            TrameSectionRule(title: "Mobility")
+
+            VStack(spacing: 0) {
+                NavigationLink(value: LibraryRoute.mobility) {
+                    LibraryItemRow(
+                        title: "Routines",
+                        icon: AppIcon.mobility,
+                        color: Color.trameMobility,
+                        count: mobilityRoutines.count
+                    )
                 }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("train-mobility-library")
 
                 if featureFlags.isEnabled(.mobilityProgram) {
                     NavigationLink(value: LibraryRoute.mobilityPlans) {
-                        StudioCategoryTile(
-                            title: "Mobility Plans",
-                            count: mobilityPlanCount,
+                        LibraryItemRow(
+                            title: "Plans",
                             icon: AppIcon.plan,
-                            color: Color.trameRecovery,
-                            subtitle: "Guided",
-                            accessibilityIdentifier: "mobility-plans-browser"
+                            color: Color.trameMobility,
+                            count: mobilityPlanCount
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("mobility-plans-browser")
                 }
 
                 if featureFlags.isEnabled(.mobilityAssessment) {
                     NavigationLink(value: LibraryRoute.mobilityAssessments) {
-                        StudioCategoryTile(
+                        LibraryItemRow(
                             title: "Assessments",
-                            count: nil,
                             icon: AppIcon.mobilityAssessment,
-                            color: Color.trameMobility,
-                            subtitle: "Screens",
-                            accessibilityIdentifier: "mobility-assessments-browser"
+                            color: Color.trameMobility
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("mobility-assessments-browser")
                 }
             }
         }

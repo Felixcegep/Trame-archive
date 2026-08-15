@@ -76,7 +76,7 @@ struct LibraryItemRow: View {
                         .font(AppFont.bodyMedium)
                         .foregroundStyle(Color.trameText)
                         .multilineTextAlignment(.leading)
-                        .lineLimit(2)
+                        .lineLimit(1)
                     if let badge {
                         BuiltInBadge(text: badge)
                     }
@@ -85,8 +85,7 @@ struct LibraryItemRow: View {
                     Text(subtitle)
                         .font(AppFont.metadata)
                         .foregroundStyle(Color.trameSubdued)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(1)
                 }
             }
             Spacer()
@@ -102,13 +101,16 @@ struct LibraryItemRow: View {
                     .foregroundStyle(Color.trameSubdued)
             }
         }
-        .padding(.vertical, Spacing.md)
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+        .padding(.vertical, Spacing.xs)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.trameSeparator)
                 .frame(height: 1)
         }
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(count != nil ? "\(title), \(count!) items" : title)
     }
 }
 
@@ -256,64 +258,5 @@ struct LibrarySectionTitle: View {
 
     var body: some View {
         TrameSectionRule(title: title)
-    }
-}
-
-/// A gallery-styled studio category tile for the Train tab grid.
-struct StudioCategoryTile: View {
-    let title: LocalizedStringKey
-    var count: Int? = nil
-    let icon: String
-    let color: Color
-    var subtitle: LocalizedStringKey? = nil
-    let accessibilityIdentifier: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top) {
-                TrameCategoryTile(systemImage: icon, fill: color, size: ComponentSize.iconChip)
-                Spacer(minLength: Spacing.xs)
-                Image(systemName: "arrow.up.right")
-                    .font(AppFont.caption2Bold)
-                    .foregroundStyle(Color.trameSubdued)
-            }
-
-            Spacer(minLength: Spacing.m)
-
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                if let count {
-                    Text("\(count)")
-                        .font(AppFont.metricLarge)
-                        .foregroundStyle(Color.trameText)
-                        .monospacedDigit()
-                } else {
-                    Text("Test")
-                        .font(AppFont.metricLarge)
-                        .foregroundStyle(Color.trameText)
-                }
-
-                Text(title)
-                    .font(AppFont.sectionTitle)
-                    .foregroundStyle(Color.trameText)
-                    .lineLimit(1)
-
-                if let subtitle {
-                    Text(subtitle)
-                        .font(AppFont.micro)
-                        .foregroundStyle(Color.trameSubdued)
-                        .lineLimit(1)
-                }
-            }
-        }
-        .padding(Spacing.m)
-        .frame(maxWidth: .infinity, minHeight: 130, alignment: .leading)
-        .background(Color.trameSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                .stroke(Color.trameSeparator, lineWidth: 1)
-        }
-        .contentShape(Rectangle())
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
