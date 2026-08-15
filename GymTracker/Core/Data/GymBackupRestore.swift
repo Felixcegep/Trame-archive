@@ -51,6 +51,8 @@ extension BackupDTO {
             try restoreRepeatingPlansAndRuns(into: &restoreCtx)
             try restoreProgramDefinitions(into: &restoreCtx)
             try restoreMobilityProgramDefinitions(into: &restoreCtx)
+            try restoreCatalogDefinitionMetadata(into: &restoreCtx)
+            try restoreProgramDiscoverySeeds(into: &restoreCtx)
             try restoreMobilityProgramRuns(into: &restoreCtx)
             try restoreMobilityProgressionRecommendations(into: &restoreCtx)
             try restorePlansAndRuns(into: &restoreCtx)
@@ -433,6 +435,126 @@ extension BackupDTO {
             record.updatedAt = definitionDTO.updatedAt
             record.definitionData = definitionDTO.definitionData
             restoreCtx.context.insert(record)
+        }
+    }
+
+    /// Restores descriptive catalogue metadata after every supported target
+    /// definition has been materialized. Metadata is deliberately not a
+    /// relationship to the frozen definition models, so this validates the
+    /// target identity and stores the independent row exactly as exported.
+    private func restoreCatalogDefinitionMetadata(into restoreCtx: inout RestoreContext) throws {
+        for metadataDTO in catalogDefinitionMetadata {
+            guard let kind = CatalogDefinitionKind(rawValue: metadataDTO.definitionKind) else {
+                throw BackupValidationError.invalidIdentifier("catalog definition metadata kind")
+            }
+            let definitionID = try requiredUUID(metadataDTO.definitionID, named: "catalog definition metadata target")
+            guard try catalogDefinitionTargetExists(definitionID, kind: kind, in: restoreCtx.context) else {
+                throw BackupValidationError.missingCatalogDefinitionMetadataTarget(
+                    "\(kind.rawValue):\(metadataDTO.definitionID)"
+                )
+            }
+
+            let metadata = CatalogDefinitionMetadata(
+                definitionID: definitionID,
+                definitionKind: kind,
+                catalogueKey: metadataDTO.catalogueKey,
+                id: try requiredUUID(metadataDTO.id, named: "catalog definition metadata"),
+                createdAt: metadataDTO.createdAt,
+                updatedAt: metadataDTO.updatedAt
+            )
+            metadata.sourceReferencesData = metadataDTO.sourceReferencesData
+            metadata.muscleGroups = metadataDTO.muscleGroups
+            metadata.anatomicalTargetMuscles = metadataDTO.anatomicalTargetMuscles
+            metadata.anatomicalSynergistMuscles = metadataDTO.anatomicalSynergistMuscles
+            metadata.descriptionText = metadataDTO.descriptionText
+            metadata.instructionSteps = metadataDTO.instructionSteps
+            metadata.videoURLString = metadataDTO.videoURLString
+            metadata.videoEmbedURLString = metadataDTO.videoEmbedURLString
+            metadata.thumbnailURLString = metadataDTO.thumbnailURLString
+            metadata.imageURLString = metadataDTO.imageURLString
+            metadata.liftosaurURLString = metadataDTO.liftosaurURLString
+            metadata.liftosaurSlug = metadataDTO.liftosaurSlug
+            metadata.categoryRaw = metadataDTO.categoryRaw
+            metadata.difficultyRaw = metadataDTO.difficultyRaw
+            metadata.equipmentLabels = metadataDTO.equipmentLabels
+            metadata.primaryMuscleLabels = metadataDTO.primaryMuscleLabels
+            metadata.secondaryMuscleLabels = metadataDTO.secondaryMuscleLabels
+            metadata.sanskritName = metadataDTO.sanskritName
+            metadata.metValue = metadataDTO.metValue
+            metadata.benefitsText = metadataDTO.benefitsText
+            metadata.svgURLString = metadataDTO.svgURLString
+            metadata.authoringLanguage = metadataDTO.authoringLanguage
+            metadata.authoringLanguageVersion = metadataDTO.authoringLanguageVersion
+            metadata.authoringSourceData = metadataDTO.authoringSourceData
+            metadata.authoringSourceHash = metadataDTO.authoringSourceHash
+            metadata.authoringCompilerVersion = metadataDTO.authoringCompilerVersion
+            restoreCtx.context.insert(metadata)
+        }
+    }
+
+    private func catalogDefinitionTargetExists(
+        _ definitionID: UUID,
+        kind: CatalogDefinitionKind,
+        in context: ModelContext
+    ) throws -> Bool {
+        switch kind {
+        case .exercise:
+            var descriptor = FetchDescriptor<Exercise>(predicate: #Predicate { $0.id == definitionID })
+            descriptor.fetchLimit = 1
+            return try context.fetch(descriptor).isEmpty == false
+        case .mobilityDefinition:
+            var descriptor = FetchDescriptor<MobilityDefinition>(predicate: #Predicate { $0.id == definitionID })
+            descriptor.fetchLimit = 1
+            return try context.fetch(descriptor).isEmpty == false
+        case .workoutProgram:
+            var descriptor = FetchDescriptor<ProgramDefinitionRecord>(predicate: #Predicate { $0.id == definitionID })
+            descriptor.fetchLimit = 1
+            return try context.fetch(descriptor).isEmpty == false
+        case .mobilityProgram:
+            var descriptor = FetchDescriptor<MobilityProgramDefinitionRecord>(predicate: #Predicate { $0.id == definitionID })
+            descriptor.fetchLimit = 1
+            return try context.fetch(descriptor).isEmpty == false
+        }
+    }
+
+    private func restoreProgramDiscoverySeeds(into restoreCtx: inout RestoreContext) throws {
+        for seedDTO in programDiscoverySeeds {
+            guard let reason = ProgramDiscoveryAvailabilityReason(rawValue: seedDTO.availabilityReason),
+                  let compatibility = ProgramDiscoveryCompatibilityStatus(rawValue: seedDTO.compatibilityStatus),
+                  !seedDTO.compatibilityReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !seedDTO.isRunnable else {
+                throw BackupValidationError.invalidIdentifier("program discovery seed availability")
+            }
+            let programKey = seedDTO.programKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !programKey.isEmpty else {
+                throw BackupValidationError.invalidIdentifier("program discovery seed key")
+            }
+            let id = try requiredUUID(seedDTO.id, named: "program discovery seed")
+            guard id == ProgramDiscoverySeed.stableID(for: programKey) else {
+                throw BackupValidationError.invalidIdentifier("program discovery seed identity")
+            }
+            let seed = ProgramDiscoverySeed(
+                programKey: programKey,
+                name: seedDTO.name,
+                summary: seedDTO.summary,
+                authorOrOrigin: seedDTO.authorOrOrigin,
+                categoryOrDisciplineLabel: seedDTO.categoryOrDisciplineLabel,
+                daysPerWeekText: seedDTO.daysPerWeekText,
+                durationWeeksText: seedDTO.durationWeeksText,
+                difficultyLabel: seedDTO.difficultyLabel,
+                progressionModelLabel: seedDTO.progressionModelLabel,
+                equipmentText: seedDTO.equipmentText,
+                tags: seedDTO.tags,
+                sourceURLString: seedDTO.sourceURLString,
+                imageURLString: seedDTO.imageURLString,
+                availabilityReason: reason,
+                compatibilityStatus: compatibility,
+                compatibilityReason: seedDTO.compatibilityReason,
+                id: id,
+                createdAt: seedDTO.createdAt,
+                updatedAt: seedDTO.updatedAt
+            )
+            restoreCtx.context.insert(seed)
         }
     }
 

@@ -30,6 +30,7 @@ enum BackupValidationError: LocalizedError {
     case invalidExerciseRelationship
     case invalidProgramDefinition(String)
     case invalidMobilityProgramDefinition(String)
+    case missingCatalogDefinitionMetadataTarget(String)
     case invalidTrackingProfile(String)
 
     var errorDescription: String? {
@@ -60,6 +61,8 @@ enum BackupValidationError: LocalizedError {
             return "The backup contains an invalid program definition: \(message)"
         case .invalidMobilityProgramDefinition(let message):
             return "The backup contains an invalid mobility program definition: \(message)"
+        case .missingCatalogDefinitionMetadataTarget(let identifier):
+            return "The backup contains catalogue metadata for a missing definition: \(identifier)."
         case .invalidTrackingProfile(let message):
             return "The backup contains an invalid tracking profile: \(message)"
         }
@@ -275,6 +278,7 @@ nonisolated extension BackupDTO {
             }
             try validateUniqueIdentifiers(exercises.compactMap(\.id), named: "exercise")
             try validateUniqueIdentifiers(programDefinitions.map(\.id), named: "program definition")
+            var executableProgramKeys = Set<String>()
             for definition in programDefinitions {
                 guard PlanGoal(rawValue: definition.goal) != nil,
                       PlanExperienceLevel(rawValue: definition.experienceLevel) != nil,
@@ -284,6 +288,9 @@ nonisolated extension BackupDTO {
                 }
                 guard let payload = try? JSONDecoder().decode(ProgramDefinitionPayload.self, from: definition.definitionData) else {
                     throw BackupValidationError.invalidProgramDefinition(definition.name)
+                }
+                guard executableProgramKeys.insert(payload.programKey.lowercased()).inserted else {
+                    throw BackupValidationError.duplicateIdentifier("executable program key")
                 }
                 let issues = ProgramDefinitionValidator.validate(payload)
                 guard issues.isEmpty else {
@@ -309,6 +316,17 @@ nonisolated extension BackupDTO {
                     throw BackupValidationError.invalidMobilityProgramDefinition(mobilityIssues.map(\.message).joined(separator: " "))
                 }
             }
+            try validateCatalogDefinitionMetadata(
+                catalogDefinitionMetadata,
+                exerciseIDs: availableExerciseIDs,
+                mobilityDefinitionIDs: Set(mobilityDefinitions.map(\.id)),
+                workoutProgramIDs: Set(programDefinitions.map(\.id)),
+                mobilityProgramIDs: Set(mobilityProgramDefinitions.map(\.id))
+            )
+            try validateProgramDiscoverySeeds(
+                programDiscoverySeeds,
+                executableProgramKeys: executableProgramKeys
+            )
             try validateUniqueIdentifiers(progressionRecommendations.map(\.id), named: "progression recommendation")
             let runIDs = Set(planRuns.map(\.id))
             let completedWorkoutIDs = Set(workouts.compactMap(\.id))
@@ -1638,6 +1656,74 @@ nonisolated extension BackupDTO {
                   target.effectiveEndDayKey.map({ $0 >= target.effectiveStartDayKey }) ?? true,
                   [target.trainingCalories, target.trainingProteinGrams, target.trainingCarbohydrateGrams, target.trainingFatGrams, target.restCalories, target.restProteinGrams, target.restCarbohydrateGrams, target.restFatGrams].allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
                 throw BackupValidationError.invalidIdentifier("nutrition target")
+            }
+        }
+    }
+
+    private func validateCatalogDefinitionMetadata(
+        _ metadata: [CatalogDefinitionMetadataDTO],
+        exerciseIDs: Set<String>,
+        mobilityDefinitionIDs: Set<String>,
+        workoutProgramIDs: Set<String>,
+        mobilityProgramIDs: Set<String>
+    ) throws {
+        try validateUniqueIdentifiers(metadata.map(\.id), named: "catalog definition metadata")
+        var targetKeys = Set<String>()
+        for row in metadata {
+            guard let kind = CatalogDefinitionKind(rawValue: row.definitionKind),
+                  UUID(uuidString: row.definitionID) != nil else {
+                throw BackupValidationError.invalidIdentifier("catalog definition metadata")
+            }
+            let targetExists: Bool
+            switch kind {
+            case .exercise:
+                targetExists = exerciseIDs.contains(row.definitionID)
+            case .mobilityDefinition:
+                targetExists = mobilityDefinitionIDs.contains(row.definitionID)
+            case .workoutProgram:
+                targetExists = workoutProgramIDs.contains(row.definitionID)
+            case .mobilityProgram:
+                targetExists = mobilityProgramIDs.contains(row.definitionID)
+            }
+            guard targetExists else {
+                throw BackupValidationError.missingCatalogDefinitionMetadataTarget(
+                    "\(kind.rawValue):\(row.definitionID)"
+                )
+            }
+            guard targetKeys.insert("\(kind.rawValue):\(row.definitionID)").inserted else {
+                throw BackupValidationError.duplicateIdentifier("catalog definition metadata target")
+            }
+            guard row.metValue.map({ $0.isFinite && $0 >= 0 }) ?? true else {
+                throw BackupValidationError.invalidIdentifier("catalog definition metadata MET")
+            }
+        }
+    }
+
+    private func validateProgramDiscoverySeeds(
+        _ seeds: [ProgramDiscoverySeedDTO],
+        executableProgramKeys: Set<String>
+    ) throws {
+        try validateUniqueIdentifiers(seeds.map(\.id), named: "program discovery seed")
+        var keys = Set<String>()
+        for seed in seeds {
+            guard !seed.programKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !seed.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  ProgramDiscoveryAvailabilityReason(rawValue: seed.availabilityReason) != nil,
+                  ProgramDiscoveryCompatibilityStatus(rawValue: seed.compatibilityStatus) != nil,
+                  !seed.compatibilityReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !seed.isRunnable else {
+                throw BackupValidationError.invalidIdentifier("program discovery seed")
+            }
+            guard let id = UUID(uuidString: seed.id),
+                  id == ProgramDiscoverySeed.stableID(for: seed.programKey) else {
+                throw BackupValidationError.invalidIdentifier("program discovery seed identity")
+            }
+            let normalizedKey = seed.programKey.lowercased()
+            guard !executableProgramKeys.contains(normalizedKey) else {
+                throw BackupValidationError.duplicateIdentifier("executable/discovery program key")
+            }
+            guard keys.insert(normalizedKey).inserted else {
+                throw BackupValidationError.duplicateIdentifier("program discovery seed")
             }
         }
     }

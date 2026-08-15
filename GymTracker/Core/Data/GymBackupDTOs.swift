@@ -863,6 +863,69 @@ nonisolated struct MobilityDefinitionDTO: Codable, Sendable {
     let updatedAt: Date
 }
 
+/// Portable form of the additive `CatalogDefinitionMetadata` entity. The
+/// metadata row is intentionally separate from the frozen definition models;
+/// `definitionID` plus `definitionKind` is the stable target identity.
+nonisolated struct CatalogDefinitionMetadataDTO: Codable, Sendable {
+    let id: String
+    let definitionID: String
+    let definitionKind: String
+    let catalogueKey: String?
+    let sourceReferencesData: Data?
+    let muscleGroups: [String]
+    let anatomicalTargetMuscles: [String]
+    let anatomicalSynergistMuscles: [String]
+    let descriptionText: String?
+    let instructionSteps: [String]
+    let videoURLString: String?
+    let videoEmbedURLString: String?
+    let thumbnailURLString: String?
+    let imageURLString: String?
+    let liftosaurURLString: String?
+    let liftosaurSlug: String?
+    let categoryRaw: String?
+    let difficultyRaw: String?
+    let equipmentLabels: [String]
+    let primaryMuscleLabels: [String]
+    let secondaryMuscleLabels: [String]
+    let sanskritName: String?
+    let metValue: Double?
+    let benefitsText: String?
+    let svgURLString: String?
+    let authoringLanguage: String?
+    let authoringLanguageVersion: String?
+    let authoringSourceData: Data?
+    let authoringSourceHash: String?
+    let authoringCompilerVersion: String?
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+/// Portable form of a recovered program listing that is intentionally not
+/// executable. Its stable slug is the identity; it has no definition payload.
+nonisolated struct ProgramDiscoverySeedDTO: Codable, Sendable {
+    let id: String
+    let programKey: String
+    let name: String
+    let summary: String?
+    let authorOrOrigin: String?
+    let categoryOrDisciplineLabel: String?
+    let daysPerWeekText: String?
+    let durationWeeksText: String?
+    let difficultyLabel: String?
+    let progressionModelLabel: String?
+    let equipmentText: String?
+    let tags: [String]
+    let sourceURLString: String?
+    let imageURLString: String?
+    let availabilityReason: String
+    let compatibilityStatus: String
+    let compatibilityReason: String
+    let isRunnable: Bool
+    let createdAt: Date
+    let updatedAt: Date
+}
+
 nonisolated struct MobilityPhasePrescriptionDTO: Codable, Sendable {
     let id: String
     let orderIndex: Int
@@ -1327,6 +1390,10 @@ nonisolated struct BackupDTO: Codable, Sendable {
     let supplementOccurrences: [SupplementOccurrenceDTO]
     let mobilityFamilies: [MobilityFamilyDTO]
     let mobilityDefinitions: [MobilityDefinitionDTO]
+    /// Additive catalogue metadata. An absent top-level array means an older
+    /// backup has no metadata and remains fully restorable.
+    var catalogDefinitionMetadata: [CatalogDefinitionMetadataDTO] = []
+    var programDiscoverySeeds: [ProgramDiscoverySeedDTO] = []
     let mobilityRoutines: [MobilityRoutineDTO]
     let mobilitySessions: [MobilitySessionDTO]
     let mobilityAssessmentDefinitions: [MobilityAssessmentDefinitionDTO]
@@ -1418,7 +1485,11 @@ nonisolated struct BackupDTO: Codable, Sendable {
     /// Adds HealthKit source provenance and post-commit summary-export
     /// receipts. Older backups restore with no HealthKit integration records.
     static let healthKitIntegrationVersion = 29
-    static let currentVersion = healthKitIntegrationVersion
+    /// Adds the standalone catalogue metadata entity. Older backups decode
+    /// the absent top-level array as empty and restore without metadata.
+    static let catalogDefinitionMetadataVersion = 30
+    static let programDiscoverySeedVersion = 31
+    static let currentVersion = programDiscoverySeedVersion
 
     init(
         version: Int,
@@ -1444,6 +1515,8 @@ nonisolated struct BackupDTO: Codable, Sendable {
         supplementOccurrences: [SupplementOccurrenceDTO] = [],
         mobilityFamilies: [MobilityFamilyDTO] = [],
         mobilityDefinitions: [MobilityDefinitionDTO] = [],
+        catalogDefinitionMetadata: [CatalogDefinitionMetadataDTO] = [],
+        programDiscoverySeeds: [ProgramDiscoverySeedDTO] = [],
         mobilityRoutines: [MobilityRoutineDTO] = [],
         mobilitySessions: [MobilitySessionDTO] = [],
         mobilityAssessmentDefinitions: [MobilityAssessmentDefinitionDTO] = [],
@@ -1477,6 +1550,8 @@ nonisolated struct BackupDTO: Codable, Sendable {
         self.supplementOccurrences = supplementOccurrences
         self.mobilityFamilies = mobilityFamilies
         self.mobilityDefinitions = mobilityDefinitions
+        self.catalogDefinitionMetadata = catalogDefinitionMetadata
+        self.programDiscoverySeeds = programDiscoverySeeds
         self.mobilityRoutines = mobilityRoutines
         self.mobilitySessions = mobilitySessions
         self.mobilityAssessmentDefinitions = mobilityAssessmentDefinitions
@@ -1489,7 +1564,7 @@ nonisolated struct BackupDTO: Codable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, mobilityProgramDefinitions, mobilityProgramRuns, mobilityProgressionRecommendations, progressionRecommendations, dailyLogEntries, bodyWeightEntries, healthKitBodyMassProvenance, healthKitWorkoutExportReceipts, supplementOccurrences, mobilityFamilies, mobilityDefinitions, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets, trainingProfile
+        case version, preferences, exercises, templates, collections, workouts, plans, planRuns, repeatingPlans, repeatingPlanRuns, exerciseRelationships, programDefinitions, mobilityProgramDefinitions, mobilityProgramRuns, mobilityProgressionRecommendations, progressionRecommendations, dailyLogEntries, bodyWeightEntries, healthKitBodyMassProvenance, healthKitWorkoutExportReceipts, supplementOccurrences, mobilityFamilies, mobilityDefinitions, catalogDefinitionMetadata, programDiscoverySeeds, mobilityRoutines, mobilitySessions, mobilityAssessmentDefinitions, mobilityAssessmentSessions, foods, mealTemplates, loggedMeals, nutritionTargets, trainingProfile
     }
 
     init(from decoder: Decoder) throws {
@@ -1517,6 +1592,8 @@ nonisolated struct BackupDTO: Codable, Sendable {
         supplementOccurrences = try container.decodeIfPresent([SupplementOccurrenceDTO].self, forKey: .supplementOccurrences) ?? []
         mobilityFamilies = try container.decodeIfPresent([MobilityFamilyDTO].self, forKey: .mobilityFamilies) ?? []
         mobilityDefinitions = try container.decodeIfPresent([MobilityDefinitionDTO].self, forKey: .mobilityDefinitions) ?? []
+        catalogDefinitionMetadata = try container.decodeIfPresent([CatalogDefinitionMetadataDTO].self, forKey: .catalogDefinitionMetadata) ?? []
+        programDiscoverySeeds = try container.decodeIfPresent([ProgramDiscoverySeedDTO].self, forKey: .programDiscoverySeeds) ?? []
         mobilityRoutines = try container.decodeIfPresent([MobilityRoutineDTO].self, forKey: .mobilityRoutines) ?? []
         mobilitySessions = try container.decodeIfPresent([MobilitySessionDTO].self, forKey: .mobilitySessions) ?? []
         mobilityAssessmentDefinitions = try container.decodeIfPresent([MobilityAssessmentDefinitionDTO].self, forKey: .mobilityAssessmentDefinitions) ?? []

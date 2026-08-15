@@ -892,6 +892,66 @@ extension BackupDTO {
                 updatedAt: definition.updatedAt
             )
         }
+        let catalogDefinitionMetadataDTOs = try context.fetch(FetchDescriptor<CatalogDefinitionMetadata>()).map { metadata in
+            CatalogDefinitionMetadataDTO(
+                id: metadata.id.uuidString,
+                definitionID: metadata.definitionID.uuidString,
+                definitionKind: metadata.definitionKindRaw,
+                catalogueKey: metadata.catalogueKey,
+                sourceReferencesData: metadata.sourceReferencesData,
+                muscleGroups: metadata.muscleGroups,
+                anatomicalTargetMuscles: metadata.anatomicalTargetMuscles,
+                anatomicalSynergistMuscles: metadata.anatomicalSynergistMuscles,
+                descriptionText: metadata.descriptionText,
+                instructionSteps: metadata.instructionSteps,
+                videoURLString: metadata.videoURLString,
+                videoEmbedURLString: metadata.videoEmbedURLString,
+                thumbnailURLString: metadata.thumbnailURLString,
+                imageURLString: metadata.imageURLString,
+                liftosaurURLString: metadata.liftosaurURLString,
+                liftosaurSlug: metadata.liftosaurSlug,
+                categoryRaw: metadata.categoryRaw,
+                difficultyRaw: metadata.difficultyRaw,
+                equipmentLabels: metadata.equipmentLabels,
+                primaryMuscleLabels: metadata.primaryMuscleLabels,
+                secondaryMuscleLabels: metadata.secondaryMuscleLabels,
+                sanskritName: metadata.sanskritName,
+                metValue: metadata.metValue,
+                benefitsText: metadata.benefitsText,
+                svgURLString: metadata.svgURLString,
+                authoringLanguage: metadata.authoringLanguage,
+                authoringLanguageVersion: metadata.authoringLanguageVersion,
+                authoringSourceData: metadata.authoringSourceData,
+                authoringSourceHash: metadata.authoringSourceHash,
+                authoringCompilerVersion: metadata.authoringCompilerVersion,
+                createdAt: metadata.createdAt,
+                updatedAt: metadata.updatedAt
+            )
+        }
+        let programDiscoverySeedDTOs = try context.fetch(FetchDescriptor<ProgramDiscoverySeed>()).map { seed in
+            ProgramDiscoverySeedDTO(
+                id: seed.id.uuidString,
+                programKey: seed.programKey,
+                name: seed.name,
+                summary: seed.summary,
+                authorOrOrigin: seed.authorOrOrigin,
+                categoryOrDisciplineLabel: seed.categoryOrDisciplineLabel,
+                daysPerWeekText: seed.daysPerWeekText,
+                durationWeeksText: seed.durationWeeksText,
+                difficultyLabel: seed.difficultyLabel,
+                progressionModelLabel: seed.progressionModelLabel,
+                equipmentText: seed.equipmentText,
+                tags: seed.tags,
+                sourceURLString: seed.sourceURLString,
+                imageURLString: seed.imageURLString,
+                availabilityReason: seed.availabilityReasonRaw,
+                compatibilityStatus: seed.compatibilityStatusRaw,
+                compatibilityReason: seed.compatibilityReason,
+                isRunnable: seed.isRunnable,
+                createdAt: seed.createdAt,
+                updatedAt: seed.updatedAt
+            )
+        }
         let mobilityPrescriptionEvidence = Dictionary(
             try context.fetch(FetchDescriptor<MobilityRoutineItemEvidence>()).map { ($0.routineItemID, $0) },
             uniquingKeysWith: { first, _ in first }
@@ -1360,6 +1420,8 @@ extension BackupDTO {
             supplementOccurrences: supplementOccurrenceDTOs,
             mobilityFamilies: mobilityFamilyDTOs,
             mobilityDefinitions: mobilityDefinitionDTOs,
+            catalogDefinitionMetadata: catalogDefinitionMetadataDTOs,
+            programDiscoverySeeds: programDiscoverySeedDTOs,
             mobilityRoutines: mobilityRoutineDTOs,
             mobilitySessions: mobilitySessionDTOs,
             mobilityAssessmentDefinitions: mobilityAssessmentDefinitionDTOs,
