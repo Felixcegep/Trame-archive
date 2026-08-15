@@ -107,6 +107,7 @@ struct SetDetailSheet: View {
                 header
                 setTypeSection
                 effortSection
+                prescribedTempoContext
                 advancedOptionsSection
                 deleteButton
             }
@@ -115,7 +116,7 @@ struct SetDetailSheet: View {
             .padding(.bottom, Spacing.l)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("set-details-screen", label: "Set details open")
         }
@@ -222,16 +223,16 @@ struct SetDetailSheet: View {
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text("Advanced options")
                             .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                         Text(advancedSummary)
                             .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                             .lineLimit(2)
                     }
                     Spacer(minLength: 0)
                     Image(systemName: AppIcon.chevronRight)
                         .font(AppFont.footnoteMedium)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .rotationEffect(.degrees(isShowingAdvancedOptions ? 90 : 0))
                 }
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
@@ -251,7 +252,7 @@ struct SetDetailSheet: View {
                             isRecordingVelocity = true
                         }
                         .font(AppFont.footnoteMedium)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
                         .frame(minHeight: 44)
                         .accessibilityIdentifier("record-set-velocity")
                     }
@@ -264,7 +265,7 @@ struct SetDetailSheet: View {
             }
         }
         .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
+        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card))
     }
 
     private var velocitySection: some View {
@@ -278,7 +279,7 @@ struct SetDetailSheet: View {
                     .accessibilityIdentifier("set-mean-velocity")
                 Text("m/s")
                     .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
             HStack(spacing: Spacing.s) {
                 TextField("Peak 0.00", text: peakVelocityBinding)
@@ -288,7 +289,7 @@ struct SetDetailSheet: View {
                     .accessibilityIdentifier("set-peak-velocity")
                 Text("m/s")
                     .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
             measurementSourcePicker(selection: Binding(
                 get: { exerciseSet.velocityMeasurementSource ?? .manual },
@@ -301,12 +302,12 @@ struct SetDetailSheet: View {
                let maximum = exerciseSet.prescribedVelocityMaximum {
                 Text("Target \(minimum.formatted(.number.precision(.fractionLength(2))))–\(maximum.formatted(.number.precision(.fractionLength(2)))) m/s")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
             if let loss = exerciseSet.prescribedVelocityLossStopPercent {
                 Text("Stop the set if velocity loss reaches \(loss.formatted(.number.precision(.fractionLength(0...1))))%.")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
         }
     }
@@ -344,10 +345,10 @@ struct SetDetailSheet: View {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text("Set \(index + 1)")
                     .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Text(exerciseName)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             Spacer()
@@ -356,7 +357,8 @@ struct SetDetailSheet: View {
                 dismiss()
             }
             .font(AppFont.subheadlineSemibold)
-            .foregroundStyle(Color.gymPrimary)
+            .foregroundStyle(Color.trameText)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
             .accessibilityIdentifier("close-set-details")
         }
     }
@@ -397,12 +399,12 @@ struct SetDetailSheet: View {
                     .font(AppFont.captionBold)
                     .textCase(.uppercase)
                     .tracking(0.6)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
             }
-            .tint(Color.gymPrimary)
+            .tint(Color.trameActionDeep)
             .accessibilityIdentifier("set-type-more-toggle")
         }
     }
@@ -413,7 +415,7 @@ struct SetDetailSheet: View {
                 .font(AppFont.captionBold)
                 .textCase(.uppercase)
                 .tracking(0.6)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .accessibilityIdentifier("set-type-group-\(identifier)")
             setTypeGrid(types, isShortcut: identifier == "recent")
         }
@@ -448,10 +450,10 @@ struct SetDetailSheet: View {
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text("Drop set structure")
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Text("Configured by the Drop set type above.")
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .combine)
@@ -472,12 +474,10 @@ struct SetDetailSheet: View {
             if exerciseSet.resolvedSetMethod != .standard {
                 Text(exerciseSet.resolvedSetMethod.detail)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                 segmentEditor
             }
         }
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
     }
 
     private var segmentEditor: some View {
@@ -508,7 +508,7 @@ struct SetDetailSheet: View {
                     .font(AppFont.footnoteMedium)
             }
             .buttonStyle(.borderless)
-            .foregroundStyle(Color.gymPrimary)
+            .foregroundStyle(Color.trameText)
             .accessibilityIdentifier("add-set-segment")
         }
     }
@@ -542,7 +542,7 @@ struct SetDetailSheet: View {
                         .textFieldStyle(.roundedBorder)
                     Text(metricUnit)
                         .font(AppFont.bodyMedium)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
                 measurementSourcePicker(selection: Binding(
                     get: { exerciseSet.specializedMetricMeasurementSource ?? .manual },
@@ -553,8 +553,6 @@ struct SetDetailSheet: View {
                 ))
             }
         }
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
     }
 
     private var metricPlaceholder: String {
@@ -620,7 +618,7 @@ struct SetDetailSheet: View {
             eyebrow("Prescription override")
             Toggle("Use this value in future sessions", isOn: $exerciseSet.userOverrideAffectsFuture)
                 .font(AppFont.subheadline)
-                .tint(Color.gymPrimary)
+            .tint(Color.trameActionDeep)
                 .onChange(of: exerciseSet.userOverrideAffectsFuture) { _, _ in
                     exerciseSet.isUserOverridden = true
                     onPersist()
@@ -642,21 +640,20 @@ struct SetDetailSheet: View {
 
     private func setTypeChip(_ type: SetType, isShortcut: Bool = false) -> some View {
         let isSelected = exerciseSet.setType == type
-        let accent = type.accentColor ?? Color.gymPrimary
 
         return Button {
             selectSetType(type)
         } label: {
-            Label(type.title, systemImage: type.icon)
+            Label(type.title, systemImage: isSelected ? AppIcon.checkmarkCircle : type.icon)
                 .font(AppFont.footnoteMedium)
                 .lineLimit(1)
-                .foregroundStyle(isSelected ? accent : Color.gymSubduedText)
+                .foregroundStyle(isSelected ? Color.trameText : Color.trameSubdued)
                 .frame(maxWidth: .infinity, minHeight: 44)
-                .background(isSelected ? accent.opacity(0.14) : Color.gymCard)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                .background(isSelected ? Color.trameCurrent : Color.trameRow)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                        .strokeBorder(isSelected ? accent.opacity(0.5) : .clear, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                        .strokeBorder(isSelected ? Color.trameActionOutline : .clear, lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -705,7 +702,7 @@ struct SetDetailSheet: View {
                 } label: {
                     Label(effortMeasure == .rir ? "Use RPE" : "Use RIR", systemImage: "chevron.down")
                         .font(AppFont.footnoteMedium)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())
                 }
@@ -718,20 +715,21 @@ struct SetDetailSheet: View {
                         onPersist()
                     }
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameText)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .accessibilityIdentifier(effortMeasure == .rir ? "clear-rir" : "clear-rpe")
                 }
             }
 
             HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                 Text(formattedActiveEffortValue)
-                    .font(AppFont.displayMedium)
+                    .font(AppFont.metricLarge)
                     .monospacedDigit()
-                    .foregroundStyle(hasActiveEffortValue ? Color.gymText : Color.gymSubduedText)
+                    .foregroundStyle(hasActiveEffortValue ? Color.trameText : Color.trameSubdued)
                     .contentTransition(.numericText())
                 Text(activeEffortMeaning)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .animation(reduceMotion ? nil : AppMotion.compact, value: hasActiveEffortValue)
@@ -744,7 +742,9 @@ struct SetDetailSheet: View {
                 } maximumValueLabel: {
                     sliderBound("6+")
                 }
-                .tint(Color.gymSecondary)
+                .tint(Color.trameActionDeep)
+                .accessibilityValue(hasActiveEffortValue ? activeEffortValueText : String(localized: "Not recorded"))
+                .accessibilityHint("Adjusts reps in reserve in whole-rep steps")
                 .accessibilityIdentifier("rir-slider")
             } else {
                 Slider(value: rpeBinding, in: 1...10, step: 0.5) {
@@ -754,18 +754,48 @@ struct SetDetailSheet: View {
                 } maximumValueLabel: {
                     sliderBound("10")
                 }
-                .tint(Color.gymPrimary)
+                .tint(Color.trameActionDeep)
+                .accessibilityValue(hasActiveEffortValue ? activeEffortValueText : String(localized: "Not recorded"))
+                .accessibilityHint("Adjusts rate of perceived exertion in half-point steps")
                 .accessibilityIdentifier("rpe-slider")
             }
 
             if let historicalEffortCaption {
                 Text(historicalEffortCaption)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
         }
         .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
+        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card))
+    }
+
+    /// Tempo in Active Workout is prescription evidence, not a performed
+    /// input. The domain contract deliberately defers generic performed-tempo
+    /// capture, so Details keeps the authored value visible without creating a
+    /// second write path that would make a plan target look like logged truth.
+    @ViewBuilder
+    private var prescribedTempoContext: some View {
+        if let prescribedTempo = exerciseSet.prescribedTempo?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !prescribedTempo.isEmpty {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                eyebrow("Prescribed tempo")
+                Text(prescribedTempo)
+                    .font(AppFont.metricCompact)
+                    .foregroundStyle(Color.trameText)
+                    .monospacedDigit()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.l)
+            .padding(.vertical, Spacing.m)
+            .background(
+                Color.trameRow,
+                in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Prescribed tempo \(prescribedTempo)")
+            .accessibilityIdentifier("set-prescribed-tempo")
+        }
     }
 
     private var hasActiveEffortValue: Bool {
@@ -863,7 +893,8 @@ struct SetDetailSheet: View {
                         onPersist()
                     }
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameText)
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .accessibilityLabel("Clear lift quality")
                     .accessibilityIdentifier("clear-lift-quality")
                 }
@@ -874,15 +905,21 @@ struct SetDetailSheet: View {
                         exerciseSet.liftQuality = quality
                         onPersist()
                     } label: {
-                        Text(quality.title)
+                        Label(
+                            quality.title,
+                            systemImage: exerciseSet.liftQuality == quality ? AppIcon.checkmarkCircle : AppIcon.circle
+                        )
                             .font(AppFont.footnoteMedium)
-                            .foregroundStyle(exerciseSet.liftQuality == quality ? Color.gymText : Color.gymSubduedText)
+                            .foregroundStyle(exerciseSet.liftQuality == quality ? Color.trameText : Color.trameSubdued)
                             .frame(maxWidth: .infinity, minHeight: 44)
-                            .background(exerciseSet.liftQuality == quality ? Color.gymPrimary.opacity(0.14) : Color.gymCard)
-                            .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                            .background(exerciseSet.liftQuality == quality ? Color.trameCurrent : Color.trameRow)
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                             .overlay {
-                                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                                    .strokeBorder(exerciseSet.liftQuality == quality ? Color.gymPrimary.opacity(0.5) : .clear, lineWidth: 1)
+                                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                                    .strokeBorder(
+                                        exerciseSet.liftQuality == quality ? Color.trameActionOutline : .clear,
+                                        lineWidth: 1
+                                    )
                             }
                     }
                     .buttonStyle(.plain)
@@ -891,14 +928,12 @@ struct SetDetailSheet: View {
                 }
             }
         }
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
     }
 
     private func sliderBound(_ text: String) -> some View {
         Text(text)
             .font(AppFont.captionSemiboldMonospaced)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
     }
 
     /// An untouched set holds nothing, so deleting it is immediate. A set the
@@ -938,6 +973,6 @@ struct SetDetailSheet: View {
             .font(AppFont.captionBold)
             .textCase(.uppercase)
             .tracking(0.55)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
     }
 }

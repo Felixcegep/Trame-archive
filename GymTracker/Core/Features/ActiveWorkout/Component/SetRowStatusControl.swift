@@ -28,10 +28,10 @@ struct SetRowStatusControl: View {
     private var editingIndicator: some View {
         Image(systemName: AppIcon.edit)
             .font(AppFont.subheadlineSemiboldMonospaced)
-            .foregroundStyle(Color.gymPrimary)
+            .foregroundStyle(Color.trameStrength)
             .frame(width: 36, height: 36)
             .overlay {
-                Circle().stroke(Color.gymPrimary, lineWidth: 1.5)
+                Circle().stroke(Color.trameStrength, lineWidth: 1.5)
             }
             .frame(width: 44, height: 44)
             .accessibilityLabel(String(localized: "Editing set \(index + 1)"))
@@ -80,17 +80,17 @@ struct SetRowStatusControl: View {
     // inline conditionals made the whole chain expensive to type-check.
 
     private var badgeForeground: Color {
-        if exerciseSet.done { return .white }
-        return isCurrentSet ? Color.gymPrimary : Color.gymSubduedText
+        if exerciseSet.done { return .trameSemanticFieldInk }
+        return isCurrentSet ? Color.trameActionOutline : Color.trameSubdued
     }
 
     private var badgeFill: Color {
-        exerciseSet.done ? Color.gymSecondary : Color.clear
+        exerciseSet.done ? Color.trameCompleted : Color.clear
     }
 
     private var badgeStroke: Color {
         if exerciseSet.done { return .clear }
-        return isCurrentSet ? Color.gymPrimary : Color.gymBorder
+        return isCurrentSet ? Color.trameActionOutline : Color.trameSeparator
     }
 
     private var badgeStrokeWidth: CGFloat {
@@ -110,12 +110,12 @@ struct SetRowStatusControl: View {
         if let shortLabel = exerciseSet.setType.shortLabel {
             Text(shortLabel)
                 .font(AppFont.caption2Bold)
-                .foregroundStyle(exerciseSet.setType.accentColor ?? Color.gymSubduedText)
+                .foregroundStyle(exerciseSet.setType.accentColor ?? Color.trameSubdued)
                 .frame(width: 18, height: 18)
-                .background(Color.gymCard)
+                .background(Color.trameSurface)
                 .clipShape(Circle())
                 .overlay {
-                    Circle().stroke(Color.gymBorder, lineWidth: 1)
+                    Circle().stroke(Color.trameSeparator, lineWidth: 1)
                 }
                 .accessibilityLabel("\(exerciseSet.setType.title) badge \(shortLabel)")
                 .accessibilityIdentifier("set-type-badge-\(exerciseEntry.exercise.name)-\(index)")

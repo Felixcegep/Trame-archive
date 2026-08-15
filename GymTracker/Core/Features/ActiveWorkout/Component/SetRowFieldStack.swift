@@ -68,7 +68,7 @@ struct SetRowFieldStack: View {
             Text(label)
                 .font(AppFont.captionBold)
                 .tracking(0.55)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             field
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -77,7 +77,7 @@ struct SetRowFieldStack: View {
     private func valueButton(
         _ field: SetInputFocus.Field,
         unit: String? = nil,
-        textColor: Color = .gymText
+        textColor: Color = .trameText
     ) -> some View {
         let focusID = inputFocus(field)
         let isActive = coordinator.focus == focusID
@@ -95,14 +95,14 @@ struct SetRowFieldStack: View {
                 if let unit {
                     Text(unit)
                         .font(AppFont.captionBold)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .accessibilityHidden(true)
                 }
             }
             .frame(minWidth: 70, maxWidth: .infinity)
             .frame(minHeight: 44)
             .background(cellFill(isActive: isActive))
-            .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Radius.icon, style: .continuous))
             // Border marks only the one field being typed into. Every field
             // used to carry a grey outline unless locked, which drew a box
             // around a set that had not happened yet as readily as one about
@@ -111,8 +111,8 @@ struct SetRowFieldStack: View {
             // this cell ever wears, and only while it is the field with focus.
             .overlay {
                 if isActive {
-                    RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                        .stroke(Color.gymPrimary, lineWidth: 1.5)
+                    RoundedRectangle(cornerRadius: Radius.icon, style: .continuous)
+                        .stroke(Color.trameStrength, lineWidth: 1.5)
                 }
             }
             .contentShape(Rectangle())
@@ -152,22 +152,18 @@ struct SetRowFieldStack: View {
     /// separation a set row needs is fact/next-versus-later, not weight-
     /// versus-everything, and contrast now carries it.
     private func valueColor(shown: String, isActive: Bool, textColor: Color) -> Color {
-        if shown.isEmpty { return .gymSubduedText }
+        if shown.isEmpty { return .trameSubdued }
         if isActive || isCompletedAndLocked { return textColor }
         if exerciseSet.done { return textColor }
-        return isCurrentSet ? textColor : .gymSubduedText
+        return isCurrentSet ? textColor : .trameSubdued
     }
 
-    /// A fill marks "the row you would act on next" — not "editable", and not
-    /// "focused". A completed field draws none (plain text stands on its own
-    /// once logged); a future set's field draws none (nothing to fill in
-    /// yet); the current set's fields fill whether or not the lifter has
-    /// tapped into one of them yet, so the eye finds where to go before the
-    /// keypad is even open.
+    /// The row itself carries current/completed state. Only the field actively
+    /// receiving keypad input gets its own opaque surface, so nested cells do
+    /// not turn the open set table back into a grid of cards.
     private func cellFill(isActive: Bool) -> Color {
-        if isActive { return Color.gymRowSurface }
-        if isCompletedAndLocked { return .clear }
-        return isCurrentSet ? Color.gymRowSurface : .clear
+        if isActive { return Color.trameSurface }
+        return .clear
     }
 
     private var repsField: some View {

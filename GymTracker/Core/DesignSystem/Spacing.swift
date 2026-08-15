@@ -10,4 +10,8 @@ struct Spacing {
     nonisolated static let xl: CGFloat = 20
     nonisolated static let xxl: CGFloat = 24
     nonisolated static let xxxl: CGFloat = 32
+
+    /// Standard inset for custom full-width Trame compositions. Native lists,
+    /// forms, navigation chrome, and sheets keep their system-provided insets.
+    nonisolated static let screenInset: CGFloat = 18
 }

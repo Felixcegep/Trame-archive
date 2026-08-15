@@ -45,7 +45,7 @@ struct DurationKeypad: View {
                     key(.preset(seconds)) {
                         Text(ClockEntry.clockText(seconds: seconds))
                             .font(AppFont.titleMediumMonospaced)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                     }
                 }
 
@@ -53,20 +53,20 @@ struct DurationKeypad: View {
                     Text("−\(Int(adjustStep))s")
                         .font(AppFont.subheadlineBold)
                         .monospacedDigit()
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
                 }
 
                 key(.adjust(adjustStep)) {
                     Text("+\(Int(adjustStep))s")
                         .font(AppFont.subheadlineBold)
                         .monospacedDigit()
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
                 }
 
                 key(.backspace) {
                     Image(systemName: AppIcon.backspace)
                         .font(AppFont.titleSmallSemibold)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
 
@@ -79,7 +79,7 @@ struct DurationKeypad: View {
             } label: {
                 Label("Enter an exact time", systemImage: AppIcon.keyboard)
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameText)
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .contentShape(Rectangle())
@@ -90,7 +90,7 @@ struct DurationKeypad: View {
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.s)
         .frame(maxWidth: .infinity)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         // The preset labels are already large; growing them further only steals
         // height from the set list without making a two-character clock easier
         // to read.
@@ -111,10 +111,10 @@ struct DurationKeypad: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: ComponentSize.keypadKeyHeight)
                 .background(background(for: durationKey))
-                .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                        .stroke(Color.gymBorder, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                        .stroke(Color.trameSeparator, lineWidth: 1)
                 }
                 .contentShape(Rectangle())
         }
@@ -125,9 +125,9 @@ struct DurationKeypad: View {
 
     private func background(for key: DurationKey) -> Color {
         switch key {
-        case .preset: Color.gymCard
-        case .adjust, .digits: Color.gymPrimarySurface
-        case .backspace: Color.gymCard.opacity(0.6)
+        case .preset: Color.trameSurface
+        case .adjust, .digits: Color.trameCurrent
+        case .backspace: Color.trameRow
         }
     }
 
@@ -161,5 +161,5 @@ struct DurationKeypad: View {
         Spacer()
         DurationKeypad { _ in }
     }
-    .background(Color.gymBackground)
+    .background(Color.trameCanvas)
 }

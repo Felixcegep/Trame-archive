@@ -46,8 +46,6 @@ struct ActiveWorkoutCommandBar: View {
     let onForward: () -> Void
     let onPrimary: () -> Void
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
     var body: some View {
         HStack(spacing: Spacing.m) {
             arrowButton(
@@ -68,13 +66,13 @@ struct ActiveWorkoutCommandBar: View {
                 action: onForward
             )
         }
-        .padding(.horizontal, Spacing.l)
+        .padding(.horizontal, Spacing.screenInset)
         .padding(.top, Spacing.s)
         .padding(.bottom, Spacing.s)
-        .background(Color.gymBackground)
+        .background(Color.trameSurface)
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(Color.gymBorder)
+                .fill(Color.trameSeparator)
                 .frame(height: 1)
         }
         .accessibilityElement(children: .contain)
@@ -86,8 +84,8 @@ struct ActiveWorkoutCommandBar: View {
         switch primaryAction {
         case .logSet(let isEnabled):
             primaryButton(
-                title: "Log set",
-                systemImage: AppIcon.checkmark,
+                title: "Log",
+                systemImage: nil,
                 identifier: "log-set",
                 isEnabled: isEnabled,
                 hint: String(localized: "Marks the current set complete and starts rest.")
@@ -152,15 +150,21 @@ struct ActiveWorkoutCommandBar: View {
 
     private func primaryButton(
         title: LocalizedStringKey,
-        systemImage: String,
+        systemImage: String?,
         identifier: String,
         isEnabled: Bool,
         hint: String?
     ) -> some View {
         Button(action: onPrimary) {
-            Label(title, systemImage: systemImage)
+            if let systemImage {
+                Label(title, systemImage: systemImage)
+            } else {
+                Text(title)
+                    .tracking(0.7)
+                    .textCase(.uppercase)
+            }
         }
-        .buttonStyle(.gymPrimaryProminent)
+        .buttonStyle(.tramePrimaryAction)
         .disabled(!isEnabled)
         .accessibilityHint(Text(hint ?? ""))
         .accessibilityIdentifier(identifier)
@@ -231,13 +235,9 @@ private extension ActiveWorkoutCommandBar {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(AppFont.subheadlineBold)
-                .foregroundStyle(isEnabled ? Color.gymText : Color.gymSubduedText.opacity(0.5))
-                .frame(width: 54, height: 54)
-                .background(Color.gymCard, in: Circle())
-                .overlay {
-                    Circle().stroke(Color.gymBorder, lineWidth: 1)
-                }
-                .contentShape(Circle())
+                .foregroundStyle(isEnabled ? Color.trameText : Color.trameSubdued)
+                .frame(width: ComponentSize.minimumTouchTarget, height: 54)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
         .disabled(!isEnabled)

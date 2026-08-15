@@ -19,16 +19,16 @@ struct ExerciseSelectionRow: View {
                 HStack(alignment: .center, spacing: Spacing.m) {
                     Image(systemName: isSelected ? AppIcon.checkmarkCircle : AppIcon.circle)
                         .font(AppFont.titleSmall)
-                        .foregroundStyle(isSelected ? Color.gymSecondary : Color.gymText.opacity(0.25))
+                        .foregroundStyle(isSelected ? Color.trameCompleted : Color.trameSubdued)
 
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(exercise.name)
                             .font(AppFont.bodyMedium)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                             .multilineTextAlignment(.leading)
                         Text(exercise.subtitle)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
                             .multilineTextAlignment(.leading)
                     }
                     .layoutPriority(1)
@@ -45,7 +45,7 @@ struct ExerciseSelectionRow: View {
             Button(action: onShowDetail) {
                 Image(systemName: AppIcon.info)
                     .font(AppFont.headline)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameStrength)
                     .frame(width: 34, height: 44)
                     .contentShape(Rectangle())
             }
@@ -53,6 +53,6 @@ struct ExerciseSelectionRow: View {
             .accessibilityIdentifier("template-exercise-link-\(exercise.name)")
             .accessibilityLabel("Show details for \(exercise.name)")
         }
-        .listRowBackground(isSelected ? Color.gymSecondarySurface : Color.gymCard)
+        .listRowBackground(isSelected ? Color.trameCurrent : Color.trameSurface)
     }
 }

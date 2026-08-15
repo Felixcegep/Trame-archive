@@ -29,75 +29,75 @@ struct SetDurationCountdownView: View {
     var body: some View {
         Group {
             if countdownFinished {
-                countdownStrip(surface: Color.gymMutedSurface) {
+                countdownStrip(surface: Color.trameRow) {
                     Image(systemName: AppIcon.checkmarkCircle)
                         .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymSecondary)
+                        .foregroundStyle(Color.trameCompleted)
 
                     Text("Time complete")
                         .font(AppFont.subheadlineSemibold)
-                        .foregroundStyle(Color.gymSecondary)
+                        .foregroundStyle(Color.trameText)
 
                     Spacer(minLength: 0)
 
                     countdownControlButton(
                         AppIcon.reset,
                         label: "Restart timer",
-                        tint: Color.gymSecondary,
+                        tint: Color.trameCompleted,
                         action: startCountdown
                     )
                 }
             } else if let countdownEndDate {
-                countdownStrip(surface: Color.gymPrimarySurface) {
+                countdownStrip(surface: Color.trameCurrent) {
                     Image(systemName: AppIcon.timer)
                         .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
 
                     Text(timerInterval: Date.now...max(Date.now, countdownEndDate), countsDown: true)
                         .font(AppFont.headlineMonospaced)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
 
                     Spacer(minLength: 0)
 
                     countdownControlButton(
                         AppIcon.pause,
                         label: "Pause timer",
-                        tint: Color.gymPrimary,
+                        tint: Color.trameText,
                         action: pauseCountdown
                     )
                     countdownControlButton(
                         AppIcon.reset,
                         label: "Reset timer",
-                        tint: Color.gymPrimary,
+                        tint: Color.trameText,
                         action: resetCountdown
                     )
                 }
             } else if let pausedCountdownRemaining, pausedCountdownRemaining > 0 {
-                countdownStrip(surface: Color.gymAccentSurface) {
+                countdownStrip(surface: Color.trameAttention) {
                     Image(systemName: AppIcon.timer)
                         .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymAccent)
+                        .foregroundStyle(Color.trameAttentionInk)
 
                     Text(formatCountdown(pausedCountdownRemaining))
                         .font(AppFont.headlineMonospaced)
-                        .foregroundStyle(Color.gymAccent)
+                        .foregroundStyle(Color.trameAttentionInk)
 
                     Text("Paused")
                         .font(AppFont.captionBold)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameAttentionInk)
 
                     Spacer(minLength: 0)
 
                     countdownControlButton(
                         AppIcon.play,
                         label: "Resume timer",
-                        tint: Color.gymAccent,
+                        tint: Color.trameAttentionInk,
                         action: resumeCountdown
                     )
                     countdownControlButton(
                         AppIcon.reset,
                         label: "Reset timer",
-                        tint: Color.gymAccent,
+                        tint: Color.trameAttentionInk,
                         action: resetCountdown
                     )
                 }
@@ -108,11 +108,14 @@ struct SetDurationCountdownView: View {
                         systemImage: AppIcon.play
                     )
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameText)
                     .padding(.horizontal, Spacing.m)
-                    .padding(.vertical, Spacing.s)
-                    .background(Color.gymPrimarySurface, in: Capsule())
-                    .contentShape(Capsule())
+                    .frame(minHeight: ComponentSize.minimumTouchTarget)
+                    .background(
+                        Color.trameCurrent,
+                        in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                    )
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
                 .accessibilityIdentifier("start-countdown-\(exerciseEntry.exercise.name)-\(index)")
@@ -142,7 +145,7 @@ struct SetDurationCountdownView: View {
         .padding(.horizontal, Spacing.m)
         .padding(.vertical, Spacing.xs + Spacing.xxs)
         .background(surface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
     }
 
     private func countdownControlButton(
@@ -155,8 +158,8 @@ struct SetDurationCountdownView: View {
             Image(systemName: icon)
                 .font(AppFont.captionBold)
                 .foregroundStyle(tint)
-                .frame(width: 30, height: 30)
-                .background(Color.gymCard, in: Circle())
+                .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                .background(Color.trameSurface, in: Circle())
                 .contentShape(Circle())
         }
         .buttonStyle(.borderless)

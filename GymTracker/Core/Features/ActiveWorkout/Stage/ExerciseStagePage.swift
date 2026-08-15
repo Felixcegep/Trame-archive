@@ -60,7 +60,7 @@ struct ExerciseStagePage: View {
                         exerciseSection(for: entry)
                     }
                 }
-                .padding(.horizontal, Spacing.xl)
+                .padding(.horizontal, Spacing.screenInset)
                 .padding(.top, Spacing.l)
                 .padding(.bottom, Spacing.xxxl)
             }
@@ -149,12 +149,12 @@ struct ExerciseStagePage: View {
                 // they swiped to.
                 Text(executionBlock.kind.title)
                     .font(AppFont.stageTitle)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(executionBlock.kind.summary)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
 
                 WorkoutExecutionBlockCard(
@@ -169,10 +169,10 @@ struct ExerciseStagePage: View {
             .accessibilityIdentifier("execution-block-page-\(executionBlock.id.uuidString)")
         } else if case .superset = page {
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Label("SUPERSET", systemImage: "link")
-                    .font(AppFont.captionBold)
+                Label("SUPERSET", systemImage: AppIcon.relationship)
+                    .font(AppFont.eyebrow)
                     .tracking(0.8)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameStrength)
 
                 // The alternation rule, stated. `WorkoutFlowResolver` picks the
                 // member with the fewest completed sets and suppresses rest
@@ -181,7 +181,7 @@ struct ExerciseStagePage: View {
                 // without saying why.
                 Text("Alternate between these. Rest starts once every exercise has finished the round.")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .combine)
@@ -229,7 +229,7 @@ struct ExerciseStagePage: View {
         .overlay(alignment: .bottom) {
             if entries.count > 1, entry.persistentModelID != entries.last?.persistentModelID {
                 Rectangle()
-                    .fill(Color.gymBorder)
+                    .fill(Color.trameSeparator)
                     .frame(height: 1)
             }
         }
@@ -239,15 +239,15 @@ struct ExerciseStagePage: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             if let roleEyebrow = roleEyebrow(for: entry) {
                 Text(roleEyebrow)
-                    .font(AppFont.caption2Bold)
+                    .font(AppFont.micro)
                     .tracking(0.55)
-                    .foregroundStyle(Color.gymAccent)
+                    .foregroundStyle(Color.trameStrength)
             }
 
             HStack(alignment: .top, spacing: Spacing.s) {
                 Text(entry.occurrenceDisplayName)
                     .font(AppFont.stageTitle)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("active-exercise-\(entry.exercise.name)")
 
@@ -256,7 +256,7 @@ struct ExerciseStagePage: View {
                 if isComplete(entry) {
                     Image(systemName: AppIcon.checkmarkCircle)
                         .font(AppFont.titleSmall)
-                        .foregroundStyle(Color.gymSecondary)
+                        .foregroundStyle(Color.trameCompleted)
                         .accessibilityLabel("Exercise complete")
                 }
             }
@@ -266,9 +266,9 @@ struct ExerciseStagePage: View {
             // of these two am I looking at" is answered per heading, not once
             // at the top.
             if entry.supersetGroupID != nil {
-                Label("Superset", systemImage: "link")
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymPrimary)
+                Label("Superset", systemImage: AppIcon.relationship)
+                    .font(AppFont.eyebrow)
+                    .foregroundStyle(Color.trameStrength)
                     .accessibilityIdentifier("superset-label-\(entry.exercise.name)")
             }
 
@@ -276,13 +276,13 @@ struct ExerciseStagePage: View {
                entry.selectedSubstituteExerciseIDSnapshot != nil {
                 Label("Substituted for \(original)", systemImage: AppIcon.relationship)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             if let caption = loggingSemanticsCaption(for: entry) {
                 Text(caption)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             prescriptionLine(for: entry)
@@ -325,7 +325,7 @@ struct ExerciseStagePage: View {
             Text(values.joined(separator: " · "))
                 .font(AppFont.caption)
                 .monospacedDigit()
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityLabel(Text("Target: \(values.joined(separator: ", "))"))
                 .accessibilityIdentifier("prescription-summary-\(entry.exercise.name)")
@@ -381,12 +381,12 @@ struct ExerciseStagePage: View {
                 systemImage: AppIcon.history
             )
             .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
             .accessibilityIdentifier("previous-performance-\(entry.exercise.name)")
         } else {
             Label("No previous session logged for this exercise", systemImage: AppIcon.history)
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
     }
 
@@ -424,15 +424,15 @@ struct ExerciseStagePage: View {
             axis: .vertical
         )
         .font(AppFont.footnote)
-        .foregroundStyle(Color.gymText)
+        .foregroundStyle(Color.trameText)
         .lineLimit(1...4)
         .focused($focusedNoteID, equals: entry.persistentModelID)
         .padding(.vertical, Spacing.s)
         .padding(.horizontal, Spacing.m)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .background(Color.trameRow, in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
+                .stroke(Color.trameSeparator, lineWidth: 1)
         }
         .accessibilityLabel(Text("Note for \(entry.exercise.name)"))
         .accessibilityIdentifier("exercise-note-\(entry.exercise.name)")
@@ -450,10 +450,9 @@ struct ExerciseStagePage: View {
 
     // MARK: - Action rail
 
-    /// Per-exercise actions, on the surface rather than inside an overflow
-    /// menu. Swapping an exercise because a machine is occupied is not a rare
-    /// action in a shared gym — it is one of the most common things that
-    /// happens mid-session, and it was two taps deep behind an ellipsis.
+    /// Frequent contextual actions remain directly reachable, but they sit as
+    /// open commands rather than a row of pill-shaped objects. Structural and
+    /// destructive changes stay progressively disclosed in the menu.
     private func actionRail(for entry: ExerciseEntry) -> some View {
         HStack(spacing: Spacing.s) {
             if entry.orderedSets.filter(\.done).isEmpty {
@@ -544,14 +543,18 @@ struct ExerciseStagePage: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, Spacing.xxs)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.trameSeparator)
+                .frame(height: 1)
+        }
     }
 
     private func railButton(
         _ title: LocalizedStringKey,
         systemImage: String,
         identifier: String,
-        tint: Color = .gymPrimary,
+        tint: Color = .trameSubdued,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -564,18 +567,14 @@ struct ExerciseStagePage: View {
     private func railLabel(
         _ title: LocalizedStringKey,
         systemImage: String,
-        tint: Color = .gymPrimary
+        tint: Color = .trameSubdued
     ) -> some View {
         Label(title, systemImage: systemImage)
-            .font(AppFont.footnoteMedium)
+            .font(AppFont.metadata)
             .foregroundStyle(tint)
-            .padding(.horizontal, Spacing.m)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background(Color.gymCard, in: Capsule())
-            .overlay {
-                Capsule().stroke(Color.gymBorder, lineWidth: 1)
-            }
-            .contentShape(Capsule())
+            .padding(.horizontal, Spacing.s)
+            .contentShape(Rectangle())
     }
 
     private func supersetCandidates(for entry: ExerciseEntry) -> [ExerciseEntry] {
@@ -592,12 +591,17 @@ struct ExerciseStagePage: View {
         VStack(spacing: Spacing.m) {
             Text("No sets yet.")
                 .font(AppFont.footnote)
-                .foregroundStyle(Color.gymSubduedText)
-            Button("Add the first set") {
+                .foregroundStyle(Color.trameSubdued)
+            Button {
                 viewModel.addSet(entry)
+            } label: {
+                Label("Add the first set", systemImage: AppIcon.plus)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameStrength)
+                    .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(.gymPrimary)
-            .fixedSize(horizontal: true, vertical: false)
+            .buttonStyle(.gymPress)
             .accessibilityIdentifier("add-set-\(entry.exercise.name)")
         }
         .frame(maxWidth: .infinity)

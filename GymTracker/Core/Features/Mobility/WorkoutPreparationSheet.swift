@@ -106,7 +106,7 @@ struct WorkoutPreparationSheet: View {
             VStack(spacing: 0) {
                 factRow("Movements", value: Text(routine.items.count, format: .number))
 
-                LibraryGroupDivider()
+                Divider().overlay(Color.trameSeparator)
 
                 factRow(
                     "Estimated time",
@@ -114,7 +114,7 @@ struct WorkoutPreparationSheet: View {
                 )
 
                 if let purpose = routine.purpose {
-                    LibraryGroupDivider()
+                    Divider().overlay(Color.trameSeparator)
                     factRow("Purpose", value: Text(purpose.displayName))
                 }
             }

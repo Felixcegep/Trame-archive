@@ -3,6 +3,22 @@ import SwiftUI
 /// A visual projection of the same chapter facts exposed by
 /// `TrainingJourneyView`. The List remains the accessibility baseline; this
 /// view adds spatial comparison without replacing the complete chronology.
+///
+/// Diagram specification:
+/// QUESTION: When did recorded plan, rotation, and free-training chapters occur
+/// and overlap?
+/// DATA: `TrainingJourneyTimelineProjection` chapter intervals and explicit
+/// practice-transition markers; absent chapters remain absent, never zero.
+/// ENCODING: normalized time -> x-position and segment width; chapter kind ->
+/// labelled lane and hue; overlap -> sublane; selected date -> vertical rule.
+/// INTERACTION: the native date picker, chapter segments, and transition markers
+/// select an exact date.
+/// DETAIL: the selected-date group lists exact chapter counts/status and
+/// transition evidence; the List presentation opens chapter source evidence.
+/// EMPTY STATE: the root renders the explicit no-history state instead of an
+/// empty canvas.
+/// ACCESSIBILITY: every segment/marker has a full label, selected-date detail is
+/// textual, and the List presentation is the complete chronological equivalent.
 struct TrainingJourneyTimelineView: View {
     let projection: TrainingJourneyTimelineProjection
     let practiceTransitions: TrainingJourneyPracticeTransitionProjection
@@ -11,9 +27,9 @@ struct TrainingJourneyTimelineView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let labelWidth = Spacing.xxxl * 2 + Spacing.l
-    private let barHeight = Spacing.xxxl
+    private let barHeight = ComponentSize.minimumTouchTarget
     private let sublaneSpacing = Spacing.xs
-    private let transitionMarkerHeight = Spacing.xxxl + Spacing.s
+    private let transitionMarkerHeight = ComponentSize.minimumTouchTarget
 
     init(
         projection: TrainingJourneyTimelineProjection,
@@ -26,44 +42,38 @@ struct TrainingJourneyTimelineView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            DatePicker("Selected date", selection: $selectedDate, displayedComponents: .date)
-                .datePickerStyle(.compact)
-                .labelsHidden()
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .accessibilityLabel("Timeline date")
-                .accessibilityIdentifier("training-journey-timeline-date")
-                .padding(.horizontal, Spacing.l)
-
-            if let segment = singleJourneySegment {
-                singleChapterMilestone(segment)
-                    .padding(.horizontal, Spacing.l)
-            } else {
-                GeometryReader { geometry in
-                    let chartWidth = max(
-                        1,
-                        geometry.size.width - labelWidth - Spacing.s - Spacing.m * 2
-                    )
-                    timelineCanvas(chartWidth: chartWidth)
-                        .padding(.horizontal, Spacing.m)
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.l) {
+                HStack(alignment: .center, spacing: Spacing.m) {
+                    TrameSectionRule(title: "Recorded chapters")
+                    DatePicker("Selected date", selection: $selectedDate, displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                        .labelsHidden()
+                        .accessibilityLabel("Timeline date")
+                        .accessibilityIdentifier("training-journey-timeline-date")
                 }
-                .frame(height: canvasHeight)
-                .background(
-                    RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                        .fill(Color.gymCard)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                                .stroke(Color.gymBorder, lineWidth: 1)
-                        }
-                )
-                .padding(.horizontal, Spacing.l)
-                .accessibilityIdentifier("training-journey-timeline-chart")
 
-                selectionCard
-                    .padding(.horizontal, Spacing.l)
+                if let segment = singleJourneySegment {
+                    singleChapterMilestone(segment)
+                } else {
+                    GeometryReader { geometry in
+                        let chartWidth = max(
+                            1,
+                            geometry.size.width - labelWidth - Spacing.s - Spacing.m * 2
+                        )
+                        timelineCanvas(chartWidth: chartWidth)
+                            .padding(.horizontal, Spacing.m)
+                    }
+                    .frame(height: canvasHeight)
+                    .accessibilityIdentifier("training-journey-timeline-chart")
+
+                    selectionDetail
+                }
             }
+            .padding(.horizontal, Spacing.screenInset)
+            .padding(.vertical, Spacing.l)
         }
-        .padding(.vertical, Spacing.s)
+        .scrollIndicators(.hidden)
         .background(Color.gymBackground)
         .accessibilityIdentifier("training-journey-timeline")
         .animation(reduceMotion ? nil : AppMotion.compact, value: selectedDate)
@@ -87,42 +97,29 @@ struct TrainingJourneyTimelineView: View {
         let tint = laneTint(segment.lane)
 
         return VStack(alignment: .leading, spacing: Spacing.m) {
-            HStack(spacing: Spacing.m) {
-                GymIconChip(systemImage: laneIcon(segment.lane), tint: tint)
-                Text(segment.title)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
-                    .lineLimit(1)
-                Spacer(minLength: Spacing.s)
-            }
+            Text(segment.title)
+                .font(AppFont.sectionTitle)
+                .foregroundStyle(Color.trameText)
+                .fixedSize(horizontal: false, vertical: true)
 
             ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(tint.opacity(0.14))
-                    .frame(height: Spacing.m)
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
 
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [tint, tint.opacity(0.55)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: Spacing.m)
+                Rectangle()
+                    .fill(tint)
+                    .frame(height: Spacing.xs)
 
                 Circle()
-                    .fill(Color.gymCard)
+                    .fill(Color.trameCanvas)
                     .frame(width: Spacing.l, height: Spacing.l)
                     .overlay {
                         Circle().stroke(tint, lineWidth: 2)
                     }
                     .overlay {
-                        Image(systemName: AppIcon.workout)
-                            .font(AppFont.caption2)
-                            .foregroundStyle(tint)
+                        Circle().fill(tint).frame(width: Spacing.xs, height: Spacing.xs)
                     }
-                    .padding(.leading, Spacing.xxs)
             }
 
             HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
@@ -134,18 +131,13 @@ struct TrainingJourneyTimelineView: View {
                     Text("No activity on this date")
                 }
             }
-            .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
+            .font(AppFont.metadata)
+            .foregroundStyle(Color.trameSubdued)
         }
-        .padding(Spacing.l)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                .fill(laneSurface(segment.lane).opacity(0.72))
-                .overlay {
-                    RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                        .stroke(tint.opacity(0.45), lineWidth: 1)
-                }
-        )
+        .padding(.vertical, Spacing.m)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.trameSeparator).frame(height: 1)
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             [
@@ -351,6 +343,7 @@ struct TrainingJourneyTimelineView: View {
                     Spacing.xs,
                     (segment.positionEnd - segment.positionStart) * chartWidth
                 )
+                let interactionWidth = max(ComponentSize.minimumTouchTarget, segmentWidth)
                 Button {
                     selectedDate = segment.originalStart
                 } label: {
@@ -388,7 +381,8 @@ struct TrainingJourneyTimelineView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .frame(width: segmentWidth, height: barHeight)
+                .frame(width: interactionWidth, height: barHeight, alignment: .leading)
+                .contentShape(Rectangle())
                 .offset(
                     x: segment.positionStart * chartWidth,
                     y: CGFloat(segment.sublane) * (barHeight + sublaneSpacing)
@@ -424,23 +418,25 @@ struct TrainingJourneyTimelineView: View {
         )
     }
 
-    private var selectionCard: some View {
+    private var selectionDetail: some View {
         let selection = projection.selection(for: selectedDate)
-        return GymCard {
+        return VStack(alignment: .leading, spacing: Spacing.m) {
+            TrameSectionRule(title: "Selected date")
+
             if selection.hits.isEmpty {
                 Text("No chapter on this date")
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.body)
+                    .foregroundStyle(Color.trameSubdued)
             } else {
                 ForEach(selection.hits) { hit in
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                         Text(hit.title)
-                            .font(AppFont.footnoteMedium)
-                            .foregroundStyle(Color.gymText)
+                            .font(AppFont.body.weight(.semibold))
+                            .foregroundStyle(Color.trameText)
                         Spacer(minLength: Spacing.s)
                         Text(hitSummary(hit))
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
                             .multilineTextAlignment(.trailing)
                     }
                     .accessibilityElement(children: .combine)
@@ -452,15 +448,18 @@ struct TrainingJourneyTimelineView: View {
             if selectedTransitions.isEmpty == false {
                 Divider()
                     .accessibilityHidden(true)
-                GymEyebrow("Practice transitions")
+                Text("Practice transitions")
+                    .font(AppFont.eyebrow)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color.trameSubdued)
                 ForEach(selectedTransitions) { marker in
                     VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text(TrainingJourneyTimelineTransitionPresentation.title(marker))
-                            .font(AppFont.footnoteMedium)
-                            .foregroundStyle(Color.gymText)
+                            .font(AppFont.body.weight(.semibold))
+                            .foregroundStyle(Color.trameText)
                         Text(TrainingJourneyTimelineTransitionPresentation.evidenceSummary(marker))
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .accessibilityElement(children: .combine)
@@ -505,14 +504,6 @@ struct TrainingJourneyTimelineView: View {
         case .fixedPlan: .gymPrimary
         case .repeatingPlan: .gymSecondary
         case .freeTraining: .gymAccent
-        }
-    }
-
-    private func laneIcon(_ lane: TrainingJourneyTimelineLane) -> String {
-        switch lane {
-        case .fixedPlan: AppIcon.plan
-        case .repeatingPlan: AppIcon.repeatingPlan
-        case .freeTraining: AppIcon.workout
         }
     }
 

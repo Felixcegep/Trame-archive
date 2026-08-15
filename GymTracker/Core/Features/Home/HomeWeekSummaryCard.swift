@@ -73,38 +73,17 @@ struct HomeWeekSummaryCard: View {
         let weekSummary = summary
 
         return VStack(alignment: .leading, spacing: Spacing.m) {
-            // Pre-localized: `LibrarySectionTitle` takes a `String`, so a bare
-            // literal would never reach the string catalog.
-            LibrarySectionTitle(String(localized: "This week"))
+            TrameSectionRule(title: "Week")
 
-            VStack(spacing: Spacing.m) {
-                // The figure first.
-                //
-                // Today reported the week as seven small marks and a sentence,
-                // which is a picture of the week rather than an answer about it.
-                // The count is the answer, and it costs nothing new: it is
-                // already on `TrainingWeekSummary`, from the same query this
-                // card was making anyway.
-                //
-                // Deliberately *not* rendered as "2 of 4". A denominator implies
-                // a weekly target, and nothing here knows one — a plan's
-                // `supportedDaysPerWeek` is what a plan *can* run at, not what
-                // this lifter committed to. Inventing the goal to make the
-                // number look like progress would be the screen asserting
-                // something it cannot support.
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
-                    Text("\(weekSummary.workoutCount)")
-                        .font(AppFont.displayMedium)
-                        .monospacedDigit()
-                        .foregroundStyle(Color.gymText)
-
-                    Text(CountPhrase.sessionsThisWeek(weekSummary.workoutCount))
-                        .font(AppFont.footnote)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Spacer(minLength: 0)
-                }
+            VStack(spacing: Spacing.l) {
+                TrameMetric(
+                    value: "\(weekSummary.workoutCount)",
+                    label: weekSummary.workoutCount == 1 ? "session" : "sessions",
+                    accessibilityLabel: String(
+                        localized: "\(weekSummary.workoutCount) \(weekSummary.workoutCount == 1 ? "session" : "sessions")"
+                    )
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityHidden(true)
 
                 HStack(spacing: Spacing.xs) {
@@ -114,41 +93,27 @@ struct HomeWeekSummaryCard: View {
                     }
                 }
 
-                Divider()
-                    .overlay(Color.gymBorder)
+                if !weekSummary.hasTraining && !isPrimaryCardOfferingStart {
+                    Divider().overlay(Color.gymBorder)
 
-                HStack(spacing: Spacing.s) {
-                    VStack(alignment: .leading, spacing: Spacing.s) {
-                        Text(weekSummary.detailText)
-                            .font(weekSummary.hasTraining ? AppFont.subheadlineMediumMonospaced : AppFont.subheadline)
-                            .foregroundStyle(weekSummary.hasTraining ? Color.gymText : Color.gymSubduedText)
-
-                        // What the strip cannot say. A ring on Thursday tells
-                        // the lifter *that* something is expected; only a line
-                        // of text can tell them what it is, and "what am I
-                        // doing Thursday" was the question that previously
-                        // required opening the calendar.
-                        if let next = weekSummary.nextScheduled {
-                            nextScheduledLine(next)
-                        }
-
-                        if !weekSummary.hasTraining && !isPrimaryCardOfferingStart {
-                            Button(action: onStartWorkout) {
-                                Text("Start a session today")
-                                    .font(AppFont.captionBold)
-                                    .foregroundStyle(Color.gymPrimary)
-                            }
-                            .accessibilityIdentifier("today-week-start-session")
-                        }
+                    Button(action: onStartWorkout) {
+                        Text("Start a session today")
+                            .font(AppFont.captionBold)
+                            .foregroundStyle(Color.gymPrimary)
+                            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
                     }
-
-                    Spacer(minLength: 0)
+                    .buttonStyle(.gymPress)
+                    .accessibilityIdentifier("today-week-start-session")
                 }
             }
             .padding(Spacing.l)
             .background {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .fill(Color.gymCard)
+                RoundedRectangle(cornerRadius: Radius.editorialGroup, style: .continuous)
+                    .fill(Color.gymTodayWeekSurface)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.editorialGroup, style: .continuous)
+                    .stroke(Color.gymBorder, lineWidth: 1)
             }
         }
         // One stop, not fifteen. Read day by day this card is a stutter of
@@ -162,13 +127,18 @@ struct HomeWeekSummaryCard: View {
         VStack(spacing: Spacing.s) {
             Text(day.initial)
                 .font(AppFont.captionBold)
-                .foregroundStyle(day.isToday ? Color.gymPrimary : Color.gymSubduedText)
+                .foregroundStyle(Color.gymSubduedText)
 
             mark(for: day)
                 // Today's mark gets the one settle beat, after the sweep has
                 // reached it. It is the mark that means something on an empty
                 // week — the other six are places a session could go.
                 .gymSettleBeat(index: day.isToday ? 7 : 0, isActive: isPlayingAssembly && day.isToday)
+
+            Text(day.date.formatted(.dateTime.day()))
+                .font(AppFont.caption2)
+                .monospacedDigit()
+                .foregroundStyle(Color.gymSubduedText)
         }
         .frame(maxWidth: .infinity)
     }
@@ -194,14 +164,14 @@ struct HomeWeekSummaryCard: View {
                 .font(AppFont.caption2Bold)
                 .foregroundStyle(.white)
                 .frame(width: markDiameter, height: markDiameter)
-                .background(Color.gymPrimaryDeep, in: Circle())
+                .background(Color.trameCompleted, in: Circle())
         } else if day.isToday {
             Circle()
-                .stroke(Color.gymPrimary, style: StrokeStyle(lineWidth: 2, dash: [3, 3]))
+                .stroke(Color.trameStrength, style: StrokeStyle(lineWidth: 2, dash: [3, 3]))
                 .frame(width: markDiameter, height: markDiameter)
         } else if day.isScheduled {
             Circle()
-                .stroke(Color.gymPrimary.opacity(0.55), lineWidth: 2)
+                .stroke(Color.trameSubdued, lineWidth: 2)
                 .frame(width: markDiameter, height: markDiameter)
         } else {
             Circle()
@@ -209,25 +179,6 @@ struct HomeWeekSummaryCard: View {
                 .frame(width: emptyMarkDiameter, height: emptyMarkDiameter)
                 .frame(width: markDiameter, height: markDiameter)
         }
-    }
-
-    /// "Next · Thursday · Lower Body", or "Next · Today · …" when the expected
-    /// session is the one the card above is already offering.
-    private func nextScheduledLine(_ next: TrainingWeekSummary.ScheduledDay) -> some View {
-        HStack(spacing: Spacing.xs) {
-            Image(systemName: AppIcon.plan)
-                .font(AppFont.caption2Bold)
-                .foregroundStyle(Color.gymSubduedText)
-                .accessibilityHidden(true)
-
-            Text(nextScheduledText(next))
-                .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("today-week-next-scheduled")
     }
 
     private func nextScheduledText(_ next: TrainingWeekSummary.ScheduledDay) -> String {
@@ -248,7 +199,7 @@ struct HomeWeekSummaryCard: View {
         return String(localized: "Next · \(day) · \(next.title)")
     }
 
-    private var markDiameter: CGFloat { 26 }
+    private var markDiameter: CGFloat { ComponentSize.todayWeekMark }
     private var emptyMarkDiameter: CGFloat { 8 }
 
     /// One sentence, not fifteen marks.

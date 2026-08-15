@@ -60,6 +60,7 @@ struct TrainingJourneyView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.s)
             .accessibilityIdentifier("training-journey-presentation")
@@ -139,27 +140,41 @@ struct TrainingJourneyView: View {
     }
 
     private var listContent: some View {
-        List {
-            switch loadState {
-            case .loading:
-                loadingRow
-            case .failed:
-                failedRow
-            case .ready:
-                if years.isEmpty {
-                    emptyRow
-                } else {
-                    ForEach(years) { year in
-                        Section(verbatim(year.year)) {
-                    ForEach(year.chapters) { chapter in
-                        chapterRow(chapter)
-                    }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: Spacing.xxl) {
+                switch loadState {
+                case .loading:
+                    loadingRow
+                case .failed:
+                    failedRow
+                case .ready:
+                    if years.isEmpty {
+                        emptyRow
+                    } else {
+                        ForEach(years) { year in
+                            VStack(alignment: .leading, spacing: 0) {
+                                HStack(spacing: Spacing.m) {
+                                    Text(verbatim(year.year))
+                                        .font(AppFont.sectionTitle)
+                                        .foregroundStyle(Color.trameText)
+                                    Rectangle()
+                                        .fill(Color.trameSeparator)
+                                        .frame(height: 1)
+                                        .accessibilityHidden(true)
+                                }
+                                    .padding(.bottom, Spacing.s)
+                                ForEach(year.chapters) { chapter in
+                                    chapterRow(chapter)
+                                }
+                            }
                         }
                     }
                 }
             }
+            .padding(.horizontal, Spacing.screenInset)
+            .padding(.vertical, Spacing.l)
         }
-        .scrollContentBackground(.hidden)
+        .scrollIndicators(.hidden)
         .background(Color.gymBackground)
     }
 
@@ -200,7 +215,10 @@ struct TrainingJourneyView: View {
             TrainingJourneyChapterEvidenceView(chapter: chapter)
         } label: {
             HStack(alignment: .top, spacing: Spacing.m) {
-                GymIconChip(systemImage: icon(for: chapter.kind), tint: tint(for: chapter.kind))
+                Rectangle()
+                    .fill(tint(for: chapter.kind))
+                    .frame(width: Spacing.xs)
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(chapter.title)
@@ -216,8 +234,9 @@ struct TrainingJourneyView: View {
                         // a completed one must be distinguishable without relying
                         // on the chip tint.
                         Text(statusText)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.micro)
+                            .textCase(.uppercase)
+                            .foregroundStyle(Color.trameSubdued)
                     }
 
                     Text(summaryText(chapter))
@@ -234,9 +253,25 @@ struct TrainingJourneyView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+
+                Spacer(minLength: Spacing.s)
+
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
+                    .accessibilityHidden(true)
             }
+            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+            .padding(.vertical, Spacing.m)
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color.trameSeparator)
+                    .frame(height: 1)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, Spacing.xxs)
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel(chapter))
         .accessibilityHint(String(localized: "training.journey.chapter.drilldown.hint", defaultValue: "Shows the recorded discipline and workout evidence for this chapter."))
@@ -250,25 +285,30 @@ struct TrainingJourneyView: View {
                 .font(AppFont.caption)
                 .foregroundStyle(Color.gymSubduedText)
         }
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
         .accessibilityIdentifier("training-journey-loading")
     }
 
     /// Distinct from empty: a failed read must not look like "you never trained".
     private var failedRow: some View {
-        GymSectionHeader(
-            title: "Journey unavailable",
-            detail: "Your history could not be read just now. Training history and records still open from Progress.",
-            systemImage: AppIcon.warning
-        )
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            TrameSectionRule(title: "Journey unavailable")
+            Text("Your history could not be read just now. Training history and records still open from Progress.")
+                .font(AppFont.body)
+                .foregroundStyle(Color.trameSubdued)
+                .fixedSize(horizontal: false, vertical: true)
+        }
         .accessibilityIdentifier("training-journey-failed")
     }
 
     private var emptyRow: some View {
-        GymSectionHeader(
-            title: "No training history yet",
-            detail: "Complete a workout, or start a plan, and it appears here as a chapter of your training.",
-            systemImage: AppIcon.history
-        )
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            TrameSectionRule(title: "No training history yet")
+            Text("Complete a workout, or start a plan, and it appears here as a chapter of your training.")
+                .font(AppFont.body)
+                .foregroundStyle(Color.trameSubdued)
+                .fixedSize(horizontal: false, vertical: true)
+        }
         .accessibilityIdentifier("training-journey-empty")
     }
 
@@ -280,19 +320,11 @@ struct TrainingJourneyView: View {
         String(year)
     }
 
-    private func icon(for kind: TrainingJourneyChapter.Kind) -> String {
-        switch kind {
-        case .fixedPlan: AppIcon.plan
-        case .repeatingPlan: AppIcon.repeatingPlan
-        case .freeTraining: AppIcon.workout
-        }
-    }
-
     private func tint(for kind: TrainingJourneyChapter.Kind) -> Color {
         switch kind {
-        case .fixedPlan: .gymPrimary
-        case .repeatingPlan: .gymSecondary
-        case .freeTraining: .gymAccent
+        case .fixedPlan: .trameStrength
+        case .repeatingPlan: .trameCompleted
+        case .freeTraining: .trameSubdued
         }
     }
 

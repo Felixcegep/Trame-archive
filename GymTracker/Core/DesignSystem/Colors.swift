@@ -24,25 +24,154 @@ extension Color {
         })
     }
 
-    static let gymText = dynamicColor(
-        light: UIColor(red: 0x27 / 255.0, green: 0x26 / 255.0, blue: 0x35 / 255.0, alpha: 1.0),
-        dark: UIColor(red: 0xF6 / 255.0, green: 0xF0 / 255.0, blue: 0xE7 / 255.0, alpha: 1.0)
+    // MARK: - Trame Performance Editorial 1.0
+
+    // Canonical production roles. These are deliberately separate from the
+    // compatibility `gym…` vocabulary below: a legacy token may still combine
+    // several responsibilities while its owning screens are migrated, whereas
+    // every `trame…` role has one job.
+
+    static let trameCanvas = dynamicColor(
+        light: UIColor(red: 0xF5 / 255.0, green: 0xF5 / 255.0, blue: 0xF0 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x0F / 255.0, green: 0x11 / 255.0, blue: 0x13 / 255.0, alpha: 1.0)
     )
-    
-    static let gymBackground = dynamicColor(
-        light: UIColor(red: 0xF6 / 255.0, green: 0xF0 / 255.0, blue: 0xE7 / 255.0, alpha: 1.0),
-        dark: UIColor(red: 0x12 / 255.0, green: 0x12 / 255.0, blue: 0x14 / 255.0, alpha: 1.0)
+
+    static let trameSurface = dynamicColor(
+        light: .white,
+        dark: UIColor(red: 0x19 / 255.0, green: 0x1C / 255.0, blue: 0x1F / 255.0, alpha: 1.0)
     )
+
+    static let trameRow = dynamicColor(
+        light: UIColor(red: 0xEE / 255.0, green: 0xEF / 255.0, blue: 0xEA / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x24 / 255.0, green: 0x27 / 255.0, blue: 0x2A / 255.0, alpha: 1.0)
+    )
+
+    static let trameCurrent = dynamicColor(
+        light: UIColor(red: 0xED / 255.0, green: 0xF5 / 255.0, blue: 0xDB / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x29 / 255.0, green: 0x35 / 255.0, blue: 0x1E / 255.0, alpha: 1.0)
+    )
+
+    static let trameText = dynamicColor(
+        light: UIColor(red: 0x12 / 255.0, green: 0x14 / 255.0, blue: 0x17 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xF3 / 255.0, green: 0xF5 / 255.0, blue: 0xF0 / 255.0, alpha: 1.0)
+    )
+
+    static let trameSubdued = dynamicColor(
+        light: UIColor(red: 0x63 / 255.0, green: 0x68 / 255.0, blue: 0x6D / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xA0 / 255.0, green: 0xA5 / 255.0, blue: 0xA9 / 255.0, alpha: 1.0),
+        lightIncreasedContrast: UIColor(red: 0x45 / 255.0, green: 0x43 / 255.0, blue: 0x4C / 255.0, alpha: 1.0),
+        darkIncreasedContrast: UIColor(red: 0xD5 / 255.0, green: 0xD1 / 255.0, blue: 0xCB / 255.0, alpha: 1.0)
+    )
+
+    /// Structural separation. Normal contrast may be translucent because a
+    /// separator is not a content surface; Increased Contrast resolves to an
+    /// opaque boundary rather than stacking more opacity.
+    static let trameSeparator = dynamicColor(
+        light: UIColor(red: 0x12 / 255.0, green: 0x14 / 255.0, blue: 0x17 / 255.0, alpha: 0.12),
+        dark: UIColor(red: 0xF3 / 255.0, green: 0xF5 / 255.0, blue: 0xF0 / 255.0, alpha: 0.16),
+        lightIncreasedContrast: UIColor(red: 0x7A / 255.0, green: 0x7D / 255.0, blue: 0x80 / 255.0, alpha: 1.0),
+        darkIncreasedContrast: UIColor(red: 0xA0 / 255.0, green: 0xA5 / 255.0, blue: 0xA9 / 255.0, alpha: 1.0)
+    )
+
+    /// The one dominant physical command on a screen.
+    static let trameAction = dynamicColor(
+        light: UIColor(red: 0xB4 / 255.0, green: 0xE4 / 255.0, blue: 0x5A / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xB5 / 255.0, green: 0xE4 / 255.0, blue: 0x5A / 255.0, alpha: 1.0)
+    )
+
+    static let trameActionDeep = dynamicColor(
+        light: UIColor(red: 0x93 / 255.0, green: 0xBF / 255.0, blue: 0x3E / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x9A / 255.0, green: 0xCB / 255.0, blue: 0x43 / 255.0, alpha: 1.0)
+    )
+
+    static let trameActionInk = dynamicColor(
+        light: UIColor(red: 0x12 / 255.0, green: 0x14 / 255.0, blue: 0x17 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x10 / 255.0, green: 0x12 / 255.0, blue: 0x14 / 255.0, alpha: 1.0)
+    )
+
+    /// A structural edge for a lime control on a pale field. It is not a
+    /// second action color.
+    static let trameActionOutline = dynamicColor(
+        light: UIColor(red: 0x70 / 255.0, green: 0x8F / 255.0, blue: 0x2E / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xB5 / 255.0, green: 0xE4 / 255.0, blue: 0x5A / 255.0, alpha: 1.0)
+    )
+
+    /// Completion is an interface state, not the Mobility training hue.
+    static let trameCompleted = dynamicColor(
+        light: UIColor(red: 0x48 / 255.0, green: 0x7A / 255.0, blue: 0x6C / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x64 / 255.0, green: 0x9E / 255.0, blue: 0x8D / 255.0, alpha: 1.0),
+        lightIncreasedContrast: UIColor(red: 0x2F / 255.0, green: 0x5B / 255.0, blue: 0x50 / 255.0, alpha: 1.0),
+        darkIncreasedContrast: UIColor(red: 0x9B / 255.0, green: 0xE0 / 255.0, blue: 0xCB / 255.0, alpha: 1.0)
+    )
+
+    /// Attention as an opaque object/state field. Pair it with
+    /// `trameAttentionInk`; do not assume it is suitable as small text.
+    static let trameAttention = dynamicColor(
+        light: UIColor(red: 0xF0 / 255.0, green: 0xA3 / 255.0, blue: 0x4A / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xF1 / 255.0, green: 0xAA / 255.0, blue: 0x50 / 255.0, alpha: 1.0)
+    )
+
+    static let trameAttentionInk = trameActionInk
+
+    /// Destructive object fill from the approved palette.
+    static let trameDestructive = dynamicColor(
+        light: UIColor(red: 0xD4 / 255.0, green: 0x52 / 255.0, blue: 0x52 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xEA / 255.0, green: 0x65 / 255.0, blue: 0x65 / 255.0, alpha: 1.0)
+    )
+
+    static let trameDestructiveInk = trameActionInk
+
+    /// Accessible destructive foreground for normal-size text on the canvas.
+    /// The Pale palette fill itself is a 4.10:1 color against white, so it is
+    /// not used as body text.
+    static let trameDestructiveText = dynamicColor(
+        light: UIColor(red: 0xB7 / 255.0, green: 0x41 / 255.0, blue: 0x41 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xEA / 255.0, green: 0x65 / 255.0, blue: 0x65 / 255.0, alpha: 1.0),
+        lightIncreasedContrast: UIColor(red: 0x9F / 255.0, green: 0x2F / 255.0, blue: 0x2F / 255.0, alpha: 1.0),
+        darkIncreasedContrast: UIColor(red: 0xFF / 255.0, green: 0x91 / 255.0, blue: 0x91 / 255.0, alpha: 1.0)
+    )
+
+    static let trameStrength = dynamicColor(
+        light: UIColor(red: 0x66 / 255.0, green: 0x75 / 255.0, blue: 0xEA / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x71 / 255.0, green: 0x80 / 255.0, blue: 0xF0 / 255.0, alpha: 1.0)
+    )
+
+    static let trameMobility = dynamicColor(
+        light: UIColor(red: 0x3F / 255.0, green: 0xA3 / 255.0, blue: 0x8B / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x55 / 255.0, green: 0xC6 / 255.0, blue: 0xA5 / 255.0, alpha: 1.0)
+    )
+
+    static let trameConditioning = dynamicColor(
+        light: UIColor(red: 0xF0 / 255.0, green: 0x7D / 255.0, blue: 0x5B / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xFF / 255.0, green: 0x84 / 255.0, blue: 0x62 / 255.0, alpha: 1.0)
+    )
+
+    static let trameRecovery = dynamicColor(
+        light: UIColor(red: 0xA9 / 255.0, green: 0x8B / 255.0, blue: 0xE5 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xB4 / 255.0, green: 0x92 / 255.0, blue: 0xFF / 255.0, alpha: 1.0)
+    )
+
+    static let trameCompetition = dynamicColor(
+        light: UIColor(red: 0xE7 / 255.0, green: 0xB6 / 255.0, blue: 0x4D / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xF1 / 255.0, green: 0xAA / 255.0, blue: 0x50 / 255.0, alpha: 1.0)
+    )
+
+    /// All approved high-chroma fields above carry the same near-black ink.
+    /// The weakest pair is Pale Strength at 4.65:1.
+    static let trameSemanticFieldInk = trameActionInk
+
+    // MARK: - Compatibility vocabulary
+
+    static let gymText = trameText
+
+    static let gymBackground = trameCanvas
     
     static let gymPrimary = dynamicColor(
         light: UIColor(red: 0x3D / 255.0, green: 0x72 / 255.0, blue: 0xE2 / 255.0, alpha: 1.0),
         dark: UIColor(red: 0x58 / 255.0, green: 0x88 / 255.0, blue: 0xF5 / 255.0, alpha: 1.0)
     )
     
-    static let gymSecondary = dynamicColor(
-        light: UIColor(red: 0x48 / 255.0, green: 0x7A / 255.0, blue: 0x6C / 255.0, alpha: 1.0),
-        dark: UIColor(red: 0x64 / 255.0, green: 0x9E / 255.0, blue: 0x8D / 255.0, alpha: 1.0)
-    )
+    static let gymSecondary = trameCompleted
     
     static let gymSuccess = gymSecondary
     
@@ -155,15 +284,9 @@ extension Color {
         dark: UIColor(red: 0xE6 / 255.0, green: 0x67 / 255.0, blue: 0x67 / 255.0, alpha: 1.0)
     )
 
-    static let gymDestructive = dynamicColor(
-        light: UIColor.red,
-        dark: UIColor(red: 1.0, green: 0.35, blue: 0.35, alpha: 1.0)
-    )
+    static let gymDestructive = trameDestructiveText
     
-    static let gymCard = dynamicColor(
-        light: UIColor(red: 0xFF / 255.0, green: 0xFC / 255.0, blue: 0xF7 / 255.0, alpha: 1.0),
-        dark: UIColor(red: 0x1C / 255.0, green: 0x1C / 255.0, blue: 0x20 / 255.0, alpha: 1.0)
-    )
+    static let gymCard = trameSurface
     
     static let gymPrimarySurface = dynamicColor(
         light: UIColor(red: 0xE7 / 255.0, green: 0xE9 / 255.0, blue: 0xEF / 255.0, alpha: 1.0),
@@ -180,15 +303,9 @@ extension Color {
         dark: UIColor(red: 0x30 / 255.0, green: 0x26 / 255.0, blue: 0x1E / 255.0, alpha: 1.0)
     )
     
-    static let gymRowSurface = dynamicColor(
-        light: UIColor(red: 0xF2 / 255.0, green: 0xF1 / 255.0, blue: 0xEF / 255.0, alpha: 1.0),
-        dark: UIColor(red: 0x26 / 255.0, green: 0x26 / 255.0, blue: 0x2B / 255.0, alpha: 1.0)
-    )
+    static let gymRowSurface = trameRow
     
-    static let gymCurrentSetSurface = dynamicColor(
-        light: UIColor(red: 225 / 255.0, green: 229 / 255.0, blue: 239 / 255.0, alpha: 1.0),
-        dark: UIColor(red: 0x25 / 255.0, green: 0x32 / 255.0, blue: 0x4B / 255.0, alpha: 1.0)
-    )
+    static let gymCurrentSetSurface = trameCurrent
     
     /// A deeper blue for surfaces that carry white text.
     ///
@@ -203,11 +320,8 @@ extension Color {
     )
 
     // Semantic opacity-derived design system tokens
-    static let gymMutedSurface = gymSecondary.opacity(0.16)
-    static let gymBorder = dynamicColor(
-        light: UIColor(red: 0x27 / 255.0, green: 0x26 / 255.0, blue: 0x35 / 255.0, alpha: 0.09),
-        dark: UIColor(red: 0xF6 / 255.0, green: 0xF0 / 255.0, blue: 0xE7 / 255.0, alpha: 0.15)
-    )
+    static let gymMutedSurface = trameRow
+    static let gymBorder = trameSeparator
 
     /// The one muted text tone. Clears 4.5:1 against **every** surface token in
     /// both appearances — worst case is `gymCurrentSetSurface`, the tinted fill
@@ -224,11 +338,52 @@ extension Color {
     /// surface range leaves too little headroom below secondary text. So there
     /// is now one tone, and hierarchy below it comes from size, weight, and
     /// case — which the affected captions ("REPS", "WEIGHT") already use.
-    static let gymSubduedText = dynamicColor(
-        light: UIColor(red: 0x66 / 255.0, green: 0x64 / 255.0, blue: 0x6D / 255.0, alpha: 1.0),
-        dark: UIColor(red: 0xB0 / 255.0, green: 0xAC / 255.0, blue: 0xA7 / 255.0, alpha: 1.0),
-        lightIncreasedContrast: UIColor(red: 0x45 / 255.0, green: 0x43 / 255.0, blue: 0x4C / 255.0, alpha: 1.0),
-        darkIncreasedContrast: UIColor(red: 0xD5 / 255.0, green: 0xD1 / 255.0, blue: 0xCB / 255.0, alpha: 1.0)
+    static let gymSubduedText = trameSubdued
+
+    // MARK: - Trame Performance Editorial
+
+    /// The signature physical action. Lime is reserved for the one dominant
+    /// command on a screen; it is never a general text tint or a status color.
+    static let gymAction = trameAction
+
+    static let gymActionInk = trameActionInk
+
+    /// Structural edge for lime controls and marks. Pale needs a darker edge
+    /// to keep the shape above 3:1 on paper; Dark can use the lime itself.
+    static let gymActionOutline = trameActionOutline
+
+    /// Semantic sport fields. Their accompanying icon or label always carries
+    /// the domain name, so hue reinforces meaning without becoming the only cue.
+    static let gymStrength = trameStrength
+    static let gymMobility = trameMobility
+    static let gymConditioning = trameConditioning
+    static let gymRecovery = trameRecovery
+    static let gymCompetition = trameCompetition
+
+    /// The foundational canvas, surface, ink, and row roles use Performance
+    /// Editorial globally. Today is the first fully composed production surface
+    /// in that architecture: Pale uses a cool paper field; Dark uses cobalt.
+    static let gymTodayHero = dynamicColor(
+        light: UIColor(red: 0xE9 / 255.0, green: 0xEC / 255.0, blue: 0xFF / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x31 / 255.0, green: 0x48 / 255.0, blue: 0xB4 / 255.0, alpha: 1.0)
+    )
+    static let gymTodayHeroInk = dynamicColor(
+        light: UIColor(red: 0x12 / 255.0, green: 0x14 / 255.0, blue: 0x17 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xF5 / 255.0, green: 0xF5 / 255.0, blue: 0xF0 / 255.0, alpha: 1.0)
+    )
+    static let gymTodayHeroSecondaryText = dynamicColor(
+        light: UIColor(red: 0x55 / 255.0, green: 0x5C / 255.0, blue: 0x68 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0xD9 / 255.0, green: 0xDC / 255.0, blue: 0xEF / 255.0, alpha: 1.0)
+    )
+    static let gymTodayHeroDivider = dynamicColor(
+        light: UIColor(red: 0xCF / 255.0, green: 0xD5 / 255.0, blue: 0xF5 / 255.0, alpha: 1.0),
+        dark: UIColor(red: 0x44 / 255.0, green: 0x5B / 255.0, blue: 0xC3 / 255.0, alpha: 1.0),
+        lightIncreasedContrast: UIColor(red: 0x66 / 255.0, green: 0x75 / 255.0, blue: 0xEA / 255.0, alpha: 1.0),
+        darkIncreasedContrast: UIColor(red: 0xF5 / 255.0, green: 0xF5 / 255.0, blue: 0xF0 / 255.0, alpha: 1.0)
+    )
+    static let gymTodayWeekSurface = dynamicColor(
+        light: .white,
+        dark: UIColor(red: 0x24 / 255.0, green: 0x27 / 255.0, blue: 0x2A / 255.0, alpha: 1.0)
     )
 
     /// Formerly a third, lighter text tier; now the same tone as

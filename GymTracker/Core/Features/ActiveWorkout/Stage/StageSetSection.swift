@@ -46,7 +46,8 @@ enum StageSetColumnTitles {
 }
 
 /// One band of sets — the warm-up ramp, or the working sets — with its own
-/// heading, its own progress count, and its own surface.
+/// heading and progress count. Working sets stay an open table; the warm-up
+/// ramp remains one opaque object because it is a distinct training phase.
 ///
 /// Splitting them is not decoration. Every non-UI layer in the app already
 /// treats a warm-up as a different kind of set: excluded from volume, from
@@ -92,7 +93,7 @@ struct StageSetSection: View {
         .background {
             if isWarmUp {
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .fill(Color.gymAccentSurface)
+                    .fill(Color.trameRow)
             }
         }
         .animation(reduceMotion ? nil : AppMotion.layout, value: isCollapsed)
@@ -119,19 +120,14 @@ struct StageSetSection: View {
 
     private var headerContent: some View {
         HStack(spacing: Spacing.s) {
-            Image(systemName: isWarmUp ? AppIcon.warmup : AppIcon.workout)
-                .font(AppFont.captionBold)
-                .foregroundStyle(isWarmUp ? Color.gymAccent : Color.gymSubduedText)
-                .accessibilityHidden(true)
-
             Text(isWarmUp ? "WARM-UP" : "WORKING SETS")
-                .font(AppFont.captionBold)
+                .font(AppFont.eyebrow)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(isWarmUp ? Color.trameText : Color.trameSubdued)
 
             Text("\(group.completedCount)/\(group.sets.count)")
-                .font(AppFont.captionSemiboldMonospaced)
-                .foregroundStyle(Color.gymSubduedText)
+                .font(AppFont.micro.monospacedDigit())
+                .foregroundStyle(Color.trameSubdued)
 
             Spacer(minLength: Spacing.s)
 
@@ -143,12 +139,12 @@ struct StageSetSection: View {
                 if !isCollapsed, !dynamicTypeSize.isAccessibilitySize {
                     Text("Not counted in volume")
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
 
                 Image(systemName: isCollapsed ? AppIcon.chevronDown : AppIcon.chevronUp)
                     .font(AppFont.caption2Bold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
             }
         }
         .frame(minHeight: isWarmUp ? ComponentSize.minimumTouchTarget : 0)
@@ -185,21 +181,20 @@ struct StageSetSection: View {
 
             Spacer().frame(width: 44)
         }
-        .font(AppFont.caption2Bold)
+        .font(AppFont.micro)
         .tracking(0.55)
-        .foregroundStyle(Color.gymSubduedText)
+        .foregroundStyle(Color.trameSubdued)
         // Matches the inner padding of a row card, so a column title sits over
         // the column it names rather than eight points to its left.
         .padding(.horizontal, Spacing.m)
         .accessibilityHidden(true)
     }
 
-    /// Rows are spaced, not divided. Each one draws its own outline now, so a
-    /// separator between them would be a third edge in a stack that already has
-    /// two — and the gap is what tells the eye that a row's secondary content
-    /// (complex components, tempo, RPE) ends where the next set begins.
+    /// The set table uses structural rules rather than a card around every row.
+    /// Stateful rows may still receive an opaque current/completed field, while
+    /// untouched work remains part of the open group.
     private var rows: some View {
-        VStack(spacing: Spacing.s) {
+        VStack(spacing: 0) {
             ForEach(group.indexedSets, id: \.set.persistentModelID) { item in
                 SetRowView(
                     index: item.index,
@@ -213,6 +208,12 @@ struct StageSetSection: View {
                     onRemove: { viewModel.removeSet(exerciseEntry, item.set) }
                 )
                 .id(item.set.persistentModelID)
+
+                if item.set.persistentModelID != group.sets.last?.persistentModelID {
+                    Rectangle()
+                        .fill(Color.trameSeparator)
+                        .frame(height: 1)
+                }
             }
         }
     }
@@ -222,8 +223,8 @@ struct StageSetSection: View {
             viewModel.addSet(exerciseEntry)
         } label: {
             Label(isWarmUp ? "Add warm-up set" : "Add set", systemImage: AppIcon.plus)
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymPrimary)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
                 .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
                 .contentShape(Rectangle())
         }

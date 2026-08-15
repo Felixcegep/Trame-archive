@@ -39,19 +39,24 @@ struct ExercisePickerView: View {
 
                             if isAdded {
                                 Image(systemName: AppIcon.checkmark)
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(Color.trameCompleted)
                             } else {
                                 Text("Add")
-                                    .foregroundStyle(Color.accentColor)
+                                    .font(AppFont.metadata)
+                                    .foregroundStyle(Color.trameStrength)
                             }
                         }
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .disabled(isAdded)
+                    .listRowBackground(Color.trameCanvas)
                 }
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.trameCanvas)
         .navigationTitle("Add Exercise")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -60,5 +65,6 @@ struct ExercisePickerView: View {
                 }
             }
         }
+        .tint(Color.trameStrength)
     }
 }

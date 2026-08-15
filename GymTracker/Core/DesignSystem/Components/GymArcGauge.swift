@@ -1,8 +1,26 @@
 import SwiftUI
 
-/// A neutral sensor-capture gauge. It owns presentation and accessibility
-/// semantics only; calibration, filtering, and sensor policy stay in the
-/// feature that supplies the values.
+/// A device-angle instrument for mobility capture.
+///
+/// Diagram contract:
+///
+/// QUESTION      What angle is the phone holding, for which side, and is the
+///               reading stable enough to capture?
+/// DATA          Signed live/captured degrees, capture axis, side, capture
+///               state, and the stable-hold fraction. A missing angle stays
+///               missing rather than becoming zero.
+/// ENCODING      Ray rotation is the signed angle; ticks are fixed 15-degree
+///               landmarks; the outer arc is stable-hold time; teal denotes
+///               mobility measurement evidence.
+/// INTERACTION   Read-only. Capture, retry, cancellation, and manual input stay
+///               native controls owned by the assessment flow.
+/// DETAIL        Exact degrees, side, axis, state, and hold percentage are text.
+/// EMPTY STATE   No ray is drawn and the value is an em dash.
+/// ACCESSIBILITY One concise textual equivalent; streaming values are omitted
+///               while measuring so VoiceOver never receives continuous noise.
+///
+/// Calibration, filtering, and sensor policy stay in the feature that supplies
+/// these values. This view does not infer or save an assessment result.
 struct GymArcGauge: View {
     enum Axis: String, Equatable, Sendable {
         case gravityPitch
@@ -28,6 +46,7 @@ struct GymArcGauge: View {
 
     enum State: Equatable, Sendable {
         case calibrated
+        case calibrating
         case measuring
         case stable
         case rejected(reason: String)
@@ -37,11 +56,11 @@ struct GymArcGauge: View {
         var title: String {
             switch self {
             case .calibrated: String(localized: "Calibrated")
-            case .measuring: String(localized: "Measuring")
+            case .calibrating, .measuring: String(localized: "Measuring")
             case .stable: String(localized: "Stable")
             case .rejected: String(localized: "Rejected")
             case .unavailable: String(localized: "Unavailable")
-            case .completed: String(localized: "Completed")
+            case .completed: String(localized: "Measured")
             }
         }
 
@@ -49,7 +68,7 @@ struct GymArcGauge: View {
             switch self {
             case .rejected(let reason), .unavailable(let reason):
                 return reason.isEmpty ? nil : reason
-            case .calibrated, .measuring, .stable, .completed:
+            case .calibrated, .calibrating, .measuring, .stable, .completed:
                 return nil
             }
         }
@@ -57,25 +76,24 @@ struct GymArcGauge: View {
         var symbolName: String {
             switch self {
             case .calibrated: AppIcon.mobilityAssessment
-            case .measuring: AppIcon.timer
-            case .stable: AppIcon.checkmarkCircle
-            case .rejected: AppIcon.failureCircle
+            case .calibrating, .measuring: AppIcon.gyroscope
+            case .stable, .completed: AppIcon.checkmarkCircle
+            case .rejected: AppIcon.warningCircle
             case .unavailable: AppIcon.circleDashed
-            case .completed: AppIcon.checkmarkCircle
             }
         }
 
-        var isLive: Bool {
-            self == .measuring
-        }
-
         var showsProgress: Bool {
-            if case .unavailable = self { return false }
-            return true
+            switch self {
+            case .measuring, .stable, .completed: true
+            case .calibrated, .calibrating, .rejected, .unavailable: false
+            }
         }
     }
 
     struct Layout: Equatable, Sendable {
+        /// The outer stability arc deliberately leaves a quarter-circle break,
+        /// so it cannot be mistaken for the full-circle angle scale inside it.
         static let arcStartFraction: CGFloat = 0.125
         static let arcSpanFraction: CGFloat = 0.75
 
@@ -97,31 +115,38 @@ struct GymArcGauge: View {
     let axis: Axis
     let state: State
     let degreesText: String?
+    let angleDegrees: Double?
+    let side: String?
     let holdProgress: Double?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(
         axis: Axis,
         state: State,
         degreesText: String? = nil,
+        angleDegrees: Double? = nil,
+        side: String? = nil,
         holdProgress: Double? = nil
     ) {
         self.axis = axis
         self.state = state
         self.degreesText = degreesText
+        self.angleDegrees = angleDegrees
+        self.side = side
         self.holdProgress = holdProgress
     }
 
-    /// Visual reading order remains raw degrees, hold progress, axis, then
-    /// interpretation. Live values are intentionally omitted from the
-    /// measuring VoiceOver summary so a sensor stream never becomes a stream
-    /// of announcements.
+    /// Stable and captured values expose the exact result. A live stream does
+    /// not, because updating the accessibility value at sensor frequency would
+    /// turn VoiceOver into continuous noise.
     var readingOrder: [String] {
-        var values = [degreesText ?? String(localized: "No angle")]
+        var values: [String] = []
+        if let side { values.append(side) }
+        values.append(degreesText ?? String(localized: "No angle"))
         if let holdProgress = Layout(holdProgress: holdProgress).holdProgress {
-            values.append(String(format: String(localized: "Hold %lld%%"), Int64((holdProgress * 100).rounded())))
+            values.append(holdText(holdProgress))
         }
         values.append(axis.title)
         values.append(state.title)
@@ -129,47 +154,41 @@ struct GymArcGauge: View {
     }
 
     var accessibilitySummary: String {
+        let context = [side, axis.title].compactMap { $0 }.joined(separator: ", ")
         switch state {
         case .measuring:
-            return String(format: String(localized: "%@, measuring. Keep the device still."), axis.title)
+            return String(format: String(localized: "%@, measuring. Keep the device still."), context)
+        case .calibrating:
+            return [
+                context,
+                String(localized: "Measuring"),
+                String(localized: "Hold the device still for a moment to begin.")
+            ].joined(separator: ", ")
         case .calibrated:
-            return String(format: String(localized: "%@, calibrated. Ready to measure."), axis.title)
+            return String(format: String(localized: "%@, calibrated. Ready to measure."), context)
         case .stable, .completed:
-            var values = [axis.title, state.title]
+            var values = [context, state.title]
             if let degreesText { values.append(degreesText) }
             if let holdProgress = Layout(holdProgress: holdProgress).holdProgress {
-                values.append(String(format: String(localized: "Hold %lld%%"), Int64((holdProgress * 100).rounded())))
+                values.append(holdText(holdProgress))
             }
             return values.joined(separator: ", ")
         case .rejected(let reason):
             return reason.isEmpty
-                ? String(format: String(localized: "%@, rejected."), axis.title)
-                : String(format: String(localized: "%@, rejected: %@"), axis.title, reason)
+                ? String(format: String(localized: "%@, rejected."), context)
+                : String(format: String(localized: "%@, rejected: %@"), context, reason)
         case .unavailable(let reason):
             return reason.isEmpty
-                ? String(format: String(localized: "%@, unavailable."), axis.title)
-                : String(format: String(localized: "%@, unavailable: %@"), axis.title, reason)
+                ? String(format: String(localized: "%@, unavailable."), context)
+                : String(format: String(localized: "%@, unavailable: %@"), context, reason)
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            gauge
-
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(axis.title)
-                    .font(AppFont.headlineSemibold)
-                    .foregroundStyle(Color.gymText)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(axis.interpretation)
-                    .font(AppFont.body)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(stateText)
-                    .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        VStack(alignment: .leading, spacing: Spacing.l) {
+            valueHeader
+            anglePlot
+            evidenceFooter
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
@@ -178,90 +197,229 @@ struct GymArcGauge: View {
         .accessibilityIdentifier("gym-arc-gauge")
     }
 
-    private var stateText: String {
-        if let detail = state.detail {
-            return String(format: String(localized: "%@: %@"), state.title, detail)
+    private var valueHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+                valueText
+                Spacer(minLength: Spacing.m)
+                stateLabel
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                valueText
+                stateLabel
+            }
         }
-        return state.title
     }
 
-    private var gauge: some View {
+    private var valueText: some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(degreesText ?? "—")
+                .font(AppFont.metricHero)
+                .foregroundStyle(Color.trameText)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            Text(side ?? String(localized: "No side"))
+                .font(AppFont.micro)
+                .textCase(.uppercase)
+                .tracking(0.5)
+                .foregroundStyle(Color.trameSubdued)
+        }
+    }
+
+    private var stateLabel: some View {
+        Label(state.title, systemImage: state.symbolName)
+            .font(AppFont.metadata)
+            .foregroundStyle(stateColor)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var anglePlot: some View {
+        GeometryReader { proxy in
+            let sideLength = min(proxy.size.width, proxy.size.height)
+            ZStack {
+                Circle()
+                    .fill(Color.trameRow)
+
+                Circle()
+                    .stroke(Color.trameSeparator, lineWidth: 1)
+
+                landmarkTicks(sideLength: sideLength)
+                zeroReference(sideLength: sideLength)
+
+                if let instrumentAngle {
+                    angleRay(sideLength: sideLength, angle: instrumentAngle)
+                }
+
+                Circle()
+                    .fill(angleDegrees == nil ? Color.trameSubdued : Color.trameMobility)
+                    .frame(width: Spacing.m, height: Spacing.m)
+
+                stabilityArc
+            }
+            .frame(width: sideLength, height: sideLength)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: dynamicTypeSize.isAccessibilitySize ? 196 : 228)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityHidden(true)
+    }
+
+    private func landmarkTicks(sideLength: CGFloat) -> some View {
+        ForEach(Array(stride(from: -180, through: 165, by: 15)), id: \.self) { landmark in
+            Capsule()
+                .fill(landmark.isMultiple(of: 45) ? Color.trameSubdued : Color.trameSeparator)
+                .frame(
+                    width: landmark.isMultiple(of: 45) ? 2 : 1,
+                    height: landmark.isMultiple(of: 45) ? Spacing.m : Spacing.s
+                )
+                .offset(y: -(sideLength * 0.405))
+                .rotationEffect(.degrees(Double(landmark)))
+        }
+    }
+
+    /// The right-facing line is the calibrated zero. Unlike a decorative
+    /// crosshair, it has a direct physical meaning for every capture mode.
+    private func zeroReference(sideLength: CGFloat) -> some View {
+        Capsule()
+            .fill(Color.trameSubdued)
+            .frame(width: sideLength * 0.34, height: 1)
+            .offset(x: sideLength * 0.17)
+    }
+
+    /// SwiftUI's positive rotation is clockwise on screen, matching the direct
+    /// visual mapping used here. Values are wrapped to the sensor's signed
+    /// one-turn domain rather than normalized to a made-up performance scale.
+    private func angleRay(sideLength: CGFloat, angle: Double) -> some View {
+        Capsule()
+            .fill(Color.trameMobility)
+            .frame(width: sideLength * 0.34, height: Spacing.xs)
+            .offset(x: sideLength * 0.17)
+            .rotationEffect(.degrees(angle))
+            .animation(reduceMotion ? nil : AppMotion.compact, value: angle)
+    }
+
+    private var stabilityArc: some View {
         let layout = Layout(holdProgress: holdProgress)
         return ZStack {
             Circle()
-                .trim(from: Layout.arcStartFraction, to: Layout.arcStartFraction + Layout.arcSpanFraction)
-                .stroke(trackColor, style: StrokeStyle(lineWidth: Spacing.m, lineCap: .round))
-                .rotationEffect(.degrees(0))
+                .trim(
+                    from: Layout.arcStartFraction,
+                    to: Layout.arcStartFraction + Layout.arcSpanFraction
+                )
+                .stroke(
+                    Color.trameSurface,
+                    style: StrokeStyle(lineWidth: Spacing.xs, lineCap: .round)
+                )
 
             if let progressTrimEnd = layout.progressTrimEnd, state.showsProgress {
                 Circle()
                     .trim(from: Layout.arcStartFraction, to: progressTrimEnd)
-                    .stroke(progressColor, style: progressStroke)
-                    .rotationEffect(.degrees(0))
+                    .stroke(
+                        Color.trameMobility,
+                        style: StrokeStyle(lineWidth: Spacing.xs, lineCap: .round)
+                    )
+                    .animation(reduceMotion ? nil : AppMotion.compact, value: progressTrimEnd)
             }
+        }
+        .padding(Spacing.xs)
+    }
 
-            VStack(spacing: Spacing.xs) {
-                Image(systemName: state.symbolName)
-                    .font(AppFont.titleSmallSemibold)
-                    .foregroundStyle(progressColor)
-                    .accessibilityHidden(true)
-
-                Text(degreesText ?? String(localized: "No angle"))
-                    .font(AppFont.displayMedium.monospacedDigit())
-                    .foregroundStyle(Color.gymDataEmphasis)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                if let progress = layout.holdProgress {
-                    Text(String(format: String(localized: "Hold %lld%%"), Int64((progress * 100).rounded())))
-                        .font(AppFont.captionSemiboldMonospaced)
-                        .foregroundStyle(Color.gymText)
-                        .fixedSize(horizontal: false, vertical: true)
+    private var evidenceFooter: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                Text(verbatim: "Δ 15°")
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
+                Spacer(minLength: Spacing.s)
+                if let progress = Layout(holdProgress: holdProgress).holdProgress {
+                    Text(holdText(progress))
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameMobility)
+                        .monospacedDigit()
                 }
             }
-            .padding(Spacing.s)
+
+            Text(axis.interpretation)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let detail = state.detail {
+                Text(detail)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(stateColor)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .frame(minWidth: ComponentSize.minimumTouchTarget, minHeight: ComponentSize.minimumTouchTarget)
-        .aspectRatio(1, contentMode: .fit)
-        .frame(maxWidth: 180)
-        .animation(reduceMotion ? nil : AppMotion.compact, value: layout.holdProgress)
-        .accessibilityHidden(true)
     }
 
-    private var trackColor: Color {
-        reduceTransparency ? Color.gymCard : Color.gymRowSurface
+    private var instrumentAngle: Double? {
+        guard let angleDegrees, angleDegrees.isFinite else { return nil }
+        var wrapped = angleDegrees.truncatingRemainder(dividingBy: 360)
+        if wrapped > 180 { wrapped -= 360 }
+        if wrapped < -180 { wrapped += 360 }
+        return wrapped
     }
 
-    private var progressColor: Color {
+    private var stateColor: Color {
         switch state {
-        case .calibrated: Color.gymPrimary
-        case .measuring: Color.gymAccent
-        case .stable: Color.gymSecondary
-        case .rejected: Color.gymDestructive
-        case .unavailable: Color.gymSubduedText
-        case .completed: Color.gymSecondary
+        case .stable, .completed: Color.trameMobility
+        case .rejected: Color.trameDestructiveText
+        case .unavailable: Color.trameSubdued
+        case .calibrated, .calibrating, .measuring: Color.trameText
         }
     }
 
-    private var progressStroke: StrokeStyle {
-        StrokeStyle(
-            lineWidth: Spacing.m,
-            lineCap: .round,
-            dash: state.isLive ? [Spacing.xs, Spacing.s] : []
+    private func holdText(_ progress: CGFloat) -> String {
+        String(
+            format: String(localized: "Hold %lld%%"),
+            Int64((progress * 100).rounded())
         )
     }
 }
 
-#Preview("Gym arc gauge states") {
+#Preview("Gym angle instrument states") {
     ScrollView {
         VStack(alignment: .leading, spacing: Spacing.xl) {
-            GymArcGauge(axis: .gravityPitch, state: .calibrated, degreesText: "0.0°")
-            GymArcGauge(axis: .gravityRoll, state: .measuring, degreesText: "8.4°", holdProgress: 0.42)
-            GymArcGauge(axis: .relativeYaw, state: .stable, degreesText: "−3.2°", holdProgress: 0.86)
-            GymArcGauge(axis: .gravityPitch, state: .rejected(reason: "Movement detected"), degreesText: "14.8°", holdProgress: 0.22)
-            GymArcGauge(axis: .gravityRoll, state: .unavailable(reason: "Motion sensor unavailable"))
-            GymArcGauge(axis: .relativeYaw, state: .completed, degreesText: "4.1°", holdProgress: 1)
+            GymArcGauge(axis: .gravityPitch, state: .calibrating, side: "Left")
+            GymArcGauge(
+                axis: .gravityRoll,
+                state: .measuring,
+                degreesText: "34.8°",
+                angleDegrees: 34.8,
+                side: "Right",
+                holdProgress: 0.42
+            )
+            GymArcGauge(
+                axis: .relativeYaw,
+                state: .stable,
+                degreesText: "−47.2°",
+                angleDegrees: -47.2,
+                side: "Left",
+                holdProgress: 1
+            )
+            GymArcGauge(
+                axis: .gravityPitch,
+                state: .rejected(reason: "Movement detected"),
+                degreesText: "14.8°",
+                angleDegrees: 14.8,
+                side: "Right",
+                holdProgress: 0.22
+            )
+            GymArcGauge(
+                axis: .relativeYaw,
+                state: .completed,
+                degreesText: "42.1°",
+                angleDegrees: 42.1,
+                side: "Left",
+                holdProgress: 1
+            )
         }
         .padding(Spacing.l)
     }
-    .background(Color.gymBackground)
+    .background(Color.trameCanvas)
 }

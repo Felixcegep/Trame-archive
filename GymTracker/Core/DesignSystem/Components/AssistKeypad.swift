@@ -48,7 +48,7 @@ struct AssistKeypad: View {
                 Text("ASSISTANCE")
                     .font(AppFont.caption2Bold)
                     .tracking(0.6)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
 
                 // "assist" is part of the value, not a caption beside it. Read
                 // aloud or glanced at, "60 kg assist" cannot be mistaken for
@@ -57,10 +57,10 @@ struct AssistKeypad: View {
                     Text(Formatters.formatFloat(Float(value)))
                         .font(AppFont.displayMedium)
                         .monospacedDigit()
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Text("\(unitLabel) assist")
                         .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
 
@@ -76,7 +76,7 @@ struct AssistKeypad: View {
                         .environment(\.layoutDirection, .rightToLeft)
                 }
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
 
                 Slider(value: sliderBinding, in: 0...maximum, step: step) {
                     Text("Assistance")
@@ -84,14 +84,14 @@ struct AssistKeypad: View {
                     Text(verbatim: "0")
                         .font(AppFont.caption)
                         .monospacedDigit()
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 } maximumValueLabel: {
                     Text(Formatters.formatFloat(Float(maximum)))
                         .font(AppFont.caption)
                         .monospacedDigit()
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
-                .tint(Color.gymPrimary)
+                .tint(Color.trameActionDeep)
                 .accessibilityValue(Text("\(Formatters.formatFloat(Float(value))) \(unitLabel) of assistance"))
                 .accessibilityHint(Text("More assistance makes the set easier"))
                 .accessibilityIdentifier("assist-slider")
@@ -106,14 +106,14 @@ struct AssistKeypad: View {
                         Text(signedLabel(delta))
                             .font(AppFont.subheadlineBold)
                             .monospacedDigit()
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                             .frame(maxWidth: .infinity)
                             .frame(height: ComponentSize.keypadKeyHeight)
-                            .background(Color.gymCard)
-                            .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                            .background(Color.trameSurface)
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                             .overlay {
-                                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                                    .stroke(Color.gymBorder, lineWidth: 1)
+                                RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                                    .stroke(Color.trameSeparator, lineWidth: 1)
                             }
                             .contentShape(Rectangle())
                     }
@@ -135,7 +135,7 @@ struct AssistKeypad: View {
             Button(action: onDigits) {
                 Label("Enter an exact amount", systemImage: AppIcon.keyboard)
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameText)
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .contentShape(Rectangle())
@@ -146,7 +146,7 @@ struct AssistKeypad: View {
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.s)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .gymFeedback(.keyPressed, trigger: lastPressedStep)
         .accessibilityIdentifier("assist-keypad")
@@ -171,5 +171,5 @@ struct AssistKeypad: View {
             onDigits: {}
         )
     }
-    .background(Color.gymBackground)
+    .background(Color.trameCanvas)
 }

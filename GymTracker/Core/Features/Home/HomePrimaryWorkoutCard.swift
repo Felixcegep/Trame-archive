@@ -6,6 +6,7 @@ struct HomePrimaryWorkoutCard: View {
     let activePlanProgress: PlanWorkoutProgress?
     let summary: TodayWorkoutSummary
     let onOpen: () -> Void
+    let onOpenSavedWorkouts: () -> Void
     let onPostpone: () -> Void
     let onReschedule: (PlanWorkoutProgress) -> Void
     let onSkip: (PlanWorkoutProgress) -> Void
@@ -15,121 +16,111 @@ struct HomePrimaryWorkoutCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button(action: onOpen) {
-                cardContent
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(Spacing.l)
-            }
-            .buttonStyle(.gymPress)
-            .disabled(summary.kind == .unavailable)
-            // Stated explicitly rather than left to the automatic combination
-            // of five child views, which read the eyebrow, title, subtitle, and
-            // progress bar in layout order and repeated the set count twice.
-            .accessibilityLabel(cardAccessibilityLabel)
-            .accessibilityHint(cardHint)
-            .accessibilityIdentifier(cardAccessibilityIdentifier)
+        TrameColorField(
+            fill: .gymTodayHero,
+            ink: .gymTodayHeroInk,
+            border: .gymTodayHeroDivider,
+            radius: Radius.hero
+        ) {
+            VStack(alignment: .leading, spacing: 0) {
+                Button(action: onOpen) {
+                    cardContent
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(Spacing.l)
+                }
+                .buttonStyle(.gymPress)
+                .disabled(summary.kind == .unavailable)
+                // Stated explicitly rather than left to the automatic combination
+                // of five child views, which read the eyebrow, title, subtitle, and
+                // progress bar in layout order and repeated the set count twice.
+                .accessibilityLabel(cardAccessibilityLabel)
+                .accessibilityHint(cardHint)
+                .accessibilityIdentifier(cardAccessibilityIdentifier)
 
-            scheduleActions
-        }
-        .background {
-            if hasActiveWorkout {
-                // Flat, not a gradient. The gradient faded toward transparency,
-                // which over the cream background made the *lower* half lighter
-                // — exactly where the subtitle sits — and left white text at
-                // 2.89:1 there. Deepening it instead still left the top stop at
-                // 4.46:1, so any gradient across this hue has one end failing.
-                // The gradient carried no information, so the fill is uniform
-                // and every point of the card clears 4.5:1.
-                Color.gymPrimaryDeep
-            } else {
-                Color.gymCard
-            }
-        }
-        // Depth from the paper, not from a drop shadow.
-        //
-        // This drew a fill, a border *and* a shadow — three devices separating
-        // the card from the background, where one does the job. A near-white
-        // card on warm cream is already its own separation, which is the same
-        // trick Apple Fitness uses inverted on black: elevation comes from
-        // surface lightness. `GymCard`, the shared component every other card
-        // uses, has never had a shadow.
-        //
-        // Genuinely floating surfaces keep theirs — the set-input panel and the
-        // status banner sit *above* content rather than in it, and there the
-        // shadow is the thing saying so.
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay {
-            if !hasActiveWorkout && summary.kind != .unavailable {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Color.gymPrimary.opacity(0.16), lineWidth: 1.5)
+                if showsSavedWorkoutsFooter {
+                    Divider()
+                        .overlay(Color.gymTodayHeroDivider)
+
+                    Button(action: onOpenSavedWorkouts) {
+                        Text("Saved workouts")
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.gymTodayHeroSecondaryText)
+                            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+                    }
+                    .buttonStyle(.gymPress)
+                    .accessibilityHint("Opens your saved workouts.")
+                    .accessibilityIdentifier("today-open-saved-workouts")
+                }
+
+                scheduleActions
             }
         }
     }
 
     private var cardContent: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            HStack {
-                Label(cardLabel, systemImage: cardIcon)
-                    .font(AppFont.captionBold)
-                    .tracking(0.8)
-                    .foregroundStyle(hasActiveWorkout ? .white : Color.gymPrimary)
-
-                Spacer()
-
-                if hasActiveWorkout {
-                    Image(systemName: AppIcon.chevronRight)
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(.white)
-                }
+            if showsEyebrow {
+                Text(cardLabel)
+                    .font(AppFont.eyebrow)
+                    .tracking(1)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color.gymTodayHeroSecondaryText)
             }
 
-            Text(cardTitle)
-                .font(AppFont.titleMedium)
-                .foregroundStyle(hasActiveWorkout ? .white : Color.gymText)
-                .lineLimit(2)
+            cardTitleText
+                .font(AppFont.displayMedium)
+                .foregroundStyle(Color.gymTodayHeroInk)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // Full white, not 86%. This line carries "3 / 12 sets · Next: Bench
-            // Press · Set 2" — the most useful sentence on the screen while a
-            // workout is running — and at 86% on the old gradient it computed
-            // to 3.74:1, the least legible text on the app's most important
-            // card.
-            Text(cardSubtitle)
-                .font(AppFont.subheadline)
-                .foregroundStyle(hasActiveWorkout ? .white : Color.gymSubduedText)
+            if showsSubtitle {
+                Text(cardSubtitle)
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(Color.gymTodayHeroSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             if let activeWorkout, activeWorkout.totalSetCount > 0 {
                 ProgressView(
                     value: Double(activeWorkout.completedSetCount),
                     total: Double(activeWorkout.totalSetCount)
                 )
-                .tint(.white)
-                .padding(.top, Spacing.xxs)
+                .tint(Color.trameAction)
                 // The subtitle already states the same progress in words, so
                 // the bar is a visual restatement rather than a second stop.
                 .accessibilityHidden(true)
             }
 
-            if !hasActiveWorkout {
-                // Full width rather than hugging its label: the capsule used to
-                // leave most of the card's width as dead space beside the one
-                // action the screen exists for, and a wider target is faster to
-                // hit with a phone in one hand.
-                HStack(spacing: Spacing.s) {
-                    Text(primaryActionTitle)
-                        .font(AppFont.subheadlineBold)
-                    Image(systemName: AppIcon.chevronRight)
-                        .font(AppFont.captionBold)
+            Text(primaryActionTitle)
+                .font(AppFont.titleSmallSemibold)
+                .frame(maxWidth: .infinity, minHeight: ComponentSize.todayActionHeight)
+                .foregroundStyle(primaryActionInk)
+                .background(primaryActionFill)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.editorialAction, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.editorialAction, style: .continuous)
+                        .stroke(Color.gymActionOutline, lineWidth: summary.kind == .unavailable ? 0 : 1)
                 }
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(.white)
-                .padding(.vertical, Spacing.md)
-                .padding(.horizontal, Spacing.xl)
-                .background(Color.gymPrimary, in: Capsule())
-                .padding(.top, Spacing.xs)
-            }
         }
+    }
+
+    private var showsEyebrow: Bool {
+        summary.kind != .free
+    }
+
+    private var showsSubtitle: Bool {
+        summary.kind != .free
+    }
+
+    private var showsSavedWorkoutsFooter: Bool {
+        summary.kind == .free
+    }
+
+    private var primaryActionFill: Color {
+        summary.kind == .unavailable ? Color.gymRowSurface : Color.gymAction
+    }
+
+    private var primaryActionInk: Color {
+        summary.kind == .unavailable ? Color.gymSubduedText : Color.gymActionInk
     }
 
     @ViewBuilder
@@ -138,7 +129,7 @@ struct HomePrimaryWorkoutCard: View {
            !hasActiveWorkout,
            PlanCoordinator.canEditSchedule(activePlanProgress, in: activePlanRun) {
             Divider()
-                .overlay(Color.gymBorder)
+                .overlay(Color.gymTodayHeroDivider)
                 .padding(.horizontal, Spacing.l)
 
             // The vertical padding used to sit on this HStack, which put it
@@ -173,6 +164,7 @@ struct HomePrimaryWorkoutCard: View {
                 }
             }
             .font(AppFont.subheadlineSemibold)
+            .foregroundStyle(Color.gymTodayHeroSecondaryText)
             .padding(.horizontal, Spacing.l)
             .padding(.vertical, Spacing.xs)
         }
@@ -193,8 +185,14 @@ struct HomePrimaryWorkoutCard: View {
         .accessibilityIdentifier(identifier)
     }
 
-    private var cardTitle: LocalizedStringKey {
-        LocalizedStringKey(summary.title)
+    private var cardTitleText: Text {
+        guard summary.kind == .active else {
+            return Text(LocalizedStringKey(summary.title))
+        }
+        guard let name = activeWorkout?.name, !name.isEmpty else {
+            return Text("Workout")
+        }
+        return Text(verbatim: name)
     }
 
     private var cardSubtitle: LocalizedStringKey {
@@ -209,23 +207,12 @@ struct HomePrimaryWorkoutCard: View {
 
     private var cardLabel: LocalizedStringKey {
         switch summary.kind {
-        case .active: return "ACTIVE WORKOUT"
-        case .planned: return "PLANNED WORKOUT"
-        case .repeating: return "NEXT WORKOUT"
-        case .guidedConflict: return "CHOOSE TRAINING SOURCE"
-        case .unavailable: return "WORKOUT UNAVAILABLE"
-        case .free: return "START WORKOUT"
-        }
-    }
-
-    private var cardIcon: String {
-        switch summary.kind {
-        case .active, .planned, .repeating:
-            return AppIcon.workout
-        case .guidedConflict, .unavailable:
-            return AppIcon.warning
-        case .free:
-            return AppIcon.play
+        case .active: return "Active"
+        case .planned: return "Planned"
+        case .repeating: return "Next"
+        case .guidedConflict: return "Needs attention"
+        case .unavailable: return "Unavailable"
+        case .free: return "Start"
         }
     }
 
@@ -257,7 +244,7 @@ struct HomePrimaryWorkoutCard: View {
         case .unavailable:
             return String(localized: "This workout cannot start until you repair it in the Train tab.")
         case .free:
-            return "Opens your saved workouts, or start an empty one."
+            return "Starts an empty workout."
         }
     }
 
@@ -274,11 +261,10 @@ struct HomePrimaryWorkoutCard: View {
 
     private var primaryActionTitle: LocalizedStringKey {
         switch summary.kind {
-        case .active: return "Resume workout"
-        case .planned, .repeating: return "Start workout"
-        case .guidedConflict: return "Resolve conflict"
+        case .active: return "Resume"
+        case .planned, .repeating, .free: return "Start"
+        case .guidedConflict: return "Choose"
         case .unavailable: return "Unavailable"
-        case .free: return "Start workout"
         }
     }
 

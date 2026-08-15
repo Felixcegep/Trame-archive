@@ -18,7 +18,7 @@ struct ArchivedExercisesView: View {
         LibraryBrowserList(title: "Hidden Exercises", searchText: $searchText) {
             Text("Hidden exercises stay out of workout and plan pickers. History remains unchanged.")
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .padding(.horizontal, Spacing.xxs)
 
             if results.isEmpty {
@@ -35,25 +35,18 @@ struct ArchivedExercisesView: View {
                             title: exercise.name,
                             subtitle: exercise.isCustom ? "Custom exercise" : "Built-in exercise",
                             icon: "dumbbell.fill",
-                            color: Color.gymSecondary,
-                            surface: Color.gymSecondarySurface,
-                            showsCard: false,
+                            color: Color.trameRecovery,
                             showsChevron: false
                         )
                         Button("Restore") {
                             restore(exercise)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.gymPrimary)
-                        .foregroundStyle(.white)
-                        .controlSize(.small)
+                        .buttonStyle(.plain)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameStrength)
+                        .frame(minHeight: ComponentSize.minimumTouchTarget)
                         .accessibilityIdentifier("restore-exercise-\(exercise.name)")
-                        .padding(.trailing, Spacing.l - 2)
-                    }
-                    .background {
-                        RoundedRectangle(cornerRadius: Radius.large)
-                            .fill(Color.gymCard)
-                            .stroke(Color.gymBorder, lineWidth: 1)
+                        .padding(.trailing, Spacing.xxs)
                     }
                 }
             }

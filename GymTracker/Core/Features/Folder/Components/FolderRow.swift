@@ -21,21 +21,21 @@ struct FolderRow: View {
     var body: some View {
         HStack(spacing: Spacing.m) {
             if let systemImage {
-                Image(systemName: systemImage)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymPrimary)
-                    .frame(width: 30, height: 30)
-                    .background(Color.gymPrimarySurface, in: RoundedRectangle(cornerRadius: Radius.small))
+                TrameCategoryTile(
+                    systemImage: systemImage,
+                    fill: Color.trameStrength,
+                    size: ComponentSize.iconChip
+                )
             }
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(title)
                     .font(AppFont.body)
                     .fontWeight(.medium)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Text(subtitle)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
             }
         }
         .padding(.vertical, Spacing.m)

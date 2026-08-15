@@ -143,7 +143,7 @@ struct HomeView: View {
 
     private var homeContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xl) {
+            VStack(alignment: .leading, spacing: Spacing.xxl) {
                 HomeWelcomeHeader(
                     activePlanRun: activePlanRun,
                     activeRepeatingPlanRun: activeRepeatingPlanRun,
@@ -156,6 +156,7 @@ struct HomeView: View {
                     activePlanProgress: activePlanProgress,
                     summary: todayWorkoutSummary,
                     onOpen: openPrimaryWorkout,
+                    onOpenSavedWorkouts: { isShowingTemplatePicker = true },
                     onPostpone: postponePlannedWorkoutUntilTomorrow,
                     onReschedule: beginRescheduling,
                     onSkip: { progressToSkip = $0 }
@@ -201,7 +202,7 @@ struct HomeView: View {
                     )
                 }
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
             .padding(.bottom, Spacing.xxxl)
         }
@@ -312,7 +313,7 @@ private extension HomeView {
         } else if todayWorkoutSummary.kind == .unavailable {
             return
         } else {
-            isShowingTemplatePicker = true
+            startEmptyWorkout()
         }
     }
     func startEmptyWorkout() {

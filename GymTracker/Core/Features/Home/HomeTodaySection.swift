@@ -3,10 +3,9 @@ import SwiftUI
 
 /// Visually subordinate supporting actions on Today.
 ///
-/// Renders supporting items (active mobility in progress, due mobility program session,
-/// exercise library, and stretch routines) in a single compact, grouped surface below the
-/// primary workout card. Workout execution remains visually primary while supporting
-/// actions stay easily accessible without competing at equal visual weight.
+/// Renders supporting items as an editorial rule-separated list below the
+/// primary workout object. Workout execution remains visually primary while
+/// supporting actions stay accessible without becoming competing cards.
 struct HomeTodaySection: View {
     let onOpenExercises: () -> Void
     let onOpenMobility: () -> Void
@@ -23,58 +22,40 @@ struct HomeTodaySection: View {
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            // Passed pre-localized: `LibrarySectionTitle` takes a `String`, so a
-            // bare literal would never reach the string catalog.
-            LibrarySectionTitle(String(localized: "Quick access"))
+        VStack(spacing: 0) {
+            Divider().overlay(Color.gymBorder)
 
-            GymCard {
-                VStack(spacing: 0) {
-                    if let activeMobilitySession {
-                        resumeMobilityRow(activeMobilitySession)
-                        Divider().background(Color.gymBorder)
-                    } else if let dueProgramSession {
-                        dueMobilityProgramRow(dueProgramSession)
-                        Divider().background(Color.gymBorder)
-                    }
-
-                    // Neutral chips.
-                    //
-                    // These were tinted primary and accent, which spent two of
-                    // the palette's meanings on rows that carry no state:
-                    // "Exercises" is not an action in progress and "Stretch" is
-                    // not something needing attention — they are doors. Colour
-                    // on a door is decoration, and it competed with the two
-                    // things on Today that genuinely are states (a session in
-                    // progress, a day trained). The glyph still distinguishes
-                    // them; the hue no longer claims anything.
-                    quickAccessRow(
-                        title: "Exercises",
-                        subtitle: "Browse the exercise library",
-                        icon: AppIcon.muscles,
-                        tint: Color.gymSubduedText,
-                        surface: Color.gymRowSurface,
-                        identifier: "today-open-exercises",
-                        hint: "Opens the exercise library in Train.",
-                        action: onOpenExercises
-                    )
-
-                    if featureFlags.isEnabled(.mobility) {
-                        Divider().background(Color.gymBorder)
-
-                        quickAccessRow(
-                            title: "Stretch",
-                            subtitle: "Mobility routines and programs",
-                            icon: AppIcon.mobility,
-                            tint: Color.gymSubduedText,
-                            surface: Color.gymRowSurface,
-                            identifier: "today-open-mobility",
-                            hint: "Opens mobility routines in Train.",
-                            action: onOpenMobility
-                        )
-                    }
-                }
+            if let activeMobilitySession {
+                resumeMobilityRow(activeMobilitySession)
+                Divider().overlay(Color.gymBorder)
+            } else if let dueProgramSession {
+                dueMobilityProgramRow(dueProgramSession)
+                Divider().overlay(Color.gymBorder)
             }
+
+            quickAccessRow(
+                title: "Exercises",
+                icon: AppIcon.muscles,
+                surface: Color.trameStrength,
+                identifier: "today-open-exercises",
+                hint: "Opens the exercise library in Train.",
+                action: onOpenExercises
+            )
+
+            if featureFlags.isEnabled(.mobility) {
+                Divider().overlay(Color.gymBorder)
+
+                quickAccessRow(
+                    title: "Mobility",
+                    icon: AppIcon.mobility,
+                    surface: Color.trameMobility,
+                    identifier: "today-open-mobility",
+                    hint: "Opens mobility routines in Train.",
+                    action: onOpenMobility
+                )
+            }
+
+            Divider().overlay(Color.gymBorder)
         }
     }
 
@@ -102,9 +83,9 @@ struct HomeTodaySection: View {
             HStack(spacing: Spacing.m) {
                 Image(systemName: AppIcon.mobility)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymAccent)
-                    .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
-                    .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                    .foregroundStyle(Color.trameSemanticFieldInk)
+                    .frame(width: ComponentSize.todayQuickAccessIcon, height: ComponentSize.todayQuickAccessIcon)
+                    .background(Color.trameMobility, in: RoundedRectangle(cornerRadius: Radius.icon, style: .continuous))
 
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(due.progress.sessionNameSnapshot)
@@ -151,9 +132,9 @@ struct HomeTodaySection: View {
             HStack(spacing: Spacing.m) {
                 Image(systemName: AppIcon.mobility)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymAccent)
-                    .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
-                    .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                    .foregroundStyle(Color.trameSemanticFieldInk)
+                    .frame(width: ComponentSize.todayQuickAccessIcon, height: ComponentSize.todayQuickAccessIcon)
+                    .background(Color.trameMobility, in: RoundedRectangle(cornerRadius: Radius.icon, style: .continuous))
 
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     HStack(spacing: Spacing.xs) {
@@ -184,9 +165,7 @@ struct HomeTodaySection: View {
 
     private func quickAccessRow(
         title: LocalizedStringKey,
-        subtitle: LocalizedStringKey,
         icon: String,
-        tint: Color,
         surface: Color,
         identifier: String,
         hint: LocalizedStringKey,
@@ -194,20 +173,15 @@ struct HomeTodaySection: View {
     ) -> some View {
         Button(action: action) {
             HStack(spacing: Spacing.m) {
-                Image(systemName: icon)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(tint)
-                    .frame(width: ComponentSize.iconChip, height: ComponentSize.iconChip)
-                    .background(surface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                TrameCategoryTile(
+                    systemImage: icon,
+                    fill: surface,
+                    size: ComponentSize.todayQuickAccessIcon
+                )
 
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(title)
-                        .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymText)
-                    Text(subtitle)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
-                }
+                Text(title)
+                    .font(AppFont.headlineSemibold)
+                    .foregroundStyle(Color.gymText)
 
                 Spacer(minLength: Spacing.s)
 

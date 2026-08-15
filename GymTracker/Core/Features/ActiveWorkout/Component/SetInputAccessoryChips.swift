@@ -114,7 +114,7 @@ extension SetInputAccessoryPanel {
             chipLabel(
                 title: effortChipTitle(set: set),
                 systemImage: AppIcon.effort,
-                tint: set.rpe != nil || set.rir != nil ? Color.gymPrimary : nil
+                tint: set.rpe != nil || set.rir != nil ? Color.trameText : nil
             )
         }
         .buttonStyle(.gymPress)
@@ -212,14 +212,14 @@ extension SetInputAccessoryPanel {
             .font(AppFont.footnoteMedium)
             .monospacedDigit()
             .lineLimit(1)
-            .foregroundStyle(isProminent ? Color.gymPrimary : Color.gymText)
+            .foregroundStyle(Color.trameText)
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background(isProminent ? Color.gymPrimarySurface : Color.gymRowSurface)
+            .background(isProminent ? Color.trameCurrent : Color.trameRow)
             .clipShape(Capsule())
             .overlay {
                 Capsule().stroke(
-                    isProminent ? Color.gymPrimary.opacity(0.35) : Color.clear,
+                    isProminent ? Color.trameActionOutline : Color.clear,
                     lineWidth: 1
                 )
             }
@@ -292,10 +292,10 @@ extension SetInputAccessoryPanel {
     ) -> some View {
         Label(title, systemImage: systemImage)
             .font(AppFont.footnoteMedium)
-            .foregroundStyle(tint ?? Color.gymText)
+            .foregroundStyle(tint ?? Color.trameText)
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background(tint.map { $0.opacity(0.12) } ?? Color.gymRowSurface)
+            .background(tint == nil ? Color.trameRow : Color.trameCurrent)
             .clipShape(Capsule())
             // A border only where there is a tint to explain it — a recorded
             // effort value, a marked set type. "Normal", "Plates", "Details"
@@ -303,8 +303,8 @@ extension SetInputAccessoryPanel {
             // on all four made every chip look selectable-but-unselected
             // rather than letting the fill alone say "this is a control".
             .overlay {
-                if let tint {
-                    Capsule().stroke(tint.opacity(0.3), lineWidth: 1)
+                if tint != nil {
+                    Capsule().stroke(Color.trameActionOutline, lineWidth: 1)
                 }
             }
             .contentShape(Capsule())
@@ -317,10 +317,10 @@ extension SetInputAccessoryPanel {
     ) -> some View {
         Label(title, systemImage: systemImage)
             .font(AppFont.footnoteMedium)
-            .foregroundStyle(tint ?? Color.gymText)
+            .foregroundStyle(tint ?? Color.trameText)
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background(tint.map { $0.opacity(0.12) } ?? Color.gymRowSurface)
+            .background(tint == nil ? Color.trameRow : Color.trameCurrent)
             .clipShape(Capsule())
             // A border only where there is a tint to explain it — a recorded
             // effort value, a marked set type. "Normal", "Plates", "Details"
@@ -328,8 +328,8 @@ extension SetInputAccessoryPanel {
             // on all four made every chip look selectable-but-unselected
             // rather than letting the fill alone say "this is a control".
             .overlay {
-                if let tint {
-                    Capsule().stroke(tint.opacity(0.3), lineWidth: 1)
+                if tint != nil {
+                    Capsule().stroke(Color.trameActionOutline, lineWidth: 1)
                 }
             }
             .contentShape(Capsule())

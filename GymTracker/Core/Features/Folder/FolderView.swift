@@ -46,8 +46,8 @@ struct FolderView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.xxl) {
                 Text("Train")
-                    .font(AppFont.displayMedium)
-                    .foregroundStyle(Color.gymText)
+                    .font(AppFont.screenTitle)
+                    .foregroundStyle(Color.trameText)
                     .gymAssembly(index: 0, isActive: isPlayingAssembly)
 
                 searchField
@@ -59,7 +59,7 @@ struct FolderView: View {
                     globalResults(searchResults)
                 }
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
             .safeAreaPadding(.bottom)
         }
@@ -127,7 +127,7 @@ struct FolderView: View {
     private var searchField: some View {
         HStack(spacing: Spacing.s) {
             Image(systemName: AppIcon.search)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             TextField("Search workouts, plans, exercises", text: $searchText)
                 .textInputAutocapitalization(.never)
                 .accessibilityIdentifier("library-search")
@@ -137,17 +137,17 @@ struct FolderView: View {
                     searchText = ""
                 } label: {
                     Image(systemName: AppIcon.failureCircle)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
                 .accessibilityLabel("Clear search")
             }
         }
         .padding(.horizontal, Spacing.m)
         .frame(height: 46)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
+        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.field))
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.medium)
-                .stroke(Color.gymBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: Radius.field)
+                .stroke(Color.trameSeparator, lineWidth: 1)
         }
     }
 
@@ -193,50 +193,40 @@ struct FolderView: View {
     /// half the app behind a toggle.
     private var workoutLibrarySection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            LibrarySectionTitle("Workouts")
+            LibrarySectionTitle("Strength")
 
-            LibraryGroupCard {
+            LibraryOpenGroup {
                 NavigationLink(value: LibraryRoute.plans) {
                     LibraryItemRow(
                         title: "Plans",
                         subtitle: "Ready-made and personal plans",
                         icon: AppIcon.plan,
-                        color: Color.gymAccent,
-                        surface: Color.gymAccentSurface,
-                        count: planCount,
-                        showsCard: false
+                        color: Color.trameCompetition,
+                        count: planCount
                     )
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("plans-browser")
 
-                LibraryGroupDivider()
-
                 NavigationLink(value: LibraryRoute.workouts) {
                     LibraryItemRow(
-                        title: "Workouts",
+                        title: "Saved workouts",
                         subtitle: "Single sessions you can start any time",
                         icon: AppIcon.routine,
-                        color: Color.gymPrimary,
-                        surface: Color.gymPrimarySurface,
-                        count: workoutTemplates.count,
-                        showsCard: false
+                        color: Color.trameStrength,
+                        count: workoutTemplates.count
                     )
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("workouts-browser")
-
-                LibraryGroupDivider()
 
                 NavigationLink(value: LibraryRoute.exercises) {
                     LibraryItemRow(
                         title: "Exercises",
                         subtitle: "Every move you can add to a workout",
                         icon: AppIcon.workout,
-                        color: Color.gymSecondary,
-                        surface: Color.gymSecondarySurface,
-                        count: exerciseTemplates.count,
-                        showsCard: false
+                        color: Color.trameStrength,
+                        count: exerciseTemplates.count
                     )
                 }
                 .buttonStyle(.plain)
@@ -254,25 +244,22 @@ struct FolderView: View {
     /// then the reference/measurement surface.
     private var mobilityLibrarySection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            LibrarySectionTitle("Stretch & Mobility")
+            LibrarySectionTitle("Mobility")
 
-            LibraryGroupCard {
+            LibraryOpenGroup {
                 if featureFlags.isEnabled(.mobilityProgram) {
                     NavigationLink(value: LibraryRoute.mobilityPlans) {
                         LibraryItemRow(
-                            title: "Mobility plans",
+                            title: "Plans",
                             subtitle: "Multi-week routines that progress for you",
                             icon: AppIcon.plan,
-                            color: Color.gymAccent,
-                            surface: Color.gymAccentSurface,
-                            count: mobilityPlanCount,
-                            showsCard: false
+                            color: Color.trameRecovery,
+                            count: mobilityPlanCount
                         )
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("mobility-plans-browser")
 
-                    LibraryGroupDivider()
                 }
 
                 NavigationLink(value: LibraryRoute.mobility) {
@@ -280,26 +267,20 @@ struct FolderView: View {
                         title: "Routines",
                         subtitle: "Warm-ups, cool-downs and recovery",
                         icon: AppIcon.mobility,
-                        color: Color.gymSecondary,
-                        surface: Color.gymSecondarySurface,
-                        count: mobilityRoutines.count,
-                        showsCard: false
+                        color: Color.trameMobility,
+                        count: mobilityRoutines.count
                     )
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("train-mobility-library")
 
                 if featureFlags.isEnabled(.mobilityAssessment) {
-                    LibraryGroupDivider()
-
                     NavigationLink(value: LibraryRoute.mobilityAssessments) {
                         LibraryItemRow(
                             title: "Assessments",
                             subtitle: "Measure range and track it over time",
                             icon: AppIcon.mobilityAssessment,
-                            color: Color.gymPrimary,
-                            surface: Color.gymPrimarySurface,
-                            showsCard: false
+                            color: Color.trameMobility
                         )
                     }
                     .buttonStyle(.plain)
@@ -352,8 +333,7 @@ struct FolderView: View {
                                     title: collection.name,
                                     type: "FOLDER",
                                     icon: "rectangle.stack",
-                                    color: Color.gymAccent,
-                                    surface: Color.gymAccentSurface
+                                    color: Color.trameCompetition
                                 )
                             }
                         }
@@ -367,8 +347,7 @@ struct FolderView: View {
                                     title: template.name,
                                     type: "WORKOUT",
                                     icon: AppIcon.routine,
-                                    color: Color.gymPrimary,
-                                    surface: Color.gymPrimarySurface
+                                    color: Color.trameStrength
                                 )
                             }
                         }
@@ -382,8 +361,7 @@ struct FolderView: View {
                                     title: plan.name,
                                     type: "PLAN",
                                     icon: AppIcon.plan,
-                                    color: Color.gymAccent,
-                                    surface: Color.gymAccentSurface
+                                    color: Color.trameCompetition
                                 )
                             }
                         }
@@ -397,8 +375,7 @@ struct FolderView: View {
                                     title: plan.name,
                                     type: "PLAN",
                                     icon: AppIcon.routine,
-                                    color: Color.gymAccent,
-                                    surface: Color.gymAccentSurface
+                                    color: Color.trameCompetition
                                 )
                             }
                         }
@@ -412,8 +389,7 @@ struct FolderView: View {
                                     title: exercise.name,
                                     type: "EXERCISE",
                                     icon: AppIcon.workout,
-                                    color: Color.gymSecondary,
-                                    surface: Color.gymSecondarySurface
+                                    color: Color.trameStrength
                                 )
                             }
                         }

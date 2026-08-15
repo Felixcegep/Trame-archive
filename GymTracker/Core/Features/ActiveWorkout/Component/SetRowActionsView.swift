@@ -31,9 +31,9 @@ struct SetRowActionsView: View {
                     discardCompletedSetEditing()
                 }
             } label: {
-                Image(systemName: AppIcon.ellipsis)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    Image(systemName: AppIcon.ellipsis)
+                        .font(AppFont.captionBold)
+                        .foregroundStyle(Color.trameSubdued)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
@@ -45,9 +45,12 @@ struct SetRowActionsView: View {
             } label: {
                 Image(systemName: AppIcon.edit)
                     .font(AppFont.subheadlineBold)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameStrength)
                     .frame(width: 36, height: 36)
-                    .background(Color.gymPrimary.opacity(0.1), in: Circle())
+                    .background(Color.trameSurface, in: Circle())
+                    .overlay {
+                        Circle().stroke(Color.trameSeparator, lineWidth: 1)
+                    }
             }
             .buttonStyle(.borderless)
             .frame(width: 44, height: 44)

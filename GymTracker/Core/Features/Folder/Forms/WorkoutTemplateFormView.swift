@@ -62,8 +62,8 @@ struct WorkoutTemplateFormView: View {
                     }
                     .accessibilityIdentifier("template-personalized-workout-entry")
                     Text("Use your goals, equipment, and available time to draft an editable workout.")
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
 
@@ -74,12 +74,13 @@ struct WorkoutTemplateFormView: View {
             exercisePickerSection
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .searchable(text: $searchText, prompt: "Search exercises")
         .navigationDestination(item: $detailExercise) { exercise in
             ExerciseView(exercise: ExerciseDetailSnapshot(exercise: exercise))
         }
         .navigationTitle("New Workout")
+        .tint(Color.trameStrength)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
@@ -133,8 +134,8 @@ private extension WorkoutTemplateFormView {
         HStack(spacing: Spacing.m) {
             if item.supersetGroupID != nil {
                 Image(systemName: AppIcon.relationship)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymPrimary)
+                    .font(AppFont.eyebrow)
+                    .foregroundStyle(Color.trameStrength)
                     .frame(width: 20)
                     .accessibilityLabel("In a superset")
             } else {
@@ -144,11 +145,11 @@ private extension WorkoutTemplateFormView {
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(item.exercise.name)
                     .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 if item.supersetGroupID != nil {
                     Text("Superset")
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymPrimary)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameStrength)
                 }
             }
 
@@ -169,10 +170,13 @@ private extension WorkoutTemplateFormView {
 
                 Button("Remove", role: .destructive) { remove(at: index) }
             } label: {
-                Image(systemName: AppIcon.ellipsis)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .frame(width: 38, height: 38)
+                    Image(systemName: AppIcon.ellipsis)
+                        .font(AppFont.subheadlineSemibold)
+                        .foregroundStyle(Color.trameSubdued)
+                        .frame(
+                            width: ComponentSize.minimumTouchTarget,
+                            height: ComponentSize.minimumTouchTarget
+                        )
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("Options for \(item.exercise.name)")
@@ -198,8 +202,7 @@ private extension WorkoutTemplateFormView {
                     Button("Create Exercise") {
                         isCreatingExercise = true
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.gymPrimary)
+                    .buttonStyle(.tramePrimaryAction)
                     .accessibilityIdentifier("create-exercise-empty-state")
                 }
             } else {
@@ -213,7 +216,7 @@ private extension WorkoutTemplateFormView {
                     } else {
                         VStack(alignment: .leading, spacing: Spacing.s) {
                             Text("No exercises match your filters.")
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                             Button("Clear filters") {
                                 filter.clear()
                             }

@@ -118,7 +118,7 @@ enum WorkoutStagePlan {
         return page(containing: next.entry)
     }
 
-    /// Completion state of a page, for the progress rail's dots.
+    /// Completion state of a page, for the segmented progress rail.
     enum Progress: Hashable {
         /// Nothing logged yet.
         case untouched

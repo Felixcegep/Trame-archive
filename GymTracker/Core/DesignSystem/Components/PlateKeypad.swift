@@ -37,7 +37,7 @@ enum PlateAppearance {
     /// White on every plate except the ones pale enough to lose it.
     static func textColor(for plate: Float, unitSystem: UnitSystem) -> Color {
         let isPale = (unitSystem == .metric && plate == 5)
-        return isPale ? Color.gymText : .white
+        return isPale ? Color.trameText : .white
     }
 }
 
@@ -115,7 +115,7 @@ struct PlateKeypad: View {
             } label: {
                 Label("Enter an exact weight", systemImage: AppIcon.keyboard)
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameText)
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
                     .contentShape(Rectangle())
@@ -126,7 +126,7 @@ struct PlateKeypad: View {
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.s)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .gymFeedback(.keyPressed, trigger: lastPressedKey)
         .accessibilityIdentifier("plate-keypad")
@@ -140,16 +140,16 @@ struct PlateKeypad: View {
                 Text("BAR LOAD")
                     .font(AppFont.caption2Bold)
                     .tracking(0.6)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
 
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
                     Text(Formatters.formatFloat(target))
                         .font(AppFont.displayMedium)
                         .monospacedDigit()
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Text(unitLabel)
                         .font(AppFont.subheadlineBold)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
 
@@ -175,11 +175,14 @@ struct PlateKeypad: View {
                         .font(AppFont.caption2Bold)
                 }
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameText)
                 .padding(.horizontal, Spacing.s)
                 .frame(minHeight: ComponentSize.minimumTouchTarget)
-                .background(Color.gymPrimarySurface, in: Capsule())
-                .contentShape(Capsule())
+                .background(
+                    Color.trameCurrent,
+                    in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                )
+                .contentShape(Rectangle())
             }
             .accessibilityLabel(Text("Bar type, \(Formatters.formatFloat(barWeight)) \(unitLabel)"))
             .accessibilityIdentifier("plate-keypad-bar")
@@ -207,7 +210,7 @@ struct PlateKeypad: View {
                 if loadedPerSide.isEmpty {
                     Text(target <= barWeight ? "Empty bar" : "No plates fit")
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .padding(.leading, Spacing.xs)
                 } else {
                     ForEach(Array(loadedPerSide.enumerated()), id: \.offset) { _, plate in
@@ -236,7 +239,7 @@ struct PlateKeypad: View {
                 // plausible load that does not add up to the number above it.
                 Label("Plates don’t reach this exactly", systemImage: AppIcon.warning)
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymAccent)
+                    .foregroundStyle(Color.trameAttention)
             }
 
             // Offered, never imposed. A lifter who has just walked to a bar
@@ -254,7 +257,7 @@ struct PlateKeypad: View {
                         systemImage: AppIcon.relationship
                     )
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameText)
                     .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
                     .contentShape(Rectangle())
                 }
@@ -297,12 +300,12 @@ struct PlateKeypad: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: ComponentSize.keypadKeyHeight)
                         .background(
-                            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                                 .fill(PlateAppearance.color(for: plate, unitSystem: unitSystem))
                         )
                         .overlay {
-                            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                                .stroke(Color.gymText.opacity(0.12), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                                .stroke(Color.trameSeparator, lineWidth: 1)
                         }
                         .contentShape(Rectangle())
                 }
@@ -322,14 +325,14 @@ struct PlateKeypad: View {
         } label: {
             Label(title, systemImage: icon)
                 .font(AppFont.footnoteMedium)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .frame(maxWidth: .infinity)
                 .frame(height: ComponentSize.keypadKeyHeight)
-                .background(Color.gymCard)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                .background(Color.trameSurface)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                        .stroke(Color.gymBorder, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                        .stroke(Color.trameSeparator, lineWidth: 1)
                 }
                 .contentShape(Rectangle())
         }
@@ -354,7 +357,7 @@ struct PlateKeypad: View {
             onKey: { _ in }
         )
     }
-    .background(Color.gymBackground)
+    .background(Color.trameCanvas)
 }
 
 #endif

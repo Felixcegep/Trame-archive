@@ -89,29 +89,22 @@ private extension CurrentPlanCard {
         VStack(alignment: .leading, spacing: Spacing.m) {
             Text(summary.title)
                 .font(AppFont.titleSmall)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
             Text(summary.detail)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button(action: onChoosePlan) {
-                Text("Choose a plan")
-                    .font(AppFont.subheadlineBold)
-                    .foregroundStyle(.white)
-                    .padding(.vertical, Spacing.md)
-                    .padding(.horizontal, Spacing.xl)
-                    .background(Color.gymPrimary, in: Capsule())
-            }
-            .buttonStyle(.gymPress)
+            Button("Choose a plan", action: onChoosePlan)
+            .buttonStyle(.tramePrimaryAction)
             .accessibilityIdentifier("choose-a-plan")
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.gymPrimary.opacity(0.16), lineWidth: 1.5)
+                .stroke(Color.trameSeparator, lineWidth: 1)
         }
         .accessibilityIdentifier("current-plan-empty")
     }
@@ -121,18 +114,18 @@ private extension CurrentPlanCard {
             VStack(alignment: .leading, spacing: Spacing.s) {
                 Label(summary.title, systemImage: AppIcon.warning)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymDestructive)
+                    .foregroundStyle(Color.trameDestructiveText)
                 Text(summary.detail)
                     .font(AppFont.subheadline)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(Spacing.l)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
+                    .stroke(Color.trameSeparator, lineWidth: 1)
             }
             .contentShape(Rectangle())
         }
@@ -151,46 +144,46 @@ private extension CurrentPlanCard {
                             summary.isPaused ? "PAUSED PLAN" : "CURRENT PLAN",
                             systemImage: summary.isPaused ? AppIcon.pause : AppIcon.plan
                         )
-                        .font(AppFont.captionBold)
+                        .font(AppFont.eyebrow)
                         .tracking(0.8)
-                        .foregroundStyle(summary.isPaused ? Color.gymSubduedText : Color.gymPrimary)
+                        .foregroundStyle(summary.isPaused ? Color.trameSubdued : Color.trameStrength)
 
                         Spacer()
 
                         Image(systemName: AppIcon.chevronRight)
-                            .font(AppFont.captionBold)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.micro)
+                            .foregroundStyle(Color.trameSubdued)
                     }
 
                     Text(summary.title)
                         .font(AppFont.titleSmall)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                         .multilineTextAlignment(.leading)
                         .lineLimit(2)
 
                     if let position = summary.positionText {
                         Text(position)
-                            .font(AppFont.captionBold)
-                            .foregroundStyle(Color.gymPrimary)
+                            .font(AppFont.eyebrow)
+                            .foregroundStyle(Color.trameStrength)
                     }
 
                     if let next = summary.nextWorkoutName {
                         VStack(alignment: .leading, spacing: Spacing.xxs) {
                             Text("Up next")
-                                .font(AppFont.captionBold)
+                                .font(AppFont.eyebrow)
                                 .tracking(0.8)
                                 .textCase(.uppercase)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                             Text(next)
                                 .font(AppFont.titleSmallSemibold)
-                                .foregroundStyle(Color.gymText)
+                                .foregroundStyle(Color.trameText)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     } else if summary.isPaused {
                         Text("Resume the plan to continue from this position.")
                             .font(AppFont.subheadline)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                     }
 
                     if let fraction = summary.progressFraction,
@@ -198,15 +191,15 @@ private extension CurrentPlanCard {
                        let total = summary.totalWorkouts {
                         VStack(alignment: .leading, spacing: Spacing.xs) {
                             ProgressView(value: fraction)
-                                .tint(Color.gymPrimary)
+                                .tint(Color.trameStrength)
                                 .accessibilityHidden(true)
                             HStack {
                                 Text("\(completed) completed")
                                 Spacer(minLength: Spacing.s)
                                 Text("\(max(total - completed, 0)) remaining")
                             }
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
                         }
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("\(completed) of \(total) plan workouts completed")
@@ -223,7 +216,7 @@ private extension CurrentPlanCard {
 
             if primaryTrainingActionIsAvailable {
                 Divider()
-                    .overlay(Color.gymBorder)
+                    .overlay(Color.trameSeparator)
                     .padding(.horizontal, Spacing.l)
 
                 primaryTrainingAction
@@ -231,7 +224,7 @@ private extension CurrentPlanCard {
 
             if programPathRoute != nil {
                 Divider()
-                    .overlay(Color.gymBorder)
+                    .overlay(Color.trameSeparator)
                     .padding(.horizontal, Spacing.l)
 
                 HStack(spacing: Spacing.s) {
@@ -247,20 +240,22 @@ private extension CurrentPlanCard {
             }
 
             Divider()
-                .overlay(Color.gymBorder)
+                .overlay(Color.trameSeparator)
                 .padding(.horizontal, Spacing.l)
 
             actions
         }
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay {
-            // A paused plan reads as inert: plain border, no accent ring.
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(
-                    summary.isPaused ? Color.gymBorder : Color.gymPrimary.opacity(0.16),
-                    lineWidth: summary.isPaused ? 1 : 1.5
-                )
+                .stroke(Color.trameSeparator, lineWidth: 1)
         }
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(summary.isPaused ? Color.trameSeparator : Color.trameStrength)
+                .frame(height: Spacing.xxs)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         // No shadow: fill plus border already separates this from the
         // background, and a third device is noise. See `HomePrimaryWorkoutCard`.
     }
@@ -275,10 +270,10 @@ private extension CurrentPlanCard {
             VStack(spacing: Spacing.xs) {
                 Image(systemName: AppIcon.routine)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameStrength)
                 Text(ProgramPathPresentation.entryTitle)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymText)
+                    .font(AppFont.eyebrow)
+                    .foregroundStyle(Color.trameText)
             }
             .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
             .contentShape(Rectangle())
@@ -296,10 +291,10 @@ private extension CurrentPlanCard {
             VStack(spacing: Spacing.xs) {
                 Image(systemName: AppIcon.chart)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameStrength)
                 Text(WeeklyProgramReviewPresentation.entryTitle)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymText)
+                    .font(AppFont.eyebrow)
+                    .foregroundStyle(Color.trameText)
             }
             .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
             .contentShape(Rectangle())
@@ -356,7 +351,7 @@ private extension CurrentPlanCard {
     var primaryTrainingAction: some View {
         if summary.isPaused {
             Button("Resume plan", action: resume)
-                .buttonStyle(.gymPrimaryProminent)
+                .buttonStyle(.tramePrimaryAction)
                 .padding(Spacing.l)
                 .accessibilityIdentifier("current-plan-resume")
         } else if let run = openFixedRun, let next = PlanCoordinator.nextProgress(in: run) {
@@ -365,7 +360,7 @@ private extension CurrentPlanCard {
             } label: {
                 Label("Start next workout", systemImage: AppIcon.play)
             }
-            .buttonStyle(.gymPrimaryProminent)
+            .buttonStyle(.tramePrimaryAction)
             .padding(Spacing.l)
             .accessibilityLabel("Start \(next.plannedWorkoutName)")
             .accessibilityIdentifier("current-plan-start-next")
@@ -375,7 +370,7 @@ private extension CurrentPlanCard {
             } label: {
                 Label("Start next workout", systemImage: AppIcon.play)
             }
-            .buttonStyle(.gymPrimaryProminent)
+            .buttonStyle(.tramePrimaryAction)
             .padding(Spacing.l)
             .accessibilityLabel(summary.nextWorkoutName.map { "Start \($0)" } ?? "Start next rotation workout")
             .accessibilityIdentifier("current-plan-start-next")

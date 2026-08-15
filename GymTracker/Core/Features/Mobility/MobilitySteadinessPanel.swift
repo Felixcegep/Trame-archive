@@ -70,9 +70,11 @@ struct MobilitySteadinessPanel: View {
             }
         } label: {
             Label("Steadiness", systemImage: AppIcon.gyroscope)
-                .font(AppFont.captionBold)
+                .font(AppFont.metadata)
                 .tracking(0.6)
-                .foregroundStyle(isExpanded ? Color.gymPrimary : Color.gymSubduedText)
+                .foregroundStyle(isExpanded ? Color.trameMobility : Color.trameSubdued)
+                .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("mobility-steadiness-toggle")
@@ -87,7 +89,8 @@ struct MobilitySteadinessPanel: View {
                 title: String(localized: "Settling…"),
                 detail: String(localized: "Hold the device still for a moment to begin."),
                 fraction: 0,
-                tint: Color.gymSubduedText
+                tint: Color.trameSubdued,
+                symbol: AppIcon.gyroscope
             )
 
         case .measuring(_, let holdProgress):
@@ -97,7 +100,8 @@ struct MobilitySteadinessPanel: View {
                     : String(localized: "Holding…"),
                 detail: nil,
                 fraction: holdProgress,
-                tint: holdProgress >= 1 ? Color.gymSecondary : Color.gymAccent
+                tint: Color.trameMobility,
+                symbol: holdProgress >= 1 ? AppIcon.checkmarkCircle : AppIcon.gyroscope
             )
 
         case .rejected:
@@ -105,7 +109,8 @@ struct MobilitySteadinessPanel: View {
                 title: String(localized: "Moving"),
                 detail: nil,
                 fraction: 0,
-                tint: Color.gymAccent
+                tint: Color.trameText,
+                symbol: AppIcon.warningCircle
             )
 
         case .completed, .unavailable:
@@ -113,16 +118,35 @@ struct MobilitySteadinessPanel: View {
         }
     }
 
-    private func statusRow(title: String, detail: String?, fraction: Double, tint: Color) -> some View {
+    private func statusRow(
+        title: String,
+        detail: String?,
+        fraction: Double,
+        tint: Color,
+        symbol: String
+    ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.s) {
+                Image(systemName: symbol)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(tint)
+                    .accessibilityHidden(true)
                 Text(title)
-                    .font(AppFont.subheadlineSemibold)
+                    .font(AppFont.metadata)
                     .foregroundStyle(tint)
                 Spacer(minLength: 0)
+                Text(
+                    String(
+                        format: String(localized: "Hold %lld%%"),
+                        Int64((max(0, min(1, fraction)) * 100).rounded())
+                    )
+                )
+                .font(AppFont.micro)
+                .monospacedDigit()
+                .foregroundStyle(Color.trameSubdued)
             }
             Capsule()
-                .fill(Color.gymText.opacity(0.08))
+                .fill(Color.trameRow)
                 .frame(height: 6)
                 .overlay(alignment: .leading) {
                     GeometryReader { proxy in
@@ -134,18 +158,31 @@ struct MobilitySteadinessPanel: View {
                 .animation(reduceMotion ? nil : AppMotion.compact, value: fraction)
             if let detail {
                 Text(detail)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(detail.map { "\(title). \($0)" } ?? title))
+        .accessibilityLabel(
+            Text(
+                [
+                    title,
+                    String(
+                        format: String(localized: "Hold %lld%%"),
+                        Int64((max(0, min(1, fraction)) * 100).rounded())
+                    ),
+                    detail
+                ]
+                .compactMap { $0 }
+                .joined(separator: ". ")
+            )
+        )
     }
 
     private var unavailableNotice: some View {
         Text("Motion sensing stopped responding for this hold.")
-            .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
+            .font(AppFont.metadata)
+            .foregroundStyle(Color.trameSubdued)
     }
 
     private func start() {

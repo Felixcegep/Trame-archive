@@ -1,17 +1,33 @@
-# GymTracker Design Reference
+# GymTracker Design Reference — Historical Bundle
 
-Status: Reference bundle
+Status: Historical/noncanonical reference bundle
 Owner: Design
 Last reviewed: 2026-07-31
-Source of truth: No — production tokens and the canonical design documents win
+Source of truth: No — superseded by the Trame Performance Editorial documents
+
+> **Do not use this bundle as the current visual specification.** New production
+> UI and new prototypes must follow [`TrameDesignConstitution.md`](../Design/TrameDesignConstitution.md),
+> [`DesignSystem.md`](../DesignSystem.md), the approved specimen/calibration
+> manifest [`Documentation/Design/Reference/README.md`](../Design/Reference/README.md),
+> and [`TrameMigrationPlan.md`](../Design/TrameMigrationPlan.md). The approved
+> specimen is `/Users/felixlachapelle/Documents/redesign/Favorie/trame-theme-lab (1).html`.
+> Performance Lab — Dark is principal/default; Performance Lab — Pale is the
+> supported alternate. Do not copy the legacy warm-cream palette, tinted-card
+> treatment, or SF Rounded roles into new work.
+
+The screenshots, prototype components, and token files in this bundle remain
+historical evidence of earlier GymTracker decisions. They are useful for
+understanding existing behavior and migration context, but they are not current
+tokens, component prescriptions, or visual acceptance criteria.
 
 GymTracker is a focused iOS training log for serious solo lifters: fast to log
 mid-workout, calm to read, and trustworthy over time. The product loop is
 Plan → Execute fast → Record truth → Understand performance → Progress
 intelligently → Repeat.
 
-Use this bundle for visual direction, mockups, and prototypes. For shipped
-behavior and current product scope, read [`Feature.md`](../../Feature.md),
+Use this bundle only to inspect historical visual decisions, mockups, and
+prototype behavior during migration. For new visual direction, shipped
+behavior, and current product scope, read [`Feature.md`](../../Feature.md),
 [`FeaturesList.md`](../../FeaturesList.md), and [`RoadMap.md`](../../RoadMap.md).
 
 ## Design character
@@ -25,24 +41,15 @@ behavior and current product scope, read [`Feature.md`](../../Feature.md),
 - One native SwiftUI iPhone surface: Today, Train, Nutrition, Progress, Settings
   from Today, and a root-owned Active Workout cover.
 
-## Visual foundations
+## Historical visual foundations — do not extend
 
-- Warm cream page (`#F6F0E7`) and warm-white cards (`#FFFCF7`); near-black navy
-  text (`#272635`). Blue is action/current state, sage is completed/success,
-  and tan is contextual history/rest.
-- Saturated colors are not background fills. Use pale tints for surfaces and
-  badges; encode state with labels, icons, and values in addition to color.
-- SF Rounded is for large display values and titles; SF Pro is the default body
-  type. Use tabular monospaced digits only for timers, loads, reps, and stats.
-- Spacing follows 2/4/8/10/12/16/20/24/32; screen inset is 20px and hit targets
-  are at least 44px.
-- Corners are 8/12/16/18/20 for small, medium, large, section/button, and card
-  roles. Capsules are reserved for the primary CTA and tiny week badges.
-- Cards group meaningful content, use a hairline border and restrained shadow,
-  and never turn every row into a floating card.
-- Motion is calm and quick: press response 140ms, compact changes 220ms,
-  layout changes 300ms, no bounce, idle motion, confetti, gradients, or dark
-  translucent UI.
+The following values describe the retired bundle only: warm cream page
+(`#F6F0E7`), warm-white cards (`#FFFCF7`), navy text (`#272635`), pale tinted
+surfaces, SF Rounded display roles, the former corner/inset scale, and its
+card/border/shadow treatment. They must not be used as new production tokens or
+prototype defaults. Consult the current Trame documents for opaque semantic
+surfaces, Performance Lab color architecture, editorial typography, and the
+current radius/spacing roles.
 
 ## Native source references
 
@@ -54,11 +61,16 @@ Production UI uses the centralized tokens in `GymTracker/Core/DesignSystem/`:
 - `Documentation/MotionAndHaptics.md` for motion and feedback decisions.
 - `Documentation/Accessibility.md` for labels, Dynamic Type, contrast, and
   verification requirements.
+- For new work, also read [`TrameDesignConstitution.md`](../Design/TrameDesignConstitution.md),
+  [`ComponentCatalog.md`](../Design/ComponentCatalog.md), and
+  [`TrameMigrationPlan.md`](../Design/TrameMigrationPlan.md). Use the specimen
+  and capture manifest for calibration; do not treat this bundle's assets as
+  current visual baselines.
 - [`SetEditor.md`](../Design/SetEditor.md) for the custom Active Workout keypad
   and bottom-panel constraints.
 - [`ComponentPrompts.md`](ComponentPrompts.md) for reusable prototype prompts.
 
-## Component vocabulary
+## Historical component vocabulary — do not extend
 
 Core components are semantic icon wrappers, tinted icon chips, section labels,
 cards, badges, and verb-first buttons. Forms use the shared search field,
@@ -72,7 +84,7 @@ The reusable prompt details for these components live in
 [`ComponentPrompts.md`](ComponentPrompts.md); do not create separate prompt
 files for individual components.
 
-## Interactive iOS reference kit
+## Historical interactive iOS reference kit
 
 The `ui_kits/ios-app/` directory contains an interactive recreation of four
 canonical surfaces, grounded in the SwiftUI source and the repository's

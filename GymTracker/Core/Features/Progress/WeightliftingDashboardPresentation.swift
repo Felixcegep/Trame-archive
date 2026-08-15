@@ -35,6 +35,7 @@ struct WeightliftingComponentOutcomeSummary: Equatable, Identifiable {
     let partial: WeightliftingEvidenceCount
     let missed: WeightliftingEvidenceCount
     let skipped: WeightliftingEvidenceCount
+    let notStarted: WeightliftingEvidenceCount
 }
 
 struct WeightliftingRecentAttempt: Equatable, Identifiable {
@@ -43,6 +44,15 @@ struct WeightliftingRecentAttempt: Equatable, Identifiable {
     let load: String
     let outcome: OlympicAttemptOutcome
     let components: [ComplexComponentOutcome]
+    var componentLabels: [String] = []
+}
+
+struct WeightliftingAttemptOutcomeSummary: Equatable {
+    let made: Int
+    let partial: Int
+    let missed: Int
+    let skipped: Int
+    let notStarted: Int
 }
 
 /// Presentation state for the specialist dashboard. CE6.1 supplies these
@@ -56,7 +66,35 @@ struct WeightliftingDashboardPresentation: Equatable {
     let componentOutcomes: [WeightliftingComponentOutcomeSummary]
     let qualityTrend: String?
     let evidenceNote: String?
+    var fullLiftBests: [WeightliftingDashboardMetric] = []
+    var attemptOutcomes: WeightliftingAttemptOutcomeSummary?
     var recentAttempts: [WeightliftingRecentAttempt] = []
+
+    init(
+        availability: WeightliftingDashboardAvailability,
+        fullLiftBest: WeightliftingDashboardMetric?,
+        cleanBest: WeightliftingDashboardMetric?,
+        jerkAfterCleanBest: WeightliftingDashboardMetric?,
+        attemptSummary: String?,
+        componentOutcomes: [WeightliftingComponentOutcomeSummary],
+        qualityTrend: String?,
+        evidenceNote: String?,
+        fullLiftBests: [WeightliftingDashboardMetric] = [],
+        attemptOutcomes: WeightliftingAttemptOutcomeSummary? = nil,
+        recentAttempts: [WeightliftingRecentAttempt] = []
+    ) {
+        self.availability = availability
+        self.fullLiftBest = fullLiftBest
+        self.cleanBest = cleanBest
+        self.jerkAfterCleanBest = jerkAfterCleanBest
+        self.attemptSummary = attemptSummary
+        self.componentOutcomes = componentOutcomes
+        self.qualityTrend = qualityTrend
+        self.evidenceNote = evidenceNote
+        self.fullLiftBests = fullLiftBests
+        self.attemptOutcomes = attemptOutcomes
+        self.recentAttempts = recentAttempts
+    }
 
     static let empty = Self(
         availability: .empty,
@@ -67,11 +105,14 @@ struct WeightliftingDashboardPresentation: Equatable {
         componentOutcomes: [],
         qualityTrend: nil,
         evidenceNote: nil,
+        fullLiftBests: [],
+        attemptOutcomes: nil,
         recentAttempts: []
     )
 
     var hasFullLiftEvidence: Bool {
         fullLiftBest?.evidenceAvailable == true
+            || fullLiftBests.contains(where: \.evidenceAvailable)
     }
 
     var hasComponentEvidence: Bool {
@@ -82,15 +123,16 @@ struct WeightliftingDashboardPresentation: Equatable {
 
     static func make(projection: WeightliftingAnalyticsProjection) -> Self {
         let attemptCount = projection.complexOutcomes.count
-        let best = projection.bestCompleteSuccessfulLift.map { lift in
+        let bests = projection.bestCompleteSuccessfulLiftsByUnit.map { lift in
             WeightliftingDashboardMetric(
-                id: "full-lift-best",
-                title: String(localized: "Best complete successful lift"),
+                id: "full-lift-best-\(lift.weightType.rawValue)",
+                title: String(localized: "Best complete parent lift"),
                 value: String(format: String(localized: "%.1f %@"), Double(lift.weight), lift.weightType.rawValue),
                 detail: lift.date.formatted(date: .abbreviated, time: .omitted),
                 evidenceAvailable: true
             )
         }
+        let best = bests.count == 1 ? bests.first : nil
         let clean = successMetric(
             projection.cleanSuccess,
             id: "clean-success",
@@ -108,12 +150,15 @@ struct WeightliftingDashboardPresentation: Equatable {
                 made: .observed(distribution.completed),
                 partial: .observed(distribution.partial),
                 missed: .observed(distribution.missed),
-                skipped: .observed(distribution.skipped)
+                skipped: .observed(distribution.skipped),
+                notStarted: .observed(distribution.notStarted)
             )
         }
         let quality = projection.qualityTrend.last.map { point in
             String(
-                format: String(localized: "Latest observed session: %lld excellent, %lld acceptable, %lld technically poor, %lld missed."),
+                format: String(localized: "%@ · %lld observed attempts: %lld excellent, %lld acceptable, %lld technically poor, %lld missed."),
+                point.date.formatted(date: .abbreviated, time: .omitted),
+                Int64(point.sampleCount),
                 Int64(point.excellent),
                 Int64(point.acceptable),
                 Int64(point.technicallyPoor),
@@ -121,8 +166,15 @@ struct WeightliftingDashboardPresentation: Equatable {
             )
         }
         let hasEvidence = attemptCount > 0
+        let attemptOutcomes = hasEvidence ? WeightliftingAttemptOutcomeSummary(
+            made: projection.complexOutcomes.filter { $0.outcome == .made }.count,
+            partial: projection.complexOutcomes.filter { $0.outcome == .partial }.count,
+            missed: projection.complexOutcomes.filter { $0.outcome == .missed }.count,
+            skipped: projection.complexOutcomes.filter { $0.outcome == .skipped }.count,
+            notStarted: projection.complexOutcomes.filter { $0.outcome == .notStarted }.count
+        ) : nil
         return Self(
-            availability: hasEvidence ? (best == nil ? .sparse : .populated) : .empty,
+            availability: hasEvidence ? (bests.isEmpty ? .sparse : .populated) : .empty,
             fullLiftBest: best,
             cleanBest: clean,
             jerkAfterCleanBest: jerk,
@@ -134,15 +186,22 @@ struct WeightliftingDashboardPresentation: Equatable {
             componentOutcomes: outcomes,
             qualityTrend: quality,
             evidenceNote: projection.bestCompleteSuccessfulLiftsByUnit.count > 1
-                ? String(localized: "Best lifts are kept separate by weight unit and are not ranked against each other.")
-                : String(localized: "Component outcomes are evidence inside a lift; they are never labelled as full-lift records."),
+                ? String(localized: "Best complete parent lifts are kept separate by weight unit and are not ranked against each other. Component outcomes remain evidence inside a lift.")
+                : String(localized: "Component outcomes are evidence inside a lift; they are never labelled as full-lift records. Lift quality is recorded observation, never inferred from load."),
+            fullLiftBests: bests,
+            attemptOutcomes: attemptOutcomes,
             recentAttempts: projection.complexOutcomes.suffix(5).reversed().map { attempt in
                 WeightliftingRecentAttempt(
                     id: attempt.setID,
                     date: attempt.date,
                     load: String(format: String(localized: "%.1f %@"), Double(attempt.weight), attempt.weightType.rawValue),
                     outcome: attempt.outcome,
-                    components: attempt.components.map(\.outcome)
+                    components: attempt.components.map(\.outcome),
+                    componentLabels: attempt.components.map { component in
+                        component.role == .unknown
+                            ? component.exerciseNameSnapshot
+                            : componentTitle(component.role)
+                    }
                 )
             }
         )

@@ -96,7 +96,7 @@ struct MobilityAssessmentFlowView: View {
                             )
                         }
                         .buttonStyle(.bordered)
-                        .tint(Color.gymPrimary)
+                        .tint(Color.trameText)
                         .frame(minHeight: ComponentSize.minimumTouchTarget)
                         .disabled(isSensorCaptureActive && sensorSide != side)
                         .accessibilityIdentifier("mobility-assessment-device-motion-\(side.rawValue)")
@@ -104,7 +104,7 @@ struct MobilityAssessmentFlowView: View {
                 }
             }
 
-            if let captureDefinition = captureDefinition(for: definition) {
+            if let captureDefinition = captureDefinition(for: definition), sensorSide != nil {
                 sensorCaptureCard(definition: definition, captureDefinition: captureDefinition)
             }
 
@@ -713,28 +713,29 @@ struct MobilityAssessmentFlowView: View {
         captureDefinition: MobilityInclinometerDefinition
     ) -> some View {
         let side = sensorSide ?? definition.supportedSides.first ?? .combined
-        return GymCard(variant: .accent) {
+        return TrameColorField(
+            fill: Color.trameSurface,
+            ink: Color.trameText,
+            border: Color.trameMobility
+        ) {
             VStack(alignment: .leading, spacing: Spacing.m) {
                 GymEyebrow(
                     captureDefinition.mode == .relativeRotation
                         ? "Device axial rotation"
-                        : "Device inclinometer"
+                        : "Device inclinometer",
+                    tint: Color.trameMobility
                 )
                 Text(captureDefinition.placementGuidance)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
-
-                if sensorSide != nil {
-                    Text(String(format: String(localized: "Selected side: %@"), side.displayName))
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
-                }
 
                 GymArcGauge(
                     axis: gaugeAxis(for: captureDefinition.axis),
                     state: gaugeState,
                     degreesText: gaugeDegreesText,
+                    angleDegrees: gaugeAngleDegrees,
+                    side: side.displayName,
                     holdProgress: gaugeHoldProgress
                 )
 
@@ -754,7 +755,8 @@ struct MobilityAssessmentFlowView: View {
                         )
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color.gymPrimary)
+                    .tint(Color.trameAction)
+                    .foregroundStyle(Color.trameActionInk)
                     .frame(minHeight: ComponentSize.minimumTouchTarget)
 
                     if isSensorCaptureActive {
@@ -768,16 +770,17 @@ struct MobilityAssessmentFlowView: View {
 
                 if case .completed = inclinometerCapture.state {
                     Text(String(localized: "This fills one trial only. Review it, then use Save observation to confirm the record."))
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if case .unavailable = inclinometerCapture.state {
                     Text(String(localized: "Device motion is unavailable here. Enter the observation by hand below."))
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .padding(Spacing.l)
         }
         .accessibilityIdentifier("mobility-assessment-device-motion-card")
     }
@@ -793,7 +796,7 @@ struct MobilityAssessmentFlowView: View {
     private var gaugeState: GymArcGauge.State {
         switch inclinometerCapture.state {
         case .idle: .calibrated
-        case .calibrating: .calibrated
+        case .calibrating: .calibrating
         case let .measuring(_, progress): progress >= 1 ? .stable : .measuring
         case let .rejected(reason): .rejected(reason: rejectionCopy(reason))
         case .completed: .completed
@@ -812,13 +815,27 @@ struct MobilityAssessmentFlowView: View {
     }
 
     private var gaugeDegreesText: String? {
-        let value: Double?
-        switch inclinometerCapture.state {
-        case let .measuring(degrees, _), let .completed(_, degrees): value = degrees
-        default: value = nil
-        }
-        guard let value else { return nil }
+        guard let value = gaugeAngleDegrees else { return nil }
         return value.formatted(.number.precision(.fractionLength(1))) + "°"
+    }
+
+    /// Assessment range is persisted as a non-negative magnitude. Core
+    /// Motion's sign describes phone-coordinate direction and flips with
+    /// placement; treating it as left-versus-right evidence would be false.
+    private var gaugeAngleDegrees: Double? {
+        let signedValue: Double?
+        switch inclinometerCapture.state {
+        case let .measuring(degrees, _), let .completed(_, degrees):
+            signedValue = degrees
+        default:
+            signedValue = nil
+        }
+        guard let signedValue else { return nil }
+        guard let definition = currentDefinition,
+              let capture = captureDefinition(for: definition) else {
+            return abs(signedValue)
+        }
+        return capture.resultDegrees(from: signedValue)
     }
 
     private func rejectionCopy(_ rejection: MobilityInclinometerSampleRejection) -> String {

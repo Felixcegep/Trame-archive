@@ -22,13 +22,17 @@ struct LibraryBrowserList<Content: View>: View {
                 }
                 .padding(.horizontal, Spacing.m)
                 .frame(height: 46)
-                .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
+                .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.field))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.field)
+                        .stroke(Color.trameSeparator)
+                }
 
                 LazyVStack(alignment: .leading, spacing: Spacing.md) {
                     content
                 }
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.l)
             .padding(.bottom, 92)
         }
@@ -45,12 +49,12 @@ struct BuiltInBadge: View {
 
     var body: some View {
         Text(text)
-            .font(AppFont.captionBold)
+            .font(AppFont.micro)
             .tracking(0.3)
-            .foregroundStyle(Color.gymSecondary)
+            .foregroundStyle(Color.trameText)
             .padding(.horizontal, Spacing.xs)
             .padding(.vertical, Spacing.xxs)
-            .background(Color.gymSecondarySurface, in: Capsule())
+            .background(Color.trameRow, in: Capsule())
     }
 }
 
@@ -59,24 +63,18 @@ struct LibraryItemRow: View {
     let subtitle: String?
     let icon: String
     let color: Color
-    let surface: Color
     var count: Int?
     var badge: String? = nil
-    var showsCard = true
     var showsChevron = true
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            Image(systemName: icon)
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(color)
-                .frame(width: 34, height: 34)
-                .background(surface, in: RoundedRectangle(cornerRadius: Radius.medium))
+            TrameCategoryTile(systemImage: icon, fill: color)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 HStack(spacing: Spacing.xs) {
                     Text(title)
                         .font(AppFont.bodyMedium)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                         .multilineTextAlignment(.leading)
                         .lineLimit(2)
                     if let badge {
@@ -85,8 +83,8 @@ struct LibraryItemRow: View {
                 }
                 if let subtitle {
                     Text(subtitle)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -94,21 +92,19 @@ struct LibraryItemRow: View {
             Spacer()
             if let count {
                 Text("\(count)")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .monospacedDigit()
+                    .foregroundStyle(Color.trameSubdued)
             }
             if showsChevron {
-                Image(systemName: AppIcon.chevronRight).font(AppFont.captionBold).foregroundStyle(Color.gymSubduedText)
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
             }
         }
-        .padding(.horizontal, Spacing.l - 2)
-        .padding(.vertical, showsCard ? Spacing.l - 2 : Spacing.md)
-        .background {
-            if showsCard {
-                RoundedRectangle(cornerRadius: Radius.large)
-                    .fill(Color.gymCard)
-                    .stroke(Color.gymBorder, lineWidth: 1)
-            }
+        .padding(.vertical, Spacing.md)
+        .overlay(alignment: .bottom) {
+            Divider().overlay(Color.trameSeparator)
         }
         .contentShape(Rectangle())
     }
@@ -142,13 +138,8 @@ struct StartableWorkoutRow<RowContent: View, Editor: View>: View {
             } label: {
                 Image(systemName: AppIcon.advanced)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .frame(width: 38, height: 38)
-                    .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.medium))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: Radius.medium)
-                            .stroke(Color.gymBorder, lineWidth: 1)
-                    }
+                    .foregroundStyle(Color.trameSubdued)
+                    .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -158,27 +149,15 @@ struct StartableWorkoutRow<RowContent: View, Editor: View>: View {
     }
 }
 
-struct LibraryGroupCard<Content: View>: View {
+/// Rows grouped by alignment and structural rules, without a container card.
+struct LibraryOpenGroup<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             content
         }
-        .background {
-            RoundedRectangle(cornerRadius: Radius.large)
-                .fill(Color.gymCard)
-                .stroke(Color.gymBorder, lineWidth: 1)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: Radius.large))
-    }
-}
-
-struct LibraryGroupDivider: View {
-    var body: some View {
-        Divider()
-            .overlay(Color.gymBorder)
-            .padding(.leading, 60)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -191,14 +170,14 @@ struct LibraryCreateRow: View {
         HStack(spacing: Spacing.m) {
             Image(systemName: icon)
                 .font(AppFont.bodyMedium)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameStrength)
                 .frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
                     .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameText)
                 if let subtitle {
-                    Text(subtitle).font(AppFont.caption).foregroundStyle(Color.gymSubduedText)
+                    Text(subtitle).font(AppFont.metadata).foregroundStyle(Color.trameSubdued)
                 }
             }
             Spacer()
@@ -216,14 +195,14 @@ struct LibraryListSectionHeader: View {
     var body: some View {
         HStack {
             Text(title.uppercased())
-                .font(AppFont.captionBold)
+                .font(AppFont.eyebrow)
                 .tracking(0.8)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Spacer()
             Text("\(count)")
-                .font(AppFont.caption)
+                .font(AppFont.metadata)
                 .monospacedDigit()
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .padding(.horizontal, Spacing.xxs)
         .padding(.top, Spacing.m)
@@ -235,40 +214,32 @@ struct RecentLibraryRow: View {
     let type: LocalizedStringKey
     let icon: String
     let color: Color
-    let surface: Color
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            Image(systemName: icon)
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(color)
-                .frame(width: 34, height: 34)
-                .background(surface, in: RoundedRectangle(cornerRadius: Radius.medium))
+            TrameCategoryTile(systemImage: icon, fill: color)
 
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(title)
                     .font(AppFont.bodyMedium)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
                 Text(type)
-                    .font(AppFont.captionBold)
+                    .font(AppFont.micro)
                     .tracking(0.5)
-                    .foregroundStyle(color)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             Spacer()
 
             Image(systemName: AppIcon.chevronRight)
-                .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymSubduedText)
+                .font(AppFont.micro)
+                .foregroundStyle(Color.trameSubdued)
         }
-        .padding(.horizontal, Spacing.l - 2)
-        .padding(.vertical, Spacing.m)
-        .background {
-            RoundedRectangle(cornerRadius: Radius.large)
-                .fill(Color.gymCard)
-                .stroke(Color.gymBorder, lineWidth: 1)
+        .padding(.vertical, Spacing.md)
+        .overlay(alignment: .bottom) {
+            Divider().overlay(Color.trameSeparator)
         }
         .contentShape(Rectangle())
     }
@@ -280,8 +251,8 @@ struct LibrarySectionTitle: View {
 
     var body: some View {
         Text(title.uppercased())
-            .font(AppFont.captionBold)
+            .font(AppFont.eyebrow)
             .tracking(0.8)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
     }
 }

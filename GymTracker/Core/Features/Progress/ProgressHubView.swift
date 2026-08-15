@@ -21,6 +21,7 @@ struct ProgressHubView: View {
     @Query(sort: \DailyLogEntry.createdAt, order: .reverse) private var dailyLogEntries: [DailyLogEntry]
     @Query private var planRuns: [PlanRun]
     @Query private var repeatingPlanRuns: [RepeatingPlanRun]
+    @Query private var trainingProfiles: [TrainingProfile]
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
 
     var onOpenPlan: ((UUID) -> Void)? = nil
@@ -38,6 +39,11 @@ struct ProgressHubView: View {
 
     var body: some View {
         List {
+            Section {
+                progressControls
+            }
+            .listRowBackground(Color.clear)
+
             if selectedLens == .global {
                 Section {
                     ProgressOverviewSection(
@@ -45,46 +51,15 @@ struct ProgressHubView: View {
                         state: overviewState,
                         onOpenPlan: onOpenPlan,
                         onNavigate: onNavigate,
-                        presentation: .weekly
+                        presentation: .all
                     )
-                }
-
-                if hasOverviewEvidence {
-                    Section {
-                        ProgressOverviewSection(
-                            range: overviewRange,
-                            state: overviewState,
-                            onOpenPlan: onOpenPlan,
-                            onNavigate: onNavigate,
-                            presentation: .insights
-                        )
-                    } header: {
-                        HStack {
-                            Text("Strength progress")
-                            Spacer(minLength: Spacing.s)
-                            Menu {
-                                Picker("Trend range", selection: $overviewRange) {
-                                    ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
-                                        Text(range.title).tag(range)
-                                    }
-                                }
-                            } label: {
-                                Text(overviewRange.title)
-                                    .font(AppFont.captionBold)
-                                    .textCase(.none)
-                            }
-                            .accessibilityLabel("Trend range")
-                            .accessibilityValue(overviewRange.title)
-                            .accessibilityIdentifier("progress-overview-range")
-                        }
-                    }
                 }
             }
 
             // Athlete setup changes ordering, not historical truth. It follows
             // the user's actual evidence so opening Progress answers the common
             // question ("how is training going?") before asking for preferences.
-            if hasOverviewEvidence {
+            if hasOverviewEvidence, selectedLens != .global {
                 Section {
                     AthleteIntelligenceSection(
                         selectedLens: $selectedLens,
@@ -92,10 +67,9 @@ struct ProgressHubView: View {
                         range: overviewRange,
                         workouts: workouts,
                         showsGlobalSummary: false,
+                        showsLensPicker: false,
                         onNavigate: onNavigate
                     )
-                } header: {
-                    Text("Training focus")
                 }
             }
 
@@ -189,6 +163,18 @@ struct ProgressHubView: View {
         .background(Color.gymBackground)
         .navigationTitle("Progress")
         .accessibilityIdentifier("progress-screen")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isEditingAthleteProfile = true
+                } label: {
+                    Image(systemName: AppIcon.settings)
+                }
+                .accessibilityLabel("Training profile")
+                .accessibilityHint("Edits sport priorities without changing training history.")
+                .accessibilityIdentifier("progress-athlete-profile")
+            }
+        }
         .sheet(isPresented: $isEditingAthleteProfile) {
             NavigationStack {
                 TrainingProfileSettingsView()
@@ -209,6 +195,102 @@ struct ProgressHubView: View {
     private var hasOverviewEvidence: Bool {
         if case .loaded = overviewState { return true }
         return false
+    }
+
+    private var progressControls: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Spacing.l) {
+                lensPicker
+                rangePicker
+            }
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                lensPicker
+                rangePicker
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, Spacing.xs)
+        .accessibilityIdentifier("progress-controls")
+    }
+
+    private var lensPicker: some View {
+        Group {
+            if availableLenses.count <= 3 {
+                Picker("Progress lens", selection: $selectedLens) {
+                    ForEach(availableLenses, id: \.self) { lens in
+                        Text(lens.title)
+                            .tag(lens)
+                            .accessibilityIdentifier("progress-lens-\(lensIdentifier(lens))")
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityValue(selectedLens.title)
+                .accessibilityIdentifier("progress-sport-lens-picker")
+            } else {
+                LabeledContent("Lens") {
+                    Picker("Progress lens", selection: $selectedLens) {
+                        ForEach(availableLenses, id: \.self) { lens in
+                            Text(lens.title)
+                                .tag(lens)
+                                .accessibilityIdentifier("progress-lens-\(lensIdentifier(lens))")
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .accessibilityValue(selectedLens.title)
+                    .accessibilityIdentifier("progress-sport-lens-picker")
+                }
+            }
+        }
+        .font(AppFont.metadata)
+        .foregroundStyle(Color.trameText)
+        .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+    }
+
+    private var rangePicker: some View {
+        LabeledContent("Range") {
+            Picker("Progress range", selection: $overviewRange) {
+                ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
+                    Text(range.title).tag(range)
+                }
+            }
+            .pickerStyle(.menu)
+            .accessibilityValue(overviewRange.title)
+            .accessibilityIdentifier("progress-overview-range")
+        }
+        .font(AppFont.metadata)
+        .foregroundStyle(Color.trameText)
+        .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+    }
+
+    private var availableLenses: [ProgressLens] {
+        let profile = trainingProfiles.first
+        let availability = ProgressSportLensAvailabilityProjector.project(
+            workouts: completedWorkouts,
+            primary: profile?.primaryDiscipline,
+            secondary: profile?.secondaryDisciplines ?? []
+        )
+        .filter { $0.isAvailable && $0.discipline != .mixed }
+        .sorted {
+            if $0.isProfilePriority != $1.isProfilePriority { return $0.isProfilePriority }
+            if $0.evidenceWorkoutCount != $1.evidenceWorkoutCount {
+                return $0.evidenceWorkoutCount > $1.evidenceWorkoutCount
+            }
+            return $0.discipline.title < $1.discipline.title
+        }
+
+        var lenses: [ProgressLens] = [.global]
+        if profile?.progressOrganizationMode == .mixed || availability.count > 1 {
+            lenses.append(.sport(.mixed))
+        }
+        lenses.append(contentsOf: availability.map { .sport($0.discipline) })
+        return lenses
+    }
+
+    private func lensIdentifier(_ lens: ProgressLens) -> String {
+        switch lens {
+        case .global: "global"
+        case let .sport(discipline): discipline.rawValue
+        }
     }
 
     /// Projects the overview from the hub's existing SwiftData observations.
@@ -240,8 +322,18 @@ struct ProgressHubView: View {
             calendar: calendar
         )
         let rangeInterval = overviewRange.dateInterval()
-        let weekInterval = calendar.dateInterval(of: .weekOfYear, for: .now)
-
+        let workoutsInRange = completedWorkouts.filter { workout in
+            rangeInterval.map { $0.contains(workout.startTime) } ?? true
+        }
+        let globalProjection = GlobalProgressProjection.project(workouts: workoutsInRange)
+        let globalInterval = rangeInterval ?? DateInterval(
+            start: completedWorkouts.map(\.startTime).min() ?? .now,
+            end: Date.now.addingTimeInterval(1)
+        )
+        let sportTimeline = ProgressSportFocusTimeline.project(
+            workouts: completedWorkouts,
+            interval: globalInterval
+        )
         let activeFixed = planRuns.filter { $0.status == .active }
         let activeRepeating = repeatingPlanRuns.filter { $0.status == .active }
         var currentPlanID: UUID?
@@ -262,9 +354,21 @@ struct ProgressHubView: View {
 
         return .loaded(
             ProgressOverviewSummary(
-                workoutsThisWeek: consistency.weeklyFrequency.last?.workoutCount ?? 0,
-                trainingTimeThisWeekText: trainingTimeText(in: weekInterval),
-                consistencyTakeaway: consistency.takeawayText,
+                completedWorkoutsInRange: globalProjection.completedWorkoutCount,
+                completedEntriesInRange: globalProjection.completedEntryCount,
+                trainingTimeInRangeText: globalProjection.trainingTime.map(trainingTimeText),
+                sportEvidence: globalProjection.sportHighlights.compactMap { highlight in
+                    guard highlight.metric == .completedWorkouts,
+                          let value = highlight.value
+                    else { return nil }
+                    return ProgressOverviewSportEvidence(
+                        discipline: highlight.discipline,
+                        completedWorkoutCount: Int(value),
+                        quality: highlight.quality
+                    )
+                },
+                hasComparableSportFocus: sportTimeline.quality == .adequate
+                    && sportTimeline.periods.filter(\.hasEvidence).count >= 2,
                 weeklyFrequency: consistency.weeklyFrequency,
                 currentPlanID: currentPlanID,
                 currentPlanName: currentPlanName,
@@ -297,14 +401,7 @@ struct ProgressHubView: View {
 
     /// Nil rather than "0m" when nothing was recorded: an absent duration and a
     /// zero-length session are different facts.
-    private func trainingTimeText(in interval: DateInterval?) -> String? {
-        guard let interval else { return nil }
-        var seconds = TimeInterval.zero
-        for workout in completedWorkouts where interval.contains(workout.startTime) {
-            guard let end = workout.endTime else { continue }
-            seconds += end.timeIntervalSince(workout.startTime)
-        }
-        guard seconds > 0 else { return nil }
+    private func trainingTimeText(_ seconds: TimeInterval) -> String {
         let minutes = Int(seconds / 60)
         return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
     }

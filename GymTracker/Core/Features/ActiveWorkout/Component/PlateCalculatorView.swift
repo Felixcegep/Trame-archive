@@ -7,7 +7,7 @@ struct PlateCalculatorView: View {
     @AppStorage(DefaultsKey.useMetric) private var preferredUnitSystem: UnitSystem = .metric
     @Bindable var exerciseSet: ExerciseSet
     let usesBarbell: Bool
-    @State private var selectedBarID = BarKind.mensOlympic.id
+    @AppStorage(DefaultsKey.selectedBarKind) private var selectedBarID = BarKind.mensOlympic.id
     @State private var manualComposition: PlateLoadComposition?
 
     private var selectedBar: BarKind {
@@ -62,7 +62,7 @@ struct PlateCalculatorView: View {
                 .padding(Spacing.xl)
                 .padding(.bottom, Spacing.s)
             }
-            .background(Color.gymBackground)
+            .background(Color.trameCanvas)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 plateControls
             }
@@ -91,9 +91,10 @@ struct PlateCalculatorView: View {
                 Text("TARGET WEIGHT")
                     .font(AppFont.captionBold)
                     .tracking(0.8)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                 Text("\(formatted(exerciseSet.weight)) \(equipment.unitLabel)")
-                    .font(AppFont.displayLarge)
+                    .font(AppFont.metricHero)
+                    .foregroundStyle(Color.trameText)
                     .monospacedDigit()
                     .lineLimit(1)
             }
@@ -125,7 +126,7 @@ struct PlateCalculatorView: View {
                         Image(systemName: AppIcon.minimize)
                     }
                     .font(AppFont.captionSemiboldMonospaced)
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameText)
                     .frame(minHeight: 44, alignment: .trailing)
                     .contentShape(Rectangle())
                 }
@@ -141,7 +142,7 @@ struct PlateCalculatorView: View {
                 Text("BAR LOAD · ONE SIDE")
                     .font(AppFont.captionBold)
                     .tracking(0.8)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
 
                 Spacer(minLength: Spacing.xs)
 
@@ -152,8 +153,8 @@ struct PlateCalculatorView: View {
                         Label("Optimize", systemImage: AppIcon.reset)
                     }
                     .font(AppFont.captionBold)
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.gymPrimary)
+                    .buttonStyle(.bordered)
+                    .tint(Color.trameText)
                     .accessibilityLabel("Optimize plates")
                     .accessibilityHint("Replaces the manual selection with the most space-efficient plate combination")
                     .accessibilityIdentifier("optimize-plate-load")
@@ -179,7 +180,7 @@ struct PlateCalculatorView: View {
         }
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .accessibilityIdentifier("plate-summary")
     }
 
@@ -188,11 +189,11 @@ struct PlateCalculatorView: View {
         if exerciseSet.weight <= 0 {
             Label("Add plates below or enter a weight.", systemImage: AppIcon.number)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymAccent)
+                .foregroundStyle(Color.trameAttention)
         } else if exerciseSet.weight < equipment.barWeight {
             Label("Target is below the \(formatted(equipment.barWeight)) \(equipment.unitLabel) bar.", systemImage: AppIcon.warning)
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymAccent)
+                .foregroundStyle(Color.trameAttention)
         } else {
             if displayedRemainingWeight > 0.01 {
                 Label(
@@ -200,7 +201,7 @@ struct PlateCalculatorView: View {
                     systemImage: AppIcon.warning
                 )
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymAccent)
+                .foregroundStyle(Color.trameAttention)
             }
 
             if dynamicTypeSize.isAccessibilitySize || usesCompactPlateLayout {
@@ -225,10 +226,10 @@ struct PlateCalculatorView: View {
             Text("LOAD EACH SIDE")
                 .font(AppFont.captionBold)
                 .tracking(0.55)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
             Text(loadEachSideText)
                 .font(usesCompactPlateLayout ? AppFont.subheadlineSemiboldMonospaced : AppFont.titleSmallSemiboldMonospaced)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameText)
                 .lineLimit(2)
         }
     }
@@ -236,7 +237,7 @@ struct PlateCalculatorView: View {
     private var totalSummary: some View {
         Text("Per side incl. ½ bar \(formatted(displayedPerSideWeight)) \(equipment.unitLabel) · Total \(formatted(displayedTotalWeight)) \(equipment.unitLabel)")
             .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -290,7 +291,7 @@ struct PlateCalculatorView: View {
             .padding(.horizontal, Spacing.xl)
         }
         .padding(.vertical, Spacing.s)
-        .background(Color.gymBackground)
+        .background(Color.trameSurface)
     }
 
     private func plateStepper(for plate: Float) -> some View {
@@ -311,14 +312,14 @@ struct PlateCalculatorView: View {
                 Circle()
                     .fill(plateColor(for: plate))
                     .frame(width: 10, height: 10)
-                    .overlay { Circle().stroke(Color.gymText.opacity(0.18), lineWidth: 0.5) }
+                    .overlay { Circle().stroke(Color.trameSeparator, lineWidth: 0.5) }
                 Text("\(formatted(plate))")
                     .font(AppFont.headlineMonospaced)
                     .lineLimit(1)
                 if loadedCount > 0 {
                     Text("×\(loadedCount)")
                         .font(AppFont.captionSemiboldMonospaced)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
                 }
             }
             .accessibilityHidden(true)
@@ -333,9 +334,15 @@ struct PlateCalculatorView: View {
             .accessibilityLabel("Add \(formatted(plate)) \(equipment.unitLabel) each side")
         }
         .buttonStyle(.borderless)
-        .foregroundStyle(Color.gymPrimary)
-        .background(Color.gymCard, in: Capsule())
-        .overlay { Capsule().stroke(Color.gymBorder, lineWidth: 1) }
+        .foregroundStyle(Color.trameText)
+        .background(
+            Color.trameRow,
+            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .stroke(Color.trameSeparator, lineWidth: 1)
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(formatted(plate)) \(equipment.unitLabel) plate, \(loadedCount) per side")
         .accessibilityIdentifier("plate-stepper-\(formatted(plate))")
@@ -347,10 +354,10 @@ struct PlateCalculatorView: View {
             systemImage: AppIcon.info
         )
         .font(AppFont.subheadline)
-        .foregroundStyle(Color.gymAccent)
+        .foregroundStyle(Color.trameText)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.l)
-        .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
+        .background(Color.trameRow, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
     // Real-world competition plate colors (IWF convention); intentionally not
@@ -464,13 +471,13 @@ private struct PlateDiagramView: View {
                 if item.count > 1 {
                     Text("×\(item.count)")
                         .font(AppFont.caption2Bold)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                         .padding(.horizontal, Spacing.xs)
                         .padding(.vertical, Spacing.xxs)
-                        .background(Color.gymCard, in: Capsule())
+                        .background(Color.trameSurface, in: Capsule())
                         .overlay {
                             Capsule()
-                                .stroke(Color.gymBorder, lineWidth: 1)
+                                .stroke(Color.trameSeparator, lineWidth: 1)
                         }
                         .offset(x: Spacing.m, y: -Spacing.s)
                         .accessibilityHidden(true)
@@ -486,7 +493,7 @@ private struct PlateDiagramView: View {
                 if showsLabel {
                     Text(Formatters.formatFloat(barWeight))
                         .font(AppFont.captionSemiboldMonospaced)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .accessibilityHidden(true)
@@ -522,7 +529,7 @@ private struct PlateDiagramView: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .stroke(Color.gymText.opacity(0.18), lineWidth: 1)
+                    .stroke(Color.trameSeparator, lineWidth: 1)
             }
     }
 }

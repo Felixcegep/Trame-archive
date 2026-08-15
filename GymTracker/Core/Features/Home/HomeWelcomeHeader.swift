@@ -8,43 +8,66 @@ import SwiftUI
 /// so the header keeps only what the card does not say: the date, and a tap
 /// target into the plan itself.
 struct HomeWelcomeHeader: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let activePlanRun: PlanRun?
     let activeRepeatingPlanRun: RepeatingPlanRun?
     let onOpenPlan: (UUID) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            // Subdued ink, not `gymAccent`.
-            //
-            // `Colors.swift` defines that token as "a running rest period, a
-            // warning, a blocked value, an estimate. Never data." A date is none
-            // of those — it was simply the most prominent coloured element on
-            // Today, which meant the screen's loudest signal pointed at the one
-            // thing on it that never changes and never needs acting on.
-            Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                .font(AppFont.subheadlineMediumMonospaced)
-                .foregroundStyle(Color.gymSubduedText)
-
-            if let activePlanRun {
-                planChip(
-                    planID: activePlanRun.sourcePlanID,
-                    icon: AppIcon.plan,
-                    name: activePlanRun.sourcePlanName,
-                    stage: "Week \(activePlanRun.currentWeekIndex + 1)",
-                    accessibilityLabel: "Active plan: \(activePlanRun.sourcePlanName), week \(activePlanRun.currentWeekIndex + 1)",
-                    accessibilityIdentifier: "active-plan-badge"
-                )
-            } else if let activeRepeatingPlanRun {
-                planChip(
-                    planID: activeRepeatingPlanRun.sourcePlanID,
-                    icon: AppIcon.routine,
-                    name: activeRepeatingPlanRun.sourcePlanName,
-                    stage: "Cycle \(activeRepeatingPlanRun.completedCycleCount + 1)",
-                    accessibilityLabel: "Active rotation: \(activeRepeatingPlanRun.sourcePlanName), cycle \(activeRepeatingPlanRun.completedCycleCount + 1)",
-                    accessibilityIdentifier: "active-repeating-plan-badge"
-                )
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    dateLabel
+                    planContext
+                }
+            } else {
+                HStack(spacing: Spacing.m) {
+                    dateLabel
+                    Spacer(minLength: Spacing.s)
+                    planContext
+                }
             }
         }
+    }
+
+    private var dateLabel: some View {
+        // Subdued ink keeps orientation available without spending a semantic
+        // training color on information that never needs action.
+        Text(todayLabel)
+            .font(AppFont.eyebrow)
+            .tracking(1.1)
+            .foregroundStyle(Color.trameSubdued)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
+    @ViewBuilder
+    private var planContext: some View {
+        if let activePlanRun {
+            planChip(
+                planID: activePlanRun.sourcePlanID,
+                icon: AppIcon.plan,
+                name: activePlanRun.sourcePlanName,
+                stage: "Week \(activePlanRun.currentWeekIndex + 1)",
+                accessibilityLabel: "Active plan: \(activePlanRun.sourcePlanName), week \(activePlanRun.currentWeekIndex + 1)",
+                accessibilityIdentifier: "active-plan-badge"
+            )
+        } else if let activeRepeatingPlanRun {
+            planChip(
+                planID: activeRepeatingPlanRun.sourcePlanID,
+                icon: AppIcon.routine,
+                name: activeRepeatingPlanRun.sourcePlanName,
+                stage: "Cycle \(activeRepeatingPlanRun.completedCycleCount + 1)",
+                accessibilityLabel: "Active rotation: \(activeRepeatingPlanRun.sourcePlanName), cycle \(activeRepeatingPlanRun.completedCycleCount + 1)",
+                accessibilityIdentifier: "active-repeating-plan-badge"
+            )
+        }
+    }
+
+    private var todayLabel: String {
+        Date.now
+            .formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+            .uppercased(with: .current)
     }
 
     private func planChip(
@@ -61,28 +84,25 @@ struct HomeWelcomeHeader: View {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: icon)
                     .font(AppFont.captionBold)
+                    .foregroundStyle(Color.trameStrength)
 
                 Text(name)
-                    .font(AppFont.captionBold)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameText)
                     .lineLimit(1)
                     .truncationMode(.tail)
 
-                Spacer(minLength: Spacing.s)
-
                 Text(stage)
-                    .font(AppFont.captionBold)
-                    .padding(.horizontal, Spacing.s)
-                    .padding(.vertical, Spacing.xxs)
-                    .background(Color.gymBackground, in: Capsule())
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
 
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.captionBold)
+                    .foregroundStyle(Color.trameSubdued)
             }
-            .foregroundStyle(Color.gymAccent)
             .padding(.horizontal, Spacing.m)
-            .padding(.vertical, Spacing.s)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .background(Color.trameRow, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)

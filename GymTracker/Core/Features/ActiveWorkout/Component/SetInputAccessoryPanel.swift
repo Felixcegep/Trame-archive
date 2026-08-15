@@ -109,7 +109,17 @@ struct SetInputAccessoryPanel: View {
                 VStack(spacing: Spacing.s) {
                     contextHeader(exercise: exercise, set: set)
 
-                    valueRow(exercise: exercise, set: set)
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Current value")
+                            .font(AppFont.micro)
+                            .tracking(0.6)
+                            .textCase(.uppercase)
+                            .foregroundStyle(Color.trameSubdued)
+
+                        valueRow(exercise: exercise, set: set)
+                    }
+
+                    referenceLandmarks(exercise: exercise, set: set)
 
                     quickValueRow(exercise: exercise, set: set)
 
@@ -118,8 +128,6 @@ struct SetInputAccessoryPanel: View {
                     validationBanner
 
                     chipRow(exercise: exercise, set: set)
-
-                    footer(exercise: exercise, set: set)
 
                     // The keypad is part of this panel rather than a text
                     // field's `inputView`. Nothing here is a first responder,
@@ -173,6 +181,8 @@ struct SetInputAccessoryPanel: View {
                             handle(key, field: focusedField, set: set)
                         }
                     }
+
+                    footer(exercise: exercise, set: set)
                 }
             }
         }
@@ -196,15 +206,14 @@ struct SetInputAccessoryPanel: View {
                 topTrailingRadius: Radius.card,
                 style: .continuous
             )
-            .fill(Color.gymCard)
+            .fill(Color.trameSurface)
             .ignoresSafeArea(edges: .bottom)
         )
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(Color.gymBorder)
+                .fill(Color.trameSeparator)
                 .frame(height: 1)
         }
-        .shadow(color: Color.gymText.opacity(0.03), radius: 6, y: -2)
         .animation(reduceMotion ? nil : AppMotion.compact, value: coordinator.focus)
         // Moving to another field or another set puts the duration keypad back
         // to its presets. The digit pad is the exception, and an exception that
@@ -295,7 +304,7 @@ struct SetInputAccessoryPanel: View {
                     Text(setPositionText(exercise: exercise, set: set))
                         .font(AppFont.caption)
                 }
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .combine)
@@ -314,9 +323,9 @@ struct SetInputAccessoryPanel: View {
                 } label: {
                     Image(systemName: AppIcon.minimize)
                         .font(AppFont.caption2Bold)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .frame(width: 26, height: 26)
-                        .background(Color.gymRowSurface, in: Circle())
+                        .background(Color.trameRow, in: Circle())
                         .frame(
                             width: ComponentSize.minimumTouchTarget,
                             height: ComponentSize.minimumTouchTarget
@@ -328,29 +337,29 @@ struct SetInputAccessoryPanel: View {
                 .accessibilityIdentifier("panel-dismiss")
             }
 
-            // What the plan asks for, and what the lifter actually did here
-            // last time — the two numbers a set is measured against, on its
-            // own row so it reads as a fact rather than a caption trailing
-            // the buttons above it.
-            //
-            // With the keypad raised the panel owns most of the screen and
-            // the set table is clipped to a couple of rows, so every other
-            // affordance carrying previous performance — the card-level
-            // summary, the field placeholder, the "use last time" button —
-            // is off screen at exactly the moment the number is being typed.
-            // The target already lived in this header; its counterpart did
-            // not, and the data was already loaded one view model away.
-            if let reference = referenceText(exercise: exercise, set: set) {
-                Text(reference)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymText)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, Spacing.s)
-                    .padding(.vertical, Spacing.xs)
-                    .background(Color.gymRowSurface, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
-                    .accessibilityLabel(reference)
-            }
+        }
+    }
+
+    /// Target and prior performance sit immediately below the answer they
+    /// qualify. This is the shared landmark position for every set instrument:
+    /// the value leads, then the evidence used to choose it, then the control.
+    @ViewBuilder
+    private func referenceLandmarks(exercise: ExerciseEntry, set: ExerciseSet) -> some View {
+        if let reference = referenceText(exercise: exercise, set: set) {
+            Text(reference)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameText)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.s)
+                .padding(.vertical, Spacing.s)
+                .background(
+                    Color.trameRow,
+                    in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
+                )
+                .accessibilityLabel(reference)
+                .accessibilityIdentifier("panel-reference-landmarks")
         }
     }
 
@@ -515,7 +524,7 @@ struct SetInputAccessoryPanel: View {
                 .font(AppFont.captionBold)
                 .tracking(0.6)
                 .textCase(.uppercase)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: Spacing.s) {
@@ -553,7 +562,7 @@ struct SetInputAccessoryPanel: View {
                 } else {
                     Text("Step: \(Formatters.formatFloat(Float(selectedStep))) \(set.weightType.rawValue)")
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityHidden(true)
                 }
@@ -623,7 +632,7 @@ struct SetInputAccessoryPanel: View {
             } label: {
                 Text(shown.isEmpty ? "—" : shown)
                     .font(AppFont.titleSmallSemiboldMonospaced)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .contentShape(Rectangle())
@@ -654,7 +663,7 @@ struct SetInputAccessoryPanel: View {
                 } label: {
                     Text(unitLabel(field: field, exercise: exercise, set: set))
                         .font(AppFont.captionBold)
-                        .foregroundStyle(Color.gymPrimary)
+                        .foregroundStyle(Color.trameText)
                         .underline()
                         .lineLimit(1)
                         // Shrinks with the value beside it. "225.97" and "lbs"
@@ -674,7 +683,7 @@ struct SetInputAccessoryPanel: View {
                 // line inside a fixed-width pill.
                 Text(unitLabel(field: field, exercise: exercise, set: set))
                     .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
@@ -683,12 +692,12 @@ struct SetInputAccessoryPanel: View {
         // Tight on purpose: the two 44-point steppers beside it are fixed, so
         // every point of pill padding comes straight out of the number.
         .padding(.horizontal, Spacing.xs)
-        .background(isActive ? Color.gymPrimarySurface : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+        .background(isActive ? Color.trameCurrent : Color.trameRow)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.field, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
                 .stroke(
-                    isActive ? Color.gymPrimary : Color.gymBorder,
+                    isActive ? Color.trameActionOutline : Color.trameSeparator,
                     lineWidth: isActive ? 1.5 : 1
                 )
         }
@@ -710,14 +719,14 @@ struct SetInputAccessoryPanel: View {
                 Image(systemName: AppIcon.picker)
                     .font(AppFont.caption2Bold)
             }
-            .foregroundStyle(Color.gymPrimary)
+            .foregroundStyle(Color.trameText)
             // Given the same capsule the other panel chips wear. As bare tinted
             // text beside a caption it read as a label, so the fact that the
             // step size could be changed at all was invisible.
             .padding(.horizontal, Spacing.m)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
-            .background(Color.gymPrimary.opacity(0.12), in: Capsule())
-            .overlay { Capsule().stroke(Color.gymPrimary.opacity(0.3), lineWidth: 1) }
+            .background(Color.trameCurrent, in: Capsule())
+            .overlay { Capsule().stroke(Color.trameSeparator, lineWidth: 1) }
             .contentShape(Capsule())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -760,9 +769,9 @@ struct SetInputAccessoryPanel: View {
         StepperButton(
             label: Image(systemName: systemImage)
                 .font(AppFont.caption2Bold)
-                .foregroundStyle(Color.gymPrimary)
+                .foregroundStyle(Color.trameText)
                 .frame(width: controlSize, height: controlSize)
-                .background(Color.gymPrimary.opacity(0.12), in: Circle())
+                .background(Color.trameRow, in: Circle())
                 .contentShape(Circle()),
             accessibilityLabel: step < 0
                 ? "Decrease \(fieldName(field)) by \(Formatters.formatFloat(Float(abs(step))))"
@@ -820,7 +829,7 @@ struct SetInputAccessoryPanel: View {
                         .font(AppFont.caption2Bold)
                         .tracking(0.6)
                         .textCase(.uppercase)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 }
 
                 // Scrolls rather than compressing: at accessibility text sizes
@@ -854,11 +863,11 @@ struct SetInputAccessoryPanel: View {
                 .font(AppFont.footnoteMedium)
                 .monospacedDigit()
                 .lineLimit(1)
-                .foregroundStyle(value.isProminent ? Color.gymPrimary : Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .padding(.horizontal, Spacing.m)
                 .frame(minHeight: ComponentSize.minimumTouchTarget)
                 .background(
-                    value.isProminent ? Color.gymPrimarySurface : Color.gymRowSurface,
+                    value.isProminent ? Color.trameCurrent : Color.trameRow,
                     in: Capsule()
                 )
                 .contentShape(Capsule())
@@ -1208,12 +1217,12 @@ struct SetInputAccessoryPanel: View {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
                 Image(systemName: AppIcon.warningCircle)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymAccent)
+                    .foregroundStyle(Color.trameAttention)
                     .accessibilityHidden(true)
 
                 Text(validationMessage)
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -1222,12 +1231,12 @@ struct SetInputAccessoryPanel: View {
             .padding(.vertical, Spacing.s)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                Color.gymAccentSurface,
-                in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                Color.trameRow,
+                in: RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                    .stroke(Color.gymAccent.opacity(0.35), lineWidth: 1)
+                RoundedRectangle(cornerRadius: Radius.field, style: .continuous)
+                    .stroke(Color.trameAttention, lineWidth: 1)
             }
             .gymShake(trigger: coordinator.blockedAttemptCount)
             .accessibilityElement(children: .contain)
@@ -1277,7 +1286,7 @@ struct SetInputAccessoryPanel: View {
                 coordinator.clearBlockedAttempt()
             }
             .font(AppFont.footnoteMedium)
-            .foregroundStyle(Color.gymPrimary)
+            .foregroundStyle(Color.trameText)
             .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
             .contentShape(Rectangle())
             .accessibilityIdentifier("panel-back-to-keypad")
@@ -1305,7 +1314,7 @@ struct SetInputAccessoryPanel: View {
                 systemImage: isComplete ? AppIcon.checkmarkCircle : AppIcon.circleDashed
             )
             .font(AppFont.caption)
-            .foregroundStyle(isComplete ? Color.gymSecondary : Color.gymAccent)
+            .foregroundStyle(isComplete ? Color.trameCompleted : Color.trameAttention)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel(
                 isComplete
@@ -1323,15 +1332,8 @@ struct SetInputAccessoryPanel: View {
             confirm(exercise: exercise, set: set)
         } label: {
             Label("Complete set", systemImage: AppIcon.checkmark)
-                .font(AppFont.subheadlineBold)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: 50)
-                .background(Color.gymSecondary)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.gymPress)
+        .buttonStyle(.tramePrimaryAction)
         // The button the lifter actually tapped shakes too, not just the
         // message. The tap is the moment their attention is on the screen; a
         // refusal that only renders somewhere else has already missed it.
@@ -1355,9 +1357,9 @@ struct SetInputAccessoryPanel: View {
             // use.
             Image(systemName: systemImage)
                 .font(AppFont.captionBold)
-                .foregroundStyle(isEnabled ? Color.gymPrimary : Color.gymSubduedText)
+                .foregroundStyle(isEnabled ? Color.trameText : Color.trameSubdued)
                 .frame(width: 26, height: 26)
-                .background(isEnabled ? Color.gymPrimarySurface : Color.gymRowSurface, in: Circle())
+                .background(isEnabled ? Color.trameCurrent : Color.trameRow, in: Circle())
                 .frame(
                     width: ComponentSize.minimumTouchTarget,
                     height: ComponentSize.minimumTouchTarget

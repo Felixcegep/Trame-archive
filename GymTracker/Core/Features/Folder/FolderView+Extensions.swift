@@ -4,20 +4,20 @@ extension View {
     func folderScreenStyle() -> some View {
         self
             .scrollContentBackground(.hidden)
-            .background(Color.gymBackground)
-            .foregroundStyle(Color.gymText)
-            .tint(Color.gymPrimary)
-            .toolbarBackground(Color.gymBackground, for: .navigationBar)
+            .background(Color.trameCanvas)
+            .foregroundStyle(Color.trameText)
+            .tint(Color.trameStrength)
+            .toolbarBackground(Color.trameCanvas, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.gymCard, for: .tabBar)
+            .toolbarBackground(Color.trameSurface, for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
     }
 
     func folderRowBackground() -> some View {
-        self.listRowBackground(Color.gymCard)
+        self.listRowBackground(Color.trameSurface)
     }
 
     func folderSelectedRowBackground(_ isSelected: Bool) -> some View {
-        self.listRowBackground(isSelected ? Color.gymPrimarySurface : Color.gymCard)
+        self.listRowBackground(isSelected ? Color.trameCurrent : Color.trameSurface)
     }
 }

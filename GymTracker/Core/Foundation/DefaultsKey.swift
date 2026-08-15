@@ -69,6 +69,23 @@ enum AppAppearance: String, CaseIterable {
         }
     }
 
+    /// Resolves the three-state preference without treating a missing legacy
+    /// Boolean as an authored Light choice. Kept here so Root and Settings
+    /// cannot drift during the Performance Dark default migration.
+    static func resolved(
+        stored: AppAppearance,
+        legacyDarkMode: Bool,
+        defaults: UserDefaults = .standard
+    ) -> AppAppearance {
+        if defaults.object(forKey: DefaultsKey.appearance) != nil {
+            return stored
+        }
+        if defaults.object(forKey: DefaultsKey.darkMode) != nil {
+            return legacyDarkMode ? .dark : .light
+        }
+        return .dark
+    }
+
 }
 
 enum EffortMeasure: String, CaseIterable {

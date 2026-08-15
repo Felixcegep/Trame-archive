@@ -11,7 +11,7 @@ import SwiftData
 /// between efforts.
 ///
 /// So the session is now paged: one exercise (or one superset, or one execution
-/// block) per page, the whole session summarised by the dot rail in the header,
+/// block) per page, the whole session summarized by the position rail in the header,
 /// the whole session listed again on the final page where reviewing it is the
 /// actual task. Rest takes the page when rest is what is happening. And the
 /// most frequent action in the app — logging a set — has one fixed location in
@@ -91,11 +91,11 @@ struct ActiveWorkoutView: View {
                 )
             }
         }
-        .foregroundStyle(Color.gymText)
-        .background(Color.gymBackground.ignoresSafeArea())
-        .tint(Color.gymPrimary)
-        // The header replaces the navigation bar: the dot rail needs the full
-        // width, which no bar placement offers.
+        .foregroundStyle(Color.trameText)
+        .background(Color.trameCanvas.ignoresSafeArea())
+        .tint(Color.trameAction)
+        // The header replaces the navigation bar: the session position rail
+        // needs the full width, which no bar placement offers.
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .confirmationDialog(
@@ -251,7 +251,7 @@ struct ActiveWorkoutView: View {
                                 isRestExpanded = true
                             }
                         }
-                        .padding(.horizontal, Spacing.l)
+                        .padding(.horizontal, Spacing.screenInset)
                     }
 
                     // SwiftUI's keyboard avoidance lifts this bottom safe-area
@@ -405,22 +405,22 @@ struct ActiveWorkoutView: View {
             HStack(spacing: Spacing.s) {
                 Image(systemName: AppIcon.warning)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymAccent)
+                    .foregroundStyle(Color.trameSubdued)
                     .accessibilityHidden(true)
-                Text("Some changes haven’t saved yet. Keep entering — GymTracker will try again.")
+                Text("Changes haven’t saved yet. Keep entering — Trame will try again.")
                     .font(AppFont.caption)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, Spacing.m)
             .padding(.vertical, Spacing.s)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.gymAccentSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .background(Color.trameRow, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
+                    .stroke(Color.trameSeparator, lineWidth: 1)
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.bottom, Spacing.s)
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("active-workout-save-failure-banner")
@@ -442,7 +442,7 @@ struct ActiveWorkoutView: View {
                 onAccept: { resolveActiveRecommendation(recommendation, accepting: true) },
                 onDecline: { resolveActiveRecommendation(recommendation, accepting: false) }
             )
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.bottom, Spacing.s)
         }
     }

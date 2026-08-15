@@ -37,25 +37,30 @@ struct WorkoutTemplateDetailView: View {
                 Section("Execution Blocks") {
                     ForEach(template.orderedExecutionBlocks, id: \.persistentModelID) { block in
                         HStack {
-                            Image(systemName: AppIcon.relationship)
-                                .foregroundStyle(Color.gymPrimary)
+                            TrameCategoryTile(
+                                systemImage: AppIcon.relationship,
+                                fill: Color.trameCompetition,
+                                size: ComponentSize.iconChip
+                            )
                             VStack(alignment: .leading) {
                                 Text(block.name ?? block.kind.title)
                                 Text(templateBlockSummary(block))
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .font(AppFont.metadata)
+                                    .foregroundStyle(Color.trameSubdued)
                             }
                             Spacer()
                             Button("Edit") {
                                 executionBlockToEdit = block
                             }
-                            .font(AppFont.captionBold)
+                            .font(AppFont.metadata)
+                            .frame(minHeight: ComponentSize.minimumTouchTarget)
                             Button("Remove", role: .destructive) {
                                 TemplateExecutionBlockService.remove(block, from: template)
                                 modelContext.delete(block)
                                 saveModelContext(modelContext)
                             }
-                            .font(AppFont.captionBold)
+                            .font(AppFont.metadata)
+                            .frame(minHeight: ComponentSize.minimumTouchTarget)
                         }
                     }
                 }
@@ -63,7 +68,7 @@ struct WorkoutTemplateDetailView: View {
             Section("Exercises") {
                 if orderedTemplateExercises.isEmpty {
                     Text("No exercises in this workout")
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                 } else {
                     ForEach(orderedTemplateExercises, id: \.persistentModelID) { templateExercise in
                         NavigationLink {
@@ -115,16 +120,11 @@ struct WorkoutTemplateDetailView: View {
                 Text("These routines are offered before or after future starts of this workout. Completed mobility history stays unchanged.")
             }
         }
+        .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(template.name)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button("Start", systemImage: "play.fill") {
-                    onStartWorkout(template)
-                }
-                .disabled(orderedTemplateExercises.isEmpty)
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Add exercise", systemImage: AppIcon.plus) {
@@ -156,6 +156,20 @@ struct WorkoutTemplateDetailView: View {
                 .accessibilityIdentifier("template-options-menu")
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            Button("Start", systemImage: "play.fill") {
+                onStartWorkout(template)
+            }
+            .buttonStyle(.tramePrimaryAction)
+            .disabled(orderedTemplateExercises.isEmpty)
+            .padding(.horizontal, Spacing.screenInset)
+            .padding(.vertical, Spacing.s)
+            .background(Color.trameSurface)
+            .overlay(alignment: .top) {
+                Divider().overlay(Color.trameSeparator)
+            }
+        }
+        .tint(Color.trameStrength)
         .alert("Rename Template", isPresented: $isShowingRenamePrompt) {
             TextField("Template Name", text: $renameText)
             Button("Cancel", role: .cancel) { }

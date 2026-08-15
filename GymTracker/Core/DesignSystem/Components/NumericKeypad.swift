@@ -73,7 +73,7 @@ struct NumericKeypad: View {
         .padding(.horizontal, Spacing.s)
         .padding(.vertical, Spacing.s)
         .frame(maxWidth: .infinity)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         // Digits are already oversized, so growth past this point only steals
         // room from the set list without improving legibility.
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
@@ -89,10 +89,10 @@ struct NumericKeypad: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: ComponentSize.keypadKeyHeight)
                 .background(keyBackground(for: key))
-                .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                        .stroke(Color.gymBorder, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                        .stroke(Color.trameSeparator, lineWidth: 1)
                 }
                 .contentShape(Rectangle())
         }
@@ -107,20 +107,20 @@ struct NumericKeypad: View {
         case .digit(let value):
             Text("\(value)")
                 .font(AppFont.titleMediumMonospaced)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
         case .decimal:
             Text(decimalSeparator)
                 .font(AppFont.titleMediumMonospaced)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
         case .backspace:
             Image(systemName: AppIcon.backspace)
                 .font(AppFont.titleSmallSemibold)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
     }
 
     private func keyBackground(for key: KeypadKey) -> Color {
-        key == .backspace ? Color.gymCard.opacity(0.6) : Color.gymCard
+        key == .backspace ? Color.trameRow : Color.trameSurface
     }
 
     private func identifier(for key: KeypadKey) -> String {
@@ -137,5 +137,5 @@ struct NumericKeypad: View {
         Spacer()
         NumericKeypad { _ in }
     }
-    .background(Color.gymBackground)
+    .background(Color.trameCanvas)
 }

@@ -65,6 +65,7 @@ struct AthleteIntelligenceSection: View {
     let range: AnalyticsDateRange
     let workouts: [Workout]
     let showsGlobalSummary: Bool
+    let showsLensPicker: Bool
     let onNavigate: (ProgressRoute) -> Void
     @State private var projectionCache: AthleteIntelligenceProjectionCache?
 
@@ -76,6 +77,7 @@ struct AthleteIntelligenceSection: View {
         range: AnalyticsDateRange,
         workouts: [Workout],
         showsGlobalSummary: Bool = true,
+        showsLensPicker: Bool = true,
         onNavigate: @escaping (ProgressRoute) -> Void = { _ in }
     ) {
         _selectedLens = selectedLens
@@ -83,6 +85,7 @@ struct AthleteIntelligenceSection: View {
         self.range = range
         self.workouts = workouts
         self.showsGlobalSummary = showsGlobalSummary
+        self.showsLensPicker = showsLensPicker
         self.onNavigate = onNavigate
 
         var descriptor = FetchDescriptor<TrainingProfile>()
@@ -179,13 +182,11 @@ struct AthleteIntelligenceSection: View {
             $0.inputID == inputID ? $0 : nil
         } ?? makeProjection(inputID: inputID)
 
-        lensPicker(availability: projection.availability)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
-            .task(id: inputID) {
-                guard projectionCache?.inputID != inputID else { return }
-                projectionCache = projection
-            }
+        if showsLensPicker {
+            lensPicker(availability: projection.availability)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: Spacing.s, leading: 0, bottom: Spacing.s, trailing: 0))
+        }
 
         switch selectedLens {
         case .global:
@@ -197,6 +198,10 @@ struct AthleteIntelligenceSection: View {
         athleteProfileControl(suggestion: projection.suggestion)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
+            .task(id: inputID) {
+                guard projectionCache?.inputID != inputID else { return }
+                projectionCache = projection
+            }
     }
 
     @ViewBuilder

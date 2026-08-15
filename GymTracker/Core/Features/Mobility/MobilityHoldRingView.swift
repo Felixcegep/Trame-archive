@@ -37,7 +37,7 @@ struct MobilityHoldRingView: View {
     }
 
     private var ringColor: Color {
-        hasReachedTarget ? Color.gymSecondary : Color.gymAccent
+        hasReachedTarget ? Color.trameCompleted : Color.trameMobility
     }
 
     private var ringSize: CGFloat {
@@ -51,7 +51,7 @@ struct MobilityHoldRingView: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.gymText.opacity(0.08), lineWidth: ringWidth)
+                .stroke(Color.trameRow, lineWidth: ringWidth)
 
             Circle()
                 .trim(from: 0, to: progress)
@@ -98,33 +98,33 @@ struct MobilityHoldRingView: View {
             VStack(spacing: Spacing.xs) {
                 Image(systemName: AppIcon.pause)
                     .font(AppFont.titleMedium)
-                    .foregroundStyle(Color.gymAccent)
+                    .foregroundStyle(Color.trameText)
                 Text("Paused at \(elapsedSeconds) sec")
                     .font(AppFont.subheadlineSemibold)
                     .monospacedDigit()
-                    .foregroundStyle(Color.gymAccent)
+                    .foregroundStyle(Color.trameText)
                     .multilineTextAlignment(.center)
             }
         } else if hasReachedTarget {
             VStack(spacing: Spacing.xs) {
                 Image(systemName: AppIcon.checkmarkCircle)
                     .font(AppFont.displayMedium)
-                    .foregroundStyle(Color.gymSecondary)
+                    .foregroundStyle(Color.trameCompleted)
                 Text("\(elapsedSeconds) sec")
-                    .font(AppFont.titleSmallSemiboldMonospaced)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metricCompact)
+                    .foregroundStyle(Color.trameSubdued)
             }
         } else {
             VStack(spacing: 0) {
                 Text("\(elapsedSeconds)")
-                    .font(AppFont.restCountdown)
+                    .font(AppFont.timer)
                     .monospacedDigit()
                     .minimumScaleFactor(0.4)
                     .lineLimit(1)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                 Text("of \(targetSeconds) sec")
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
             }
         }
     }

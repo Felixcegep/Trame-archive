@@ -42,30 +42,17 @@ struct SetRowView: View {
             )
         }
         .padding(.horizontal, Spacing.m)
-        // Density, deliberately chosen rather than inherited.
-        //
-        // `Spacing.m` (12) put the rows on a ~78pt pitch, which fits three sets
-        // on screen. The reference this was calibrated against runs 7pt and
-        // fits six — but it is dark-on-dark with hairline dividers, while these
-        // rows are bordered cards on cream and go muddy much below 48pt total.
-        // `Spacing.s` (8) lands between the two at ~56pt, which is the point
-        // where the common 3× and 5× prescriptions both stop needing a scroll.
         .padding(.vertical, Spacing.s)
         .contentShape(Rectangle())
         .onTapGesture {
             beginEditingIfNeeded()
         }
         .background(rowSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                 .stroke(rowBorder, lineWidth: rowBorderWidth)
         }
-        // Cream on cream: `gymCard` sits only a few points of luminance above
-        // `gymBackground`, so in light mode the fill alone would not lift the
-        // row off the page. The outline does most of the work and this does the
-        // rest — at the design system's stated card weight, not more.
-        .shadow(color: Color.gymText.opacity(0.03), radius: 4, y: 1)
         // A shape, not a hue. The current row was previously marked by a tinted
         // fill, a tinted index, and this bar — three cues that are all the same
         // cue, and all of which vanish in grayscale, under Increase Contrast, or
@@ -75,10 +62,9 @@ struct SetRowView: View {
         .overlay(alignment: .leading) {
             if isCurrentSet, !exerciseSet.done, !isEditingCompletedSet {
                 Image(systemName: AppIcon.currentPointer)
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(Color.gymPrimary)
-                    // Clear of the row's own outline, which it would otherwise
-                    // sit directly on top of now that every row draws one.
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameAction)
+                    // Clear of the current row's structural outline.
                     .padding(.leading, Spacing.xs)
                     .accessibilityHidden(true)
             }
@@ -157,7 +143,7 @@ struct SetRowView: View {
     private var previousValueColumn: some View {
         Text(previousValueText)
             .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
+            .foregroundStyle(Color.trameSubdued)
             .lineLimit(1)
             .frame(width: 52, alignment: .leading)
             .accessibilityLabel(String(localized: "Previous: \(previousValueText)"))
@@ -192,7 +178,7 @@ struct SetRowView: View {
                 statusBadge
                 Text("Set \(index + 1) · \(exerciseSet.setType.title)")
                     .font(AppFont.footnoteMedium)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .foregroundStyle(Color.trameSubdued)
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 rowActions
@@ -232,53 +218,27 @@ struct SetRowView: View {
         exerciseEntry.orderedSets.first(where: { !$0.done })?.persistentModelID == exerciseSet.persistentModelID
     }
 
-    /// Every row is a card.
-    ///
-    /// This previously returned `.clear` for a plain incomplete row, on the
-    /// reasoning that only a *state* should get a fill and that rows would stay
-    /// separated by list spacing and by the outlines of the value cells inside
-    /// them. Against the old dense card list that held. Against the paged stage
-    /// it does not, for a reason the old layout never exposed: a row is not one
-    /// line. It is a value line **plus** `SetRowSecondaryContent` — Olympic
-    /// complex components, a tempo note, an RPE badge, a duration countdown, a
-    /// "use last time" button. With no fill behind either part, that secondary
-    /// block floats in the gap between two rows and belongs, visually, to
-    /// whichever one the eye reaches first. A lifter looking at three snatch
-    /// singles cannot tell which set the "COMPLEX · Snatch ×1 · Not logged"
-    /// block is attached to, and that is the one thing the row has to make
-    /// unambiguous.
-    ///
-    /// A fill is what makes a row *one object*. So the surface now answers
-    /// "which set is this" first and "what state is it in" second — the border
-    /// carries state alongside it (see `rowBorder`), which is a second channel
-    /// rather than a competing one.
+    /// Untouched sets belong to the open table. Opaque fields are reserved for
+    /// meaningful state: current, completed, or explicit completed-set editing.
     private var rowSurface: Color {
         if isEditingCompletedSet {
-            return Color.gymPrimarySurface
+            return Color.trameCurrent
         }
         if exerciseSet.done {
-            // A completed row keeps its wash. It is genuinely state, and it is
-            // the fastest way to scan which sets are behind you.
-            return Color.gymSecondarySurface
+            return Color.trameRow
         }
-        return Color.gymCard
+        if isActiveSet {
+            return Color.trameCurrent
+        }
+        return Color.clear
     }
 
-    /// State, carried on the outline so it does not have to compete with the
-    /// fill that separates one row from the next.
-    ///
-    /// The current row is outlined in the same blue that marks a focused value
-    /// cell, which is the app's existing "this is what you can act on now"
-    /// signal — and it matches what the closest domain references do for an
-    /// active set.
+    /// Current/editing state gets a structural edge in addition to its fill and
+    /// pointer. Completed state already carries a checkmark and opaque row field.
     private var rowBorder: Color {
-        if isEditingCompletedSet || isActiveSet {
-            return Color.gymPrimary
-        }
-        if exerciseSet.done {
-            return Color.gymSecondary.opacity(0.35)
-        }
-        return Color.gymBorder
+        if isEditingCompletedSet { return Color.trameStrength }
+        if isActiveSet { return Color.trameActionOutline }
+        return Color.clear
     }
 
     private var rowBorderWidth: CGFloat {

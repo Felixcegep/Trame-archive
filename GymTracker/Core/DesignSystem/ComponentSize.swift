@@ -17,4 +17,7 @@ enum ComponentSize {
     static let compactChartHeight: CGFloat = 180
     static let standardChartHeight: CGFloat = 210
     static let nutritionRing: CGFloat = 112
+    static let todayActionHeight: CGFloat = 54
+    static let todayWeekMark: CGFloat = 28
+    static let todayQuickAccessIcon: CGFloat = 40
 }

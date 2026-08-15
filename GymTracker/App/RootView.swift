@@ -57,7 +57,7 @@ struct RootView: View {
     @State private var todayStatusMessage: GymStatusMessage?
     /// Increments only when a plan or rotation action actually committed.
     @State private var planStateChangeCount = 0
-    @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .light
+    @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .dark
     @AppStorage(DefaultsKey.darkMode) private var legacyDarkMode: Bool = false
     @AppStorage(DefaultsKey.hasCompletedWelcome) private var hasCompletedWelcome: Bool = false
     /// Set only by the personalization offer on Today, which re-presents the
@@ -419,13 +419,7 @@ struct RootView: View {
     }
 
     private var effectiveAppearance: AppAppearance {
-        guard UserDefaults.standard.object(forKey: DefaultsKey.appearance) != nil else {
-            // Trame's warm cream palette is the authored default. Existing
-            // explicit choices still win, and the legacy dark preference is
-            // honoured during migration.
-            return legacyDarkMode ? .dark : .light
-        }
-        return appearance
+        AppAppearance.resolved(stored: appearance, legacyDarkMode: legacyDarkMode)
     }
 
     /// The coarse product destination currently visible, derived from

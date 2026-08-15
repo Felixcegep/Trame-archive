@@ -17,24 +17,12 @@ struct RestNextUp: Equatable {
     let changesExercise: Bool
 }
 
-/// Rest, when rest is the whole job.
+/// Rest takes the field while the timer is visible. The attention color names
+/// the state, the remaining time is the one dominant answer, and the next set
+/// follows as preparation rather than as a competing object.
 ///
-/// The previous treatment was a 60pt strip pinned above the list. That was the
-/// right call against the card list it replaced, but it settled for being
-/// *visible* when the actual requirement is to be **readable without holding
-/// the phone** — set down on a bench, propped against a water bottle, glanced
-/// at from inside a rack. Between sets there is nothing else to do, so there is
-/// no content the strip was protecting: it was small out of habit, not need.
-///
-/// So rest takes the page. The countdown is the largest type in the app, the
-/// ring answers "nearly done?" without reading digits at all, and the next set
-/// is stated in full so the lifter can load the bar before the clock ends
-/// rather than after.
-///
-/// It stays collapsible. A lifter who wants to review earlier sets mid-rest
-/// drags it down and gets the compact pill in the command bar instead — the
-/// timer keeps running either way, because the countdown lives in the view
-/// model, not here.
+/// It stays collapsible. The timer continues in `ActiveWorkoutViewModel`, so
+/// dismissing this presentation never changes session or Live Activity state.
 struct RestTakeoverView: View {
     let viewModel: ActiveWorkoutViewModel
     let activeLoggingMetrics: ActiveLoggingMetricsRecorder
@@ -43,70 +31,66 @@ struct RestTakeoverView: View {
     let onCollapse: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .largeTitle) private var countdownPointSize: CGFloat = 88
 
-    /// Below this, "+30s" would push the rest past where it started and the
-    /// ring would read over full. Above it, trimming is safe.
+    /// Trimming below this threshold could end rest without an explicit Skip.
     private let trimStep: TimeInterval = 15
     private let extendStep: TimeInterval = 30
 
     var body: some View {
         VStack(spacing: 0) {
-            collapseHandle
+            restHeader
 
             ScrollView {
-                VStack(spacing: Spacing.xl) {
-                    dial
+                VStack(spacing: Spacing.xxl) {
+                    timerField
+                    nextUpGroup
                     effortCapture
-                    nextUpCard
                 }
-                .padding(.horizontal, Spacing.xl)
-                .padding(.top, Spacing.s)
-                .padding(.bottom, Spacing.xl)
+                .padding(.horizontal, Spacing.screenInset)
+                .padding(.top, Spacing.xl)
+                .padding(.bottom, Spacing.xxl)
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
-            // The dial and the next-set card fit without scrolling at every
-            // standard text size. The scroll view exists for accessibility
-            // sizes, where the same content is genuinely taller than the
-            // screen — and where clipping it would be the failure.
             .scrollBounceBehavior(.basedOnSize)
 
             controls
-                .padding(.horizontal, Spacing.xl)
+                .padding(.horizontal, Spacing.screenInset)
                 .padding(.bottom, Spacing.l)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.gymAccentSurface)
+        .background(Color.trameAttention)
+        .foregroundStyle(Color.trameAttentionInk)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(accessibilityIdentifier)
         .accessibilityAction(named: Text("Skip rest"), skipRest)
         .accessibilityAction(named: Text("Collapse rest timer"), onCollapse)
     }
 
-    // MARK: - Collapse
+    // MARK: - Header
 
-    private var collapseHandle: some View {
+    private var restHeader: some View {
         Button(action: onCollapse) {
-            VStack(spacing: Spacing.xs) {
-                Capsule()
-                    .fill(Color.gymSubduedText.opacity(0.4))
-                    .frame(width: 40, height: 5)
-                Text(title)
-                    .font(AppFont.captionBold)
-                    .tracking(0.8)
-                    .foregroundStyle(Color.gymSubduedText)
+            HStack(spacing: Spacing.m) {
+                Text("Rest")
+                    .font(AppFont.eyebrow)
+                    .tracking(0.9)
+                    .textCase(.uppercase)
+
+                Spacer(minLength: 0)
+
+                Image(systemName: AppIcon.chevronDown)
+                    .font(AppFont.sectionTitle)
             }
             .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, Spacing.screenInset)
         .padding(.top, Spacing.s)
-        .accessibilityLabel(Text("\(title). Collapse rest timer"))
+        .accessibilityLabel(Text("Collapse rest timer"))
         .accessibilityIdentifier("collapse-rest-takeover")
-        // Dragging the sheet down is the gesture people try first; the handle
-        // above is what tells them it is there, and the button is what makes it
-        // reachable to anyone who cannot drag.
         .gesture(
             DragGesture(minimumDistance: 20)
                 .onEnded { value in
@@ -116,147 +100,41 @@ struct RestTakeoverView: View {
         )
     }
 
-    // MARK: - Dial
+    // MARK: - Time
 
-    private var dial: some View {
-        ZStack {
-            ring
-            countdown
-        }
+    private var timerField: some View {
+        countdown
         .frame(maxWidth: .infinity)
-        .frame(height: dialSize)
-        .padding(.top, Spacing.m)
-        // The digits change every second. Read as one status instead, without
-        // the count — `Documentation/Accessibility.md` is explicit that a
-        // per-second re-read is worse than no reading at all.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(dialAccessibilityLabel))
-    }
-
-    /// Only drawn when the rest's intended length is known. After a cold launch
-    /// mid-rest it is not, and a ring with an invented denominator would be a
-    /// confident lie — the digits alone are the honest fallback.
-    @ViewBuilder
-    private var ring: some View {
-        Circle()
-            .stroke(Color.gymText.opacity(0.08), lineWidth: ringWidth)
-
-        if let total = viewModel.restPlannedDuration, total > 0 {
-            // `.animation` drives a frame-rate timeline rather than a one-second
-            // one. The arc used to step once per second, which reads as a
-            // stuttering gauge rather than time passing; the digits below still
-            // tick per second, because a sliding clock is harder to read than a
-            // ticking one.
-            //
-            // Reduce Motion keeps the per-second step: that *is* the accessible
-            // rendering of this control, not a lesser one.
-            if reduceMotion {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    progressRing(total: total, at: context.date)
-                }
-            } else {
-                TimelineView(.animation) { context in
-                    progressRing(total: total, at: context.date)
-                }
-            }
-        }
-    }
-
-    private func progressRing(total: TimeInterval, at date: Date) -> some View {
-        let left = remaining(at: date)
-        return Circle()
-            .trim(from: 0, to: max(0, min(1, left / total)))
-            .stroke(
-                ringColor(remaining: left),
-                style: StrokeStyle(lineWidth: ringWidth, lineCap: .round)
-            )
-            .rotationEffect(.degrees(-90))
-            // A second channel for the last ten seconds, so urgency is never
-            // carried by colour alone.
-            .scaleEffect(pulseScale(remaining: left, at: date))
-    }
-
-    /// The rest dial's one piece of information beyond the digits: how urgent
-    /// this is, readable from across a rack.
-    ///
-    /// Colours cross-fade across a three-second window either side of each
-    /// threshold. A hard switch at exactly 60 seconds reads as a rendering
-    /// glitch; a ramp reads as time passing.
-    private func ringColor(remaining: TimeInterval) -> Color {
-        if viewModel.isRestReady { return Color.gymSecondary }
-
-        let plenty = Color.gymSecondary
-        let soon = Color.gymCaution
-        let now = Color.gymUrgent
-
-        if remaining > 63 { return plenty }
-        if remaining > 57 { return plenty.mix(with: soon, by: (63 - remaining) / 6) }
-        if remaining > 13 { return soon }
-        if remaining > 7 { return soon.mix(with: now, by: (13 - remaining) / 6) }
-        return now
-    }
-
-    /// A 1 Hz pulse inside the final ten seconds. Small on purpose — it should
-    /// register in peripheral vision without pulling the eye off the bar.
-    private func pulseScale(remaining: TimeInterval, at date: Date) -> CGFloat {
-        guard !reduceMotion, remaining > 0, remaining <= 10 else { return 1 }
-        let phase = date.timeIntervalSince1970.truncatingRemainder(dividingBy: 1)
-        return 1 + 0.02 * CGFloat(sin(phase * 2 * .pi)).magnitude
-    }
-
-    /// Which urgency band the rest is in, named so VoiceOver and the state line
-    /// carry it too.
-    private func bandTitle(remaining: TimeInterval) -> String {
-        if remaining > 60 { return String(localized: "Plenty") }
-        if remaining > 10 { return String(localized: "Soon") }
-        return String(localized: "Now")
+        .padding(.vertical, Spacing.xxl)
     }
 
     @ViewBuilder
     private var countdown: some View {
-        VStack(spacing: Spacing.xs) {
-            if viewModel.isRestReady {
-                Image(systemName: AppIcon.checkmarkCircle)
-                    .font(AppFont.displayLarge)
-                    .foregroundStyle(Color.gymSecondary)
-                Text("Ready")
-                    .font(AppFont.titleMedium)
-                    .foregroundStyle(Color.gymSecondary)
-            } else {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    let left = remaining(at: context.date)
-                    VStack(spacing: Spacing.xxs) {
-                        Text(clockText(left))
-                            .font(AppFont.restCountdown)
-                            .minimumScaleFactor(0.4)
-                            .lineLimit(1)
-                            .foregroundStyle(Color.gymText)
-
-                        // The ring's urgency band, in words. Without this the
-                        // band is carried by hue alone, which fails both
-                        // `Documentation/Accessibility.md` and anyone reading
-                        // the dial in direct sun.
-                        if !viewModel.isTimerPaused {
-                            Text(bandTitle(remaining: left))
-                                .font(AppFont.captionBold)
-                                .tracking(0.8)
-                                .textCase(.uppercase)
-                                .foregroundStyle(ringColor(remaining: left))
-                        }
-                    }
-                }
-
-                if viewModel.isTimerPaused {
-                    Label("Paused", systemImage: AppIcon.pause)
-                        .font(AppFont.footnoteMedium)
-                        .foregroundStyle(Color.gymAccent)
-                }
+        if viewModel.isRestReady || viewModel.isTimerPaused {
+            timerReadout(remaining: remaining(at: .now))
+        } else {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                timerReadout(remaining: remaining(at: context.date))
             }
         }
-        .padding(.horizontal, Spacing.xxl)
     }
 
-    // MARK: - Next up
+    private func timerReadout(remaining: TimeInterval) -> some View {
+        VStack(spacing: Spacing.s) {
+            Text(clockText(remaining))
+                .font(AppFont.timer(scaledPointSize: countdownPointSize))
+                .minimumScaleFactor(0.45)
+                .lineLimit(1)
+
+            Label(timerStateTitle, systemImage: timerStateIcon)
+                .font(AppFont.metadata)
+                .tracking(0.7)
+                .textCase(.uppercase)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(timerAccessibilityLabel))
+        .accessibilityValue(Text(viewModel.isRestReady ? "" : clockText(remaining)))
+    }
 
     // MARK: - Effort
 
@@ -276,17 +154,21 @@ struct RestTakeoverView: View {
     private var effortCapture: some View {
         if let set = viewModel.lastCompletedSetAwaitingEffort {
             VStack(alignment: .leading, spacing: Spacing.m) {
+                Rectangle()
+                    .fill(Color.trameAttentionInk)
+                    .frame(height: 1)
+                    .accessibilityHidden(true)
+
                 HStack(alignment: .firstTextBaseline) {
                     Text(effortMeasure == .rpe ? "HOW HARD WAS THAT?" : "REPS LEFT IN RESERVE")
-                        .font(AppFont.captionBold)
+                        .font(AppFont.eyebrow)
                         .tracking(0.8)
-                        .foregroundStyle(Color.gymSubduedText)
 
                     Spacer(minLength: Spacing.s)
 
                     Text(effortValueText(for: set))
-                        .font(AppFont.titleSmallSemiboldMonospaced)
-                        .foregroundStyle(effortIsAnswered(set) ? Color.gymText : Color.gymSubduedText)
+                        .font(AppFont.metricCompact)
+                        .opacity(effortIsAnswered(set) ? 1 : 0.65)
                 }
 
                 // A native `Slider` rather than a row of ten targets: effort is
@@ -301,29 +183,21 @@ struct RestTakeoverView: View {
                     Text(effortMeasure == .rpe ? "RPE" : "Reps in reserve")
                 } minimumValueLabel: {
                     Text(Formatters.formatFloat(Float(effortRange.lowerBound)))
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.micro)
                 } maximumValueLabel: {
                     Text(Formatters.formatFloat(Float(effortRange.upperBound)))
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.micro)
                 }
-                .tint(Color.gymPrimary)
+                .tint(Color.trameAttentionInk)
                 .accessibilityValue(Text(effortValueText(for: set)))
 
                 // The scale in words. A number between 6 and 10 means nothing
                 // on its own to anyone who has not memorised the table.
                 Text(effortMeaning(for: set))
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .opacity(0.72)
                     .fixedSize(horizontal: false, vertical: true)
                     .animation(reduceMotion ? nil : AppMotion.compact, value: effortValueText(for: set))
-            }
-            .padding(Spacing.l)
-            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
             }
             .accessibilityIdentifier("rest-effort-capture")
         }
@@ -384,52 +258,52 @@ struct RestTakeoverView: View {
             : RIRScale.meaning(for: Int(value))
     }
 
+    // MARK: - Next up
+
     @ViewBuilder
-    private var nextUpCard: some View {
+    private var nextUpGroup: some View {
         if let nextUp {
-            VStack(alignment: .leading, spacing: Spacing.s) {
+            VStack(alignment: .leading, spacing: Spacing.m) {
+                Rectangle()
+                    .fill(Color.trameAttentionInk)
+                    .frame(height: 1)
+                    .accessibilityHidden(true)
+
                 HStack(spacing: Spacing.s) {
-                    GymEyebrow("Up next")
+                    Text("Up next")
+                        .font(AppFont.eyebrow)
+                        .tracking(0.8)
+                        .textCase(.uppercase)
+
                     if nextUp.changesExercise {
-                        // The one fact worth interrupting for: rest is also the
-                        // window to walk to another station.
                         Text("New exercise")
-                            .font(AppFont.caption2Bold)
+                            .font(AppFont.micro)
                             .tracking(0.55)
-                            .foregroundStyle(Color.gymAccent)
                     }
                     Spacer(minLength: 0)
                 }
 
                 Text(nextUp.exerciseName)
-                    .font(AppFont.titleSmall)
-                    .foregroundStyle(Color.gymText)
+                    .font(AppFont.stageTitle)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: Spacing.s) {
                     Text("Set \(nextUp.setNumber) of \(nextUp.setCount)")
-                        .font(AppFont.subheadline)
+                        .font(AppFont.metadata)
                     if let roleTitle = nextUp.roleTitle {
                         Text("·")
                         Text(roleTitle)
-                            .font(AppFont.subheadline)
+                            .font(AppFont.metadata)
                     }
                 }
-                .foregroundStyle(Color.gymSubduedText)
+                .opacity(0.72)
 
                 if let target = nextUp.target {
                     Text(target)
-                        .font(AppFont.titleSmallSemiboldMonospaced)
-                        .foregroundStyle(Color.gymText)
+                        .font(AppFont.metricLarge)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Spacing.l)
-            .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
-            }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("rest-next-up")
         }
@@ -440,19 +314,34 @@ struct RestTakeoverView: View {
     @ViewBuilder
     private var controls: some View {
         VStack(spacing: Spacing.m) {
+            Rectangle()
+                .fill(Color.trameAttentionInk)
+                .frame(height: 1)
+                .accessibilityHidden(true)
+
             if viewModel.isRestReady {
                 Button(action: onStartNextSet) {
-                    Label("Start next set", systemImage: AppIcon.play)
+                    Text("Start next set")
+                        .font(AppFont.sectionTitle)
+                        .tracking(0.5)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Color.trameAttention)
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .background(
+                            Color.trameAttentionInk,
+                            in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                        )
+                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.gymPrimaryProminent)
+                .buttonStyle(.gymPress)
                 .accessibilityIdentifier("start-next-set")
             } else {
                 adjustmentRow
 
                 Button(action: skipRest) {
-                    Label("Skip rest", systemImage: AppIcon.fastForward)
-                        .font(AppFont.bodyMedium)
-                        .foregroundStyle(Color.gymPrimary)
+                    Text("Skip rest")
+                        .font(AppFont.metadata)
+                        .underline()
                         .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
                         .contentShape(Rectangle())
                 }
@@ -463,11 +352,6 @@ struct RestTakeoverView: View {
     }
 
     private var adjustmentRow: some View {
-        // Three equal targets rather than the old row of four small bordered
-        // buttons. Between sets the phone is being operated one-handed, often
-        // with chalk on the fingers and without looking — this is the screen
-        // that can least afford a 28pt control, and now the one with the most
-        // room not to have one.
         HStack(spacing: Spacing.m) {
             adjustmentButton(
                 title: "−\(Int(trimStep))s",
@@ -524,12 +408,13 @@ struct RestTakeoverView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.gymPress)
-        .foregroundStyle(isEnabled ? Color.gymText : Color.gymSubduedText)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .foregroundStyle(Color.trameAttentionInk)
+        .background(Color.trameAttention, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .stroke(Color.trameAttentionInk, lineWidth: 1)
         }
+        .opacity(isEnabled ? 1 : 0.45)
         .disabled(!isEnabled)
         .accessibilityLabel(Text(accessibilityLabel))
         .accessibilityIdentifier(identifier)
@@ -560,27 +445,21 @@ struct RestTakeoverView: View {
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 
-    private var title: String {
-        if viewModel.isRestReady { return String(localized: "REST COMPLETE") }
-        if viewModel.isTimerPaused { return String(localized: "REST PAUSED") }
-        return String(localized: "RESTING")
+    private var timerStateTitle: LocalizedStringKey {
+        if viewModel.isRestReady { return "Ready" }
+        if viewModel.isTimerPaused { return "Paused" }
+        return "Remaining"
     }
 
-    /// The dial shrinks at accessibility sizes so the next-set card and the
-    /// controls stay on screen; the digits inside it are already scaling.
-    private var dialSize: CGFloat {
-        dynamicTypeSize.isAccessibilitySize ? 200 : 260
+    private var timerStateIcon: String {
+        if viewModel.isRestReady { return AppIcon.checkmark }
+        if viewModel.isTimerPaused { return AppIcon.pause }
+        return AppIcon.timer
     }
 
-    private var ringWidth: CGFloat {
-        dynamicTypeSize.isAccessibilitySize ? 12 : 16
-    }
-
-    private var dialAccessibilityLabel: String {
+    private var timerAccessibilityLabel: String {
         if viewModel.isRestReady { return String(localized: "Rest complete") }
-        if viewModel.isTimerPaused {
-            return String(localized: "Rest paused, \(Int(viewModel.pausedTimeRemaining)) seconds remaining")
-        }
+        if viewModel.isTimerPaused { return String(localized: "Rest paused") }
         return String(localized: "Resting")
     }
 

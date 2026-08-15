@@ -1,6 +1,25 @@
 import Charts
 import SwiftUI
 
+/*
+ Sport-lens diagram contracts (`Documentation/Design/DiagramGrammar.md`):
+
+ QUESTION      How is completed, comparable evidence distributed or changing?
+ DATA          Weekly working sets; HYROX split kind/duration and measured run
+               distance; weekly cardio distance/duration; mixed-workout shares.
+               Missing pairs and empty weeks remain missing/empty, never inferred.
+ ENCODING      Week or performed order is position; bar/line extent is the exact
+               set, duration, distance, pace, delta, or proportion value; hue is
+               a labelled sport/split/state cue.
+ INTERACTION   Native Progress lens/range controls own selection; methodology is
+               available through native DisclosureGroup controls.
+ DETAIL        Exact values, units, period, evidence count, and calculation rules
+               appear in labels, ordered rows, accessibility text, and disclosure.
+ EMPTY STATE   No eligible completed evidence produces prose, not a zero result.
+ ACCESSIBILITY Each Chart has a complete ordered textual equivalent; color never
+               carries identity or direction without labels, symbols, or values.
+ */
+
 /// Sport-specific presentation over immutable completed-workout projections.
 /// Each lens keeps unlike measurements separate rather than manufacturing a
 /// cross-sport score or converting evidence that was logged under different
@@ -21,20 +40,28 @@ struct SpecializedSportLensView: View {
         } ?? makeProjection()
 
         VStack(alignment: .leading, spacing: Spacing.l) {
-            GymSectionHeader(title: discipline.title, detail: lensDescription)
+            SportLensHeader(
+                title: discipline.title,
+                detail: lensDescription,
+                period: "\(interval.start.formatted(date: .abbreviated, time: .omitted)) – \(interval.end.formatted(date: .abbreviated, time: .omitted))",
+                tint: disciplineTint
+            )
 
             switch projection {
             case .strength(let value):
-                StrengthSportLensView(projection: value)
+                StrengthSportLensView(
+                    projection: value,
+                    competitionLifts: competitionLifts,
+                    displayWeightType: unitSystem == .metric ? .kg : .lbs
+                )
             case .hybrid(let value):
                 HybridRaceSportLensView(projection: value)
             case .strongman(let value):
                 StrongmanSportLensView(projection: value)
             case .bodybuilding(let metrics):
-                WeeklySetsSportLensView(
-                    title: String(localized: "Weekly working sets"),
-                    evidence: String(localized: "Completed non-warm-up bodybuilding sets."),
-                    metrics: metrics
+                BodybuildingSportLensView(
+                    metrics: metrics,
+                    onOpenMuscleExposure: { onNavigate(.muscleGroupVolume) }
                 )
             case .cardio(let value):
                 CardioSportLensView(projection: value)
@@ -118,6 +145,19 @@ struct SpecializedSportLensView: View {
             String(localized: "Snatch and Clean & Jerk evidence remains in the existing technical dashboard.")
         }
     }
+
+    private var disciplineTint: Color {
+        switch discipline {
+        case .generalStrength, .powerlifting:
+            .trameStrength
+        case .bodybuilding, .mixed:
+            .trameRecovery
+        case .olympicWeightlifting, .strongman:
+            .trameCompetition
+        case .hybridFitnessRacing, .generalCardio:
+            .trameConditioning
+        }
+    }
 }
 
 @MainActor
@@ -137,14 +177,188 @@ private enum SpecializedSportLensProjection {
     case weightlifting
 }
 
+// MARK: - Sport Lens Building Blocks
+
+struct SportLensHeader: View {
+    let title: String
+    let detail: String
+    let period: String
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(AppFont.stageTitle)
+                    .foregroundStyle(Color.trameText)
+                Spacer(minLength: Spacing.m)
+                Text(period)
+                    .font(AppFont.micro)
+                    .foregroundStyle(tint)
+            }
+            Rectangle()
+                .fill(tint)
+                .frame(height: 3)
+                .accessibilityHidden(true)
+            Text(detail)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
+        }
+        .padding(.vertical, Spacing.xs)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct SportMetricFieldItem: Identifiable {
+    var id: String { label }
+    let value: String
+    let label: String
+    let accessibilityLabel: String
+}
+
+struct SportMetricField: View {
+    let tint: Color
+    var eyebrow: String? = nil
+    let metrics: [SportMetricFieldItem]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            if let eyebrow {
+                Text(eyebrow.uppercased())
+                    .font(AppFont.eyebrow)
+                    .tracking(1.0)
+                    .foregroundStyle(Color.trameSemanticFieldInk)
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.l) {
+                    ForEach(metrics) { item in
+                        metricItemView(item)
+                    }
+                }
+                VStack(alignment: .leading, spacing: Spacing.s) {
+                    ForEach(metrics) { item in
+                        metricItemView(item)
+                    }
+                }
+            }
+        }
+        .foregroundStyle(Color.trameSemanticFieldInk)
+        .padding(Spacing.l)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .accessibilityElement(children: .contain)
+    }
+
+    private func metricItemView(_ item: SportMetricFieldItem) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(item.value)
+                .font(metrics.count == 1 ? AppFont.metricHero : AppFont.metricLarge)
+                .monospacedDigit()
+            Text(item.label)
+                .font(AppFont.micro)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(item.accessibilityLabel)
+    }
+}
+
+struct SportEvidenceDisclosure: View {
+    let summary: String
+    let detail: String
+
+    var body: some View {
+        DisclosureGroup {
+            Text(detail)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
+                .padding(.top, Spacing.s)
+                .fixedSize(horizontal: false, vertical: true)
+        } label: {
+            Text(summary)
+                .font(AppFont.sectionTitle)
+                .foregroundStyle(Color.trameText)
+        }
+        .tint(Color.trameText)
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+    }
+}
+
+struct SportLensEvidenceChart<Content: View>: View {
+    let title: String
+    let evidence: String
+    @ViewBuilder let content: Content
+
+    init(title: String, evidence: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.evidence = evidence
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            TrameSectionRule(title: LocalizedStringKey(title))
+            Text(evidence)
+                .font(AppFont.micro)
+                .foregroundStyle(Color.trameSubdued)
+
+            content
+                .padding(.top, Spacing.xs)
+        }
+        .padding(.vertical, Spacing.xs)
+    }
+}
+
+struct SportLensDestinationRow: View {
+    let title: String
+    let detail: String
+    var tint: Color = .trameAction
+
+    var body: some View {
+        HStack(spacing: Spacing.m) {
+            TrameCategoryTile(systemImage: AppIcon.muscles, fill: tint)
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(title)
+                    .font(AppFont.sectionTitle)
+                    .foregroundStyle(Color.trameText)
+                Text(detail)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: AppIcon.chevronRight)
+                .font(AppFont.micro)
+                .foregroundStyle(Color.trameSubdued)
+        }
+        .frame(minHeight: ComponentSize.minimumTouchTarget)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct SportLensEmptyState: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text(title)
+                .font(AppFont.sectionTitle)
+                .foregroundStyle(Color.trameText)
+            Text(detail)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
+        }
+        .padding(.vertical, Spacing.m)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Strength Lens
+
 private struct StrengthSportLensView: View {
     let projection: StrengthProgressProjection
-
-    private var rankedRecords: [StrengthExerciseProgressRecord] {
-        projection.exerciseRecords.sorted {
-            ($0.bestEstimatedOneRepMax ?? $0.bestLoad) > ($1.bestEstimatedOneRepMax ?? $1.bestLoad)
-        }
-    }
+    let competitionLifts: PowerliftingLiftIdentity?
+    let displayWeightType: WeightType
 
     var body: some View {
         if projection.exerciseRecords.isEmpty {
@@ -154,63 +368,210 @@ private struct StrengthSportLensView: View {
             )
         } else {
             if projection.discipline == .powerlifting {
-                GymCard(variant: .accent) {
-                    GymEyebrow("Estimated SBD")
-                    if let sum = projection.estimatedThreeLiftSum,
-                       let unit = projection.estimatedThreeLiftSumUnit {
-                        GymMetricValue(value: number(sum), unit: unit.rawValue, isEstimate: true, prominence: .display)
-                        Text(String(localized: "Derived from explicitly identified Squat, Bench, and Deadlift history. This is not a competition total."))
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
-                    } else {
-                        Text(String(localized: "Not available"))
-                            .font(AppFont.titleSmallSemibold)
-                            .foregroundStyle(Color.gymText)
-                        Text(String(localized: "Trame will not guess which historical exercises are the competition Squat, Bench, and Deadlift. Exercise records remain available below."))
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
-                    }
-                }
-                .accessibilityElement(children: .combine)
+                powerliftingBoard
+            } else {
+                SportMetricField(
+                    tint: .trameStrength,
+                    metrics: [
+                        .init(
+                            value: number(projection.weeklyWorkingSets.map(\.value).reduce(0, +)),
+                            label: String(localized: "working sets"),
+                            accessibilityLabel: String(localized: "\(number(projection.weeklyWorkingSets.map(\.value).reduce(0, +))) completed working sets in this period")
+                        ),
+                        .init(
+                            value: "\(projection.exerciseRecords.count)",
+                            label: String(localized: "exercise records"),
+                            accessibilityLabel: String(localized: "\(projection.exerciseRecords.count) exercise records in this period")
+                        )
+                    ]
+                )
             }
 
             VStack(alignment: .leading, spacing: Spacing.s) {
-                GymSectionHeader(
-                    title: String(localized: "Exercise records"),
-                    detail: String(localized: "Estimated 1RM is shown only for eligible completed sets of 10 repetitions or fewer.")
-                )
-                ForEach(rankedRecords.prefix(6)) { record in
-                    GymCard {
-                        HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
-                            VStack(alignment: .leading, spacing: Spacing.xs) {
-                                Text(record.name)
-                                    .font(AppFont.subheadlineSemibold)
-                                    .foregroundStyle(Color.gymText)
-                                Text(CountPhrase.sets(record.completedWorkingSetCount))
-                                    .font(AppFont.caption)
-                                    .foregroundStyle(Color.gymSubduedText)
-                            }
-                            Spacer(minLength: 0)
-                            VStack(alignment: .trailing, spacing: Spacing.xs) {
-                                GymMetricValue(value: number(record.bestLoad), unit: record.weightUnit.rawValue)
-                                if let estimate = record.bestEstimatedOneRepMax {
-                                    Text(String(localized: "Estimated 1RM \(number(estimate)) \(record.weightUnit.rawValue)"))
-                                        .font(AppFont.captionSemiboldMonospaced)
-                                        .foregroundStyle(Color.gymSubduedText)
-                                }
-                            }
+                TrameSectionRule(title: "Exercise records")
+                ForEach(recordsByUnit, id: \.unit) { group in
+                    Text(group.unit.rawValue.uppercased())
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameSubdued)
+
+                    ForEach(group.records.prefix(6)) { record in
+                        StrengthRecordRow(record: record)
+                        if record.id != group.records.prefix(6).last?.id {
+                            Divider().overlay(Color.trameSeparator)
                         }
                     }
-                    .accessibilityElement(children: .combine)
                 }
             }
 
             WeeklySetsSportLensView(
                 title: String(localized: "Working sets per week"),
                 evidence: String(localized: "Completed eligible strength sets; warm-ups and non-working sets are excluded."),
-                metrics: projection.weeklyWorkingSets
+                metrics: projection.weeklyWorkingSets,
+                tint: .trameStrength
+            )
+
+            SportEvidenceDisclosure(
+                summary: String(localized: "Evidence & e1RM method"),
+                detail: strengthMethodology
             )
         }
+    }
+
+    private var recordsByUnit: [(unit: WeightType, records: [StrengthExerciseProgressRecord])] {
+        Dictionary(grouping: projection.exerciseRecords, by: \.weightUnit)
+            .map { unit, records in
+                (unit, records.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending })
+            }
+            .sorted { $0.unit.rawValue < $1.unit.rawValue }
+    }
+
+    private var strengthMethodology: String {
+        let sets = Int(projection.weeklyWorkingSets.map(\.value).reduce(0, +))
+        return String(localized: "\(sets) completed eligible working sets in the selected period. Estimated 1RM uses load × (1 + repetitions ÷ 30) only for eligible completed sets of 10 repetitions or fewer. Units remain separate in exercise records.")
+    }
+
+    private var powerliftingBoard: some View {
+        VStack(alignment: .leading, spacing: Spacing.l) {
+            Text(String(localized: "ESTIMATED SBD"))
+                .font(AppFont.eyebrow)
+                .tracking(1.2)
+
+            if let sum = projection.estimatedThreeLiftSum,
+               let unit = projection.estimatedThreeLiftSumUnit {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.s) {
+                    Text("≈\(number(sum))")
+                        .font(AppFont.metricHero)
+                    Text(unit.rawValue)
+                        .font(AppFont.metricCompact)
+                }
+                Text(String(localized: "Estimate · not a competition total"))
+                    .font(AppFont.micro)
+            } else {
+                Text(String(localized: "Not available"))
+                    .font(AppFont.metricLarge)
+                Text(String(localized: "Squat, Bench, and Deadlift identities and eligible estimates are all required."))
+                    .font(AppFont.metadata)
+            }
+
+            Rectangle()
+                .fill(Color.trameSemanticFieldInk)
+                .frame(height: 1)
+                .accessibilityHidden(true)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: Spacing.l) {
+                    ForEach(powerliftingLifts) { lift in
+                        PowerliftingLiftMetric(lift: lift)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                VStack(alignment: .leading, spacing: Spacing.m) {
+                    ForEach(powerliftingLifts) { lift in
+                        PowerliftingLiftMetric(lift: lift)
+                    }
+                }
+            }
+        }
+        .foregroundStyle(Color.trameSemanticFieldInk)
+        .padding(Spacing.l)
+        .background(Color.trameStrength, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("progress-powerlifting-sbd-board")
+    }
+
+    private var powerliftingLifts: [PowerliftingLiftReading] {
+        guard let competitionLifts else {
+            return [
+                .init(id: "squat", label: String(localized: "Squat"), value: nil, detail: String(localized: "Role not authored")),
+                .init(id: "bench", label: String(localized: "Bench"), value: nil, detail: String(localized: "Role not authored")),
+                .init(id: "deadlift", label: String(localized: "Deadlift"), value: nil, detail: String(localized: "Role not authored"))
+            ]
+        }
+        return [
+            powerliftingLift(id: "squat", label: String(localized: "Squat"), exerciseID: competitionLifts.squatExerciseID),
+            powerliftingLift(id: "bench", label: String(localized: "Bench"), exerciseID: competitionLifts.benchExerciseID),
+            powerliftingLift(id: "deadlift", label: String(localized: "Deadlift"), exerciseID: competitionLifts.deadliftExerciseID)
+        ]
+    }
+
+    private func powerliftingLift(id: String, label: String, exerciseID: UUID) -> PowerliftingLiftReading {
+        let candidates = projection.exerciseRecords.compactMap { record -> (Double, StrengthExerciseProgressRecord)? in
+            guard record.exerciseID == exerciseID,
+                  let estimate = record.bestEstimatedOneRepMax
+            else { return nil }
+            let converted = UnitConversion.weight(Float(estimate), from: record.weightUnit, to: displayWeightType)
+            guard converted.isFinite else { return nil }
+            return (Double(converted), record)
+        }
+        guard let best = candidates.max(by: { $0.0 < $1.0 }) else {
+            let hasLoad = projection.exerciseRecords.contains { $0.exerciseID == exerciseID }
+            return .init(
+                id: id,
+                label: label,
+                value: nil,
+                detail: hasLoad ? String(localized: "No eligible estimate") : String(localized: "Not recorded")
+            )
+        }
+        return .init(
+            id: id,
+            label: label,
+            value: "≈\(number(best.0)) \(displayWeightType.rawValue)",
+            detail: CountPhrase.sets(best.1.completedWorkingSetCount)
+        )
+    }
+}
+
+private struct PowerliftingLiftReading: Identifiable {
+    let id: String
+    let label: String
+    let value: String?
+    let detail: String
+}
+
+private struct PowerliftingLiftMetric: View {
+    let lift: PowerliftingLiftReading
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text(lift.label.uppercased())
+                .font(AppFont.micro)
+            Text(lift.value ?? "—")
+                .font(AppFont.metricCompact)
+            Text(lift.detail)
+                .font(AppFont.micro)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel([lift.label, lift.value ?? String(localized: "Not available"), lift.detail].joined(separator: ", "))
+    }
+}
+
+private struct StrengthRecordRow: View {
+    let record: StrengthExerciseProgressRecord
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                Text(record.name)
+                    .font(AppFont.sectionTitle)
+                    .foregroundStyle(Color.trameText)
+                Text(CountPhrase.sets(record.completedWorkingSetCount))
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+            }
+            Spacer(minLength: Spacing.m)
+            VStack(alignment: .trailing, spacing: Spacing.xxs) {
+                Text("\(number(record.bestLoad)) \(record.weightUnit.rawValue)")
+                    .font(AppFont.metricCompact)
+                    .foregroundStyle(Color.trameText)
+                if let estimate = record.bestEstimatedOneRepMax {
+                    Text(String(localized: "e1RM ≈\(number(estimate)) \(record.weightUnit.rawValue)"))
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameSubdued)
+                }
+            }
+        }
+        .padding(.vertical, Spacing.s)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -218,6 +579,7 @@ private struct WeeklySetsSportLensView: View {
     let title: String
     let evidence: String
     let metrics: [ProgressWeekMetric]
+    var tint: Color = .trameStrength
 
     private static let accessibilityDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -227,15 +589,14 @@ private struct WeeklySetsSportLensView: View {
 
     var body: some View {
         if metrics.contains(where: { $0.value > 0 }) {
-            GymChartCard(title: title, evidence: evidence) {
+            SportLensEvidenceChart(title: title, evidence: evidence) {
                 Chart(metrics) { metric in
                     BarMark(
                         x: .value(String(localized: "Week"), metric.id, unit: .weekOfYear),
                         y: .value(String(localized: "Sets"), metric.value),
                         width: .ratio(0.7)
                     )
-                    .foregroundStyle(Color.gymDataEmphasis)
-                    .cornerRadius(4)
+                    .foregroundStyle(tint)
                 }
                 .gymChartAxisStyle()
                 .frame(height: ComponentSize.compactChartHeight)
@@ -255,11 +616,56 @@ private struct WeeklySetsSportLensView: View {
     }
 }
 
+// MARK: - Bodybuilding Lens
+
+private struct BodybuildingSportLensView: View {
+    let metrics: [ProgressWeekMetric]
+    let onOpenMuscleExposure: () -> Void
+
+    var body: some View {
+        let total = metrics.map(\.value).reduce(0, +)
+        SportMetricField(
+            tint: .trameRecovery,
+            metrics: [
+                .init(
+                    value: number(total),
+                    label: String(localized: "working sets"),
+                    accessibilityLabel: String(localized: "\(number(total)) completed bodybuilding working sets in this period")
+                )
+            ]
+        )
+
+        WeeklySetsSportLensView(
+            title: String(localized: "Weekly working sets"),
+            evidence: String(localized: "Completed non-warm-up bodybuilding sets."),
+            metrics: metrics,
+            tint: .trameRecovery
+        )
+
+        Button(action: onOpenMuscleExposure) {
+            SportLensDestinationRow(
+                title: String(localized: "Muscle-group exposure"),
+                detail: String(localized: "Open the authored muscle-group distribution and its evidence."),
+                tint: .trameRecovery
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(String(localized: "Opens muscle-group volume."))
+
+        SportEvidenceDisclosure(
+            summary: String(localized: "Evidence & method"),
+            detail: String(localized: "Weekly exposure counts completed eligible working sets in the selected period. Muscle-group exposure remains in its domain-owned detail view so unknown or uncategorized work is not guessed here.")
+        )
+    }
+}
+
+// MARK: - Hybrid Fitness Racing Lens
+
 private struct HybridRaceSportLensView: View {
     let projection: HybridRaceProgressProjection
 
-    private var best: HybridRaceSessionProgress? {
-        projection.sessions.min { $0.totalTime < $1.totalTime }
+    private var latest: HybridRaceSessionProgress? {
+        projection.sessions.last
     }
 
     private var latestComparison: (previous: HybridRaceSessionProgress, current: HybridRaceSessionProgress)? {
@@ -272,45 +678,40 @@ private struct HybridRaceSportLensView: View {
     }
 
     var body: some View {
-        if let best {
-            GymCard {
-                GymEyebrow("Best recorded simulation")
-                GymMetricValue(value: duration(best.totalTime), unit: "", prominence: .display)
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.xl) {
-                    SplitMetric(label: String(localized: "Runs"), value: duration(best.runTime))
-                    SplitMetric(label: String(localized: "Stations"), value: duration(best.stationTime))
-                    SplitMetric(label: String(localized: "Transitions"), value: duration(best.transitionTime))
-                }
-            }
-            .accessibilityElement(children: .combine)
+        if let latest {
+            SportMetricField(
+                tint: .trameConditioning,
+                eyebrow: String(localized: "Latest recorded simulation"),
+                metrics: [
+                    .init(value: duration(latest.totalTime), label: String(localized: "elapsed"), accessibilityLabel: String(localized: "Latest recorded simulation, \(duration(latest.totalTime)) elapsed")),
+                    .init(value: duration(latest.runTime), label: String(localized: "run"), accessibilityLabel: String(localized: "Run time, \(duration(latest.runTime))")),
+                    .init(value: duration(latest.stationTime), label: String(localized: "station"), accessibilityLabel: String(localized: "Station time, \(duration(latest.stationTime))")),
+                    .init(value: duration(latest.transitionTime), label: String(localized: "transition"), accessibilityLabel: String(localized: "Transition time, \(duration(latest.transitionTime))"))
+                ]
+            )
 
-            GymChartCard(
+            SportLensEvidenceChart(
                 title: String(localized: "Race composition"),
-                evidence: String(localized: "The fastest recorded simulation, separated by completed split type.")
+                evidence: String(localized: "Latest recorded simulation, separated by completed split type.")
             ) {
-                Chart(composition(best)) { item in
+                Chart(composition(latest)) { item in
                     BarMark(
                         x: .value(String(localized: "Duration"), item.duration),
                         y: .value(String(localized: "Simulation"), String(localized: "Best"))
                     )
                     .foregroundStyle(by: .value(String(localized: "Split type"), item.kind.title))
-                    .cornerRadius(4)
                 }
-                // Every bar here sits beside the other two at once — a
-                // composition, not a time series — so this uses the
-                // all-pairs-validated slots rather than the seven-discipline
-                // palette's adjacent-pairs ones. See `WorkoutSplitPalette`.
                 .chartForegroundStyleScale(
                     domain: WorkoutSplitPalette.domain,
                     range: WorkoutSplitPalette.range
                 )
                 .gymChartAxisStyle()
                 .frame(height: ComponentSize.compactChartHeight)
-                .accessibilityLabel(compositionAccessibilityLabel(best))
+                .accessibilityLabel(compositionAccessibilityLabel(latest))
             }
 
             if let comparison = latestComparison {
-                GymChartCard(
+                SportLensEvidenceChart(
                     title: String(localized: "Split comparison"),
                     evidence: String(localized: "Latest session versus the previous session with the same recorded split structure. Negative values are faster.")
                 ) {
@@ -319,13 +720,7 @@ private struct HybridRaceSportLensView: View {
                             x: .value(String(localized: "Time change"), delta.seconds),
                             y: .value(String(localized: "Split"), delta.label)
                         )
-                        // Direction, not identity — faster is good, slower
-                        // isn't, the same two-state meaning `gymSuccess`/
-                        // `gymAccent` already carry everywhere else in the
-                        // app. This is status color used correctly, so the
-                        // categorical palette above does not apply here.
-                        .foregroundStyle(delta.seconds <= 0 ? Color.gymSuccess : Color.gymAccent)
-                        .cornerRadius(4)
+                        .foregroundStyle(delta.seconds <= 0 ? Color.trameCompleted : Color.trameAttention)
                     }
                     .gymChartAxisStyle()
                     .chartXAxisLabel(String(localized: "Seconds versus previous"))
@@ -334,43 +729,27 @@ private struct HybridRaceSportLensView: View {
                 }
             }
 
-            let running = best.splits.filter { $0.kind == .run && ($0.distanceMeters ?? 0) > 0 }
+            let running = latest.splits.filter { $0.kind == .run && ($0.distanceMeters ?? 0) > 0 }
             if running.count > 1 {
-                GymChartCard(
-                    title: String(localized: "Running degradation"),
-                    evidence: String(localized: "Pace across measured run splits in the fastest recorded simulation.")
+                SportLensEvidenceChart(
+                    title: String(localized: "Run pace by split"),
+                    evidence: String(localized: "Measured pace across run splits in the latest recorded simulation.")
                 ) {
                     Chart {
                         ForEach(Array(running.enumerated()), id: \.element.id) { item in
-                            // Area fill under the line at low opacity — the same
-                            // "instrument panel" treatment as Oura's trend graphs
-                            // (hue at 16% fading to nothing at the baseline)
-                            // rather than a bare stroke floating on empty space.
-                            AreaMark(
-                                x: .value(String(localized: "Run"), item.offset + 1),
-                                y: .value(String(localized: "Seconds per kilometer"), item.element.duration / ((item.element.distanceMeters ?? 1) / 1_000))
-                            )
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.gymDataEmphasis.opacity(0.16), Color.gymDataEmphasis.opacity(0)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .interpolationMethod(.catmullRom)
                             LineMark(
                                 x: .value(String(localized: "Run"), item.offset + 1),
                                 y: .value(String(localized: "Seconds per kilometer"), item.element.duration / ((item.element.distanceMeters ?? 1) / 1_000))
                             )
                             .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                            .foregroundStyle(Color.gymDataEmphasis)
-                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(Color.trameConditioning)
+                            .interpolationMethod(.linear)
                             PointMark(
                                 x: .value(String(localized: "Run"), item.offset + 1),
                                 y: .value(String(localized: "Seconds per kilometer"), item.element.duration / ((item.element.distanceMeters ?? 1) / 1_000))
                             )
                             .symbolSize(64)
-                            .foregroundStyle(Color.gymDataEmphasis)
+                            .foregroundStyle(Color.trameConditioning)
                         }
                     }
                     .gymChartAxisStyle()
@@ -382,38 +761,50 @@ private struct HybridRaceSportLensView: View {
             }
 
             VStack(alignment: .leading, spacing: Spacing.s) {
-                GymSectionHeader(
-                    title: String(localized: "Recorded splits"),
-                    detail: String(localized: "Fastest simulation, in performed order.")
-                )
-                ForEach(Array(best.splits.enumerated()), id: \.element.id) { index, split in
+                TrameSectionRule(title: "Recorded splits")
+                Text(String(localized: "Latest simulation · performed order"))
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+                ForEach(Array(latest.splits.enumerated()), id: \.element.id) { index, split in
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
                         Text("\(index + 1)")
                             .font(AppFont.captionSemiboldMonospaced)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .foregroundStyle(Color.trameSubdued)
                         Text(split.kind.title)
                             .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                         Spacer()
                         if let meters = split.distanceMeters {
                             Text(distance(meters))
                                 .font(AppFont.captionSemiboldMonospaced)
-                                .foregroundStyle(Color.gymSubduedText)
+                                .foregroundStyle(Color.trameSubdued)
                         }
                         Text(duration(split.duration))
                             .font(AppFont.subheadlineSemiboldMonospaced)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                     }
                     .padding(.vertical, Spacing.xs)
                     .accessibilityElement(children: .combine)
+                    if split.id != latest.splits.last?.id {
+                        Divider().overlay(Color.trameSeparator)
+                    }
                 }
             }
+
+            SportEvidenceDisclosure(
+                summary: String(localized: "Evidence & comparison method"),
+                detail: hybridMethodology(latest)
+            )
         } else {
             SportLensEmptyState(
                 title: String(localized: "No simulation splits yet"),
                 detail: String(localized: "Complete timed run, station, and transition segments to compare race composition.")
             )
         }
+    }
+
+    private func hybridMethodology(_ session: HybridRaceSessionProgress) -> String {
+        String(localized: "\(projection.sessions.count) completed simulations are available. The primary composition uses \(session.splits.count) recorded splits from the latest simulation. Session deltas appear only when the prior split-kind sequence matches exactly. Pace appears only for run splits with both duration and distance.")
     }
 
     private func composition(_ session: HybridRaceSessionProgress) -> [HybridCompositionItem] {
@@ -459,21 +850,7 @@ private struct HybridCompositionItem: Identifiable {
     let duration: TimeInterval
 }
 
-private struct SplitMetric: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text(label)
-                .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
-            Text(value)
-                .font(AppFont.subheadlineSemiboldMonospaced)
-                .foregroundStyle(Color.gymText)
-        }
-    }
-}
+// MARK: - Strongman Lens
 
 private struct StrongmanSportLensView: View {
     let projection: StrongmanProgressProjection
@@ -493,100 +870,45 @@ private struct StrongmanSportLensView: View {
             ForEach(families, id: \.self) { family in
                 let records = recordsByFamily[family] ?? []
                 VStack(alignment: .leading, spacing: Spacing.s) {
-                    GymSectionHeader(
-                        title: family.title,
-                        detail: String(localized: "Records compare only identical snapshotted conditions.")
-                    )
-                    ForEach(records.prefix(4)) { record in
-                        GymCard {
+                    TrameSectionRule(title: LocalizedStringKey(family.title))
+                    Text(String(localized: "Implement and condition snapshots remain separate."))
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
+
+                    ForEach(Array(records.prefix(4).enumerated()), id: \.element.id) { index, record in
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
                             HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
-                                Text(record.exerciseName)
-                                    .font(AppFont.subheadlineSemibold)
-                                    .foregroundStyle(Color.gymText)
-                                Spacer(minLength: 0)
+                                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                                    Text(record.exerciseName)
+                                        .font(AppFont.sectionTitle)
+                                        .foregroundStyle(Color.trameText)
+                                    Text(String(localized: "Recorded condition \(index + 1)"))
+                                        .font(AppFont.micro)
+                                        .foregroundStyle(Color.trameSubdued)
+                                }
+                                Spacer(minLength: Spacing.m)
                                 Text(strongmanRecord(record))
-                                    .font(AppFont.subheadlineSemiboldMonospaced)
-                                    .foregroundStyle(Color.gymText)
+                                    .font(AppFont.metricCompact)
+                                    .foregroundStyle(Color.trameText)
                                     .multilineTextAlignment(.trailing)
                             }
+                            Text(String(localized: "Compared only with the same authored event family, load convention, implement, and captured conditions."))
+                                .font(AppFont.micro)
+                                .foregroundStyle(Color.trameSubdued)
                         }
+                        .padding(.vertical, Spacing.s)
                         .accessibilityElement(children: .combine)
-                    }
-
-                    if let unit = records.compactMap(\.weightUnit).first {
-                        let loadRecords = records.filter { $0.weightUnit == unit && $0.load != nil }
-                        if loadRecords.count > 1 {
-                            GymChartCard(
-                                title: String(localized: "\(family.title) load records"),
-                                evidence: String(localized: "Only records logged in \(unit.rawValue) are shown together.")
-                            ) {
-                                Chart(loadRecords) { record in
-                                    BarMark(
-                                        x: .value(String(localized: "Event"), record.exerciseName),
-                                        y: .value(String(localized: "Load"), record.load ?? 0),
-                                        width: .ratio(0.6)
-                                    )
-                                    .foregroundStyle(Color.gymDataEmphasis)
-                                    .cornerRadius(4)
-                                }
-                                .gymChartAxisStyle()
-                                .frame(height: ComponentSize.compactChartHeight)
-                                .accessibilityLabel(loadRecords.map { "\($0.exerciseName): \(number($0.load ?? 0)) \(unit.rawValue)" }.joined(separator: ". "))
-                            }
+                        if record.id != records.prefix(4).last?.id {
+                            Divider().overlay(Color.trameSeparator)
                         }
                     }
+                }
+            }
 
-                    eventChart(family: family, records: records)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func eventChart(family: StrongmanEventFamily, records: [StrongmanEventRecord]) -> some View {
-        switch family {
-        case .carry, .hold:
-            let measured = records.filter { $0.load != nil && $0.duration != nil }
-            if measured.count > 1, let unit = measured.first?.weightUnit {
-                GymChartCard(
-                    title: family == .carry ? String(localized: "Load to carry time") : String(localized: "Load to hold time"),
-                    evidence: String(localized: "Each point keeps its recorded implement conditions separate.")
-                ) {
-                    Chart(measured) { record in
-                        PointMark(
-                            x: .value(String(localized: "Load"), record.load ?? 0),
-                            y: .value(String(localized: "Seconds"), record.duration ?? 0)
-                        )
-                        .symbolSize(64)
-                        .foregroundStyle(Color.gymDataEmphasis)
-                    }
-                    .gymChartAxisStyle()
-                    .chartXAxisLabel(unit.rawValue)
-                    .frame(height: ComponentSize.compactChartHeight)
-                }
-            }
-        case .throwing:
-            let measured = records.filter { $0.throwDistanceMeters != nil }
-            if measured.isEmpty == false {
-                GymChartCard(
-                    title: String(localized: "Throw distance"),
-                    evidence: String(localized: "Best measured throw for each compatible event condition.")
-                ) {
-                    Chart(measured) { record in
-                        BarMark(
-                            x: .value(String(localized: "Event"), record.exerciseName),
-                            y: .value(String(localized: "Meters"), record.throwDistanceMeters ?? 0),
-                            width: .ratio(0.6)
-                        )
-                        .foregroundStyle(Color.gymDataEmphasis)
-                        .cornerRadius(4)
-                    }
-                    .gymChartAxisStyle()
-                    .frame(height: ComponentSize.compactChartHeight)
-                }
-            }
-        default:
-            EmptyView()
+            SportEvidenceDisclosure(
+                summary: String(localized: "Evidence & record method"),
+                detail: String(localized: "\(projection.records.count) condition-specific records are shown. Each row keeps load, distance, duration, and throw distance in their declared units. Unlike event families or condition snapshots are never placed on one scale.")
+            )
         }
     }
 
@@ -600,6 +922,8 @@ private struct StrongmanSportLensView: View {
     }
 }
 
+// MARK: - Cardio Lens
+
 private struct CardioSportLensView: View {
     let projection: CardioProgressProjection
 
@@ -610,88 +934,115 @@ private struct CardioSportLensView: View {
                 detail: String(localized: "Complete cardio sets with distance or duration to populate this lens.")
             )
         } else {
-            GymCard {
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.xl) {
-                    if let meters = projection.totalDistanceMeters {
-                        SplitMetric(label: String(localized: "Distance"), value: distance(meters))
+            let metrics: [SportMetricFieldItem] = buildCardioMetrics()
+
+            SportMetricField(tint: .trameConditioning, metrics: metrics)
+
+            if projection.weeklyDistanceAndDuration.contains(where: { $0.value > 0 }) {
+                SportLensEvidenceChart(
+                    title: String(localized: "Distance per week"),
+                    evidence: String(localized: "Completed cardio sets with recorded distance.")
+                ) {
+                    Chart(projection.weeklyDistanceAndDuration) { metric in
+                        BarMark(
+                            x: .value(String(localized: "Week"), metric.id, unit: .weekOfYear),
+                            y: .value(String(localized: "Kilometers"), metric.value / 1_000),
+                            width: .ratio(0.7)
+                        )
+                        .foregroundStyle(Color.trameConditioning)
                     }
-                    if let seconds = projection.totalDuration {
-                        SplitMetric(label: String(localized: "Duration"), value: duration(seconds))
-                    }
-                    if let pace = projection.averagePaceSecondsPerKilometer {
-                        SplitMetric(label: String(localized: "Average pace"), value: "\(duration(pace))/km")
-                    }
+                    .gymChartAxisStyle()
+                    .frame(height: ComponentSize.compactChartHeight)
+                    .accessibilityLabel(cardioAccessibilityLabel)
                 }
             }
-            .accessibilityElement(children: .combine)
-
-            GymChartCard(
-                title: String(localized: "Distance per week"),
-                evidence: String(localized: "Completed cardio sets with recorded distance.")
-            ) {
-                Chart(projection.weeklyDistanceAndDuration) { metric in
-                    BarMark(
-                        x: .value(String(localized: "Week"), metric.id, unit: .weekOfYear),
-                        y: .value(String(localized: "Kilometers"), metric.value / 1_000),
-                        width: .ratio(0.7)
-                    )
-                    .foregroundStyle(Color.gymDataEmphasis)
-                    .cornerRadius(4)
-                }
-                .gymChartAxisStyle()
-                .frame(height: ComponentSize.compactChartHeight)
-                .accessibilityLabel(cardioAccessibilityLabel)
-            }
-
 
             let paceWeeks = projection.weeklyDistanceAndDuration.filter {
                 $0.value > 0 && ($0.secondaryValue ?? 0) > 0
             }
             if paceWeeks.count > 1 {
-                GymChartCard(
+                SportLensEvidenceChart(
                     title: String(localized: "Pace trend"),
                     evidence: String(localized: "Weekly duration divided by recorded distance; missing pairs stay absent.")
                 ) {
                     Chart(paceWeeks) { metric in
-                        AreaMark(
-                            x: .value(String(localized: "Week"), metric.id, unit: .weekOfYear),
-                            y: .value(String(localized: "Seconds per kilometer"), (metric.secondaryValue ?? 0) / (metric.value / 1_000))
-                        )
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color.gymDataEmphasis.opacity(0.16), Color.gymDataEmphasis.opacity(0)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .interpolationMethod(.catmullRom)
                         LineMark(
                             x: .value(String(localized: "Week"), metric.id, unit: .weekOfYear),
                             y: .value(String(localized: "Seconds per kilometer"), (metric.secondaryValue ?? 0) / (metric.value / 1_000))
                         )
                         .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                        .foregroundStyle(Color.gymDataEmphasis)
-                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(Color.trameConditioning)
+                        .interpolationMethod(.linear)
+
                         PointMark(
                             x: .value(String(localized: "Week"), metric.id, unit: .weekOfYear),
                             y: .value(String(localized: "Seconds per kilometer"), (metric.secondaryValue ?? 0) / (metric.value / 1_000))
                         )
                         .symbolSize(64)
-                        .foregroundStyle(Color.gymDataEmphasis)
+                        .foregroundStyle(Color.trameConditioning)
                     }
                     .gymChartAxisStyle()
                     .frame(height: ComponentSize.compactChartHeight)
+                    .accessibilityLabel(paceAccessibilityLabel(paceWeeks))
                 }
             }
+
+            SportEvidenceDisclosure(
+                summary: String(localized: "Evidence & pace method"),
+                detail: cardioMethodology
+            )
         }
+    }
+
+    private func buildCardioMetrics() -> [SportMetricFieldItem] {
+        var metrics: [SportMetricFieldItem] = []
+        if let meters = projection.totalDistanceMeters {
+            metrics.append(.init(
+                value: distance(meters),
+                label: String(localized: "distance"),
+                accessibilityLabel: String(localized: "\(distance(meters)) total distance")
+            ))
+        }
+        if let seconds = projection.totalDuration {
+            metrics.append(.init(
+                value: duration(seconds),
+                label: String(localized: "duration"),
+                accessibilityLabel: String(localized: "\(duration(seconds)) total duration")
+            ))
+        }
+        if let pace = projection.averagePaceSecondsPerKilometer {
+            metrics.append(.init(
+                value: "\(duration(pace))/km",
+                label: String(localized: "average pace"),
+                accessibilityLabel: String(localized: "\(duration(pace)) per kilometer average pace")
+            ))
+        }
+        return metrics
     }
 
     private var cardioAccessibilityLabel: String {
         projection.weeklyDistanceAndDuration.map { metric in
-            "\(metric.id.formatted(date: .abbreviated, time: .omitted)): \(number(metric.value / 1_000)) kilometers"
+            let date = metric.id.formatted(date: .abbreviated, time: .omitted)
+            return metric.evidence.isEmpty
+                ? String(localized: "\(date), no recorded cardio distance")
+                : String(localized: "\(date), \(number(metric.value / 1_000)) kilometers")
+        }.joined(separator: ". ")
+    }
+
+    private var cardioMethodology: String {
+        let evidenceCount = Set(projection.weeklyDistanceAndDuration.flatMap(\.evidence).map(\.workoutID)).count
+        return String(localized: "\(evidenceCount) completed cardio workouts contribute recorded distance or duration in the selected period. Average pace is total recorded duration divided by total recorded distance; activity types and missing distance-duration pairs are not estimated.")
+    }
+
+    private func paceAccessibilityLabel(_ metrics: [ProgressWeekMetric]) -> String {
+        metrics.map { metric in
+            let pace = (metric.secondaryValue ?? 0) / (metric.value / 1_000)
+            return String(localized: "\(metric.id.formatted(date: .abbreviated, time: .omitted)), \(duration(pace)) per kilometer")
         }.joined(separator: ". ")
     }
 }
+
+// MARK: - Mixed Lens
 
 private struct MixedSportLensView: View {
     let projection: MixedProgressProjection
@@ -703,17 +1054,11 @@ private struct MixedSportLensView: View {
                 detail: String(localized: "Completed workouts will appear here without forcing a primary sport.")
             )
         } else {
-            GymCard {
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.xl) {
-                    SplitMetric(label: String(localized: "Workouts"), value: "\(projection.completedWorkoutCount)")
-                    if let average = projection.averageWorkoutsPerWeek {
-                        SplitMetric(label: String(localized: "Weekly average"), value: number(average))
-                    }
-                }
-            }
-            .accessibilityElement(children: .combine)
+            let metrics: [SportMetricFieldItem] = buildMixedMetrics()
 
-            GymChartCard(
+            SportMetricField(tint: .trameRecovery, metrics: metrics)
+
+            SportLensEvidenceChart(
                 title: String(localized: "Training composition"),
                 evidence: String(localized: "Each completed workout contributes one unit, shared across its recorded sports.")
             ) {
@@ -722,44 +1067,63 @@ private struct MixedSportLensView: View {
                         x: .value(String(localized: "Share"), item.proportion),
                         y: .value(String(localized: "Sport"), item.discipline?.title ?? SportDisciplinePalette.unknownLabel)
                     )
-                    // Each row is already one specific discipline — coloring
-                    // it that discipline's own chart color, the same one the
-                    // Global lens's focus chart uses, is what makes "which
-                    // sport is this" answerable at a glance instead of every
-                    // row being the same neutral bar with only a text label
-                    // to tell them apart.
                     .foregroundStyle(SportDisciplinePalette.color(for: item.discipline))
-                    .cornerRadius(4)
                     .annotation(position: .trailing) {
                         Text(item.proportion, format: .percent.precision(.fractionLength(0)))
                             .font(AppFont.captionSemiboldMonospaced)
-                            .foregroundStyle(Color.gymText)
+                            .foregroundStyle(Color.trameText)
                     }
                 }
                 .chartXAxis {
                     AxisMarks { value in
-                        AxisGridLine().foregroundStyle(Color.gymBorder)
-                        AxisTick().foregroundStyle(Color.gymBorder)
+                        AxisGridLine().foregroundStyle(Color.trameSeparator)
+                        AxisTick().foregroundStyle(Color.trameSeparator)
                         AxisValueLabel {
                             if let proportion = value.as(Double.self) {
                                 Text(proportion, format: .percent.precision(.fractionLength(0)))
-                                    .foregroundStyle(Color.gymSubduedText)
+                                    .font(AppFont.micro)
+                                    .foregroundStyle(Color.trameSubdued)
                             }
                         }
                     }
                 }
                 .chartYAxis {
                     AxisMarks { _ in
-                        AxisGridLine().foregroundStyle(Color.gymBorder)
-                        AxisTick().foregroundStyle(Color.gymBorder)
-                        AxisValueLabel().foregroundStyle(Color.gymSubduedText)
+                        AxisGridLine().foregroundStyle(Color.trameSeparator)
+                        AxisTick().foregroundStyle(Color.trameSeparator)
+                        AxisValueLabel()
+                            .font(AppFont.micro)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                 }
                 .chartLegend(.automatic)
                 .frame(height: ComponentSize.standardChartHeight)
                 .accessibilityLabel(mixedAccessibilityLabel)
             }
+
+            SportEvidenceDisclosure(
+                summary: String(localized: "Evidence & composition method"),
+                detail: String(localized: "Each of the \(projection.completedWorkoutCount) completed workouts contributes one unit. A workout with multiple recorded sports shares that unit evenly; unknown sport snapshots remain visible as unknown evidence. This is composition, not a score.")
+            )
         }
+    }
+
+    private func buildMixedMetrics() -> [SportMetricFieldItem] {
+        var metrics: [SportMetricFieldItem] = [
+            .init(
+                value: "\(projection.completedWorkoutCount)",
+                label: String(localized: "workouts"),
+                accessibilityLabel: String(localized: "\(projection.completedWorkoutCount) completed workouts in this period")
+            )
+        ]
+        if let average = projection.averageWorkoutsPerWeek {
+            metrics.append(.init(
+                value: number(average),
+                label: String(localized: "weekly average"),
+                accessibilityLabel: String(localized: "\(number(average)) workouts per week on average")
+            ))
+        }
+        return metrics
     }
 
     private var mixedAccessibilityLabel: String {
@@ -769,44 +1133,37 @@ private struct MixedSportLensView: View {
     }
 }
 
+// MARK: - Olympic Weightlifting Lens Link
+
 private struct WeightliftingSportLensLink: View {
     let onOpen: () -> Void
 
     var body: some View {
         Button(action: onOpen) {
-            GymCard {
-                HStack(spacing: Spacing.m) {
-                    GymIconChip(systemImage: AppIcon.trophy)
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text(String(localized: "Open Weightlifting dashboard"))
-                            .font(AppFont.subheadlineSemibold)
-                            .foregroundStyle(Color.gymText)
-                        Text(String(localized: "Snatch, Clean & Jerk, attempt outcomes, and technical evidence."))
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
-                    }
-                    Spacer(minLength: 0)
-                    Text(String(localized: "Open"))
-                        .font(AppFont.captionBold)
-                        .foregroundStyle(Color.gymPrimary)
+            HStack(spacing: Spacing.m) {
+                TrameCategoryTile(systemImage: AppIcon.trophy, fill: .trameCompetition)
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(String(localized: "Weightlifting dashboard"))
+                        .font(AppFont.sectionTitle)
+                        .foregroundStyle(Color.trameText)
+                    Text(String(localized: "Snatch, Clean & Jerk, attempt outcomes, and technical evidence."))
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                 }
+                Spacer(minLength: 0)
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
             }
+            .padding(.vertical, Spacing.xs)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityHint(String(localized: "Opens the detailed Weightlifting evidence dashboard."))
     }
 }
 
-private struct SportLensEmptyState: View {
-    let title: String
-    let detail: String
-
-    var body: some View {
-        GymCard {
-            ContentUnavailableView(title, systemImage: AppIcon.chart, description: Text(detail))
-        }
-    }
-}
+// MARK: - Formatters
 
 private func number(_ value: Double) -> String {
     value.formatted(.number.precision(.fractionLength(0...1)))

@@ -51,7 +51,7 @@ struct WorkoutsBrowserView: View {
                     }
                 }
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.l)
             .padding(.bottom, 104)
         }
@@ -77,8 +77,7 @@ struct WorkoutsBrowserView: View {
             Text("A workout is one session you can start any time, on its own or as part of a plan.")
         } actions: {
             Button("Build a workout", action: createWorkout)
-                .buttonStyle(.borderedProminent)
-                .tint(Color.gymPrimary)
+                .buttonStyle(.tramePrimaryAction)
                 .accessibilityIdentifier("create-workout-empty-state")
         }
         .frame(maxWidth: .infinity)
@@ -89,20 +88,15 @@ struct WorkoutsBrowserView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             LibraryListSectionHeader(title: "Folders", count: collections.count)
 
-            LibraryGroupCard {
-                ForEach(Array(collections.enumerated()), id: \.element.id) { index, collection in
-                    if index > 0 {
-                        LibraryGroupDivider()
-                    }
+            LibraryOpenGroup {
+                ForEach(collections) { collection in
                     NavigationLink(value: LibraryRoute.workoutCollection(collection.id)) {
                         LibraryItemRow(
                             title: collection.name,
                             subtitle: workoutCountText(collection.workoutTemplates.count),
                             icon: "rectangle.stack",
-                            color: Color.gymAccent,
-                            surface: Color.gymAccentSurface,
-                            badge: "Folder",
-                            showsCard: false
+                            color: Color.trameCompetition,
+                            badge: "Folder"
                         )
                     }
                     .buttonStyle(.plain)
@@ -114,13 +108,10 @@ struct WorkoutsBrowserView: View {
 
     private func workoutsSection(_ templates: [WorkoutTemplate]) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            LibraryListSectionHeader(title: "Workouts", count: templates.count)
+            LibraryListSectionHeader(title: "Saved", count: templates.count)
 
-            LibraryGroupCard {
-                ForEach(Array(templates.enumerated()), id: \.element.id) { index, template in
-                    if index > 0 {
-                        LibraryGroupDivider()
-                    }
+            LibraryOpenGroup {
+                ForEach(templates) { template in
                     StartableWorkoutRow(
                         accessibilityName: template.name,
                         isStartDisabled: template.exercises.isEmpty,
@@ -130,10 +121,8 @@ struct WorkoutsBrowserView: View {
                             title: template.name,
                             subtitle: "\(template.exercises.count) exercises",
                             icon: AppIcon.routine,
-                            color: Color.gymPrimary,
-                            surface: Color.gymPrimarySurface,
+                            color: Color.trameStrength,
                             badge: template.isBuiltIn ? "Starter" : nil,
-                            showsCard: false,
                             showsChevron: false
                         )
                     } editor: {

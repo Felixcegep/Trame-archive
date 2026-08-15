@@ -1,0 +1,7 @@
+# Reviewed exceptions for check_design_system_drift.sh.
+#
+# Format: path-glob|rule-name|extended-regex|reason
+# Paths are repository-relative. Keep entries narrow and explain why the
+# centralized token/component cannot be used yet. Do not use a catch-all path.
+# Example:
+# GymTracker/Core/Features/Example/ExampleView.swift|direct-animation|AppMotion\.compact|temporary migration exception; reviewed 2026-08-15

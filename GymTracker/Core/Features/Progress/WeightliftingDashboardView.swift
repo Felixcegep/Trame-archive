@@ -110,20 +110,20 @@ struct WeightliftingDashboardView: View {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 introduction
 
-                competitionDaySection(preparation: preparation)
-
                 switch presentation.availability {
                 case .empty:
                     emptyState
                 case .sparse, .populated:
                     dashboardContent
                 }
+
+                competitionDaySection(preparation: preparation)
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.vertical, Spacing.l)
         }
         .scrollIndicators(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(String(localized: "Weightlifting"))
         .accessibilityIdentifier("weightlifting-dashboard")
         .alert(
@@ -145,32 +145,32 @@ struct WeightliftingDashboardView: View {
     private func competitionDaySection(
         preparation: CompetitionDayPreparation
     ) -> some View {
-        GymCard {
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                GymSectionHeader(
-                    title: String(localized: "Competition day"),
-                    detail: String(localized: "Review evidence, then record the two lifts in the active workout.")
-                )
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            TrameSectionRule(title: "Competition day")
+            Text(String(localized: "Review evidence, then record Snatch and Clean & Jerk in the active workout."))
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
 
-                DatePicker(
-                    String(localized: "Event date"),
-                    selection: $eventDate,
-                    in: calendar.startOfDay(for: .now)...,
-                    displayedComponents: .date
-                )
-                .font(AppFont.body)
-                .accessibilityIdentifier("competition-event-date")
+            DatePicker(
+                String(localized: "Event date"),
+                selection: $eventDate,
+                in: calendar.startOfDay(for: .now)...,
+                displayedComponents: .date
+            )
+            .font(AppFont.body)
+            .accessibilityIdentifier("competition-event-date")
 
-                if let proposal = preparation.proposal {
-                    competitionProposal(preparation: preparation, proposal: proposal)
-                } else {
-                    Text(String(localized: "Link an Olympic-weightlifting program to review competition attempts."))
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            if let proposal = preparation.proposal {
+                competitionProposal(preparation: preparation, proposal: proposal)
+            } else {
+                Text(String(localized: "Link an Olympic-weightlifting program to review competition attempts."))
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .padding(Spacing.l)
+        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("competition-day-section")
     }
@@ -210,17 +210,17 @@ struct WeightliftingDashboardView: View {
             if let programName = preparation.programName {
                 Text(programName)
                     .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
             }
             ForEach(CompetitionLift.allCases, id: \.self) { lift in
                 let attempts = proposal.attempts(for: lift)
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(lift.displayName)
                         .font(AppFont.bodyMedium)
-                        .foregroundStyle(Color.gymText)
+                        .foregroundStyle(Color.trameText)
                     Text(attemptSummary(attempts))
                         .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .foregroundStyle(Color.trameSubdued)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .accessibilityElement(children: .combine)
@@ -234,7 +234,7 @@ struct WeightliftingDashboardView: View {
                     systemImage: AppIcon.info
                 )
                 .font(AppFont.caption)
-                .foregroundStyle(Color.gymAccent)
+                .foregroundStyle(Color.trameText)
                 .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -283,10 +283,21 @@ struct WeightliftingDashboardView: View {
     }
 
     private var introduction: some View {
-        GymSectionHeader(
-            title: String(localized: "Weightlifting evidence"),
-            detail: String(localized: "Full-lift outcomes and component evidence stay separate.")
-        )
+        VStack(alignment: .leading, spacing: Spacing.s) {
+            HStack(spacing: Spacing.m) {
+                Text(String(localized: "Weightlifting evidence"))
+                    .font(AppFont.stageTitle)
+                    .foregroundStyle(Color.trameText)
+                Rectangle()
+                    .fill(Color.trameCompetition)
+                    .frame(height: 3)
+                    .accessibilityHidden(true)
+            }
+            Text(String(localized: "Snatch and Clean & Jerk attempts, full-lift outcomes, and technical observations remain separate."))
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var emptyState: some View {
@@ -302,65 +313,175 @@ struct WeightliftingDashboardView: View {
 
     @ViewBuilder
     private var dashboardContent: some View {
+        attemptOutcomeField
         fullLiftSection
-        componentSection
         attemptMatrix
+        componentSection
         if let qualityTrend = presentation.qualityTrend {
-            GymCard {
-                GymEyebrow("Quality trend")
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                TrameSectionRule(title: "Latest quality observation")
                 Text(qualityTrend)
                     .font(AppFont.body)
-                    .foregroundStyle(Color.gymText)
+                    .foregroundStyle(Color.trameText)
                     .fixedSize(horizontal: false, vertical: true)
+                Text(String(localized: "Recorded lift-quality observations; quality is not inferred from load or outcome."))
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("weightlifting-quality-trend")
         }
         if let evidenceNote = presentation.evidenceNote {
-            Text(evidenceNote)
-                .font(AppFont.caption)
-                .foregroundStyle(Color.gymSubduedText)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("weightlifting-evidence-note")
+            DisclosureGroup {
+                Text(evidenceNote)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, Spacing.s)
+            } label: {
+                Text(String(localized: "Evidence & method"))
+                    .font(AppFont.sectionTitle)
+                    .foregroundStyle(Color.trameText)
+            }
+            .tint(Color.trameText)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
+            .accessibilityIdentifier("weightlifting-evidence-note")
         }
+    }
+
+    @ViewBuilder
+    private var attemptOutcomeField: some View {
+        if let summary = presentation.attemptOutcomes {
+            VStack(alignment: .leading, spacing: Spacing.l) {
+                Text(String(localized: "ATTEMPT OUTCOMES"))
+                    .font(AppFont.eyebrow)
+                    .tracking(1.2)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: Spacing.l) {
+                        attemptOutcomeMetrics(summary)
+                    }
+                    VStack(alignment: .leading, spacing: Spacing.m) {
+                        attemptOutcomeMetrics(summary)
+                    }
+                }
+                if let attemptSummary = presentation.attemptSummary {
+                    Text(attemptSummary)
+                        .font(AppFont.micro)
+                        .accessibilityIdentifier("weightlifting-attempt-summary")
+                }
+            }
+            .foregroundStyle(Color.trameSemanticFieldInk)
+            .padding(Spacing.l)
+            .background(Color.trameCompetition, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("weightlifting-attempt-outcomes")
+        }
+    }
+
+    @ViewBuilder
+    private func attemptOutcomeMetrics(_ summary: WeightliftingAttemptOutcomeSummary) -> some View {
+        attemptOutcomeMetric(String(localized: "Made"), value: summary.made, symbol: "✓")
+        attemptOutcomeMetric(String(localized: "Partial"), value: summary.partial, symbol: "◐")
+        attemptOutcomeMetric(String(localized: "Missed"), value: summary.missed, symbol: "×")
+        attemptOutcomeMetric(String(localized: "Skipped"), value: summary.skipped, symbol: "–")
+        if summary.notStarted > 0 {
+            attemptOutcomeMetric(String(localized: "Not assessed"), value: summary.notStarted, symbol: "·")
+        }
+    }
+
+    private func attemptOutcomeMetric(_ label: String, value: Int, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text("\(symbol) \(value)")
+                .font(AppFont.metricCompact)
+            Text(label.uppercased())
+                .font(AppFont.micro)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label), \(value)")
     }
 
     @ViewBuilder
     private var attemptMatrix: some View {
         if presentation.recentAttempts.isEmpty == false {
             VStack(alignment: .leading, spacing: Spacing.s) {
-                GymSectionHeader(
-                    title: String(localized: "Recent attempt matrix"),
-                    detail: String(localized: "Latest recorded complex attempts; component outcomes stay separate from the full-lift result.")
-                )
+                TrameSectionRule(title: "Recent attempts")
+                Text(String(localized: "Latest recorded parent attempts in performed order; each component remains separate from the full-lift result."))
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
                 ForEach(presentation.recentAttempts) { attempt in
-                    HStack(spacing: Spacing.s) {
-                        Text(attempt.date.formatted(date: .abbreviated, time: .omitted))
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
-                            .frame(minWidth: 66, alignment: .leading)
-                        Text(attempt.load)
-                            .font(AppFont.captionSemiboldMonospaced)
-                            .foregroundStyle(Color.gymText)
-                        Spacer(minLength: 0)
-                        HStack(spacing: Spacing.xs) {
-                            ForEach(Array(attempt.components.enumerated()), id: \.offset) { _, outcome in
-                                Text(attemptSymbol(outcome))
-                                    .font(AppFont.captionBold)
-                                    .foregroundStyle(attemptColor(outcome))
+                    VStack(alignment: .leading, spacing: Spacing.s) {
+                        HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
+                            Text(attempt.date.formatted(date: .abbreviated, time: .omitted))
+                                .font(AppFont.metadata)
+                                .foregroundStyle(Color.trameSubdued)
+                            Spacer(minLength: 0)
+                            Text(attempt.load)
+                                .font(AppFont.metricCompact)
+                                .foregroundStyle(Color.trameText)
+                        }
+
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .top, spacing: Spacing.m) {
+                                componentOutcomeViews(attempt)
                             }
-                            Text(attemptSymbol(attempt.outcome))
-                                .font(AppFont.captionBold)
-                                .foregroundStyle(attemptColor(attempt.outcome))
+                            VStack(alignment: .leading, spacing: Spacing.s) {
+                                componentOutcomeViews(attempt)
+                            }
                         }
                     }
-                    .padding(.vertical, Spacing.xs)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(attempt.date.formatted(date: .abbreviated, time: .omitted)), \(attempt.load), \(attempt.outcome.title)")
+                    .padding(.vertical, Spacing.s)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(attemptAccessibilityLabel(attempt))
+                    if attempt.id != presentation.recentAttempts.last?.id {
+                        Divider().overlay(Color.trameSeparator)
+                    }
                 }
             }
             .accessibilityIdentifier("weightlifting-attempt-matrix")
         }
+    }
+
+    @ViewBuilder
+    private func componentOutcomeViews(_ attempt: WeightliftingRecentAttempt) -> some View {
+        ForEach(Array(attempt.components.enumerated()), id: \.offset) { index, outcome in
+            let label = attempt.componentLabels.indices.contains(index)
+                ? attempt.componentLabels[index]
+                : String(localized: "Component \(index + 1)")
+            attemptOutcomeMark(label: label, symbol: attemptSymbol(outcome), color: attemptColor(outcome))
+        }
+        attemptOutcomeMark(
+            label: String(localized: "Full lift"),
+            symbol: attemptSymbol(attempt.outcome),
+            color: attemptColor(attempt.outcome)
+        )
+    }
+
+    private func attemptOutcomeMark(label: String, symbol: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xxs) {
+            Text(symbol)
+                .font(AppFont.metricCompact)
+                .foregroundStyle(color)
+            Text(label)
+                .font(AppFont.micro)
+                .foregroundStyle(Color.trameSubdued)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func attemptAccessibilityLabel(_ attempt: WeightliftingRecentAttempt) -> String {
+        let components = attempt.components.enumerated().map { index, outcome in
+            let label = attempt.componentLabels.indices.contains(index)
+                ? attempt.componentLabels[index]
+                : String(localized: "Component \(index + 1)")
+            return "\(label), \(outcome.title)"
+        }
+        return ([
+            attempt.date.formatted(date: .abbreviated, time: .omitted),
+            attempt.load
+        ] + components + [String(localized: "Full lift, \(attempt.outcome.title)")])
+            .joined(separator: ", ")
     }
 
     private func attemptSymbol(_ outcome: ComplexComponentOutcome) -> String {
@@ -385,36 +506,38 @@ struct WeightliftingDashboardView: View {
 
     private func attemptColor(_ outcome: ComplexComponentOutcome) -> Color {
         switch outcome {
-        case .completed: .gymSuccess
-        case .partial: .gymAccent
-        case .missed: .gymAccent
-        case .skipped, .notStarted: .gymSubduedText
+        case .completed: .trameCompleted
+        case .partial, .missed: .trameAttention
+        case .skipped, .notStarted: .trameSubdued
         }
     }
 
     private func attemptColor(_ outcome: OlympicAttemptOutcome) -> Color {
         switch outcome {
-        case .made: .gymSuccess
-        case .partial: .gymAccent
-        case .missed: .gymAccent
-        case .skipped, .notStarted: .gymSubduedText
+        case .made: .trameCompleted
+        case .partial, .missed: .trameAttention
+        case .skipped, .notStarted: .trameSubdued
         }
     }
 
     private var fullLiftSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            GymEyebrow("Full-lift outcomes")
+            TrameSectionRule(title: "Complete parent lifts")
 
-            if let fullLiftBest = presentation.fullLiftBest {
-                metricCard(fullLiftBest, identifier: "weightlifting-full-lift-best")
+            if presentation.fullLiftBests.isEmpty == false {
+                ForEach(presentation.fullLiftBests) { metric in
+                    metricBlock(metric, identifier: "weightlifting-full-lift-best")
+                }
+            } else if let fullLiftBest = presentation.fullLiftBest {
+                metricBlock(fullLiftBest, identifier: "weightlifting-full-lift-best")
             } else {
                 unavailableMetric(String(localized: "No complete full-lift result recorded yet."))
             }
 
-            if let attemptSummary = presentation.attemptSummary {
+            if presentation.attemptOutcomes == nil, let attemptSummary = presentation.attemptSummary {
                 Text(attemptSummary)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("weightlifting-attempt-summary")
             }
@@ -423,17 +546,15 @@ struct WeightliftingDashboardView: View {
 
     private var componentSection: some View {
         VStack(alignment: .leading, spacing: Spacing.s) {
-            GymEyebrow("Component evidence")
+            TrameSectionRule(title: "Component evidence")
 
-            HStack(alignment: .top, spacing: Spacing.s) {
-                metricCard(
-                    presentation.cleanBest ?? unavailableMetricModel(title: String(localized: "Clean")),
-                    identifier: "weightlifting-clean-best"
-                )
-                metricCard(
-                    presentation.jerkAfterCleanBest ?? unavailableMetricModel(title: String(localized: "Jerk after clean")),
-                    identifier: "weightlifting-jerk-after-clean-best"
-                )
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: Spacing.xl) {
+                    componentMetricBlocks
+                }
+                VStack(alignment: .leading, spacing: Spacing.m) {
+                    componentMetricBlocks
+                }
             }
 
             if presentation.componentOutcomes.isEmpty {
@@ -446,29 +567,42 @@ struct WeightliftingDashboardView: View {
         }
     }
 
-    private func metricCard(
+    @ViewBuilder
+    private var componentMetricBlocks: some View {
+        metricBlock(
+            presentation.cleanBest ?? unavailableMetricModel(title: String(localized: "Clean")),
+            identifier: "weightlifting-clean-best"
+        )
+        metricBlock(
+            presentation.jerkAfterCleanBest ?? unavailableMetricModel(title: String(localized: "Jerk after clean")),
+            identifier: "weightlifting-jerk-after-clean-best"
+        )
+    }
+
+    private func metricBlock(
         _ metric: WeightliftingDashboardMetric,
         identifier: String
     ) -> some View {
-        GymCard(variant: metric.evidenceAvailable ? .standard : .accent) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(metric.title)
-                .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymSubduedText)
+                .font(AppFont.micro)
+                .foregroundStyle(Color.trameSubdued)
+                .textCase(.uppercase)
 
             if let value = metric.value, metric.evidenceAvailable {
                 Text(value)
-                    .font(AppFont.titleSmallSemiboldMonospaced)
-                    .foregroundStyle(Color.gymDataEmphasis)
+                    .font(AppFont.metricLarge)
+                    .foregroundStyle(Color.trameText)
             } else {
                 Text(String(localized: "Not recorded"))
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metricCompact)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             if let detail = metric.detail {
                 Text(detail)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -480,8 +614,8 @@ struct WeightliftingDashboardView: View {
 
     private func unavailableMetric(_ message: String) -> some View {
         Text(message)
-            .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
+            .font(AppFont.metadata)
+            .foregroundStyle(Color.trameSubdued)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.vertical, Spacing.xs)
     }
@@ -499,21 +633,32 @@ struct WeightliftingDashboardView: View {
     private func componentOutcomeRow(_ summary: WeightliftingComponentOutcomeSummary) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(summary.title)
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
-            HStack(spacing: Spacing.m) {
-                outcome(String(localized: "Made"), summary.made)
-                outcome(String(localized: "Partial"), summary.partial)
-                outcome(String(localized: "Missed"), summary.missed)
-                outcome(String(localized: "Skipped"), summary.skipped)
+                .font(AppFont.sectionTitle)
+                .foregroundStyle(Color.trameText)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Spacing.m) {
+                    componentOutcomeCounts(summary)
+                }
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    componentOutcomeCounts(summary)
+                }
             }
-            .font(AppFont.captionSemiboldMonospaced)
-            .foregroundStyle(Color.gymSubduedText)
+            .font(AppFont.metadata.monospacedDigit())
+            .foregroundStyle(Color.trameSubdued)
         }
-        .padding(.vertical, Spacing.xs)
+        .padding(.vertical, Spacing.s)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(outcomeAccessibilityLabel(summary))
         .accessibilityIdentifier("weightlifting-component-outcomes-\(summary.id)")
+    }
+
+    @ViewBuilder
+    private func componentOutcomeCounts(_ summary: WeightliftingComponentOutcomeSummary) -> some View {
+        outcome(String(localized: "Made"), summary.made)
+        outcome(String(localized: "Partial"), summary.partial)
+        outcome(String(localized: "Missed"), summary.missed)
+        outcome(String(localized: "Skipped"), summary.skipped)
+        outcome(String(localized: "Not assessed"), summary.notStarted)
     }
 
     private func outcome(_ label: String, _ count: WeightliftingEvidenceCount) -> some View {
@@ -533,7 +678,8 @@ struct WeightliftingDashboardView: View {
             String(format: String(localized: "Made %@"), summary.made.displayText),
             String(format: String(localized: "Partial %@"), summary.partial.displayText),
             String(format: String(localized: "Missed %@"), summary.missed.displayText),
-            String(format: String(localized: "Skipped %@"), summary.skipped.displayText)
+            String(format: String(localized: "Skipped %@"), summary.skipped.displayText),
+            String(format: String(localized: "Not assessed %@"), summary.notStarted.displayText)
         ].joined(separator: ", ")
     }
 }

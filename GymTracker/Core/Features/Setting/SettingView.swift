@@ -28,7 +28,7 @@ struct SettingView: View {
     let activeLoggingMetrics: ActiveLoggingMetricsRecorder
     private let featureFlags: FeatureFlagConfiguration = FeatureFlags.current
     @State private var isShowingBetaFeedback = false
-    @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .light
+    @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .dark
     @AppStorage(DefaultsKey.darkMode) private var legacyDarkMode: Bool = false
     @AppStorage(DefaultsKey.useMetric) private var unitSystem: UnitSystem = .metric
     /// Zero means automatic: rest is derived from the exercise. A positive
@@ -191,10 +191,7 @@ struct SettingView: View {
     }
 
     private var selectedAppearance: AppAppearance {
-        guard UserDefaults.standard.object(forKey: DefaultsKey.appearance) != nil else {
-            return legacyDarkMode ? .dark : .light
-        }
-        return appearance
+        AppAppearance.resolved(stored: appearance, legacyDarkMode: legacyDarkMode)
     }
 
     private var appearanceBinding: Binding<AppAppearance> {
@@ -563,7 +560,7 @@ private struct RemindersSettingsView: View {
 /// sit directly beneath the report they answer.
 struct DataSettingsView: View {
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .light
+    @AppStorage(DefaultsKey.appearance) private var appearance: AppAppearance = .dark
     @AppStorage(DefaultsKey.darkMode) private var legacyDarkMode: Bool = false
     @AppStorage(DefaultsKey.restTimer) private var restTimer: Int = 0
     @AppStorage(DefaultsKey.useMetric) private var unitSystem: UnitSystem = .metric
@@ -775,10 +772,7 @@ struct DataSettingsView: View {
     }
 
     private var selectedAppearance: AppAppearance {
-        guard UserDefaults.standard.object(forKey: DefaultsKey.appearance) != nil else {
-            return legacyDarkMode ? .dark : .light
-        }
-        return appearance
+        AppAppearance.resolved(stored: appearance, legacyDarkMode: legacyDarkMode)
     }
 }
 
