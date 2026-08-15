@@ -22,76 +22,64 @@ struct HistoryWorkoutView: View {
                     sourceBadge(sourceName)
                 }
 
-                VStack(alignment: .leading, spacing: Spacing.l) {
-                    Text("Exercises")
-                        .font(AppFont.titleSmallSemibold)
-                        .foregroundStyle(Color.gymText)
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    TrameSectionRule(title: "Exercises")
 
                     ForEach(workout.orderedExercises) { exercise in
                         WorkoutDetailView(exercise: exercise)
                     }
                 }
             }
-            .padding(.horizontal, Spacing.l)
-            .padding(.vertical, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
+            .padding(.vertical, Spacing.l)
+            .padding(.bottom, 96)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle(workout.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private var workoutHeader: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
+        VStack(alignment: .leading, spacing: Spacing.s) {
             Text(workout.displayTitle)
-                .font(AppFont.displayMedium)
-                .foregroundStyle(Color.gymText)
+                .font(AppFont.screenTitle)
+                .foregroundStyle(Color.trameText)
 
             Text(workout.startTime, format: .dateTime.weekday(.wide).month(.wide).day().year())
-                .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymSubduedText)
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
 
-            HStack(spacing: Spacing.m) {
-                summaryItem(workoutDuration, icon: AppIcon.timer)
-                summaryItem(exerciseSummary, icon: AppIcon.workout)
-                summaryItem(setSummary, icon: AppIcon.checkmarkCircle)
-            }
+            Text([workoutDuration, exerciseSummary, setSummary].joined(separator: " · "))
+                .font(AppFont.metadata)
+                .foregroundStyle(Color.trameSubdued)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.card))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(workout.displayTitle), \(workoutDuration), \(exerciseSummary), \(setSummary)")
     }
 
-    private func summaryItem(_ title: String, icon: String) -> some View {
-        Label(title, systemImage: icon)
-            .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
-            .lineLimit(1)
-    }
-
     private func notesSection(_ notes: String) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            Label("Notes", systemImage: "note.text")
-                .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymText)
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text("NOTES")
+                .font(AppFont.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(Color.trameSubdued)
             Text(notes)
                 .font(AppFont.body)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameText)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
+        .padding(.vertical, Spacing.s)
+        .overlay(alignment: .bottom) {
+            Divider().overlay(Color.trameSeparator)
+        }
     }
 
     private func sourceBadge(_ sourceName: String) -> some View {
-        Label("From \(sourceName)", systemImage: AppIcon.folders)
-            .font(AppFont.footnoteMedium)
-            .foregroundStyle(Color.gymAccent)
-            .padding(.horizontal, Spacing.m)
-            .padding(.vertical, Spacing.s)
-            .background(Color.gymAccentSurface, in: Capsule())
+        Text("From \(sourceName)")
+            .font(AppFont.micro)
+            .foregroundStyle(Color.trameStrength)
             .accessibilityLabel("Source workout: \(sourceName)")
     }
 
@@ -129,27 +117,28 @@ struct WorkoutDetailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
             if exercise.supersetGroupID != nil {
-                Label("Superset", systemImage: "link")
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymPrimary)
+                Text("SUPERSET")
+                    .font(AppFont.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(Color.trameStrength)
                     .accessibilityLabel("Superset exercise")
             }
             Text(exercise.occurrenceDisplayName)
-                .font(AppFont.titleSmallSemibold)
-                .foregroundStyle(Color.gymText)
+                .font(AppFont.stageTitle)
+                .foregroundStyle(Color.trameText)
 
             if let original = exercise.originalExerciseNameSnapshot,
                exercise.selectedSubstituteExerciseIDSnapshot != nil {
-                Label("Substituted for \(original)", systemImage: AppIcon.relationship)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                Text("Substituted for \(original)")
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
                     .accessibilityLabel("Substituted for \(original)")
             }
 
             if let note = exercise.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
                 Text(note)
-                    .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
             }
 
             let comparison = WorkoutPerformanceComparison(exercise: exercise)
@@ -160,22 +149,25 @@ struct WorkoutDetailView: View {
             setTable
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.l)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section))
+        .padding(.vertical, Spacing.m)
+        .overlay(alignment: .bottom) {
+            Divider().overlay(Color.trameSeparator)
+        }
     }
 
     private var setTable: some View {
         Grid(alignment: .leading, horizontalSpacing: Spacing.m, verticalSpacing: Spacing.s) {
             GridRow {
                 ForEach(tableColumns, id: \.self) { column in
-                    Text(column)
-                        .font(AppFont.captionBold)
-                        .foregroundStyle(Color.gymSubduedText)
+                    Text(column.uppercased())
+                        .font(AppFont.eyebrow)
+                        .tracking(0.8)
+                        .foregroundStyle(Color.trameSubdued)
                         .frame(maxWidth: .infinity, alignment: column == "Set" ? .leading : .trailing)
                 }
             }
 
-            Divider().gridCellColumns(tableColumns.count)
+            Divider().overlay(Color.trameSeparator).gridCellColumns(tableColumns.count)
 
             ForEach(Array(exercise.orderedSets.enumerated()), id: \.element.persistentModelID) { index, set in
                 GridRow {
@@ -205,8 +197,8 @@ struct WorkoutDetailView: View {
                 if !set.orderedComplexComponents.isEmpty {
                     GridRow {
                         Text(complexComponentText(for: set))
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
                             .fixedSize(horizontal: false, vertical: true)
                             .gridCellColumns(tableColumns.count)
                     }
@@ -234,8 +226,9 @@ struct WorkoutDetailView: View {
 
     private func tableValue(_ value: String, alignment: Alignment = .trailing) -> some View {
         Text(value)
-            .font(AppFont.subheadlineMediumMonospaced)
-            .foregroundStyle(Color.gymText)
+            .font(AppFont.bodyMedium)
+            .monospacedDigit()
+            .foregroundStyle(Color.trameText)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: alignment)
     }

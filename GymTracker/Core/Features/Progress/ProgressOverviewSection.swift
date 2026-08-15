@@ -68,9 +68,6 @@ struct ProgressOverviewSection: View {
 
     private func periodOverview(_ summary: ProgressOverviewSummary) -> some View {
         VStack(alignment: .leading, spacing: Spacing.l) {
-            TrameSectionRule(title: "Training rhythm")
-                .accessibilityIdentifier("progress-overview-current-period")
-
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 Text(range.title)
                     .font(AppFont.eyebrow)
@@ -84,6 +81,7 @@ struct ProgressOverviewSection: View {
                 )
             }
             .accessibilityIdentifier("progress-global-summary")
+            .accessibilityIdentifier("progress-overview-current-period")
 
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: Spacing.xxl) {
@@ -166,7 +164,7 @@ struct ProgressOverviewSection: View {
         if points.isEmpty == false {
             let selectedPoint = selectedFrequencyPoint(in: points)
             VStack(alignment: .leading, spacing: Spacing.m) {
-                TrameSectionRule(title: "Recent cadence")
+                TrameSectionRule(title: "Training rhythm")
 
                 Text("Completed workouts · last 8 weeks")
                     .font(AppFont.metadata)

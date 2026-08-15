@@ -53,15 +53,22 @@ struct ExerciseLibraryView : View {
             Section {
                 ExerciseFilterControls(filter: $filter, resultCount: results.count)
             }
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
 
             if results.isEmpty {
                 ContentUnavailableView.search(text: searchText)
+                    .listRowBackground(Color.clear)
             } else {
                 ForEach(results, id: \.id) { exercise in
                     exerciseRow(for: exercise)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.visible)
+                        .listRowSeparatorTint(Color.trameSeparator)
                 }
             }
         }
+        .listStyle(.plain)
         .searchable(text: $searchText, prompt: "Search exercises")
         // Recent ranking depends on workout history, not on the search query.
         // Project it once per history change so typing does not rescan every
@@ -70,7 +77,7 @@ struct ExerciseLibraryView : View {
             recentExerciseRanks = buildRecentExerciseRanks()
         }
         .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Add Exercise")
         .overlay(alignment: .topLeading) {
             screenshotStateMarker("exercise-picker-screen", label: "Exercise picker")
@@ -80,6 +87,8 @@ struct ExerciseLibraryView : View {
                 Button("Done") {
                     dismiss()
                 }
+                .font(AppFont.body.weight(.semibold))
+                .foregroundStyle(Color.trameText)
                 .accessibilityIdentifier("close-exercise-picker")
             }
         }
@@ -147,19 +156,19 @@ private struct ExerciseLibrarySelectionRow: View {
     @State private var isShowingDetails = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: Spacing.s) {
+        HStack(alignment: .center, spacing: Spacing.s) {
             Button {
                 isShowingDetails = true
             } label: {
                 HStack(alignment: .top, spacing: Spacing.m) {
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
                         Text(exercise.name)
-                            .font(AppFont.bodyMedium)
-                            .foregroundStyle(Color.gymText)
+                            .font(AppFont.body.weight(.semibold))
+                            .foregroundStyle(Color.trameText)
                             .multilineTextAlignment(.leading)
                         Text(exercise.subtitle)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
                             .multilineTextAlignment(.leading)
                     }
                     .layoutPriority(1)
@@ -170,30 +179,27 @@ private struct ExerciseLibrarySelectionRow: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("exercise-link-\(exercise.name)")
 
-            // An already-added exercise renders as a status, not a control.
-            // As a button it read as a toggle, and tapping it deleted the
-            // exercise and every set logged against it from a screen where
-            // none of that work was visible.
             if isAdded {
                 Image(systemName: AppIcon.checkmarkCircle)
                     .font(AppFont.headlineSemibold)
-                    .foregroundStyle(Color.gymSecondary)
-                    .frame(width: 44, height: 44)
+                    .foregroundStyle(Color.trameCompleted)
+                    .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
                     .accessibilityIdentifier("added-exercise-\(exercise.name)")
                     .accessibilityLabel("\(exercise.name), already added")
             } else {
                 Button(action: onAdd) {
                     Image(systemName: AppIcon.plus)
                         .font(AppFont.headlineSemibold)
-                        .foregroundStyle(Color.gymPrimary)
-                        .frame(width: 44, height: 44)
+                        .foregroundStyle(Color.trameStrength)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("add-exercise-\(exercise.name)")
                 .accessibilityLabel("Add \(exercise.name)")
             }
         }
+        .padding(.vertical, Spacing.xs)
         .navigationDestination(isPresented: $isShowingDetails) {
             ExerciseView(exercise: exercise)
         }

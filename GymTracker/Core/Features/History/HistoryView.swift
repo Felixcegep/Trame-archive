@@ -77,15 +77,16 @@ struct HistoryView: View {
                         let sections = historySections(for: completedWorkouts)
                         List {
                             ForEach(sections) { section in
-                                Section(section.title) {
+                                Section {
                                     ForEach(section.workouts) { workout in
                                         NavigationLink(destination: HistoryWorkoutView(workout: workout)) {
                                             HistoryWorkoutRow(workout: workout)
                                         }
                                         .contentShape(Rectangle())
                                         .accessibilityIdentifier("history-workout-row")
-                                        .listRowBackground(Color.gymCard)
-                                        .listRowSeparator(.hidden)
+                                        .listRowBackground(Color.clear)
+                                        .listRowSeparator(.visible)
+                                        .listRowSeparatorTint(Color.trameSeparator)
                                         // Full swipe is deliberately disabled: a
                                         // drifting one-handed scroll must never be
                                         // able to destroy a completed session
@@ -99,10 +100,14 @@ struct HistoryView: View {
                                             .accessibilityIdentifier("history-delete-workout")
                                         }
                                     }
+                                } header: {
+                                    TrameSectionRule(title: LocalizedStringKey(section.title))
+                                        .textCase(nil)
+                                        .padding(.vertical, Spacing.xs)
                                 }
                             }
                         }
-                        .listStyle(.insetGrouped)
+                        .listStyle(.plain)
                         .scrollContentBackground(.hidden)
                     case .progress:
                         HistoryProgressView(workouts: completedWorkouts)
@@ -114,7 +119,7 @@ struct HistoryView: View {
                 }
             }
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .accessibilityIdentifier("history-screen")
         .navigationTitle("History")
         .overlay(alignment: .bottom) {
@@ -167,12 +172,12 @@ struct HistoryView: View {
         HStack(spacing: Spacing.m) {
             Image(systemName: AppIcon.trash)
                 .font(AppFont.subheadlineSemibold)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
                 .accessibilityHidden(true)
 
             Text("Deleted \(pending.title)")
                 .font(AppFont.subheadline)
-                .foregroundStyle(Color.gymText)
+                .foregroundStyle(Color.trameText)
                 .lineLimit(2)
 
             Spacer(minLength: Spacing.s)
@@ -181,18 +186,19 @@ struct HistoryView: View {
                 undoPendingDeletion()
             }
             .font(AppFont.subheadlineSemibold)
+            .foregroundStyle(Color.trameAction)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
             .accessibilityIdentifier("history-undo-delete")
             .accessibilityHint("Restores the deleted workout and all of its sets.")
         }
         .padding(.horizontal, Spacing.l)
         .padding(.vertical, Spacing.s)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.section, style: .continuous))
+        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.section, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.trameSeparator, lineWidth: 1)
         }
-        .shadow(color: Color.gymText.opacity(0.08), radius: 8, y: 2)
+        .shadow(color: Color.black.opacity(0.12), radius: 8, y: 2)
         .padding(.horizontal, Spacing.l)
         .padding(.bottom, Spacing.m)
         .accessibilityElement(children: .contain)

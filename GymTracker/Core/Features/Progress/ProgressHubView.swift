@@ -38,14 +38,11 @@ struct ProgressHubView: View {
     @State private var isShowingTools = false
 
     var body: some View {
-        List {
-            Section {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: Spacing.xxl) {
                 progressControls
-            }
-            .listRowBackground(Color.clear)
 
-            if selectedLens == .global {
-                Section {
+                if selectedLens == .global {
                     ProgressOverviewSection(
                         range: overviewRange,
                         state: overviewState,
@@ -53,14 +50,7 @@ struct ProgressHubView: View {
                         onNavigate: onNavigate,
                         presentation: .all
                     )
-                }
-            }
-
-            // Athlete setup changes ordering, not historical truth. It follows
-            // the user's actual evidence so opening Progress answers the common
-            // question ("how is training going?") before asking for preferences.
-            if hasOverviewEvidence, selectedLens != .global {
-                Section {
+                } else if hasOverviewEvidence {
                     AthleteIntelligenceSection(
                         selectedLens: $selectedLens,
                         isEditingProfile: $isEditingAthleteProfile,
@@ -71,96 +61,15 @@ struct ProgressHubView: View {
                         onNavigate: onNavigate
                     )
                 }
-            }
 
-            // Four rows, not seven.
-            //
-            // Training history, records, trends and volume are what a lifter
-            // opens Progress for. Weightlifting, the ledger and coach exchange
-            // are specialist instruments — a competition dashboard, a
-            // recommendation audit log, and a coach hand-off format — and
-            // presenting all seven at equal weight made the four common ones
-            // as hard to find as the three rare ones. Nothing is removed; the
-            // rare three moved one disclosure deeper.
-            Section("Explore") {
-                progressLink(
-                    route: .workoutHistory,
-                    title: "Training history",
-                    detail: countDescription(completedWorkouts.count, singular: "completed workout")
-                )
-                progressLink(
-                    route: .records,
-                    title: "Records",
-                    detail: "Best performed sets and exercise progress"
-                )
-                progressLink(
-                    route: .trainingTrends,
-                    title: "Exercise trends",
-                    detail: "Completed load, volume, and repetition history"
-                )
-                progressLink(
-                    route: .muscleGroupVolume,
-                    title: "Muscle-group volume",
-                    detail: "Estimated working-set distribution and evidence"
-                )
-
-                DisclosureGroup(isExpanded: $isShowingTools) {
-                    progressLink(
-                        route: .weightlifting,
-                        title: "Weightlifting",
-                        detail: "Full lifts, components, and quality evidence"
-                    )
-                    progressLink(
-                        route: .trainingLedger,
-                        title: String(localized: "progression.ledger.title", defaultValue: "Training ledger"),
-                        detail: String(localized: "progression.ledger.entry.detail", defaultValue: "Recommendation decisions and evidence")
-                    )
-                    progressLink(
-                        route: .coachExchange,
-                        title: String(localized: "coach.exchange.title", defaultValue: "Coach exchange"),
-                        detail: String(localized: "coach.exchange.entry.detail", defaultValue: "Share selected training definitions and reports")
-                    )
-                } label: {
-                    Label {
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text("Tools")
-                                .font(AppFont.subheadlineSemibold)
-                            Text("Competition, progression evidence, and coach hand-off")
-                                .font(AppFont.caption)
-                                .foregroundStyle(Color.gymSubduedText)
-                        }
-                    } icon: {
-                        GymIconChip(systemImage: AppIcon.export, tint: .gymAccent)
-                    }
-                }
-                .tint(Color.gymPrimary)
-                .accessibilityIdentifier("progress-tools-disclosure")
+                exploreGroup
+                supportingHistoryGroup
             }
-
-            // One row, not three.
-            //
-            // Mobility routines, journal check-ins and logged meals were three
-            // rows opening three screens that differ only in which record they
-            // list. They are now scopes inside one History screen — the row
-            // still reports every count, so nothing became harder to find, and
-            // the section stopped being longer than the one above it.
-            Section("Supporting history") {
-                progressLink(
-                    route: .supportingHistory(.mobility),
-                    title: "History",
-                    detail: supportingHistoryDetail
-                )
-                if featureFlags.isEnabled(.mobilityAssessment) {
-                    progressLink(
-                        route: .mobilityAssessmentHistory,
-                        title: "Mobility assessments",
-                        detail: CountPhrase.recordedAssessments(recordedAssessmentSessions.count)
-                    )
-                }
-            }
+            .padding(.horizontal, Spacing.screenInset)
+            .padding(.top, Spacing.s)
+            .padding(.bottom, 96)
         }
-        .scrollContentBackground(.hidden)
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
         .navigationTitle("Progress")
         .accessibilityIdentifier("progress-screen")
         .toolbar {
@@ -169,7 +78,12 @@ struct ProgressHubView: View {
                     isEditingAthleteProfile = true
                 } label: {
                     Image(systemName: AppIcon.settings)
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(Color.trameText)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .accessibilityLabel("Training profile")
                 .accessibilityHint("Edits sport priorities without changing training history.")
                 .accessibilityIdentifier("progress-athlete-profile")
@@ -198,15 +112,10 @@ struct ProgressHubView: View {
     }
 
     private var progressControls: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: Spacing.l) {
-                lensPicker
-                rangePicker
-            }
-            VStack(alignment: .leading, spacing: Spacing.s) {
-                lensPicker
-                rangePicker
-            }
+        HStack(spacing: Spacing.m) {
+            lensPicker
+            Spacer()
+            rangePicker
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, Spacing.xs)
@@ -214,52 +123,136 @@ struct ProgressHubView: View {
     }
 
     private var lensPicker: some View {
-        Group {
-            if availableLenses.count <= 3 {
-                Picker("Progress lens", selection: $selectedLens) {
-                    ForEach(availableLenses, id: \.self) { lens in
-                        Text(lens.title)
-                            .tag(lens)
-                            .accessibilityIdentifier("progress-lens-\(lensIdentifier(lens))")
-                    }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityValue(selectedLens.title)
-                .accessibilityIdentifier("progress-sport-lens-picker")
-            } else {
-                LabeledContent("Lens") {
-                    Picker("Progress lens", selection: $selectedLens) {
-                        ForEach(availableLenses, id: \.self) { lens in
-                            Text(lens.title)
-                                .tag(lens)
-                                .accessibilityIdentifier("progress-lens-\(lensIdentifier(lens))")
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .accessibilityValue(selectedLens.title)
-                    .accessibilityIdentifier("progress-sport-lens-picker")
+        Menu {
+            Picker("Progress lens", selection: $selectedLens) {
+                ForEach(availableLenses, id: \.self) { lens in
+                    Text(lens.title)
+                        .tag(lens)
+                        .accessibilityIdentifier("progress-lens-\(lensIdentifier(lens))")
                 }
             }
+        } label: {
+            HStack(spacing: Spacing.xs) {
+                Text(selectedLens.title)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(AppFont.micro)
+            }
+            .font(AppFont.bodyMedium)
+            .foregroundStyle(Color.trameText)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
         }
-        .font(AppFont.metadata)
-        .foregroundStyle(Color.trameText)
-        .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+        .accessibilityLabel("Progress lens")
+        .accessibilityValue(selectedLens.title)
+        .accessibilityIdentifier("progress-sport-lens-picker")
     }
 
     private var rangePicker: some View {
-        LabeledContent("Range") {
+        Menu {
             Picker("Progress range", selection: $overviewRange) {
                 ForEach(AnalyticsDateRange.allCases, id: \.self) { range in
                     Text(range.title).tag(range)
                 }
             }
-            .pickerStyle(.menu)
-            .accessibilityValue(overviewRange.title)
-            .accessibilityIdentifier("progress-overview-range")
+        } label: {
+            HStack(spacing: Spacing.xs) {
+                Text(overviewRange.title)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(AppFont.micro)
+            }
+            .font(AppFont.bodyMedium)
+            .foregroundStyle(Color.trameText)
+            .frame(minHeight: ComponentSize.minimumTouchTarget)
         }
-        .font(AppFont.metadata)
-        .foregroundStyle(Color.trameText)
-        .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
+        .accessibilityLabel("Progress range")
+        .accessibilityValue(overviewRange.title)
+        .accessibilityIdentifier("progress-overview-range")
+    }
+
+    private var exploreGroup: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            TrameSectionRule(title: "Explore")
+
+            LibraryOpenGroup {
+                progressLink(
+                    route: .workoutHistory,
+                    title: "Training history",
+                    detail: countDescription(completedWorkouts.count, singular: "completed workout")
+                )
+                progressLink(
+                    route: .records,
+                    title: "Records",
+                    detail: "Best performed sets and exercise progress"
+                )
+                progressLink(
+                    route: .trainingTrends,
+                    title: "Exercise trends",
+                    detail: "Completed load, volume, and repetition history"
+                )
+                progressLink(
+                    route: .muscleGroupVolume,
+                    title: "Muscle-group volume",
+                    detail: "Estimated working-set distribution and evidence"
+                )
+
+                DisclosureGroup(isExpanded: $isShowingTools) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        progressLink(
+                            route: .weightlifting,
+                            title: "Weightlifting",
+                            detail: "Full lifts, components, and quality evidence"
+                        )
+                        progressLink(
+                            route: .trainingLedger,
+                            title: String(localized: "progression.ledger.title", defaultValue: "Training ledger"),
+                            detail: String(localized: "progression.ledger.entry.detail", defaultValue: "Recommendation decisions and evidence")
+                        )
+                        progressLink(
+                            route: .coachExchange,
+                            title: String(localized: "coach.exchange.title", defaultValue: "Coach exchange"),
+                            detail: String(localized: "coach.exchange.entry.detail", defaultValue: "Share selected training definitions and reports")
+                        )
+                    }
+                } label: {
+                    HStack(spacing: Spacing.m) {
+                        TrameCategoryTile(systemImage: AppIcon.export, fill: Color.trameCompetition, size: ComponentSize.iconChip)
+                        VStack(alignment: .leading, spacing: Spacing.xxs) {
+                            Text("Tools")
+                                .font(AppFont.bodyMedium)
+                                .foregroundStyle(Color.trameText)
+                            Text("Competition, progression evidence, and coach hand-off")
+                                .font(AppFont.metadata)
+                                .foregroundStyle(Color.trameSubdued)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, Spacing.md)
+                    .contentShape(Rectangle())
+                }
+                .tint(Color.trameText)
+                .accessibilityIdentifier("progress-tools-disclosure")
+            }
+        }
+    }
+
+    private var supportingHistoryGroup: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            TrameSectionRule(title: "Supporting history")
+
+            LibraryOpenGroup {
+                progressLink(
+                    route: .supportingHistory(.mobility),
+                    title: "History",
+                    detail: supportingHistoryDetail
+                )
+                if featureFlags.isEnabled(.mobilityAssessment) {
+                    progressLink(
+                        route: .mobilityAssessmentHistory,
+                        title: "Mobility assessments",
+                        detail: CountPhrase.recordedAssessments(recordedAssessmentSessions.count)
+                    )
+                }
+            }
+        }
     }
 
     private var availableLenses: [ProgressLens] {
@@ -476,18 +469,29 @@ struct ProgressHubView: View {
     /// blue while the Overview above tinted the same destinations by mood.
     private func progressLink(route: ProgressRoute, title: String, detail: String) -> some View {
         NavigationLink(value: route) {
-            Label {
+            HStack(spacing: Spacing.m) {
+                TrameCategoryTile(systemImage: route.icon, fill: route.tint, size: ComponentSize.iconChip)
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
                     Text(title)
-                        .font(AppFont.subheadlineSemibold)
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(Color.trameText)
                     Text(detail)
-                        .font(AppFont.caption)
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
+                        .lineLimit(2)
                 }
-            } icon: {
-                GymIconChip(systemImage: route.icon, tint: route.tint)
+                Spacer()
+                Image(systemName: AppIcon.chevronRight)
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
             }
+            .padding(.vertical, Spacing.md)
+            .overlay(alignment: .bottom) {
+                Divider().overlay(Color.trameSeparator)
+            }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .accessibilityIdentifier("progress-\(route.accessibilityIdentifier)")
     }
 
@@ -531,24 +535,17 @@ extension ProgressRoute {
     }
 
     /// The tint for a destination, wherever it is drawn.
-    ///
-    /// One tint per route, resolved here rather than at each call site — the
-    /// Overview and the hub below it previously disagreed about the same
-    /// destinations, which spent the palette's meanings on decoration.
-    ///
-    /// The rule is the design system's own: `gymPrimary` is training data,
-    /// `gymSecondary` is something achieved, `gymAccent` is supporting
-    /// context. A reader should be able to infer the kind of screen from the
-    /// colour before reading the label.
     var tint: Color {
         switch self {
         case .workoutHistory, .trainingTrends, .muscleGroupVolume:
-            .gymPrimary
+            Color.trameStrength
         case .records, .weightlifting:
-            .gymSecondary
+            Color.trameCompetition
         case .trainingJourney, .trainingLedger, .coachExchange,
-             .supportingHistory, .mobilityAssessmentHistory:
-            .gymAccent
+             .supportingHistory:
+            Color.trameRecovery
+        case .mobilityAssessmentHistory:
+            Color.trameMobility
         }
     }
 

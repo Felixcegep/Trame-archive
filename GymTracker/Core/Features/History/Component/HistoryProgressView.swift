@@ -14,7 +14,7 @@ struct HistoryProgressView: View {
         let frequency = projection.frequencyPoints
 
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xl) {
+            VStack(alignment: .leading, spacing: Spacing.xxl) {
                 HistoryFrequencyChart(points: frequency)
 
                 if series.isEmpty {
@@ -24,9 +24,8 @@ struct HistoryProgressView: View {
                         description: Text("Complete weighted or rep-based sets to see exercise trends.")
                     )
                 } else {
-                    VStack(alignment: .leading, spacing: Spacing.m) {
-                        Text("Exercises")
-                            .font(AppFont.titleSmallSemibold)
+                    VStack(alignment: .leading, spacing: Spacing.xl) {
+                        TrameSectionRule(title: "Exercises")
 
                         ForEach(Array(series.prefix(5))) { item in
                             HistoryExerciseProgressCard(series: item)
@@ -34,12 +33,12 @@ struct HistoryProgressView: View {
                     }
                 }
             }
-            .padding(.horizontal, Spacing.xl)
+            .padding(.horizontal, Spacing.screenInset)
             .padding(.vertical, Spacing.l)
+            .padding(.bottom, 96)
         }
-        .background(Color.gymBackground)
+        .background(Color.trameCanvas)
     }
-
 }
 
 private struct HistoryFrequencyChart: View {
@@ -58,44 +57,36 @@ private struct HistoryFrequencyChart: View {
     }
 
     var body: some View {
-        GymChartCard(
-            title: "Frequency · 8 weeks",
-            titleIdentifier: "training-frequency-chart",
-        ) {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            TrameSectionRule(title: "Frequency")
+
             if let selectedPoint {
-                GymChartSelectionAnnotation(
-                    title: selectedPoint.start.formatted(.dateTime.month(.abbreviated).day()),
-                    value: "\(selectedPoint.count) \(selectedPoint.count == 1 ? "workout" : "workouts")"
-                )
+                Text("\(selectedPoint.start.formatted(.dateTime.month(.abbreviated).day())) · \(selectedPoint.count) \(selectedPoint.count == 1 ? "workout" : "workouts")")
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
             }
+
             Chart(points) { point in
                 BarMark(
                     x: .value("Week", point.start, unit: .weekOfYear),
                     y: .value("Workouts", point.count),
-                    width: .ratio(0.6)
+                    width: .ratio(0.54)
                 )
-                .foregroundStyle(point.count == 0 ? Color.gymRowSurface : Color.gymPrimary)
-                .cornerRadius(Radius.small)
+                .foregroundStyle(point.count == 0 ? Color.trameSeparator : Color.trameStrength)
+
                 if selectedPoint?.id == point.id {
                     RuleMark(x: .value("Selected week", point.start))
-                        .foregroundStyle(Color.gymPrimary.opacity(0.42))
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                        .foregroundStyle(Color.trameText)
+                        .lineStyle(StrokeStyle(lineWidth: 1))
                 }
             }
             .chartXSelection(value: $selectedDate)
-            .chartYAxis {
-                AxisMarks(position: .leading, values: .stride(by: 1)) { _ in
-                    AxisGridLine().foregroundStyle(Color.gymBorder)
-                    AxisTick().foregroundStyle(Color.gymBorder)
-                    AxisValueLabel().foregroundStyle(Color.gymSubduedText)
-                }
-            }
+            .chartYAxis(.hidden)
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                    AxisGridLine().foregroundStyle(Color.gymBorder)
-                    AxisTick().foregroundStyle(Color.gymBorder)
                     AxisValueLabel(format: .dateTime.month(.abbreviated).day())
-                        .foregroundStyle(Color.gymSubduedText)
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameSubdued)
                 }
             }
             .frame(height: ComponentSize.overviewChartHeight)
@@ -158,9 +149,14 @@ struct HistoryExerciseProgressCard: View {
     var body: some View {
         let points = series.points(for: metric).sorted { $0.date < $1.date }
 
-        GymChartCard(
-            title: series.name,
-        ) {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(series.name)
+                    .font(AppFont.body.weight(.semibold))
+                    .foregroundStyle(Color.trameText)
+                Spacer()
+            }
+
             Picker("Metric", selection: $metric) {
                 ForEach(HistoryProgressMetric.allCases) { metric in
                     Text(metric.title).tag(metric)
@@ -170,14 +166,13 @@ struct HistoryExerciseProgressCard: View {
 
             if points.isEmpty {
                 Text("Not enough data for this metric yet.")
-                    .font(AppFont.footnote)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
             } else {
                 if let selectedPoint {
-                    GymChartSelectionAnnotation(
-                        title: selectedPoint.date.formatted(.dateTime.month(.abbreviated).day()),
-                        value: formatted(selectedPoint.value)
-                    )
+                    Text("\(selectedPoint.date.formatted(.dateTime.month(.abbreviated).day())) · \(formatted(selectedPoint.value))")
+                        .font(AppFont.metadata)
+                        .foregroundStyle(Color.trameSubdued)
                 }
                 let maximum = points.map(\.value).max() ?? 1
                 let upperBound = max(Float(1), maximum * 1.12)
@@ -185,60 +180,42 @@ struct HistoryExerciseProgressCard: View {
                     && Calendar.current.isDate(points[0].date, inSameDayAs: points[points.count - 1].date)
 
                 Chart(points) { point in
-                    if points.count >= 4 {
-                        AreaMark(
-                            x: .value("Date", point.date),
-                            y: .value(metric.title, point.value)
-                        )
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color.gymPrimary.opacity(0.18), Color.gymPrimary.opacity(0.01)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .interpolationMethod(.linear)
-                    }
                     LineMark(
                         x: .value("Date", point.date),
                         y: .value(metric.title, point.value)
                     )
-                    .foregroundStyle(Color.gymPrimary)
+                    .foregroundStyle(Color.trameStrength)
                     .interpolationMethod(.linear)
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+
                     PointMark(
                         x: .value("Date", point.date),
                         y: .value(metric.title, point.value)
                     )
-                    .foregroundStyle(point.id == points.last?.id ? Color.gymPrimary : Color.gymPrimary.opacity(0.55))
-                    .symbolSize(point.id == points.last?.id ? 72 : 34)
+                    .foregroundStyle(selectedPoint?.id == point.id ? Color.trameText : Color.trameStrength)
+                    .symbolSize(selectedPoint?.id == point.id ? 70 : 34)
+
                     if selectedPoint?.id == point.id {
                         RuleMark(x: .value("Selected session", point.date))
-                            .foregroundStyle(Color.gymPrimary.opacity(0.42))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                            .foregroundStyle(Color.trameText)
+                            .lineStyle(StrokeStyle(lineWidth: 1))
                     }
                 }
                 .chartXSelection(value: $selectedDate)
                 .chartYScale(domain: Float.zero...upperBound)
                 .chartYAxis {
                     AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
-                        AxisGridLine().foregroundStyle(Color.gymBorder)
+                        AxisGridLine().foregroundStyle(Color.trameSeparator)
                         AxisValueLabel()
-                            .font(AppFont.caption)
-                            .foregroundStyle(Color.gymSubduedText)
+                            .font(AppFont.micro)
+                            .foregroundStyle(Color.trameSubdued)
                     }
                 }
                 .chartXAxis(.hidden)
                 .chartLegend(.hidden)
                 .frame(height: points.count >= 4 ? ComponentSize.progressDashboardChartHeight : ComponentSize.overviewChartHeight)
-                // `children: .ignore` so the label below is what VoiceOver
-                // reads. Without it the chart's own marks stay traversable and
-                // shadow it — the frequency chart already did this; this one
-                // did not.
                 .accessibilityElement(children: .ignore)
-                // Not "trend": VoiceOver would assert a pattern the evidence line
-        // beneath may be explicitly declining to claim.
-        .accessibilityLabel("\(series.name) \(metric.title) over time")
+                .accessibilityLabel("\(series.name) \(metric.title) over time")
                 .accessibilityValue(seriesAccessibilityValue)
 
                 if let first = points.first, let latest = points.last, points.count > 1 {
@@ -247,11 +224,14 @@ struct HistoryExerciseProgressCard: View {
                         Spacer(minLength: Spacing.s)
                         Text("Latest · \(sessionLabel(latest.date, usesTime: usesTimeLabels))")
                     }
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .accessibilityHidden(true)
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
                 }
             }
+        }
+        .padding(.vertical, Spacing.m)
+        .overlay(alignment: .bottom) {
+            Divider().overlay(Color.trameSeparator)
         }
         .onAppear {
             selectedDate = series.points(for: metric).last?.date

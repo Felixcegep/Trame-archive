@@ -5,44 +5,38 @@ struct HistoryWorkoutRow: View {
     let workout: Workout
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.m) {
                 Text(workoutTitle)
-                    .font(AppFont.headlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .font(AppFont.body.weight(.semibold))
+                    .foregroundStyle(Color.trameText)
                     .lineLimit(1)
 
                 Spacer(minLength: Spacing.s)
 
                 Text(workoutDate)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
                     .lineLimit(1)
             }
 
-            HStack(spacing: Spacing.m) {
-                metadataItem(workoutDuration, icon: AppIcon.timer)
-                metadataItem(exerciseSummary, icon: AppIcon.workout)
-                metadataItem(setSummary, icon: AppIcon.checkmarkCircle)
+            HStack(spacing: Spacing.xs) {
+                Text([workoutDuration, exerciseSummary, setSummary].joined(separator: " · "))
+                    .font(AppFont.metadata)
+                    .foregroundStyle(Color.trameSubdued)
+                    .lineLimit(1)
             }
 
             if let sourceName {
-                Label("From \(sourceName)", systemImage: AppIcon.folders)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Color.gymAccent)
+                Text("From \(sourceName)")
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameStrength)
                     .lineLimit(1)
             }
         }
         .padding(.vertical, Spacing.s)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)
-    }
-
-    private func metadataItem(_ title: String, icon: String) -> some View {
-        Label(title, systemImage: icon)
-            .font(AppFont.caption)
-            .foregroundStyle(Color.gymSubduedText)
-            .lineLimit(1)
     }
 
     private var workoutTitle: String {
