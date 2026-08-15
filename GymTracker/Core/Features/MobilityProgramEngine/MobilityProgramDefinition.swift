@@ -327,6 +327,7 @@ nonisolated struct MobilityProgramDefinitionPayload: Codable, Hashable, Identifi
     /// claim. It must not be inferred as official, sourced, or synthetic.
     var provenance: ProgramProvenance?
     var sourceReferences: [ProgramSourceReference]?
+    var discoveryMetadata: ProgramDiscoveryMetadata?
     var goalIDs: [String]?
     var experienceLevelRaw: String?
     var prerequisites: [String]?
@@ -355,6 +356,7 @@ nonisolated struct MobilityProgramDefinitionPayload: Codable, Hashable, Identifi
         targetDisciplineIDs: [String]? = nil,
         provenance: ProgramProvenance? = nil,
         sourceReferences: [ProgramSourceReference]? = nil,
+        discoveryMetadata: ProgramDiscoveryMetadata? = nil,
         blocks: [MobilityProgramBlockDefinition]
     ) {
         self.id = id
@@ -370,6 +372,7 @@ nonisolated struct MobilityProgramDefinitionPayload: Codable, Hashable, Identifi
         self.requiredCapabilities = requiredCapabilities
         self.provenance = provenance
         self.sourceReferences = sourceReferences
+        self.discoveryMetadata = discoveryMetadata
         self.goalIDs = goalIDs
         self.experienceLevelRaw = experienceLevelRaw
         self.prerequisites = prerequisites
@@ -383,7 +386,8 @@ nonisolated struct MobilityProgramDefinitionPayload: Codable, Hashable, Identifi
         case id, schemaVersion, templateVersion, programKey, name, summary, durationWeeks,
              supportedDaysPerWeek, missedSessionPolicy, completionPolicy, requiredCapabilities,
              provenance, sourceReferences, goalIDs, experienceLevelRaw, prerequisites,
-             estimatedSessionMinutesMinimum, estimatedSessionMinutesMaximum, targetDisciplineIDs, blocks
+             discoveryMetadata, estimatedSessionMinutesMinimum, estimatedSessionMinutesMaximum,
+             targetDisciplineIDs, blocks
     }
 
     init(from decoder: Decoder) throws {
@@ -401,6 +405,7 @@ nonisolated struct MobilityProgramDefinitionPayload: Codable, Hashable, Identifi
         requiredCapabilities = try container.decodeIfPresent([String].self, forKey: .requiredCapabilities) ?? []
         provenance = try container.decodeIfPresent(ProgramProvenance.self, forKey: .provenance)
         sourceReferences = try container.decodeIfPresent([ProgramSourceReference].self, forKey: .sourceReferences)
+        discoveryMetadata = try container.decodeIfPresent(ProgramDiscoveryMetadata.self, forKey: .discoveryMetadata)
         goalIDs = try container.decodeIfPresent([String].self, forKey: .goalIDs)
         experienceLevelRaw = try container.decodeIfPresent(String.self, forKey: .experienceLevelRaw)
         prerequisites = try container.decodeIfPresent([String].self, forKey: .prerequisites)

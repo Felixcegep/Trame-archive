@@ -17,7 +17,13 @@ enum SystemSeedCatalogCoordinator {
     // the advertised training schedule. Existing installs need this version
     // so those records are archived rather than continuing to surface an
     // incomplete Program Path.
-    static let contentVersion = 18
+    // 19: installs the additive recovered-catalogue metadata after all
+    // canonical definition targets exist. Unmatched recovered rows remain
+    // report-only and never become runnable content.
+    // 20: materializes the complete recovered exercise/mobility catalogue and
+    // all program discovery listings. This forces internal v19 stores to run
+    // the finalized seed pass rather than incorrectly treating it as current.
+    static let contentVersion = 20
 
     private static let retiredBundledProgramKeys: Set<String> = [
         "powerlifting-volume-intensity",
@@ -85,12 +91,23 @@ enum SystemSeedCatalogCoordinator {
         in context: ModelContext,
         bundle: Bundle = .main
     ) throws -> SystemSeedInstallReport {
+        let recoveredCatalog = try CatalogResourceDecoder.decodeBundled(bundle: bundle)
         let registry = try SystemSeedRegistry(context: context)
         var report = try ExerciseSystemSeedInstaller.install(
             in: context,
             registry: registry,
             seedVersion: seedVersion,
             contentVersion: contentVersion
+        )
+
+        // Stage the complete recovered movement catalogue before relationships
+        // and templates resolve their exercise references. Existing entities
+        // are matched by stable key/legacy identity, so IDs and history stay
+        // intact while missing bundled rows are added transactionally.
+        report += try CatalogMetadataInstaller.seedDefinitions(
+            recoveredCatalog,
+            in: context,
+            registry: registry
         )
 
         // ExerciseRelationshipSeedData.seed only asserts on an unresolved
@@ -144,6 +161,12 @@ enum SystemSeedCatalogCoordinator {
             saveChanges: false
         )
         report += try registerMobilityPrograms(in: context, registry: registry)
+
+        // Descriptive recovered data is attached last, after every possible
+        // target exists, and remains inside this coordinator's one-save
+        // transaction. The installer intentionally does not create runnable
+        // programs from `routines_summary` or `days_structure` prose.
+        _ = try CatalogMetadataInstaller.stageBundled(in: context, bundle: bundle)
 #endif
 
         report += try MobilityAssessmentSeedData.stage(using: context, registry: registry)

@@ -276,6 +276,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
     var requiredCapabilities: [String]?
     var provenance: ProgramProvenance?
     var sourceReferences: [ProgramSourceReference]?
+    var discoveryMetadata: ProgramDiscoveryMetadata?
     var supportedDisciplineIDs: [String]?
     var focusAreaApplicability: FocusAreaApplicability?
     var focusAreaIDs: [String]?
@@ -580,6 +581,7 @@ nonisolated struct AuthoringProgramDefinition: Codable, Hashable {
             requiredCapabilities: Set((requiredCapabilities ?? []) + detectedCapabilities).sorted(),
             provenance: provenance,
             sourceReferences: sourceReferences,
+            discoveryMetadata: discoveryMetadata,
             supportedDisciplineIDs: supportedDisciplineIDs,
             focusAreaApplicability: focusAreaApplicability,
             focusAreaIDs: focusAreaIDs,

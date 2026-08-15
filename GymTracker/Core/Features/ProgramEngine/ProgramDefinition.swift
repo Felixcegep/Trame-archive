@@ -76,6 +76,50 @@ nonisolated struct ProgramSourceReference: Codable, Hashable {
     var doesNotProvide: [String]
 }
 
+/// Optional catalogue/discovery metadata. These fields help users find and
+/// understand a program, but never participate in compilation or progression.
+/// Raw labels are retained where the discovery vocabulary is broader than the
+/// engine's typed training enums.
+nonisolated struct ProgramDiscoveryMetadata: Codable, Hashable, Sendable {
+    var authorOrOrigin: String?
+    var categoryOrDisciplineLabel: String?
+    var progressionModelLabel: String?
+    var tags: [String]
+    var sourceProgramURL: String?
+    var imageURL: String?
+
+    init(
+        authorOrOrigin: String? = nil,
+        categoryOrDisciplineLabel: String? = nil,
+        progressionModelLabel: String? = nil,
+        tags: [String] = [],
+        sourceProgramURL: String? = nil,
+        imageURL: String? = nil
+    ) {
+        self.authorOrOrigin = authorOrOrigin
+        self.categoryOrDisciplineLabel = categoryOrDisciplineLabel
+        self.progressionModelLabel = progressionModelLabel
+        self.tags = tags
+        self.sourceProgramURL = sourceProgramURL
+        self.imageURL = imageURL
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case authorOrOrigin, categoryOrDisciplineLabel, progressionModelLabel,
+             tags, sourceProgramURL, imageURL
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        authorOrOrigin = try container.decodeIfPresent(String.self, forKey: .authorOrOrigin)
+        categoryOrDisciplineLabel = try container.decodeIfPresent(String.self, forKey: .categoryOrDisciplineLabel)
+        progressionModelLabel = try container.decodeIfPresent(String.self, forKey: .progressionModelLabel)
+        tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
+        sourceProgramURL = try container.decodeIfPresent(String.self, forKey: .sourceProgramURL)
+        imageURL = try container.decodeIfPresent(String.self, forKey: .imageURL)
+    }
+}
+
 /// Capability identifiers are intentionally strings in persisted payloads so a
 /// newer library can describe requirements to an older app without decoding a
 /// newer Swift enum case.
@@ -223,6 +267,7 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
     /// claim. It must not be inferred as official, sourced, or synthetic.
     var provenance: ProgramProvenance?
     var sourceReferences: [ProgramSourceReference]?
+    var discoveryMetadata: ProgramDiscoveryMetadata?
 
     // MARK: Matching metadata
     //
@@ -283,6 +328,7 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         requiredCapabilities: [String] = [],
         provenance: ProgramProvenance? = nil,
         sourceReferences: [ProgramSourceReference]? = nil,
+        discoveryMetadata: ProgramDiscoveryMetadata? = nil,
         supportedDisciplineIDs: [String]? = nil,
         focusAreaApplicability: FocusAreaApplicability? = nil,
         focusAreaIDs: [String]? = nil,
@@ -317,6 +363,7 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         self.requiredCapabilities = requiredCapabilities
         self.provenance = provenance
         self.sourceReferences = sourceReferences
+        self.discoveryMetadata = discoveryMetadata
         self.supportedDisciplineIDs = supportedDisciplineIDs
         self.focusAreaApplicability = focusAreaApplicability
         self.focusAreaIDs = focusAreaIDs
@@ -336,6 +383,7 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
              scheduleMode, scheduleIntervalDays, requiredEquipment, prerequisites,
              warnings, isExperimental, intakeInputs, missedWorkoutPolicy,
              completionPolicy, requiredCapabilities, provenance, sourceReferences,
+             discoveryMetadata,
              supportedDisciplineIDs,
              focusAreaApplicability, focusAreaIDs, estimatedSessionMinutesMinimum,
              estimatedSessionMinutesMaximum, competitionDisciplineID,
@@ -370,6 +418,7 @@ nonisolated struct ProgramDefinitionPayload: Codable, Hashable, Identifiable {
         requiredCapabilities = try container.decodeIfPresent([String].self, forKey: .requiredCapabilities) ?? []
         provenance = try container.decodeIfPresent(ProgramProvenance.self, forKey: .provenance)
         sourceReferences = try container.decodeIfPresent([ProgramSourceReference].self, forKey: .sourceReferences)
+        discoveryMetadata = try container.decodeIfPresent(ProgramDiscoveryMetadata.self, forKey: .discoveryMetadata)
         // Every matching field decodes as absent rather than as an empty
         // collection. "This program never said" and "this program says none"
         // rank differently, and collapsing them would silently penalise the

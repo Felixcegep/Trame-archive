@@ -58,6 +58,10 @@ extension ModelContext {
         // app uses for a real discard or deletion.
 #if !GYMTRACKER_EXTENSION
         for record in try fetch(FetchDescriptor<SystemSeedRecord>()) { delete(record) }
+        // This V4 catalogue root owns only scalar identifiers, so deleting an
+        // executable definition cannot cascade into it. Clear it before its
+        // targets to prevent stale unique keys during replacement restore.
+        for seed in (try? fetch(FetchDescriptor<ProgramDiscoverySeed>())) ?? [] { delete(seed) }
         // HealthKit provenance and export receipts are scalar ownership rows,
         // not children of their workout/body-weight records. Remove them
         // before their referenced roots so a reset cannot leave identifiers
@@ -65,6 +69,8 @@ extension ModelContext {
         for receipt in (try? fetch(FetchDescriptor<HealthKitWorkoutExportReceipt>())) ?? [] { delete(receipt) }
         for provenance in (try? fetch(FetchDescriptor<HealthKitBodyMassProvenance>())) ?? [] { delete(provenance) }
 #endif
+        // Catalogue metadata likewise points to definitions by scalar UUID.
+        for metadata in (try? fetch(FetchDescriptor<CatalogDefinitionMetadata>())) ?? [] { delete(metadata) }
         for split in (try? fetch(FetchDescriptor<WorkoutExecutionBlockSplit>())) ?? [] { delete(split) }
         for workout in workouts { delete(workout) }
         for session in try fetch(FetchDescriptor<MobilityAssessmentSession>()) { delete(session) }

@@ -8,13 +8,144 @@ import SwiftData
 /// model's stored shape changes, so a beta feedback report can distinguish
 /// testers running different schema generations.
 enum GymTrackerAppSchema {
-    static let diagnosticVersion = "15"
+    static let diagnosticVersion = "16"
 
     /// What the shipped build actually does with iCloud. This is deliberately
     /// a literal, not derived from CloudSyncEnvironment: the point is that a
     /// beta feedback report states the truth even if a future configuration
     /// change is made without updating the user-facing copy.
     static let cloudSyncState = "disabled"
+}
+
+/// Additive metadata for a reusable definition without changing the frozen
+/// V1-V3 entity shapes. `definitionID` points at an Exercise,
+/// MobilityDefinition, ProgramDefinitionRecord, or
+/// MobilityProgramDefinitionRecord according to `definitionKindRaw`.
+/// Completed evidence never references this live descriptive record.
+@Model
+final class CatalogDefinitionMetadata {
+    var id: UUID
+    var definitionID: UUID
+    var definitionKindRaw: String
+    var catalogueKey: String?
+    var sourceReferencesData: Data?
+
+    // Exercise metadata.
+    var muscleGroups: [String]
+    var anatomicalTargetMuscles: [String]
+    var anatomicalSynergistMuscles: [String]
+    var descriptionText: String?
+    var instructionSteps: [String]
+    var videoURLString: String?
+    var videoEmbedURLString: String?
+    var thumbnailURLString: String?
+    var imageURLString: String?
+    var liftosaurURLString: String?
+    var liftosaurSlug: String?
+
+    // Mobility metadata.
+    var categoryRaw: String?
+    var difficultyRaw: String?
+    var equipmentLabels: [String]
+    var primaryMuscleLabels: [String]
+    var secondaryMuscleLabels: [String]
+    var sanskritName: String?
+    var metValue: Double?
+    var benefitsText: String?
+    var svgURLString: String?
+
+    // Reserved source-authoring metadata. The future DSL may populate these,
+    // but no parser or second runtime exists in this schema slice.
+    var authoringLanguage: String?
+    var authoringLanguageVersion: String?
+    var authoringSourceData: Data?
+    var authoringSourceHash: String?
+    var authoringCompilerVersion: String?
+
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(
+        definitionID: UUID,
+        definitionKind: CatalogDefinitionKind,
+        catalogueKey: String? = nil,
+        id: UUID = UUID(),
+        createdAt: Date = .now,
+        updatedAt: Date = .now
+    ) {
+        self.id = id
+        self.definitionID = definitionID
+        self.definitionKindRaw = definitionKind.rawValue
+        self.catalogueKey = catalogueKey
+        self.sourceReferencesData = nil
+        self.muscleGroups = []
+        self.anatomicalTargetMuscles = []
+        self.anatomicalSynergistMuscles = []
+        self.descriptionText = nil
+        self.instructionSteps = []
+        self.videoURLString = nil
+        self.videoEmbedURLString = nil
+        self.thumbnailURLString = nil
+        self.imageURLString = nil
+        self.liftosaurURLString = nil
+        self.liftosaurSlug = nil
+        self.categoryRaw = nil
+        self.difficultyRaw = nil
+        self.equipmentLabels = []
+        self.primaryMuscleLabels = []
+        self.secondaryMuscleLabels = []
+        self.sanskritName = nil
+        self.metValue = nil
+        self.benefitsText = nil
+        self.svgURLString = nil
+        self.authoringLanguage = nil
+        self.authoringLanguageVersion = nil
+        self.authoringSourceData = nil
+        self.authoringSourceHash = nil
+        self.authoringCompilerVersion = nil
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    var definitionKind: CatalogDefinitionKind {
+        get { CatalogDefinitionKind(rawValue: definitionKindRaw) ?? .exercise }
+        set { definitionKindRaw = newValue.rawValue }
+    }
+
+    var sourceReferences: [CatalogSourceReference] {
+        get {
+            guard let sourceReferencesData else { return [] }
+            return (try? JSONDecoder().decode([CatalogSourceReference].self, from: sourceReferencesData)) ?? []
+        }
+        set {
+            sourceReferencesData = newValue.isEmpty ? nil : try? JSONEncoder().encode(newValue)
+        }
+    }
+}
+
+enum CatalogDefinitionKind: String, Codable, CaseIterable, Sendable {
+    case exercise
+    case mobilityDefinition
+    case workoutProgram
+    case mobilityProgram
+}
+
+/// Additive catalogue metadata for exercise and mobility definitions plus
+/// queryable/source-authoring metadata for program definitions. Historical
+/// performed evidence remains on the frozen execution snapshots; these live
+/// catalogue fields may be refreshed without reinterpreting completed work.
+enum GymTrackerCatalogMetadataSchema: VersionedSchema {
+    static let versionIdentifier = Schema.Version(4, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        var types = GymTrackerExecutionSplitSchema.models + [
+            CatalogDefinitionMetadata.self
+        ]
+#if !GYMTRACKER_EXTENSION
+        types.append(ProgramDiscoverySeed.self)
+#endif
+        return types
+    }
 }
 
 /// Additive execution evidence. The frozen block model is not reshaped;
@@ -149,7 +280,8 @@ enum GymTrackerSchemaMigrationPlan: SchemaMigrationPlan {
     static let schemas: [any VersionedSchema.Type] = [
         GymTrackerCurrentBaselineSchema.self,
         GymTrackerAdvancedMobilityEvidenceSchema.self,
-        GymTrackerExecutionSplitSchema.self
+        GymTrackerExecutionSplitSchema.self,
+        GymTrackerCatalogMetadataSchema.self
     ]
 
     static let stages: [MigrationStage] = [
@@ -160,6 +292,10 @@ enum GymTrackerSchemaMigrationPlan: SchemaMigrationPlan {
         .lightweight(
             fromVersion: GymTrackerAdvancedMobilityEvidenceSchema.self,
             toVersion: GymTrackerExecutionSplitSchema.self
+        ),
+        .lightweight(
+            fromVersion: GymTrackerExecutionSplitSchema.self,
+            toVersion: GymTrackerCatalogMetadataSchema.self
         )
     ]
 }
@@ -198,7 +334,7 @@ enum GymTrackerModelContainer {
         // Build the configuration once and reuse it, so the store that gets
         // copied aside is provably the same one that is about to be opened.
         let configuration = persistence.makeModelConfiguration()
-        let currentVersion = GymTrackerExecutionSplitSchema.versionIdentifier
+        let currentVersion = GymTrackerCatalogMetadataSchema.versionIdentifier
 
         let backupOutcome = GymTrackerPreMigrationBackup.backUpIfSchemaVersionChanged(
             storeURL: configuration.url,
@@ -273,5 +409,5 @@ enum GymTrackerModelContainer {
     /// Retained for existing callers and test helpers that consume a `Schema`
     /// value directly. The model list now has one owner: the named current
     /// baseline above.
-    static let schema = Schema(versionedSchema: GymTrackerExecutionSplitSchema.self)
+    static let schema = Schema(versionedSchema: GymTrackerCatalogMetadataSchema.self)
 }
