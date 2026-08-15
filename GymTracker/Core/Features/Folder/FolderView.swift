@@ -154,7 +154,7 @@ struct FolderView: View {
     }
 
     private var browseSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.xxl) {
+        VStack(alignment: .leading, spacing: Spacing.xl) {
             CurrentPlanCard(
                 onOpenPlan: { target in
                     onOpenRoute(target.isRepeating ? .repeatingPlan(target.planID) : .plan(target.planID))
@@ -170,116 +170,99 @@ struct FolderView: View {
                 onEndRepeatingPlan: onEndRepeatingPlan
             )
             .gymAssembly(index: 2, isActive: isPlayingAssembly)
-            workoutLibrarySection
+
+            studioGrid
                 .gymAssembly(index: 3, isActive: isPlayingAssembly)
-            if featureFlags.isEnabled(.mobility) {
-                mobilityLibrarySection
-                    .gymAssembly(index: 4, isActive: isPlayingAssembly)
-            }
         }
     }
 
-    /// Workouts and mobility are two pillars, not four peers.
-    ///
-    /// These used to be one "Browse" card whose four rows mixed two different
-    /// axes: Plans/Workouts/Exercises are three zoom levels of the *same*
-    /// pillar, while "Stretch & Mobility" was an entire second pillar — with
-    /// its own plans, routines and assessments inside it — rendered as the last
-    /// sibling of the three. Two symptoms gave the mismatch away: it was the
-    /// only row that could not show a count, because it is not one countable
-    /// noun, and it shared `gymSecondary` with Exercises so it did not even
-    /// read as a different kind of thing.
-    ///
-    /// Splitting them into two titled groups gives mobility equal billing
-    /// without a fourth tab or a segmented control, either of which would hide
-    /// half the app behind a toggle.
-    private var workoutLibrarySection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            LibrarySectionTitle("Library")
+    private var studioGrid: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            TrameSectionRule(title: "Studio")
 
-            LibraryOpenGroup {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: Spacing.m),
+                    GridItem(.flexible(), spacing: Spacing.m)
+                ],
+                spacing: Spacing.m
+            ) {
                 NavigationLink(value: LibraryRoute.plans) {
-                    LibraryItemRow(
+                    StudioCategoryTile(
                         title: "Plans",
+                        count: planCount,
                         icon: AppIcon.plan,
                         color: Color.trameCompetition,
-                        count: planCount
+                        subtitle: "Programs",
+                        accessibilityIdentifier: "plans-browser"
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("plans-browser")
 
                 NavigationLink(value: LibraryRoute.workouts) {
-                    LibraryItemRow(
+                    StudioCategoryTile(
                         title: "Workouts",
+                        count: workoutTemplates.count,
                         icon: AppIcon.routine,
                         color: Color.trameStrength,
-                        count: workoutTemplates.count
+                        subtitle: "Routines",
+                        accessibilityIdentifier: "workouts-browser"
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("workouts-browser")
 
                 NavigationLink(value: LibraryRoute.exercises) {
-                    LibraryItemRow(
+                    StudioCategoryTile(
                         title: "Exercises",
+                        count: exerciseTemplates.count,
                         icon: AppIcon.workout,
                         color: Color.trameStrength,
-                        count: exerciseTemplates.count
+                        subtitle: "Movements",
+                        accessibilityIdentifier: "exercises-browser"
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("exercises-browser")
-            }
-        }
-    }
 
-    /// The mobility pillar, opened up to the same depth as the workout one.
-    ///
-    /// Each row is a real destination that previously sat two or three taps
-    /// behind a single opaque door — the seven bundled mobility plans in
-    /// particular were invisible from this screen. Rows mirror the workout
-    /// group's order: the multi-week thing first, then the single sessions,
-    /// then the reference/measurement surface.
-    private var mobilityLibrarySection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            LibrarySectionTitle("Mobility")
-
-            LibraryOpenGroup {
-                if featureFlags.isEnabled(.mobilityProgram) {
-                    NavigationLink(value: LibraryRoute.mobilityPlans) {
-                        LibraryItemRow(
-                            title: "Plans",
-                            icon: AppIcon.plan,
-                            color: Color.trameRecovery,
-                            count: mobilityPlanCount
+                if featureFlags.isEnabled(.mobility) {
+                    NavigationLink(value: LibraryRoute.mobility) {
+                        StudioCategoryTile(
+                            title: "Mobility",
+                            count: mobilityRoutines.count,
+                            icon: AppIcon.mobility,
+                            color: Color.trameMobility,
+                            subtitle: "Flows",
+                            accessibilityIdentifier: "train-mobility-library"
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("mobility-plans-browser")
                 }
 
-                NavigationLink(value: LibraryRoute.mobility) {
-                    LibraryItemRow(
-                        title: "Routines",
-                        icon: AppIcon.mobility,
-                        color: Color.trameMobility,
-                        count: mobilityRoutines.count
-                    )
+                if featureFlags.isEnabled(.mobilityProgram) {
+                    NavigationLink(value: LibraryRoute.mobilityPlans) {
+                        StudioCategoryTile(
+                            title: "Mobility Plans",
+                            count: mobilityPlanCount,
+                            icon: AppIcon.plan,
+                            color: Color.trameRecovery,
+                            subtitle: "Guided",
+                            accessibilityIdentifier: "mobility-plans-browser"
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("train-mobility-library")
 
                 if featureFlags.isEnabled(.mobilityAssessment) {
                     NavigationLink(value: LibraryRoute.mobilityAssessments) {
-                        LibraryItemRow(
+                        StudioCategoryTile(
                             title: "Assessments",
+                            count: nil,
                             icon: AppIcon.mobilityAssessment,
-                            color: Color.trameMobility
+                            color: Color.trameMobility,
+                            subtitle: "Screens",
+                            accessibilityIdentifier: "mobility-assessments-browser"
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("mobility-assessments-browser")
                 }
             }
         }

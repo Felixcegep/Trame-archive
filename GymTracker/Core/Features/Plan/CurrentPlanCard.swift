@@ -36,29 +36,32 @@ struct CurrentPlanCard: View {
         CurrentPlanSummary.resolve(planRuns: planRuns, repeatingPlanRuns: repeatingPlanRuns)
     }
 
+    @ViewBuilder
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            TrameSectionRule(title: "Plan")
-            card
-        }
-        .confirmationDialog(
-            "Stop following this plan?",
-            isPresented: $isConfirmingStop,
-            titleVisibility: .visible
-        ) {
-            Button("Stop Following", role: .destructive, action: stopFollowing)
-                .accessibilityIdentifier("confirm-stop-following-plan")
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Your completed workouts stay in history. You can start the plan again later.")
-        }
-        .alert("Couldn’t update plan", isPresented: Binding(
-            get: { actionError != nil },
-            set: { if !$0 { actionError = nil } }
-        )) {
-            Button("OK", role: .cancel) { actionError = nil }
-        } message: {
-            Text(actionError ?? "Please try again.")
+        if summary.kind != .none {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                TrameSectionRule(title: "Active Plan")
+                card
+            }
+            .confirmationDialog(
+                "Stop following this plan?",
+                isPresented: $isConfirmingStop,
+                titleVisibility: .visible
+            ) {
+                Button("Stop Following", role: .destructive, action: stopFollowing)
+                    .accessibilityIdentifier("confirm-stop-following-plan")
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Your completed workouts stay in history. You can start the plan again later.")
+            }
+            .alert("Couldn’t update plan", isPresented: Binding(
+                get: { actionError != nil },
+                set: { if !$0 { actionError = nil } }
+            )) {
+                Button("OK", role: .cancel) { actionError = nil }
+            } message: {
+                Text(actionError ?? "Please try again.")
+            }
         }
     }
 
