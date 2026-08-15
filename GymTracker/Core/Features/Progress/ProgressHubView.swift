@@ -175,54 +175,43 @@ struct ProgressHubView: View {
             LibraryOpenGroup {
                 progressLink(
                     route: .workoutHistory,
-                    title: "Training history",
-                    detail: countDescription(completedWorkouts.count, singular: "completed workout")
+                    title: "History",
+                    count: "\(completedWorkouts.count)"
                 )
                 progressLink(
                     route: .records,
-                    title: "Records",
-                    detail: "Best performed sets and exercise progress"
+                    title: "Records"
                 )
                 progressLink(
                     route: .trainingTrends,
-                    title: "Exercise trends",
-                    detail: "Completed load, volume, and repetition history"
+                    title: "Trends"
                 )
                 progressLink(
                     route: .muscleGroupVolume,
-                    title: "Muscle-group volume",
-                    detail: "Estimated working-set distribution and evidence"
+                    title: "Volume"
                 )
 
                 DisclosureGroup(isExpanded: $isShowingTools) {
                     VStack(alignment: .leading, spacing: 0) {
                         progressLink(
                             route: .weightlifting,
-                            title: "Weightlifting",
-                            detail: "Full lifts, components, and quality evidence"
+                            title: "Weightlifting"
                         )
                         progressLink(
                             route: .trainingLedger,
-                            title: String(localized: "progression.ledger.title", defaultValue: "Training ledger"),
-                            detail: String(localized: "progression.ledger.entry.detail", defaultValue: "Recommendation decisions and evidence")
+                            title: String(localized: "progression.ledger.title", defaultValue: "Training ledger")
                         )
                         progressLink(
                             route: .coachExchange,
-                            title: String(localized: "coach.exchange.title", defaultValue: "Coach exchange"),
-                            detail: String(localized: "coach.exchange.entry.detail", defaultValue: "Share selected training definitions and reports")
+                            title: String(localized: "coach.exchange.title", defaultValue: "Coach exchange")
                         )
                     }
                 } label: {
                     HStack(spacing: Spacing.m) {
                         TrameCategoryTile(systemImage: AppIcon.export, fill: Color.trameCompetition, size: ComponentSize.iconChip)
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text("Tools")
-                                .font(AppFont.bodyMedium)
-                                .foregroundStyle(Color.trameText)
-                            Text("Competition, progression evidence, and coach hand-off")
-                                .font(AppFont.metadata)
-                                .foregroundStyle(Color.trameSubdued)
-                        }
+                        Text("Tools")
+                            .font(AppFont.bodyMedium)
+                            .foregroundStyle(Color.trameText)
                         Spacer()
                     }
                     .padding(.vertical, Spacing.md)
@@ -241,14 +230,14 @@ struct ProgressHubView: View {
             LibraryOpenGroup {
                 progressLink(
                     route: .supportingHistory(.mobility),
-                    title: "History",
-                    detail: supportingHistoryDetail
+                    title: "Mobility & Check-ins",
+                    count: "\(completedMobilitySessions.count + dailyLogEntries.count)"
                 )
                 if featureFlags.isEnabled(.mobilityAssessment) {
                     progressLink(
                         route: .mobilityAssessmentHistory,
-                        title: "Mobility assessments",
-                        detail: CountPhrase.recordedAssessments(recordedAssessmentSessions.count)
+                        title: "Assessments",
+                        count: recordedAssessmentSessions.isEmpty ? nil : "\(recordedAssessmentSessions.count)"
                     )
                 }
             }
@@ -464,10 +453,12 @@ struct ProgressHubView: View {
         assessmentSessions.filter { $0.results.isEmpty == false }
     }
 
-    /// Icon and tint come from the route — see `ProgressRoute.tint`. They were
-    /// arguments, and `GymIconChip`'s default tint meant every row here was
-    /// blue while the Overview above tinted the same destinations by mood.
-    private func progressLink(route: ProgressRoute, title: String, detail: String) -> some View {
+    private func progressLink(
+        route: ProgressRoute,
+        title: String,
+        count: String? = nil,
+        detail: String? = nil
+    ) -> some View {
         NavigationLink(value: route) {
             HStack(spacing: Spacing.m) {
                 TrameCategoryTile(systemImage: route.icon, fill: route.tint, size: ComponentSize.iconChip)
@@ -475,12 +466,20 @@ struct ProgressHubView: View {
                     Text(title)
                         .font(AppFont.bodyMedium)
                         .foregroundStyle(Color.trameText)
-                    Text(detail)
-                        .font(AppFont.metadata)
-                        .foregroundStyle(Color.trameSubdued)
-                        .lineLimit(2)
+                    if let detail {
+                        Text(detail)
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
+                            .lineLimit(1)
+                    }
                 }
                 Spacer()
+                if let count {
+                    Text(count)
+                        .font(AppFont.metadata)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.trameSubdued)
+                }
                 Image(systemName: AppIcon.chevronRight)
                     .font(AppFont.micro)
                     .foregroundStyle(Color.trameSubdued)

@@ -67,86 +67,46 @@ struct ProgressOverviewSection: View {
     // MARK: - Glance
 
     private func periodOverview(_ summary: ProgressOverviewSummary) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.l) {
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(range.title)
-                    .font(AppFont.eyebrow)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Color.trameSubdued)
-
-                TrameMetric(
-                    value: "\(summary.completedWorkoutsInRange)",
-                    label: summary.completedWorkoutsInRange == 1 ? "workout" : "workouts",
-                    accessibilityLabel: CountPhrase.completedWorkouts(summary.completedWorkoutsInRange)
-                )
-            }
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            TrameMetric(
+                value: "\(summary.completedWorkoutsInRange)",
+                label: summary.completedWorkoutsInRange == 1 ? "workout" : "workouts",
+                accessibilityLabel: CountPhrase.completedWorkouts(summary.completedWorkoutsInRange)
+            )
             .accessibilityIdentifier("progress-global-summary")
             .accessibilityIdentifier("progress-overview-current-period")
 
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: Spacing.xxl) {
-                    periodSupportingMetrics(summary)
-                    Spacer(minLength: 0)
-                }
-                VStack(alignment: .leading, spacing: Spacing.m) {
-                    periodSupportingMetrics(summary)
-                }
-            }
+            TrameMetricStrip(items: supportingMetricItems(summary))
 
             if summary.completedWorkoutsInRange > 0,
                summary.trainingTimeInRangeText == nil {
-                Text("Training duration is unavailable for this period; it is not counted as zero.")
+                Text("Training duration is unavailable for this period.")
                     .font(AppFont.metadata)
                     .foregroundStyle(Color.trameSubdued)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("progress-overview-duration-missing")
             }
-
-            Button {
-                onNavigate(.workoutHistory)
-            } label: {
-                Label("Open training history", systemImage: AppIcon.chevronRight)
-                    .font(AppFont.body.weight(.semibold))
-                    .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.trameText)
         }
         .overviewRowChrome(identifier: nil)
     }
 
-    @ViewBuilder
-    private func periodSupportingMetrics(_ summary: ProgressOverviewSummary) -> some View {
+    private func supportingMetricItems(_ summary: ProgressOverviewSummary) -> [TrameMetricStripItem] {
+        var items: [TrameMetricStripItem] = []
         if let time = summary.trainingTimeInRangeText {
-            supportingMetric(
+            items.append(TrameMetricStripItem(
+                id: "time",
                 value: time,
-                label: String(localized: "Training time"),
-                accessibilityLabel: String(localized: "\(time) of recorded training time")
-            )
+                label: "Training time",
+                accessibilityLabel: "\(time) of recorded training time"
+            ))
         }
-        supportingMetric(
+        items.append(TrameMetricStripItem(
+            id: "entries",
             value: "\(summary.completedEntriesInRange)",
-            label: String(localized: "Recorded exercises"),
-            accessibilityLabel: String(localized: "\(summary.completedEntriesInRange) completed exercise entries")
-        )
-    }
-
-    private func supportingMetric(
-        value: String,
-        label: String,
-        accessibilityLabel: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text(value)
-                .font(AppFont.metricCompact)
-                .foregroundStyle(Color.trameText)
-            Text(label)
-                .font(AppFont.micro)
-                .foregroundStyle(Color.trameSubdued)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
+            label: "Recorded exercises",
+            accessibilityLabel: "\(summary.completedEntriesInRange) completed exercise entries"
+        ))
+        return items
     }
 
     // MARK: - Read
@@ -156,19 +116,14 @@ struct ProgressOverviewSection: View {
         recentCadence(summary.weeklyFrequency)
         performanceEvidence(summary)
         sportEvidence(summary)
-        inspectRoutes(summary)
     }
 
     @ViewBuilder
     private func recentCadence(_ points: [WeeklyFrequencyPoint]) -> some View {
         if points.isEmpty == false {
             let selectedPoint = selectedFrequencyPoint(in: points)
-            VStack(alignment: .leading, spacing: Spacing.m) {
+            VStack(alignment: .leading, spacing: Spacing.s) {
                 TrameSectionRule(title: "Training rhythm")
-
-                Text("Completed workouts · last 8 weeks")
-                    .font(AppFont.metadata)
-                    .foregroundStyle(Color.trameSubdued)
 
                 Chart(points) { point in
                     BarMark(
@@ -202,15 +157,9 @@ struct ProgressOverviewSection: View {
                 }
                 .chartXSelection(value: $selectedFrequencyDate)
                 .frame(height: ComponentSize.overviewChartHeight)
-                .accessibilityHidden(true)
-
-                Text(frequencyDetail(selectedPoint, points: points))
-                    .font(AppFont.metadata)
-                    .foregroundStyle(Color.trameSubdued)
-                    .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(weeklyFrequencyAccessibilityLabel(points))
-                    .accessibilityIdentifier("progress-overview-weekly-frequency-chart")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(weeklyFrequencyAccessibilityLabel(points))
+                .accessibilityIdentifier("progress-overview-weekly-frequency-chart")
             }
             .overviewRowChrome(identifier: nil)
         }
@@ -222,16 +171,6 @@ struct ProgressOverviewSection: View {
             abs($0.weekStart.timeIntervalSince(selectedFrequencyDate))
                 < abs($1.weekStart.timeIntervalSince(selectedFrequencyDate))
         }
-    }
-
-    private func frequencyDetail(
-        _ point: WeeklyFrequencyPoint?,
-        points: [WeeklyFrequencyPoint]
-    ) -> String {
-        guard let point else { return String(localized: "No weekly frequency evidence") }
-        let week = point.weekStart.formatted(.dateTime.month(.abbreviated).day())
-        let suffix = point.id == points.last?.id ? String(localized: " · current week") : ""
-        return "\(week) · \(CountPhrase.completedWorkouts(point.workoutCount))\(suffix)"
     }
 
     private func weeklyFrequencyAccessibilityLabel(_ points: [WeeklyFrequencyPoint]) -> String {
@@ -246,11 +185,14 @@ struct ProgressOverviewSection: View {
     @ViewBuilder
     private func performanceEvidence(_ summary: ProgressOverviewSummary) -> some View {
         if summary.latestRecord != nil || summary.featuredSeries != nil {
-            VStack(alignment: .leading, spacing: Spacing.m) {
-                TrameSectionRule(title: "Exercise evidence")
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                TrameSectionRule(title: "Performance")
 
-                if let record = summary.latestRecord,
-                   shouldShowRecordMetric(record, summary: summary) {
+                if let series = summary.featuredSeries,
+                   let projection = featuredTrendProjection(series),
+                   projection.points.count >= 2 {
+                    featuredTrendDiagram(series, projection: projection)
+                } else if let record = summary.latestRecord {
                     evidenceButton(
                         route: .records,
                         identifier: "latest-record",
@@ -258,13 +200,6 @@ struct ProgressOverviewSection: View {
                         value: record.displayValue,
                         detail: "\(record.exerciseName) · \(record.kind)"
                     )
-                }
-
-                if let series = summary.featuredSeries,
-                   let projection = featuredTrendProjection(series),
-                   projection.points.count >= 2 {
-                    Divider().overlay(Color.trameSeparator)
-                    featuredTrendDiagram(series, projection: projection)
                 } else if let series = summary.featuredSeries {
                     evidenceButton(
                         route: .trainingTrends,
@@ -319,78 +254,64 @@ struct ProgressOverviewSection: View {
         let selected = selectedTrendPoint(in: projection.points)
         let maximum = projection.points.map(\.value).max() ?? 1
         let upperBound = max(Float(1), maximum * 1.12)
+        let latestPoint = projection.points.last
 
-        return VStack(alignment: .leading, spacing: Spacing.m) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(projection.points.count >= 4 ? "Exercise trend" : "Early comparison")
-                        .font(AppFont.eyebrow)
-                        .textCase(.uppercase)
-                        .foregroundStyle(Color.trameSubdued)
+        return Button {
+            onNavigate(.trainingTrends)
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.s) {
+                HStack(alignment: .firstTextBaseline) {
                     Text(series.name)
-                        .font(AppFont.sectionTitle)
+                        .font(AppFont.body.weight(.semibold))
                         .foregroundStyle(Color.trameText)
+                    Spacer()
+                    if let latestPoint {
+                        Text("\(latestPoint.value.formatted(.number.precision(.fractionLength(0...1)))) \(series.unit)")
+                            .font(AppFont.metricCompact)
+                            .foregroundStyle(Color.trameText)
+                    }
                 }
-                Spacer(minLength: Spacing.m)
-                Text(projection.label)
-                    .font(AppFont.micro)
-                    .foregroundStyle(Color.trameSubdued)
-                    .multilineTextAlignment(.trailing)
-            }
 
-            Chart(projection.points) { point in
-                LineMark(
-                    x: .value("Session", point.date),
-                    y: .value(projection.label, point.value)
-                )
-                .foregroundStyle(Color.trameStrength)
-                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                .interpolationMethod(.linear)
+                Chart(projection.points) { point in
+                    LineMark(
+                        x: .value("Session", point.date),
+                        y: .value(projection.label, point.value)
+                    )
+                    .foregroundStyle(Color.trameStrength)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                    .interpolationMethod(.linear)
 
-                PointMark(
-                    x: .value("Session", point.date),
-                    y: .value(projection.label, point.value)
-                )
-                .symbolSize(selected?.id == point.id ? 70 : 34)
-                .foregroundStyle(selected?.id == point.id ? Color.trameText : Color.trameStrength)
+                    PointMark(
+                        x: .value("Session", point.date),
+                        y: .value(projection.label, point.value)
+                    )
+                    .symbolSize(selected?.id == point.id ? 70 : 34)
+                    .foregroundStyle(selected?.id == point.id ? Color.trameText : Color.trameStrength)
 
-                if selected?.id == point.id {
-                    RuleMark(x: .value("Selected session", point.date))
-                        .foregroundStyle(Color.trameText)
-                        .lineStyle(StrokeStyle(lineWidth: 1))
+                    if selected?.id == point.id {
+                        RuleMark(x: .value("Selected session", point.date))
+                            .foregroundStyle(Color.trameText)
+                            .lineStyle(StrokeStyle(lineWidth: 1))
+                    }
                 }
-            }
-            .chartYScale(domain: Float.zero...upperBound)
-            .chartXAxis(.hidden)
-            .chartYAxis {
-                AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
-                    AxisGridLine().foregroundStyle(Color.trameSeparator)
-                    AxisValueLabel()
-                        .font(AppFont.micro)
-                        .foregroundStyle(Color.trameSubdued)
+                .chartYScale(domain: Float.zero...upperBound)
+                .chartXAxis(.hidden)
+                .chartYAxis {
+                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
+                        AxisGridLine().foregroundStyle(Color.trameSeparator)
+                        AxisValueLabel()
+                            .font(AppFont.micro)
+                            .foregroundStyle(Color.trameSubdued)
+                    }
                 }
+                .chartLegend(.hidden)
+                .chartXSelection(value: $selectedTrendDate)
+                .frame(height: ComponentSize.progressDashboardChartHeight)
             }
-            .chartLegend(.hidden)
-            .chartXSelection(value: $selectedTrendDate)
-            .frame(height: ComponentSize.progressDashboardChartHeight)
-            .accessibilityHidden(true)
-
-            if let selected {
-                Text(trendPointDetail(selected, label: projection.label))
-                    .font(AppFont.metadata)
-                    .foregroundStyle(Color.trameSubdued)
-                    .frame(minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
-            }
-
-            Button("Open exercise trends") {
-                onNavigate(.trainingTrends)
-            }
-            .font(AppFont.body.weight(.semibold))
-            .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.trameText)
+            .contentShape(Rectangle())
         }
-        .accessibilityElement(children: .contain)
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(featuredTrendAccessibilityLabel(series, projection: projection))
         .accessibilityIdentifier("progress-overview-featured-trend-chart")
     }
@@ -455,22 +376,14 @@ struct ProgressOverviewSection: View {
             $0.completedWorkoutCount > $1.completedWorkoutCount
         }
 
-        return VStack(alignment: .leading, spacing: Spacing.m) {
-            TrameSectionRule(title: "Recorded sports")
+        return VStack(alignment: .leading, spacing: Spacing.s) {
+            TrameSectionRule(title: "Training focus")
                 .accessibilityIdentifier("progress-sport-highlights")
-
-            if summary.hasComparableSportFocus == false {
-                Text("Complete at least four workouts across two weeks to compare how your recorded sport focus changes over time.")
-                    .font(AppFont.metadata)
-                    .foregroundStyle(Color.trameSubdued)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("progress-sport-focus-insufficient")
-            }
 
             if summary.sportEvidence.isEmpty {
                 Text(summary.completedWorkoutsInRange == 0
                     ? String(localized: "No completed training in this period.")
-                    : String(localized: "No authored sport classification is available for this period."))
+                    : String(localized: "No sport classification available."))
                 .font(AppFont.metadata)
                 .foregroundStyle(Color.trameSubdued)
                 .fixedSize(horizontal: false, vertical: true)
@@ -482,15 +395,12 @@ struct ProgressOverviewSection: View {
                             .frame(width: Spacing.xs, height: ComponentSize.minimumTouchTarget)
                             .accessibilityHidden(true)
 
-                        VStack(alignment: .leading, spacing: Spacing.xxs) {
-                            Text(evidence.discipline.title)
-                                .font(AppFont.body.weight(.semibold))
-                                .foregroundStyle(Color.trameText)
-                            Text(evidence.qualityLabel)
-                                .font(AppFont.micro)
-                                .foregroundStyle(Color.trameSubdued)
-                        }
+                        Text(evidence.discipline.title)
+                            .font(AppFont.body.weight(.semibold))
+                            .foregroundStyle(Color.trameText)
+
                         Spacer(minLength: Spacing.s)
+
                         Text("\(evidence.completedWorkoutCount)")
                             .font(AppFont.metricCompact)
                             .foregroundStyle(Color.trameText)
@@ -503,71 +413,8 @@ struct ProgressOverviewSection: View {
                     }
                 }
             }
-
-            Text("Completed workout snapshots with recorded sport identities. One workout may contribute to more than one sport; unavailable classifications are omitted, not counted as zero.")
-                .font(AppFont.micro)
-                .foregroundStyle(Color.trameSubdued)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("progress-overview-sport-method")
         }
         .overviewRowChrome(identifier: nil)
-    }
-
-    // MARK: - Inspect
-
-    @ViewBuilder
-    private func inspectRoutes(_ summary: ProgressOverviewSummary) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            TrameSectionRule(title: "Inspect")
-                .padding(.bottom, Spacing.s)
-
-            if let planID = summary.currentPlanID, let name = summary.currentPlanName {
-                Button { onOpenPlan?(planID) } label: {
-                    inspectRow(
-                        title: String(localized: "Current plan"),
-                        detail: [name, summary.currentPlanPhaseText].compactMap { $0 }.joined(separator: " · ")
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("progress-overview-current-plan")
-                Divider().overlay(Color.trameSeparator)
-            }
-
-            NavigationLink(value: ProgressRoute.supportingHistory(.mobility)) {
-                inspectRow(
-                    title: String(localized: "Mobility"),
-                    detail: "\(CountPhrase.sessions(summary.mobilitySessionsInRange)) · \(summary.assessmentRecencyText)"
-                )
-            }
-            .accessibilityIdentifier("progress-overview-mobility")
-
-            Divider().overlay(Color.trameSeparator)
-
-            NavigationLink(value: ProgressRoute.trainingJourney) {
-                inspectRow(
-                    title: String(localized: "Journey"),
-                    detail: [summary.latestChapterTitle, summary.journeySummaryText]
-                        .compactMap { $0 }
-                        .joined(separator: " · ")
-                )
-            }
-            .accessibilityIdentifier("progress-overview-journey")
-        }
-        .overviewRowChrome(identifier: nil)
-    }
-
-    private func inspectRow(title: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.xxs) {
-            Text(title)
-                .font(AppFont.body.weight(.semibold))
-                .foregroundStyle(Color.trameText)
-            Text(detail)
-                .font(AppFont.metadata)
-                .foregroundStyle(Color.trameSubdued)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget, alignment: .leading)
-        .contentShape(Rectangle())
     }
 
     // MARK: - States
