@@ -9,7 +9,7 @@ extension View {
             .tint(Color.trameStrength)
             .toolbarBackground(Color.trameCanvas, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.trameSurface, for: .tabBar)
+            .toolbarBackground(Color.trameCanvas, for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
     }
 

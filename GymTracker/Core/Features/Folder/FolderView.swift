@@ -61,7 +61,7 @@ struct FolderView: View {
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
-            .safeAreaPadding(.bottom)
+            .padding(.bottom, 96)
         }
         .onAppear(perform: resolveAssembly)
         .folderScreenStyle()
@@ -75,9 +75,13 @@ struct FolderView: View {
                 Button {
                     isCreateMenuPresented = true
                 } label: {
-                    Label("Create", systemImage: AppIcon.plus)
-                        .font(AppFont.subheadlineSemibold)
+                    Image(systemName: "square.and.pencil")
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(Color.trameText)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .accessibilityLabel("Create library item")
                 .accessibilityIdentifier("library-create")
                 .popover(
@@ -126,9 +130,7 @@ struct FolderView: View {
 
     private var searchField: some View {
         HStack(spacing: Spacing.s) {
-            Image(systemName: AppIcon.search)
-                .foregroundStyle(Color.trameSubdued)
-            TextField("Search workouts, plans, exercises", text: $searchText)
+            TextField("Search", text: $searchText)
                 .textInputAutocapitalization(.never)
                 .accessibilityIdentifier("library-search")
                 .autocorrectionDisabled()
@@ -199,7 +201,6 @@ struct FolderView: View {
                 NavigationLink(value: LibraryRoute.plans) {
                     LibraryItemRow(
                         title: "Plans",
-                        subtitle: "Ready-made and personal plans",
                         icon: AppIcon.plan,
                         color: Color.trameCompetition,
                         count: planCount
@@ -210,8 +211,7 @@ struct FolderView: View {
 
                 NavigationLink(value: LibraryRoute.workouts) {
                     LibraryItemRow(
-                        title: "Saved workouts",
-                        subtitle: "Single sessions you can start any time",
+                        title: "Workouts",
                         icon: AppIcon.routine,
                         color: Color.trameStrength,
                         count: workoutTemplates.count
@@ -223,7 +223,6 @@ struct FolderView: View {
                 NavigationLink(value: LibraryRoute.exercises) {
                     LibraryItemRow(
                         title: "Exercises",
-                        subtitle: "Every move you can add to a workout",
                         icon: AppIcon.workout,
                         color: Color.trameStrength,
                         count: exerciseTemplates.count
@@ -251,7 +250,6 @@ struct FolderView: View {
                     NavigationLink(value: LibraryRoute.mobilityPlans) {
                         LibraryItemRow(
                             title: "Plans",
-                            subtitle: "Multi-week routines that progress for you",
                             icon: AppIcon.plan,
                             color: Color.trameRecovery,
                             count: mobilityPlanCount
@@ -259,13 +257,11 @@ struct FolderView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("mobility-plans-browser")
-
                 }
 
                 NavigationLink(value: LibraryRoute.mobility) {
                     LibraryItemRow(
                         title: "Routines",
-                        subtitle: "Warm-ups, cool-downs and recovery",
                         icon: AppIcon.mobility,
                         color: Color.trameMobility,
                         count: mobilityRoutines.count
@@ -278,7 +274,6 @@ struct FolderView: View {
                     NavigationLink(value: LibraryRoute.mobilityAssessments) {
                         LibraryItemRow(
                             title: "Assessments",
-                            subtitle: "Measure range and track it over time",
                             icon: AppIcon.mobilityAssessment,
                             color: Color.trameMobility
                         )

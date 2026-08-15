@@ -60,7 +60,7 @@ struct BuiltInBadge: View {
 
 struct LibraryItemRow: View {
     let title: String
-    let subtitle: String?
+    var subtitle: String? = nil
     let icon: String
     let color: Color
     var count: Int?
@@ -69,7 +69,7 @@ struct LibraryItemRow: View {
 
     var body: some View {
         HStack(spacing: Spacing.m) {
-            TrameCategoryTile(systemImage: icon, fill: color)
+            TrameCategoryTile(systemImage: icon, fill: color, size: ComponentSize.iconChip)
             VStack(alignment: .leading, spacing: Spacing.xxs) {
                 HStack(spacing: Spacing.xs) {
                     Text(title)
@@ -81,7 +81,7 @@ struct LibraryItemRow: View {
                         BuiltInBadge(text: badge)
                     }
                 }
-                if let subtitle {
+                if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
                         .font(AppFont.metadata)
                         .foregroundStyle(Color.trameSubdued)
@@ -246,13 +246,11 @@ struct RecentLibraryRow: View {
 }
 
 struct LibrarySectionTitle: View {
-    let title: String
-    init(_ title: String) { self.title = title }
+    let title: LocalizedStringKey
+    init(_ title: LocalizedStringKey) { self.title = title }
+    init(_ title: String) { self.title = LocalizedStringKey(title) }
 
     var body: some View {
-        Text(title.uppercased())
-            .font(AppFont.eyebrow)
-            .tracking(0.8)
-            .foregroundStyle(Color.trameSubdued)
+        TrameSectionRule(title: title)
     }
 }

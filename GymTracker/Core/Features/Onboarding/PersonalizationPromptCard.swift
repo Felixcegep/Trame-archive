@@ -51,67 +51,61 @@ enum PersonalizationPromptPolicy {
     }
 }
 
-/// A passive card, not a sheet.
+/// A minimal, compact Trame editorial row for personalization.
 ///
-/// It sits in the page and waits. Nothing about it blocks History, the next
-/// workout, or anything else — which is the whole difference between an offer
-/// and an interruption.
+/// Discloses purpose ("Personalise training") and cost ("3 questions")
+/// without competing with the primary workout card.
 struct PersonalizationPromptCard: View {
     let onPersonalize: () -> Void
     let onNotNow: () -> Void
     let onNeverAsk: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.m) {
-            HStack(spacing: Spacing.m) {
-                Image(systemName: AppIcon.muscles)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymPrimary)
-                    .frame(width: 34, height: 34)
-                    .background(
-                        Color.gymPrimary.opacity(0.12),
-                        in: RoundedRectangle(cornerRadius: Radius.medium)
+        HStack(spacing: Spacing.m) {
+            Button(action: onPersonalize) {
+                HStack(spacing: Spacing.m) {
+                    TrameCategoryTile(
+                        systemImage: AppIcon.siri,
+                        fill: Color.trameCompetition,
+                        size: ComponentSize.iconChip
                     )
-                    .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text("Want plans picked for how you train?")
-                        .font(AppFont.headlineSemibold)
-                        .foregroundStyle(Color.gymText)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text("A few questions, and nothing you have already logged changes.")
-                        .font(AppFont.subheadline)
-                        .foregroundStyle(Color.gymSubduedText)
-                        .fixedSize(horizontal: false, vertical: true)
+                    VStack(alignment: .leading, spacing: Spacing.xxs) {
+                        Text("Personalise training")
+                            .font(AppFont.bodyMedium)
+                            .foregroundStyle(Color.trameText)
+                        Text("3 questions")
+                            .font(AppFont.metadata)
+                            .foregroundStyle(Color.trameSubdued)
+                    }
+
+                    Spacer(minLength: Spacing.s)
+
+                    Image(systemName: AppIcon.chevronRight)
+                        .font(AppFont.micro)
+                        .foregroundStyle(Color.trameSubdued)
                 }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.gymPress)
+            .accessibilityIdentifier("personalization-accept")
+            .accessibilityLabel("Personalise training, 3 questions")
+            .accessibilityHint("Opens personalization flow.")
 
-            HStack(spacing: Spacing.s) {
-                Button("Personalise", action: onPersonalize)
-                    .buttonStyle(.gymPrimary)
-                    .accessibilityIdentifier("personalization-accept")
-
-                Button("Not now", action: onNotNow)
-                    .font(AppFont.subheadlineSemibold)
-                    .foregroundStyle(Color.gymSubduedText)
-                    .frame(minHeight: ComponentSize.minimumTouchTarget)
-                    .buttonStyle(.gymPress)
-                    .accessibilityIdentifier("personalization-defer")
+            Button(action: onNotNow) {
+                Image(systemName: AppIcon.remove)
+                    .font(AppFont.captionBold)
+                    .foregroundStyle(Color.trameSubdued)
+                    .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                    .contentShape(Rectangle())
             }
-
-            Button("Don’t ask again", action: onNeverAsk)
-                .font(AppFont.footnote)
-                .foregroundStyle(Color.gymSubduedText)
-                .frame(minHeight: ComponentSize.minimumTouchTarget)
-                .buttonStyle(.gymPress)
-                .accessibilityIdentifier("personalization-decline")
+            .buttonStyle(.gymPress)
+            .accessibilityIdentifier("personalization-defer")
+            .accessibilityLabel("Dismiss personalisation prompt")
         }
-        .padding(Spacing.l)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gymCard, in: RoundedRectangle(cornerRadius: Radius.large, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
-                .stroke(Color.gymBorder, lineWidth: 1)
+        .padding(.vertical, Spacing.xs)
+        .overlay(alignment: .bottom) {
+            Divider().overlay(Color.trameSeparator)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("personalization-prompt")

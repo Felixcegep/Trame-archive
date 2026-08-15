@@ -204,28 +204,38 @@ struct HomeView: View {
             }
             .padding(.horizontal, Spacing.screenInset)
             .padding(.top, Spacing.s)
-            .padding(.bottom, Spacing.xxxl)
+            .padding(.bottom, 96)
         }
         .scrollIndicators(.hidden)
-        .foregroundStyle(Color.gymText)
-        .background(Color.gymBackground)
-        .tint(Color.gymPrimary)
+        .foregroundStyle(Color.trameText)
+        .background(Color.trameCanvas)
+        .tint(Color.trameStrength)
         .navigationTitle("Today")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.gymBackground, for: .navigationBar, .tabBar)
+        .toolbarBackground(Color.trameCanvas, for: .navigationBar, .tabBar)
         .toolbarBackground(.visible, for: .navigationBar, .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(action: onOpenTrainingCalendar) {
-                    Label("Training Calendar", systemImage: AppIcon.plan)
+                    Image(systemName: AppIcon.plan)
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(Color.trameText)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("open-training-calendar")
                 .accessibilityLabel("Training Calendar")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: onOpenSettings) {
-                    Label("Settings", systemImage: AppIcon.settings)
+                    Image(systemName: AppIcon.settings)
+                        .font(AppFont.bodyMedium)
+                        .foregroundStyle(Color.trameText)
+                        .frame(width: ComponentSize.minimumTouchTarget, height: ComponentSize.minimumTouchTarget)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("open-settings")
                 .accessibilityLabel("Settings")
             }

@@ -75,7 +75,7 @@ struct HomeWeekSummaryCard: View {
         return VStack(alignment: .leading, spacing: Spacing.m) {
             TrameSectionRule(title: "Week")
 
-            VStack(spacing: Spacing.l) {
+            VStack(alignment: .leading, spacing: Spacing.l) {
                 TrameMetric(
                     value: "\(weekSummary.workoutCount)",
                     label: weekSummary.workoutCount == 1 ? "session" : "sessions",
@@ -94,27 +94,19 @@ struct HomeWeekSummaryCard: View {
                 }
 
                 if !weekSummary.hasTraining && !isPrimaryCardOfferingStart {
-                    Divider().overlay(Color.gymBorder)
+                    Divider().overlay(Color.trameSeparator)
 
                     Button(action: onStartWorkout) {
                         Text("Start a session today")
                             .font(AppFont.captionBold)
-                            .foregroundStyle(Color.gymPrimary)
+                            .foregroundStyle(Color.trameStrength)
                             .frame(maxWidth: .infinity, minHeight: ComponentSize.minimumTouchTarget)
                     }
                     .buttonStyle(.gymPress)
                     .accessibilityIdentifier("today-week-start-session")
                 }
             }
-            .padding(Spacing.l)
-            .background {
-                RoundedRectangle(cornerRadius: Radius.editorialGroup, style: .continuous)
-                    .fill(Color.gymTodayWeekSurface)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.editorialGroup, style: .continuous)
-                    .stroke(Color.gymBorder, lineWidth: 1)
-            }
+            .padding(.top, Spacing.xs)
         }
         // One stop, not fifteen. Read day by day this card is a stutter of
         // single letters; read as a sentence it is the same information.
@@ -127,7 +119,7 @@ struct HomeWeekSummaryCard: View {
         VStack(spacing: Spacing.s) {
             Text(day.initial)
                 .font(AppFont.captionBold)
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
 
             mark(for: day)
                 // Today's mark gets the one settle beat, after the sweep has
@@ -138,7 +130,7 @@ struct HomeWeekSummaryCard: View {
             Text(day.date.formatted(.dateTime.day()))
                 .font(AppFont.caption2)
                 .monospacedDigit()
-                .foregroundStyle(Color.gymSubduedText)
+                .foregroundStyle(Color.trameSubdued)
         }
         .frame(maxWidth: .infinity)
     }

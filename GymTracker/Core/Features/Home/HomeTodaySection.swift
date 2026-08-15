@@ -23,14 +23,14 @@ struct HomeTodaySection: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Divider().overlay(Color.gymBorder)
+            Divider().overlay(Color.trameSeparator)
 
             if let activeMobilitySession {
                 resumeMobilityRow(activeMobilitySession)
-                Divider().overlay(Color.gymBorder)
+                Divider().overlay(Color.trameSeparator)
             } else if let dueProgramSession {
                 dueMobilityProgramRow(dueProgramSession)
-                Divider().overlay(Color.gymBorder)
+                Divider().overlay(Color.trameSeparator)
             }
 
             quickAccessRow(
@@ -43,7 +43,7 @@ struct HomeTodaySection: View {
             )
 
             if featureFlags.isEnabled(.mobility) {
-                Divider().overlay(Color.gymBorder)
+                Divider().overlay(Color.trameSeparator)
 
                 quickAccessRow(
                     title: "Mobility",
@@ -55,7 +55,7 @@ struct HomeTodaySection: View {
                 )
             }
 
-            Divider().overlay(Color.gymBorder)
+            Divider().overlay(Color.trameSeparator)
         }
     }
 
@@ -176,20 +176,20 @@ struct HomeTodaySection: View {
                 TrameCategoryTile(
                     systemImage: icon,
                     fill: surface,
-                    size: ComponentSize.todayQuickAccessIcon
+                    size: ComponentSize.iconChip
                 )
 
                 Text(title)
-                    .font(AppFont.headlineSemibold)
-                    .foregroundStyle(Color.gymText)
+                    .font(AppFont.bodyMedium)
+                    .foregroundStyle(Color.trameText)
 
                 Spacer(minLength: Spacing.s)
 
                 Image(systemName: AppIcon.chevronRight)
-                    .font(AppFont.captionBold)
-                    .foregroundStyle(Color.gymSubduedText)
+                    .font(AppFont.micro)
+                    .foregroundStyle(Color.trameSubdued)
             }
-            .padding(.vertical, Spacing.s)
+            .padding(.vertical, Spacing.md)
             .frame(minHeight: ComponentSize.minimumTouchTarget)
             .contentShape(Rectangle())
         }

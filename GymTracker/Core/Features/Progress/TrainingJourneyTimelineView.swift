@@ -388,12 +388,12 @@ struct TrainingJourneyTimelineView: View {
                     y: CGFloat(segment.sublane) * (barHeight + sublaneSpacing)
                 )
                 .accessibilityLabel(segmentAccessibilityLabel(segment))
-                .accessibilityHint("Select this chapter's evidence")
+                .accessibilityHint("Selects this chapter's start date")
                 .accessibilityIdentifier("training-journey-timeline-segment-\(segment.chapterID)")
             }
 
-            Capsule()
-                .fill(Color.gymAccent)
+            Rectangle()
+                .fill(Color.trameText)
                 .frame(width: Spacing.xxs, height: trackHeight - Spacing.xs)
                 .offset(x: cursorPosition * chartWidth)
                 .accessibilityHidden(true)
@@ -501,18 +501,14 @@ struct TrainingJourneyTimelineView: View {
 
     private func laneTint(_ lane: TrainingJourneyTimelineLane) -> Color {
         switch lane {
-        case .fixedPlan: .gymPrimary
-        case .repeatingPlan: .gymSecondary
-        case .freeTraining: .gymAccent
+        case .fixedPlan: .chartAqua
+        case .repeatingPlan: .chartViolet
+        case .freeTraining: .chartOrange
         }
     }
 
-    private func laneSurface(_ lane: TrainingJourneyTimelineLane) -> Color {
-        switch lane {
-        case .fixedPlan: .gymPrimarySurface
-        case .repeatingPlan: .gymSecondarySurface
-        case .freeTraining: .gymAccentSurface
-        }
+    private func laneSurface(_: TrainingJourneyTimelineLane) -> Color {
+        Color.trameRow
     }
 
     private func segmentAccessibilityLabel(_ segment: TrainingJourneyTimelineSegment) -> String {
@@ -555,11 +551,11 @@ struct TrainingJourneyTimelineView: View {
     }
 
     private func transitionTint(_ marker: TrainingJourneyPracticeTransitionMarker) -> Color {
-        marker.kind.isDeclared ? .gymPrimary : (marker.isObserved ? .gymSecondary : .gymAccent)
+        marker.kind.isDeclared ? .trameStrength : (marker.isObserved ? .trameCompleted : .trameAttention)
     }
 
-    private func transitionSurface(_ marker: TrainingJourneyPracticeTransitionMarker) -> Color {
-        marker.kind.isDeclared ? .gymPrimarySurface : (marker.isObserved ? .gymSecondarySurface : .gymAccentSurface)
+    private func transitionSurface(_: TrainingJourneyPracticeTransitionMarker) -> Color {
+        .trameRow
     }
 
     private func isMarkerSelected(_ marker: TrainingJourneyPracticeTransitionMarker) -> Bool {

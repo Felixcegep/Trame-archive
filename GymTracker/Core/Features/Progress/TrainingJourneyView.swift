@@ -322,9 +322,9 @@ struct TrainingJourneyView: View {
 
     private func tint(for kind: TrainingJourneyChapter.Kind) -> Color {
         switch kind {
-        case .fixedPlan: .trameStrength
-        case .repeatingPlan: .trameCompleted
-        case .freeTraining: .trameSubdued
+        case .fixedPlan: .chartAqua
+        case .repeatingPlan: .chartViolet
+        case .freeTraining: .chartOrange
         }
     }
 

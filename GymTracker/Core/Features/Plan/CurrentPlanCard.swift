@@ -38,14 +38,7 @@ struct CurrentPlanCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            // Following cards already name their status in the card eyebrow.
-            // Repeating the same label immediately above the hero spent a full
-            // row on duplicate hierarchy. Empty and ambiguous states still
-            // need the section title because their cards cannot truthfully say
-            // "Current plan."
-            if summary.kind == .none || summary.kind == .ambiguous {
-                LibrarySectionTitle("Current plan")
-            }
+            TrameSectionRule(title: "Plan")
             card
         }
         .confirmationDialog(
@@ -87,25 +80,19 @@ struct CurrentPlanCard: View {
 private extension CurrentPlanCard {
     var emptyCard: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            Text(summary.title)
-                .font(AppFont.titleSmall)
-                .foregroundStyle(Color.trameText)
-            Text(summary.detail)
-                .font(AppFont.subheadline)
-                .foregroundStyle(Color.trameSubdued)
-                .fixedSize(horizontal: false, vertical: true)
+            TrameMetric(
+                value: "NONE",
+                label: "ACTIVE",
+                accessibilityLabel: String(localized: "No active plan")
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityHidden(true)
 
-            Button("Choose a plan", action: onChoosePlan)
-            .buttonStyle(.tramePrimaryAction)
-            .accessibilityIdentifier("choose-a-plan")
+            Button("Choose plan", action: onChoosePlan)
+                .buttonStyle(.tramePrimaryAction)
+                .accessibilityIdentifier("choose-a-plan")
         }
-        .padding(Spacing.l)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.trameSurface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.trameSeparator, lineWidth: 1)
-        }
+        .padding(.top, Spacing.xs)
         .accessibilityIdentifier("current-plan-empty")
     }
 

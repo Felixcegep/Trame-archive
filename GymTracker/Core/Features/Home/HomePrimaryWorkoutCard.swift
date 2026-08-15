@@ -20,7 +20,7 @@ struct HomePrimaryWorkoutCard: View {
             fill: .gymTodayHero,
             ink: .gymTodayHeroInk,
             border: .gymTodayHeroDivider,
-            radius: Radius.hero
+            radius: Radius.card
         ) {
             VStack(alignment: .leading, spacing: 0) {
                 Button(action: onOpen) {
